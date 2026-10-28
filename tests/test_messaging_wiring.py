@@ -271,15 +271,13 @@ async def test_a_message_and_our_ack_to_an_rf_only_station_end_with_rfonly_and_t
 async def test_the_station_path_comes_before_rfonly_and_a_path_that_has_rfonly_or_nogate_gets_no_second(tmp_path: Path) -> None:
     e = await started(tmp_path)
     await e.ctl.prefbook.set_rf_only("OH2RDG", True)
-    await e.ctl.prefbook.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
-    await e.ctl.messaging.send("OH2RDG", "one")
-    await e.ctl.prefbook.set_path("OH2RDG", "RFONLY,OH2RCH-2")
-    await e.ctl.messaging.send("OH2RDG", "two")
-    await e.ctl.prefbook.set_path("OH2RDG", "OH2RCH-2,NOGATE")
-    await e.ctl.messaging.send("OH2RDG", "three")
-    await e.ctl.prefbook.set_path("OH2RDG", "DIRECT")
-    await e.ctl.messaging.send("OH2RDG", "four")
-    assert [f.tnc2() for f in await said(e, 4)] == [
+    frames: list[str] = []
+    for path, text in (("OH2RCH-2,WIDE2-1", "one"), ("RFONLY,OH2RCH-2", "two"), ("OH2RCH-2,NOGATE", "three"), ("DIRECT", "four")):
+        await e.ctl.prefbook.set_path("OH2RDG", path)
+        record = await e.ctl.messaging.send("OH2RDG", text)
+        frames += [f.tnc2() for f in await said(e)]
+        e.ctl.messaging.cancel(record.id)                                           # (one message to a station is on the air at a time: the next goes when this one is settled)
+    assert frames == [
         "OH2GBA>APZNEO,OH2RCH-2,WIDE2-1,RFONLY::OH2RDG   :one{01}", "OH2GBA>APZNEO,RFONLY,OH2RCH-2::OH2RDG   :two{02}",
         "OH2GBA>APZNEO,OH2RCH-2,NOGATE::OH2RDG   :three{03}", "OH2GBA>APZNEO,RFONLY::OH2RDG   :four{04}"]
     await e.stop()

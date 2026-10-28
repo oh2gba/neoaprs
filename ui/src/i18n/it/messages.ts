@@ -43,6 +43,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
 
   "messages.attempt": "tentativo {attempt} di {max}",
   "messages.state.overheard": "per {call}",
+  "messages.state.queued": "attende il messaggio precedente",
   "messages.state.waiting": "in attesa della radio",
   "messages.state.sending": "invio, tentativo {attempt} di {max}",
   "messages.state.acked": { "=1": "confermato, inviato una volta", other: "confermato, inviato {n} volte" },

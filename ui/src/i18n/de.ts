@@ -235,6 +235,7 @@ export const de: Catalogue = {
 
   "messages.attempt": "Versuch {attempt} von {max}",
   "messages.state.overheard": "für {call}",
+  "messages.state.queued": "wartet auf die Nachricht davor",
   "messages.state.waiting": "wartet auf das Funkgerät",
   "messages.state.sending": "sendet, Versuch {attempt} von {max}",
   "messages.state.acked": { "=1": "quittiert, einmal gesendet", other: "quittiert, {n}-mal gesendet" },

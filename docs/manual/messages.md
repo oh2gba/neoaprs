@@ -26,11 +26,17 @@ The same frame is sent again until the addressee answers: 4 times in all, and 2 
 
 An ack from the addressee that quotes your id makes the message *acked*. A reject makes it *rejected*. Either ends the attempts, and one that comes late still settles a message that has failed, is unconfirmed or was cancelled.
 
-**Cancel** stops a message that is being sent. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id. The small trash can beside Retry deletes such a message from the conversation (press it twice).
+**Cancel** stops a message that is being sent or is queued. **Retry** sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, with the same id. The small trash can beside Retry deletes such a message from the conversation (press it twice).
 
 While the station is RX only (Settings → Radio → RX only ticked, [beacon.md](beacon.md#rx-only)) a new message is refused with "RX only: nothing is sent", and the messages being sent wait in the same way as for a TNC that is away: no attempt is used up and none fails, and they go on when transmitting is switched on. The acks of messages you receive are not sent meanwhile.
 
 While the TNC is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the TNC is back. After a restart the schedule goes on from the latest attempt that was made.
+
+### One message to a station at a time
+
+Only one of your messages to a station is on the air at a time. When you write a second one while the first has not been acked, the second waits, with no attempt made, and goes as soon as the first is acked, rejected, failed or cancelled. So the station gets them in the order you wrote them, and a station that does not answer is not sent several at once to fill the channel. The waiting message is *queued*: a quiet bubble with a clock, "waits for the message before". **Cancel** on the first lets the next one go at once; Cancel on a queued one stops it before it was ever sent.
+
+Messages to different stations do not wait for each other (another SSID is another station). A message that is not expected to be acked never waits and holds nothing up: the email gateway's, a bulletin, a group message and a query. A failed message that you Retry while another to the station is on the air waits its turn too, and goes before the messages written after it.
 
 ### The pace
 
@@ -91,7 +97,7 @@ Resize the panel and the layout follows, with the same conversation open.
 
 - The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the path the messages to the station go by and the **RF only** tickbox; Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route.
 - The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2").
-- Each message of yours has a mark: a clock while it is being sent; a check once it is acked (the title has the time of the ack); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
+- Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
 - The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the TNC is not connected, or the text is empty or too long. There is no To field: the conversation is the station.
 - An overheard pair has no box to write in and no Route, only the bubbles, since the messages are not yours to answer.
 - What you typed stays when you go back to the list or open another conversation.

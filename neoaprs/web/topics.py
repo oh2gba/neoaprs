@@ -116,7 +116,7 @@ class Topics:
         return None if record is None else self._message_row(record)
 
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
-        return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id))
+        return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record))
 
     async def start(self) -> None:
         """The window starts with the packets the database holds, and from then on the signals tell the hub."""

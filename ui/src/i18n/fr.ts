@@ -231,6 +231,7 @@ export const fr: Catalogue = {
 
   "messages.attempt": "essai {attempt} sur {max}",
   "messages.state.overheard": "pour {call}",
+  "messages.state.queued": "attend le message précédent",
   "messages.state.waiting": "attend la radio",
   "messages.state.sending": "envoi, essai {attempt} sur {max}",
   "messages.state.acked": { "=1": "accusé reçu, envoyé une fois", other: "accusé reçu, envoyé {n} fois" },

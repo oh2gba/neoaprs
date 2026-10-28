@@ -44,6 +44,7 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "messages.attempt": "{attempt}/{max}回目",
   "messages.state.overheard": "{call}宛て",
+  "messages.state.queued": "前のメッセージを待っています",
   "messages.state.waiting": "無線機を待っています",
   "messages.state.sending": "送信中、{attempt}/{max}回目",
   "messages.state.acked": { other: "応答確認あり、{n}回送信" },

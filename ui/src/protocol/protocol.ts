@@ -592,8 +592,8 @@ export interface MessageRow {
   text: string;
   /** the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one */
   msg_id: string | null;
-  /** `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
-  state: "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
+  /** `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
+  state: "queued" | "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
   /** how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) */
   attempts: number;
   /** how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) */

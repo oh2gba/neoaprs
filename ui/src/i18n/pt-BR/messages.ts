@@ -44,6 +44,7 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "messages.attempt": "tentativa {attempt} de {max}",
   "messages.state.overheard": "para {call}",
+  "messages.state.queued": "aguarda a mensagem anterior",
   "messages.state.waiting": "aguardando o rádio",
   "messages.state.sending": "enviando, tentativa {attempt} de {max}",
   "messages.state.acked": { "=1": "confirmada, enviada uma vez", other: "confirmada, enviada {n} vezes" },

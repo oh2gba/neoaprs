@@ -42,6 +42,7 @@ export const messages = {
 
   "messages.attempt": "attempt {attempt} of {max}",
   "messages.state.overheard": "for {call}",
+  "messages.state.queued": "waits for the message before",
   "messages.state.waiting": "waiting for the radio",
   "messages.state.sending": "sending, attempt {attempt} of {max}",
   "messages.state.acked": { "=1": "acked, sent once", other: "acked, sent {n} times" },

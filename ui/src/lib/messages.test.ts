@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bytesLeft,
   canCancel,
+  canDelete,
   canRetry,
   conversationName,
   conversations,
@@ -142,6 +143,18 @@ describe("messages: the state", () => {
     expect(stateText(incoming(1, "A"))).toBe("");
   });
 
+  it("says a message that waits for the one before it to the same station is queued, with no attempt told", () => {
+    expect(stateText(message(2, { state: "queued", attempts: 0 }))).toBe("waits for the message before");
+  });
+
+  it("offers Cancel and not Retry for a queued message: the daemon stops it as it does one being sent", () => {
+    expect([canRetry(message(2, { state: "queued" })), canCancel(message(2, { state: "queued" })), canDelete(message(2, { state: "queued" }))]).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
   it("offers Retry for a message that did not get through and Cancel for one being sent", () => {
     for (const state of ["failed", "unconfirmed", "rejected", "cancelled"] as const) {
       expect([canRetry(message(1, { state })), canCancel(message(1, { state }))]).toEqual([true, false]);
@@ -195,6 +208,10 @@ describe("messages: the mark", () => {
     expect(markOf(message(1, { state: "sending", attempts: 2, attempts_max: 10 }))?.title).toBe("attempt 2 of 10");
     expect(markOf(message(1, { state: "sending", attempts: 0 }))).toEqual({ kind: "clock", title: "waiting for the radio" });
     expect(attemptText(message(1, { attempts: 1, attempts_max: 3 }))).toBe("attempt 1 of 3");
+  });
+
+  it("is a clock for a queued message too, its title saying that it waits for the message before", () => {
+    expect(markOf(message(2, { state: "queued", attempts: 0 }))).toEqual({ kind: "clock", title: "waits for the message before" });
   });
 
   it("is a check once acked, with the time of the ack for the title", () => {

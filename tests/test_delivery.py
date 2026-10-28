@@ -179,9 +179,9 @@ async def test_the_attempts_and_hops_are_kept_across_a_restart(chain: Chain) -> 
 
 async def test_a_message_that_is_deleted_takes_its_chain_with_it_and_another_messages_stays(chain: Chain) -> None:
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
-    await chain.rig.m.send("OH2RDG", "Second")
+    await chain.rig.m.send("OH2AAA", "Second")                                     # (to another station: a second one to OH2RDG would wait for the first)
     chain.hear(chain.copy("OH2RCH-2*,OH2RDG"))
-    chain.hear(chain.copy("OH2RCH-2*", text="Second", msg_id="02"))
+    chain.hear(chain.copy("OH2RCH-2*", to="OH2AAA", text="Second", msg_id="02"))
     assert len(await chain.rows("message_hop")) == 2
     await chain.rig.m.delete(1)
     assert [tuple(r)[:2] for r in await chain.rows("message_hop")] == [(2, 1)] and [tuple(r)[:2] for r in await chain.rows("message_attempt")] == [(2, 1)]

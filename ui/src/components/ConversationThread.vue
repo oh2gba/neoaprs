@@ -42,7 +42,14 @@ const copy = useCopyMenu((bubble) => {
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
         <MessageMark v-if="m.state === 'sending'" :row="m" />
       </p>
-      <div v-else class="bubble copysource" :class="m.direction === 'in' ? 'in' : 'out'" :data-direction="m.direction" :data-id="m.id" v-on="copy.on.value">
+      <div
+        v-else
+        class="bubble copysource"
+        :class="[m.direction === 'in' ? 'in' : 'out', { queued: m.state === 'queued' }]"
+        :data-direction="m.direction"
+        :data-id="m.id"
+        v-on="copy.on.value"
+      >
         <p class="bubble-text">{{ m.text }}</p>
         <p class="bubble-meta muted">
           <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>

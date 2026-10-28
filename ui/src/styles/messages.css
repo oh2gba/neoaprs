@@ -220,6 +220,10 @@
   border-color: transparent;
   background: var(--row-selected);
 }
+/* a message of ours that waits for the one before it to the same station (queued): quiet until its turn comes */
+.bubble.out.queued .bubble-text {
+  color: var(--muted);
+}
 .bubble p {
   margin: 0;
 }

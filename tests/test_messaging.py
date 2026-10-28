@@ -305,7 +305,7 @@ async def test_a_message_keeps_the_number_of_attempts_it_was_sent_with_after_a_r
     give(3)
     await rig.m.send("OH2RDG", "first")
     give(5)
-    second = await rig.m.send("OH2RDG", "second")
+    second = await rig.m.send("OH2AAA", "second")                                  # (to another station, so that the two are on the air side by side)
     assert (rig.state(1).attempts_max, second.attempts_max) == (3, 5)
     await rig.settled()
     assert [m.attempts_max for m in await rig.log.recent()] == [5, 3], "the number is in the database"

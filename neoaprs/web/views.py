@@ -101,8 +101,9 @@ def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:
     return {"call": call if seen is None else seen.call, "heard": radio is not None, "heard_at": None if seen is None else iso(seen.heard_at), "by_internet": net is not None}
 
 
-def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = ()) -> dict[str, Any]:
-    return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts))
+def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False) -> dict[str, Any]:
+    """The page's row of a message; `queued` (services/messaging.py, Messaging.queued) for one of ours that waits for another to the same station, which the database keeps as `sending`."""
+    return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts), state="queued" if queued else record.state)
 
 
 def bulletin_row(record: BulletinRecord) -> dict[str, Any]:

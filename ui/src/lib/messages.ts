@@ -140,6 +140,8 @@ export function stateText(row: MessageRow): string {
       return "";
     case "overheard":
       return t("messages.state.overheard", { call: row.to_call });
+    case "queued":
+      return t("messages.state.queued");
     case "sending":
       return n === 0 ? t("messages.state.waiting") : t("messages.state.sending", { attempt: n, max: row.attempts_max });
     case "acked":
@@ -165,9 +167,9 @@ export function canDelete(row: MessageRow): boolean {
   return canRetry(row);
 }
 
-/** A message of ours that is being sent can be stopped. */
+/** A message of ours that is being sent, or waits for the one before it to the same station (queued), can be stopped. */
 export function canCancel(row: MessageRow): boolean {
-  return row.direction === "out" && row.state === "sending";
+  return row.direction === "out" && (row.state === "sending" || row.state === "queued");
 }
 
 /** The path a message to the station goes by: its own when it has one (empty is direct), else the beacon's. `own` says which. */
@@ -184,11 +186,13 @@ interface Mark {
   title: string;
 }
 
-/** The small mark on a message of ours: a clock while it is being sent (the title says which attempt), a check once acked (the title has the time of the ack), a hollow check when its attempts were used up with no ack and none was expected (the station was given 1 or 2), a cross when it failed or was rejected, a dash when
+/** The small mark on a message of ours: a clock while it is being sent (the title says which attempt) or waits for the message before it to the station (queued), a check once acked (the title has the time of the ack), a hollow check when its attempts were used up with no ack and none was expected (the station was given 1 or 2), a cross when it failed or was rejected, a dash when
  * it was cancelled. None for a message that came in or was overheard: it has its time only. */
 export function markOf(row: MessageRow): Mark | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
+    case "queued":
+      return { kind: "clock", title: t("messages.state.queued") };
     case "sending":
       return { kind: "clock", title: row.attempts === 0 ? t("messages.state.waiting") : attemptText(row) };
     case "acked":

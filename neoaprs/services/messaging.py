@@ -8,6 +8,9 @@ are made 4 times, 2 for the email gateway (message.attempts_for; the record keep
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
 A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
 station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
+One message to a station is on the air at a time (`queued`): a message to a station that another message of ours to it is still being sent to waits, with no attempt made, until that one is acked, rejected, failed or cancelled,
+and then goes; so the messages arrive in the order they were written, and an unanswering station is not sent several at once. The one on the air is the one that has had an attempt, else the oldest. A message that is
+not expected to be acked (given 1 or 2 attempts: the email gateway, a bulletin, a query) neither waits nor holds another up. The database keeps a waiting message as `sending`, with no attempt; the page is told it as `queued`.
 While the Tnc is not connected, or the radio is silent, or transmitting is switched off (receive only: `station/transmit`), an attempt that is due waits (it is not used up, nothing fails, the waits that were running are moved on by the time it
 was away) and the log says so once; a new message, and a retry, is refused at once while it is switched off (code `transmit.off`) and an ack for a message we receive is not sent (nothing is queued).
 
@@ -36,7 +39,7 @@ from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
@@ -54,6 +57,11 @@ log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
 _RETRYABLE = ("failed", "unconfirmed", "rejected", "cancelled")
+
+
+def _in_line(record: MessageRecord) -> bool:
+    """A message of ours that is being sent and is expected to be acked: one of those that go to a station one at a time."""
+    return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
 
 
 def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
@@ -100,6 +108,16 @@ class Messaging:
 
     def get(self, number: int) -> MessageRecord | None:
         return self._records.get(number)
+
+    def queued(self, record: MessageRecord) -> bool:
+        """Whether the message waits for another of ours to the same station (one that has had an attempt, or an older one that has not) to be acked, rejected, failed or cancelled: no attempt of it is made meanwhile."""
+        if not _in_line(record) or record.attempts > 0:
+            return False
+        return any(other.id != record.id and other.to_call == record.to_call and _in_line(other) and (other.attempts > 0 or other.id < record.id) for other in self._records.values())
+
+    def _line_of(self, record: MessageRecord) -> list[MessageRecord]:
+        """The other messages of ours being sent to the same station: whether each waits may have changed with this one."""
+        return [other for other in self._records.values() if other.id != record.id and other.to_call == record.to_call and _in_line(other)]
 
     # ---- life
     async def start(self) -> None:
@@ -248,8 +266,8 @@ class Messaging:
             raise MessagingError(f"the settings make no frame: {e}") from None
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
-        """Transmits the message once, when the radio can; the message as it is after that."""
-        if not self.retries.radio_up() or self.pace.too_soon():
+        """Transmits the message once, when the radio can and it does not wait for another to the same station (`queued`); the message as it is after that."""
+        if self.queued(record) or not self.retries.radio_up() or self.pace.too_soon():
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
@@ -274,13 +292,16 @@ class Messaging:
 
     # ---- keeping
     def put(self, record: MessageRecord) -> None:
-        """A new or changed message: held, planned, kept in the database and told."""
-        known = record.id in self._records
+        """A new or changed message: held, planned, kept in the database and told. When its state changed, the other messages being sent to the station are told again: one of them may wait, or not, now."""
+        before = self._records.get(record.id)
         self._records[record.id] = record
         self.retries.plan(record)
-        if known:
+        if before is not None:
             self._log.update_state(record)
         self.changed.emit(record)
+        if record.direction == "out" and (before is None or before.state != record.state):
+            for other in self._line_of(record):
+                self.changed.emit(other)
 
     def forget_heard(self, keep_days: int) -> None:
         """The daily care: the memory of when each message was heard, which tells a repeat from a new message, is dropped for what is older than `keep_days` days. The messages themselves stay."""

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **One message to a station at a time.** A message you write to a station while your earlier one to it is still waiting for its ack is *queued*: it waits, quietly, with no attempt made, and goes as soon as the earlier one is acked, rejected, failed or cancelled. The station gets your messages in the order you wrote them and the channel is not filled with several at once. Messages to different stations, and those to the email gateway, bulletins and queries, do not wait. Cancel works on a queued message too.
+
 ## 0.12.0
 
 - **A menu on the map, and a statistics card.** A right-click on the map (a long press on a touch screen) opens a menu where the pointer is: Copy position (decimal degrees), Copy locator, and **Statistics**, which opens a card at the bottom right of the map with what the page has heard, counted up: the stations by how they were heard and what they run, the digipeaters and iGates, the ALOHA circle, the farthest stations direct and on the radio, the digipeaters most used, the packets in the database and in the last hour, the busiest station, the latest packets by kind and channel, and the radio's counters since the daemon started. At its top is a graph of the packets heard in each of the last 24 hours, counted by the daemon from its database (a new command, `packet_history`). It moves as packets come, Esc closes it with the station cards, and the browser remembers that it is open.
