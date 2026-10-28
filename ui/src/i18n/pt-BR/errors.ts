@@ -25,6 +25,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.not_found":
     "nenhum rádio respondeu nas portas tentadas (um TNC KISS não diz nada até ouvir um pacote: tente de novo quando o canal estiver movimentado)",
   "error.radio.not_running": "não há nenhuma busca do rádio em andamento",
+  "error.alert.km_range": "a distância de um aviso é de {min} a {max} km, não {km}",
+  "error.alert.own": "{call} é nossa: um aviso é para outra estação",
   "error.message.control": "o texto tem um caractere de controle",
   "error.message.empty": "a mensagem está vazia",
   "error.message.forbidden": "o texto tem {chars}, que uma mensagem não pode conter (não são permitidos: {forbidden})",

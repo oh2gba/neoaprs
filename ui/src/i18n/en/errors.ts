@@ -23,6 +23,8 @@ export const errors = {
   "error.radio.no_ports": "there is no port to try: none is listed that the search looks at",
   "error.radio.not_found": "no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)",
   "error.radio.not_running": "no search for the radio is running",
+  "error.alert.km_range": "the distance of an alert is {min} to {max} km, not {km}",
+  "error.alert.own": "{call} is our own: an alert is for another station",
   "error.message.control": "the text has a control character",
   "error.message.empty": "the message is empty",
   "error.message.forbidden": "the text has {chars}, which a message cannot carry ({forbidden} are not allowed)",

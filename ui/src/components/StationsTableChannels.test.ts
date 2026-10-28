@@ -71,7 +71,7 @@ describe("how a station was heard, in the Stations table", () => {
     for (const tr of wrapper.findAll("tbody tr[data-call]")) {
       const cells = tr.findAll("td").map((td) => td.classes()[0]);
       expect(cells.slice(0, 3)).toEqual(["symbol", "mono", "heard"]);
-      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname"]);
+      expect([...tr.get("td.call").element.children].map((c) => c.className.split(" ")[0])).toEqual(["callname", "alert-bell"]); // (the place of the bell of an alert, empty or not)
       expect(
         tr
           .get("td.heard .via")

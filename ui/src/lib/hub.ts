@@ -14,6 +14,7 @@ import type {
   PacketRow,
   PortsMessage,
   RadioSearchMessage,
+  StationAlertMessage,
   StationPref,
   StationRow,
   StatusMessage,
@@ -60,6 +61,8 @@ export interface Store {
   releaseNotes(message: ReleaseNotesMessage): void;
   ports(message: PortsMessage): void;
   radioSearch(message: RadioSearchMessage): void;
+  /** an alert set on a station fired (not an answer: every page is told, once) */
+  stationAlert(message: StationAlertMessage): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
@@ -235,6 +238,9 @@ export class Hub {
         break;
       case "patch":
         this.onPatch(message.topic, message.rev, message.ops);
+        break;
+      case "station_alert":
+        this.store.stationAlert(message);
         break;
       default:
         this.answer(message);

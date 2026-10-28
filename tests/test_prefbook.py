@@ -58,7 +58,7 @@ async def test_a_path_and_rf_only_are_kept_by_the_call_and_read_back_by_the_next
     assert rig.book.path_for("OH2XYZ") == (), "empty is direct"
     assert rig.book.path_for("OH2RDG-7") == ("WIDE1-1", "WIDE2-1"), "another SSID is another station"
     assert rig.book.paths() == {"OH2RDG": ("OH2RCH-2", "WIDE2-1"), "OH2XYZ": ()}
-    assert await rig.log.prefs() == {"OH2RDG": ("OH2RCH-2,WIDE2-1", False), "OH2PU-9": (None, True), "OH2XYZ": ("", False)}
+    assert await rig.log.prefs() == {"OH2RDG": ("OH2RCH-2,WIDE2-1", False, None), "OH2PU-9": (None, True, None), "OH2XYZ": ("", False, None)}
     again = restart()
     await again.book.load()
     assert again.book.all() == rig.book.all()
@@ -117,11 +117,11 @@ async def test_clearing_one_part_keeps_the_other_and_clearing_the_last_removes_t
     await rig.book.set_path("OH2RDG", "WIDE2-1")
     await rig.book.set_rf_only("OH2RDG", True)
     await rig.book.clear_path("OH2RDG")
-    assert rig.book.all() == {"OH2RDG": Pref(None, True)} and await rig.log.prefs() == {"OH2RDG": (None, True)}
+    assert rig.book.all() == {"OH2RDG": Pref(None, True)} and await rig.log.prefs() == {"OH2RDG": (None, True, None)}
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1", "RFONLY")
     await rig.book.set_path("OH2RDG", "DIRECT")
     await rig.book.set_rf_only("OH2RDG", False)
-    assert rig.book.all() == {"OH2RDG": Pref(())} and await rig.log.prefs() == {"OH2RDG": ("", False)}, "an empty path is something"
+    assert rig.book.all() == {"OH2RDG": Pref(())} and await rig.log.prefs() == {"OH2RDG": ("", False, None)}, "an empty path is something"
     await rig.book.clear_path("OH2RDG")
     assert rig.book.all() == {} and await rig.log.prefs() == {}, "nothing left in it: the row is deleted"
     again = restart()
@@ -143,7 +143,7 @@ async def test_what_is_told_is_each_set_and_each_clearing_that_changed_something
 
 async def test_two_changes_at_once_for_one_station_both_land(rig: Rig) -> None:
     await asyncio.gather(rig.book.set_path("OH2RDG", "WIDE2-1"), rig.book.set_rf_only("OH2RDG", True))
-    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), True)} and await rig.log.prefs() == {"OH2RDG": ("WIDE2-1", True)}
+    assert rig.book.all() == {"OH2RDG": Pref(("WIDE2-1",), True)} and await rig.log.prefs() == {"OH2RDG": ("WIDE2-1", True, None)}
 
 
 async def test_a_database_that_is_not_open_keeps_nothing_and_the_caller_is_told() -> None:
@@ -165,7 +165,7 @@ async def test_a_count_of_attempts_kept_by_an_older_version_is_ignored_and_a_row
     again = restart()
     await again.book.load()
     assert again.book.all() == {"OH2RDG": Pref(("WIDE2-1",))}, "the row of the count alone is no entry, and the other has only its path"
-    assert await again.log.prefs() == {"OH2RDG": ("WIDE2-1", False)}
+    assert await again.log.prefs() == {"OH2RDG": ("WIDE2-1", False, None)}
 
 
 # ---- RF only
@@ -173,7 +173,7 @@ async def test_a_count_of_attempts_kept_by_an_older_version_is_ignored_and_a_row
 async def test_rf_only_is_set_kept_read_back_by_the_next_start_and_cleared(rig: Rig, restart: Callable[[], Rig]) -> None:
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1")
     await rig.book.set_rf_only("oh2rdg", True)
-    assert rig.book.all() == {"OH2RDG": Pref(rf_only=True)} and await rig.log.prefs() == {"OH2RDG": (None, True)}
+    assert rig.book.all() == {"OH2RDG": Pref(rf_only=True)} and await rig.log.prefs() == {"OH2RDG": (None, True, None)}
     assert rig.told == [("OH2RDG", Pref(rf_only=True))]
     again = restart()
     await again.book.load()

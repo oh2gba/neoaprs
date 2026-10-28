@@ -44,6 +44,7 @@ from .services.rigstatus import RigStatus
 from .services.selfinstall import installer_for, release_source
 from .services.selfupdate import SelfUpdate
 from .services.sender import Sender
+from .services.stationalerts import StationAlerts
 from .services.updatecheck import UpdateCheck
 from .signal import Signal
 from .stationbook import StationBook
@@ -110,6 +111,7 @@ class Services:
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
         self.ownlog = OwnLog(clock=clock)                               # the objects, items and bulletins of our own, in the database
+        self.stationalerts = StationAlerts(self.stationbook, self.prefbook, lambda: self.config, clock)       # the alerts set on stations, watched as the book changes; read by the controller after the preferences
 
     def _make_messaging(self, clock: Clock) -> None:
         """What sends by a schedule, the QRU parts, messaging and the answers to queries."""

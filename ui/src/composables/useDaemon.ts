@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the fifteen topics as reactive state (the stations' own paths and timeouts are `stationPrefs`), the status, the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the fifteen topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -14,6 +14,7 @@ import type {
   MessageRow,
   PacketRow,
   QruState,
+  StationAlertMessage,
   StationPref,
   StationRow,
   StatusMessage,
@@ -99,6 +100,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const version = ref("");
   const mismatch = shallowRef<Mismatch | null>(null); // the daemon is another protocol or serves another build of the page, and a load did not help: the page does not run against it (refuseMismatch)
   const install = shallowRef<InstallInfo | null>(null);
+  const stationAlert = shallowRef<StationAlertMessage | null>(null); // the latest alert of a station that fired: each is a message of its own, so the same words twice are two (composables/useStationAlerts.ts)
   let toasts = 0;
 
   const store: Store = {
@@ -109,6 +111,7 @@ export function useDaemon(url: () => string = socketUrl) {
     },
     status: (message) => (status.value = message),
     error: ({ cmd, key, code, params, text }) => (lastError.value = { cmd, key, code, params, text, n: ++toasts }),
+    stationAlert: (message) => (stationAlert.value = message),
     replaceStations: (rows) => fill(stations, rows, stationsLoaded),
     replacePackets: (rows) => fill(packets, rows),
     replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
@@ -160,6 +163,7 @@ export function useDaemon(url: () => string = socketUrl) {
     version,
     mismatch,
     install,
+    stationAlert,
     ...answers.refs,
     send,
   };

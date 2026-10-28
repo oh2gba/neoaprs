@@ -11,8 +11,9 @@ import pytest
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND, LINUX_ALERT_COMMAND, WINDOWS_ALERT_COMMAND
 from neoaprs.config import MAX_ALERT_COMMAND, Config
 from neoaprs.message import MessageRecord
+from neoaprs.pref import Fired
 from neoaprs.services.alerts import Alerts, alert_environment
-from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing
+from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing, writing_titled
 from tests.support.air import message_info, on_air, said
 from tests.support.clock import FixedClock
 from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
@@ -68,7 +69,7 @@ async def test_a_message_without_an_id_has_an_empty_id_and_odd_text_stays_text(t
     assert not (tmp_path / "pwned").exists() and not Path("pwned").exists(), "the text is data in the environment, never shell"
 
 
-def test_the_environment_is_the_few_names_a_desktop_program_needs_and_the_four_variables_and_nothing_of_the_daemons(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_environment_is_the_few_names_a_desktop_program_needs_and_the_six_variables_and_nothing_of_the_daemons(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET_OF_THE_DAEMON", "x")
     monkeypatch.setenv("CREDENTIALS_DIRECTORY", "/run/credentials")
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus")
@@ -76,7 +77,21 @@ def test_the_environment_is_the_few_names_a_desktop_program_needs_and_the_four_v
     env = alert_environment(record("a\0b"))
     assert env["NEOAPRS_TEXT"] == "ab" and env["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1000/bus" and env["XDG_RUNTIME_DIR"] == "/run/user/1000"
     assert "SECRET_OF_THE_DAEMON" not in env and "CREDENTIALS_DIRECTORY" not in env
-    assert sorted(k for k in env if k.startswith("NEOAPRS_")) == ["NEOAPRS_AT", "NEOAPRS_FROM", "NEOAPRS_MSG_ID", "NEOAPRS_TEXT"]
+    assert sorted(k for k in env if k.startswith("NEOAPRS_")) == ["NEOAPRS_AT", "NEOAPRS_FROM", "NEOAPRS_KIND", "NEOAPRS_MSG_ID", "NEOAPRS_TEXT", "NEOAPRS_TITLE"]
+    assert (env["NEOAPRS_KIND"], env["NEOAPRS_TITLE"]) == ("message", "APRS message from OH2RDG-7")
+
+
+async def test_the_alert_of_a_station_runs_the_same_command_with_its_own_kind_and_title_and_follows_the_same_switch(tmp_path: Path) -> None:
+    fired = Fired("OH2XYZ", "within", "OH2XYZ is 8.2 km from you", FixedClock()(), 8.2)
+    rig = Rig(tmp_path, command=writing_titled(tmp_path / "alert.txt"))
+    rig.alerts.station(fired)
+    await rig.finished()
+    assert rig.written() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is 8.2 km from you", "2026-10-21T12:00:00Z", "", "end"]
+    rig.out.unlink()
+    rig.config = replace(rig.config, messages_alert=False)
+    rig.alerts.station(fired)
+    await rig.finished()
+    assert not rig.out.exists()
 
 
 async def test_alert_off_or_an_empty_command_runs_nothing(tmp_path: Path) -> None:
@@ -156,8 +171,9 @@ async def test_only_a_few_alerts_run_at_once(tmp_path: Path) -> None:
 
 def test_the_default_command_of_each_system_notifies_with_the_variables_and_is_data_never_interpolated() -> None:
     assert DEFAULT_ALERT_COMMAND == (WINDOWS_ALERT_COMMAND if WINDOWS else LINUX_ALERT_COMMAND)
-    assert "$NEOAPRS_FROM" in LINUX_ALERT_COMMAND and "$NEOAPRS_TEXT" in LINUX_ALERT_COMMAND and LINUX_ALERT_COMMAND.endswith("message-new-instant.oga")
-    assert "$env:NEOAPRS_FROM" in WINDOWS_ALERT_COMMAND and "$env:NEOAPRS_TEXT" in WINDOWS_ALERT_COMMAND and "%" not in WINDOWS_ALERT_COMMAND
+    assert "$NEOAPRS_TITLE" in LINUX_ALERT_COMMAND and "$NEOAPRS_TEXT" in LINUX_ALERT_COMMAND and LINUX_ALERT_COMMAND.endswith("message-new-instant.oga")
+    assert "$env:NEOAPRS_TITLE" in WINDOWS_ALERT_COMMAND and "$env:NEOAPRS_TEXT" in WINDOWS_ALERT_COMMAND and "%" not in WINDOWS_ALERT_COMMAND
+    assert "APRS message from" not in LINUX_ALERT_COMMAND + WINDOWS_ALERT_COMMAND, "the title is the alert's own: the alert of a station is no message"
     assert "\n" not in WINDOWS_ALERT_COMMAND and len(WINDOWS_ALERT_COMMAND) <= MAX_ALERT_COMMAND
 
 

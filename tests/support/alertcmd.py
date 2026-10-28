@@ -20,6 +20,13 @@ def writing(path: Path, secret: bool = False) -> str:
     return f'printf "%s\\n" "$NEOAPRS_FROM" "$NEOAPRS_TEXT" "$NEOAPRS_AT" "$NEOAPRS_MSG_ID" {last} > {path}.tmp && mv {path}.tmp {path}'
 
 
+def writing_titled(path: Path) -> str:
+    """A command that writes the kind and the title of the alert, then the four variables `writing` writes and `end`, one to a line, to the file."""
+    if WINDOWS:
+        return f"[IO.File]::WriteAllText('{path}.tmp',((@($env:NEOAPRS_KIND,$env:NEOAPRS_TITLE,{FIELDS},'end') -join \"`n\")+\"`n\"));Move-Item -Force '{path}.tmp' '{path}'"
+    return f'printf "%s\\n" "$NEOAPRS_KIND" "$NEOAPRS_TITLE" "$NEOAPRS_FROM" "$NEOAPRS_TEXT" "$NEOAPRS_AT" "$NEOAPRS_MSG_ID" "end" > {path}.tmp && mv {path}.tmp {path}'
+
+
 def failing(status: int, *stderr: str) -> str:
     """A command that writes lines to stderr and ends with `status`."""
     if WINDOWS:

@@ -191,6 +191,48 @@ describe("a message to us", () => {
   });
 });
 
+describe("an alert set on a station", () => {
+  beforeEach(() => openedAt("192.168.1.20"));
+  const fired = {
+    type: "station_alert" as const,
+    call: "OH2XYZ",
+    kind: "within" as const,
+    text: "OH2XYZ is 8.2 km from you",
+    at: "2026-10-21T12:00:00Z",
+    km: 8.2,
+  };
+
+  it("is a pop-up of its own, not a message's, with the chime for sound and pop-up", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await click();
+    alerts.announceStation(fired);
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([["APRS alert: OH2XYZ", "OH2XYZ is 8.2 km from you"]]);
+    expect(FakeAudioContext.played()).toBeGreaterThan(0);
+  });
+
+  it("flashes the browser tab with a bell, not the envelope of a message, where no pop-up is shown", async () => {
+    localStorage.setItem("NeoAPRS.alert.mode", "sound");
+    const alerts = make();
+    await click();
+    alerts.announceStation({ ...fired, kind: "on_air", km: null });
+    expect(FakeNotification.shown).toEqual([]);
+    expect(FakeAudioContext.played()).toBe(2);
+    expect(alerts.tabTitle.value).toBe("🔔 OH2XYZ");
+  });
+
+  it("is nothing for off, as a message is", async () => {
+    FakeNotification.permission = "granted";
+    localStorage.setItem("NeoAPRS.alert.mode", "off");
+    const alerts = make();
+    await click();
+    alerts.announceStation(fired);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(FakeAudioContext.played()).toBe(0);
+    expect(alerts.tabTitle.value).toBeNull();
+  });
+});
+
 describe("the choice of a pop-up", () => {
   beforeEach(() => openedAt("192.168.1.20"));
 

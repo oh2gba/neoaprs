@@ -49,8 +49,8 @@ async function pane({
     ...extra,
   };
   const book = new Map<string, StationPref>();
-  for (const [call, path] of paths as Map<string, string>) book.set(call, { path, rf_only: false });
-  for (const call of rfOnly as Set<string>) book.set(call, { path: book.get(call)?.path ?? null, rf_only: true });
+  for (const [call, path] of paths as Map<string, string>) book.set(call, { path, rf_only: false, alert: null });
+  for (const call of rfOnly as Set<string>) book.set(call, { path: book.get(call)?.path ?? null, rf_only: true, alert: null });
   daemon = fakeDaemon({ connected: connected as boolean, fallbackPath: "WIDE1-1,WIDE2-1" });
   daemon.prefs = useStationPrefs(shallowReactive(book), daemon.send);
   if (heardPaths !== undefined) daemon.heardPaths.value = heardPaths as Map<string, string | null>;

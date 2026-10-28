@@ -91,6 +91,10 @@ def wire(parts: Services) -> None:
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
     book.removed.connect(packetlog.delete_station)
+    book.changed.connect(parts.stationalerts.station_changed)                         # the alerts set on stations: what the book changes, what the operator sets, and the settings (whether the internet counts)
+    parts.prefbook.changed.connect(parts.stationalerts.pref_changed)
+    parts.config_changed.connect(parts.stationalerts.settings_changed)
+    parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     tnc.state_changed.connect(lambda state: _remember_port(parts, state))
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it

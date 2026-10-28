@@ -10,7 +10,7 @@
     bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
     own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
-    station_prefs  the path and RF only of each station by call       changed by PrefBook.changed (one of them set or cleared)
+    station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
     map        the base map: files, estimate, the job, and the radius of the ALOHA circle   changed by MapFetch.changed and Aloha.changed, and by every save of the settings (the area follows our position); at most four times a second
     update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
     gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
@@ -19,6 +19,8 @@
     general    the last general query of each kind sent from here, and who spoke after it    changed by GeneralAsk.changed (a query sent, a station that had been quiet heard after it)
 
 Each row's values are built in neoaprs/web/views.py and typed in `TopicValues` of neoaprs/web/protocol.py. Nothing is built for a topic nobody follows, and a patch holds the items that changed, as they are when it is made.
+
+One message is no topic: `station_alert`, told to every page that is open when StationAlerts.fired (an alert set on a station fired), and to nobody later.
 """
 import logging
 import time
@@ -32,7 +34,7 @@ from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
-from neoaprs.pref import Pref
+from neoaprs.pref import Fired, Pref
 from neoaprs.signal import Signal
 from neoaprs.source import Source
 from neoaprs.station import Station
@@ -41,7 +43,7 @@ from .hub import StateHub, Topic
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, general_state, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_row, tnc_state
+from .views import bulletin_row, config_values, general_state, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -53,10 +55,12 @@ PLACE_KEYS = ("station/call", "station/lat", "station/lon", "gps/source")      #
 
 
 class Topics:
-    def __init__(self, ctl: Controller, hub: StateHub, sent: Callable[[], None] | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None) -> None:
+    def __init__(self, ctl: Controller, hub: StateHub, sent: Callable[[], None] | None = None, reach: Callable[[], list[str]] = list, secure: Callable[[], dict[str, Any]] | None = None,
+                 tell: Callable[[dict[str, Any]], None] | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
         self._sent = sent                           # told when a packet of ours went out: the status (the count of packets, the time of the beacon) has changed
+        self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
@@ -140,6 +144,7 @@ class Topics:
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
             (ctl.prefbook.changed, self._pref_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
+            (ctl.stationalerts.fired, self._station_alert),
         ]
 
     def connect(self) -> None:
@@ -221,6 +226,11 @@ class Topics:
 
     def _pref_changed(self, call: str, pref: Pref | None) -> None:
         self.hub.changed("station_prefs", call)
+
+    def _station_alert(self, fired: Fired) -> None:
+        """An alert set on a station fired: every page is told once, as it happens (a page opened later is not told it again)."""
+        if self._tell is not None:
+            self._tell(station_alert_message(fired))
 
     def _config_changed(self, config: Config) -> None:
         keys = self._config.changed(config)

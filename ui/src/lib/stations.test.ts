@@ -120,9 +120,9 @@ it("sorts the timed-out stations after the live ones, whatever the column", () =
 });
 
 describe("menuItems", () => {
-  it("offers Message and the four queries only where Message is offered, and Forget only where Forget is", () => {
-    expect(menuItems(station("OH2RDG"))).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "copy", "qrz", "forget"]);
-    expect(menuItems(station("EMAIL-2", { can_message: false }))).toEqual(["show", "copy", "qrz", "forget"]);
+  it("offers Message and the four queries only where Message is offered, Forget only where Forget is, and an alert for a station that is not ours", () => {
+    expect(menuItems(station("OH2RDG"))).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "alert", "copy", "qrz", "forget"]);
+    expect(menuItems(station("EMAIL-2", { can_message: false }))).toEqual(["show", "alert", "copy", "qrz", "forget"]);
     expect(menuItems(station("OH2GBA", { is_me: true }))).toEqual(["show", "copy", "qrz"]);
     expect(menuItems(station("OH2OBJ", { kind: "object", own: true, can_message: false }))).toEqual(["show", "copy"]);
     expect(menuItems(station("FOREIGN", { kind: "object" }))).toEqual(["show", "copy", "forget"]);
@@ -133,6 +133,6 @@ describe("menuItems", () => {
   });
 
   it("puts talking, looking and forgetting in three groups", () => {
-    expect(menuItems(station("OH2RDG")).map(menuGroup)).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 2]);
+    expect(menuItems(station("OH2RDG")).map(menuGroup)).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 1, 2]);
   });
 });

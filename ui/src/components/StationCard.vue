@@ -4,9 +4,11 @@
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). A station that is heard has the bars of its packets in each of the last 24 hours under its facts, above Details
 // (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over the same hours under them (components/StationSpeed.vue); our own
 // station, an object and an item have neither (ours is what we send, and an object's or an item's packets are its sender's). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
+// A station with an alert set ("Alert me when…" of the Stations table) has a small quiet bell at the end of the line of its call (AlertBell), with what it watches as its hover title.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
+import AlertBell from "@/components/AlertBell.vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -30,7 +32,7 @@ import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
 import { isMoving } from "@/lib/speed";
-import type { PacketHistoryMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
+import type { AlertWhen, PacketHistoryMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
   defineProps<{
@@ -50,6 +52,8 @@ const props = withDefaults(
     movable?: boolean;
     /** The card is pinned: it stays on the map until its cross is clicked. */
     pinned?: boolean;
+    /** The alert the operator set on the station (a small bell at the end of the line of the call), null for none. */
+    alert?: AlertWhen | null;
   }>(),
   {
     stations: () => new Map(),
@@ -60,6 +64,7 @@ const props = withDefaults(
     ranges: undefined,
     movable: false,
     pinned: false,
+    alert: null,
   },
 );
 const emit = defineEmits<{
@@ -117,6 +122,7 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
           <strong>{{ row.call }}</strong>
           <DirectMark v-if="heardDirect(row)" />
           <a v-if="qrz" class="qrz" :href="qrz" target="_blank" rel="noopener noreferrer" :title="t('station.card.qrz_title')">QRZ</a>
+          <AlertBell v-if="alert" :alert="alert" />
         </span>
         <span class="muted">{{ symbolLabel(row, true) }}</span>
       </div>

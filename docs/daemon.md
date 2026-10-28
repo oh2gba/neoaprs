@@ -257,7 +257,15 @@ groups are the board's. Every message is a row of the table `message`, so a rest
 script run from a thread as an encoded script, so nothing of it is quoted and the text is never in it; a step that fails ends it with status 1
 (`$ErrorActionPreference='Stop'`), and a run out of time is killed with everything it started (`taskkill /T /F`). The unit sets
 `DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus`. The command `alert_test` runs it as saved, whatever `messages/alert` says, and answers `alert_result{ok, text}`; an
-empty command is an `error`.
+empty command is an `error`. `Alerts.station` runs the same line, under the same switch and limits, for an alert set on a station that fired, with `NEOAPRS_KIND=station`, the title `APRS alert: <call>` and no message id
+(a message has `NEOAPRS_KIND=message` and the title `APRS message from <call>`); the default line shows `NEOAPRS_TITLE`.
+
+**The alerts of the stations** (`neoaprs/services/stationalerts.py`; the part `Alert` of `Pref`, the columns `alert_on_air`, `alert_within_km`, `alert_direct` of `station_pref`). The command `set_station_alert{call, on_air, within_km, direct}`
+(`within_km` 1 to 1000 or null) sets the whole alert, all off takes it away; our own call and our own objects are refused (`alert.own`). `StationAlerts` is connected to `StationBook.changed`, `PrefBook.changed` and the saves of the settings
+(wiring.py), and keeps for each alerted station when it was last heard, last heard direct, and whether it was near; the start (and a new or changed alert, and a switch of `igate/enabled`) takes them from the book
+as it is, so nothing fires for what was already true. It fires `on_air` for a packet after `QUIET` (30 min) of silence or the first one, `direct` for a packet heard direct after 30 min without, and `within` when the
+distance from our position comes to N km or less from more than N plus a tenth (at least 0.5 km), from a packet of the station or a move of ours. While `igate/enabled` is off the station's radio side is watched.
+`fired` goes to `Alerts.station` and, by the page's topics, to every open page as `station_alert{call, kind, text, at, km}`, once; a line at INFO says it.
 
 **The message board** (`neoaprs/services/bulletins.py`; the inbox hands over what it takes). The wire is the topic `bulletins`, `{sender/slot: BulletinRow}`. A
 `set` is for a bulletin that is new or heard again and a `del` for one that is deleted. A row has `sender`, `slot`, `group`, `kind` (`announcement`, `bulletin`, `group` for a group bulletin and the messages to `ALL`, `CQ` and `QST`, or `nws` for the weather service), `text`, `first_heard`, `last_heard` and `times_heard`. The table `bulletin`
@@ -288,9 +296,9 @@ when the row is made.
 `beacon/path` to `DIRECT`; migration 15 changed the stored `WIDE1-1,WIDE2-1` (the old default, which every save wrote, so it cannot be told from a choice) to empty. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
 `path` is `clear_station_path`. An own object's or item's path: null (or empty) is `beacon/path`, `DIRECT` is none.
 
-**The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path and the RF-only flag of each
-station, under the call as written, in the row `{path, rf_only}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
-direct; an entry with no path and `rf_only` false is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
+**The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path, the RF-only flag and the alert of each
+station, under the call as written, in the row `{path, rf_only, alert}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
+direct, the alert null where none is set; an entry with no path, `rf_only` false and no alert is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
 and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
 `path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map as many hours after its last position as the setting `map/station_hours` says (1, 3, 6, 12 or 24, 3 by default; the page does that, the daily prune keeps
 packets and stations 7 days). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
@@ -396,7 +404,7 @@ passed, the latest 50 are kept.
 
 **The tables** of the database: `settings`, `packet`, `station` (the cache), `message`, `message_attempt`, `message_hop`, `bulletin`, `own_object`,
 `own_bulletin`, `weather` and `station_pref`. `station_pref` is operator data and not part of the station cache, so it survives a rebuilt cache. Everything is
-described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrationsteps1to11.py` and `neoaprs/migrationsteps12to21.py`; how the database is written is in
+described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrationsteps1to11.py`, `neoaprs/migrationsteps12to21.py` and `neoaprs/migrationsteps22on.py`; how the database is written is in
 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md#the-database-actor).
 
 **The settings reset** (migration 16, `neoaprs/migrationsteps12to21.py`). The settings that are not on the page any more cannot be changed back by their operator, so once, at the first start of this version, their stored rows are
@@ -408,6 +416,10 @@ daemon's own state rows are not touched. Like every migration, it runs after a c
 **The station timeouts** (migration 17, `neoaprs/migrationsteps12to21.py`). The field "Hide from map after" of the station card is gone and every station follows the one choice of the Stations tab (`map/station_hours`, 3 hours by default), so once, at the first start of this version, the own
 timeouts stored in `station_pref.hide_after_min` are cleared, with one INFO line in the log for each station (`OH2RDG: the own timeout of 45 minutes removed, the time on the map of the Stations tab counts`); a row that held nothing else is deleted, and
 the path and RF only of a station are not touched. The commands `set_station_timeout` and `clear_station_timeout` and the field `hide_after_min` of `station_prefs` are gone from the protocol.
+
+**The alerts of the stations** (migration 22, `neoaprs/migrationsteps22on.py`). `station_pref` is rebuilt with the columns of the alerts (`alert_on_air` and `alert_direct` 0 or 1, `alert_within_km` 1 to 1000 or null), every row kept with no
+alert, and a row may now say only an alert. The setting `messages/alert_command` is deleted where it is exactly the old default of Linux or of Windows (which titled every notification "APRS message from"), so that the
+new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log; a command of the operator's own is not touched.
 
 ## What the parser reads
 

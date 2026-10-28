@@ -38,7 +38,7 @@ describe("the path of a request for local info", () => {
   });
 
   it("has the station QRU's own path as the placeholder when it has one", () => {
-    const prefs = useStationPrefs(shallowReactive(new Map<string, StationPref>([["QRU", { path: "OH2RCH-2", rf_only: false }]])), () => true);
+    const prefs = useStationPrefs(shallowReactive(new Map<string, StationPref>([["QRU", { path: "OH2RCH-2", rf_only: false, alert: null }]])), () => true);
     const { wrapper } = make({ prefs });
     expect(pathField(wrapper).attributes("placeholder")).toBe("OH2RCH-2");
   });

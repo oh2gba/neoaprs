@@ -181,7 +181,7 @@ export const settings = {
   "settings.alert.tip1": "With Alert on, this computer runs the Command when a message arrives.",
   "settings.alert_command.name": "Alert command",
   "settings.alert_command.label": "Command",
-  "settings.alert_command.tip1": "The program run for each new message; NEOAPRS_FROM and NEOAPRS_TEXT hold the sender and the text.",
+  "settings.alert_command.tip1": "Run for each new message and station alert; NEOAPRS_TITLE and NEOAPRS_TEXT hold the title and the text.",
   "settings.alert_test": "Test",
   "settings.alerts.text": "On the NeoAPRS computer",
   "settings.alerts.title": "NeoAPRS's own alert: the command the daemon runs on the computer it runs on",

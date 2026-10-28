@@ -1,14 +1,17 @@
-"""The message alert: a shell command the operator chose, run when a message to us arrives.
+"""The alert: a shell command the operator chose, run when a message to us arrives and when an alert the operator set on a station fires.
 
 `alert(record)` is told by the inbox of every message to us the first time it is heard (a repeat or another digipeater's copy is not told again, and an ack, a reject, a bulletin, a group message and a
-message we only overheard never get here). A query (`?APRSP` and the others, queries.py) is answered, not announced. With `messages/alert` on and `messages/alert_command` not empty the command runs through
+message we only overheard never get here). A query (`?APRSP` and the others, queries.py) is answered, not announced. `station(fired)` is told by the watch of the stations (stationalerts.py) when a station
+the operator asked about comes on the air, comes near or is heard direct. With `messages/alert` on and `messages/alert_command` not empty the command runs through
 the shell (`asyncio.create_subprocess_shell`; on Windows PowerShell, started by a thread) with these in its environment, next to the few variables a program needs to find the desktop
 (neoaprs/childenv.py):
 
-    NEOAPRS_FROM     the sender's call
-    NEOAPRS_TEXT     the text of the message
+    NEOAPRS_KIND     `message` for a message to us, `station` for the alert of a station
+    NEOAPRS_TITLE    the title of a notification: "APRS message from OH2XYZ", or "APRS alert: OH2XYZ" (the default command shows it, so that the alert of a station does not look like a message)
+    NEOAPRS_FROM     the sender's call, or the station's
+    NEOAPRS_TEXT     the text of the message, or what happened ("OH2XYZ is on the air")
     NEOAPRS_AT       when it was heard, ISO 8601 in UTC (2026-10-21T12:00:00Z)
-    NEOAPRS_MSG_ID   the message id the sender gave it; empty when it had none
+    NEOAPRS_MSG_ID   the message id the sender gave it; empty when it had none, and for the alert of a station
 
 The text comes in the environment and not in the command line, so what a stranger wrote is never read as shell. The command gets TIMEOUT_SEC seconds, then it is killed with everything it started; its output is
 logged at DEBUG. `test()` runs the command as saved for a made-up message (the test button of the page), whatever `messages/alert` says, and answers (ok, text). A command that fails (it cannot start, exits with a status other than 0, runs out of time) is logged as a warning once an hour, then at DEBUG: an alert that cannot be made must not fill the log or
@@ -22,12 +25,14 @@ import signal
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from neoaprs.childenv import child_environment
 from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.message import MessageRecord, is_query
+from neoaprs.pref import Fired
 from neoaprs.services.common import ConfigSource
 from neoaprs.tasks import TaskSet
 
@@ -71,9 +76,18 @@ class Outcome:
 
 
 def alert_environment(record: MessageRecord, base: dict[str, str] | None = None) -> dict[str, str]:
-    """The environment of the command: what childenv lets through and the four NEOAPRS_ variables (a NUL byte cannot be in an environment and is dropped)."""
+    """The environment of the command for a message to us: what childenv lets through and the six NEOAPRS_ variables (a NUL byte cannot be in an environment and is dropped)."""
+    return _environment("message", f"APRS message from {record.from_call}", record.from_call, record.text, record.at, record.msg_id or "", base)
+
+
+def station_environment(fired: Fired, base: dict[str, str] | None = None) -> dict[str, str]:
+    """The environment of the command for the alert of a station: the same six variables, with the kind `station`, a title of its own and no message id."""
+    return _environment("station", f"APRS alert: {fired.call}", fired.call, fired.text, fired.at, "", base)
+
+
+def _environment(kind: str, title: str, sender: str, text: str, at: datetime, msg_id: str, base: dict[str, str] | None) -> dict[str, str]:
     env = child_environment() if base is None else base
-    env.update({"NEOAPRS_FROM": record.from_call, "NEOAPRS_TEXT": record.text.replace("\0", ""), "NEOAPRS_AT": iso(record.at) or "", "NEOAPRS_MSG_ID": record.msg_id or ""})
+    env.update({"NEOAPRS_KIND": kind, "NEOAPRS_TITLE": title, "NEOAPRS_FROM": sender, "NEOAPRS_TEXT": text.replace("\0", ""), "NEOAPRS_AT": iso(at) or "", "NEOAPRS_MSG_ID": msg_id})
     return env
 
 
@@ -87,22 +101,30 @@ class Alerts:
 
     def alert(self, record: MessageRecord) -> None:
         """A message to us was heard for the first time: run the command, in a task."""
+        if not is_query(record.text):
+            self._start(lambda: alert_environment(record), f"the message from {record.from_call}")
+
+    def station(self, fired: Fired) -> None:
+        """An alert the operator set on a station fired: run the command as for a message (the same switch, the same command, the same limits), with the station's own title and text."""
+        self._start(lambda: station_environment(fired), f"the alert of {fired.call}")
+
+    def _start(self, environment: Callable[[], dict[str, str]], what: str) -> None:
         c = self._config()
         command = c.messages_alert_command.strip()
-        if not c.messages_alert or not command or is_query(record.text):
+        if not c.messages_alert or not command:
             return
         if len(self._tasks) >= MAX_RUNNING:
-            log.debug("the alert for the message from %s is dropped: %d alerts are running", record.from_call, MAX_RUNNING)
+            log.debug("the alert for %s is dropped: %d alerts are running", what, MAX_RUNNING)
             return
-        self._tasks.spawn(self._run(command, alert_environment(record), record.from_call), "alert")
+        self._tasks.spawn(self._run(command, environment(), what), "alert")
 
     async def stop(self) -> None:
         """An alert that is running is ended with the daemon (the command and what it started are killed)."""
         await self._tasks.cancel_all()
 
-    async def _run(self, command: str, env: dict[str, str], sender: str) -> None:
+    async def _run(self, command: str, env: dict[str, str], what: str) -> None:
         outcome = await self._execute(command, env)
-        log.debug("the alert for the message from %s ended with status %s: %s", sender, outcome.status, outcome.output)
+        log.debug("the alert for %s ended with status %s: %s", what, outcome.status, outcome.output)
         if not outcome.ok:
             self._fail(outcome.problem or f"the alert command ended with status {outcome.status}: {outcome.output}")
 

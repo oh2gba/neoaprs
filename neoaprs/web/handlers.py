@@ -1,4 +1,4 @@
-"""The handlers of the commands (neoaprs/web/dispatch.py): what each command of the page does to the daemon. Importing this module registers them.
+"""The handlers of the commands (neoaprs/web/dispatch.py): what each command of the page does to the daemon. Importing this module registers them, with those answered from the logs (neoaprs/web/historyhandlers.py).
 
 A handler asks the daemon to change and says so with an exception (`UserError`); what the pages are told of the change comes from the signals of the parts (neoaprs/web/topics.py), never from the handler.
 """
@@ -7,11 +7,9 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
-from datetime import timedelta
 
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
-from neoaprs.geo import Thinning
 from neoaprs.config import RECEIVE_ONLY, Config, SettingError
 from neoaprs.configtypes import redacted
 from neoaprs.mapstate import Job, MapError
@@ -19,13 +17,14 @@ from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
+from neoaprs.pref import Alert
 from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bluetooth_ports, with_links
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
+from . import historyhandlers  # noqa: F401  (the commands answered from the logs: importing it registers them)
 from .dispatch import Ctx, UserError, command
-from .historywire import PacketHistory, SpeedSeries
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
@@ -35,14 +34,11 @@ from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDe
 from .qruwire import AskQru
 from .generalwire import GeneralQuery
 from .portwire import FindRadio, FindRadioCancel, ListPorts
-from .replaywire import PositionHistory
-from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
+from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
 from .updatewire import UpdateCancel, UpdateNow
-from .views import replay_thinning, replay_tracks, weather_points
-from .weatherwire import WeatherSeries
 
 
 log = logging.getLogger("neoaprs.web")
@@ -238,6 +234,12 @@ async def set_station_rf_only(ctx: Ctx, cmd: SetStationRfOnly) -> None:
         await ctx.ctl.prefbook.set_rf_only(cmd.call, cmd.on)
 
 
+@command(SetStationAlert)
+async def set_station_alert(ctx: Ctx, cmd: SetStationAlert) -> None:
+    with refused(cmd.cmd):
+        await ctx.ctl.stationalerts.set(cmd.call, Alert(cmd.on_air, cmd.within_km, cmd.direct))
+
+
 @command(SetConfig)
 async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
     """Every value is checked before anything is stored (the first wrong one is the answer, with its key), and the settings in force are the base: a key that is left out keeps its value."""
@@ -290,40 +292,6 @@ async def update_cancel(ctx: Ctx, cmd: UpdateCancel) -> None:
         ctx.ctl.selfupdate.cancel()
     except CodedError as e:
         raise UserError(f"update_cancel: {e}", e.code, params=e.params) from None
-
-
-@command(WeatherSeries)
-async def weather_series(ctx: Ctx, cmd: WeatherSeries) -> None:
-    observations = await ctx.ctl.weatherlog.series(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours))
-    ctx.conn.send({"type": "weather_series", "call": cmd.call, "hours": cmd.hours, "points": weather_points(observations)})
-
-
-@command(PacketHistory)
-async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
-    """The packets heard in each of the last hours, the running one last, all of them or one station's (`call`, which the answer repeats): the hours of the clock, so that the bars of the page stand at round times."""
-    start = ctx.ctl.clock().replace(minute=0, second=0, microsecond=0) - timedelta(hours=cmd.hours - 1)
-    counted = await ctx.ctl.packetlog.heard_by_hour(start, cmd.call)
-    counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
-    ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "call": cmd.call, "start": iso(start), "counts": counts})
-
-
-@command(SpeedSeries)
-async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
-    """The speeds the station reported in the last hours, the oldest first, for the speed graph of a moving station's card."""
-    speeds = await ctx.ctl.packetlog.speeds(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours))
-    ctx.conn.send({"type": "speed_series", "call": cmd.call, "hours": cmd.hours, "points": [[iso(at), round(kmh, 1)] for at, kmh in speeds]})
-
-
-@command(PositionHistory)
-async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
-    """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned by the span (neoaprs/web/views.py), to the page that asked. The replay begins at the
-    oldest packet the log keeps when the span reaches back further, so that its slider does not run over days of nothing."""
-    end = ctx.ctl.clock()
-    start = end - timedelta(hours=cmd.hours)
-    metres, seconds = replay_thinning(cmd.hours)
-    found = await ctx.ctl.packetlog.position_history(start, ctx.ctl.config.station_call, lambda: Thinning(metres, seconds))
-    begins = start if found.begins is None else max(start, found.begins)
-    ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(begins), "end": iso(end), "stations": replay_tracks(found.tracks)})
 
 
 @command(AlertTest)

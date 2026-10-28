@@ -24,6 +24,8 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.radio.not_found":
     "ninguna radio respondió en los puertos probados (un TNC KISS no dice nada hasta que oye un paquete: vuelve a intentarlo cuando el canal esté activo)",
   "error.radio.not_running": "no hay ninguna búsqueda de la radio en curso",
+  "error.alert.km_range": "la distancia de un aviso es de {min} a {max} km, no {km}",
+  "error.alert.own": "{call} es nuestra: un aviso es para otra estación",
   "error.message.control": "el texto tiene un carácter de control",
   "error.message.empty": "el mensaje está vacío",
   "error.message.forbidden": "el texto tiene {chars}, que un mensaje no puede llevar ({forbidden} no están permitidos)",

@@ -183,7 +183,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "Com o alerta ligado, este computador executa o comando quando chega uma mensagem.",
   "settings.alert_command.name": "Comando de alerta",
   "settings.alert_command.label": "Comando",
-  "settings.alert_command.tip1": "O programa executado a cada mensagem nova; NEOAPRS_FROM e NEOAPRS_TEXT trazem o remetente e o texto.",
+  "settings.alert_command.tip1": "Executado a cada mensagem nova e aviso de estação; NEOAPRS_TITLE e NEOAPRS_TEXT trazem o título e o texto.",
   "settings.alert_test": "Testar",
   "settings.alerts.text": "No computador do NeoAPRS",
   "settings.alerts.title": "O alerta do próprio NeoAPRS: o comando que o daemon executa no computador em que roda",

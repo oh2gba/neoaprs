@@ -25,6 +25,8 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.radio.not_found":
     "試したポートで応答した無線機はありませんでした(KISS TNC はパケットを受信するまで何も出力しません。チャンネルがにぎわっているときにもう一度試してください)",
   "error.radio.not_running": "実行中の無線機の検索はありません",
+  "error.alert.km_range": "通知の距離は{min}〜{max} kmです({km}ではありません)",
+  "error.alert.own": "{call}は自局です: 通知は他局に設定します",
   "error.message.control": "テキストに制御文字があります",
   "error.message.empty": "メッセージが空です",
   "error.message.forbidden": "テキストに{chars}があります。メッセージでは使えません(使えないのは{forbidden}です)",

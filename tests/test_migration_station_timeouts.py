@@ -36,7 +36,7 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
     version_sixteen(old, clock)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 17
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22])]
     return migrated
 
 
@@ -51,7 +51,7 @@ def test_every_own_timeout_is_cleared_and_a_row_that_held_only_that_is_gone(tmp_
 def test_a_cleared_timeout_is_not_read_and_the_preferences_that_say_something_are_the_path_and_rf_only(tmp_path: Path) -> None:
     from neoaprs.messagesql import all_prefs
     migrated = migrate(tmp_path)
-    assert all_prefs(migrated.db) == [("OH2BOTH", "OH2RCH-2", 0), ("OH2DIRT", "", 0), ("OH2PATH", "WIDE2-1", 0), ("OH2RFON", None, 1), ("OH2RFTM", None, 1)]
+    assert all_prefs(migrated.db) == [("OH2BOTH", "OH2RCH-2", 0, 0, None, 0), ("OH2DIRT", "", 0, 0, None, 0), ("OH2PATH", "WIDE2-1", 0, 0, None, 0), ("OH2RFON", None, 1, 0, None, 0), ("OH2RFTM", None, 1, 0, None, 0)]
     migrated.close()
 
 

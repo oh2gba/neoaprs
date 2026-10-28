@@ -164,7 +164,7 @@ describe("the menu of a row of the Stations table: opening", () => {
 });
 
 describe("the menu of a row of the Stations table: what it offers", () => {
-  it("has Message, the four queries, Show on map, Copy, QRZ and Forget for a station that takes messages", async () => {
+  it("has Message, the four queries, Show on map, Alert me when…, Copy, QRZ and Forget for a station that takes messages", async () => {
     make();
     await rightClick("OH2RDG");
     expect(labels()).toEqual([
@@ -174,6 +174,7 @@ describe("the menu of a row of the Stations table: what it offers", () => {
       "Ask what it hears direct",
       "Trace the route",
       "Show on map",
+      "Alert me when…",
       "Copy call",
       "QRZ page",
       "Forget",
@@ -192,12 +193,12 @@ describe("the menu of a row of the Stations table: what it offers", () => {
   it("has no Message and no query where the card has no Message, and no note about them", async () => {
     make();
     await rightClick("EMAIL-2");
-    expect(labels()).toEqual(["Show on map", "Copy call", "QRZ page", "Forget"]);
+    expect(labels()).toEqual(["Show on map", "Alert me when…", "Copy call", "QRZ page", "Forget"]);
     expect(menu().text()).not.toContain("answer queries");
     expect(menu().findAll("[role='separator']")).toHaveLength(1);
   });
 
-  it("has Show, Copy and the QRZ page for our own station, and no Forget", async () => {
+  it("has Show, Copy and the QRZ page for our own station, and no Forget and no alert", async () => {
     make();
     await rightClick("OH2GBA");
     expect(labels()).toEqual(["Show on map", "Copy call", "QRZ page"]);
@@ -236,11 +237,11 @@ describe("the menu of a row of the Stations table: the keyboard", () => {
     expect(at()).toBe(1);
     await menu().trigger("keydown", { key: "ArrowUp" });
     await menu().trigger("keydown", { key: "ArrowUp" });
-    expect(at()).toBe(8);
+    expect(at()).toBe(9);
     await menu().trigger("keydown", { key: "ArrowDown" });
     expect(at()).toBe(0);
     await menu().trigger("keydown", { key: "End" });
-    expect(at()).toBe(8);
+    expect(at()).toBe(9);
     await menu().trigger("keydown", { key: "Home" });
     expect(at()).toBe(0);
   });

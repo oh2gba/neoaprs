@@ -36,6 +36,7 @@ export const MESSAGE_TYPES = [
   "release_notes",
   "speed_series",
   "state",
+  "station_alert",
   "status",
   "update_result",
   "weather_series",

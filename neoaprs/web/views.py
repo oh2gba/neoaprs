@@ -20,7 +20,7 @@ from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import Packet
 from neoaprs.packetcodec import encode_decoded, tnc2
-from neoaprs.pref import Pref
+from neoaprs.pref import Fired, Pref
 from neoaprs.qrutext import Asked, Server
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.route import digipeaters, heard_path, received_text, route_text, suggested_path
@@ -36,7 +36,7 @@ from .igatewire import IgateState
 from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
-from .prefwire import StationPref
+from .prefwire import StationAlertMsg, StationPref
 from .replaywire import MAX_HOURS
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
@@ -143,6 +143,10 @@ def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[st
 
 def pref_row(pref: Pref) -> dict[str, Any]:
     return StationPref.row(pref, path=None if pref.path is None else ",".join(pref.path))
+
+
+def station_alert_message(fired: Fired) -> dict[str, Any]:
+    return StationAlertMsg.row(fired, type="station_alert")
 
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:

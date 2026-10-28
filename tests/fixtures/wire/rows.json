@@ -1535,18 +1535,22 @@
  ],
  "station_prefs": [
   {
+   "alert": null,
    "path": null,
    "rf_only": false
   },
   {
+   "alert": null,
    "path": "WIDE1-1,WIDE2-1",
    "rf_only": true
   },
   {
+   "alert": null,
    "path": "",
    "rf_only": false
   },
   {
+   "alert": null,
    "path": null,
    "rf_only": true
   }

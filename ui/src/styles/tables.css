@@ -317,6 +317,57 @@
   padding: 2px 12px 4px;
   font-size: 12px;
 }
+/* the bell of a station with an alert set (AlertBell): in the Stations table every row has its place, empty or not, so that setting an alert makes nothing wider and moves nothing */
+.alert-bell {
+  display: inline-block;
+  width: 14px;
+  margin-left: 4px;
+  color: var(--muted);
+  line-height: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+/* "Alert me when…" (StationAlertBox): a small box where the menu of the row was, its lines one under the other */
+.alertbox {
+  position: fixed;
+  z-index: 30;
+  max-width: calc(100vw - 16px);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.alertbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.alertbox-group legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+}
+.alertbox-near {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.alertbox-km {
+  width: 6em;
+}
+.alertbox-note {
+  padding-left: 24px;
+  font-size: 12px;
+}
+.alertbox-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
 /* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
 .onmap {
   gap: 6px;

@@ -1,4 +1,6 @@
 {
+ "alert.km_range": {"params": ["km", "max", "min"], "text": ["the distance of an alert is {min} to {max} km, not {km}"]},
+ "alert.own": {"params": ["call"], "text": ["{call} is our own: an alert is for another station"]},
  "beacon.not_sent": {"params": ["reason"], "text": ["nothing was sent: {reason}"]},
  "bulletin.group": {"params": ["value"], "text": ["'{value}': a group bulletin is BLN, a digit and the group"]},
  "bulletin.not_on_board": {"params": ["sender", "slot"], "text": ["there is no entry {sender}/{slot} on the board"]},

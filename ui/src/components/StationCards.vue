@@ -28,7 +28,7 @@ const props = defineProps<{
   /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, stations, send } = useDaemonContext();
+const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, stations, prefs, send } = useDaemonContext();
 /** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
 const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
 /** A moving station's card asks for its speeds (when it opens, and at each new position of the station). */
@@ -206,6 +206,7 @@ function tap(): void {
       :style="placeStyle(placeOf(row.call))"
       :movable="movable"
       :pinned="isPinned(row.call)"
+      :alert="prefs.alerts.value.get(row.call) ?? null"
       :row="row"
       :stations="stations"
       :now="now"

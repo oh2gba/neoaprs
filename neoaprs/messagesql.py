@@ -59,13 +59,18 @@ def sending_messages(db: sqlite3.Connection) -> list[Row]:
 
 
 def all_prefs(db: sqlite3.Connection) -> list[Row]:
-    """(call, path, rf_only) of every station the operator has said something about; path is null where nothing was said, rf_only is 0 or 1. The columns `attempts` and `hide_after_min` are not read: a value kept by an older version is ignored (migration 17 cleared the timeouts), and a row that holds only that says nothing."""
-    return [tuple(r) for r in db.execute("SELECT call, path, rf_only FROM station_pref WHERE path IS NOT NULL OR rf_only = 1 ORDER BY call")]
+    """(call, path, rf_only, alert_on_air, alert_within_km, alert_direct) of every station the operator has said something about; path and alert_within_km are null where nothing was said, the flags 0 or 1. The columns
+    `attempts` and `hide_after_min` are not read: a value kept by an older version is ignored (migration 17 cleared the timeouts), and a row that holds only that says nothing."""
+    return [tuple(r) for r in db.execute("SELECT call, path, rf_only, alert_on_air, alert_within_km, alert_direct FROM station_pref "
+                                         "WHERE path IS NOT NULL OR rf_only = 1 OR alert_on_air = 1 OR alert_within_km IS NOT NULL OR alert_direct = 1 ORDER BY call")]
 
 
-def save_pref(db: sqlite3.Connection, call: str, path: str | None, rf_only: bool, stamp: str) -> None:
-    db.execute("INSERT INTO station_pref (call, path, rf_only, updated_at) VALUES (?1, ?2, ?3, ?4) "
-               "ON CONFLICT(call) DO UPDATE SET path = ?2, rf_only = ?3, updated_at = ?4", (call, path, int(rf_only), stamp))
+def save_pref(db: sqlite3.Connection, call: str, path: str | None, rf_only: bool, alert: tuple[bool, int | None, bool], stamp: str) -> None:
+    """The row of a station as a whole: its path, RF only and the three parts of its alert (on the air, within how many km, heard direct)."""
+    on_air, within_km, direct = alert
+    db.execute("INSERT INTO station_pref (call, path, rf_only, alert_on_air, alert_within_km, alert_direct, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) "
+               "ON CONFLICT(call) DO UPDATE SET path = ?2, rf_only = ?3, alert_on_air = ?4, alert_within_km = ?5, alert_direct = ?6, updated_at = ?7",
+               (call, path, int(rf_only), int(on_air), within_km, int(direct), stamp))
 
 
 def delete_pref(db: sqlite3.Connection, call: str) -> int:
