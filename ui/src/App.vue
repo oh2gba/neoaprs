@@ -16,6 +16,7 @@ import SetupGuide from "@/components/SetupGuide.vue";
 import SidePanel from "@/components/SidePanel.vue";
 import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
+import StatsCard from "@/components/StatsCard.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
 import ToastBar from "@/components/ToastBar.vue";
@@ -41,6 +42,7 @@ const {
   picks,
   layout,
   cards,
+  statsOpen,
   guide,
   panel,
   notice,
@@ -75,7 +77,9 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           @pick="picks.onPick"
           @move="objects.move"
           @download="panel.show('settings')"
+          @stats="statsOpen = true"
         />
+        <StatsCard v-if="statsOpen" :packets="packets" @close="statsOpen = false" />
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards

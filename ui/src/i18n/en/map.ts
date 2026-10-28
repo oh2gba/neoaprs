@@ -1,4 +1,4 @@
-// The map: its notes, its credits, the bar that asks for a place on it.
+// The map: its notes, its credits, the menu of a right-click on it, the bar that asks for a place on it.
 export const map = {
   "map.label": "Map of the stations",
   "map.zoom_in": "Zoom in",
@@ -15,6 +15,11 @@ export const map = {
   "map.credits.show": "Map and symbol credits",
   "map.credits.symbols": "APRS symbols: aprs.fi set by Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Device names: APRS device identification list by Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
+
+  "map.menu_label": "Map",
+  "map.menu.copy_position": "Copy position {place}",
+  "map.menu.copy_locator": "Copy locator {locator}",
+  "map.menu.stats": "Statistics",
 
   "map.pick.tap": "Tap the place on the map",
   "map.pick.cancel": "Cancel",

@@ -19,6 +19,10 @@ export const map: Record<keyof typeof source, Message> = {
   "map.credits.symbols": "Símbolos APRS: conjunto aprs.fi de Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Nomes de dispositivos: lista de identificação APRS de Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
 
+  "map.menu_label": "Mapa",
+  "map.menu.copy_position": "Copiar a posição {place}",
+  "map.menu.copy_locator": "Copiar o locator {locator}",
+  "map.menu.stats": "Estatísticas",
   "map.pick.tap": "Toque no lugar do mapa",
   "map.pick.cancel": "Cancelar",
 };

@@ -21,6 +21,8 @@ export class FakeMap {
   pans: unknown[] = [];
   /** where `project` puts a place, in the pixels of the map; a test sets it */
   screen = { x: 0, y: 0 };
+  /** the place `unproject` gives for any pixel of the map; a test sets it */
+  place = { lng: 24.94, lat: 60.17 };
   moving = false;
   styles: unknown[] = [];
   removed = false;
@@ -82,6 +84,9 @@ export class FakeMap {
   }
   project(): { x: number; y: number } {
     return this.screen;
+  }
+  unproject(): { lng: number; lat: number } {
+    return this.place;
   }
   isMoving(): boolean {
     return this.moving;

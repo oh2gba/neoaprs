@@ -6,6 +6,7 @@ import { email } from "@/i18n/it/email";
 import { errors } from "@/i18n/it/errors";
 import { help } from "@/i18n/it/help";
 import { map } from "@/i18n/it/map";
+import { stats } from "@/i18n/it/stats";
 import { messages } from "@/i18n/it/messages";
 import { nearby } from "@/i18n/it/nearby";
 import { objects } from "@/i18n/it/objects";
@@ -29,6 +30,7 @@ export const it: Catalogue = {
   ...stations,
   ...nearby,
   ...map,
+  ...stats,
   ...packets,
   ...weather,
   ...symbols,

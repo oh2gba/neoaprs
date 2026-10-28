@@ -1,4 +1,4 @@
-// The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards and the places picked on the map, with what the shell itself decides:
+// The page put together (App.vue is its layout): the daemon, the clock, the settings that apply as they are changed, the first-run guide, the panel, the tabs' models, the station cards, the statistics card and the places picked on the map, with what the shell itself decides:
 // the ports are asked for each time the daemon is connected, the guide opens once by itself when the daemon has no call, the steps of an update are open on purpose and go with the newer version, and the mail of the header opens the tab that has the messages
 // not seen. What the panes share is provided to them (`useDaemonContext`); what only the layout needs is returned.
 import { computed, ref, watch, type Ref } from "vue";
@@ -18,6 +18,7 @@ import { useMessagesView } from "@/composables/useMessagesView";
 import { useNotice } from "@/composables/useNotice";
 import { useNow } from "@/composables/useNow";
 import { useOwnObjects } from "@/composables/useOwnObjects";
+import { usePersistedFlag } from "@/composables/usePersisted";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
 import { useSettings } from "@/composables/useSettings";
@@ -144,7 +145,14 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded);
+  // the statistics card over the map (components/StatsCard.vue): open from the map's menu, closed by its cross or Esc, and remembered by this browser
+  const statsOpen = usePersistedFlag("stats", ["open", "closed"], false);
+  const closeStats = (): boolean => {
+    const was = statsOpen.value;
+    statsOpen.value = false;
+    return was;
+  };
+  const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, closeStats);
   // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
@@ -161,5 +169,5 @@ export function useAppShell() {
     say,
   });
 
-  return { daemon, updateOpen, newer, objects, picks, layout, cards, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };
+  return { daemon, updateOpen, newer, objects, picks, layout, cards, statsOpen, guide, panel, notice, findRadio, stationActions, ...tabs, ...derived };
 }

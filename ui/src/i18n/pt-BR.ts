@@ -6,6 +6,7 @@ import { email } from "@/i18n/pt-BR/email";
 import { errors } from "@/i18n/pt-BR/errors";
 import { help } from "@/i18n/pt-BR/help";
 import { map } from "@/i18n/pt-BR/map";
+import { stats } from "@/i18n/pt-BR/stats";
 import { messages } from "@/i18n/pt-BR/messages";
 import { nearby } from "@/i18n/pt-BR/nearby";
 import { objects } from "@/i18n/pt-BR/objects";
@@ -29,6 +30,7 @@ export const ptBR: Catalogue = {
   ...stations,
   ...nearby,
   ...map,
+  ...stats,
   ...packets,
   ...weather,
   ...symbols,

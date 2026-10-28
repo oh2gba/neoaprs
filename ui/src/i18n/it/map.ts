@@ -18,6 +18,10 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.credits.symbols": "Simboli APRS: set aprs.fi di Heikki Hannikainen, OH7LZB (github.com/hessu/aprs-symbols)",
   "map.credits.devices": "Nomi dei dispositivi: elenco di identificazione APRS di Hessu, OH7LZB (github.com/aprsorg/aprs-deviceid, CC BY-SA 2.0)",
 
+  "map.menu_label": "Mappa",
+  "map.menu.copy_position": "Copia la posizione {place}",
+  "map.menu.copy_locator": "Copia il locator {locator}",
+  "map.menu.stats": "Statistiche",
   "map.pick.tap": "Tocca il punto sulla mappa",
   "map.pick.cancel": "Annulla",
 };

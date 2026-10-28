@@ -6,7 +6,7 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, and Statistics, which opens the statistics card over the map (`stats`, the page's). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -33,6 +33,8 @@ import { routeFeatures } from "@/lib/routeline";
 import { addRouteLayers, ROUTE_SOURCE } from "@/lib/routelayers";
 import { addTrackLayers } from "@/lib/tracklayers";
 import { placePin } from "@/lib/pinmarker";
+import MapMenu from "@/components/MapMenu.vue";
+import { useMapMenu } from "@/composables/useMapMenu";
 import { hasPosition } from "@/lib/stations";
 import { trackLines } from "@/lib/tracks";
 import type { StationRow } from "@/protocol/protocol";
@@ -53,7 +55,7 @@ const props = withDefaults(
   }>(),
   { others: () => [], picking: false, pin: null },
 );
-const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [call: string, lat: number, lon: number] }>();
+const emit = defineEmits<{ select: [call: string | null, multi?: boolean]; download: []; pick: [at: Home]; move: [string, number, number]; stats: [] }>(); // move: the call, lat, lon
 const page = useDaemonContext();
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
@@ -195,6 +197,8 @@ function pickAt(lat: number, lon: number): void {
   void nextTick(() => (clicked = false)); // after the update the click causes
 }
 
+const mapMenu = useMapMenu(host, () => ({ map, hover }));
+
 function showLabels(): void {
   host.value?.classList.toggle("labels-off", (map?.getZoom() ?? OPEN_ZOOM) < LABELS_FROM_ZOOM);
 }
@@ -235,6 +239,7 @@ async function create(): Promise<void> {
   map.on("movestart", () => hover?.hide());
   map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
   map.on("click", onClick);
+  map.on("contextmenu", mapMenu.onContextMenu);
   map.on("error", onMapError);
   map.on("zoom", showLabels);
   map.on("moveend", () => {
@@ -318,8 +323,9 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- the note is beside the map and not in it: the map is a layer of its own, under the first-run guide, and the note is above the guide -->
-  <div ref="root" class="stationmap">
+  <div ref="root" class="stationmap" v-on="mapMenu.on">
     <div ref="host" class="mapbox" :class="{ 'map-picking': props.picking }" role="application" :aria-label="t('map.label')"></div>
+    <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" @close="mapMenu.close()" @stats="emit('stats')" />
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
       {{ t("map.follow_me") }}
     </button>

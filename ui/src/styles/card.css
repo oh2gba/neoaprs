@@ -231,3 +231,26 @@
   color: var(--warn);
   font-weight: 600;
 }
+
+/* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections */
+.statscard {
+  left: auto;
+  right: 10px;
+}
+.stats-section {
+  margin: 8px 10px 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.stats-section:first-child {
+  margin-top: 2px;
+  border-top: 0;
+}
+.statscard .card-fields dd {
+  font-variant-numeric: tabular-nums;
+}
