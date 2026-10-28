@@ -68,7 +68,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
     settings,
-    guide: over.guide ?? useSetupGuide(config, lastError, ports, sender, map),
+    guide: over.guide ?? useSetupGuide(config, lastError, ports, sender),
     panel: over.panel ?? usePanel(),
   };
   // the alert of the browser listens to the window: it is made when a pane asks for it

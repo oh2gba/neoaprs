@@ -2131,7 +2131,7 @@
           "description": "`basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw)"
         },
         "later": {
-          "description": "the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there",
+          "description": "the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there",
           "type": "boolean"
         },
         "aloha_km": {
@@ -2165,6 +2165,21 @@
         "aloha_km"
       ],
       "title": "MapState",
+      "type": "object"
+    },
+    "MapWanted": {
+      "additionalProperties": false,
+      "description": "The setup guide went on from its Position step with the place the daemon has: the map of the area is wanted. The daemon begins making the detailed map for `map/radius_km` round our position, as `map_fetch` does (the\nprogress is the topic `map`), unless the detailed map that is there covers the place already or a job is running; it is never an error, and without a position nothing happens. A new place saved with `set_config` asks\nthe same by itself. The job is not the operator's: when it fails it is tried again at the next start of the daemon (`later` of the topic `map`), and `map_cancel` ends it.",
+      "properties": {
+        "cmd": {
+          "const": "map_wanted",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "MapWantedCommand",
       "type": "object"
     },
     "MessageCancel": {
@@ -5742,6 +5757,7 @@
           "map_cancel": "#/$defs/MapCancel",
           "map_estimate": "#/$defs/MapEstimate",
           "map_fetch": "#/$defs/MapFetch",
+          "map_wanted": "#/$defs/MapWanted",
           "message_cancel": "#/$defs/MessageCancel",
           "message_delete": "#/$defs/MessageDelete",
           "message_retry": "#/$defs/MessageRetry",
@@ -5870,6 +5886,9 @@
         },
         {
           "$ref": "#/$defs/MapFetch"
+        },
+        {
+          "$ref": "#/$defs/MapWanted"
         },
         {
           "$ref": "#/$defs/MapCancel"

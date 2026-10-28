@@ -51,6 +51,9 @@ function make(opts: { config?: ConfigValues; map?: MapState | null } = {}) {
   return { wrapper, guide, config, lastError, portList, radioSearch, sent, type, next, button, stand, daemon };
 }
 
+/** The place, sent on its own as the Position step is left (the daemon makes the map round it). */
+const PLACE = { cmd: "set_config", values: { "station/lat": "60.17", "station/lon": "24.94" } };
+
 afterEach(() => {
   document.body.replaceChildren();
   vi.unstubAllGlobals();
@@ -338,7 +341,7 @@ describe("SetupGuide: the radio", () => {
     const { wrapper, sent, portList, stand } = make();
     await stand(3);
     await flushPromises();
-    expect(sent).toEqual([{ cmd: "list_ports" }]);
+    expect(sent).toEqual([PLACE, { cmd: "list_ports" }]);
     expect(wrapper.findAll("#setup-profile option").map((o) => o.text())).toEqual(TNC_PROFILES.map((p) => p.name));
     expect(wrapper.find<HTMLSelectElement>("#setup-profile").element.value).toBe("kenwood-tnc2");
     portList.value = ports();
@@ -439,7 +442,7 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
     expect(wrapper.find<HTMLSelectElement>("#setup-profile").element.value).toBe("kiss");
     expect(wrapper.find<HTMLInputElement>("#setup-baud").element.value).toBe("57600");
     expect(guide.changes).toMatchObject({ "tnc/profile": "kiss", "serial/port": "COM5", "serial/baud": "57600" });
-    expect(sent.some((c) => c.cmd === "set_config")).toBe(false); // (it is saved at Finish, not by the search)
+    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([PLACE]); // (what was found is saved at Finish, not by the search)
   });
 
   it("leaves the speed of the profile alone for a port that has none", async () => {
@@ -469,10 +472,10 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
     const details = wrapper.find<HTMLDetailsElement>("details");
     details.element.open = true;
     await details.trigger("toggle");
-    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([{ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }]); // (not the call, not the position)
+    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([PLACE, { cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }]); // (not the call)
     details.element.open = false;
     await details.trigger("toggle");
-    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(1);
+    expect(sent.filter((c) => c.cmd === "set_config")).toHaveLength(2);
     const quiet = make({ config: configValues() });
     quiet.guide.go(3);
     await nextTick();
@@ -499,7 +502,7 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
     const details = wrapper.find<HTMLDetailsElement>("details");
     details.element.open = true;
     await details.trigger("toggle");
-    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([{ cmd: "set_config", values: { "tnc/profile": "dummy" } }]);
+    expect(sent.filter((c) => c.cmd === "set_config")).toEqual([PLACE, { cmd: "set_config", values: { "tnc/profile": "dummy" } }]);
   });
 
   it("is on the screen only while the Radio step is, for what Find my radio fills", async () => {
@@ -533,6 +536,7 @@ describe("SetupGuide: Finish", () => {
     await stand(3);
     await next();
     expect(sent.filter((c) => c.cmd !== "list_ports")).toEqual([
+      PLACE,
       { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
     ]);
     expect(wrapper.find("button[type=submit]").text()).toBe("Saving...");

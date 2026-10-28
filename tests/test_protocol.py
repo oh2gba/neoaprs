@@ -207,7 +207,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
-    "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_cancel": {"cmd": "map_cancel"},
+    "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_wanted": {"cmd": "map_wanted"}, "map_cancel": {"cmd": "map_cancel"},
     "update_now": {"cmd": "update_now", "version": "0.7.0"}, "update_cancel": {"cmd": "update_cancel"},
     "page_error": {"cmd": "page_error", "message": "x is undefined", "stack": "at render (Map.vue:10:5)", "source": "vue", "at": "2026-10-21T12:00:00Z", "build": "index-abc123.js"},
 }

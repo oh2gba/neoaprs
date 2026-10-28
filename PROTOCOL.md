@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-38 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+39 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -394,6 +394,12 @@ Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom`
 
 Starts making the maps: the world map first when it is not there, then the detailed map for `map/radius_km` and `map/maxzoom` round our position, from `map/source` or the latest daily build. The progress is the topic
 `map`. An `error` when no job can start (no position, or a job is running).
+
+### `map_wanted`
+
+The setup guide went on from its Position step with the place the daemon has: the map of the area is wanted. The daemon begins making the detailed map for `map/radius_km` round our position, as `map_fetch` does (the
+progress is the topic `map`), unless the detailed map that is there covers the place already or a job is running; it is never an error, and without a position nothing happens. A new place saved with `set_config` asks
+the same by itself. The job is not the operator's: when it fails it is tried again at the next start of the daemon (`later` of the topic `map`), and `map_cancel` ends it.
 
 ### `map_cancel`
 
@@ -1159,7 +1165,7 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `box` | number[] \| null |  | the area those settings make round our position, [west, south, east, north]; null without a position (max 4 items) |
 | `detail` | MapFileInfo \| null |  | `basemap.pmtiles`; null if it is not there |
 | `world` | MapFileInfo \| null |  | `basemap-world.pmtiles`: the data folder's own when it has one, else the one that ships with the program; null if there is neither (a base map the page cannot draw) |
-| `later` | boolean |  | the detailed map was begun without being asked for (the first time a place was set) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
+| `later` | boolean |  | the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
 | `aloha_km` | number \| null |  | the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel (>= 0) |
 
 ### NoteSection

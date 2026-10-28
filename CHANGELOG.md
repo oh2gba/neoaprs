@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed:** the map did not come by itself when the setup guide was run again on a station that has a place and a detailed map. Leaving the Position step now asks the daemon for the map of the area whether the place is new or not, and the daemon downloads it unless the map it has covers the place at the radius of Settings → Map: a station whose map an earlier version made at 50 km gets the 150 km one, a move to another town gets its map, a move of a few km does not. Cancel ends it until the guide or a new place asks again.
 - The setup guide ends with the Radio step: the Map step, which asked nothing and only said that the map was downloading, is gone, and so is the "Beacon every 30 min" line (the Beacon tab shows the beacon). The quiet line about the map's download and the **Map** mark at the top of the page stay.
 
 ## 0.11.0

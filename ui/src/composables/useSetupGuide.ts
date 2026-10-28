@@ -1,19 +1,19 @@
 // The first-run guide's state (components/SetupGuide.vue): whether it is open, the step, the answers (useSetupAnswers) and Finish. It lives as long as the page does, so that closing the guide and opening it again finds the answers where they
 // were. Finish, on the Radio step, sends one `set_config` with the keys the answers change. An error of the daemon that names a key is shown under its field, and the guide goes to the step that has it. The place of the Position step is sent
-// when the guide goes on from it, while the daemon has no detailed map: the daemon makes the map round it at once, without a click (neoaprs/services/mapauto.py), so that it is there soon after the guide.
+// when the guide goes on from it, else the daemon is told the map is wanted: it makes the map round the place at once, without a click, unless the one it has covers the place (neoaprs/services/mapauto.py), so that it is
+// there soon after the guide.
 import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
 import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
-import type { Command, ConfigValues, MapState, PortsMessage } from "@/protocol/protocol";
+import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 
 export function useSetupGuide(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
   ports: Ref<PortsMessage | null>,
   send: (command: Command) => boolean,
-  map: Ref<MapState | null> = ref(null),
 ) {
   const open = ref(false);
   const step = ref(0);
@@ -33,7 +33,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish, applyRadio } = useSetupSave(answers, config, lastError, send, step, done, map);
+  const { saving, finish, applyRadio } = useSetupSave(answers, config, lastError, send, step, done);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 

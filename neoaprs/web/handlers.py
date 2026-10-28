@@ -26,7 +26,7 @@ from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
-from .mapwire import MapCancel, MapEstimate, MapFetch
+from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
@@ -341,6 +341,11 @@ async def map_estimate(ctx: Ctx, cmd: MapEstimate) -> None:
 @command(MapFetch)
 async def map_fetch(ctx: Ctx, cmd: MapFetch) -> None:
     start_map_job(ctx, "fetch", cmd.cmd)
+
+
+@command(MapWanted)
+async def map_wanted(ctx: Ctx, cmd: MapWanted) -> None:
+    ctx.ctl.mapauto.wanted()
 
 
 @command(MapCancel)

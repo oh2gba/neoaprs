@@ -1,11 +1,12 @@
 // How the first-run guide saves (composables/useSetupGuide.ts): Finish sends one `set_config` with the keys the answers change (the topic `config` told after a save is the answer). The daemon's error that names a key is shown under its field, and the guide
-// goes to the step that has it. The place of the Position step is sent on its own when the guide goes on from it, so that the daemon begins the map round it at once (the guide says so in a quiet line, and the header shows the percent).
+// goes to the step that has it. When the guide goes on from the Position step, the place is sent on its own when the answers change it (the daemon makes the map round a new place at once), else `map_wanted` says the map of the area is wanted
+// (the daemon makes it unless the one it has covers the place); the guide says so in a quiet line, and the header shows the percent.
 import { computed, ref, watch, type Ref } from "vue";
 import type { useSetupAnswers } from "@/composables/useSetupAnswers";
 import type { Toast } from "@/composables/useDaemon";
 import { reasonOf } from "@/lib/settings";
 import { KEY_OF, radioChanges, STEP_OF } from "@/lib/setup";
-import type { Command, ConfigValues, MapState } from "@/protocol/protocol";
+import type { Command, ConfigValues } from "@/protocol/protocol";
 
 export function useSetupSave(
   answers: ReturnType<typeof useSetupAnswers>,
@@ -14,7 +15,6 @@ export function useSetupSave(
   send: (command: Command) => boolean,
   step: Ref<number>,
   done: () => void,
-  map: Ref<MapState | null>,
 ) {
   const saving = ref(false);
   let finishing = false;
@@ -42,11 +42,12 @@ export function useSetupSave(
     else save(true);
   }
 
-  /** Going on from the Position step: its place is saved on its own when the answers change it, and the daemon has told its map and has no detailed one (the daemon makes the map round the place at once). */
+  /** Going on from the Position step: its place is saved on its own when the answers change it (the daemon makes the map round a new place), else the daemon is told the map of the area is wanted (it makes it unless
+   * the one it has covers the place). One command, not two: the daemon runs commands side by side, so the second could not count on the save. */
   watch(step, (now, before) => {
-    if (before !== STEP_OF.lat || now <= before || map.value === null || map.value.detail !== null) return;
+    if (before !== STEP_OF.lat || now <= before) return;
     const values = Object.fromEntries(Object.entries(answers.changes.value).filter(([key]) => key === "station/lat" || key === "station/lon"));
-    if (Object.keys(values).length > 0) send({ cmd: "set_config", values });
+    send(Object.keys(values).length > 0 ? { cmd: "set_config", values } : { cmd: "map_wanted" });
   });
 
   watch(

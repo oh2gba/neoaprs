@@ -18,7 +18,9 @@ On a fresh install the page opens a guide in four steps. It opens by itself once
 3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)). **Finish** is on this step.
 
-The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), so that it is there soon after the guide; a quiet line in the guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done. The radius (150 km unless you change it) and the **Download map** button are in Settings → Map ([page.md](page.md#the-base-map)).
+The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), unless the detailed map it has covers the place already, so that it is there soon after the guide. A quiet line in the guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done.
+
+The radius (150 km unless you change it) and the **Download map** button are in Settings → Map ([page.md](page.md#the-base-map)).
 
 The Radio step has two helpers under its fields, the same as the Settings tab:
 

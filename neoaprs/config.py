@@ -154,7 +154,7 @@ KEYS = tuple(s.key for s in SETTINGS)
 BEACON_SENT = "beacon/last_sent_at"          # the rows the beacon and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 STATUS_SENT = "status/last_sent_at"
 STATUS_TEXT = "status/last_text"
-MAP_AUTO = "map/auto"                        # where the detailed map made without a click stands: wanted (begun, not finished), or done (never again; services/mapauto.py)
+MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
 STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO)
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 

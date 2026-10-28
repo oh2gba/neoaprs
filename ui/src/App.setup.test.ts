@@ -200,7 +200,8 @@ describe("App: the first-run guide", () => {
     await wrapper.find("#setup-lon").setValue("24.94");
     for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
     const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
-    expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left)
+    expect(commands().filter((c) => c === "set_config")).toHaveLength(1); // (the place, sent as the Position step was left; the daemon makes the map round a new place by itself)
+    expect(commands()).not.toContain("map_wanted");
     expect(commands()).not.toContain("map_estimate");
     expect(wrapper.find(".setup .mapfetch-button").exists()).toBe(false);
     expect(wrapper.find(".setup #setup-radius").exists()).toBe(false);

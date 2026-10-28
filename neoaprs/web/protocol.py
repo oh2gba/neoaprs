@@ -27,7 +27,7 @@ from .gpswire import GpsState
 from .igatewire import IgateState
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
-from .mapwire import MapCancel, MapEstimate, MapFetch, MapState
+from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
 from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, MessageRow, OverheardDelete, QueryStation, SendMessage
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
@@ -43,7 +43,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
