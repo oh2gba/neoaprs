@@ -2763,7 +2763,7 @@
     },
     "PacketHistory": {
       "additionalProperties": false,
-      "description": "Asks how many packets were heard (not sent by us) in each of the last `hours` hours. Answered with a `packet_history` message to the page that asked, or an `error` for hours out of range.",
+      "description": "Asks how many packets were heard (not sent by us) in each of the last `hours` hours: all of them, or those of one station (`call`). Answered with a `packet_history` message to the page that asked, or an\n`error` for hours out of range or a call that is empty; a station with no packets is answered with every count 0.",
       "properties": {
         "cmd": {
           "const": "packet_history",
@@ -2774,6 +2774,20 @@
           "maximum": 168,
           "minimum": 1,
           "type": "integer"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "only the packets whose sender (the source of the frame heard) is this station, as the `stations` topic has it; absent or null for every packet heard"
         }
       },
       "required": [
@@ -2797,6 +2811,17 @@
           "minimum": 1,
           "type": "integer"
         },
+        "call": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the station asked about, null for every packet heard: a page that asked for several stations and for all of them tells the answers apart by it"
+        },
         "start": {
           "description": "the top of the first hour counted, UTC",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
@@ -2813,6 +2838,7 @@
       "required": [
         "type",
         "hours",
+        "call",
         "start",
         "counts"
       ],

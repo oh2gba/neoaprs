@@ -440,7 +440,9 @@ describe("StationCard", () => {
   it("asks for the series when it opens, gives the panel the answer, and asks again when the switch changes", async () => {
     const wrapper = mount(StationCard, { props: { row: weatherStation("OH2MUI"), now: NOW, weatherSeries: series("OH2MUI", 24, 12) } });
     expect(wrapper.emitted("weather")).toEqual([["OH2MUI", 24]]);
-    expect(wrapper.findAll("figure")).toHaveLength(4);
+    expect(wrapper.findAll(".wx figure")).toHaveLength(4); // (the weather graphs; the bars of its packets are the fifth, under the facts)
+    expect(wrapper.findAll("[data-packets] figure")).toHaveLength(1);
+    expect(wrapper.emitted("packets")).toEqual([["OH2MUI"]]);
     await wrapper.findAll(".wx-span button")[1]?.trigger("click");
     expect(wrapper.emitted("weather")?.at(-1)).toEqual(["OH2MUI", 168]);
   });

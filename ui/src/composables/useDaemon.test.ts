@@ -132,8 +132,18 @@ describe("useDaemon", () => {
   it("keeps the latest packet_history", () => {
     const { daemon, socket } = setUp();
     expect(daemon.packetHistory.value).toBeNull();
-    socket.say({ type: "packet_history", hours: 24, start: "2026-10-20T13:00:00Z", counts: [1, 2] });
+    socket.say({ type: "packet_history", hours: 24, call: null, start: "2026-10-20T13:00:00Z", counts: [1, 2] });
     expect(daemon.packetHistory.value?.counts).toEqual([1, 2]);
+  });
+
+  it("keeps the answer to packet_history of each station apart from the whole one", () => {
+    const { daemon, socket } = setUp();
+    socket.say({ type: "packet_history", hours: 24, call: null, start: "2026-10-20T13:00:00Z", counts: [9, 9] });
+    socket.say({ type: "packet_history", hours: 24, call: "OH2RDG", start: "2026-10-20T13:00:00Z", counts: [1, 2] });
+    socket.say({ type: "packet_history", hours: 24, call: "OH2XYZ", start: "2026-10-20T13:00:00Z", counts: [3, 0] });
+    expect(daemon.packetHistory.value?.counts).toEqual([9, 9]);
+    expect([...daemon.packetHistoryByCall.value.keys()]).toEqual(["OH2RDG", "OH2XYZ"]);
+    expect(daemon.packetHistoryByCall.value.get("OH2RDG")?.counts).toEqual([1, 2]);
   });
 
   it("keeps the latest answer to weather_series of each station", () => {

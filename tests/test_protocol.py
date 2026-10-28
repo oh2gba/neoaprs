@@ -147,7 +147,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "ports", "search": True, "find": True, "ports": []}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
-    "packet_history": [{"type": "packet_history", "hours": 3, "start": "2026-10-21T10:00:00Z", "counts": [41, 37, 12]}],
+    "packet_history": [{"type": "packet_history", "hours": 3, "call": None, "start": "2026-10-21T10:00:00Z", "counts": [41, 37, 12]},
+                       {"type": "packet_history", "hours": 3, "call": "OH2RDG", "start": "2026-10-21T10:00:00Z", "counts": [4, 0, 1]}],
     "update_result": [{"type": "update_result", "outcome": "newer", "version": "0.4.0", "text": ""}, {"type": "update_result", "outcome": "current", "version": "0.3.0", "text": ""},
                       {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}],
     "release_notes": [{"type": "release_notes", "version": "0.4.0", "sections": [{"version": "0.4.0", "text": "- **Fixed:** the map download."}, {"version": "0.3.1", "text": "A small release."}], "problem": ""},
@@ -292,7 +293,7 @@ def test_every_command_has_an_example_that_round_trips() -> None:
     assert set(COMMAND_EXAMPLES) == COMMAND_NAMES, "a new command needs an example here"
     for name, example in COMMAND_EXAMPLES.items():
         command = COMMANDS.validate_python(example)
-        assert command.cmd == name and command.model_dump(mode="json") == example
+        assert command.cmd == name and command.model_dump(mode="json", exclude_unset=True) == example         # (a field that may be left out, packet_history's call, is not added)
         again = COMMANDS.validate_json(command.model_dump_json())
         assert again == command
 
@@ -323,10 +324,12 @@ def test_the_limits_of_the_commands() -> None:
                 {"cmd": "set_station_path", "call": "OH2RDG", "path": None}, {"cmd": "clear_station_path", "call": ""}, {"cmd": "set_station_timeout", "call": "OH2RDG", "minutes": 5}, {"cmd": "clear_station_timeout", "call": "OH2RDG"},
                 {"cmd": "set_station_attempts", "call": "EMAIL-2", "attempts": 2}, {"cmd": "clear_station_attempts", "call": "EMAIL-2"}, {"cmd": "set_station_rf_only", "call": "", "on": True}, {"cmd": "set_station_rf_only", "call": "OH2RDG"}, {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": "yes"},
                 {"cmd": "overheard_delete", "from_call": "", "to_call": "OH2BBB"}, {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": ""},
-                {"cmd": "overheard_delete", "from_call": "OH2AAA"}):
+                {"cmd": "overheard_delete", "from_call": "OH2AAA"}, {"cmd": "packet_history", "hours": 24, "call": ""}, {"cmd": "packet_history", "hours": 24, "call": "X" * 65},
+                {"cmd": "packet_history", "hours": 24, "call": 7}):
         with pytest.raises(ValidationError):
             COMMANDS.validate_python(bad)
     assert COMMANDS.validate_python({"cmd": "send_message", "to": "OH2RDG", "text": ""}).text == "", "an empty text is the daemon's to refuse, with a reason"
+    assert [COMMANDS.validate_python({"cmd": "packet_history", "hours": 24, **more}).call for more in ({}, {"call": None}, {"call": "OH2RDG"})] == [None, None, "OH2RDG"], "the call of packet_history may be left out: every packet"
 
 
 def test_every_command_has_exactly_one_handler_and_every_handler_a_command() -> None:

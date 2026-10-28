@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The packets of a station on its card.** A station's card has a graph of its packets heard in each of the last 24 hours, a bar for each hour, as the statistics card has for all the packets: under the facts, above Details, asked from the daemon when the card opens and every minute after (`packet_history` takes a call now). The graph keeps its room before the counts come, so the card does not grow. Your own station, objects and items have none.
 - **One message to a station at a time.** A message you write to a station while your earlier one to it is still waiting for its ack is *queued*: it waits, quietly, with no attempt made, and goes as soon as the earlier one is acked, rejected, failed or cancelled. The station gets your messages in the order you wrote them and the channel is not filled with several at once. Messages to different stations, and those to the email gateway, bulletins and queries, do not wait. Cancel works on a queued message too.
 
 ## 0.12.0

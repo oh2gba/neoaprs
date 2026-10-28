@@ -145,6 +145,8 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 
 A row with nothing to say is left out: a station that stands still has no speed whatever course it gave, a station that sent no altitude has none, and so on. An altitude of 0 that the station did send is shown.
 
+Under these facts, above Details, is a graph of the station's packets heard in each of the last 24 hours, a bar for each hour of the clock, the last one the hour that is running: the statistics card's graph for this station alone. The pointer on a bar shows its count and hour. The daemon counts them from its database by the station's call (the command `packet_history` with the call), when the card opens and every minute after; until the counts come the graph is an empty frame of the same size, so the card does not grow. Your own station, an object and an item have no such graph.
+
 The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). How long stations stay on the map is one choice for all of them, **On map for** in the Stations tab.
 
 **Message** is there only for a station that can do messages. There is none for an object or an item, and none for a station that sent its positions with `!` or `/` (the identifiers of a station without messaging) or Mic-E positions whose comment starts with `'` (a tracker without messaging), unless it has sent a message or an ack that you heard (overheard ones too). Positions with `=` and `@`, other Mic-E positions, and a station of which nothing is known yet all have it.

@@ -173,7 +173,7 @@ describe("the statistics of the map", () => {
   });
 
   it("makes the bars of the packets by the hour: a point in the middle of each hour from the start, the axis over the whole hours", () => {
-    const bars = historyPoints({ type: "packet_history", hours: 3, start: "2026-10-21T10:00:00Z", counts: [41, 0, 12] });
+    const bars = historyPoints({ type: "packet_history", hours: 3, call: null, start: "2026-10-21T10:00:00Z", counts: [41, 0, 12] });
     const start = Date.parse("2026-10-21T10:00:00Z");
     expect(bars.from).toBe(start);
     expect(bars.to).toBe(start + 3 * 3_600_000);

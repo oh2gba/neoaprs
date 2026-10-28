@@ -275,3 +275,7 @@
 .stats-chart {
   padding: 0 10px 4px;
 }
+/* the packets of the station by the hour on its card (components/StationPackets.vue), between the facts and Details */
+.station-packets {
+  margin: 6px 0 2px;
+}

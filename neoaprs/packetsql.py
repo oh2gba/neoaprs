@@ -41,9 +41,13 @@ def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
     return [str(r[0]) for r in db.execute("SELECT heard_at FROM packet WHERE source = ? AND direction = 'in' AND via != 'is' AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
 
 
-def heard_by_hour(db: sqlite3.Connection, stamp: str) -> list[tuple[str, int]]:
-    """How many packets were heard (not sent by us) in each hour of the clock at `stamp` or later: (the hour as "YYYY-MM-DDTHH", the count), the oldest first, hours with none left out."""
-    return [(str(r[0]), int(r[1])) for r in db.execute("SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE direction = 'in' AND heard_at >= ? GROUP BY hour ORDER BY hour", (stamp,))]
+def heard_by_hour(db: sqlite3.Connection, stamp: str, source: str | None = None) -> list[tuple[str, int]]:
+    """How many packets were heard (not sent by us) in each hour of the clock at `stamp` or later, all of them or those whose source is `source`: (the hour as "YYYY-MM-DDTHH", the count), the oldest first,
+    hours with none left out. One station's goes by the index of the source (packet_source), a few days of its packets at most: the table is pruned."""
+    if source is None:
+        return [(str(r[0]), int(r[1])) for r in db.execute("SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE direction = 'in' AND heard_at >= ? GROUP BY hour ORDER BY hour", (stamp,))]
+    return [(str(r[0]), int(r[1])) for r in db.execute("SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE source = ? AND direction = 'in' AND heard_at >= ? GROUP BY hour ORDER BY hour",
+                                                        (source, stamp))]
 
 
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:

@@ -53,7 +53,13 @@ describe("StatsCard", () => {
     const wrapper = mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(daemon) });
     expect(daemon.send).toHaveBeenCalledWith({ cmd: "packet_history", hours: 24 });
     expect(wrapper.find(".stats-chart").exists()).toBe(false);
-    daemon.packetHistory.value = { type: "packet_history", hours: 24, start: "2026-10-20T13:00:00Z", counts: Array.from({ length: 24 }, (_, i) => i + 1) };
+    daemon.packetHistory.value = {
+      type: "packet_history",
+      hours: 24,
+      call: null,
+      start: "2026-10-20T13:00:00Z",
+      counts: Array.from({ length: 24 }, (_, i) => i + 1),
+    };
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".stats-chart .trend-head").text()).toContain("Packets an hour, the last 24 hours");
     expect(wrapper.findAll(".stats-chart .trend-bar")).toHaveLength(24);

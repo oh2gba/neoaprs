@@ -290,11 +290,11 @@ async def weather_series(ctx: Ctx, cmd: WeatherSeries) -> None:
 
 @command(PacketHistory)
 async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
-    """The packets heard in each of the last hours, the running one last: the hours of the clock, so that the bars of the page stand at round times."""
+    """The packets heard in each of the last hours, the running one last, all of them or one station's (`call`, which the answer repeats): the hours of the clock, so that the bars of the page stand at round times."""
     start = ctx.ctl.clock().replace(minute=0, second=0, microsecond=0) - timedelta(hours=cmd.hours - 1)
-    counted = await ctx.ctl.packetlog.heard_by_hour(start)
+    counted = await ctx.ctl.packetlog.heard_by_hour(start, cmd.call)
     counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
-    ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "start": iso(start), "counts": counts})
+    ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "call": cmd.call, "start": iso(start), "counts": counts})
 
 
 @command(AlertTest)

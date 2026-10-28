@@ -320,11 +320,13 @@ observations is answered with no points.
 
 ### `packet_history`
 
-Asks how many packets were heard (not sent by us) in each of the last `hours` hours. Answered with a `packet_history` message to the page that asked, or an `error` for hours out of range.
+Asks how many packets were heard (not sent by us) in each of the last `hours` hours: all of them, or those of one station (`call`). Answered with a `packet_history` message to the page that asked, or an
+`error` for hours out of range or a call that is empty; a station with no packets is answered with every count 0.
 
 | field | type | | description |
 |---|---|---|---|
 | `hours` | integer |  | how far back to go: 24 for a day, 168 for a week (>= 1, <= 168) |
+| `call` | string \| null | optional | only the packets whose sender (the source of the frame heard) is this station, as the `stations` topic has it; absent or null for every packet heard (default `null`; max 64 chars, min 1 chars) |
 
 ### `alert_test`
 
@@ -550,6 +552,7 @@ it counts what has come since the top of the hour.
 | field | type | | description |
 |---|---|---|---|
 | `hours` | integer |  | the hours asked for (>= 1, <= 168) |
+| `call` | string \| null |  | the station asked about, null for every packet heard: a page that asked for several stations and for all of them tells the answers apart by it |
 | `start` | time |  | the top of the first hour counted, UTC |
 | `counts` | integer[] |  | the packets heard in each hour from `start`, the oldest first (an hour with none is 0) |
 

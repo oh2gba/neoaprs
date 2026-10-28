@@ -51,3 +51,39 @@ async def test_the_page_is_answered_with_a_count_for_every_hour_asked_for_the_ru
     await page.send({"cmd": "packet_history", "hours": 0})
     assert (await page.expect("error"))["cmd"] == "packet_history"
     await e.stop()
+
+
+async def test_the_log_counts_the_packets_of_one_station_by_the_source_and_leaves_the_others_out(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    top = T0.replace(minute=0, second=0, microsecond=0)
+    for minutes, source in ((-61, "OH2RDG"), (-30, "OH2RDG"), (-30, "OH2RDG-7"), (-20, "OH2XYZ"), (5, "OH2RDG"), (6, "OH2XYZ")):
+        assert log.append(position(top + timedelta(minutes=minutes), source))
+    assert log.append(position(top + timedelta(minutes=7), "OH2RDG", direction="out"))
+    since = top - timedelta(hours=2)
+    assert await log.heard_by_hour(since, "OH2RDG") == {top - timedelta(hours=2): 1, top - timedelta(hours=1): 1, top: 1}, "another ssid is another station, and what we sent is not heard"
+    assert await log.heard_by_hour(since, "OH2XYZ") == {top - timedelta(hours=1): 1, top: 1}
+    assert await log.heard_by_hour(since, "OH2NONE") == {}
+    assert sum((await log.heard_by_hour(since)).values()) == 6, "and without a call every packet heard is counted, as before"
+
+
+async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_the_call_and_the_whole_count_has_no_call(tmp_path: Path) -> None:
+    e = Env(tmp_path, web=True)
+    await e.start()
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    top = e.now().replace(minute=0, second=0, microsecond=0)
+    for minutes, source in ((-70, "OH2RDG"), (-65, "OH2XYZ"), (-3, "OH2RDG"), (-2, "OH2RDG")):
+        assert e.ctl.packetlog.append(position(top + timedelta(minutes=minutes), source))
+    await e.settled()
+    await page.send({"cmd": "packet_history", "hours": 3, "call": "OH2RDG"})
+    answer = PacketHistoryMsg.model_validate_json(json.dumps(await page.expect("packet_history")))
+    assert (answer.call, answer.hours, answer.start, answer.counts) == ("OH2RDG", 3, iso(top - timedelta(hours=2)), [1, 2, 0])
+    await page.send({"cmd": "packet_history", "hours": 3, "call": "OH2NONE"})
+    assert (await page.expect("packet_history"))["counts"] == [0, 0, 0], "a station with no packets has every hour 0"
+    await page.send({"cmd": "packet_history", "hours": 3})
+    whole = await page.expect("packet_history")
+    assert (whole["call"], whole["counts"]) == (None, [2, 2, 0])
+    await page.send({"cmd": "packet_history", "hours": 3, "call": ""})
+    assert (await page.expect("error"))["cmd"] == "packet_history"
+    await e.stop()

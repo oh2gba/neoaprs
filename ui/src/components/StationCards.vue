@@ -16,6 +16,7 @@ import { t } from "@/i18n";
 import { type Place } from "@/lib/cardmove";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
+import { HISTORY_HOURS } from "@/lib/stats";
 import { canMessage } from "@/lib/stations";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
 import type { StationRow } from "@/protocol/protocol";
@@ -26,7 +27,9 @@ const props = defineProps<{
   /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, stations } = useDaemonContext();
+const { now, aging, weatherSeries, packetHistoryByCall, stations, send } = useDaemonContext();
+/** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
+const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
 // (Forget, Message, Edit, ... are the card's own events: they go on)
 const emit = defineEmits<{
   close: [call: string];
@@ -205,6 +208,7 @@ function tap(): void {
       :now="now"
       :aging="aging"
       :weather-series="weatherSeries.get(row.call) ?? null"
+      :packet-history="packetHistoryByCall.get(row.call) ?? null"
       :ranges="ranges"
       @close="emit('close', row.call)"
       @forget="emit('forget', $event)"
@@ -213,6 +217,7 @@ function tap(): void {
       @message="emit('message', $event)"
       @pin="pin(row.call)"
       @weather="(call, hours) => emit('weather', call, hours)"
+      @packets="askPackets"
     />
   </div>
 </template>

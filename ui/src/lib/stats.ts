@@ -171,3 +171,9 @@ export function historyPoints(history: PacketHistoryMessage): { from: number; to
   const points = history.counts.map((n, i) => ({ t: from + i * HOUR_MS + HOUR_MS / 2, v: n }));
   return { from, to: from + history.counts.length * HOUR_MS, points };
 }
+
+/** The frame of the graph before the daemon's answer came: the same span of whole hours that the answer will have (the running one last), with no bar, so that the graph keeps its place and only fills in. */
+export function emptyHistory(now: number, hours = HISTORY_HOURS): { from: number; to: number; points: Point[] } {
+  const to = Math.floor(now / HOUR_MS) * HOUR_MS + HOUR_MS;
+  return { from: to - hours * HOUR_MS, to, points: [] };
+}

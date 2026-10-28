@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the voice frequency with its tone, offset and range (when it gave one), the PHG or range it gave (a digipeater's reach; the antenna's direction as a small arrow), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
-// A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
+// A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). A station that is heard has the bars of its packets in each of the last 24 hours under its facts, above Details
+// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets); our own station, an object and an item have none (ours is what we send, and an object's or an item's packets are its sender's). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
@@ -12,6 +13,7 @@ import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
 import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
+import StationPackets from "@/components/StationPackets.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import WeatherPanel from "@/components/WeatherPanel.vue";
 import { useCopyMenu } from "@/composables/useCopyMenu";
@@ -25,7 +27,7 @@ import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
-import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
+import type { PacketHistoryMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
   defineProps<{
@@ -35,6 +37,8 @@ const props = withDefaults(
     now: number;
     aging?: Aging;
     weatherSeries?: WeatherSeriesMessage | null;
+    /** The station's packets by the hour, the daemon's latest answer for it. */
+    packetHistory?: PacketHistoryMessage | null;
     /** The value axes the open weather cards share. */
     ranges?: Ranges;
     /** The card can be moved by its head (a tablet and a desktop; the bottom sheet of a phone cannot), and pinned. */
@@ -46,6 +50,7 @@ const props = withDefaults(
     stations: () => new Map(),
     aging: () => ({ defaultMin: 0 }),
     weatherSeries: null,
+    packetHistory: null,
     ranges: undefined,
     movable: false,
     pinned: false,
@@ -58,6 +63,7 @@ const emit = defineEmits<{
   message: [call: string];
   pin: [];
   weather: [call: string, hours: number];
+  packets: [call: string];
   close: [];
 }>();
 
@@ -175,6 +181,7 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
           <dd>{{ t("station.messages_internet_only") }}</dd>
         </template>
       </dl>
+      <StationPackets v-if="heardStation" :history="packetHistory" :now="now" @ask="emit('packets', row.call)" />
       <StationDetails :row="row" />
     </div>
     <footer v-if="row.own" class="card-foot">

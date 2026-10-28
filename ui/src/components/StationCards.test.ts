@@ -156,7 +156,7 @@ describe("StationCards: several weather cards, to be compared", () => {
   it("keeps every weather card the whole weather card with its graphs, the switch of the span and the asking of the daemon", () => {
     const wrapper = mountWith([wx("OH2ZWA"), wx("OH2ZWB")], [series("OH2ZWA", 24, 8), series("OH2ZWB", 24, 8)]);
     for (const card of wrapper.findAll(".card")) {
-      expect(card.findAll(".trend")).toHaveLength(4);
+      expect(card.findAll(".wx .trend")).toHaveLength(4);
       expect(card.find(".wx-span").exists()).toBe(true);
       expect(card.find(".wx-now").exists()).toBe(true);
     }

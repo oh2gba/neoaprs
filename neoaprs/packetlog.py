@@ -95,10 +95,11 @@ class PacketLog(DbLog):
         rows: list[str] = await self._read(lambda conn: heard_times(conn, call, text), [])
         return [parse_stamp(row) for row in rows]
 
-    async def heard_by_hour(self, since: datetime) -> dict[datetime, int]:
-        """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, by the top of the hour (UTC); hours with none are not in it."""
+    async def heard_by_hour(self, since: datetime, source: str | None = None) -> dict[datetime, int]:
+        """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, all of them or those whose source is `source` (one station's), by the top of the hour (UTC); hours with
+        none are not in it."""
         text = stamp(since)
-        rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text), [])
+        rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source), [])
         return {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
