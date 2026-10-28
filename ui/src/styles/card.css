@@ -221,6 +221,9 @@
 .tone-rain {
   --tone: var(--wx-rain);
 }
+.tone-packets {
+  --tone: var(--accent);
+}
 /* under a card: the path, timeout and preferences of the station */
 .prefs {
   display: flex;
@@ -253,4 +256,7 @@
 }
 .statscard .card-fields dd {
   font-variant-numeric: tabular-nums;
+}
+.stats-chart {
+  padding: 0 10px 4px;
 }

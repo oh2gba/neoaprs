@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One trend graph as inline SVG in the page's colours: a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
+// One trend graph as inline SVG in the page's colours (the weather card's, and the packets by the hour of the statistics card): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
 // time of the nearest observation in the heading. The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
@@ -22,11 +22,13 @@ const props = withDefaults(
     asBars?: boolean;
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;
-    tone: "temp" | "pressure" | "wind" | "rain";
+    tone: "temp" | "pressure" | "wind" | "rain" | "packets";
+    /** the decimals of the value in the heading (1 for a weather reading; 0 for a count) */
+    valueDecimals?: number;
     /** the lowest and the highest value of the axis, from the cards that share it */
     range?: readonly [number, number];
   }>(),
-  { band: () => [], asBars: false, zero: false, range: undefined },
+  { band: () => [], asBars: false, zero: false, range: undefined, valueDecimals: 1 },
 );
 
 const W = 320;
@@ -66,7 +68,7 @@ const shown = computed(() => {
 const readout = computed(() =>
   shown.value === null
     ? ""
-    : `${formatNumber(shown.value.p.v ?? 0, 1)} ${props.unit}${shown.value.hovered ? `  ${clockText(new Date(shown.value.p.t).toISOString())}` : ""}`,
+    : `${formatNumber(shown.value.p.v ?? 0, props.valueDecimals)} ${props.unit}${shown.value.hovered ? `  ${clockText(new Date(shown.value.p.t).toISOString())}` : ""}`,
 );
 
 function move(event: PointerEvent): void {

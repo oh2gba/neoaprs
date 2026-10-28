@@ -1585,8 +1585,9 @@ export const fr: Catalogue = {
 
   // stats
   "stats.title": "Statistiques",
-  "stats.note": "Ce que cette page a entendu ; cela change à chaque paquet.",
   "stats.label": "Carte des statistiques",
+  "stats.chart": "Paquets par heure, les dernières 24 heures",
+  "stats.chart_unit": "paquets",
   "stats.section.stations": "Stations",
   "stats.stations": "Entendues",
   "stats.on_map": "Sur la carte",

@@ -19,6 +19,7 @@ import type {
   InstallInfo,
   IgateState,
   MapState,
+  PacketHistoryMessage,
   PortsMessage,
   QruState,
   ReleaseNotesMessage,
@@ -61,6 +62,8 @@ export interface DaemonContext {
   install: Read<InstallInfo | null>;
   /** the latest weather series for each station */
   weatherSeries: Read<ReadonlyMap<string, WeatherSeriesMessage>>;
+  /** the packets heard by the hour, the answer to the statistics card's `packet_history`; null until one came */
+  packetHistory: Read<PacketHistoryMessage | null>;
   /** the radio link is up */
   connected: Read<boolean>;
   /** transmitting is switched off (station/transmit false): RX only */

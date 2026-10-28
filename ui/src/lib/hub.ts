@@ -21,11 +21,22 @@ import type {
   ReleaseNotesMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
+  PacketHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
+/** The messages that answer a command, by the method of the store that keeps each. */
+const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
+  weather_series: "weatherSeries",
+  packet_history: "packetHistory",
+  alert_result: "alertResult",
+  update_result: "updateResult",
+  release_notes: "releaseNotes",
+  ports: "ports",
+  radio_search: "radioSearch",
+};
 
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
@@ -37,6 +48,7 @@ export interface Store {
   status(message: StatusMessage): void;
   error(message: ErrorMessage): void;
   weatherSeries(message: WeatherSeriesMessage): void;
+  packetHistory(message: PacketHistoryMessage): void;
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
   releaseNotes(message: ReleaseNotesMessage): void;
@@ -217,27 +229,15 @@ export class Hub {
       case "patch":
         this.onPatch(message.topic, message.rev, message.ops);
         break;
-      case "weather_series":
-        this.store.weatherSeries(message);
-        break;
-      case "alert_result":
-        this.store.alertResult(message);
-        break;
-      case "update_result":
-        this.store.updateResult(message);
-        break;
-      case "release_notes":
-        this.store.releaseNotes(message);
-        break;
-      case "ports":
-        this.store.ports(message);
-        break;
-      case "radio_search":
-        this.store.radioSearch(message);
-        break;
-      case "pong":
-        break;
+      default:
+        this.answer(message);
     }
+  }
+
+  /** The answer to a command (the weather series, the packets by the hour, the ports...), kept by the store under its own name; a pong is nothing to keep. */
+  private answer(message: Message): void {
+    const name = ANSWERS[message.type];
+    if (name !== undefined) (this.store[name] as (m: Message) => void)(message);
   }
 
   private onState(topic: string, rev: number, value: unknown): void {

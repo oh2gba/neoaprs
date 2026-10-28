@@ -41,6 +41,11 @@ def heard_times(db: sqlite3.Connection, source: str, stamp: str) -> list[str]:
     return [str(r[0]) for r in db.execute("SELECT heard_at FROM packet WHERE source = ? AND direction = 'in' AND via != 'is' AND heard_at >= ? ORDER BY heard_at", (source, stamp))]
 
 
+def heard_by_hour(db: sqlite3.Connection, stamp: str) -> list[tuple[str, int]]:
+    """How many packets were heard (not sent by us) in each hour of the clock at `stamp` or later: (the hour as "YYYY-MM-DDTHH", the count), the oldest first, hours with none left out."""
+    return [(str(r[0]), int(r[1])) for r in db.execute("SELECT substr(heard_at, 1, 13) AS hour, count(*) FROM packet WHERE direction = 'in' AND heard_at >= ? GROUP BY hour ORDER BY hour", (stamp,))]
+
+
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
     """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
     return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' AND via != 'is' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]

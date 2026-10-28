@@ -26,6 +26,7 @@ export const MESSAGE_TYPES = [
   "alert_result",
   "error",
   "hello",
+  "packet_history",
   "patch",
   "pong",
   "ports",

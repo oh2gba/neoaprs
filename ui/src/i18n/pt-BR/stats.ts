@@ -3,8 +3,9 @@ import type { Message } from "@/i18n/message";
 
 export const stats: Readonly<Record<keyof typeof en, Message>> = {
   "stats.title": "Estatísticas",
-  "stats.note": "O que esta página recebeu; muda a cada pacote.",
   "stats.label": "Cartão de estatísticas",
+  "stats.chart": "Pacotes por hora, as últimas 24 horas",
+  "stats.chart_unit": "pacotes",
   "stats.section.stations": "Estações",
   "stats.stations": "Recebidas",
   "stats.on_map": "No mapa",

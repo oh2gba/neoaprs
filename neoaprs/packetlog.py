@@ -12,7 +12,7 @@ from .db import Db
 from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, radio_position_packets,
+from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, radio_position_packets,
                         recent_packets, upsert_station, window_packets)
 from .station import Station
 
@@ -94,6 +94,12 @@ class PacketLog(DbLog):
         text = stamp(when)
         rows: list[str] = await self._read(lambda conn: heard_times(conn, call, text), [])
         return [parse_stamp(row) for row in rows]
+
+    async def heard_by_hour(self, since: datetime) -> dict[datetime, int]:
+        """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, by the top of the hour (UTC); hours with none are not in it."""
+        text = stamp(since)
+        rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text), [])
+        return {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
         """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the

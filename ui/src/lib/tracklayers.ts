@@ -7,8 +7,8 @@ import { paletteColor } from "@/lib/alohalayers";
 import { trackLines, trackPoints } from "@/lib/tracks";
 import type { StationRow } from "@/protocol/protocol";
 
-export const TRACKS_SOURCE = "tracks";
-export const TRACK_POINTS_SOURCE = "track-points";
+const TRACKS_SOURCE = "tracks";
+const TRACK_POINTS_SOURCE = "track-points";
 const OTHERS: ExpressionSpecification = ["==", ["get", "selected"], 0];
 const SELECTED: ExpressionSpecification = ["==", ["get", "selected"], 1];
 const EMPTY = { type: "FeatureCollection", features: [] } as const;

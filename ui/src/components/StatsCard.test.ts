@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
 import StatsCard from "@/components/StatsCard.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { packet, station, status, table, tncState } from "@/test/fixtures";
+import { NOW, packet, station, status, table, tncState } from "@/test/fixtures";
 
 afterEach(() => document.body.replaceChildren());
 
@@ -42,5 +42,24 @@ describe("StatsCard", () => {
     rows.value = table(...rows.value.values(), station("OH2NEW", { lat: 60.3, lon: 25.0 }));
     await wrapper.vm.$nextTick();
     expect(heard()).toBe("3");
+  });
+
+  it("asks the daemon for the packets by the hour when it opens and every minute, and draws them as bars once they came", async () => {
+    const now = shallowRef(NOW);
+    const daemon = fakeDaemon({ stations: stations(), now });
+    const wrapper = mount(StatsCard, { props: { packets: new Map() }, global: withDaemon(daemon) });
+    expect(daemon.send).toHaveBeenCalledWith({ cmd: "packet_history", hours: 24 });
+    expect(wrapper.find(".stats-chart").exists()).toBe(false);
+    daemon.packetHistory.value = { type: "packet_history", hours: 24, start: "2026-10-20T13:00:00Z", counts: Array.from({ length: 24 }, (_, i) => i + 1) };
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find(".stats-chart .trend-head").text()).toContain("Packets an hour, the last 24 hours");
+    expect(wrapper.findAll(".stats-chart .trend-bar")).toHaveLength(24);
+    expect(wrapper.find(".stats-chart .trend-read").text()).toBe("24 packets");
+    now.value = NOW + 30_000;
+    await wrapper.vm.$nextTick();
+    expect(daemon.send).toHaveBeenCalledTimes(1);
+    now.value = NOW + 61_000;
+    await wrapper.vm.$nextTick();
+    expect(daemon.send).toHaveBeenCalledTimes(2);
   });
 });

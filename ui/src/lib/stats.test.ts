@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapStats, type StatSection } from "@/lib/stats";
+import { historyPoints, mapStats, type StatSection } from "@/lib/stats";
 import { NOW, ago, igateState, mapState, packet, station, status, table, tncState, weatherStation } from "@/test/fixtures";
 
 const AGING = { defaultMin: 180 };
@@ -170,5 +170,17 @@ describe("the statistics of the map", () => {
     const found = lines(sections, "stats.section.packets");
     expect(found.some((l) => l.startsWith("stats.rate"))).toBe(false);
     expect(found.some((l) => l.startsWith("stats.direct_share"))).toBe(false);
+  });
+
+  it("makes the bars of the packets by the hour: a point in the middle of each hour from the start, the axis over the whole hours", () => {
+    const bars = historyPoints({ type: "packet_history", hours: 3, start: "2026-10-21T10:00:00Z", counts: [41, 0, 12] });
+    const start = Date.parse("2026-10-21T10:00:00Z");
+    expect(bars.from).toBe(start);
+    expect(bars.to).toBe(start + 3 * 3_600_000);
+    expect(bars.points).toEqual([
+      { t: start + 1_800_000, v: 41 },
+      { t: start + 5_400_000, v: 0 },
+      { t: start + 9_000_000, v: 12 },
+    ]);
   });
 });

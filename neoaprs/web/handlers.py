@@ -24,6 +24,7 @@ from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bl
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from .dispatch import Ctx, UserError, command
+from .historywire import PacketHistory
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
@@ -285,6 +286,15 @@ async def update_cancel(ctx: Ctx, cmd: UpdateCancel) -> None:
 async def weather_series(ctx: Ctx, cmd: WeatherSeries) -> None:
     observations = await ctx.ctl.weatherlog.series(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours))
     ctx.conn.send({"type": "weather_series", "call": cmd.call, "hours": cmd.hours, "points": weather_points(observations)})
+
+
+@command(PacketHistory)
+async def packet_history(ctx: Ctx, cmd: PacketHistory) -> None:
+    """The packets heard in each of the last hours, the running one last: the hours of the clock, so that the bars of the page stand at round times."""
+    start = ctx.ctl.clock().replace(minute=0, second=0, microsecond=0) - timedelta(hours=cmd.hours - 1)
+    counted = await ctx.ctl.packetlog.heard_by_hour(start)
+    counts = [counted.get(start + timedelta(hours=i), 0) for i in range(cmd.hours)]
+    ctx.conn.send({"type": "packet_history", "hours": cmd.hours, "start": iso(start), "counts": counts})
 
 
 @command(AlertTest)

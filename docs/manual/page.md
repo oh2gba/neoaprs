@@ -118,7 +118,9 @@ The map has the world from the first start. With only the world, a line over the
 
 ## The statistics card
 
-**Statistics** in the map's menu opens a card at the bottom right of the map, clear of the station cards, with what this page has heard, counted up. It moves as packets come, its cross closes it (so does Esc, with the station cards), and the browser remembers that it is open, so it comes back with the page. It has four sections, and a line with nothing to say is left out:
+**Statistics** in the map's menu opens a card at the bottom right of the map, clear of the station cards, with what this page has heard, counted up. It moves as packets come, its cross closes it (so does Esc, with the station cards), and the browser remembers that it is open, so it comes back with the page.
+
+At the top is a graph of the packets heard in each of the last 24 hours, a bar for each hour of the clock, the last one the hour that is running; the pointer on a bar shows its count and hour, and the counts come from the daemon's database (the command `packet_history`), asked for again every minute. Under it are four sections, and a line with nothing to say is left out:
 
 - **Stations**: how many were heard (not you, not objects), how many are on the map now, how many were heard direct, how many are known from the internet only, the objects and items, the digipeaters and the iGates as the Nearby tab counts them, the weather stations, and the three devices most run ("APRSdroid (5), Kenwood TH-D74 (2)").
 - **Reach**: the radius of the ALOHA circle, the farthest station heard direct and the farthest heard on the radio, each with its distance, and the three digipeaters that repeated the most packets for you.

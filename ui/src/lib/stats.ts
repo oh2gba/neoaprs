@@ -1,6 +1,7 @@
 // The statistics card (components/StatsCard.vue): what the page knows, counted up in a few lines a person would ask for. All of it is made from what the page has already, the station book, the latest packets, the
 // status and the radio's counters; nothing is asked of the daemon. Four sections: the stations (how many, how heard, what they run), how far we reach (the farthest heard direct and on the radio, the digipeaters most
 // used, the ALOHA circle), the packets (the database, the last hour, the busiest station, and the latest 200 by kind and by channel), and the radio since the daemon started. A line with nothing to say is left out, and so is an empty section.
+// The graph of the packets by the hour is the daemon's answer to `packet_history` (`historyPoints` makes the bars of it).
 // Plain functions of what the page has; the words are the `stats.*` messages.
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -10,7 +11,8 @@ import { ageText, bytesText, distanceText } from "@/lib/format";
 import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
-import type { IgateState, MapState, PacketRow, StationRow, StatusMessage, TncState } from "@/protocol/protocol";
+import type { Point } from "@/lib/chart";
+import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncState } from "@/protocol/protocol";
 
 interface StatLine {
   label: MessageId;
@@ -157,4 +159,15 @@ export function mapStats(input: StatsInput): StatSection[] {
     { title: "stats.section.radio", lines: radioLines(input.status, input.tnc, input.igate, input.now) },
   ];
   return sections.filter((section) => section.lines.length > 0);
+}
+
+/** How far back the graph of the packets by the hour goes. */
+export const HISTORY_HOURS = 24;
+const HOUR_MS = 3_600_000;
+
+/** The bars of the graph: one point in the middle of each hour counted, and the span of the axis, the whole hours from the first to the end of the running one. */
+export function historyPoints(history: PacketHistoryMessage): { from: number; to: number; points: Point[] } {
+  const from = Date.parse(history.start);
+  const points = history.counts.map((n, i) => ({ t: from + i * HOUR_MS + HOUR_MS / 2, v: n }));
+  return { from, to: from + history.counts.length * HOUR_MS, points };
 }

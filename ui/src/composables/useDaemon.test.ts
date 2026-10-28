@@ -129,6 +129,13 @@ describe("useDaemon", () => {
     expect(daemon.config.value).toBeNull();
   });
 
+  it("keeps the latest packet_history", () => {
+    const { daemon, socket } = setUp();
+    expect(daemon.packetHistory.value).toBeNull();
+    socket.say({ type: "packet_history", hours: 24, start: "2026-10-20T13:00:00Z", counts: [1, 2] });
+    expect(daemon.packetHistory.value?.counts).toEqual([1, 2]);
+  });
+
   it("keeps the latest answer to weather_series of each station", () => {
     const { daemon, socket } = setUp();
     expect(daemon.weatherSeriesByCall.value.size).toBe(0);

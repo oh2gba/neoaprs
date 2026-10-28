@@ -1597,8 +1597,9 @@ export const de: Catalogue = {
 
   // stats
   "stats.title": "Statistik",
-  "stats.note": "Was diese Seite gehört hat; es ändert sich mit jedem Paket.",
   "stats.label": "Statistikkarte",
+  "stats.chart": "Pakete pro Stunde, die letzten 24 Stunden",
+  "stats.chart_unit": "Pakete",
   "stats.section.stations": "Stationen",
   "stats.stations": "Gehört",
   "stats.on_map": "Auf der Karte",

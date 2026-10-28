@@ -1,8 +1,9 @@
 // The statistics card over the map: its sections and lines (lib/stats.ts).
 export const stats = {
   "stats.title": "Statistics",
-  "stats.note": "What this page has heard; it moves as packets come.",
   "stats.label": "Statistics card",
+  "stats.chart": "Packets an hour, the last 24 hours",
+  "stats.chart_unit": "packets",
 
   "stats.section.stations": "Stations",
   "stats.stations": "Heard",

@@ -2760,6 +2760,64 @@
       "title": "OwnObjectRow",
       "type": "object"
     },
+    "PacketHistory": {
+      "additionalProperties": false,
+      "description": "Asks how many packets were heard (not sent by us) in each of the last `hours` hours. Answered with a `packet_history` message to the page that asked, or an `error` for hours out of range.",
+      "properties": {
+        "cmd": {
+          "const": "packet_history",
+          "type": "string"
+        },
+        "hours": {
+          "description": "how far back to go: 24 for a day, 168 for a week",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "hours"
+      ],
+      "title": "PacketHistoryCommand",
+      "type": "object"
+    },
+    "PacketHistoryMsg": {
+      "additionalProperties": false,
+      "description": "The packets heard by the hour, the answer to `packet_history`: a count for each whole hour of the clock from `start`, the oldest first, as many as were asked for; the last is the hour that is running, so\nit counts what has come since the top of the hour.",
+      "properties": {
+        "type": {
+          "const": "packet_history",
+          "type": "string"
+        },
+        "hours": {
+          "description": "the hours asked for",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "start": {
+          "description": "the top of the first hour counted, UTC",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "counts": {
+          "description": "the packets heard in each hour from `start`, the oldest first (an hour with none is 0)",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "hours",
+        "start",
+        "counts"
+      ],
+      "title": "PacketHistoryMessage",
+      "type": "object"
+    },
     "PacketRow": {
       "additionalProperties": false,
       "description": "One packet heard or sent. The rows are the values of the topic `packets`, keyed by `id` as text: the daemon holds the latest 200, a packet that comes is a `set` and the one that falls out of the\n200 a `del`. The page shows them newest first (the highest id).",
@@ -5764,6 +5822,7 @@
           "object_kill": "#/$defs/ObjectKill",
           "object_set": "#/$defs/ObjectSet",
           "overheard_delete": "#/$defs/OverheardDelete",
+          "packet_history": "#/$defs/PacketHistory",
           "page_error": "#/$defs/PageError",
           "ping": "#/$defs/Ping",
           "qru_ask": "#/$defs/AskQru",
@@ -5864,6 +5923,9 @@
           "$ref": "#/$defs/WeatherSeries"
         },
         {
+          "$ref": "#/$defs/PacketHistory"
+        },
+        {
           "$ref": "#/$defs/AlertTest"
         },
         {
@@ -5911,6 +5973,7 @@
           "alert_result": "#/$defs/AlertResultMsg",
           "error": "#/$defs/Error",
           "hello": "#/$defs/Hello",
+          "packet_history": "#/$defs/PacketHistoryMsg",
           "patch": "#/$defs/PatchMsg",
           "pong": "#/$defs/Pong",
           "ports": "#/$defs/PortsMsg",
@@ -5947,6 +6010,9 @@
         },
         {
           "$ref": "#/$defs/WeatherSeriesMsg"
+        },
+        {
+          "$ref": "#/$defs/PacketHistoryMsg"
         },
         {
           "$ref": "#/$defs/AlertResultMsg"

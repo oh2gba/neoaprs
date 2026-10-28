@@ -24,7 +24,7 @@ async function askForStats(): Promise<void> {
 
 describe("App: the statistics card", () => {
   it("opens from the map's menu with the page's numbers, closes with Esc, and is remembered by the browser", async () => {
-    const { wrapper } = await open();
+    const { wrapper, socket } = await open();
     expect(card()).toBeNull();
     await askForStats();
     expect(card()).not.toBeNull();
@@ -33,6 +33,10 @@ describe("App: the statistics card", () => {
     );
     expect(rows["Heard"]).toBe("3");
     expect(rows["In the database"]).toBe("2");
+    expect(socket.sent).toContainEqual({ cmd: "packet_history", hours: 24 });
+    socket.say({ type: "packet_history", hours: 24, start: "2026-10-20T13:00:00Z", counts: Array.from({ length: 24 }, () => 3) });
+    await flushPromises();
+    expect(document.querySelectorAll(".statscard .trend-bar")).toHaveLength(24);
     expect(localStorage.getItem("NeoAPRS.stats")).toBe("open");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await flushPromises();

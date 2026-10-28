@@ -55,6 +55,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     version: part(over.version, ""),
     install: part(over.install, null),
     weatherSeries: part(over.weatherSeries, new Map()),
+    packetHistory: part(over.packetHistory, null),
     connected: part(over.connected, true),
     receiveOnly: over.receiveOnly === undefined ? computed(() => config.value?.values["station/transmit"] === "false") : part(over.receiveOnly, false),
     now: part(over.now, NOW),
