@@ -34,6 +34,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - The filters are in a group box, **Filter**: the filter field, up to three tickboxes and a choice that wrap onto a second line: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)).
 - The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station heard on the radio as well as over the internet stays when "heard on RF only" is ticked.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
+- From the keyboard, Enter on a row does the same, and Up and Down go to the station before or after it in the table, selecting it as a click does (with Ctrl held, adding its card to the open ones); Home and End go to the first and the last.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
   - The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card).
@@ -137,6 +138,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - when the station was last heard ("6 min ago", the full time on hover);
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
+- the PHG or the range it gave, one line each: the power, height, gain and the range worked out from them, with the antenna drawn as a small arrow after the figures (the direction it favours, north up) or a small circle when it is omni, the compass point and the degrees as its hover title; a DF report or an area the same way. The last given stays until the station gives another;
 - the status and the comment;
 - what the station runs, one line ("Kenwood TH-D74", "APRSdroid"), only when it is known;
 - one line of how its packets reach you ("Reached us via OH2RCH-2", or "direct"), and, for a station that was heard over the internet, one line for that, read from the packet's APRS-IS path: "Heard by iGate OH2GW-10 via OH2RCH-2", "Heard by iGate OH2GW-10 directly", or "Sent over the internet, not heard on the air" (for an object, "Sent over the internet by OH2HCY, not heard on the air", the station that reported it). A station heard both ways has both lines.
@@ -151,7 +153,7 @@ NeoAPRS finds this again at its start from the packet log. The bulletins and tel
 
 **Details**, closed, has the rest:
 
-- the data extensions, the locator and the telemetry the station sent; the antenna of a PHG report is drawn as a small arrow after the figures (the direction it favours, north up) or as a small circle when it is omni, with the compass point and the degrees as its hover title;
+- the locator and the telemetry the station sent;
 - when it was first heard;
 - the path of its latest packet as it was sent;
 - how its packets reach you ("Heard: 12 direct, 30 via OH2RCH-2, 4 via OH2RCH-3", "from the internet" for third-party packets);

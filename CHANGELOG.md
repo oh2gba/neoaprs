@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A station's PHG, range, DF report or area is on its card itself, not under Details: a digipeater's reach is what one looks for first.
+- **Fixed:** a digipeater's range circle came and went with its beacons: a station that puts its PHG or RNG in one of several beacon texts lost its range at every beacon without it. The last range given is kept until the station gives another.
+- In the Stations table Up and Down go from one station to the next, selecting it as a click does; Home and End go to the first and the last.
 - **Fixed:** the heading of a trend graph (the weather card's, the statistics card's) grew when the pointer was on the graph and the card moved; it now shows the time of the latest reading when the pointer is away, and the one under the pointer when it is there, in the same room.
 - **The statistics card can be moved**: dragged by its head anywhere over the map, or with Alt and the arrow keys, and the browser remembers where it was left.
 - **Your reach on the map.** Your own station, when picked, has the pale circle a digipeater's range has, at the distance of the farthest station you heard direct, and the map is fitted to it.

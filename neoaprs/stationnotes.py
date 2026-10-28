@@ -88,8 +88,9 @@ def note_messaging(station: Station, packet: Packet) -> None:
 
 
 def note_position(station: Station, position: Position) -> None:
-    """What a position says that the station keeps besides where it is: its data extensions, the locator of a Mic-E status text (a position without one keeps the last), and its local data."""
-    station.extensions = position.extensions
+    """What a position says that the station keeps besides where it is: its data extensions (a position without them keeps the last: a digipeater that puts its PHG in one of its beacon texts and not the others has its
+    range all the time, not now and then), the locator of a Mic-E status text (a position without one keeps the last), and its local data."""
+    station.extensions = position.extensions or station.extensions
     station.locator = position.locator or station.locator
     note_local(station, position)
 

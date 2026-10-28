@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
-// the altitude, the voice frequency with its tone, offset and range (when it gave one), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
+// the altitude, the voice frequency with its tone, offset and range (when it gave one), the PHG or range it gave (a digipeater's reach; the antenna's direction as a small arrow), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
+import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -19,7 +20,7 @@ import { t } from "@/i18n";
 import { timedOut, type Aging } from "@/lib/aging";
 import { qrzUrl } from "@/lib/calls";
 import { heardByChannel, internetOnly } from "@/lib/channels";
-import { frequencyText } from "@/lib/details";
+import { extensionRows, frequencyText } from "@/lib/details";
 import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
@@ -85,6 +86,9 @@ const heardOn = computed(() => heardByChannel(props.row, props.now) || agoWords(
 const weather = computed(() => isWeatherStation(props.row));
 const heardStation = computed(() => props.row.kind === "station" && !props.row.is_me && !props.row.own);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));
+/** The PHG, range, DF or area the station gave, a row each (a digipeater's range is what a person asks for first; the last given is kept until another comes). */
+const extensions = computed(() => extensionRows(props.row.extensions));
+
 /** The copy menu of the head: the call. */
 const copy = useCopyMenu(() => [{ kind: "call", text: props.row.call }]);
 /** How its latest packet over the internet got there, its own line (a station heard both ways has this and the radio's). */
@@ -136,6 +140,15 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         <template v-if="row.frequency !== null">
           <dt>{{ t("station.field.frequency") }}</dt>
           <dd>{{ frequencyText(row.frequency) }}</dd>
+        </template>
+        <template v-for="ext in extensions" :key="ext.label">
+          <dt>{{ ext.label }}</dt>
+          <dd>
+            {{ ext.text }}
+            <span v-if="ext.direction" class="antenna" :title="ext.direction.title"
+              ><BearingArrow :deg="ext.direction.deg" :label="ext.direction.title"
+            /></span>
+          </dd>
         </template>
         <template v-if="row.last_status">
           <dt>{{ t("station.field.status") }}</dt>

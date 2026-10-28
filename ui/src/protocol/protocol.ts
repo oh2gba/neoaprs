@@ -1117,7 +1117,7 @@ export interface StationRow {
   telemetry_at: string | null;
   /** the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none */
   locator: LocatorValues | null;
-  /** the PHG, RNG, DF or area data of the station's latest position; null when it had none */
+  /** the PHG, RNG, DF or area data of the latest position of the station that had any (a position without them keeps the last); null while none had */
   extensions: ExtensionValues | null;
   /** the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again) */
   frequency: FrequencyValues | null;

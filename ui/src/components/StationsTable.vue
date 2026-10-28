@@ -13,6 +13,7 @@ import StationMenu from "@/components/StationMenu.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useRowKeys } from "@/composables/useRowKeys";
 import { useLongPress } from "@/composables/useLongPress";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { useSure } from "@/composables/useSure";
@@ -112,6 +113,8 @@ function onRowClick(event: MouseEvent, call: string): void {
   if (press.swallowClick()) return;
   emit("select", call, withKey(event));
 }
+
+const onRowKey = useRowKeys({ calls: () => rows.value.map((row) => row.call), select: (call, multi) => emit("select", call, multi) });
 
 const filter = ref("");
 const sort = ref<Sort>({ key: "last_heard", dir: -1 });
@@ -223,6 +226,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             :data-call="row.call"
             @click="onRowClick($event, row.call)"
             @keydown.enter="emit('select', row.call, withKey($event))"
+            @keydown="onRowKey($event, row.call)"
             @contextmenu="onContextMenu($event, row.call)"
             @pointerdown="press.down"
             @pointermove="press.move"

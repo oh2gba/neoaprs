@@ -4404,7 +4404,7 @@
               "type": "null"
             }
           ],
-          "description": "the PHG, RNG, DF or area data of the station's latest position; null when it had none"
+          "description": "the PHG, RNG, DF or area data of the latest position of the station that had any (a position without them keeps the last); null while none had"
         },
         "frequency": {
           "anyOf": [

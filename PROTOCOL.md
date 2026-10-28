@@ -673,7 +673,7 @@ row has a new distance and bearing, and the topic is told whole again.
 | `telemetry` | TelemetryValues \| null |  | the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none |
 | `telemetry_at` | time \| null |  | when `telemetry` was heard; null as it is |
 | `locator` | LocatorValues \| null |  | the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none |
-| `extensions` | ExtensionValues \| null |  | the PHG, RNG, DF or area data of the station's latest position; null when it had none |
+| `extensions` | ExtensionValues \| null |  | the PHG, RNG, DF or area data of the latest position of the station that had any (a position without them keeps the last); null while none had |
 | `frequency` | FrequencyValues \| null |  | the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again) |
 | `storm` | StormValues \| null |  | the storm data of the latest position of a storm object; null for anything else |
 | `sign` | string \| null |  | what a signpost object says (`55`); null for anything else |

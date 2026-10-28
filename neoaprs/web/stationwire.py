@@ -116,7 +116,7 @@ class StationRow(_Model):
     telemetry: TelemetryValues | None = Field(description="the latest telemetry report of the station, scaled and named by the definitions it sent (read again from the latest packets at the start); null for a station that sent none")
     telemetry_at: Iso | None = Field(description="when `telemetry` was heard; null as it is")
     locator: LocatorValues | None = Field(description="the Maidenhead locator of the station's latest status report (or Mic-E status text): where it says it is, to the square; null when it sent none")
-    extensions: ExtensionValues | None = Field(description="the PHG, RNG, DF or area data of the station's latest position; null when it had none")
+    extensions: ExtensionValues | None = Field(description="the PHG, RNG, DF or area data of the latest position of the station that had any (a position without them keeps the last); null while none had")
     frequency: FrequencyValues | None = Field(description="the voice frequency the station gave last, in the comment of a position (or the name of an object) or in a status text; null when it gave none (not kept over a restart of the daemon for a station that does not send it again)")
     storm: StormValues | None = Field(description="the storm data of the latest position of a storm object; null for anything else")
     sign: str | None = Field(description="what a signpost object says (`55`); null for anything else")

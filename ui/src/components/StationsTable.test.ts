@@ -205,4 +205,27 @@ describe("StationsTable", () => {
     const wrapper = mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ aging: never })) });
     expect(wrapper.text()).toContain("No station heard yet.");
   });
+
+  it("goes from one station to the next with Up and Down, selecting it as a click does, and to the ends with Home and End; not from a button in the row", async () => {
+    const wrapper = mount(StationsTable, {
+      props: { selected: null },
+      global: withDaemon(fakeDaemon({ stations: rows, aging: never })),
+      attachTo: document.body,
+    });
+    const row = (call: string) => wrapper.find(`tbody tr[data-call="${call}"]`);
+    await row("OH2RDG").trigger("keydown", { key: "ArrowDown" });
+    expect(wrapper.emitted("select")).toEqual([["OH2PU-9", false]]);
+    expect(document.activeElement?.getAttribute("data-call")).toBe("OH2PU-9");
+    await row("OH2PU-9").trigger("keydown", { key: "ArrowUp", ctrlKey: true });
+    expect(wrapper.emitted("select")?.at(-1)).toEqual(["OH2RDG", true]);
+    await row("OH2RDG").trigger("keydown", { key: "Home" });
+    expect(wrapper.emitted("select")?.at(-1)).toEqual(["OH2GBA", false]);
+    await row("OH2GBA").trigger("keydown", { key: "ArrowUp" });
+    expect(wrapper.emitted("select")?.at(-1)).toEqual(["OH2GBA", false]); // (the first stays the first)
+    await row("OH2GBA").trigger("keydown", { key: "End" });
+    expect(wrapper.emitted("select")?.at(-1)).toEqual(["OH2NOPOS", false]);
+    await row("OH2NOPOS").find(".actions button").trigger("keydown", { key: "ArrowUp" });
+    expect(wrapper.emitted("select")).toHaveLength(5);
+    wrapper.unmount();
+  });
 });

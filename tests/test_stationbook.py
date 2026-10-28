@@ -554,7 +554,7 @@ def test_our_own_telemetry_is_not_taken_from_the_air() -> None:
     assert me is not None and me.telemetry is None
 
 
-def test_status_and_position_details_follow_the_latest_packet() -> None:
+def test_status_and_position_details_follow_the_latest_packet_that_has_them() -> None:
     book = StationBook()
     locator = Locator("IO91sx", 51.97917, -0.45833, "/", "-")
     ext = Extensions(range_km=80.5)
@@ -565,7 +565,9 @@ def test_status_and_position_details_follow_the_latest_packet() -> None:
     book.take(packet(position(extensions=ext), at=T0 + timedelta(minutes=2)))
     assert station.extensions == ext
     book.take(packet(position(), at=T0 + timedelta(minutes=3)))
-    assert station.extensions is None                                                                     # (a position without them has none)
+    assert station.extensions == ext                                                                      # (a position without them keeps the last: a PHG in one beacon text of several)
+    book.take(packet(position(extensions=Extensions(range_km=12.0)), at=T0 + timedelta(minutes=4)))
+    assert station.extensions == Extensions(range_km=12.0)                                                # (new ones replace them)
     book.take(packet(position(locator=Locator("KP20", 60.5, 25.0, "/", "G")), at=T0 + timedelta(minutes=4)))
     assert station.locator is not None and station.locator.grid == "KP20"
 
