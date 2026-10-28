@@ -23,6 +23,7 @@ import type {
   SpeedSeriesMessage,
   WeatherSeriesMessage,
   PacketHistoryMessage,
+  PositionHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
 
@@ -33,6 +34,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
   packet_history: "packetHistory",
   speed_series: "speedSeries",
+  position_history: "positionHistory",
   alert_result: "alertResult",
   update_result: "updateResult",
   release_notes: "releaseNotes",
@@ -52,6 +54,7 @@ export interface Store {
   weatherSeries(message: WeatherSeriesMessage): void;
   packetHistory(message: PacketHistoryMessage): void;
   speedSeries(message: SpeedSeriesMessage): void;
+  positionHistory(message: PositionHistoryMessage): void;
   alertResult(message: AlertResultMessage): void;
   updateResult(message: UpdateResultMessage): void;
   releaseNotes(message: ReleaseNotesMessage): void;

@@ -11,15 +11,16 @@ from .clock import Clock, days, utcnow
 from .db import Db
 from .dblog import DbLog
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
-from .packetcodec import PacketRow, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, message_packets, packets_since, position_packets, prune_packets_before, radio_position_packets,
-                        recent_packets, station_positions, upsert_station, window_packets)
+from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
+from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_since, message_packets, packets_since, position_packets, prune_packets_before,
+                        radio_position_packets, recent_packets, station_positions, upsert_station, window_packets)
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
 
 DELIVERIES_SEEN = 2000                   # the packets the station book counts the routes of at its start
 TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
+HISTORY_READ = 50_000                    # the most position packets the replay of the map is made from: a day of a busy APRS-IS feed, the latest of them
 
 
 def station_row(station: Station) -> Row:
@@ -36,6 +37,17 @@ def _stamped(at: datetime | None) -> str | None:
 
 def _parsed(text: object) -> datetime | None:
     return None if text is None else parse_stamp(str(text))
+
+
+def _sender(source: str, raw: bytes | None, via: str) -> str:
+    """Who sent a packet with a position: the station inside a third-party packet (`raw` is given only for a packet that may be one), else its source."""
+    if raw is None:
+        return source
+    try:
+        opened = header_of(info_of(bytes(raw), via))
+    except ax25.Ax25Error:
+        return source
+    return source if opened is None else opened[0].source
 
 
 def station_of(row: Row) -> Station:
@@ -141,6 +153,19 @@ class PacketLog(DbLog):
                 found.append((packet.sender, packet.heard_at, d.lat, d.lon))
             elif isinstance(d, (ObjectReport, ItemReport)) and d.alive:
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
+        return found
+
+    async def position_history(self, since: datetime, own_call: str, count: int = HISTORY_READ) -> list[tuple[str, datetime, float, float]]:
+        """(station, when, lat, lon) of the latest `count` positions at or after `since`, the oldest first: those heard and those we sent under `own_call` (our beacons, our objects). The station is the sender (the one
+        inside a third-party packet) or the name of a live object or item, as for the tracks. What the replay of the map plays back (`position_history`)."""
+        text = stamp(since)
+        rows: list[Row] = await self._read(lambda conn: located_since(conn, text, own_call, count), [])
+        found: list[tuple[str, datetime, float, float]] = []
+        for heard_at, source, name, lat, lon, raw, via in rows:
+            try:
+                found.append((str(name) if name else _sender(str(source), raw, str(via)), datetime.fromisoformat(str(heard_at)), float(lat), float(lon)))   # (fromisoformat: strptime is slow for a day of rows)
+            except (TypeError, ValueError):
+                continue                    # (a row this program did not write: no place, or a time of another form)
         return found
 
     async def radio_positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[Packet]:

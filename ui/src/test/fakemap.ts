@@ -67,6 +67,14 @@ export class FakeMap {
   getSource(id: string): { setData: ReturnType<typeof vi.fn>; data?: unknown } | undefined {
     return this.sources.get(id);
   }
+  getLayer(id: string): { id: string } | undefined {
+    return this.layers.includes(id) ? { id } : undefined;
+  }
+  /** what `setLayoutProperty` set the visibility of a layer to, by its id */
+  visibility = new Map<string, string>();
+  setLayoutProperty(id: string, name: string, value: string): void {
+    if (name === "visibility") this.visibility.set(id, value);
+  }
   getZoom(): number {
     return this.zoom;
   }

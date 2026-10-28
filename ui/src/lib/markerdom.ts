@@ -42,21 +42,25 @@ interface MarkerState {
   direct: boolean;
 }
 
+/** The symbol of the icon, its layers made again only when it changes; a symbol that is none is a plain dot. */
+function paintSymbol(dom: MarkerDom, table: string, code: string): void {
+  const symbol = `${table}${code}`;
+  if (symbol === dom.symbol) return;
+  dom.symbol = symbol;
+  dom.icon.replaceChildren(
+    ...symbolLayers(table, code).map((layer) => {
+      const part = document.createElement("span");
+      part.className = "stn-layer";
+      Object.assign(part.style, layerStyle(layer, MARKER_PX));
+      return part;
+    }),
+  );
+  dom.icon.classList.toggle("stn-plain", dom.icon.childElementCount === 0);
+}
+
 /** Makes the element show the row: the symbol, the call, the classes. */
 export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState): void {
-  const symbol = `${row.symbol_table}${row.symbol_code}`;
-  if (symbol !== dom.symbol) {
-    dom.symbol = symbol;
-    dom.icon.replaceChildren(
-      ...symbolLayers(row.symbol_table, row.symbol_code).map((layer) => {
-        const part = document.createElement("span");
-        part.className = "stn-layer";
-        Object.assign(part.style, layerStyle(layer, MARKER_PX));
-        return part;
-      }),
-    );
-    dom.icon.classList.toggle("stn-plain", dom.icon.childElementCount === 0);
-  }
+  paintSymbol(dom, row.symbol_table, row.symbol_code);
   if (dom.label.textContent !== row.call) dom.label.textContent = row.call;
   const sign = row.sign ?? "";
   if (dom.sign.textContent !== sign) dom.sign.textContent = sign;
@@ -72,4 +76,14 @@ export function paintMarker(dom: MarkerDom, row: StationRow, state: MarkerState)
   dom.root.classList.toggle("stn--direct", state.direct);
   dom.root.classList.toggle("stn--net", net);
   for (let step = 1; step < MARKER_STEPS; step++) dom.root.classList.toggle(`stn--fade-${step}`, state.fade === step);
+}
+
+/** A marker of the map's replay (composables/useMapReplay.ts): the station's symbol as the station book has it now (a plain dot for one it no longer has) and its call, and nothing of a live marker's state. It is
+ * no button (the replay is watched, not clicked), and its class `stn--replay` keeps it in sight while the live markers give way (styles/map.css). */
+export function paintReplayMarker(dom: MarkerDom, call: string, row: StationRow | undefined): void {
+  paintSymbol(dom, row?.symbol_table ?? "", row?.symbol_code ?? "");
+  dom.label.textContent = call;
+  dom.root.removeAttribute("role");
+  dom.root.setAttribute("aria-hidden", "true");
+  dom.root.classList.add("stn--replay");
 }

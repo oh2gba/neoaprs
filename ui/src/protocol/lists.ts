@@ -30,6 +30,7 @@ export const MESSAGE_TYPES = [
   "patch",
   "pong",
   "ports",
+  "position_history",
   "radio_search",
   "release_notes",
   "speed_series",

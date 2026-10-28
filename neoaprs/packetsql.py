@@ -72,6 +72,21 @@ def radio_position_packets(db: sqlite3.Connection, stamp: str, count: int) -> li
                                           "ORDER BY id DESC LIMIT ?) ORDER BY id", (stamp, max(0, count)))]
 
 
+def located_since(db: sqlite3.Connection, stamp: str, own: str, count: int) -> list[Row]:
+    """(heard_at, source, name, lat, lon, raw, via) of the latest `count` packets at or after `stamp` that carry a position, the oldest first: those heard, and those sent under our call `own` (our beacons and our
+    objects; not the copies of other stations' packets the digipeater sent). An object or item that was killed is left out. `name` is the object's or item's (null for a position); the place is read from the JSON
+    of the decoded packet here, so that a day of positions is not decoded in Python one by one. `raw` is only given for a packet that may be a third-party one (its information field begins with `}`: the frame has
+    it after the control and protocol bytes 03 F0, a line of APRS-IS after a colon), whose sender is the station inside it; for any other it is null and the sender is the source."""
+    return [tuple(r) for r in db.execute(
+        "SELECT heard_at, source, name, lat, lon, raw, via FROM (SELECT id, heard_at, source, "
+        "CASE kind WHEN 'position' THEN NULL ELSE json_extract(decoded, '$.name') END AS name, "
+        "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lat') ELSE json_extract(decoded, '$.position.lat') END AS lat, "
+        "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lon') ELSE json_extract(decoded, '$.position.lon') END AS lon, "
+        "CASE WHEN instr(raw, x'03f07d') > 0 OR instr(raw, x'3a7d') > 0 THEN raw END AS raw, via "
+        "FROM packet WHERE (direction = 'in' OR source = ?) AND kind IN ('position', 'object', 'item') AND heard_at >= ? AND coalesce(json_extract(decoded, '$.alive'), 1) = 1 "
+        "ORDER BY id DESC LIMIT ?) ORDER BY id", (own, stamp, max(0, count)))]
+
+
 def message_packets(db: sqlite3.Connection, count: int) -> list[Row]:
     """The latest `count` packets that were heard and are messages (or acks), the oldest first."""
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM (SELECT id, {_PACKET_LIST} FROM packet WHERE direction = 'in' AND kind = 'message' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]

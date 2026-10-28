@@ -43,6 +43,7 @@ const {
   layout,
   cards,
   statsOpen,
+  replayOpen,
   guide,
   panel,
   notice,
@@ -73,11 +74,13 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           :focus="focus"
           :picking="guide.picking || objects.picking || stationPick.picking.value"
           :pin="guide.open ? guide.pin : objects.pin"
+          :replay="replayOpen"
           @select="cards.onMarker"
           @pick="picks.onPick"
           @move="objects.move"
           @download="panel.show('settings')"
           @stats="statsOpen = true"
+          @replay="(open) => (replayOpen = open)"
         />
         <StatsCard v-if="statsOpen" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
         <SetupGuide />

@@ -58,6 +58,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     packetHistory: part(over.packetHistory, null),
     packetHistoryByCall: part(over.packetHistoryByCall, new Map()),
     speedSeriesByCall: part(over.speedSeriesByCall, new Map()),
+    positionHistory: part(over.positionHistory, null),
     connected: part(over.connected, true),
     receiveOnly: over.receiveOnly === undefined ? computed(() => config.value?.values["station/transmit"] === "false") : part(over.receiveOnly, false),
     now: part(over.now, NOW),

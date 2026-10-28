@@ -13,6 +13,7 @@ from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import INTERNET, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.geo import thinned
 from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -67,6 +68,18 @@ def telemetry_values(book: StationBook, station: Station) -> dict[str, Any] | No
 def weather_points(observations: list[Observation]) -> list[list[Any]]:
     """[time, temp_c, pressure_hpa, wind_kmh, gust_kmh, rain_1h_mm, humidity] for each observation."""
     return [[iso(at), w.temp_c, w.pressure_hpa, w.wind_kmh, w.gust_kmh, w.rain_1h_mm, w.humidity] for at, w in observations]
+
+
+REPLAY_METRES = 10                  # a point of a replay this near the one before it adds nothing that shows
+REPLAY_SECONDS = 30                 # nor one this soon after it (a station heard by two digipeaters, or one that beacons fast)
+
+
+def replay_tracks(found: list[tuple[str, datetime, float, float]]) -> dict[str, list[list[Any]]]:
+    """The positions of the replay by station, [time, lat, lon] the oldest first, each station's thinned (neoaprs/geo.py) and to 5 decimals (about a metre)."""
+    tracks: dict[str, list[tuple[datetime, float, float]]] = {}
+    for station, at, lat, lon in found:
+        tracks.setdefault(station, []).append((at, lat, lon))
+    return {station: [[iso(at), round(lat, 5), round(lon, 5)] for at, lat, lon in thinned(points, REPLAY_METRES, REPLAY_SECONDS)] for station, points in tracks.items()}
 
 
 def station_row(book: StationBook, station: Station) -> dict[str, Any]:

@@ -11,7 +11,7 @@ The docstrings and field descriptions are the documentation: `scripts/gen-protoc
 Nothing else in the repository describes the format.
 
 This module holds the two unions, the value of each topic (`TopicValues`) and the validators made from them. The models themselves are in the `neoaprs/web/*wire.py` modules, one for each area
-(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the base map, the GPS, the iGate, local info (QRU), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
+(the daemon, the hub, the stations, the packets, the TNC, the settings, the beacon, the messages, the message board, the objects and bulletins of ours, the station preferences, the weather, the replay of the map, the base map, the GPS, the iGate, local info (QRU), Update now, what the page reports about itself), which import `neoaprs/web/wirebase.py` and nothing else of neoaprs/web/, never this module.
 
 Conventions: every time is UTC ISO 8601 ending in `Z` (`2026-10-21T12:00:00Z`); a station is referred to by its call and a packet by its id, never by a position in a list; the models are strict
 (no `"5"` for 5, no `1` for true) and reject fields they do not know. pydantic lives in `neoaprs/web/` only: the rest of `neoaprs/` stays free of it.
@@ -34,6 +34,7 @@ from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBul
 from .packetwire import PacketRow
 from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
 from .qruwire import AskQru, QruState
+from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly, StationPref
 from .stationwire import ForgetAllStations, ForgetStation, StationRow
 from .supportwire import PageError
@@ -44,7 +45,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, PacketHistory, SpeedSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -81,7 +82,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, SpeedSeriesMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

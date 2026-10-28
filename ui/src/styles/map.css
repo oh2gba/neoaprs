@@ -283,3 +283,74 @@
 .map-picking .maplibregl-canvas-container.maplibregl-interactive:active {
   cursor: crosshair;
 }
+
+/* The replay of the map (components/ReplayBar.vue, composables/useMapReplay.ts): while it is open the live markers give way to the replay's, which are not buttons. The bar stands at the bottom of the map in the
+   middle, clear of the credits' (i) at the right; the station cards and the statistics card (where it was not dragged) rise above it. Its parts keep their size whatever they show: the clock is a box of 14
+   characters of tabular figures (MM-DD HH:MM:SS), the play button one square. Where the bar is narrow (a tablet's map, a phone) the slider has the first line with play and the cross, and the clock and the
+   choices the second. On a phone it is at the top of the map instead (styles/responsive.css), where the station's sheet does not cover it. */
+.mapbox.replaying .stn:not(.stn--replay) {
+  display: none;
+}
+.stn--replay {
+  cursor: default;
+}
+.replaybar {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 3;
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(580px, calc(100% - 96px));
+  padding: 6px 8px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.replay-play {
+  flex: none;
+  width: var(--control-h);
+  padding: 0;
+}
+.replay-slider {
+  flex: 1 1 120px;
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.replay-clock {
+  flex: none;
+  width: 14ch;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+.replay-speed,
+.replay-span,
+.replay-close {
+  flex: none;
+}
+@container (max-width: 520px) {
+  .replay-slider {
+    order: 1;
+    flex-basis: calc(100% - 100px); /* (room for play and the cross beside it, 40 px each on a touch screen) */
+  }
+  .replay-close {
+    order: 2;
+  }
+  .replay-clock,
+  .replay-speed,
+  .replay-span {
+    order: 3;
+  }
+}
+.app:not(.size-phone) .mapwrap:has(.replaybar) :is(.cardstack, .statscard:not(.moved)) {
+  bottom: 70px;
+}

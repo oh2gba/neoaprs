@@ -3,9 +3,10 @@
 import { computed, ref } from "vue";
 import type { MessageId } from "@/i18n/catalogue";
 import { BASE_SOURCE, WORLD_SOURCE } from "@/lib/basemapstyle";
-import type { MapState } from "@/protocol/protocol";
+import type { DaemonContext } from "@/composables/useDaemonContext";
 
-export function useMapNote(guideOpen: () => boolean, map: () => MapState | null) {
+/** `page`: the first-run guide (whether it is open) and the base map's state (whether a download runs). */
+export function useMapNote(page: Pick<DaemonContext, "guide" | "map">) {
   const files = ref({ detail: false, world: false }); // which of the two files the daemon has
   const engineFailed = ref(false); // the map engine could not be loaded, or the browser has no WebGL
   const unreadable = ref<string[]>([]); // the sources whose archive the engine could not open (a file that is not a PMTiles archive)
@@ -16,12 +17,12 @@ export function useMapNote(guideOpen: () => boolean, map: () => MapState | null)
     const { detail, world } = files.value;
     if (!detail && !world) return "map.note.no_basemap";
     if ((!detail || unreadable.value.includes(BASE_SOURCE)) && (!world || unreadable.value.includes(WORLD_SOURCE))) return "map.note.unreadable";
-    return !detail && !guideOpen() && map()?.state !== "downloading" ? "map.note.no_detail" : "";
+    return !detail && !page.guide.open && page.map.value?.state !== "downloading" ? "map.note.no_detail" : "";
   });
   /** ... and whether it has the button that goes to where the map is made (not over the guide, which has its own quiet line about the map). */
   const offerDownload = computed(
     () =>
-      !guideOpen() &&
+      !page.guide.open &&
       (note.value === "map.note.no_basemap" || note.value === "map.note.no_detail" || (note.value === "map.note.unreadable" && files.value.detail)),
   );
 

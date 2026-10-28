@@ -252,6 +252,16 @@ button,
   box-shadow: var(--shadow);
 }
 
+/* phone: the bar of the map's replay is at the top of the map, under its zoom buttons, the width of the map less 16 px each side; the station's sheet and the credits are at the bottom */
+.size-phone .replaybar {
+  top: 84px;
+  right: 16px;
+  bottom: auto;
+  left: 16px;
+  width: auto;
+  transform: none;
+}
+
 /* phone: the first-run guide is the whole screen (the map behind it, which "Choose on map" folds it to its head to show) */
 .size-phone.guide-open .appheader,
 .size-phone.guide-open .panel {

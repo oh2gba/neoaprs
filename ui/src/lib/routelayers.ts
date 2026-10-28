@@ -5,6 +5,8 @@ import { FONT_REGULAR } from "@/lib/basemapstyle";
 import type { RouteCollection } from "@/lib/routeline";
 
 export const ROUTE_SOURCE = "route";
+/** The layers made here, which give way while the map's replay plays (lib/replaylayers.ts). */
+export const ROUTE_LAYERS: readonly string[] = ["route-casing", "route-previous", "route-latest", "route-hops", "route-names"];
 
 const LINES: ExpressionSpecification = ["==", ["geometry-type"], "LineString"];
 const DOTS: ExpressionSpecification = ["==", ["geometry-type"], "Point"];

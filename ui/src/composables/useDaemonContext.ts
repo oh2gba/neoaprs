@@ -21,6 +21,7 @@ import type {
   MapState,
   PacketHistoryMessage,
   PortsMessage,
+  PositionHistoryMessage,
   QruState,
   ReleaseNotesMessage,
   SpeedSeriesMessage,
@@ -69,6 +70,8 @@ export interface DaemonContext {
   packetHistoryByCall: Read<ReadonlyMap<string, PacketHistoryMessage>>;
   /** the speeds of each moving station, the answers to the station cards' `speed_series` */
   speedSeriesByCall: Read<ReadonlyMap<string, SpeedSeriesMessage>>;
+  /** where the stations were over the span the map's replay asked for (`position_history`); null until one came */
+  positionHistory: Read<PositionHistoryMessage | null>;
   /** the radio link is up */
   connected: Read<boolean>;
   /** transmitting is switched off (station/transmit false): RX only */

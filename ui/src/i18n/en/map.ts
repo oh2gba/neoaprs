@@ -1,4 +1,4 @@
-// The map: its notes, its credits, the menu of a right-click on it, the bar that asks for a place on it.
+// The map: its notes, its credits, the menu of a right-click on it, the bar of its replay, the bar that asks for a place on it.
 export const map = {
   "map.label": "Map of the stations",
   "map.zoom_in": "Zoom in",
@@ -20,6 +20,17 @@ export const map = {
   "map.menu.copy_position": "Copy position {place}",
   "map.menu.copy_locator": "Copy locator {locator}",
   "map.menu.stats": "Statistics",
+  "map.menu.replay": "Replay",
+
+  "map.replay.label": "Replay of the map",
+  "map.replay.play": "Play",
+  "map.replay.pause": "Pause",
+  "map.replay.time": "Time of the replay",
+  "map.replay.speed": "Speed",
+  "map.replay.speed_n": "{n}×",
+  "map.replay.span": "Span",
+  "map.replay.close": "Close the replay",
+  "map.replay.none": "No positions were heard in the last {hours} h",
 
   "map.pick.tap": "Tap the place on the map",
   "map.pick.cancel": "Cancel",
