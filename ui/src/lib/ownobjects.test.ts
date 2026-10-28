@@ -10,6 +10,8 @@ import {
   nameProblem,
   objectCommand,
   qruProblem,
+  steppedCourse,
+  steppedSpeed,
   sentText,
   stateText,
   wrapLongitude,
@@ -237,5 +239,23 @@ describe("stateText", () => {
 
   it("words the count of what was sent", () => {
     expect([0, 1, 5].map(sentText)).toEqual(["not sent yet", "sent once", "sent 5 times"]);
+  });
+
+  describe("Up and Down in the course and the speed", () => {
+    it("step the course round the compass, whole degrees, from 0 for an empty field", () => {
+      expect(steppedCourse("", 1)).toBe("1");
+      expect(steppedCourse("359", 1)).toBe("0");
+      expect(steppedCourse("0", -1)).toBe("359");
+      expect(steppedCourse("355", 10)).toBe("5");
+      expect(steppedCourse("12.6", 1)).toBe("14");
+      expect(steppedCourse("abc", -10)).toBe("350");
+    });
+    it("step the speed between 0 and the most, keeping a tenth", () => {
+      expect(steppedSpeed("", 1)).toBe("1");
+      expect(steppedSpeed("0", -1)).toBe("0");
+      expect(steppedSpeed("12.5", 1)).toBe("13.5");
+      expect(steppedSpeed("1845", 10)).toBe("1850");
+      expect(steppedSpeed("x", 10)).toBe("10");
+    });
   });
 });

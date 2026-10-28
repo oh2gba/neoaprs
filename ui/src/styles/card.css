@@ -235,10 +235,22 @@
   font-weight: 600;
 }
 
-/* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections */
+/* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections; dragged by its head (on a tablet and a desktop), it stands where it was put, in the map's pixels */
 .statscard {
   left: auto;
   right: 10px;
+}
+.statscard.moved {
+  right: auto;
+  bottom: auto;
+  max-height: calc(100% - 20px);
+}
+.statscard.movable .card-head {
+  cursor: grab;
+  touch-action: none;
+}
+.statscard.movable .card-head button {
+  cursor: pointer;
 }
 .stats-section {
   margin: 8px 10px 0;

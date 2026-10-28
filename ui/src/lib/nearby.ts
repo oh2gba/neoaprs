@@ -4,6 +4,7 @@
 //   voice frequencies: every station, object and item that gave one, as the card words it, and who reported it;
 //   iGates: the stations that put third-party packets on the air (`gated`), that said so in a capabilities packet (`igate`) or whose symbol is the iGate's;
 //   heard direct: the stations heard with no digipeater between us, newest direct packet first among equals: the stations in simplex range.
+// The farthest of those is our reach (`reachKm`): the circle the map draws round our own station when it is picked, as it draws a digipeater's range.
 // Only what was on the air near us is listed: a station known from the internet alone (lib/channels.ts) is in none of the four lists, whatever its symbol or its frequency says.
 // These are plain functions of rows; the page's words are the ones of the `nearby.*` messages.
 import { t } from "@/i18n";
@@ -94,10 +95,22 @@ export interface RangeCircle {
   km: number;
 }
 
-/** What the map draws for the selected station: its range circle when it is a digipeater of the list (`digipeaters`) that gave a range and has a position, else null (no selection, another station, no range). The station's own timeout does not hide it: a selected station is drawn whatever its age. */
+/** How far the farthest station heard direct is, in km: our simplex reach as far as the stations heard tell it; 0 while none was heard direct (or none has a distance). */
+function reachKm(rows: Iterable<StationRow>): number {
+  return Math.max(0, ...[...rows].filter((row) => isOther(row) && row.heard_direct > 0).map((row) => row.distance_km ?? 0));
+}
+
+/** What the map draws for the selected station: its range circle when it is a digipeater of the list (`digipeaters`) that gave a range and has a position, or, for our own station, the circle of our reach (`reachKm`) round our position;
+ * else null (no selection, another station, no range, nothing heard direct). The station's own timeout does not hide it: a selected station is drawn whatever its age. */
 export function rangeCircleOf(source: Iterable<StationRow>, call: string | null): RangeCircle | null {
   if (call === null) return null;
-  const found = digipeaters(source).find((one) => one.call === call);
+  const rows = [...source];
+  const me = rows.find((row) => row.call === call && row.is_me);
+  if (me !== undefined) {
+    const km = reachKm(rows);
+    return km > 0 && hasPosition(me) ? { call, lat: me.lat, lon: me.lon, km } : null;
+  }
+  const found = digipeaters(rows).find((one) => one.call === call);
   if (found === undefined || found.row === null || found.range === null || !(found.range.km > 0) || !hasPosition(found.row)) return null;
   return { call, lat: found.row.lat, lon: found.row.lon, km: found.range.km };
 }

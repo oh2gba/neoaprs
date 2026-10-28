@@ -141,6 +141,19 @@ export function draftProblems(draft: ObjectDraft): DraftProblems {
 }
 
 /** Whether Save is on: a name, a position and a symbol, and nothing wrong. */
+/** The course one step on from the text (`delta` degrees, up or down), round the compass: up from 359 is 0, down from 0 is 359; empty counts as 0. Whole degrees. */
+export function steppedCourse(text: string, delta: number): string {
+  const now = Math.round(parseNumber(text) ?? 0);
+  const span = COURSE_MAX + 1;
+  return String((((now + delta) % span) + span) % span);
+}
+
+/** The speed one step on (`delta` km/h), between 0 and the most an object may say; empty counts as 0; a tenth is kept. */
+export function steppedSpeed(text: string, delta: number): string {
+  const now = parseNumber(text) ?? 0;
+  return String(Math.round(Math.min(SPEED_MAX_KMH, Math.max(0, now + delta)) * 10) / 10);
+}
+
 export function draftReady(draft: ObjectDraft): boolean {
   return (
     draft.name !== "" &&

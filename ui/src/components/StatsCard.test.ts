@@ -1,11 +1,14 @@
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { shallowRef } from "vue";
 import StatsCard from "@/components/StatsCard.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { NOW, packet, station, status, table, tncState } from "@/test/fixtures";
 
-afterEach(() => document.body.replaceChildren());
+afterEach(() => {
+  vi.restoreAllMocks();
+  document.body.replaceChildren();
+});
 
 const stations = () =>
   table(
@@ -61,5 +64,50 @@ describe("StatsCard", () => {
     now.value = NOW + 61_000;
     await wrapper.vm.$nextTick();
     expect(daemon.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("is dragged by its head where moving is on, stays inside the map, remembers where it was left, and moves with Alt and the arrows", async () => {
+    const rect = (x: number, y: number, w: number, h: number) =>
+      ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (!this.classList.contains("statscard")) return rect(0, 0, 1200, 800);
+      return this.classList.contains("moved") ? rect(parseFloat(this.style.left), parseFloat(this.style.top), 340, 300) : rect(860, 500, 340, 300);
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(800);
+    const mounted = (movable: boolean) =>
+      mount(StatsCard, { props: { packets: new Map(), movable }, global: withDaemon(fakeDaemon({ stations: stations() })), attachTo: document.body });
+    const wrapper = mounted(true);
+    const el = wrapper.find(".statscard").element as HTMLElement;
+    const head = wrapper.find(".card-head strong").element;
+    const pointer = (type: string, x: number, y: number) =>
+      head.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    expect(el.classList.contains("movable")).toBe(true);
+    pointer("pointerdown", 900, 510);
+    pointer("pointermove", 800, 400);
+    await wrapper.vm.$nextTick();
+    expect(el.classList.contains("moved")).toBe(true);
+    expect([el.style.left, el.style.top]).toEqual(["760px", "390px"]);
+    pointer("pointermove", 2000, 2000); // (far beyond the map: kept inside it)
+    pointer("pointerup", 2000, 2000);
+    await wrapper.vm.$nextTick();
+    expect([el.style.left, el.style.top]).toEqual(["860px", "500px"]);
+    expect(localStorage.getItem("NeoAPRS.statsplace")).toBe("860,500");
+    await wrapper.find(".statscard").trigger("keydown", { key: "ArrowLeft", altKey: true });
+    await wrapper.find(".statscard").trigger("keydown", { key: "ArrowUp", altKey: true, shiftKey: true });
+    expect([el.style.left, el.style.top]).toEqual(["836px", "404px"]);
+    wrapper.unmount();
+    const again = mounted(true);
+    expect((again.find(".statscard").element as HTMLElement).style.left).toBe("836px"); // (where it was left)
+    again.unmount();
+    const phone = mounted(false);
+    const sheet = phone.find(".statscard").element as HTMLElement;
+    expect(sheet.classList.contains("moved")).toBe(false);
+    expect(sheet.style.left).toBe("");
+    const grip = phone.find(".card-head strong").element;
+    grip.dispatchEvent(new MouseEvent("pointerdown", { clientX: 900, clientY: 510, bubbles: true }));
+    grip.dispatchEvent(new MouseEvent("pointermove", { clientX: 800, clientY: 400, bubbles: true }));
+    await phone.vm.$nextTick();
+    expect(sheet.classList.contains("moved")).toBe(false);
   });
 });

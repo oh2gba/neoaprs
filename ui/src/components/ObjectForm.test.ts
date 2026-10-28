@@ -506,4 +506,22 @@ describe("ObjectForm", () => {
     expect(cancel()?.element.disabled).toBe(false);
     expect(sent).toEqual([]);
   });
+
+  it("steps the course and the speed with Up and Down, by one, with Shift by ten", async () => {
+    const { input, view } = form();
+    const course = input("Course")!;
+    await course.trigger("keydown", { key: "ArrowUp" });
+    expect(view.draft.course).toBe("1");
+    await course.trigger("keydown", { key: "ArrowUp", shiftKey: true });
+    expect(view.draft.course).toBe("11");
+    await course.trigger("keydown", { key: "ArrowDown", shiftKey: true });
+    await course.trigger("keydown", { key: "ArrowDown" });
+    await course.trigger("keydown", { key: "ArrowDown" });
+    expect(view.draft.course).toBe("359");
+    expect(course.element.value).toBe("359");
+    const speed = input("Speed")!;
+    await speed.trigger("keydown", { key: "ArrowUp", shiftKey: true });
+    await speed.trigger("keydown", { key: "ArrowDown" });
+    expect(view.draft.speed).toBe("9");
+  });
 });

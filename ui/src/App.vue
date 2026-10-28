@@ -79,7 +79,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           @download="panel.show('settings')"
           @stats="statsOpen = true"
         />
-        <StatsCard v-if="statsOpen" :packets="packets" @close="statsOpen = false" />
+        <StatsCard v-if="statsOpen" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards
