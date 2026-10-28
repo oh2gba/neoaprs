@@ -158,10 +158,10 @@ async def test_what_is_said_of_a_station_is_kept_replaced_and_forgotten_and_an_e
     assert await log.prefs() == {}
     assert await log.save_pref("OH2RDG", "WIDE1-1,WIDE2-1") and await log.save_pref("OH2XYZ", "") and await log.save_pref("OH2ABC", "WIDE2-1", True)
     assert await log.save_pref("EMAIL-2", None, True)
-    assert await log.prefs() == {"OH2RDG": ("WIDE1-1,WIDE2-1", False), "OH2XYZ": ("", False), "OH2ABC": ("WIDE2-1", True), "EMAIL-2": (None, True)}
+    assert await log.prefs() == {"OH2RDG": ("WIDE1-1,WIDE2-1", False, None), "OH2XYZ": ("", False, None), "OH2ABC": ("WIDE2-1", True, None), "EMAIL-2": (None, True, None)}
     clock.advance(60)
     assert await log.save_pref("OH2RDG", "OH2RCH-2")
-    assert (await log.prefs())["OH2RDG"] == ("OH2RCH-2", False)
+    assert (await log.prefs())["OH2RDG"] == ("OH2RCH-2", False, None)
     assert await log.forget_pref("OH2XYZ") and await log.forget_pref("NOBODY")
     assert set(await log.prefs()) == {"OH2RDG", "OH2ABC", "EMAIL-2"}
     assert log.db is not None

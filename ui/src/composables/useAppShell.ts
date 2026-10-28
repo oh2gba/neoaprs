@@ -25,6 +25,7 @@ import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
 import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
+import { useStationAlerts } from "@/composables/useStationAlerts";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { agingOf, type Aging } from "@/lib/aging";
@@ -153,9 +154,10 @@ export function useAppShell() {
     return was;
   };
   const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, closeStats);
-  // the notices (a toast that is no error) and what the menu of a row of the Stations table sends or copies
+  // the notices (a toast that is no error), what the menu of a row of the Stations table sends or copies, and the alerts set on stations that fire
   const { notice, say } = useNotice();
   const stationActions = useStationActions(send, say);
+  useStationAlerts(daemon.stationAlert, tabs.alerts, say); // (an alert set on a station that fired: as a message alerts, and in the toast)
   const findRadio = useFindRadio(daemon.radioSearch, lastError, connection, send, derived.settings, config, say, guide);
 
   provideDaemon({

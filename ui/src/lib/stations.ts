@@ -2,6 +2,7 @@
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
 import { onAir } from "@/lib/channels";
+import { canAlert } from "@/lib/stationalert";
 import { symbolText } from "@/lib/symbols";
 import type { StationRow } from "@/protocol/protocol";
 
@@ -25,12 +26,15 @@ export function canForget(row: Pick<StationRow, "is_me" | "own">): boolean {
 export const QUERY_KINDS = ["position", "status", "heard", "trace"] as const;
 export type QueryKind = (typeof QUERY_KINDS)[number];
 
-/** What the menu of a row of the Stations table offers, in its order: Message and the four queries where the card has Message (a station that takes messages, not ours, not an object), Show, Copy and the QRZ page of any station, Forget where the card has it. */
-export type MenuItem = "message" | `ask_${QueryKind}` | "show" | "copy" | "qrz" | "forget";
+/** What the menu of a row of the Stations table offers, in its order: Message and the four queries where the card has Message (a station that takes messages, not ours, not an object), Show, "Alert me when…" for a station that is not ours
+ *  (lib/stationalert.ts), Copy and the QRZ page of any station, Forget where the card has it. */
+export type MenuItem = "message" | `ask_${QueryKind}` | "show" | "alert" | "copy" | "qrz" | "forget";
 
 export function menuItems(row: Pick<StationRow, "call" | "kind" | "can_message" | "is_me" | "own">): MenuItem[] {
   const items: MenuItem[] = canMessage(row) ? ["message", ...QUERY_KINDS.map((k): MenuItem => `ask_${k}`)] : [];
-  items.push("show", "copy");
+  items.push("show");
+  if (canAlert(row)) items.push("alert");
+  items.push("copy");
   if (row.kind === "station" && qrzUrl(row.call) !== null) items.push("qrz");
   if (canForget(row)) items.push("forget");
   return items;

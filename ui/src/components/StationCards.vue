@@ -26,7 +26,7 @@ const props = defineProps<{
   /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, stations } = useDaemonContext();
+const { now, aging, weatherSeries, stations, prefs } = useDaemonContext();
 // (Forget, Message, Edit, ... are the card's own events: they go on)
 const emit = defineEmits<{
   close: [call: string];
@@ -200,6 +200,7 @@ function tap(): void {
       :style="placeStyle(placeOf(row.call))"
       :movable="movable"
       :pinned="isPinned(row.call)"
+      :alert="prefs.alerts.value.get(row.call) ?? null"
       :row="row"
       :stations="stations"
       :now="now"

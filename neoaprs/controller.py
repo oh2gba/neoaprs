@@ -70,6 +70,7 @@ class Controller(Services):
         await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
+        self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
         await self.aloha.start()
         await self.messaging.start()
         await self._start_web()

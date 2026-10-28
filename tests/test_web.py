@@ -805,7 +805,7 @@ async def test_a_restarted_daemon_opens_with_the_messages_the_database_kept(tmp_
 
 
 def pref(path: str | None, rf_only: bool = False) -> dict[str, object]:
-    return {"path": path, "rf_only": rf_only}
+    return {"path": path, "rf_only": rf_only, "alert": None}
 
 
 async def test_set_station_path_and_clear_station_path_change_the_entry_of_the_topic_and_the_path_of_the_message(tmp_path: Path) -> None:

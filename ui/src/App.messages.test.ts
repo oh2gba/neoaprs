@@ -28,7 +28,7 @@ describe("App: messages", () => {
       type: "patch",
       topic: "station_prefs",
       rev: 1,
-      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, rf_only: true } }],
+      ops: [{ op: "set", key: "OH2PU-9", value: { path: null, rf_only: true, alert: null } }],
     });
     await flushPromises();
     expect(wrapper.find<HTMLInputElement>("#pane-messages .route-box .rfonly input").element.checked).toBe(true);

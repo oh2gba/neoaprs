@@ -67,7 +67,7 @@ describe("the (i) of the Settings tab", () => {
     const wrapper = make();
     for (const id of ["set-messages-alert_command", "set-messages-alert"]) expect(tipOf(wrapper, id), id).not.toBeNull();
     await new DOMWrapper(tipOf(wrapper, "set-messages-alert_command")).trigger("click");
-    expect(wrapper.find(".info-text").text()).toContain("NEOAPRS_FROM and NEOAPRS_TEXT");
+    expect(wrapper.find(".info-text").text()).toContain("NEOAPRS_TITLE and NEOAPRS_TEXT");
   });
 
   it("shows a plain on/off setting as a checkbox that sends true or false", async () => {

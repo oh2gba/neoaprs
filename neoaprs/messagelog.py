@@ -13,8 +13,15 @@ from .message import MessageRecord
 from .messagesql import (Row, all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
                          update_message)
 from .packetcodec import parse_stamp, stamp
+from .pref import Alert
 
 log = logging.getLogger("neoaprs.messagelog")
+
+
+def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
+    """The alert of a row, None when it watches nothing."""
+    alert = Alert(on_air, within_km, direct)
+    return alert if alert.any else None
 
 
 def message_row(record: MessageRecord) -> Row:
@@ -106,15 +113,17 @@ class MessageLog(DbLog):
         return self._records(rows)
 
     # ---- what the operator said about each station (the table station_pref)
-    async def prefs(self) -> dict[str, tuple[str | None, bool]]:
-        """Every station that has a preference: call to (path, rf_only). The path is digipeater calls separated by commas (empty is direct), None when none is set."""
+    async def prefs(self) -> dict[str, tuple[str | None, bool, Alert | None]]:
+        """Every station that has a preference: call to (path, rf_only, alert). The path is digipeater calls separated by commas (empty is direct), None when none is set; the alert is None when it watches nothing."""
         rows: list[Row] = await self._read(all_prefs, [])
-        return {str(call): (None if path is None else str(path), bool(rf_only)) for call, path, rf_only in rows}
+        return {str(call): (None if path is None else str(path), bool(rf_only), _alert(bool(on_air), None if within is None else int(within), bool(direct)))
+                for call, path, rf_only, on_air, within, direct in rows}
 
-    async def save_pref(self, call: str, path: str | None, rf_only: bool = False) -> bool:
+    async def save_pref(self, call: str, path: str | None, rf_only: bool = False, alert: Alert | None = None) -> bool:
         """Keeps what is said of a station (replacing the row it had); False when the database would not take it."""
         stamped = stamp(self.clock())
-        return await self._done(lambda conn: save_pref(conn, call, path, rf_only, stamped), "a station preference could not be kept")
+        parts = (False, None, False) if alert is None else (alert.on_air, alert.within_km, alert.direct)
+        return await self._done(lambda conn: save_pref(conn, call, path, rf_only, parts, stamped), "a station preference could not be kept")
 
     async def forget_pref(self, call: str) -> bool:
         """Removes the row of a station, so that it has the defaults again; False when the database would not take it."""

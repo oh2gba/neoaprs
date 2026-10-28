@@ -11,6 +11,7 @@ from pathlib import Path
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.migrations import history, open_database, schema_version
+from neoaprs.migrationsteps12to21 import _v12
 
 
 class Opened:
@@ -52,3 +53,5 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
         db.execute("ALTER TABLE packet DROP COLUMN via")
         for column in ("heard_rf", "heard_rf_gated", "heard_is", "heard_dummy", "last_rf_at", "last_rf_gated_at", "last_is_at", "last_dummy_at", "position_via"):
             db.execute(f"ALTER TABLE station DROP COLUMN {column}")
+    if version < 22:
+        _v12(db)                    # (`station_pref` made again as migration 12 made it, without the columns of the alerts: a column that a CHECK names cannot be dropped; the table of a test is empty here)

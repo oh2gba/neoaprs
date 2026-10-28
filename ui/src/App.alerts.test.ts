@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
 import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
+import { clockText } from "@/lib/format";
 import { hello, incoming, message } from "@/test/fixtures";
 import { messages, open, tabButton, useAppHarness } from "@/test/app";
 
@@ -64,6 +65,23 @@ describe("App: the alert of this browser", () => {
     again.say({ type: "state", topic: "messages", rev: 0, value: { ...messages, "4": incoming(4, "OH2DPN", { text: "Moi!" }) } });
     await flushPromises();
     expect(FakeAudioContext.played()).toBe(2);
+  });
+
+  it("alerts for an alert set on a station as for a message, with a pop-up of its own and the toast with the time, and counts no message", async () => {
+    stubBrowser();
+    FakeNotification.permission = "granted";
+    openedAt("192.168.1.20");
+    const { wrapper, socket } = await open();
+    const at = "2026-10-21T12:03:00Z";
+    socket.say({ type: "station_alert", call: "OH2XYZ", kind: "on_air", text: "OH2XYZ is on the air", at, km: null });
+    socket.say({ type: "station_alert", call: "OH2XYZ", kind: "direct", text: "OH2XYZ is heard direct", at, km: null });
+    await flushPromises();
+    expect(FakeNotification.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ["APRS alert: OH2XYZ", "OH2XYZ is on the air"],
+      ["APRS alert: OH2XYZ", "OH2XYZ is heard direct"],
+    ]);
+    expect(wrapper.find(".toast.notice").text()).toBe(`${clockText(at).slice(0, 5)} OH2XYZ is heard direct`);
+    expect(document.title).not.toContain("✉");
   });
 
   it("shows a notification that opens the conversation when it is clicked", async () => {

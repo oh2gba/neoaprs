@@ -12,9 +12,9 @@ function setUp() {
 describe("useStationPrefs", () => {
   it("splits what the daemon tells into the paths and the stations that are RF only, leaving out what is null", () => {
     const { prefs, own } = setUp();
-    prefs.set("OH2RDG", { path: "WIDE2-1", rf_only: false });
-    prefs.set("OH2XYZ", { path: "", rf_only: true });
-    prefs.set("OH2PU-9", { path: null, rf_only: false });
+    prefs.set("OH2RDG", { path: "WIDE2-1", rf_only: false, alert: null });
+    prefs.set("OH2XYZ", { path: "", rf_only: true, alert: null });
+    prefs.set("OH2PU-9", { path: null, rf_only: false, alert: null });
     expect([...own.paths.value]).toEqual([
       ["OH2RDG", "WIDE2-1"],
       ["OH2XYZ", ""],
@@ -25,14 +25,23 @@ describe("useStationPrefs", () => {
   it("follows a change", () => {
     const { prefs, own } = setUp();
     expect(own.paths.value.size).toBe(0);
-    prefs.set("A", { path: "WIDE1-1", rf_only: false });
+    prefs.set("A", { path: "WIDE1-1", rf_only: false, alert: null });
     expect(own.paths.value.get("A")).toBe("WIDE1-1");
     prefs.delete("A");
     expect(own.paths.value.size).toBe(0);
-    prefs.set("B", { path: null, rf_only: true });
+    prefs.set("B", { path: null, rf_only: true, alert: null });
     expect(own.rfOnly.value.has("B")).toBe(true);
-    prefs.set("B", { path: "WIDE2-1", rf_only: false });
+    prefs.set("B", { path: "WIDE2-1", rf_only: false, alert: null });
     expect(own.rfOnly.value.has("B")).toBe(false);
+  });
+
+  it("keeps the alert of each station that has one and sends a change of it whole", () => {
+    const { prefs, send, own } = setUp();
+    prefs.set("OH2RDG", { path: "WIDE2-1", rf_only: false, alert: null });
+    prefs.set("OH2XYZ", { path: null, rf_only: false, alert: { on_air: true, within_km: 10, direct: false } });
+    expect([...own.alerts.value]).toEqual([["OH2XYZ", { on_air: true, within_km: 10, direct: false }]]);
+    own.setAlert("OH2XYZ", { on_air: false, within_km: null, direct: true });
+    expect(send).toHaveBeenCalledWith({ cmd: "set_station_alert", call: "OH2XYZ", on_air: false, within_km: null, direct: true });
   });
 
   it("sends the four commands", () => {

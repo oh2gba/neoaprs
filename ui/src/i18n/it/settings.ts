@@ -182,7 +182,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.alert.tip1": "Con l’avviso attivo, questo computer esegue il comando quando arriva un messaggio.",
   "settings.alert_command.name": "Comando di avviso",
   "settings.alert_command.label": "Comando",
-  "settings.alert_command.tip1": "Il programma eseguito per ogni nuovo messaggio; NEOAPRS_FROM e NEOAPRS_TEXT contengono il mittente e il testo.",
+  "settings.alert_command.tip1": "Eseguito per ogni nuovo messaggio e avviso di stazione; NEOAPRS_TITLE e NEOAPRS_TEXT contengono il titolo e il testo.",
   "settings.alert_test": "Prova",
   "settings.alerts.text": "Sul computer di NeoAPRS",
   "settings.alerts.title": "L’avviso di NeoAPRS stesso: il comando che il servizio esegue sul computer su cui gira",

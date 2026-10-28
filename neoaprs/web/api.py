@@ -41,7 +41,7 @@ class Api:
         self.out = Publisher(validate_out)
         self.clients = self.out.connections             # the open pages, by their sockets
         self.hub = StateHub()
-        self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure)
+        self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure, tell=self.out.broadcast)
         self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
         self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors)
         self.started_at = controller.clock()

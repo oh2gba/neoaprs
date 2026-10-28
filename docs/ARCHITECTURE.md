@@ -15,7 +15,7 @@ The tables of this document that are that test's data (this one, the rules after
 | foundation | `clock signal coded policy units recent callsign geo symbols kiss ax25 aprsposition aprsmice aprsmiceout aprsmessage aprsparse aprsweather aprsthirdparty aprsisline aprsextension aprsfreq aprsstorm aprslocator aprstelemetry aprsnmea gpsfix smartbeacon packet packetcodec message bulletin decay tncmode tncprofile pref route reach chain mapstate radiosearch serialboards versions updateasset releasenotes device devicedata hourcount dummyroutes dummyframes dummyscene dummyqru igaterules` | foundation | domain, adapters, persistence, services, app, delivery, and any I/O library |
 | domain | `alertcommand config configlegacy configstatus configtypes configvalues interlock station stationnotes stationbook aloha ownobject ownbulletin qrutext` | foundation, domain | adapters, persistence, services, app, delivery, and any I/O library |
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncport callbackport dummyline tncsearch tncwatchdog tncentry tncfollow tnclines tncreader childenv rigctld gpsfeed aprsis pmtilestool worldmap updatefetch updatedownload selfreplace` | foundation, domain, adapters | persistence, services, app, delivery |
-| persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
+| persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 migrationsteps22on backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
 | app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
 | delivery | `neoaprs/web/*`, `neoaprs/cli/*`, `neoaprs/desktop/*`, `neoaprs/daemon`, `neoaprs/__main__` | foundation, domain, adapters, persistence, services, app, delivery | - |
@@ -111,7 +111,8 @@ What each layer is for:
   * Asking QRU (`services/qruask.py`): one request to the addressee `QRU` with no id, by the path of messages with RFONLY, and the servers that answered it (the topic `qru`), noted from the messages to us.
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
   * The receive-only iGate (`services/igate.py`): every packet heard on the radio goes through the rules of `igaterules` to APRS-IS (`qAO`), duplicates within 30 seconds once, the counts for the page and the log, and our own position to APRS-IS. It is given the connection (`aprsis`), the settings and a function for the position, and has no Tnc, no `Radio` and no sender: nothing from APRS-IS can reach the radio.
-  * The preferences of the stations (`services/prefbook.py`): the path and RF only of each station, which messaging is given as its `paths`.
+  * The preferences of the stations (`services/prefbook.py`): the path, RF only and the alert of each station; messaging is given the paths.
+  * The alerts set on stations (`services/stationalerts.py`): watched as the station book changes (on the air after half an hour of silence, within N km of us, heard direct), each fired once for each crossing, to the alert command and, by the page's topics, to every page.
   * What the services that send share (`services/common.py`): the `Radio` they need of the Tnc, `ConfigSource` and `our_frame`, our frame to the tocall.
   * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`, and `services/mapauto.py`, which begins it without a click when a place is set or the guide asks, unless the map there covers the place), the update check (`services/updatecheck.py`) Update now (`services/selfupdate.py`, `services/selfinstall.py`) and Find my radio (`services/radiofinder.py`, `services/radioprobe.py`).
 * **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down, and `wiring.py` connects the
@@ -149,9 +150,10 @@ What each layer is for:
 | `gps_feed`, `gps` | the GPS: `gps_feed` reads a gpsd or a serial receiver (`neoaprs/gpsfeed.py`, an adapter), `gps` is the service that keeps the latest fix and how fresh it is (`services/gps.py`) and tells the station book and the ALOHA circle when we have moved. The beacon is given `gps` |
 | `beacon` | the position packet, a service: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) |
 | `rigstatus` | the status report, a service. It reads rigctld through `neoaprs/rigctld.py`, and `queries` is given its `status_frame` |
-| `alerts` | the message alert, a service. Messaging is given its `alert` |
+| `alerts` | the alert command, a service. Messaging is given its `alert`, and the wiring connects the alerts of the stations to its `station` |
 | `packetlog`, `messagelog`, `weatherlog`, `bulletinlog`, `ownlog` | the logs of the database: the packets and the station cache, the messages, the weather observations, the message board, our own objects and bulletins |
 | `prefbook` | the preferences of the stations, a service. Messaging is given its `path_for`, the prune its `never_hidden` |
+| `stationalerts` | the alerts set on stations, a service: given the station book, `prefbook` and the settings; the wiring connects what the book changes, what `prefbook` sets and the saves of the settings to it, and its `fired` to `alerts`; the page's topics tell every page what fired. The controller has it read the alerts after `prefbook` |
 | `bulletins` | the message board, a service. Messaging is given its `heard` |
 | `sender` | the pause between our frames, which `ownobjects` and `ownbulletins` share |
 | `ownobjects`, `ownbulletins` | our own objects and bulletins, services. `ownobjects` is given `_is_station`, which says whether a name is a station's |
@@ -237,6 +239,7 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/migrations.py` | the opening of the file, before the thread opens it, and in the tools, and the runner of the migrations (their history, the copy taken before them) |
 | `neoaprs/migrationsteps12to21.py` | the migrations 12 to 21, frozen beside migrations.py: migration code |
 | `neoaprs/migrationsteps1to11.py` | the migrations 1 to 11, frozen beside migrations.py: migration code |
+| `neoaprs/migrationsteps22on.py` | the migrations from 22 on, frozen beside migrations.py: migration code |
 | `neoaprs/ownsql.py` | the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs |
 | `neoaprs/packetsql.py` | the statements of the packet log and the station cache: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |

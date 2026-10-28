@@ -1,4 +1,4 @@
-// The alert of this browser for a message to us, and its one choice (the Settings tab, "Notifications", "In this browser"; kept in localStorage, so each device decides): off, sound, sound and pop-up, or pop-up only. It is off by
+// The alert of this browser for a message to us and for an alert set on a station (which says what happened and is no message: its own pop-up title, a bell in the browser tab), and its one choice (the Settings tab, "Notifications", "In this browser"; kept in localStorage, so each device decides): off, sound, sound and pop-up, or pop-up only. It is off by
 // default on the machine the daemon runs on (the page on the loopback, the desktop app: the daemon's own alert command notifies there), and elsewhere sound and pop-up where the browser can show one, else sound. The sound is
 // the chime (the first click or key press unlocks the audio); a pop-up is a notification of the browser, shown where it allows one (a secure context, permission given), and where none is shown, or the browser fails to show it, the
 // browser tab alerts (useTabAlert). The permission is asked only in a click: on choosing a pop-up, and on the Test pop-up button. Test sound and Test pop-up each say, for a few seconds, what happened.
@@ -10,7 +10,8 @@ import { Chime } from "@/lib/chime";
 import { storedMode, popupWhy, wantsPopup, wantsSound, MODE_KEY, type AlertMode } from "@/lib/alertmode";
 import { isLoopbackHost, notificationTitle } from "@/lib/pagealert";
 import { writeStored } from "@/lib/storage";
-import type { MessageRow } from "@/protocol/protocol";
+import { firedText } from "@/lib/stationalert";
+import type { MessageRow, StationAlertMessage } from "@/protocol/protocol";
 
 /** What an alert needs of a message. */
 export type Alerted = Pick<MessageRow, "id" | "from_call" | "text">;
@@ -35,22 +36,33 @@ function useStatus() {
   return { text, set };
 }
 
-/** Shows the pop-up of a message; false when the browser refuses (some, on a phone, want a service worker), and `failed` is called when it could not show it after all. A click focuses the page and, for a real
- *  message (`open` is given), opens the conversation. A test has a tag of its own each time: a pop-up with the tag of one still on show replaces it without a sound. */
-function showPopup(message: Alerted, open: ((call: string) => void) | null, failed: () => void): boolean {
+/** Shows a pop-up of the browser; false when the browser refuses (some, on a phone, want a service worker), and `failed` is called when it could not show it after all. A click focuses the page and does `then`. A pop-up
+ *  with the tag of one still on show replaces it without a sound. */
+function notify(title: string, body: string, tag: string, then: () => void, failed: () => void): boolean {
   try {
-    const tag = open !== null ? `neoaprs-${message.id}` : `neoaprs-test-${Date.now()}`;
-    const popup = new Notification(notificationTitle(message.from_call), { body: message.text, tag });
+    const popup = new Notification(title, { body, tag });
     popup.onerror = failed;
     popup.onclick = () => {
       window.focus();
       popup.close();
-      open?.(message.from_call);
+      then();
     };
     return true;
   } catch {
     return false;
   }
+}
+
+/** The pop-up of a message: a click on it opens the conversation for a real message (`open` is given). A test has a tag of its own each time. */
+function showPopup(message: Alerted, open: ((call: string) => void) | null, failed: () => void): boolean {
+  const tag = open !== null ? `neoaprs-${message.id}` : `neoaprs-test-${Date.now()}`;
+  return notify(notificationTitle(message.from_call), message.text, tag, () => open?.(message.from_call), failed);
+}
+
+/** The pop-up of an alert set on a station ("APRS alert: OH2XYZ", "OH2XYZ is on the air"): its own title, so that it does not look like a message; a click brings the page to the front. */
+function showStationPopup(fired: StationAlertMessage, failed: () => void): boolean {
+  const tag = `neoaprs-alert-${fired.call}-${fired.kind}-${fired.at}`;
+  return notify(t("station.alert.popup_title", { call: fired.call }), firedText(fired), tag, () => undefined, failed);
 }
 
 /** The first click or key press in the page unlocks the audio (a browser lets a page make sound only after one); the listeners go once it has worked. */
@@ -118,19 +130,19 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     refused.value = true;
   }
 
-  /** What a message to us does in this browser: the chime when the choice has the sound, and a pop-up where one can be shown, else the alert of the browser tab. */
+  /** What an alert does in this browser: the chime when the choice has the sound, and the pop-ups where they can be shown (`popups` shows them and says which were), else the alert of the browser tab for `call`. */
+  function ring(call: string, popups: (failed: () => void) => boolean[], bell = false): void {
+    if (mode.value === "off") return;
+    if (wantsSound(mode.value)) chime.play();
+    const tabAlert = () => tab.start(call, false, bell);
+    const shown = popupOn.value && popups(tabAlert).includes(true);
+    if (!shown) tabAlert();
+  }
+
+  /** What a message to us does in this browser: the alert, with a pop-up for each of the latest few. */
   function announce(fresh: readonly Alerted[]): void {
     const last = fresh[fresh.length - 1];
-    if (mode.value === "off" || last === undefined) return;
-    if (wantsSound(mode.value)) chime.play();
-    const tabAlert = () => tab.start(last.from_call);
-    const shown =
-      popupOn.value &&
-      fresh
-        .slice(-POPUPS_MAX)
-        .map((message) => showPopup(message, openConversation, tabAlert))
-        .includes(true);
-    if (!shown) tabAlert();
+    if (last !== undefined) ring(last.from_call, (failed) => fresh.slice(-POPUPS_MAX).map((message) => showPopup(message, openConversation, failed)));
   }
 
   /** Test sound, a click: the chime now, whatever the choice is. */
@@ -162,6 +174,8 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     popupStatus: popupStatus.text,
     tabTitle: tab.shown,
     announce,
+    /** What an alert set on a station does in this browser, as the choice says for a message: the chime, its own pop-up, or the browser tab with a bell. */
+    announceStation: (fired: StationAlertMessage): void => ring(fired.call, (failed) => [showStationPopup(fired, failed)], true),
     choose,
     testSound,
     testPopup,

@@ -12,6 +12,7 @@ const FORMS: Record<string, string> = {
   "SettingsForm.vue": "the Settings and Beacon tabs: a fieldset for each group",
   "SetupGuide.vue": "a dialog: the panel is the box, the steps are its pages",
   "KeyScreen.vue": "the gate before the page: one field and its button on the whole screen",
+  "StationAlertBox.vue": "Alert me when… of a row of the Stations table: a small box where the menu was, a fieldset with its legend",
 };
 
 describe("every form of fields is a group box", () => {

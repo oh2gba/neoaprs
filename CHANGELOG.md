@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Alerts on a station.** **Alert me when…** in the menu of a row of the Stations table tells you when that station comes on the air after half an hour of silence, comes within so many km of you, or is heard direct, any of them at once, once each time it happens. The daemon keeps and watches them, so they work with no page open: it runs the alert command as for a message (with a title of its own, `NEOAPRS_TITLE`, which the default command now shows; a stored old default is replaced by the new one, a command of your own is kept), and every open page chimes, shows a pop-up and says it in the toast with the time. A small bell after the call marks a station that has an alert.
+
 ## 0.12.0
 
 - **A menu on the map, and a statistics card.** A right-click on the map (a long press on a touch screen) opens a menu where the pointer is: Copy position (decimal degrees), Copy locator, and **Statistics**, which opens a card at the bottom right of the map with what the page has heard, counted up: the stations by how they were heard and what they run, the digipeaters and iGates, the ALOHA circle, the farthest stations direct and on the radio, the digipeaters most used, the packets in the database and in the last hour, the busiest station, the latest packets by kind and channel, and the radio's counters since the daemon started. At its top is a graph of the packets heard in each of the last 24 hours, counted by the daemon from its database (a new command, `packet_history`). It moves as packets come, Esc closes it with the station cards, and the browser remembers that it is open.

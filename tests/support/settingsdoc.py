@@ -72,7 +72,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "web/https": ("Settings tab, Web page", "`true` (with `web/network`) also serves the page over https, on the port after `web/port`, with a certificate NeoAPRS makes itself ([network.md](network.md#the-secure-connection-https))"),
     "web/port": (DB_ONLY, "the port of the page, read at the daemon's start. A port that is in use moves the page to the first free one of the ten after it. 0 takes a free one at once"),
     "web/allowed_hosts": (DB_ONLY, "names besides an IP address, `localhost` and the machine's own name (and `name.local`) that the page answers to, separated by commas"),
-    "messages/alert": ("Settings tab, Notifications, On the NeoAPRS computer (Alert)", "whether a message to you runs `messages/alert_command` ([notifications.md](notifications.md))"),
+    "messages/alert": ("Settings tab, Notifications, On the NeoAPRS computer (Alert)", "whether a message to you, and an alert you set on a station, runs `messages/alert_command` ([notifications.md](notifications.md))"),
     "messages/alert_command": ("Settings tab, Notifications, On the NeoAPRS computer (Command)", "the shell line that is run (at most {alert_command} characters; empty runs nothing). The default shows a notification and plays a sound, in a form that suits the system"),
     "map/radius_km": ("Settings tab, Map (Radius)", "the detailed base map covers a square this far from your position in every direction ({map_radius_km} km). Read when the map is made ([page.md](page.md#the-base-map))"),
     "map/maxzoom": (DB_ONLY, "the deepest zoom the detailed map has tiles for ({map_maxzoom}): 10 shows towns, 12 streets, 14 houses. The page's Download map uses the stored value"),

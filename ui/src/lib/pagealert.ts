@@ -35,9 +35,9 @@ export function notificationTitle(from: string): string {
   return t("settings.alert.notification_title", { call: from });
 }
 
-/** The text the browser tab shows while it is alerting: "✉ OH2DPN". */
-export function flashTitle(from: string): string {
-  return `✉ ${from}`;
+/** The text the browser tab shows while it is alerting: "✉ OH2DPN" for a message, "🔔 OH2XYZ" for an alert set on a station (which is no message). */
+export function flashTitle(from: string, bell = false): string {
+  return `${bell ? "🔔" : "✉"} ${from}`;
 }
 
 /** The icon of the browser tab with a red dot at its corner. */

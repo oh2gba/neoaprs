@@ -329,6 +329,16 @@ describe("StationCard", () => {
     }
   });
 
+  it("has the bell of an alert at the end of the line of the call when one is set, with what it watches, and nothing without one", () => {
+    const bell = mount(StationCard, { props: { row, now: NOW, alert: { on_air: false, within_km: 5, direct: true } } }).find(".card-call .alert-bell");
+    expect(bell.attributes("title")).toBe("Alert when within 5 km, heard direct");
+    expect(
+      mount(StationCard, { props: { row, now: NOW } })
+        .find(".alert-bell")
+        .exists(),
+    ).toBe(false);
+  });
+
   it("has a QRZ link next to the call: the base call's page, in a new tab; for our own station too, not for an object or an item", () => {
     const link = mount(StationCard, { props: { row, now: NOW } }).find("a.qrz");
     expect(link.text()).toBe("QRZ");

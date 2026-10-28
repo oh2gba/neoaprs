@@ -18,6 +18,7 @@ from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
+from neoaprs.pref import Alert
 from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bluetooth_ports, with_links
 
@@ -33,7 +34,7 @@ from .pageerrors import one_line
 from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
 from .qruwire import AskQru
 from .portwire import FindRadio, FindRadioCancel, ListPorts
-from .prefwire import ClearStationPath, SetStationPath, SetStationRfOnly
+from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly
 from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
@@ -226,6 +227,12 @@ async def clear_station_path(ctx: Ctx, cmd: ClearStationPath) -> None:
 async def set_station_rf_only(ctx: Ctx, cmd: SetStationRfOnly) -> None:
     with refused(cmd.cmd):
         await ctx.ctl.prefbook.set_rf_only(cmd.call, cmd.on)
+
+
+@command(SetStationAlert)
+async def set_station_alert(ctx: Ctx, cmd: SetStationAlert) -> None:
+    with refused(cmd.cmd):
+        await ctx.ctl.stationalerts.set(cmd.call, Alert(cmd.on_air, cmd.within_km, cmd.direct))
 
 
 @command(SetConfig)

@@ -1,4 +1,4 @@
-// The alert of the browser tab while the person is elsewhere: with the page hidden or not in focus, the title alternates between "✉ OH2DPN" and the usual one (useTitle) and the icon has a red dot, until the page is seen
+// The alert of the browser tab while the person is elsewhere: with the page hidden or not in focus, the title alternates between "✉ OH2DPN" (for the alert of a station "🔔 OH2XYZ") and the usual one (useTitle) and the icon has a red dot, until the page is seen
 // again (visible and in focus). A test (the Test button, where the page is in front by definition) does the same for a few seconds.
 import { computed, getCurrentScope, onScopeDispose, ref } from "vue";
 import { DOT_ICON, flashTitle } from "@/lib/pagealert";
@@ -51,10 +51,10 @@ export function useTabAlert() {
     icon(false);
   }
 
-  /** Starts alerting for a message from `from` when the page is in the background (or, for a test, whatever it is); a page in front is left alone. */
-  function start(from: string, test = false): void {
+  /** Starts alerting for a message from `from` (or, with `bell`, for an alert set on the station `from`) when the page is in the background (or, for a test, whatever it is); a page in front is left alone. */
+  function start(from: string, test = false, bell = false): void {
     if (!test && !isAway()) return;
-    words.value = flashTitle(from);
+    words.value = flashTitle(from, bell);
     beat.value = true;
     icon(true);
     if (timer === undefined) timer = setInterval(() => (beat.value = !beat.value), BEAT_MS);

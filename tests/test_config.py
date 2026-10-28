@@ -230,7 +230,7 @@ def test_the_tocall_the_position_format_are_not_settings_and_what_an_older_datab
 
 
 def test_the_alert_and_status_settings_have_their_defaults_and_are_read_back() -> None:
-    assert DEFAULTS.messages_alert is True and DEFAULTS.messages_alert_command == DEFAULT_ALERT_COMMAND and "NEOAPRS_FROM" in DEFAULTS.messages_alert_command
+    assert DEFAULTS.messages_alert is True and DEFAULTS.messages_alert_command == DEFAULT_ALERT_COMMAND and "NEOAPRS_TITLE" in DEFAULTS.messages_alert_command
     assert (DEFAULTS.status_rigctld, DEFAULTS.status_interval_min, DEFAULTS.status_template) == ("", 30, "QRV {freq} {mode}")
     assert Config.check("messages/alert_command", "  ") == "" and Config.check("messages/alert_command", " echo hi ") == "echo hi"
     assert Config.check("status/interval_min", " 15 ") == "15" and Config.check("status/interval_min", "1440") == "1440"

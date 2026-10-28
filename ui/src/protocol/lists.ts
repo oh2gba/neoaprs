@@ -33,6 +33,7 @@ export const MESSAGE_TYPES = [
   "radio_search",
   "release_notes",
   "state",
+  "station_alert",
   "status",
   "update_result",
   "weather_series",

@@ -1,4 +1,5 @@
-"""What the operator says about a station, apart from what its packets say: a path of its own and whether it is RF only. Each is optional and independent, and a station with none has no entry.
+"""What the operator says about a station, apart from what its packets say: a path of its own, whether it is RF only, and when to be alerted about it (services/stationalerts.py fires the alert). Each is optional and
+independent, and a station with none has no entry.
 
 The path: the digipeaters a message (and its ack) to the station goes by way of; empty is direct (chosen as DIRECT), which is not the same as none set (then the first attempts of a message go by the path lately heard to reach the station, the rest and everything else by `beacon/path`). RF only: everything we send to the station (a message and each attempt of it, its acks, the answers to its queries) goes by its path with RFONLY
 added at the end, which iGates that honour it do not put on the internet; the email gateway EMAIL-2 is on the internet and can never be RF only. They are operator data, kept in the table `station_pref` of the message log's database, read once at the start and written through; `changed` tells (call, pref) when a station's
@@ -13,7 +14,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.config import Config
 from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_path, path_choice
 from neoaprs.messagelog import MessageLog
-from neoaprs.pref import Pref
+from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN, Alert, Pref
 from neoaprs.route import Deliveries, automatic_path, rf_only_path
 from neoaprs.signal import Signal
 
@@ -28,7 +29,7 @@ class PrefBook:
         self.changed: Signal[[str, Pref | None]] = Signal("prefs_changed")
 
     async def load(self) -> None:
-        self._own = {call: Pref(None if path is None else normal_path(path), rf_only) for call, (path, rf_only) in (await self._log.prefs()).items()}
+        self._own = {call: Pref(None if path is None else normal_path(path), rf_only, alert) for call, (path, rf_only, alert) in (await self._log.prefs()).items()}
 
     # ---- what there is
     def all(self) -> dict[str, Pref]:
@@ -102,6 +103,18 @@ class PrefBook:
             raise MessagingError(f"{EMAIL_GATEWAY} cannot be RF only: the email gateway is on the internet")
         await self._change(key, lambda pref: replace(pref, rf_only=on), "RF only could not be kept", quiet=not on)
 
+    # ---- the alert
+    async def set_alert(self, call: str, alert: Alert) -> None:
+        """When to tell the operator about the station (services/stationalerts.py watches it); an alert that watches nothing takes the station's away. Raises MessagingError with the reason: the call is none, or the
+        distance is not a whole number of kilometres from ALERT_KM_MIN to ALERT_KM_MAX."""
+        try:
+            key = normal_name(call)
+        except ValueError as e:
+            raise MessagingError(str(e)) from None
+        if alert.within_km is not None and not ALERT_KM_MIN <= alert.within_km <= ALERT_KM_MAX:
+            raise MessagingError(f"the distance of an alert is {ALERT_KM_MIN} to {ALERT_KM_MAX} km, not {alert.within_km}", "alert.km_range", km=alert.within_km, min=ALERT_KM_MIN, max=ALERT_KM_MAX)
+        await self._change(key, lambda pref: replace(pref, alert=alert if alert.any else None), "the alert could not be kept", quiet=not alert.any)
+
     async def _change(self, key: str, make: Callable[[Pref], Pref], failure: str, quiet: bool) -> None:
         """The entry of the station as `make` says, kept first and then held; an entry with nothing in it is removed. A setting is always told (the page waits for it); a clearing is `quiet` when
         there was nothing to clear."""
@@ -111,7 +124,7 @@ class PrefBook:
             if quiet and after == (before or Pref()):
                 return
             empty = after == Pref()
-            saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.rf_only))
+            saved = await (self._log.forget_pref(key) if empty else self._log.save_pref(key, None if after.path is None else ",".join(after.path), after.rf_only, after.alert))
             if not saved:
                 raise MessagingError(f"{failure}: the database is not open")
             if empty:

@@ -1,4 +1,4 @@
-# Being told of a new message
+# Being told of a new message, or of a station
 
 A new message can alert you in two places, and both are in the **Notifications** group of the Settings tab, each in a box of its own with its name on it, so that it is plain which device it is for:
 
@@ -7,33 +7,39 @@ A new message can alert you in two places, and both are in the **Notifications**
 
 Both alert for the same messages: a message to you, the first copy only. Not a bulletin or a group message, an ack, a reject, a query that NeoAPRS answers, a message you only overheard, or one of your own. A repeat of a retry or another digipeater's copy does not alert again.
 
+Both also alert for an alert you set on a station (**Alert me when…** in the Stations table, [page.md](page.md#alerts-on-a-station)): it comes on the air, comes near, or is heard direct. It has a title of its own, "APRS alert: OH2XYZ", and is not counted as a message.
+
 ## On the NeoAPRS computer
 
 When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Alert** is off, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
 
 ```
-(notify-send -- "APRS message from $NEOAPRS_FROM" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "APRS message from $NEOAPRS_FROM" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga
+(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga
 ```
 
 The command gets these in its environment:
 
 | variable | what it holds |
 |---|---|
-| `NEOAPRS_FROM` | the sender's call |
-| `NEOAPRS_TEXT` | the text |
+| `NEOAPRS_KIND` | `message` for a message to you, `station` for an alert set on a station |
+| `NEOAPRS_TITLE` | the title of a notification: "APRS message from OH2XYZ", or "APRS alert: OH2XYZ" |
+| `NEOAPRS_FROM` | the sender's call, or the station's |
+| `NEOAPRS_TEXT` | the text, or what happened: "OH2XYZ is on the air", "OH2XYZ is 8.2 km from you", "OH2XYZ is heard direct" |
 | `NEOAPRS_AT` | when it was heard, ISO 8601 in UTC (`2026-10-21T12:00:00Z`) |
-| `NEOAPRS_MSG_ID` | the id the sender gave it; empty when it had none |
+| `NEOAPRS_MSG_ID` | the id the sender gave it; empty when it had none, and for a station |
 
 The text is in the environment and not in the command line, so what a stranger wrote is never read as shell. Quote the variables in your own command.
 
+Up to 0.12 the default titled every notification "APRS message from …". A stored copy of that old default (every save stored it) is replaced by the new one at the first start of this version; a command of your own is kept as it is. Use `$NEOAPRS_TITLE` in it, or `$NEOAPRS_KIND` to tell a message from a station's alert.
+
 - The command gets 20 seconds and is then killed with everything it started (60 seconds on Windows). Its output is in the log at debug level.
 - A command that fails (it cannot start, exits with a status other than 0, runs out of time) is a warning in the log once an hour and a debug line otherwise. It never touches the daemon.
-- Its environment is not the daemon's: only the names a program needs to find the desktop (`PATH`, `HOME`, `DISPLAY`, `WAYLAND_DISPLAY`, `DBUS_SESSION_BUS_ADDRESS`, `XDG_*` ...) and the four variables above. The service unit sets `DBUS_SESSION_BUS_ADDRESS` so that `notify-send` finds the desktop from a user service.
+- Its environment is not the daemon's: only the names a program needs to find the desktop (`PATH`, `HOME`, `DISPLAY`, `WAYLAND_DISPLAY`, `DBUS_SESSION_BUS_ADDRESS`, `XDG_*` ...) and the six variables above. The service unit sets `DBUS_SESSION_BUS_ADDRESS` so that `notify-send` finds the desktop from a user service.
 - At most 5 alerts run at once; more are dropped.
 
-**On Windows** the command is a PowerShell script. Read the variables as `$env:NEOAPRS_FROM` and `$env:NEOAPRS_TEXT`. A step that fails ends the script with status 1, and `exit N` gives its own status. The default is a PowerShell toast with the sender and the text, and the system's sound.
+**On Windows** the command is a PowerShell script. Read the variables as `$env:NEOAPRS_TITLE`, `$env:NEOAPRS_TEXT` and so on. A step that fails ends the script with status 1, and `exit N` gives its own status. The default is a PowerShell toast with the title and the text, and the system's sound.
 
-**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says. Its result is said in the toast at the bottom of the page.
+**The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_KIND` is `message`, `NEOAPRS_TITLE` is `APRS message from NEOAPRS`, `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says. Its result is said in the toast at the bottom of the page.
 
 The answer is shown under the field until the next edit: green `ran` when it worked, else red with the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed. An empty command answers `no alert command`. The button waits while a test runs, and is off, with the title "Save first", while the field differs from the saved command.
 
@@ -56,6 +62,7 @@ The command runs on the computer the daemon runs on, which is not where you are 
 - Where the reason is the address (a page opened over plain http from another computer), **Enable pop-ups…** stands beside the choice and opens the steps for your browser, inside the page ([below](#pop-ups-need-a-secure-address)).
 - Choosing one is the click that asks the browser for the permission. The page never asks by itself. When it is refused the choice goes back to **sound** and the words "pop-ups refused: sound only" stand beside it. "pop-ups not allowed yet" or "pop-ups blocked" next to the choice say that a pop-up is chosen but the permission is not there.
 - A browser lets a page make a sound only after you have clicked or pressed a key in it, so the chime is silent until then and the tab alert is all there is.
+- An alert set on a station follows the same choice: the chime, a pop-up "APRS alert: OH2XYZ" with what happened (a click brings the page to the front), and a tab title with a bell, "🔔 OH2XYZ". Whatever the choice, the toast at the bottom of the page says what happened, with the time.
 
 Each test beside the choice says what happened in the toast at the bottom of the page (not beside the button, so that nothing moves):
 
@@ -100,7 +107,7 @@ flatpak override --user --env=NOTIFY_IGNORE_PORTAL=1 org.mozilla.firefox
 The page alerts only while it is open somewhere. To be told when no page is, make the alert command push to your phone. For example, with the [ntfy](https://ntfy.sh/) app subscribed to a topic, the command can be:
 
 ```
-curl -s -H "Title: APRS message from $NEOAPRS_FROM" -d "$NEOAPRS_TEXT" https://ntfy.sh/<your-random-topic>
+curl -s -H "Title: $NEOAPRS_TITLE" -d "$NEOAPRS_TEXT" https://ntfy.sh/<your-random-topic>
 ```
 
 An ntfy.sh topic is public to whoever guesses its name, so make it long and random, or run your own ntfy server. What a message says goes through that server.

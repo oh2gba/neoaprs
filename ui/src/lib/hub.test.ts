@@ -15,6 +15,7 @@ import type {
   PacketRow,
   PortsMessage,
   RadioSearchMessage,
+  StationAlertMessage,
   StationPref,
   StationRow,
   TncState,
@@ -49,6 +50,7 @@ function memory() {
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
+    stationAlerts: [] as StationAlertMessage[],
     updates: [] as UpdateResultMessage[],
     notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
@@ -79,6 +81,7 @@ function memory() {
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
+    stationAlert: (m) => seen.stationAlerts.push(m),
     updateResult: (m) => seen.updates.push(m),
     releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
@@ -256,6 +259,14 @@ describe("Hub", () => {
     socket.say(trying);
     socket.say(found);
     expect(seen.searches).toEqual([trying, found]);
+  });
+
+  it("hands each alert of a station to the store as it comes, the same words twice as two", () => {
+    const { seen, socket } = opened();
+    const fired = { type: "station_alert", call: "OH2XYZ", kind: "on_air", text: "OH2XYZ is on the air", at: "2026-10-21T12:00:00Z", km: null };
+    socket.say(fired);
+    socket.say(fired);
+    expect(seen.stationAlerts).toEqual([fired, fired]);
   });
 
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {

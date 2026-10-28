@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-40 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+41 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -308,6 +308,18 @@ of the station's entry in the topic `station_prefs` (its other parts are whateve
 | `call` | string |  | (max 64 chars, min 1 chars) |
 | `on` | boolean |  |  |
 
+### `set_station_alert`
+
+Sets when the operator is told about a station (see `AlertWhen`): `on_air`, `within_km` (1 to 1000, null for none) and `direct`, any of them at once; all off takes the alert away. Our own station and our own objects and items
+are refused. Answered by the `set` of the station's entry in the topic `station_prefs` (its path and RF only are whatever they were), or by its `del` when nothing else is set and the alert is taken away, or by an `error`.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | (max 64 chars, min 1 chars) |
+| `on_air` | boolean |  |  |
+| `within_km` | integer \| null |  | (>= 1, <= 1000) |
+| `direct` | boolean |  |  |
+
 ### `weather_series`
 
 Asks for the observations a weather station made in the last `hours` hours. Answered with a `weather_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a call with no
@@ -442,7 +454,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-13 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+14 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -595,6 +607,18 @@ How `find_radio` goes, to the page that asked.
 | `number` | integer |  | the try that is under way, from 1; 0 for `found` and `cancelled` (>= 0) |
 | `total` | integer |  | how many tries there are if nothing answers; 0 for `found` and `cancelled` (>= 0) |
 
+### `station_alert`
+
+An alert set on a station fired (`set_station_alert`): told to every page that is open, once. The page alerts as for a message to us (the sound, the pop-up, the browser tab, as its own choice says) and shows it in its toast.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station |
+| `kind` | "on_air" \| "within" \| "direct" |  | what happened: it came on the air, it came within the distance, it was heard direct |
+| `text` | string |  | the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct` |
+| `at` | time |  | when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) |
+| `km` | number \| null |  | for `within`, how far the station is, km with one decimal; else null |
+
 ## Topics
 
 The value of each topic (`state` carries it, a `replace` op brings a new one).
@@ -605,7 +629,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `packets` | { [key: string]: PacketRow } | the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest |
 | `tnc` | TncState | the radio; told whole as it changes, at most four times a second |
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
-| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set) and whether it is RF only. `set_station_path`, `clear_station_path` and `set_station_rf_only` each give a `set` of the entry, or a `del` when nothing is left in it |
+| `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. `set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
@@ -965,6 +989,17 @@ The whole value of the topic is `value`.
 |---|---|---|---|
 | `op` | "replace" |  |  |
 | `value` | any |  |  |
+
+### AlertWhen
+
+When the operator is told about a station: any of the three, each once for each time it happens (it is not told again for every packet), by the message `station_alert` to every page and by the alert command of
+the settings (`messages/alert`, `messages/alert_command`), as a message to us is.
+
+| field | type | | description |
+|---|---|---|---|
+| `on_air` | boolean |  | a packet of the station is heard after it was silent for 30 minutes or more, or for the first time; a packet over the internet counts while `igate/enabled` is on |
+| `within_km` | integer \| null |  | its position comes from farther to this many km from us or nearer (it is outside again only some way beyond: a tenth more, at least 0.5 km); null if the distance is not watched. A station that is that near already when the alert is set is not told until it has been outside (>= 1, <= 1000) |
+| `direct` | boolean |  | a packet of it is heard direct (no digipeater) after none was for 30 minutes or more |
 
 ### AreaValues
 
@@ -1341,6 +1376,7 @@ own, and not RF only, has no entry. A command that sets or changes one part is a
 |---|---|---|---|
 | `path` | string \| null |  | the digipeaters that a message to the station, and the ack of a message from it, go by way of: calls separated by commas, empty for direct (no digipeaters at all); null if none is set, and the setting `beacon/path` counts |
 | `rf_only` | boolean |  | true if everything sent to the station (a message and each attempt of it, an ack, the answer to a query) has `RFONLY` as the last element of its path, which iGates that honour it do not put on the internet |
+| `alert` | AlertWhen \| null |  | when the operator is told about the station; null if no alert is set |
 
 ### StormValues
 

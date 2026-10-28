@@ -45,10 +45,22 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
   - Four questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST` of the APRS specification). They are there only where the envelope is. A toast says "Asked OH2XYZ for its status" and the conversation with the station gets a grey line, "You asked for its status".
   - The answer comes as it would to anyone: a position or a status report changes the station's card, and what it hears direct or the route comes as a message in the conversation.
   - A question is sent once, with no message number, and is never repeated. Many stations do not answer queries, and the menu says so. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
-  - **Show on map** (**Open its card** for a station with no position), which does what a click on the row does; **Copy call**; and the **QRZ page**, as on the card.
+  - **Show on map** (**Open its card** for a station with no position), which does what a click on the row does; **Alert me when…** ([below](#alerts-on-a-station)); **Copy call**; and the **QRZ page**, as on the card.
   - **Forget**, which asks twice like the trash can: the first press says "Really forget?".
-  - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions.
+  - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions or an alert.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
+
+### Alerts on a station
+
+**Alert me when…** in the menu of a row opens a small box where the menu was, for that station. Tick any of three, and Save:
+
+- **comes on the air**: a packet of it is heard after it was silent for 30 minutes or more, or for the first time.
+- **comes within N km of me** (10 km to start with, 1 to 1000): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.
+- **is heard direct**: a packet of it is heard with no digipeater after none was for 30 minutes or more.
+
+Each is told once each time it happens, not for every packet. A packet over the internet counts only while Internet stations are on. Untick all three and Save to take the alert away; Cancel or Esc closes the box and changes nothing, and the focus goes back where the menu came from.
+
+The daemon keeps the alerts and watches the stations, so an alert works with no page open. It runs the alert command of Settings → Notifications as for a new message ([notifications.md](notifications.md)), and every page that is open alerts as its choice for messages says, with a pop-up of its own ("APRS alert: OH2XYZ", "OH2XYZ is on the air") and a bell in the browser tab, and the toast shows what happened with the time. A station with an alert has a small grey bell after its call in the table and on its card; its hover title says what is watched.
 - On the map a station known from the internet alone has a dotted outline round its symbol and its call in italics, in the light and the dark theme alike (its screen-reader name says "heard over the internet"; the hover card says how it was heard). A station heard on the radio, an iGate's too, is drawn as ever.
 - **The card** says when the station was last heard for each way it was heard ("RF 3 min ago · Internet 40 s ago"), counts the packets of each under Details, and for a station known from the internet alone says that a message to it is not possible (messages go out by radio only) and has no Message button and no route.
 - **The Packets tab** has a **Via** column with the channel of each packet (RF, iGate, Internet; the packets you sent are RF), and a packet's detail says how it came; a packet from the internet shows the path of its line (`TCPIP*,qAC,T2FINLAND`). The filter finds "internet" or "igate" too.

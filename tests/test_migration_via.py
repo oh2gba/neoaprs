@@ -54,7 +54,7 @@ def migrate(folder: Path) -> tuple[sqlite3.Connection, Path, FixedClock]:
     version_twenty(old, clock)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 21
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][20:] == [(21, "_v21", GOLDEN[21])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][20:] == [(21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22])]
     return migrated.db, old, clock
 
 

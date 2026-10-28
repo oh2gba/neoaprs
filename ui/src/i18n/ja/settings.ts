@@ -180,7 +180,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alert.tip1": "アラートをオンにすると、メッセージが届いたときにこのコンピューターがコマンドを実行します。",
   "settings.alert_command.name": "アラートのコマンド",
   "settings.alert_command.label": "コマンド",
-  "settings.alert_command.tip1": "新着メッセージごとに実行されるプログラムです。NEOAPRS_FROM と NEOAPRS_TEXT に送信者と本文が入ります。",
+  "settings.alert_command.tip1": "新着メッセージと局の通知ごとに実行されます。NEOAPRS_TITLE と NEOAPRS_TEXT にタイトルと本文が入ります。",
   "settings.alert_test": "テスト",
   "settings.alerts.text": "NeoAPRSのパソコン",
   "settings.alerts.title": "NeoAPRS自身のアラート: デーモンが動いているパソコンで実行するコマンド",
