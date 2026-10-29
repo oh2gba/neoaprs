@@ -34,43 +34,39 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - The filters are in a group box, **Filter**: the filter field, up to three tickboxes and a choice that wrap onto a second line: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)).
 - The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station heard on the radio as well as over the internet stays when "heard on RF only" is ticked.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
-- The same click opens a field right under the row, as a click on a packet does in the Packets tab ([below](#the-field-under-a-row)). One is open at a time: a click on another row moves it there, and a click on its own row again closes it. With Ctrl held, a click adds the card and leaves the field as it is.
-- From the keyboard, Enter on a row does what a click does, and Up and Down go to the station before or after it in the table, selecting it as a click does (with Ctrl held, adding its card to the open ones); Home and End go to the first and the last. An open field goes along to the row they select.
-- At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
+- The same click shows the station in the **station panel** at the bottom of the tab ([below](#the-station-panel)); the row stays marked, and nothing in the list opens or moves. With Ctrl held, a click adds the card and leaves the panel as it is.
+- From the keyboard, Enter on a row does what a click does, and Up and Down go to the station before or after it in the table, selecting it as a click does and showing it in the panel (with Ctrl held, adding its card to the open ones); Home and End go to the first and the last.
+- At the right end of a row are two small buttons, as on the card.
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
   - The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card).
-  - A click on any of them does not select the row. On a phone the row has only the envelope and the "...": Forget is in the menu.
+  - A click on either does not select the row. On a phone the row has only the envelope: Forget is in the panel.
 - At the foot are the count and **Forget all**, which asks twice like the trash can ("Really forget all?", taken back after 5 seconds). It removes every station heard with its packets and their weather, from the list, the map and the data folder, for a fresh start. Your own station, your objects and bulletins, messages, settings and maps stay, and so do the packets you sent.
-- **The menu of a row** opens with a right-click on the row, a long press on a touch screen or the "..." button at the row's end (from the keyboard: Tab to the button and Enter, or the menu key on the row). It opens where the pointer is, kept inside the window. Up, Down, Home and End move in it; Esc, a click outside it or Tab closes it, and Esc puts the focus back where it came from. It has:
-  - **Message**, as the envelope.
-  - Four questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST` of the APRS specification). They are there only where the envelope is. A toast says "Asked OH2XYZ for its status" and the conversation with the station gets a grey line, "You asked for its status".
-  - The answer comes as it would to anyone: a position or a status report changes the station's card, and what it hears direct or the route comes as a message in the conversation.
-  - A question is sent once, with no message number, and is never repeated. Many stations do not answer queries, and the menu says so. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
-  - **Show on map** (**Open its card** for a station with no position), which does what a click on the row does; **Alert me when…** ([below](#alerts-on-a-station)); **Copy call**; and the **QRZ page**, as on the card.
-  - **Forget**, which asks twice like the trash can: the first press says "Really forget?".
-  - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions or an alert.
+- **The menu of a row** opens with a right-click on the row or a long press on a touch screen (from the keyboard: the menu key on the row), where the pointer is, kept inside the window. It is as short as the Packets tab's: **Copy call**, **Show on map** (**Open its card** for a station with no position) and the **QRZ page**; the rest is in the panel. Up, Down, Home and End move in it; Esc, a click outside it or Tab closes it.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
 
-### The field under a row
+### The station panel
 
-The field has what the menu of the row has, as buttons in plain view, and the station's settings, so that nothing is a right-click away. The rows under it move down to make room; nothing else moves.
+The panel is fixed at the bottom of the tab, as the box to write in is on the Bulletins and Email tabs, with the station's call as its title and a cross at its right that closes it (Esc anywhere in it too, and the focus goes back to the row). It takes half the tab whichever station it shows, and what does not fit scrolls inside it, so the list above keeps its place. It has, in this order:
 
-- **Message** and the four questions, with the line that many stations do not answer them.
+- **Message** and the questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST` of the APRS specification), and for a weather station **Ask for weather** (`?WX?`, a general query in the specification; its hover text says many stations do not answer it by name). They are there only for a station a message can go to. A toast says "Asked OH2XYZ for its status" and the conversation with the station gets a grey line, "You asked for its status".
+- Under them a box for a question of your own, such as `?APRSH OH2GBA-15` or `?PING?`, and **Ask**; its hover text names the other directed queries (`?APRSO`, `?APRSM`, `?APRSH`, `?PING?`). It begins with `?`, is plain ASCII without `|`, `~` or `{` and at most 67 characters, and goes in capitals; a text that is not one has a red edge, says why in its hover text, and Ask stays off.
+- A question is sent once, with no message number, and is never repeated. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
 - **Show on map** (or **Open its card**), **Copy call**, the **QRZ page** and, at the end of the line, **Forget**, which asks twice like the trash can ("Really forget?").
-- **Route**: the **Path** messages to the station go by and **RF only**, as under **Route** in its conversation. Both are saved when they are changed.
-- **Alert me when…**: the three choices of the alert ([below](#alerts-on-a-station)), saved as each is ticked or cleared and when the distance is changed.
+- **Traffic**: the station's packets and the messages you sent it, newest first, the latest 50, as the Packets tab shows packets (the same columns, the same block for each packet in a narrow panel, the same facts under a packet you click). They reach back past what the Packets tab holds, and new ones come in as they are heard. While Internet stations is off none from the internet is listed.
+- A question you asked says after it **waiting…**, then **answered** once the station sent what it asks for (a position, a status, a message, its weather; any packet for a question of your own) or **no answer** after two minutes.
+- **Route**: the **Path** messages to the station go by and **RF only**, as under **Route** in its conversation, and **Alert me when…** ([below](#alerts-on-a-station)), each saved when it is changed.
 
-Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, an object of someone else's Show, Copy call and Forget; a station a message cannot go to has no questions and no route. Esc anywhere in the field closes it and puts the focus back on its row.
+Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, an object of someone else's Show, Copy call and Forget; a station a message cannot go to has no questions and no route. Objects and items have no traffic list.
 
 ### Alerts on a station
 
-**Alert me when…** in the menu of a row opens a small box where the menu was, for that station; the same choices are in the field under its row, where each is saved at once. Tick any of three, and Save:
+**Alert me when…** is in the station panel ([above](#the-station-panel)), for that station; each choice is saved as it is ticked or cleared. Tick any of three:
 
 - **comes on the air**: a packet of it is heard after it was silent for 30 minutes or more, or for the first time.
-- **comes within N km of me** (10 km to start with, 1 to 1000): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.
+- **comes within N km of me** (10 km to start with, 1 to 1000; a distance outside that has a red edge and is not saved): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.
 - **is heard direct**: a packet of it is heard with no digipeater after none was for 30 minutes or more.
 
-Each is told once each time it happens, not for every packet. A packet over the internet counts only while Internet stations are on. Untick all three and Save to take the alert away; Cancel or Esc closes the box and changes nothing, and the focus goes back where the menu came from.
+Each is told once each time it happens, not for every packet. A packet over the internet counts only while Internet stations are on. Untick all three to take the alert away.
 
 The daemon keeps the alerts and watches the stations, so an alert works with no page open. It runs the alert command of Settings → Notifications as for a new message ([notifications.md](notifications.md)), and every page that is open alerts as its choice for messages says, with a pop-up of its own ("APRS alert: OH2XYZ", "OH2XYZ is on the air") and a bell in the browser tab, and the toast shows what happened with the time. A station with an alert has a small grey bell after its call in the table and on its card; its hover title says what is watched.
 - On the map a station known from the internet alone has a dotted outline round its symbol and its call in italics, in the light and the dark theme alike (its screen-reader name says "heard over the internet"; the hover card says how it was heard). A station heard on the radio, an iGate's too, is drawn as ever.

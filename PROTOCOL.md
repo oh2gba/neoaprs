@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-44 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+45 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -209,16 +209,18 @@ When the TNC is not connected the message is kept and its first attempt waits fo
 ### `query`
 
 Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it
-hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
-`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the
-station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book
+hears direct, as a message), `?APRST` (`trace`: the path our query reached it by, as a message), `?WX?` (`weather`: its weather report; a general query in the specification, which many stations do not answer
+when it is addressed to them) or the operator's own (`custom`, with `text`: `?APRSH OH2GBA-15`, `?PING?`). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
+`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text begins with `?`) as a note of what was asked. The answer is whatever the
+station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of the same text to a station in 60 seconds. Answered with an `error` when the station is not in the station book
 (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago
-(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent).
+(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent); a `custom` text that is no query is refused as invalid.
 
 | field | type | | description |
 |---|---|---|---|
 | `call` | string |  | (max 64 chars, min 1 chars) |
-| `kind` | "position" \| "status" \| "heard" \| "trace" |  |  |
+| `kind` | "position" \| "status" \| "heard" \| "trace" \| "weather" \| "custom" |  |  |
+| `text` | string \| null | optional | the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable ASCII without `\|`, `~` or `{` and at most 67 characters, the text of a message; it is sent upper-cased. Absent or null for the other kinds (default `null`; max 512 chars) |
 
 ### `qru_ask`
 
@@ -378,6 +380,16 @@ range; a station that reported no speed is answered with no points.
 | `call` | string |  | the station, as the `stations` topic has it: its position packets are those whose sender (the source of the frame heard) it is (max 64 chars, min 1 chars) |
 | `hours` | integer |  | how far back to go: 24 for a day (>= 1, <= 168) |
 
+### `station_traffic`
+
+Asks for the latest packets of one station, for the station panel of the Stations tab: those it sent (its own source, or inside a third-party packet an iGate put on the air) and the messages we sent
+to it (a message, an ack, a directed query). Read from the packet log, so that they reach back past the 200 of the topic `packets`; the page adds the packets that come after. While `igate/enabled` is off no packet
+that came from APRS-IS is read, as the topic shows none. Answered with a `station_traffic` message to the page that asked.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station, as the `stations` topic has it (max 64 chars, min 1 chars) |
+
 ### `alert_test`
 
 Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM`
@@ -494,7 +506,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-16 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+17 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -632,6 +644,15 @@ a Mic-E's), the oldest first (a packet that came by two digipeaters is two point
 | `call` | string |  | the station asked about: a page with several cards open tells the answers apart by it |
 | `hours` | integer |  | the hours asked for (>= 1, <= 168) |
 | `points` | [time, number][] |  | [time, speed_kmh] for each position that had a speed, the oldest first; a station standing still that says so has 0 |
+
+### `station_traffic`
+
+The latest packets of one station (at most 50), the answer to `station_traffic`, the newest first. A third-party packet is looked for among the latest 20000 packets of the log, where an iGate's are.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station asked about |
+| `packets` | PacketRow[] |  | the packets, as the rows of the topic `packets` but for `id`, which is the packet's number in the log here (the same packet in the topic has its own); the newest first |
 
 ### `alert_result`
 
@@ -789,6 +810,7 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `heard_at` | time |  | UTC, ISO 8601 with a Z |
 | `direction` | "in" \| "out" |  | heard on the air, or sent by us |
 | `source` | string |  | who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it |
+| `sender` | string |  | the station the packet is from: `source`, or for a third-party packet the source of the packet inside it |
 | `destination` | string |  |  |
 | `path` | string[] |  | the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`) |
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstDirection, hasPosition, listStations, menuGroup, menuItems, withOwnSymbol, type Sort } from "@/lib/stations";
+import { firstDirection, hasPosition, listStations, menuItems, panelItems, talksTo, withOwnSymbol, type Sort } from "@/lib/stations";
 import { ago, station, weather } from "@/test/fixtures";
 
 const base: { filter: string; sort: Sort } = { filter: "", sort: { key: "call", dir: 1 } };
@@ -119,20 +119,29 @@ it("sorts the timed-out stations after the live ones, whatever the column", () =
   ]);
 });
 
-describe("menuItems", () => {
-  it("offers Message and the four queries only where Message is offered, Forget only where Forget is, and an alert for a station that is not ours", () => {
-    expect(menuItems(station("OH2RDG"))).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "alert", "copy", "qrz", "forget"]);
-    expect(menuItems(station("EMAIL-2", { can_message: false }))).toEqual(["show", "alert", "copy", "qrz", "forget"]);
-    expect(menuItems(station("OH2GBA", { is_me: true }))).toEqual(["show", "copy", "qrz"]);
-    expect(menuItems(station("OH2OBJ", { kind: "object", own: true, can_message: false }))).toEqual(["show", "copy"]);
-    expect(menuItems(station("FOREIGN", { kind: "object" }))).toEqual(["show", "copy", "forget"]);
+describe("menuItems and panelItems", () => {
+  it("has only Copy call, Show and the QRZ page in the menu of a row: the rest is in the panel", () => {
+    expect(menuItems(station("OH2RDG"))).toEqual(["copy", "show", "qrz"]);
+    expect(menuItems(station("OH2GBA", { is_me: true }))).toEqual(["copy", "show", "qrz"]);
+    expect(menuItems(station("OH2OBJ", { kind: "object", own: true, can_message: false }))).toEqual(["copy", "show"]);
+    expect(menuItems(station("Big Storm"))).toEqual(["copy", "show"]);
   });
 
-  it("has no QRZ page for a name that is no call", () => {
-    expect(menuItems(station("Big Storm"))).not.toContain("qrz");
+  it("offers in the panel Message and the queries only where Message is offered, and Forget only where Forget is", () => {
+    expect(panelItems(station("OH2RDG"))).toEqual(["message", "ask_position", "ask_status", "ask_heard", "ask_trace", "show", "copy", "qrz", "forget"]);
+    expect(panelItems(station("EMAIL-2", { can_message: false }))).toEqual(["show", "copy", "qrz", "forget"]);
+    expect(panelItems(station("OH2GBA", { is_me: true }))).toEqual(["show", "copy", "qrz"]);
+    expect(panelItems(station("OH2OBJ", { kind: "object", own: true, can_message: false }))).toEqual(["show", "copy"]);
+    expect(panelItems(station("FOREIGN", { kind: "object" }))).toEqual(["show", "copy", "forget"]);
   });
 
-  it("puts talking, looking and forgetting in three groups", () => {
-    expect(menuItems(station("OH2RDG")).map(menuGroup)).toEqual([0, 0, 0, 0, 0, 1, 1, 1, 1, 2]);
+  it("asks for the weather only a weather station", () => {
+    expect(panelItems(station("OH2MUI", { symbol_code: "_" }))).toContain("ask_weather");
+    expect(panelItems(station("OH2RDG"))).not.toContain("ask_weather");
+    expect(panelItems(station("OH2MUI", { symbol_code: "_", can_message: false }))).not.toContain("ask_weather");
+  });
+
+  it("puts talking to the station in a line of its own", () => {
+    expect(panelItems(station("OH2RDG")).map(talksTo)).toEqual([true, true, true, true, true, false, false, false, false]);
   });
 });

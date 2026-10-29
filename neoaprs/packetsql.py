@@ -61,6 +61,20 @@ def station_positions(db: sqlite3.Connection, source: str, stamp: str, internet:
     return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE source = ? AND {_heard(internet)} AND kind = 'position' AND heard_at >= ? ORDER BY id", (source, stamp))]
 
 
+def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, span: int, internet: bool = True) -> list[Row]:
+    """(id, then the columns of a packet) of the latest `count` packets of the station `call`, the newest first: those whose source it is (by the index of the source), the messages we sent to it (those whose source
+    is our call `own`, by the same index, addressed to it) and the third-party packets that may be from it among the latest `span` packets (by the ids: a frame whose information field has `}CALL>`; the caller
+    checks the sender). None from APRS-IS when `internet` is false."""
+    net = "" if internet else " AND via != 'is'"
+    needle = b"}" + call.encode() + b">"
+    return [tuple(r) for r in db.execute(
+        f"SELECT id, {_PACKET_LIST} FROM packet WHERE id IN ("
+        f"SELECT id FROM (SELECT id FROM packet WHERE source = ?{net} ORDER BY id DESC LIMIT ?) "
+        "UNION SELECT id FROM (SELECT id FROM packet WHERE source = ? AND direction = 'out' AND kind = 'message' AND json_extract(decoded, '$.addressee') = ? ORDER BY id DESC LIMIT ?) "
+        "UNION SELECT id FROM (SELECT id FROM packet WHERE id > (SELECT coalesce(max(id), 0) FROM packet) - ? AND via = 'rf-gated' AND instr(raw, ?) > 0 ORDER BY id DESC LIMIT ?)"
+        ") ORDER BY id DESC LIMIT ?", (call, max(0, count), own, call, max(0, count), max(0, span), needle, max(0, count), max(0, count)))]
+
+
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
     """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
     return [tuple(r) for r in db.execute("SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE direction = 'in' AND via != 'is' ORDER BY id DESC LIMIT ?) ORDER BY id", (max(0, count),))]

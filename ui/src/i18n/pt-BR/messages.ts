@@ -15,6 +15,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.asked.status": "Você pediu o status",
   "messages.asked.heard": "Você perguntou o que ela ouve direto",
   "messages.asked.trace": "Você pediu a rota",
+  "messages.asked.weather": "Você pediu o tempo",
+  "messages.asked.custom": "Você perguntou {text}",
   "messages.none_yet": "Nenhuma mensagem ainda.",
   "messages.delete_conversation": "Excluir a conversa com {call}",
   "messages.delete": "Excluir a mensagem",

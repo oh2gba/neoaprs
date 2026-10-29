@@ -169,7 +169,7 @@ async def query_station(ctx: Ctx, cmd: QueryStation) -> None:
             raise UserError(f"{cmd.cmd}: there is no station {call!r}", "station.unknown", params={"call": call})
         if not station.can_message:
             raise UserError(f"{cmd.cmd}: {call} does not take messages: there is nobody to ask", "query.not_capable", params={"call": call})
-        await ctx.ctl.messaging.asking.ask(call, cmd.kind)
+        await ctx.ctl.messaging.asking.ask(call, cmd.kind, cmd.text)
 
 
 @command(AskQru)

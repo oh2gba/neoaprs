@@ -1,11 +1,11 @@
-"""The packets on the wire: the topic `packets` (the latest 200, a table of rows by id). Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
+"""The packets on the wire: the topic `packets` (the latest 200, a table of rows by id), and the command that reads one station's packets from the log with the message that answers it. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`.
 
 `decoded` is what the parser made of the information field, as one of the models `Decoded...` below, tagged by `type` (the same word as `kind` of the row, except for a telemetry report: its kind is `other` and its type `telemetry`). A time inside it is `YYYY-MM-DDTHH:MM:SS.ffffffZ`."""
 from typing import Annotated, Literal, Union
 
 from pydantic import Field
 
-from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Model
+from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Message, _Model
 
 Stamp = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$", description="UTC, ISO 8601 with a Z, with fractions of a second")]
 
@@ -132,6 +132,7 @@ class PacketRow(_Model):
     heard_at: Iso
     direction: Literal["in", "out"] = Field(description="heard on the air, or sent by us")
     source: str = Field(description="who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it")
+    sender: str = Field(description="the station the packet is from: `source`, or for a third-party packet the source of the packet inside it")
     destination: str
     path: list[str] = Field(description="the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`)")
     kind: Literal["position", "message", "object", "item", "status", "other", "undecoded"] = Field(description="a telemetry report is `other`; its `decoded.type` is `telemetry`")
@@ -142,3 +143,21 @@ class PacketRow(_Model):
     summary: str = Field(description="one line, as the log has it")
     tnc2: str = Field(description="the packet as a line of TNC2 monitor text")
     decoded: Decoded
+
+
+TRAFFIC_KEPT = 50                       # the packets of one station that `station_traffic` reads, the latest
+
+
+class StationTraffic(_Command):
+    """Asks for the latest packets of one station, for the station panel of the Stations tab: those it sent (its own source, or inside a third-party packet an iGate put on the air) and the messages we sent
+    to it (a message, an ack, a directed query). Read from the packet log, so that they reach back past the 200 of the topic `packets`; the page adds the packets that come after. While `igate/enabled` is off no packet
+    that came from APRS-IS is read, as the topic shows none. Answered with a `station_traffic` message to the page that asked."""
+    cmd: Literal["station_traffic"]
+    call: str = Field(min_length=1, max_length=64, description="the station, as the `stations` topic has it")
+
+
+class StationTrafficMsg(_Message):
+    """The latest packets of one station (at most 50), the answer to `station_traffic`, the newest first. A third-party packet is looked for among the latest 20000 packets of the log, where an iGate's are."""
+    type: Literal["station_traffic"]
+    call: str = Field(description="the station asked about")
+    packets: list[PacketRow] = Field(description="the packets, as the rows of the topic `packets` but for `id`, which is the packet's number in the log here (the same packet in the topic has its own); the newest first")

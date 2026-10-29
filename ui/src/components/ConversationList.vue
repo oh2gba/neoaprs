@@ -10,7 +10,7 @@ import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
-import { askedText, conversationName, isHighlighted, overheardPair, queryKind, type Conversation } from "@/lib/messages";
+import { askedNote, conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
 
 defineProps<{ conversations: readonly Conversation[]; selected: string | null; now: number; showOverheard: boolean }>();
@@ -32,8 +32,8 @@ const copy = useCopyMenu((row) => {
 
 /** The last text on a row: ours has "You: " before it, a query we sent is the note of it ("You asked for its status"). */
 function preview(row: Conversation["last"]): string {
-  const asked = queryKind(row);
-  if (asked !== null) return askedText(asked);
+  const asked = askedNote(row);
+  if (asked !== null) return asked;
   return row.direction === "out" ? t("messages.last_out", { text: row.text }) : row.text;
 }
 

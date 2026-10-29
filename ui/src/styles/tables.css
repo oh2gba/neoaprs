@@ -146,50 +146,83 @@
 .packet-detail .more {
   padding: 0 6px;
 }
-/* the field under a row of the Stations table (StationRowDetail), as a packet's under its row in the Packets tab: the menu's actions as buttons in lines that wrap, Forget at the end of its line, then the station's settings in
-   group boxes side by side when there is room. Its cell drops the one-line height of the rows, and the field has no width of its own (the cell's, at most the visible width of the table's scroll box, where it stays when the
-   table is scrolled sideways), so that opening it never makes the table or a column wider and none of it is out of sight on a phone */
-.stationscroll {
-  container-type: inline-size;
-}
-.grid.stations tr.detail td {
-  width: auto;
-  height: auto;
-  padding: 0;
-  white-space: normal;
-}
-.stationfield {
-  position: sticky;
-  left: 0;
+/* the station panel of the Stations tab (StationPanel): the box of every tab fixed at its bottom (the group box of Bulletins and Email, .composebar.boxed and fieldset.composebox, styles/compose.css, whose `flex: none` this rule overrides), half the height of the
+   tab whichever station it shows (two fifths on a phone, styles/responsive.css), so that the list above keeps its room and nothing moves when a station is picked or a packet comes; what does not fit scrolls inside it. In it the station's actions as buttons in lines
+   that wrap (Forget at the end of its line), its own query, its traffic (a box of a fixed height that scrolls by itself, the lines of the Packets tab) and its settings in group boxes side by side when there is room */
+.composebar.stationpanel {
   display: flex;
+  flex: 0 0 50%;
+  flex-direction: column;
+  min-height: 0;
+}
+.stationpanel-box {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.stationpanel-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stationpanel-body {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 6px;
-  width: 0;
-  min-width: min(100%, 100cqw);
-  padding: 6px 8px 8px;
+  min-height: 0;
+  overflow-y: auto;
 }
-.stationfield-line {
+.stationpanel-line,
+.stationpanel-query {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
-.stationfield-note {
-  margin: -2px 0 0;
-  font-size: 12px;
+.stationpanel-query {
+  flex-wrap: nowrap;
 }
-.stationfield-forget {
+.stationpanel-query .input {
+  flex: 0 1 22em;
+  min-width: 0;
+}
+.stationpanel-forget {
   margin-left: auto;
 }
-.stationfield .stationfield-settings {
+.stationpanel .stationpanel-traffic,
+.stationpanel .stationpanel-settings > fieldset {
+  margin: 0;
+}
+.stationtraffic {
+  height: 14em;
+  overflow: auto;
+}
+.stationpanel .stationpanel-settings {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 10px;
+  gap: 6px 10px;
 }
-.stationfield .stationfield-settings > fieldset {
+.stationpanel .stationpanel-settings > fieldset {
   flex: 1 1 18em;
   min-width: 0;
-  margin: 0;
+}
+/* the state of a query of ours in a station's traffic (StationTraffic): "waiting…", "answered", "no answer" in one place, the room of the longest kept, after the summary */
+.querystate {
+  margin-left: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.querystate[data-state="waiting"] {
+  color: var(--muted);
+}
+.querystate[data-state="answered"] {
+  color: var(--ok);
+}
+.querystate[data-state="no_answer"] {
+  color: var(--warn);
 }
 /* the two words of a button that asks twice ("Forget", "Really forget?") in one place, the one not said hidden: the button is as wide as the longer, so that the first press moves nothing */
 .twowords {
@@ -356,22 +389,10 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-.ctxmenu-item.danger {
-  color: var(--bad);
-}
-.ctxmenu-item.armed {
-  background: var(--bad);
-  color: var(--on-strong);
-  font-weight: 600;
-}
 .ctxmenu-line {
   height: 1px;
   margin: 4px 2px;
   background: var(--border);
-}
-.ctxmenu-note {
-  padding: 2px 12px 4px;
-  font-size: 12px;
 }
 /* the bell of a station with an alert set (AlertBell): in the Stations table every row has its place, empty or not, so that setting an alert makes nothing wider and moves nothing */
 .alert-bell {
@@ -383,17 +404,7 @@
   text-align: center;
   vertical-align: middle;
 }
-/* "Alert me when…" (StationAlertBox): a small box where the menu of the row was, its lines one under the other */
-.alertbox {
-  position: fixed;
-  z-index: 30;
-  max-width: calc(100vw - 16px);
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
+/* "Alert me when…" (StationAlertChoices): its lines one under the other */
 .alertbox-group {
   display: flex;
   flex-direction: column;
@@ -418,11 +429,6 @@
 .alertbox-note {
   padding-left: 24px;
   font-size: 12px;
-}
-.alertbox-buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
 }
 /* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
 .onmap {

@@ -17,13 +17,14 @@ from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
 from .packetsql import (Row, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_before,
-                        radio_position_packets, recent_packets, station_positions, upsert_station, window_packets)
+                        radio_position_packets, recent_packets, station_positions, station_traffic, upsert_station, window_packets)
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
 
 DELIVERIES_SEEN = 2000                   # the packets the station book counts the routes of at its start
 TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
+THIRD_PARTY_SEEN = 20_000              # the latest packets one station's third-party packets are looked for in (by the ids: the rest of the log is not read for them)
 HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
 
 
@@ -123,6 +124,13 @@ class PacketLog(DbLog):
         text = stamp(since)
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
         return {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
+
+    async def traffic(self, call: str, own_call: str, count: int, internet: bool = True) -> list[tuple[int, Packet]]:
+        """(the number in the log, the packet) of the latest `count` packets of the station, the newest first, for its panel in the Stations tab: those it sent (its source, or the sender inside a third-party
+        packet among the latest THIRD_PARTY_SEEN) and the messages we sent under `own_call` to it. With `internet` false (Internet stations off) the packets that came from APRS-IS are left out."""
+        rows: list[Row] = await self._read(lambda conn: station_traffic(conn, call, own_call, count, THIRD_PARTY_SEEN, internet), [])
+        found = self._decoded(rows, lambda row: (int(row[0]), packet_of(PacketRow(*row[1:]))), "packet")
+        return [(number, packet) for number, packet in found if packet.source in (call, own_call) or packet.sender == call]
 
     async def speeds(self, source: str, since: datetime, internet: bool = True) -> list[tuple[datetime, float]]:
         """(when, km/h) of each position heard from `source` at or after `since` that carried a speed, the oldest first: the speed graph of a moving station's card. With `internet` false (Internet stations

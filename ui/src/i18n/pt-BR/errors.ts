@@ -61,6 +61,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.query.not_capable": "{call} não recebe mensagens: não há ninguém para consultar",
   "error.transmit.off": "RX only: nada é enviado",
   "error.query.too_soon": "{call} acabou de receber a mesma pergunta: aguarde {seconds} s",
+  "error.query.form": "uma consulta começa com ? e diz depois o que pergunta",
   "error.qru.too_soon": "cedo demais para outro pedido de info local: aguarde {seconds} s",
   "error.path.direct_alone": "{word} não é um digipeater: escrito sozinho, significa nenhum digipeater",
   "error.setting.comment_too_long": "{length} caracteres são mais que os {limit} permitidos com a extensão PHG (apague beacon/power_w para não enviar)",

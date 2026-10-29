@@ -1,23 +1,14 @@
 <script setup lang="ts">
-// The packets as they arrive, newest first: the time, whether it was heard ("in") or sent by us ("out"), the channel it came by (RF, iGate, Internet: lib/channels.ts; ours go by RF), the packet as a TNC2 line, the route it came by ("via OH2RCH-2", "direct", "via OH7JHF-1 (internet)" for a packet an iGate put on the air; empty for one we sent) and what the daemon made of it. A filter box narrows
-// the list; a click on a packet opens it in plain facts (components/PacketDetail.vue), with what the parser decoded of it, as JSON, under "Raw". A route breaks between its words, never inside a callsign.
-// Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE, lib/layout.ts): the table of columns when it is wide enough, else one block for each packet (the time, the direction and the channel,
-// the packet line, then the route and the summary in small text) with the header row for a screen reader only; the click, the detail row and the filter are the same in both.
-// A right-click on a packet (a long press on a touch screen) offers to copy its line and the call that sent it (CopyMenu).
-import TagMark from "@/components/TagMark.vue";
+// The packets as they arrive, newest first, as lines (components/PacketLines.vue: the time, the direction, the channel, the TNC2 line, the route and what the daemon made of it; a click opens a packet in plain facts, a
+// right-click offers to copy its line and its sender's call). A filter box narrows the list. Laid out by the width of the tab itself (not of the window: the panel beside the map can be narrow on a wide screen; PACKETS_TABLE,
+// lib/layout.ts): the table of columns when it is wide enough, else one block for each packet; the click, the detail and the filter are the same in both.
 import { computed, ref } from "vue";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { PACKETS_TABLE } from "@/lib/layout";
-import { useCopyMenu } from "@/composables/useCopyMenu";
 import { t } from "@/i18n";
-import PacketDetail from "@/components/PacketDetail.vue";
+import PacketLines from "@/components/PacketLines.vue";
 import TabHelp from "@/components/TabHelp.vue";
-import CopyMenu from "@/components/CopyMenu.vue";
-import RouteText from "@/components/RouteText.vue";
-import { packetLabel, packetTitle, packetTone } from "@/lib/channels";
-import { clockText } from "@/lib/format";
 import { filterPackets, newestFirst } from "@/lib/packets";
-import { routeWords } from "@/lib/routes";
 import type { PacketRow } from "@/protocol/protocol";
 
 const props = defineProps<{ packets: ReadonlyMap<string, PacketRow> }>();
@@ -27,23 +18,8 @@ const width = useElementWidth(root);
 /** The tab is narrower than the table needs (0 until it is measured: the table). */
 const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 const filter = ref("");
-const open = ref<number | null>(null);
 
 const rows = computed(() => filterPackets(newestFirst(props.packets.values()), filter.value));
-/** The copy menu of a row: the packet as its line of monitor text, and the call that sent it. */
-const copy = useCopyMenu((row) => {
-  const packet = rows.value.find((p) => String(p.id) === row.dataset["id"]);
-  return packet === undefined
-    ? []
-    : [
-        { kind: "packet", text: packet.tnc2 },
-        { kind: "call", text: packet.source },
-      ];
-});
-
-function toggle(id: number): void {
-  open.value = open.value === id ? null : id;
-}
 </script>
 
 <template>
@@ -66,50 +42,8 @@ function toggle(id: number): void {
       </div>
     </fieldset>
     <div class="scroll">
-      <table class="grid packets" :class="{ stacked }">
-        <thead :class="{ 'sr-only': stacked }">
-          <tr>
-            <th>{{ t("packets.col.time") }}</th>
-            <th>{{ t("packets.col.dir") }}</th>
-            <th>{{ t("packets.col.via") }}</th>
-            <th>{{ t("packets.col.packet") }}</th>
-            <th>{{ t("packets.col.route") }}</th>
-            <th>{{ t("packets.col.summary") }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="row in rows" :key="row.id">
-            <tr
-              class="packet-row copysource"
-              :class="{ selected: open === row.id, out: row.direction === 'out' }"
-              tabindex="0"
-              :data-id="row.id"
-              v-on="copy.on.value"
-              @click="copy.unlessHeld(() => toggle(row.id))"
-              @keydown.enter="toggle(row.id)"
-            >
-              <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
-              <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
-              <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">
-                <TagMark :tone="packetTone(row.via)">{{ packetLabel(row.via) }}</TagMark>
-              </td>
-              <td class="mono wrap line">{{ row.tnc2 }}</td>
-              <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>
-              <td class="wrap summary">{{ row.summary }}</td>
-            </tr>
-            <tr v-if="open === row.id" class="detail">
-              <td colspan="6">
-                <PacketDetail :row="row" />
-              </td>
-            </tr>
-          </template>
-          <tr v-if="rows.length === 0">
-            <td colspan="6" class="empty">{{ packets.size === 0 ? t("packets.none_yet") : t("packets.none_match") }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <PacketLines :rows="rows" :stacked="stacked" :empty="packets.size === 0 ? t('packets.none_yet') : t('packets.none_match')" />
     </div>
     <div class="foot muted">{{ t("packets.count", { shown: rows.length, n: packets.size }) }}</div>
-    <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </div>
 </template>

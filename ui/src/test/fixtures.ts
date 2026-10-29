@@ -133,12 +133,32 @@ export function series(call: string, hours: number, count: number, every = 600, 
   return { type: "weather_series", call, hours, points };
 }
 
+/** The time of a packet `seconds` from NOW, as the daemon writes it (whole seconds). */
+export function packetAt(seconds: number): string {
+  return new Date(NOW + seconds * 1000).toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+/** A message packet `from` sent to `to` (ours, from OH2GBA, go out), `seconds` from NOW, with no message id. */
+export function sentMessage(id: number, from: string, to: string, text: string, seconds: number, extra: Partial<PacketRow> = {}): PacketRow {
+  return packet(id, {
+    source: from,
+    direction: from === "OH2GBA" ? "out" : "in",
+    heard_at: packetAt(seconds),
+    kind: "message",
+    summary: `message to ${to}`,
+    tnc2: `${from}>APRS::${to.padEnd(9)}:${text}`,
+    decoded: { type: "message", addressee: to, text, msg_id: null, ack_id: null, rej_id: null },
+    ...extra,
+  });
+}
+
 export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
   return {
     id,
     heard_at: ago(100 - id),
     direction: "in",
-    source: "OH2RDG",
+    source: extra.source ?? "OH2RDG",
+    sender: extra.source ?? "OH2RDG",
     destination: "APN391",
     path: ["OH2RCH-2*"],
     route: "via OH2RCH-2",

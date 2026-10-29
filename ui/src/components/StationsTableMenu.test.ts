@@ -26,7 +26,6 @@ const menu = () => wrapper.find("[role='menu']");
 const items = () => wrapper.findAll("[role='menuitem']");
 const labels = () => items().map((i) => i.text());
 const item = (name: string) => items().find((i) => i.attributes("data-item") === name)!;
-const more = (call: string) => row(call).find("button.morebtn");
 const rightClick = async (call: string, x = 100, y = 120) => {
   await row(call).trigger("contextmenu", { clientX: x, clientY: y });
 };
@@ -102,28 +101,14 @@ describe("the menu of a row of the Stations table: opening", () => {
     expect(wrapper.emitted("select")).toEqual([["OH2RDG", false]]);
   });
 
-  it("opens from the ... button at the end of the row, under it, and the button again closes it", async () => {
+  it("has no ... button: a click on the row opens the station's panel, and the row keeps its Message and Forget", () => {
     make();
-    expect(more("OH2RDG").attributes("aria-label")).toBe("More actions for OH2RDG");
-    expect(more("OH2RDG").attributes("aria-haspopup")).toBe("menu");
-    expect(more("OH2RDG").attributes("aria-expanded")).toBe("false");
-    await more("OH2RDG").trigger("click");
-    await wrapper.vm.$nextTick();
-    expect(menu().exists()).toBe(true);
-    expect(more("OH2RDG").attributes("aria-expanded")).toBe("true");
-    expect(wrapper.emitted("select")).toBeUndefined(); // (the click is not the row's)
-    await more("OH2RDG").trigger("pointerdown");
-    document.dispatchEvent(new Event("pointerdown")); // (a press outside the menu closes it before the click of the button comes)
-    await more("OH2RDG").trigger("click");
-    expect(menu().exists()).toBe(false);
-  });
-
-  it("has the ... button on every row, the last of the buttons", () => {
-    make();
-    for (const call of ["OH2GBA", "OH2RDG", "EMAIL-2", "OH2OBJ", "FOREIGN"]) {
-      const buttons = row(call).findAll("td.actions button");
-      expect(buttons.at(-1)?.classes(), call).toContain("morebtn");
-    }
+    expect(row("OH2RDG").find("td.actions button[aria-haspopup]").exists()).toBe(false);
+    expect(
+      row("OH2RDG")
+        .findAll("td.actions button")
+        .map((b) => b.attributes("aria-label")),
+    ).toEqual(["Message OH2RDG", "Forget OH2RDG"]);
   });
 
   it("moves the focus to the first item, and keeps a second menu from being open with the first", async () => {
@@ -164,52 +149,30 @@ describe("the menu of a row of the Stations table: opening", () => {
 });
 
 describe("the menu of a row of the Stations table: what it offers", () => {
-  it("has Message, the four queries, Show on map, Alert me when…, Copy, QRZ and Forget for a station that takes messages", async () => {
+  it("has only Copy call, Show on map and the QRZ page, as short as the Packets tab's: the rest is in the station's panel", async () => {
     make();
     await rightClick("OH2RDG");
-    expect(labels()).toEqual([
-      "Message",
-      "Ask for position",
-      "Ask for status",
-      "Ask what it hears direct",
-      "Trace the route",
-      "Show on map",
-      "Alert me when…",
-      "Copy call",
-      "QRZ page",
-      "Forget",
-    ]);
-    expect(menu().findAll("[role='separator']")).toHaveLength(2);
-    expect(menu().text()).toContain("Many stations don't answer queries.");
+    expect(labels()).toEqual(["Copy call", "Show on map", "QRZ page"]);
+    expect(menu().findAll("[role='separator']")).toHaveLength(0);
+    expect(menu().text()).not.toContain("answer");
   });
 
   it("opens its card instead of showing it on the map for a station with no position", async () => {
     make();
     await rightClick("OH2PU-9");
-    expect(labels()).toContain("Open its card");
-    expect(labels()).not.toContain("Show on map");
+    expect(labels()).toEqual(["Copy call", "Open its card", "QRZ page"]);
   });
 
-  it("has no Message and no query where the card has no Message, and no note about them", async () => {
-    make();
-    await rightClick("EMAIL-2");
-    expect(labels()).toEqual(["Show on map", "Alert me when…", "Copy call", "QRZ page", "Forget"]);
-    expect(menu().text()).not.toContain("answer queries");
-    expect(menu().findAll("[role='separator']")).toHaveLength(1);
-  });
-
-  it("has Show, Copy and the QRZ page for our own station, and no Forget and no alert", async () => {
+  it("is the same for our own station and one that takes no message, and has no QRZ page for an object", async () => {
     make();
     await rightClick("OH2GBA");
-    expect(labels()).toEqual(["Show on map", "Copy call", "QRZ page"]);
-  });
-
-  it("has Show and Copy for an object of ours, and for an object of another station Forget besides, with no QRZ page", async () => {
-    make();
+    expect(labels()).toEqual(["Copy call", "Show on map", "QRZ page"]);
+    await rightClick("EMAIL-2");
+    expect(labels()).toEqual(["Copy call", "Show on map", "QRZ page"]);
     await rightClick("OH2OBJ");
-    expect(labels()).toEqual(["Show on map", "Copy call"]);
+    expect(labels()).toEqual(["Copy call", "Show on map"]);
     await rightClick("FOREIGN");
-    expect(labels()).toEqual(["Show on map", "Copy call", "Forget"]);
+    expect(labels()).toEqual(["Copy call", "Show on map"]);
   });
 
   it("links the QRZ page of the base call, in a tab of its own", async () => {
@@ -237,28 +200,22 @@ describe("the menu of a row of the Stations table: the keyboard", () => {
     expect(at()).toBe(1);
     await menu().trigger("keydown", { key: "ArrowUp" });
     await menu().trigger("keydown", { key: "ArrowUp" });
-    expect(at()).toBe(9);
+    expect(at()).toBe(2);
     await menu().trigger("keydown", { key: "ArrowDown" });
     expect(at()).toBe(0);
     await menu().trigger("keydown", { key: "End" });
-    expect(at()).toBe(9);
+    expect(at()).toBe(2);
     await menu().trigger("keydown", { key: "Home" });
     expect(at()).toBe(0);
   });
 
-  it("closes on Esc with the focus back on the ... button it came from, on Tab, and on a press outside it", async () => {
+  it("closes on Tab, and on a press outside it", async () => {
     make();
-    await more("OH2RDG").trigger("click");
-    await wrapper.vm.$nextTick();
-    await menu().trigger("keydown", { key: "Escape" });
-    expect(menu().exists()).toBe(false);
-    expect(document.activeElement).toBe(more("OH2RDG").element);
-
-    await more("OH2RDG").trigger("click");
+    await rightClick("OH2RDG");
     await menu().trigger("keydown", { key: "Tab" });
     expect(menu().exists()).toBe(false);
 
-    await more("OH2RDG").trigger("click");
+    await rightClick("OH2RDG");
     await wrapper.vm.$nextTick();
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     await wrapper.vm.$nextTick();
@@ -284,28 +241,6 @@ describe("the menu of a row of the Stations table: the keyboard", () => {
 });
 
 describe("the menu of a row of the Stations table: what its items do", () => {
-  it("Message writes to the station and closes the menu", async () => {
-    make();
-    await rightClick("OH2RDG");
-    await item("message").trigger("click");
-    expect(wrapper.emitted("message")).toEqual([["OH2RDG"]]);
-    expect(menu().exists()).toBe(false);
-  });
-
-  it.each([
-    ["ask_position", "position"],
-    ["ask_status", "status"],
-    ["ask_heard", "heard"],
-    ["ask_trace", "trace"],
-  ])("%s asks the station the %s query once and closes the menu", async (name, kind) => {
-    make();
-    await rightClick("OH2RDG");
-    await item(name).trigger("click");
-    expect(wrapper.emitted("ask")).toEqual([["OH2RDG", kind]]);
-    expect(wrapper.emitted("message")).toBeUndefined();
-    expect(menu().exists()).toBe(false);
-  });
-
   it("Show selects the station like a click on its row, without Ctrl", async () => {
     make();
     await rightClick("OH2RDG");
@@ -320,30 +255,6 @@ describe("the menu of a row of the Stations table: what its items do", () => {
     await item("copy").trigger("click");
     expect(wrapper.emitted("copy")).toEqual([["OH2PU-9"]]);
     expect(menu().exists()).toBe(false);
-  });
-
-  it("Forget asks twice, like the trash can of the row: the first press says Really forget? and keeps the menu, the second forgets and closes it", async () => {
-    make();
-    await rightClick("OH2RDG");
-    await item("forget").trigger("click");
-    expect(wrapper.emitted("forget")).toBeUndefined();
-    expect(menu().exists()).toBe(true);
-    expect(item("forget").text()).toBe("Really forget?");
-    expect(row("OH2RDG").find("button.forgetbtn").classes()).toContain("armed"); // (one armed button, the same as the row's)
-    await item("forget").trigger("click");
-    expect(wrapper.emitted("forget")).toEqual([["OH2RDG"]]);
-    expect(menu().exists()).toBe(false);
-  });
-
-  it("Forget goes back to asking after 5 seconds", async () => {
-    vi.useFakeTimers();
-    make();
-    await rightClick("OH2RDG");
-    await item("forget").trigger("click");
-    expect(item("forget").text()).toBe("Really forget?");
-    vi.advanceTimersByTime(5001);
-    await wrapper.vm.$nextTick();
-    expect(item("forget").text()).toBe("Forget");
   });
 
   it("goes when the station is forgotten under it", async () => {

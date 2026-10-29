@@ -121,7 +121,7 @@ MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_cal
                                "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "",
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
                                                     "internet": None, "acked": False}]}
-PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
+PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "dummy": False, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
                        "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0},
@@ -147,6 +147,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "ports", "search": True, "find": True, "ports": []}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
+    "station_traffic": [{"type": "station_traffic", "call": "OH2RDK-7", "packets": [{**PACKET, "decoded": {**PACKET["decoded"], "telemetry": None}}]}, {"type": "station_traffic", "call": "OH2NONE", "packets": []}],
     "speed_series": [{"type": "speed_series", "call": "OH2ZMA-9", "hours": 24, "points": [[NOW, 66.7], ["2026-10-21T12:02:00Z", 0.0]]},
                      {"type": "speed_series", "call": "OH2NONE", "hours": 24, "points": []}],
     "packet_history": [{"type": "packet_history", "hours": 3, "call": None, "start": "2026-10-21T10:00:00Z", "counts": [41, 37, 12]},
@@ -212,7 +213,7 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"},
     "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
     "set_station_alert": {"cmd": "set_station_alert", "call": "OH2RDG", "on_air": True, "within_km": 10, "direct": False},
-    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "speed_series": {"cmd": "speed_series", "call": "OH2ZMA-9", "hours": 24}, "packet_history": {"cmd": "packet_history", "hours": 24}, "position_history": {"cmd": "position_history", "hours": 3}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0", "since": "0.3.0"},
+    "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "speed_series": {"cmd": "speed_series", "call": "OH2ZMA-9", "hours": 24}, "station_traffic": {"cmd": "station_traffic", "call": "OH2RDK-7"}, "packet_history": {"cmd": "packet_history", "hours": 24}, "position_history": {"cmd": "position_history", "hours": 3}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0", "since": "0.3.0"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
     "object_set": {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 67, "path": "WIDE1-1", "qru_group": "RP70", "on_request": True},
     "object_kill": {"cmd": "object_kill", "name": "LEADER"},
@@ -344,11 +345,23 @@ def test_the_limits_of_the_commands() -> None:
                 {"cmd": "set_station_alert", "call": "OH2RDG", "on_air": True, "within_km": 0, "direct": False}, {"cmd": "set_station_alert", "call": "OH2RDG", "on_air": True, "within_km": 1001, "direct": False}, {"cmd": "set_station_alert", "call": "", "on_air": True, "within_km": None, "direct": False},
                 {"cmd": "overheard_delete", "from_call": "", "to_call": "OH2BBB"}, {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": ""},
                 {"cmd": "overheard_delete", "from_call": "OH2AAA"}, {"cmd": "packet_history", "hours": 24, "call": ""}, {"cmd": "packet_history", "hours": 24, "call": "X" * 65},
-                {"cmd": "packet_history", "hours": 24, "call": 7}):
+                {"cmd": "packet_history", "hours": 24, "call": 7}, {"cmd": "station_traffic", "call": ""}, {"cmd": "query", "call": "OH2RDG", "kind": "custom"}, {"cmd": "query", "call": "OH2RDG", "kind": "status", "text": "?APRSS"}):
         with pytest.raises(ValidationError):
             COMMANDS.validate_python(bad)
     assert COMMANDS.validate_python({"cmd": "send_message", "to": "OH2RDG", "text": ""}).text == "", "an empty text is the daemon's to refuse, with a reason"
     assert [COMMANDS.validate_python({"cmd": "packet_history", "hours": 24, **more}).call for more in ({}, {"call": None}, {"call": "OH2RDG"})] == [None, None, "OH2RDG"], "the call of packet_history may be left out: every packet"
+
+
+@pytest.mark.parametrize("text", ["APRSH OH2GBA-15", "?", "  ?  ", "?" + "A" * 67, "?APRS{1", "?APRS|", "?APRS~", "?APRSÄ", "?APRS\tX"])
+def test_a_custom_query_that_breaks_the_rule_is_refused(text: str) -> None:
+    with pytest.raises(ValidationError):
+        COMMANDS.validate_python({"cmd": "query", "call": "OH2RDG", "kind": "custom", "text": text})
+
+
+@pytest.mark.parametrize(("text", "sent"), [("?APRSH OH2GBA-15", "?APRSH OH2GBA-15"), (" ?aprsh oh2gba-15 ", "?APRSH OH2GBA-15"), ("?ping?", "?PING?"), ("?" + "A" * 66, "?" + "A" * 66)])
+def test_a_custom_query_is_trimmed_and_upper_cased(text: str, sent: str) -> None:
+    command = COMMANDS.validate_python({"cmd": "query", "call": "OH2RDG", "kind": "custom", "text": text})
+    assert command.text == sent  # type: ignore[union-attr]
 
 
 def test_every_command_has_exactly_one_handler_and_every_handler_a_command() -> None:

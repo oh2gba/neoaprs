@@ -1,7 +1,9 @@
 """The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send a directed query, send one again and stop sending one, and the test of the alert that tells of one. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
+
+from neoaprs.message import query_text
 
 from .wirebase import Iso, _Command, _Message, _Model
 
@@ -55,14 +57,28 @@ class SendMessage(_Command):
 
 class QueryStation(_Command):
     """Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it
-    hears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
-    `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the
-    station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book
+    hears direct, as a message), `?APRST` (`trace`: the path our query reached it by, as a message), `?WX?` (`weather`: its weather report; a general query in the specification, which many stations do not answer
+    when it is addressed to them) or the operator's own (`custom`, with `text`: `?APRSH OH2GBA-15`, `?PING?`). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic
+    `messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text begins with `?`) as a note of what was asked. The answer is whatever the
+    station sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of the same text to a station in 60 seconds. Answered with an `error` when the station is not in the station book
     (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago
-    (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent)."""
+    (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent); a `custom` text that is no query is refused as invalid."""
     cmd: Literal["query"]
     call: str = Field(min_length=1, max_length=64)
-    kind: Literal["position", "status", "heard", "trace"]
+    kind: Literal["position", "status", "heard", "trace", "weather", "custom"]
+    text: str | None = Field(default=None, max_length=512, description="the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable "
+                                                                       "ASCII without `|`, `~` or `{` and at most 67 characters, the text of a message; it is sent upper-cased. Absent or null for the other kinds")
+
+    @field_validator("text")
+    @classmethod
+    def _a_query(cls, text: str | None) -> str | None:
+        return None if text is None else query_text(text)
+
+    @model_validator(mode="after")
+    def _text_with_custom(self) -> Self:
+        if (self.kind == "custom") != (self.text is not None):
+            raise ValueError("`text` is given with the kind `custom` and with no other")
+        return self
 
 
 class MessageRetry(_Command):

@@ -23,23 +23,6 @@ const make = (home: { lat: number; lon: number } | null = { lat: 60.17, lon: 24.
   return wrapper;
 };
 const row = (call: string) => wrapper.findAll("tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
-const box = () => wrapper.find("[role='dialog']");
-const tick = (name: string) => box().find(`input[data-alert='${name}']`);
-const km = () => box().find("input[type='number']");
-const button = (text: string) =>
-  box()
-    .findAll("button")
-    .find((b) => b.text() === text)!;
-async function openFor(call: string): Promise<void> {
-  await row(call).trigger("contextmenu", { clientX: 100, clientY: 120 });
-  await nextTick();
-  await wrapper
-    .findAll("[role='menuitem']")
-    .find((i) => i.attributes("data-item") === "alert")!
-    .trigger("click");
-  await nextTick();
-  await nextTick();
-}
 
 beforeEach(() => {
   localStorage.clear();
@@ -74,64 +57,20 @@ describe("the bell of a station with an alert set", () => {
 });
 
 describe("Alert me when…", () => {
-  it("opens a box where the menu was, with the station's alert ticked and the focus on its first tickbox, and Esc closes it with the focus back on the row", async () => {
+  it("is in the station's panel with the station's alert ticked, and no longer in the menu of the row", async () => {
     make();
-    await openFor("OH2XYZ");
-    expect(wrapper.find("[role='menu']").exists()).toBe(false);
-    expect(box().attributes("aria-label")).toBe("Alert me when OH2XYZ…");
-    expect(box().attributes("style")).toContain("left: 100px");
-    expect([tick("on_air"), tick("within"), tick("direct")].map((t) => (t.element as HTMLInputElement).checked)).toEqual([true, true, false]);
-    expect((km().element as HTMLInputElement).value).toBe("10");
-    expect(document.activeElement).toBe(tick("on_air").element);
-    await box().trigger("keydown", { key: "Escape" });
-    expect(box().exists()).toBe(false);
-    expect(document.activeElement).toBe(row("OH2XYZ").element);
-    expect(send).not.toHaveBeenCalled();
-  });
-
-  it("starts with nothing ticked and 10 km for a station without one, and Save sends the whole alert and gives the focus back", async () => {
-    make();
-    await openFor("OH2RDG");
-    expect([tick("on_air"), tick("within"), tick("direct")].map((t) => (t.element as HTMLInputElement).checked)).toEqual([false, false, false]);
-    expect(km().attributes("disabled")).toBeDefined();
-    await tick("within").setValue(true);
-    await km().setValue(8);
-    await tick("direct").setValue(true);
-    await box().find("form").trigger("submit");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_station_alert", call: "OH2RDG", on_air: false, within_km: 8, direct: true });
-    expect(box().exists()).toBe(false);
-    expect(document.activeElement).toBe(row("OH2RDG").element);
-  });
-
-  it("takes the alert away when everything is unticked, and Cancel sends nothing", async () => {
-    make();
-    await openFor("OH2XYZ");
-    await button("Cancel").trigger("click");
-    expect(send).not.toHaveBeenCalled();
-    await openFor("OH2XYZ");
-    await tick("on_air").setValue(false);
-    await tick("within").setValue(false);
-    await button("Save").trigger("click");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_station_alert", call: "OH2XYZ", on_air: false, within_km: null, direct: false });
-  });
-
-  it("will not save a distance the daemon would refuse, and says when our position is missing", async () => {
-    make(null);
-    await openFor("OH2XYZ");
-    expect(box().text()).toContain("Needs your position (Settings)");
-    for (const bad of [0, 1001, 2.5]) {
-      await km().setValue(bad);
-      expect(button("Save").attributes("disabled"), String(bad)).toBeDefined();
-      expect(km().attributes("aria-invalid")).toBe("true");
-    }
-    await km().setValue(1000);
-    expect(button("Save").attributes("disabled")).toBeUndefined();
-  });
-
-  it("is not offered for our own station", async () => {
-    make();
-    await row("OH2GBA").trigger("contextmenu", { clientX: 100, clientY: 120 });
+    await row("OH2XYZ").trigger("click");
+    const panel = wrapper.find(".stationpanel");
+    expect(panel.findAll("legend").map((l) => l.text())).toContain("Alert me when OH2XYZ…");
+    expect(["on_air", "within", "direct"].map((name) => (panel.find(`input[data-alert='${name}']`).element as HTMLInputElement).checked)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    await row("OH2XYZ").trigger("contextmenu", { clientX: 100, clientY: 120 });
     await nextTick();
     expect(wrapper.findAll("[role='menuitem']").map((i) => i.attributes("data-item"))).not.toContain("alert");
+    expect(wrapper.find("[role='dialog']").exists()).toBe(false);
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ cmd: "set_station_alert" }));
   });
 });

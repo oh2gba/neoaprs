@@ -8,23 +8,29 @@ import { open, tabButton, useAppHarness } from "@/test/app";
 useAppHarness();
 afterEach(() => setLocale("en"));
 
-const row = (wrapper: VueWrapper, call: string) => wrapper.findAll("#pane-stations tbody tr").find((r) => r.find("td.call .callname").text() === call)!;
+const row = (wrapper: VueWrapper, call: string) =>
+  wrapper.findAll("#pane-stations table.stations > tbody > tr").find((r) => r.find("td.call .callname").text() === call)!;
+/** A press of a button of the station panel, which a click on the row of the station opens. */
 const choose = async (wrapper: VueWrapper, name: string) => {
-  await wrapper.find(`[role='menuitem'][data-item='${name}']`).trigger("click");
+  await wrapper.find(`.stationpanel [data-item='${name}']`).trigger("click");
+  await flushPromises();
+};
+const pick = async (wrapper: VueWrapper, call: string) => {
+  await row(wrapper, call).trigger("click");
   await flushPromises();
 };
 const toast = (wrapper: VueWrapper) => wrapper.find(".toast");
 
-describe("App: the menu of a row of the Stations table", () => {
+describe("App: the station panel of the Stations tab, and the menu of a row", () => {
   it("asks the station, tells the daemon with one query and says so in a toast", async () => {
     const { wrapper, socket } = await open();
-    await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
+    await pick(wrapper, "OH2RDG");
+    expect(socket.sent).toContainEqual({ cmd: "station_traffic", call: "OH2RDG" });
     await choose(wrapper, "ask_status");
     expect(socket.sent).toContainEqual({ cmd: "query", call: "OH2RDG", kind: "status" });
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "query")).toHaveLength(1);
     expect(toast(wrapper).text()).toContain("Asked OH2RDG for its status");
     expect(toast(wrapper).attributes("role")).toBe("status");
-    expect(wrapper.find("[role='menu']").exists()).toBe(false);
   });
 
   it.each([
@@ -33,15 +39,25 @@ describe("App: the menu of a row of the Stations table", () => {
     ["ask_trace", "trace", "Asked OH2RDG for the route"],
   ])("%s sends the %s query", async (item, kind, line) => {
     const { wrapper, socket } = await open();
-    await row(wrapper, "OH2RDG").find("button.morebtn").trigger("click");
+    await pick(wrapper, "OH2RDG");
     await choose(wrapper, item);
     expect(socket.sent).toContainEqual({ cmd: "query", call: "OH2RDG", kind });
     expect(toast(wrapper).text()).toContain(line);
   });
 
+  it("sends the operator's own query upper-cased, and says so", async () => {
+    const { wrapper, socket } = await open();
+    await pick(wrapper, "OH2RDG");
+    await wrapper.find(".stationpanel input[data-query='text']").setValue("?aprsh oh2gba-15");
+    await wrapper.find(".stationpanel form.stationpanel-query").trigger("submit");
+    await flushPromises();
+    expect(socket.sent).toContainEqual({ cmd: "query", call: "OH2RDG", kind: "custom", text: "?APRSH OH2GBA-15" });
+    expect(toast(wrapper).text()).toContain("Asked OH2RDG: ?APRSH OH2GBA-15");
+  });
+
   it("gives way to the daemon's refusal, in the words of the page", async () => {
     const { wrapper, socket } = await open();
-    await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
+    await pick(wrapper, "OH2RDG");
     await choose(wrapper, "ask_status");
     socket.say({
       type: "error",
@@ -60,22 +76,23 @@ describe("App: the menu of a row of the Stations table", () => {
     const { wrapper } = await open();
     setLocale("de");
     await flushPromises();
-    await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
-    expect(wrapper.find("[role='menuitem'][data-item='ask_status']").text()).toBe("Status erfragen");
+    await pick(wrapper, "OH2RDG");
+    expect(wrapper.find(".stationpanel [data-item='ask_status']").text()).toBe("Status erfragen");
     await choose(wrapper, "ask_status");
     expect(toast(wrapper).text()).toContain("OH2RDG nach dem Status gefragt");
   });
 
   it("writes to the station with Message, and shows its card with Show on map", async () => {
     const { wrapper } = await open();
-    await row(wrapper, "OH2PU-9").trigger("contextmenu", { clientX: 200, clientY: 100 });
+    await pick(wrapper, "OH2PU-9");
     await choose(wrapper, "message");
     expect(wrapper.find("#pane-messages").isVisible()).toBe(true);
     expect(wrapper.find("#pane-messages .convo-head").text()).toContain("OH2PU-9");
 
     await tabButton(wrapper, "Stations")?.trigger("click");
     await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
-    await choose(wrapper, "show");
+    await wrapper.find("[role='menuitem'][data-item='show']").trigger("click");
+    await flushPromises();
     expect(wrapper.find(".card").text()).toContain("OH2RDG");
   });
 
@@ -84,14 +101,15 @@ describe("App: the menu of a row of the Stations table", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText: (text: string) => Promise.resolve(void written.push(text)) } });
     const { wrapper } = await open();
     await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
-    await choose(wrapper, "copy");
+    await wrapper.find("[role='menuitem'][data-item='copy']").trigger("click");
+    await flushPromises();
     expect(written).toEqual(["OH2RDG"]);
     expect(toast(wrapper).text()).toContain("Copied OH2RDG");
   });
 
   it("forgets the station after two presses", async () => {
     const { wrapper, socket } = await open();
-    await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
+    await pick(wrapper, "OH2RDG");
     await choose(wrapper, "forget");
     expect(socket.sent).not.toContainEqual({ cmd: "forget_station", call: "OH2RDG" });
     await choose(wrapper, "forget");
@@ -122,7 +140,7 @@ describe("App: the menu of a row of the Stations table", () => {
       ],
     });
     await flushPromises();
-    await row(wrapper, "OH2RDG").trigger("contextmenu", { clientX: 200, clientY: 100 });
+    await pick(wrapper, "OH2RDG");
     await choose(wrapper, "message");
     const thread = wrapper.find("#pane-messages .bubbles");
     expect(thread.find("[data-asked]").text()).toContain("You asked what it hears direct");

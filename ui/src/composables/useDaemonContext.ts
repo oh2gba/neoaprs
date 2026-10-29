@@ -21,11 +21,13 @@ import type {
   IgateState,
   MapState,
   PacketHistoryMessage,
+  PacketRow,
   PortsMessage,
   PositionHistoryMessage,
   QruState,
   ReleaseNotesMessage,
   SpeedSeriesMessage,
+  StationTrafficMessage,
   StationRow,
   StatusMessage,
   TncState,
@@ -73,6 +75,10 @@ export interface DaemonContext {
   packetHistoryByCall: Read<ReadonlyMap<string, PacketHistoryMessage>>;
   /** the speeds of each moving station, the answers to the station cards' `speed_series` */
   speedSeriesByCall: Read<ReadonlyMap<string, SpeedSeriesMessage>>;
+  /** the latest packets of each station, the answers to the station panel's `station_traffic` */
+  stationTrafficByCall: Read<ReadonlyMap<string, StationTrafficMessage>>;
+  /** the latest 200 packets (the topic `packets`), by id */
+  packets: ReadonlyMap<string, PacketRow>;
   /** where the stations were over the span the map's replay asked for (`position_history`); null until one came */
   positionHistory: Read<PositionHistoryMessage | null>;
   /** the radio link is up */

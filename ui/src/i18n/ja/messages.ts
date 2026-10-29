@@ -15,6 +15,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.asked.status": "ステータスを問い合わせました",
   "messages.asked.heard": "直接受信局を問い合わせました",
   "messages.asked.trace": "経路を問い合わせました",
+  "messages.asked.weather": "気象を問い合わせました",
+  "messages.asked.custom": "{text} を問い合わせました",
   "messages.none_yet": "メッセージはまだありません。",
   "messages.delete_conversation": "{call}との会話を削除",
   "messages.delete": "メッセージを削除",
