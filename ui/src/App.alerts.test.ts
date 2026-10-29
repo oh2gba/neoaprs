@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
 import { FakeAudioContext, FakeNotification, openedAt, setSeen, stubBrowser } from "@/test/fakealert";
+import { MODE_KEY } from "@/lib/alertmode";
 import { clockText } from "@/lib/format";
 import { hello, incoming, message } from "@/test/fixtures";
 import { messages, open, tabButton, useAppHarness } from "@/test/app";
@@ -88,6 +89,7 @@ describe("App: the alert of this browser", () => {
     stubBrowser();
     FakeNotification.permission = "granted";
     openedAt("192.168.1.20");
+    localStorage.setItem(MODE_KEY, "both"); // (the choice this test is about, stated, not left to the address's default)
     vi.spyOn(window, "focus").mockImplementation(() => undefined);
     const { wrapper, socket } = await open();
     patch(socket, 1, "4", incoming(4, "OH2DPN", { text: "Moi!" }));
