@@ -146,6 +146,62 @@
 .packet-detail .more {
   padding: 0 6px;
 }
+/* the field under a row of the Stations table (StationRowDetail), as a packet's under its row in the Packets tab: the menu's actions as buttons in lines that wrap, Forget at the end of its line, then the station's settings in
+   group boxes side by side when there is room. Its cell drops the one-line height of the rows, and the field has no width of its own (the cell's, at most the visible width of the table's scroll box, where it stays when the
+   table is scrolled sideways), so that opening it never makes the table or a column wider and none of it is out of sight on a phone */
+.stationscroll {
+  container-type: inline-size;
+}
+.grid.stations tr.detail td {
+  width: auto;
+  height: auto;
+  padding: 0;
+  white-space: normal;
+}
+.stationfield {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 0;
+  min-width: min(100%, 100cqw);
+  padding: 6px 8px 8px;
+}
+.stationfield-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.stationfield-note {
+  margin: -2px 0 0;
+  font-size: 12px;
+}
+.stationfield-forget {
+  margin-left: auto;
+}
+.stationfield .stationfield-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+.stationfield .stationfield-settings > fieldset {
+  flex: 1 1 18em;
+  min-width: 0;
+  margin: 0;
+}
+/* the two words of a button that asks twice ("Forget", "Really forget?") in one place, the one not said hidden: the button is as wide as the longer, so that the first press moves nothing */
+.twowords {
+  display: inline-grid;
+}
+.twowords > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+.twowords > .twowords-off {
+  visibility: hidden;
+}
 .grid .path {
   min-width: 9em;
   overflow-wrap: anywhere;

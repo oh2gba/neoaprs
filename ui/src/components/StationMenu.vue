@@ -9,7 +9,7 @@ import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
-import { hasPosition, menuGroup, menuItems, QUERY_KINDS, type MenuItem, type QueryKind } from "@/lib/stations";
+import { menuGroup, menuItems, menuLabel, menuQuery, type MenuItem, type QueryKind } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = defineProps<{ row: StationRow; x: number; y: number; trigger: HTMLElement | null; armed: boolean }>();
@@ -40,31 +40,6 @@ const entries = computed(() =>
 );
 const menu = useContextMenu({ x: () => props.x, y: () => props.y, trigger: () => props.trigger, list, buttons, close: () => emit("close") });
 
-function label(item: MenuItem): string {
-  switch (item) {
-    case "message":
-      return t("station.card.message");
-    case "ask_position":
-      return t("station.menu.ask_position");
-    case "ask_status":
-      return t("station.menu.ask_status");
-    case "ask_heard":
-      return t("station.menu.ask_heard");
-    case "ask_trace":
-      return t("station.menu.ask_trace");
-    case "show":
-      return hasPosition(props.row) ? t("station.menu.show_map") : t("station.menu.show_card");
-    case "alert":
-      return t("station.menu.alert");
-    case "copy":
-      return t("station.menu.copy");
-    case "qrz":
-      return t("station.menu.qrz");
-    case "forget":
-      return props.armed ? t("station.menu.forget_sure") : t("station.menu.forget");
-  }
-}
-
 /** The item does its work and the menu closes, except Forget the first time (it asks again); the QRZ page is a link, which opens in a tab of its own. */
 function choose(item: MenuItem): void {
   const call = props.row.call;
@@ -75,7 +50,7 @@ function choose(item: MenuItem): void {
   else if (item === "show") emit("show", call);
   else if (item === "alert") emit("alert", call);
   else if (item === "copy") emit("copy", call);
-  else if (item !== "qrz") emit("ask", call, QUERY_KINDS.find((kind) => `ask_${kind}` === item) ?? "status");
+  else if (item !== "qrz") emit("ask", call, menuQuery(item) ?? "status");
   menu.done();
 }
 </script>
@@ -105,7 +80,7 @@ function choose(item: MenuItem): void {
           :data-item="item"
           @click="menu.done()"
         >
-          {{ label(item) }}
+          {{ menuLabel(item, row, armed) }}
         </a>
         <button
           v-else
@@ -120,7 +95,7 @@ function choose(item: MenuItem): void {
           :data-item="item"
           @click="choose(item)"
         >
-          {{ label(item) }}
+          {{ menuLabel(item, row, armed) }}
         </button>
       </li>
       <li v-if="note && asks" class="ctxmenu-note muted" role="none">{{ t("station.menu.note") }}</li>

@@ -589,6 +589,7 @@ export const fr: Catalogue = {
   "station.table.count": { one: "{shown} sur {n} station", other: "{shown} sur {n} stations" },
 
   "station.menu.label": "Actions pour {call}",
+  "station.row.label": "Actions et réglages pour {call}",
   "station.menu.more": "Autres actions pour {call}",
   "station.menu.ask_position": "Demander la position",
   "station.menu.ask_status": "Demander le statut",

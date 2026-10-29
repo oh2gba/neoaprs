@@ -124,6 +124,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.count": { one: "{shown} de {n} estação", other: "{shown} de {n} estações" },
 
   "station.menu.label": "Ações para {call}",
+  "station.row.label": "Ações e configurações para {call}",
   "station.menu.more": "Mais ações para {call}",
   "station.menu.ask_position": "Pedir a posição",
   "station.menu.ask_status": "Pedir o status",

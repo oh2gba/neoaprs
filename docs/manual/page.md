@@ -34,7 +34,8 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 - The filters are in a group box, **Filter**: the filter field, up to three tickboxes and a choice that wrap onto a second line: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)).
 - The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station heard on the radio as well as over the internet stays when "heard on RF only" is ticked.
 - A click on a row flies the map to the station and shows its card, with the marker above the card and not under it.
-- From the keyboard, Enter on a row does the same, and Up and Down go to the station before or after it in the table, selecting it as a click does (with Ctrl held, adding its card to the open ones); Home and End go to the first and the last.
+- The same click opens a field right under the row, as a click on a packet does in the Packets tab ([below](#the-field-under-a-row)). One is open at a time: a click on another row moves it there, and a click on its own row again closes it. With Ctrl held, a click adds the card and leaves the field as it is.
+- From the keyboard, Enter on a row does what a click does, and Up and Down go to the station before or after it in the table, selecting it as a click does (with Ctrl held, adding its card to the open ones); Home and End go to the first and the last. An open field goes along to the row they select.
 - At the right end of a row are three small buttons: two as on the card and a "..." that opens the row's menu (below).
   - The envelope, **Message OH2XYZ**, opens the conversation with the station (on a phone, straight into the conversation); it is there for the stations a message can go to, not for your own station, an object, an item or the email gateway.
   - The trash can, **Forget OH2XYZ**, takes the station out of the station book and asks twice like the card's Forget ("sure?", taken back after 5 seconds); your own station and your own objects have none (an object is killed on its card).
@@ -50,9 +51,20 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
   - Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, and an object of someone else's Show, Copy call and Forget; none has the questions or an alert.
 - A station past its timeout is dim, listed last, with "timed out" after the time it was heard.
 
+### The field under a row
+
+The field has what the menu of the row has, as buttons in plain view, and the station's settings, so that nothing is a right-click away. The rows under it move down to make room; nothing else moves.
+
+- **Message** and the four questions, with the line that many stations do not answer them.
+- **Show on map** (or **Open its card**), **Copy call**, the **QRZ page** and, at the end of the line, **Forget**, which asks twice like the trash can ("Really forget?").
+- **Route**: the **Path** messages to the station go by and **RF only**, as under **Route** in its conversation. Both are saved when they are changed.
+- **Alert me when…**: the three choices of the alert ([below](#alerts-on-a-station)), saved as each is ticked or cleared and when the distance is changed.
+
+Your own station has Show, Copy call and the QRZ page, an object or an item of yours Show and Copy call, an object of someone else's Show, Copy call and Forget; a station a message cannot go to has no questions and no route. Esc anywhere in the field closes it and puts the focus back on its row.
+
 ### Alerts on a station
 
-**Alert me when…** in the menu of a row opens a small box where the menu was, for that station. Tick any of three, and Save:
+**Alert me when…** in the menu of a row opens a small box where the menu was, for that station; the same choices are in the field under its row, where each is saved at once. Tick any of three, and Save:
 
 - **comes on the air**: a packet of it is heard after it was silent for 30 minutes or more, or for the first time.
 - **comes within N km of me** (10 km to start with, 1 to 1000): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.

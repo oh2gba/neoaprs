@@ -604,6 +604,7 @@ export const de: Catalogue = {
   "station.table.count": { one: "{shown} von {n} Station", other: "{shown} von {n} Stationen" },
 
   "station.menu.label": "Aktionen für {call}",
+  "station.row.label": "Aktionen und Einstellungen für {call}",
   "station.menu.more": "Weitere Aktionen für {call}",
   "station.menu.ask_position": "Position erfragen",
   "station.menu.ask_status": "Status erfragen",
