@@ -16,7 +16,7 @@ import { t } from "@/i18n";
 import { type Place } from "@/lib/cardmove";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
-import { SPEED_HOURS } from "@/lib/speed";
+import { tripHours } from "@/lib/speed";
 import { HISTORY_HOURS } from "@/lib/stats";
 import { canMessage } from "@/lib/stations";
 import { isWeatherStation, sharedRanges } from "@/lib/weather";
@@ -31,8 +31,11 @@ const props = defineProps<{
 const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, stations, prefs, send } = useDaemonContext();
 /** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
 const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
-/** A moving station's card asks for its speeds (when it opens, and at each new position of the station). */
-const askSpeed = (call: string): boolean => send({ cmd: "speed_series", call, hours: SPEED_HOURS });
+/** A moving station's card asks for its speeds over its trip (when it opens, and at each new position of the station, which may move where the trip begins). */
+function askSpeed(call: string): void {
+  const row = props.rows.find((r) => r.call === call);
+  if (row !== undefined) send({ cmd: "speed_series", call, hours: tripHours(row, now.value) });
+}
 // (Forget, Message, Edit, ... are the card's own events: they go on)
 const emit = defineEmits<{
   close: [call: string];

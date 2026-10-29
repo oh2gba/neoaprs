@@ -37,7 +37,7 @@ export const stations = {
   "station.kind_reported": "{kind}, reported by {by}",
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, course {course}",
-  "station.speed_chart": "Speed, the last 24 hours",
+  "station.speed_chart": "Speed along its track",
 
   "station.field.kind": "Kind",
   "station.field.last_heard": "Last heard",

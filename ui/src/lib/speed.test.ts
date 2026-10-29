@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMoving, speedPoints } from "@/lib/speed";
+import { isMoving, speedPoints, tripHours, tripStart } from "@/lib/speed";
 import { NOW, ago, station } from "@/test/fixtures";
 
 const HOUR = 3600;
@@ -44,19 +44,46 @@ describe("speed: which station moves", () => {
   });
 });
 
-describe("speed: the line of the graph", () => {
-  it("is the last 24 hours to now, with no point before the answer came", () => {
-    expect(speedPoints(null, NOW)).toEqual({ from: NOW - 24 * HOUR * 1000, to: NOW, points: [] });
+describe("speed: the trip the graph spans", () => {
+  const car = (oldest: number) =>
+    station("OH2ZMA-9", {
+      speed_kmh: 50,
+      track: [
+        [ago(oldest), 60.17, 24.94],
+        [ago(60), 60.2, 24.95],
+      ],
+    });
+
+  it("begins at the oldest point of the station's track, the trail the map draws, and the daemon is asked for the whole hours that cover it", () => {
+    expect(tripStart(car(90 * 60), NOW)).toBe(NOW - 90 * 60_000);
+    expect(tripHours(car(90 * 60), NOW)).toBe(2);
+    expect(tripHours(car(3 * HOUR), NOW)).toBe(3);
   });
 
-  it("has a point for each speed of the answer, at its time", () => {
+  it("is a quarter of an hour at least, for a short track or none yet, and a week at most", () => {
+    expect(tripStart(car(120), NOW)).toBe(NOW - 15 * 60_000);
+    expect(tripStart(station("OH2ZMA-9", { speed_kmh: 50, track: [] }), NOW)).toBe(NOW - 15 * 60_000);
+    expect(tripHours(car(120), NOW)).toBe(1);
+    expect(tripStart(car(10 * 24 * HOUR), NOW)).toBe(NOW - 168 * HOUR * 1000);
+    expect(tripHours(car(10 * 24 * HOUR), NOW)).toBe(168);
+  });
+});
+
+describe("speed: the line of the graph", () => {
+  const from = NOW - 2 * HOUR * 1000;
+
+  it("is the trip to now, with no point before the answer came", () => {
+    expect(speedPoints(null, from, NOW)).toEqual({ from, to: NOW, points: [] });
+  });
+
+  it("has a point for each speed of the answer since the trip began, at its time (the answer's whole hours may go back further)", () => {
     const series = {
       type: "speed_series" as const,
       call: "OH2ZMA-9",
-      hours: 24,
-      points: [[ago(HOUR), 66.7] as [string, number], [ago(60), 0] as [string, number]],
+      hours: 3,
+      points: [[ago(150 * 60), 30] as [string, number], [ago(HOUR), 66.7] as [string, number], [ago(60), 0] as [string, number]],
     };
-    expect(speedPoints(series, NOW).points).toEqual([
+    expect(speedPoints(series, from, NOW).points).toEqual([
       { t: NOW - HOUR * 1000, v: 66.7 },
       { t: NOW - 60_000, v: 0 },
     ]);

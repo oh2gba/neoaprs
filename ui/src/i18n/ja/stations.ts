@@ -39,7 +39,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.kind_reported": "{kind}、報告元 {by}",
   "station.from_us_value": "{distance} km、{bearing}",
   "station.speed_course": "{speed}、進行方向 {course}",
-  "station.speed_chart": "速度、直近24時間",
+  "station.speed_chart": "軌跡に沿った速度",
 
   "station.field.kind": "種類",
   "station.field.last_heard": "最終受信",

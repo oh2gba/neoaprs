@@ -8,7 +8,14 @@ import { NOW, ago, station } from "@/test/fixtures";
 
 afterEach(() => document.body.replaceChildren());
 
-const car = station("OH2ZMA-9", { speed_kmh: 60, course_deg: 90 });
+const car = station("OH2ZMA-9", {
+  speed_kmh: 60,
+  course_deg: 90,
+  track: [
+    [ago(5400), 60.17, 24.94],
+    [ago(60), 60.2, 24.95],
+  ],
+});
 const fixed = station("OH2RDG", {
   track: [
     [ago(600), 60.2, 24.95],
@@ -18,8 +25,9 @@ const fixed = station("OH2RDG", {
 const answer = (call: string): SpeedSeriesMessage => ({
   type: "speed_series",
   call,
-  hours: 24,
+  hours: 2,
   points: [
+    [ago(6000), 20],
     [ago(3600), 40],
     [ago(1800), 80],
     [ago(60), 60],
@@ -35,11 +43,11 @@ function make(rows: StationRow[]) {
 }
 
 describe("the speed of a moving station on its card", () => {
-  it("is asked for with the station's call when the card opens, and drawn as a line from the card's own answer, not another station's", async () => {
+  it("is asked for with the station's call and the hours of its trip (its track, 1½ hours) when the card opens, and drawn as a line from the card's own answer, not another station's", async () => {
     const { wrapper, speeds, asked } = make([car]);
-    expect(asked()).toEqual([{ cmd: "speed_series", call: "OH2ZMA-9", hours: 24 }]);
+    expect(asked()).toEqual([{ cmd: "speed_series", call: "OH2ZMA-9", hours: 2 }]);
     const graph = () => wrapper.find("[data-speed]");
-    expect(graph().find(".trend-head").text()).toContain("Speed, the last 24 hours");
+    expect(graph().find(".trend-head").text()).toContain("Speed along its track");
     expect(graph().find(".trend-line").exists()).toBe(false);
     speeds.value = new Map([["OH2XYZ", answer("OH2XYZ")]]);
     await nextTick();
@@ -48,6 +56,14 @@ describe("the speed of a moving station on its card", () => {
     await nextTick();
     expect(graph().find(".trend-line").attributes("d")).toMatch(/^M/);
     expect(graph().find(".trend-read").text()).toMatch(/^60 km\/h\s+\d\d:\d\d:\d\d$/);
+  });
+
+  it("spans the trip: no speed from before the track's oldest point is drawn", async () => {
+    const { wrapper, speeds } = make([car]);
+    speeds.value = new Map([["OH2ZMA-9", answer("OH2ZMA-9")]]);
+    await nextTick();
+    const line = wrapper.find("[data-speed] .trend-line").attributes("d") ?? "";
+    expect(line.match(/[MC]/g)).toHaveLength(3); // (the three speeds of the trip, not the one before it)
   });
 
   it("is asked for again when a new position of the station comes", async () => {

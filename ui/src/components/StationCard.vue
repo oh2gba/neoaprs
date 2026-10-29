@@ -2,7 +2,7 @@
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the voice frequency with its tone, offset and range (when it gave one), the PHG or range it gave (a digipeater's reach; the antenna's direction as a small arrow), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). A station that is heard has the bars of its packets in each of the last 24 hours under its facts, above Details
-// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over the same hours under them (components/StationSpeed.vue); our own
+// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over its trip (the span of its trail on the map) under them (components/StationSpeed.vue); our own
 // station, an object and an item have neither (ours is what we send, and an object's or an item's packets are its sender's). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // A station with an alert set ("Alert me when…" of the Stations table) has a small quiet bell at the end of the line of its call (AlertBell), with what it watches as its hover title.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
@@ -31,7 +31,7 @@ import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
 import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
-import { isMoving } from "@/lib/speed";
+import { isMoving, tripStart } from "@/lib/speed";
 import type { AlertWhen, PacketHistoryMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -199,6 +199,7 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         v-if="heardStation && isMoving(row, now)"
         :position-at="row.last_position_at"
         :series="speedSeries"
+        :from="tripStart(row, now)"
         :now="now"
         @ask="emit('speed', row.call)"
       />
