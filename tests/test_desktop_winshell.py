@@ -223,10 +223,13 @@ class Toolkits:
 class Rig:
     def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hidden: bool = False, window: bool = True, start_fails: bool = False, autostart: bool = True, user32: FakeUser32 | None = None,
                  windll: bool = True) -> None:
-        """`user32`: the window's Win32 side, which is `ctypes.windll.user32` unless `windll` is False (then the window has it and the shell cannot reach it, as on any system but Windows)."""
+        """`user32`: the window's Win32 side, which is `ctypes.windll.user32` unless `windll` is False (then the window has it and the shell cannot reach it, as on any system but Windows). Without one the
+        shell has no Win32 at all, on Windows too (CI runs these tests there): the real user32 is never called with a fake window, and no real WebView2 is started."""
         self.toolkits = Toolkits(monkeypatch, start_fails, user32)
         if user32 is not None and windll:
             monkeypatch.setattr(ctypes, "windll", types.SimpleNamespace(user32=user32), raising=False)
+        else:
+            monkeypatch.delattr(ctypes, "windll", raising=False)
         self.browser: list[str] = []
         monkeypatch.setattr(winshell.webbrowser, "open", lambda url: self.browser.append(url) or True)
         self.data = tmp_path / "data"
@@ -491,9 +494,9 @@ def test_a_window_started_in_the_tray_gets_its_placement_when_it_is_opened(tmp_p
 
 
 def test_where_there_is_no_win32_no_call_is_made_and_open_is_pywebviews(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert not hasattr(ctypes, "windll"), "(this runs where ctypes has no windll)"
     user32 = FakeUser32(show_cmd=winplace.SW_SHOWMAXIMIZED)
     rig = Rig(tmp_path, monkeypatch, user32=user32, windll=False)
+    assert not hasattr(ctypes, "windll"), "(the rig takes Windows' windll away, so that this runs as on any other system)"
     thread = launch(rig)
     window = rig.toolkits.windows[0]
     assert winplace.Win32Window.of(window) is None and winplace.Win32Window.of(types.SimpleNamespace(native=None)) is None
