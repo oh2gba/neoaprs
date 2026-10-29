@@ -23,7 +23,7 @@ export function canForget(row: Pick<StationRow, "is_me" | "own">): boolean {
 }
 
 /** The directed queries the menu of a row offers (the daemon's command `query`): `?APRSP` position, `?APRSS` status, `?APRSD` what it hears direct, `?APRST` the route. */
-export const QUERY_KINDS = ["position", "status", "heard", "trace"] as const;
+const QUERY_KINDS = ["position", "status", "heard", "trace"] as const;
 export type QueryKind = (typeof QUERY_KINDS)[number];
 
 /** What the menu of a row of the Stations table offers, in its order: Message and the four queries where the card has Message (a station that takes messages, not ours, not an object), Show, "Alert me when…" for a station that is not ours
@@ -43,6 +43,37 @@ export function menuItems(row: Pick<StationRow, "call" | "kind" | "can_message" 
 /** The group of the menu an item is in (a line is drawn between groups): talking to the station, looking at it, forgetting it. */
 export function menuGroup(item: MenuItem): number {
   return item === "message" || item.startsWith("ask_") ? 0 : item === "forget" ? 2 : 1;
+}
+
+/** The query an item of the menu sends, null for an item that is not one. */
+export function menuQuery(item: MenuItem): QueryKind | null {
+  return QUERY_KINDS.find((kind) => `ask_${kind}` === item) ?? null;
+}
+
+/** The words of an item of the menu (and of its button in the field under a row): Show is "Open its card" for a station with no position, and Forget armed (its first press) is "Really forget?". */
+export function menuLabel(item: MenuItem, row: StationRow, armed: boolean): string {
+  switch (item) {
+    case "message":
+      return t("station.card.message");
+    case "show":
+      return hasPosition(row) ? t("station.menu.show_map") : t("station.menu.show_card");
+    case "alert":
+      return t("station.menu.alert");
+    case "copy":
+      return t("station.menu.copy");
+    case "qrz":
+      return t("station.menu.qrz");
+    case "forget":
+      return armed ? t("station.menu.forget_sure") : t("station.menu.forget");
+    case "ask_position":
+      return t("station.menu.ask_position");
+    case "ask_status":
+      return t("station.menu.ask_status");
+    case "ask_heard":
+      return t("station.menu.ask_heard");
+    case "ask_trace":
+      return t("station.menu.ask_trace");
+  }
 }
 
 export type SortKey = "call" | "distance_km" | "bearing_deg" | "last_heard" | "last_position_at" | "last_direct_at" | "packets" | "last_path" | "temp_c";

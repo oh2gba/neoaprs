@@ -124,6 +124,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.count": { other: "{n}局中{shown}局" },
 
   "station.menu.label": "{call}の操作",
+  "station.row.label": "{call}の操作と設定",
   "station.menu.more": "{call}のその他の操作",
   "station.menu.ask_position": "位置を問い合わせる",
   "station.menu.ask_status": "ステータスを問い合わせる",

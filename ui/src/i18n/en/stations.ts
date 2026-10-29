@@ -122,6 +122,7 @@ export const stations = {
   "station.table.count": { one: "{shown} of {n} stations", other: "{shown} of {n} stations" },
 
   "station.menu.label": "Actions for {call}",
+  "station.row.label": "Actions and settings for {call}",
   "station.menu.more": "More actions for {call}",
   "station.menu.ask_position": "Ask for position",
   "station.menu.ask_status": "Ask for status",

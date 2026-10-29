@@ -123,6 +123,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.table.count": { one: "{shown} de {n} estación", other: "{shown} de {n} estaciones" },
 
   "station.menu.label": "Acciones para {call}",
+  "station.row.label": "Acciones y ajustes para {call}",
   "station.menu.more": "Más acciones para {call}",
   "station.menu.ask_position": "Pedir la posición",
   "station.menu.ask_status": "Pedir el estado",
