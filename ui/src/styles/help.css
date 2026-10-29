@@ -49,7 +49,8 @@
   user-select: all;
 }
 /* the dialog of a new version (UpdateDialog) over the dimmed page, and the steps by hand (UpdateSteps); on a phone it is the whole screen (responsive.css) */
-.updatedialog-backdrop {
+.updatedialog-backdrop,
+.pathbuild-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -59,7 +60,8 @@
   padding: 16px;
   background: var(--scrim);
 }
-.updatedialog {
+.updatedialog,
+.pathbuild {
   width: min(540px, 100%);
   max-height: min(88vh, 100%);
   overflow: auto;
@@ -70,7 +72,8 @@
   border-radius: 8px;
   box-shadow: var(--shadow);
 }
-.updatedialog:focus {
+.updatedialog:focus,
+.pathbuild:focus {
   outline: none;
 }
 .updatedialog-head {
@@ -205,4 +208,155 @@
 }
 .httpsguide-print {
   margin-top: 8px;
+}
+/* the path builder (components/PathBuilderDialog.vue): the frame of the update dialog, narrower, on a phone too (it is put at the end of the body, out of the page's root and its size class). The hops have room for two
+   lines of chips and the path for two lines of text, the list of digipeaters a height of its own, so that nothing under them moves as hops come and go; the numbers are tabular and right-aligned in columns of their own */
+.pathbuild {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(460px, 100%);
+}
+.pathbuild-title {
+  flex: 1;
+  min-width: 0;
+}
+.pathbuild-presets,
+.pathbuild-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pathbuild-foot {
+  justify-content: flex-end;
+}
+.pathbuild-path {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pathbuild-hops {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 4px 6px;
+  min-height: 70px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.pathbuild-hop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pathbuild-direct {
+  line-height: 26px;
+}
+.pathbuild-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 2px 0 9px;
+  border-radius: 13px;
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
+}
+.pathbuild-x {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.pathbuild-x:hover,
+.pathbuild-x:focus-visible {
+  background: var(--row-hover);
+}
+.pathbuild-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 2.8em;
+  margin: 0;
+}
+.pathbuild-result output {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pathbuild-result output.invalid {
+  color: var(--bad);
+}
+.pathbuild-count {
+  flex: none;
+  min-width: 6em;
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pathbuild-type {
+  display: flex;
+  gap: 6px;
+}
+.pathbuild-type .input {
+  flex: 1;
+}
+.pathbuild-heading {
+  margin: 0 0 4px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pathbuild-list {
+  height: 162px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.pathbuild-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5em 4.5em 5em;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pathbuild-choice:hover,
+.pathbuild-choice:focus-visible {
+  background: var(--row-hover);
+}
+.pathbuild-call {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pathbuild-num {
+  color: var(--muted);
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pathbuild-none {
+  padding: 6px 8px;
 }

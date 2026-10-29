@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // The beacon's path as one choice: Recommended (the empty setting; the path of the station's symbol, WIDE1-1,WIDE2-1 for a moving station and WIDE2-1 for a fixed one: the `recommended` the form works out), Direct only (no digipeaters) and Custom, which shows a field for the calls. Recommended and Direct only apply at once (`choose`);
 // the custom calls apply on Enter or when the field is left (`commit`), and Esc (`cancel`) puts the path in force back. A path that is neither of the first two (WIDE2-2) shows as Custom with its calls in the field. An empty custom
-// field is the recommended path again.
+// field is the recommended path again. The path builder's button (PathBuilder) beside the choice builds a path from the one in force, held to the setting's rule; Use applies it at once, as a choice does (DIRECT is Direct only).
 import { computed, ref, watch } from "vue";
+import PathBuilder from "@/components/PathBuilder.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
 import { DIRECT, callListText } from "@/lib/calls";
+import { problemOf } from "@/lib/fieldcheck";
 import type { Choice } from "@/lib/settingchoices";
 import type { FieldInfo } from "@/lib/settings";
 
@@ -56,6 +58,12 @@ function pick(value: string): void {
   typing.value = false;
   edited.value = false;
   emit("choose", value === DIRECT_CHOICE ? DIRECT : "");
+}
+
+/** The path built in the path builder, applied at once. */
+function build(path: string): void {
+  edited.value = false;
+  emit("choose", path);
 }
 
 function type(event: Event): void {
@@ -115,6 +123,7 @@ watch(
         @keydown.enter.prevent="enter"
         @keydown.esc="escape"
       />
+      <PathBuilder :value="modelValue" :usual="recommended" :check="(text) => problemOf('beacon/path', text)" :disabled="disabled" @use="build" />
     </template>
   </SettingsField>
 </template>

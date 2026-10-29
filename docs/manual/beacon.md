@@ -64,7 +64,7 @@ The **path** (Advanced) is one choice:
 - **Direct only (no digipeaters)**, for a station that everyone you talk to hears directly.
 - **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-2`, say. A path that is neither of the first two shows as Custom, `WIDE1-1,WIDE2-1` typed in included, and stays as it is when you change the symbol.
 
-Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again.
+Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again. The button beside the choice opens the [path builder](messages.md#the-path-builder), which starts from the path in force; **Use** applies the path built at once (no digipeater is Direct only, any other path Custom).
 
 In the database the setting `beacon/path` is the calls, `DIRECT` for direct only, and empty means the recommended path of the symbol: **an empty path is never "no digipeaters"**, that is always said with the word `DIRECT`. (Older versions took an empty path to mean none; a database that has one is changed once to `DIRECT` by the update, so that nothing starts to digipeat. Older versions also stored `WIDE1-1,WIDE2-1` as the default of every save, so the update changes that stored value to empty, and your path then follows your symbol; any other path you have is kept.)
 

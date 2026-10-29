@@ -1,5 +1,5 @@
 // The Messages tab: the list of conversations, a conversation with its bubbles and its box to write in, the group compose, the route of a station (its path and RF only), the marks and the delivery chain of a message, and what
-// the boxes to write in say about their limits (every tab with one).
+// the boxes to write in say about their limits (every tab with one), and the path builder that every path field opens.
 export const messages = {
   "messages.conversations": "Conversations",
   "messages.about_label": "About messages",
@@ -88,6 +88,29 @@ export const messages = {
   "route.rf_only_title": "iGates do not put these messages on the internet",
   "route.request_path_tip": "Calls or aliases separated by commas (OH2RDK-7,OH2RCH-2 or WIDE1-1,WIDE2-1), DIRECT for none. Empty is the usual path.",
   "route.request_rf_only_tip": "Adds RFONLY to the path: iGates keep the request off the internet, and only stations in radio range answer.",
+  "pathbuilder.open": "Build the path",
+  "pathbuilder.title": "Path builder",
+  "pathbuilder.cancel": "Cancel",
+  "pathbuilder.use": "Use",
+  "pathbuilder.direct": "Direct",
+  "pathbuilder.presets_label": "Usual paths",
+  "pathbuilder.preset.direct": "No digipeater",
+  "pathbuilder.preset.fill_in": "The fill-in digipeater near you",
+  "pathbuilder.preset.fixed": "Fixed station",
+  "pathbuilder.preset.two_hops": "Two wide hops",
+  "pathbuilder.preset.mobile": "Mobile station",
+  "pathbuilder.as_it_comes": "As its packets come",
+  "pathbuilder.no_route": "No route of its packets is known",
+  "pathbuilder.hops_label": "Hops",
+  "pathbuilder.remove": "Remove {call}",
+  "pathbuilder.count": { one: "{n} hop", other: "{n} hops" },
+  "pathbuilder.type_label": "Add a hop",
+  "pathbuilder.type_placeholder": "Call or alias",
+  "pathbuilder.add": "Add",
+  "pathbuilder.heard": "Digipeaters heard",
+  "pathbuilder.next_to": "Next to {call}",
+  "pathbuilder.seen_next": { one: "Next to {call} in the routes of {n} station", other: "Next to {call} in the routes of {n} stations" },
+  "pathbuilder.add_hop": "Add {call}",
 
   "compose.tnc_not_connected": "The TNC is not connected",
   "compose.left": "{n} left",

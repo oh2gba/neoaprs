@@ -7,11 +7,12 @@
 // does not stop an update. The longer explanation is in the manual (Updating).
 // The same window in its notes form (`notesOnly`, composables/useWhatsNew.ts), opened from Settings → Update check and from the line the page shows once after an update: "What's new in NeoAPRS 0.12.0", the version that runs, and only
 // the notes, of that version or with `since` of every version after that one up to it (the daemon reads them from the changelog at our own tag); no note of the version page, no update, no steps, and the release page when they cannot be fetched.
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import UpdateSteps from "@/components/UpdateSteps.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { noteBlocks } from "@/lib/releasenotes";
 import { problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
 
@@ -33,47 +34,14 @@ const failed = computed(() => (selfUpdate.value?.state === "error" ? selfUpdate.
 const cancellable = computed(() => selfUpdate.value?.state === "downloading" || selfUpdate.value?.state === "verifying");
 
 const dialog = ref<HTMLElement | null>(null);
-let before: Element | null = null;
+const keys = useDialogFocus(dialog, () => emit("close"), { first: () => dialog.value?.querySelector<HTMLElement>(".updatedialog-go") ?? null });
 
-function focusables(): HTMLElement[] {
-  return [...(dialog.value?.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), summary, [tabindex]:not([tabindex='-1'])") ?? [])];
-}
-
-/** Tab and Shift+Tab go round inside the dialog. */
-function keepFocus(event: KeyboardEvent): void {
-  const items = focusables();
-  const first = items[0];
-  const last = items[items.length - 1];
-  if (!first || !last) return;
-  const inside = dialog.value?.contains(document.activeElement) ?? false;
-  if (event.shiftKey && (document.activeElement === first || !inside)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
-function onKey(event: KeyboardEvent): void {
-  if (event.key === "Escape" && !event.defaultPrevented) {
-    event.preventDefault();
-    emit("close");
-  } else if (event.key === "Tab") keepFocus(event);
-}
-
-onMounted(async () => {
-  before = document.activeElement;
+onMounted(() => {
   if (notes.value === null)
     send(props.since ? { cmd: "release_notes", version: props.version, since: props.since } : { cmd: "release_notes", version: props.version });
-  document.addEventListener("keydown", onKey);
-  await nextTick();
-  (dialog.value?.querySelector<HTMLElement>(".updatedialog-go") ?? dialog.value)?.focus();
+  document.addEventListener("keydown", keys.onKey);
 });
-onBeforeUnmount(() => {
-  document.removeEventListener("keydown", onKey);
-  if (before instanceof HTMLElement && before.isConnected) before.focus();
-});
+onBeforeUnmount(() => document.removeEventListener("keydown", keys.onKey));
 
 const updateNow = (): boolean => send({ cmd: "update_now", version: props.version });
 const cancel = (): boolean => send({ cmd: "update_cancel" });
