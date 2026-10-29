@@ -161,12 +161,31 @@ The line is worked out when the station's row is sent, so it follows the station
 
 Every field that takes a path has a small button beside it, the same everywhere: a station's path under **Route** (in its conversation and in the Stations tab's panel), the beacon's path (My station, Advanced), the **Path** of Ask around and of Local info, and the path of an object. It opens the **path builder** over the page, which starts from the path in the field, or from the one in force when the field is empty, and changes nothing until you press **Use**:
 
-- The path being built is a row of hops in order, each with an x that takes it out, and under it the path as the field will get it with the number of hops. No hop at all is **Direct**, which goes to the field as `DIRECT`.
-- The usual paths are one click each: **Direct**, `WIDE1-1`, `WIDE2-1` (a fixed station), `WIDE2-2` and `WIDE1-1,WIDE2-1` (a moving station). Hover over one to see what it is for.
-- **Digipeaters heard** lists the digipeaters your station hears direct: the calls that were the last hop of a route you heard, and the stations with a digipeater's symbol whose packets came direct, the one that repeated the most packets for you first, with that number, when it was last heard direct and how far it is. A click adds it as the first hop.
-- Then the list is of the digipeaters seen **next to** that hop in the routes NeoAPRS counted for the stations (each station's best route, its latest route and the routes the map draws), the one seen there for the most stations first. A route heard as A → B means that B hears A, and a path is a route turned round, so a pair counts either way. The list is offered for the first three hops, and not after an alias such as `WIDE2-1`, which no one station answers.
+- **Hops** chooses how far the packet goes: **Direct** (no digipeater), or 1, 2 or 3 hops in all. **Home digis may take the first hop** chooses who may repeat it first. The two make the aliases of the path:
+
+  | Hops | Home digis may take the first hop | Not ticked |
+  |---|---|---|
+  | Direct | `DIRECT` | `DIRECT` |
+  | 1 | `WIDE1-1` | `WIDE2-1` |
+  | 2 | `WIDE1-1,WIDE2-1` | `WIDE2-2` |
+  | 3 | `WIDE1-1,WIDE2-2` | `WIDE3-3` |
+
+  The tick starts as the path in the field has it, else as the path in force has it: ticked for a moving station (`WIDE1-1,WIDE2-1`), not for a fixed one (`WIDE2-1`), ticked when nothing says. Hover over a number to see the path it makes.
+- The path being built is drawn as what it means: you, then one node for each hop, then the stations that hear the last one. A node says who takes the hop: **any digi** (`WIDE1-1`: a home digipeater or a wide one), **wide digi** (a hop of `WIDE2-2` and the like) or the call of the digipeater named. Each element of the path is written under its hops (`WIDE2-2` under its two), with an x that takes it out. Hover over a node or an element to read it in a sentence.
+- Under the picture is the path as the field will get it, and the number of hops in all. No hop at all is **Direct**, which goes to the field as `DIRECT`.
+- More than 2 hops in all is more than most networks allow: the number of hops and the hops past the second are amber, with the reason in the hover text, and **Use** still takes it. An alias that is no path (`WIDE1-2`, `WIDE2-3`, `WIDE2-0`) is red, and **Use** is off while it is there.
+- **Digipeaters heard** lists the digipeaters your station hears direct: the calls that were the last hop of a route you heard, and the stations with a digipeater's symbol whose packets came direct, the one that repeated the most packets for you first, with that number, when it was last heard direct and how far it is. A click puts it first, in the place of one of the alias hops, so that the number of hops stays: `WIDE1-1,WIDE2-1` becomes `OH2RDK-7,WIDE2-1`.
+- Then the list is of the digipeaters seen **next to** that hop in the routes NeoAPRS counted for the stations (each station's best route, its latest route and the routes the map draws), the one seen there for the most stations first. A route heard as A → B means that B hears A, and a path is a route turned round, so a pair counts either way. The list is offered for the first three digipeaters named. With digipeaters named, **Hops** keeps them as far as they go and adds wide hops after them (`OH2RDK-7` with 2 hops is `OH2RDK-7,WIDE2-1`), and the tick is off: the first hop is the one named.
 - In a station's Route, **As its packets come** takes the route most of its packets came by, turned round (the suggested path of its card). It is off while no route of the station is known. When a station's packets reach you via `OH2RCH-2 → OH2RDK-7` (a wide-area digipeater, then the fill-in one near you), the path back is `OH2RDK-7,OH2RCH-2`, which the plain `WIDE2-1` or `WIDE2-2` may not take, as a fill-in digipeater may relay only a packet that names it.
-- Any other hop, up to 8, is typed into the field under the hops and added with **Add** or Enter: a call with an optional SSID, or an alias such as `WIDE3-3`; several can be typed separated by commas.
+- Any other hop, up to 8, is typed into the field under the picture and added with **Add** or Enter: a call with an optional SSID, or an alias such as `WIDE3-3`, in capitals or not; several can be typed separated by commas. The picture shows what it means.
+
+The (i) beside the title is a short guide to `WIDEn-N`:
+
+- In `WIDEn-N`, n is how many hops the path asked for in all and N how many are left. Each digipeater that repeats the packet takes one off N, and at 0 no digipeater repeats it again. So `WIDE2-2` is up to two hops, and `WIDE2-1` one (or the second after `WIDE1-1`).
+- `WIDE1-1` is one hop that any digipeater takes, the home (fill-in) ones too, which answer `WIDE1-1` only. A `WIDE2-N` hop is taken by the wide-area digipeaters only. `WIDE1-1,WIDE2-1` is the usual path of a moving station: two hops, the first by any digipeater near you, the second by a wide one. A fixed station well placed uses `WIDE2-1` or `WIDE2-2`, one that hears a digipeater well direct or one hop.
+- Two hops in all reach far enough almost everywhere. More only crowd the channel, and many digipeaters cut or trap an N over 2 (`WIDE3-3`).
+- N is never more than n: `WIDE1-2` or `WIDE2-3` is no path. The hops of a path are the Ns of its aliases and one for each digipeater named.
+- A digipeater named (`OH2RDK-7`) is one hop by exactly that digipeater.
 
 The path is checked as the field checks it (for a request with RF only, 7 hops at most leave room for `RFONLY`): while it cannot go, it is red and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
 

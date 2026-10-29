@@ -1,5 +1,5 @@
-// What the path builder (components/PathBuilder.vue) offers, worked out from the station rows already on the page; it has no command of its own.
-//   The usual paths, one click each: none (Direct), WIDE1-1 (the fill-in digipeater near us), WIDE2-1 (a fixed station), WIDE2-2 (two wide hops) and WIDE1-1,WIDE2-1 (a mobile one).
+// What the path builder (components/PathBuilder.vue) offers, worked out from the station rows already on the page; it has no command of its own. The aliases (Direct to 3 hops in all, WIDE1-1 first or not) and what a path
+// means hop by hop are lib/pathreach.ts; here are the digipeaters to name:
 //   The first hop through a digipeater we hear: the digipeaters of the Nearby tab (lib/nearby.ts) that we hear direct, a call that was the last hop of a route we heard (the station whose transmission reached us) or a station with a
 //   digipeater's symbol whose packets came direct; the one that repeated the most packets for us first, then the one heard direct last, then the nearest.
 //   A hop after a digipeater: the digipeaters next to it in the routes the daemon counted for the stations (each station's best route, its latest route and the two routes the map draws), the one seen next to it for the most stations first.
@@ -7,7 +7,6 @@
 //   As its packets come: the best route of a station turned round, the daemon's `suggested_path` (a hop with no call in the route makes it WIDE1-1,WIDE2-1).
 // Choices are offered for the first SUGGESTED_HOPS hops, and only after a hop that is a call: no one station answers an alias (WIDE2-1), so nothing is known of who hears it. A path is held as its hops; none at all is DIRECT in the field it goes to.
 import { t } from "@/i18n";
-import type { MessageId } from "@/i18n/catalogue";
 import { isAlias } from "@/lib/chain";
 import { DIRECT, callList, parsePathSetting, validCall } from "@/lib/calls";
 import { digipeaters } from "@/lib/nearby";
@@ -17,20 +16,6 @@ import type { StationRow } from "@/protocol/protocol";
 
 /** How many hops the builder has choices for; more are typed. */
 const SUGGESTED_HOPS = 3;
-
-export interface Preset {
-  hops: readonly string[];
-  /** what the path is for, as the button's hover title says it */
-  title: MessageId;
-}
-
-export const PRESETS: readonly Preset[] = [
-  { hops: [], title: "pathbuilder.preset.direct" },
-  { hops: ["WIDE1-1"], title: "pathbuilder.preset.fill_in" },
-  { hops: LIMITS.path.recommendedFixed.split(","), title: "pathbuilder.preset.fixed" },
-  { hops: ["WIDE2-2"], title: "pathbuilder.preset.two_hops" },
-  { hops: LIMITS.path.recommendedMobile.split(","), title: "pathbuilder.preset.mobile" },
-];
 
 /** One digipeater offered as the next hop: how often it was seen (packets it repeated for us, for the first hop; stations whose routes have it next to the hop before, for a later one), when it was last heard direct and how far it is. */
 export interface HopChoice {
