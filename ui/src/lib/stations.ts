@@ -2,8 +2,8 @@
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
 import { onAir } from "@/lib/channels";
-import { canAlert } from "@/lib/stationalert";
 import { symbolText } from "@/lib/symbols";
+import { isWeatherStation } from "@/lib/weather";
 import type { StationRow } from "@/protocol/protocol";
 
 type Positioned = StationRow & { lat: number; lon: number };
@@ -22,43 +22,46 @@ export function canForget(row: Pick<StationRow, "is_me" | "own">): boolean {
   return !row.is_me && !row.own;
 }
 
-/** The directed queries the menu of a row offers (the daemon's command `query`): `?APRSP` position, `?APRSS` status, `?APRSD` what it hears direct, `?APRST` the route. */
-const QUERY_KINDS = ["position", "status", "heard", "trace"] as const;
+/** The directed queries the station panel offers (the daemon's command `query`): `?APRSP` position, `?APRSS` status, `?APRSD` what it hears direct, `?APRST` the route, and `?WX?` the weather (a weather station's only). */
+const QUERY_KINDS = ["position", "status", "heard", "trace", "weather"] as const;
 export type QueryKind = (typeof QUERY_KINDS)[number];
 
-/** What the menu of a row of the Stations table offers, in its order: Message and the four queries where the card has Message (a station that takes messages, not ours, not an object), Show, "Alert me when…" for a station that is not ours
- *  (lib/stationalert.ts), Copy and the QRZ page of any station, Forget where the card has it. */
-export type MenuItem = "message" | `ask_${QueryKind}` | "show" | "alert" | "copy" | "qrz" | "forget";
+/** What the station panel of the Stations tab offers as buttons, in its order: Message and the queries where the card has Message (a station that takes messages, not ours, not an object; Ask for weather only to a weather
+ *  station), Show, Copy and the QRZ page of any station, Forget where the card has it. */
+export type PanelItem = "message" | `ask_${QueryKind}` | MenuItem | "forget";
+/** What the menu of a row (a right-click, a long press) offers: Copy call, Show on map (or its card) and the QRZ page; the rest is in the panel. */
+export type MenuItem = "copy" | "show" | "qrz";
 
-export function menuItems(row: Pick<StationRow, "call" | "kind" | "can_message" | "is_me" | "own">): MenuItem[] {
-  const items: MenuItem[] = canMessage(row) ? ["message", ...QUERY_KINDS.map((k): MenuItem => `ask_${k}`)] : [];
-  items.push("show");
-  if (canAlert(row)) items.push("alert");
-  items.push("copy");
+export function menuItems(row: Pick<StationRow, "call" | "kind">): MenuItem[] {
+  return row.kind === "station" && qrzUrl(row.call) !== null ? ["copy", "show", "qrz"] : ["copy", "show"];
+}
+
+export function panelItems(row: StationRow): PanelItem[] {
+  const kinds = QUERY_KINDS.filter((kind) => kind !== "weather" || isWeatherStation(row));
+  const items: PanelItem[] = canMessage(row) ? ["message", ...kinds.map((k): PanelItem => `ask_${k}`)] : [];
+  items.push("show", "copy");
   if (row.kind === "station" && qrzUrl(row.call) !== null) items.push("qrz");
   if (canForget(row)) items.push("forget");
   return items;
 }
 
-/** The group of the menu an item is in (a line is drawn between groups): talking to the station, looking at it, forgetting it. */
-export function menuGroup(item: MenuItem): number {
-  return item === "message" || item.startsWith("ask_") ? 0 : item === "forget" ? 2 : 1;
+/** Whether an item of the panel talks to the station (Message and the queries: their line) or looks at it (the other line). */
+export function talksTo(item: PanelItem): boolean {
+  return item === "message" || item.startsWith("ask_");
 }
 
-/** The query an item of the menu sends, null for an item that is not one. */
-export function menuQuery(item: MenuItem): QueryKind | null {
+/** The query an item of the panel sends, null for an item that is not one. */
+export function itemQuery(item: PanelItem): QueryKind | null {
   return QUERY_KINDS.find((kind) => `ask_${kind}` === item) ?? null;
 }
 
-/** The words of an item of the menu (and of its button in the field under a row): Show is "Open its card" for a station with no position, and Forget armed (its first press) is "Really forget?". */
-export function menuLabel(item: MenuItem, row: StationRow, armed: boolean): string {
+/** The words of an item of the panel or the menu: Show is "Open its card" for a station with no position, and Forget armed (its first press) is "Really forget?". */
+export function itemLabel(item: PanelItem, row: StationRow, armed: boolean): string {
   switch (item) {
     case "message":
       return t("station.card.message");
     case "show":
       return hasPosition(row) ? t("station.menu.show_map") : t("station.menu.show_card");
-    case "alert":
-      return t("station.menu.alert");
     case "copy":
       return t("station.menu.copy");
     case "qrz":
@@ -73,6 +76,8 @@ export function menuLabel(item: MenuItem, row: StationRow, armed: boolean): stri
       return t("station.menu.ask_heard");
     case "ask_trace":
       return t("station.menu.ask_trace");
+    case "ask_weather":
+      return t("station.menu.ask_weather");
   }
 }
 

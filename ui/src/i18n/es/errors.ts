@@ -60,6 +60,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.query.not_capable": "{call} no recibe mensajes: no hay a quién preguntar",
   "error.transmit.off": "RX only: no se envía nada",
   "error.query.too_soon": "A {call} se le acaba de preguntar lo mismo: espera {seconds} s",
+  "error.query.form": "una consulta empieza por ? y dice después lo que pregunta",
   "error.qru.too_soon": "demasiado pronto para otra petición de info local: espera {seconds} s",
   "error.path.direct_alone": "{word} no es un digipeater: solo, significa ningún digipeater",
   "error.setting.comment_too_long": "{length} caracteres son más de los {limit} que se permiten con la extensión PHG (vacía beacon/power_w para no enviarla)",

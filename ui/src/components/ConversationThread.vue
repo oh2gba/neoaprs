@@ -12,7 +12,7 @@ import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
-import { askedText, canCancel, canDelete, canRetry, queryKind, stateText } from "@/lib/messages";
+import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
 const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; peer: string | null; heardDirect?: ReadonlySet<string> }>(), {
@@ -22,8 +22,8 @@ const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [i
 const sure = useSure<number>(); // (the id of the message, armed by the first press of its trash can)
 
 const log = ref<HTMLElement | null>(null);
-/** Each message with the query it is the note of, if it is. */
-const items = computed(() => props.thread.map((m) => ({ m, asked: queryKind(m) })));
+/** Each message with the note of the query it is, if it is one. */
+const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m) })));
 
 useToNewest(log, () => [props.peer, props.thread.length]);
 /** The copy menu of a bubble: the text of its message. */
@@ -38,7 +38,7 @@ const copy = useCopyMenu((bubble) => {
     <p v-if="peer !== null && thread.length === 0" class="empty">{{ t("messages.thread_empty", { peer }) }}</p>
     <template v-for="{ m, asked } in items" :key="m.id">
       <p v-if="asked" class="asked muted" data-asked>
-        <span>{{ askedText(asked) }}</span>
+        <span>{{ asked }}</span>
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
         <MessageMark v-if="m.state === 'sending'" :row="m" />
       </p>

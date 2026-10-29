@@ -1,5 +1,5 @@
 """The handlers of the commands that are answered from the daemon's logs with a message of their own (neoaprs/web/dispatch.py): the weather of a station, the packets heard by the hour, the speeds of a
-station and the positions of the replay of the map. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
+station, the latest packets of a station and the positions of the replay of the map. Importing this module registers them; neoaprs/web/handlers.py imports it, so importing that one registers every handler.
 """
 from datetime import timedelta
 
@@ -8,8 +8,9 @@ from neoaprs.geo import Thinning
 
 from .dispatch import Ctx, command
 from .historywire import PacketHistory, SpeedSeries
+from .packetwire import TRAFFIC_KEPT, StationTraffic
 from .replaywire import PositionHistory
-from .views import replay_thinning, replay_tracks, weather_points
+from .views import packet_row, replay_thinning, replay_tracks, weather_points
 from .weatherwire import WeatherSeries
 
 
@@ -34,6 +35,15 @@ async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
     """The speeds the station reported in the last hours, the oldest first, for the speed graph of a moving station's card; while `igate/enabled` is off, only those of the positions heard on the radio."""
     speeds = await ctx.ctl.packetlog.speeds(cmd.call, ctx.ctl.clock() - timedelta(hours=cmd.hours), internet=ctx.ctl.config.igate_enabled)
     ctx.conn.send({"type": "speed_series", "call": cmd.call, "hours": cmd.hours, "points": [[iso(at), round(kmh, 1)] for at, kmh in speeds]})
+
+
+@command(StationTraffic)
+async def station_traffic(ctx: Ctx, cmd: StationTraffic) -> None:
+    """The latest TRAFFIC_KEPT packets of a station from the packet log, for its panel in the Stations tab: those it sent and the messages we sent to it, each as a row of the Packets tab with its number in the log
+    as its id; while `igate/enabled` is off, none that came from APRS-IS."""
+    config = ctx.ctl.config
+    found = await ctx.ctl.packetlog.traffic(cmd.call, config.station_call, TRAFFIC_KEPT, internet=config.igate_enabled)
+    ctx.conn.send({"type": "station_traffic", "call": cmd.call, "packets": [packet_row(number, packet) for number, packet in found]})
 
 
 @command(PositionHistory)

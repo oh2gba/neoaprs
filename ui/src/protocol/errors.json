@@ -32,6 +32,7 @@
  "path.too_long": {"params": ["count", "max"], "text": ["{count} digipeaters is more than the {max} a path may have"]},
  "path.too_long_rf_only": {"params": ["count", "max"], "text": ["path too long for RF only: {count} digipeaters and RFONLY make more than the {max} a path may have"]},
  "qru.too_soon": {"params": ["seconds"], "text": ["too soon for another request for local info: wait {seconds} s"]},
+ "query.form": {"params": [], "text": ["a query begins with ? and says what it asks after it"]},
  "query.not_capable": {"params": ["call"], "text": ["{call} does not take messages: there is nobody to ask"]},
  "query.too_soon": {"params": ["call", "seconds"], "text": ["{call} was asked the same a moment ago: wait {seconds} s"]},
  "radio.busy": {"params": [], "text": ["a search for the radio is running already"]},

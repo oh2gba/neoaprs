@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.coded import CodedError
 from neoaprs.message import QUERIES, QUERY_EVERY_SEC, MessagingError
 from neoaprs.source import Source
 from neoaprs.web.messagewire import MessageRow
@@ -133,8 +134,36 @@ async def test_a_message_of_ours_that_looks_like_a_query_but_has_an_id_is_an_ord
     assert record.msg_id == "01" and record.attempts_max == 4
 
 
-def test_the_four_kinds_are_the_queries_of_the_specification() -> None:
-    assert QUERIES == {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST"}
+def test_the_kinds_are_the_queries_of_the_specification() -> None:
+    assert QUERIES == {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST", "weather": "?WX?"}
+
+
+async def test_weather_goes_out_as_wx_to_the_station_without_an_id(rig: Rig) -> None:
+    record = await rig.m.asking.ask("OH2MUI", "weather")
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2MUI   :?WX?"]
+    assert (record.text, record.msg_id, record.attempts_max) == ("?WX?", None, 1)
+
+
+async def test_a_custom_query_goes_out_trimmed_and_upper_cased_without_an_id(rig: Rig) -> None:
+    record = await rig.m.asking.ask("OH2RDG", "custom", "  ?aprsh oh2gba-15 ")
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :?APRSH OH2GBA-15"]
+    assert (record.text, record.msg_id, record.state) == ("?APRSH OH2GBA-15", None, "unconfirmed")
+
+
+@pytest.mark.parametrize(("text", "code"), [("APRSH", "query.form"), ("?", "query.form"), ("?" + "A" * 67, "message.too_long"), ("?APRS{1", "message.forbidden"), ("?APRSÄ", "message.not_ascii")])
+async def test_a_custom_query_that_is_no_query_is_refused_and_nothing_is_sent(rig: Rig, text: str, code: str) -> None:
+    with pytest.raises(MessagingError) as refused:
+        await rig.m.asking.ask("OH2RDG", "custom", text)
+    assert isinstance(refused.value.__context__, CodedError) and refused.value.__context__.code == code
+    assert rig.tnc.sent == [] and rig.m.records() == []
+
+
+async def test_the_same_custom_query_within_a_minute_is_refused_and_another_text_is_not(rig: Rig) -> None:
+    await rig.m.asking.ask("OH2RDG", "custom", "?APRSO")
+    await rig.m.asking.ask("OH2RDG", "custom", "?APRSM")
+    with pytest.raises(MessagingError) as refused:
+        await rig.m.asking.ask("OH2RDG", "custom", "?aprso")
+    assert refused.value.code == "query.too_soon" and len(rig.tnc.sent) == 2
 
 
 # ---- the command over the socket
@@ -205,6 +234,17 @@ async def test_query_to_ourselves_or_to_an_object_is_refused(tmp_path: Path) -> 
         await page.send({"cmd": "query", "call": call, "kind": "position"})
         assert (await page.expect("error"))["code"] in ("query.not_capable", "station.unknown")
     assert page.topics["messages"] == {}
+
+
+async def test_query_with_a_custom_text_sends_it_and_one_that_is_no_query_is_an_error(tmp_path: Path) -> None:
+    e, page = await with_page(tmp_path)
+    await hear_station(e, page, "OH2RDG", b"=6010.00N/02456.00E>x")
+    await page.send({"cmd": "query", "call": "OH2RDG", "kind": "custom", "text": "APRSH"})
+    assert (await page.expect("error"))["code"] == "invalid"
+    await page.send({"cmd": "query", "call": "OH2RDG", "kind": "custom", "text": "?ping?"})
+    await page.until(lambda: any(r["attempts"] == 1 for r in page.topics["messages"].values()))
+    [packet] = on_the_air(page)
+    assert packet["tnc2"] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :?PING?"
 
 
 async def test_query_with_a_kind_that_is_none_is_not_a_command(tmp_path: Path) -> None:

@@ -14,6 +14,8 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.asked.status": "Pediste su estado",
   "messages.asked.heard": "Preguntaste qué oye en directo",
   "messages.asked.trace": "Pediste la ruta",
+  "messages.asked.weather": "Pediste su tiempo",
+  "messages.asked.custom": "Preguntaste {text}",
   "messages.none_yet": "Aún no hay mensajes.",
   "messages.delete_conversation": "Eliminar la conversación con {call}",
   "messages.delete": "Eliminar el mensaje",

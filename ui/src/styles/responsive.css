@@ -157,6 +157,10 @@ button,
 .size-phone .grid.stations td.actions .forgetbtn {
   display: none;
 }
+/* the station panel takes less of a phone's tab, so that the list above keeps a few rows (it scrolls inside itself) */
+.size-phone .composebar.stationpanel {
+  flex-basis: 40%;
+}
 
 /* on a phone the button of an action row fills the control column, as the inputs of the other rows do */
 .size-phone .action-row .field-control > .btn:first-child {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The one small button for a row or a card: a trash can for "delete", a cross for "close", an envelope for "message" (MessageGlyph, the one picture of a message everywhere on the page), three dots for "more" (the menu of a row), a pin for "pin" (a toggle: `pressed` says whether it is on, shown to a screen reader as aria-pressed and by the filled pin), always at least 32 by 32 pixels so that a finger hits it. `label` is what a screen reader says (it names the thing),
-// the hover title is "Delete" or "Close" ("Pin card" or "Unpin card" for a pin) unless `title` says more (what a delete does on the air); a "message" and a "more" button's is its label ("Message OH2XYZ"). `armed` is the first press of a button that asks twice (useSure): it says "sure?" until the second press.
+// The one small button for a row or a card: a trash can for "delete", a cross for "close", an envelope for "message" (MessageGlyph, the one picture of a message everywhere on the page), a pin for "pin" (a toggle: `pressed` says whether it is on, shown to a screen reader as aria-pressed and by the filled pin), always at least 32 by 32 pixels so that a finger hits it. `label` is what a screen reader says (it names the thing),
+// the hover title is "Delete" or "Close" ("Pin card" or "Unpin card" for a pin) unless `title` says more (what a delete does on the air); a "message" button's is its label ("Message OH2XYZ"). `armed` is the first press of a button that asks twice (useSure): it says "sure?" until the second press.
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import { t } from "@/i18n";
 
-withDefaults(defineProps<{ kind: "delete" | "close" | "message" | "more" | "pin"; label: string; title?: string; armed?: boolean; pressed?: boolean }>(), {
+withDefaults(defineProps<{ kind: "delete" | "close" | "message" | "pin"; label: string; title?: string; armed?: boolean; pressed?: boolean }>(), {
   title: undefined,
   armed: false,
   pressed: false,
@@ -20,7 +20,7 @@ withDefaults(defineProps<{ kind: "delete" | "close" | "message" | "more" | "pin"
     :aria-pressed="kind === 'pin' ? pressed : undefined"
     :title="
       title ??
-      (kind === 'message' || kind === 'more'
+      (kind === 'message'
         ? label
         : kind === 'delete'
           ? t('iconbutton.delete')
@@ -43,12 +43,7 @@ withDefaults(defineProps<{ kind: "delete" | "close" | "message" | "more" | "pin"
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <template v-if="kind === 'more'">
-        <circle cx="3.5" cy="8" r="1.2" fill="currentColor" stroke="none" />
-        <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none" />
-        <circle cx="12.5" cy="8" r="1.2" fill="currentColor" stroke="none" />
-      </template>
-      <template v-else-if="kind === 'pin'">
+      <template v-if="kind === 'pin'">
         <path d="M5.5 2.5h5M6.5 2.5v4.2L4.5 9.2h7L9.5 6.7V2.5" :fill="pressed ? 'currentColor' : 'none'" />
         <path d="M8 9.2v4.3" />
       </template>

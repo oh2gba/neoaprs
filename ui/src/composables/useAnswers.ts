@@ -1,4 +1,4 @@
-// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `speed_series`, `position_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
+// The latest answer to each command that is answered with a message of its own, kept for the component that asked: `weather_series`, `packet_history`, `speed_series`, `station_traffic`, `position_history`, `alert_test`, `list_ports`, `find_radio`, `update_check` and `release_notes`; and what the hub (lib/hub.ts) does with them: keep the message.
 import { shallowRef } from "vue";
 import type { Store } from "@/lib/hub";
 import type {
@@ -9,13 +9,23 @@ import type {
   RadioSearchMessage,
   ReleaseNotesMessage,
   SpeedSeriesMessage,
+  StationTrafficMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
 } from "@/protocol/protocol";
 
 type AnswerHandlers = Pick<
   Store,
-  "weatherSeries" | "packetHistory" | "speedSeries" | "positionHistory" | "alertResult" | "ports" | "radioSearch" | "updateResult" | "releaseNotes"
+  | "weatherSeries"
+  | "packetHistory"
+  | "speedSeries"
+  | "stationTraffic"
+  | "positionHistory"
+  | "alertResult"
+  | "ports"
+  | "radioSearch"
+  | "updateResult"
+  | "releaseNotes"
 >;
 
 export function useAnswers() {
@@ -28,6 +38,8 @@ export function useAnswers() {
   const packetHistoryByCall = shallowRef<ReadonlyMap<string, PacketHistoryMessage>>(new Map());
   /** The speeds of each moving station whose card is open, the latest answer for each. */
   const speedSeriesByCall = shallowRef<ReadonlyMap<string, SpeedSeriesMessage>>(new Map());
+  /** The latest packets of each station whose panel was opened in the Stations tab, the latest answer for each. */
+  const stationTrafficByCall = shallowRef<ReadonlyMap<string, StationTrafficMessage>>(new Map());
   /** Where the stations were over the span the map's replay asked for. */
   const positionHistory = shallowRef<PositionHistoryMessage | null>(null);
   const alertResult = shallowRef<AlertResultMessage | null>(null);
@@ -47,6 +59,7 @@ export function useAnswers() {
       else packetHistoryByCall.value = new Map(packetHistoryByCall.value).set(message.call, message);
     },
     speedSeries: (message) => (speedSeriesByCall.value = new Map(speedSeriesByCall.value).set(message.call, message)),
+    stationTraffic: (message) => (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
     positionHistory: (message) => (positionHistory.value = message),
     alertResult: (message) => (alertResult.value = message),
     ports: (message) => (ports.value = message),
@@ -61,6 +74,7 @@ export function useAnswers() {
     packetHistory,
     packetHistoryByCall,
     speedSeriesByCall,
+    stationTrafficByCall,
     positionHistory,
     alertResult,
     ports,

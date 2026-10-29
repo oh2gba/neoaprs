@@ -33,7 +33,7 @@ _QUERY = re.compile(r"\?(APRS[DHMOPST]?|IGATE|WX|PING)(\?.*|\s.*)?$", re.IGNOREC
 TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 
 
-QUERIES: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST"}     # the directed queries the page can send (APRS 1.0.1 ch. 15), by kind: the text of the message
+QUERIES: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST", "weather": "?WX?"}     # the directed queries the page can send (APRS 1.0.1 ch. 15; `?WX?` is a general query there, asked of one station all the same), by kind: the text of the message
 QUERY_EVERY_SEC = 60                            # one query of a kind to a station in this time; the same question again sooner is refused
 
 
@@ -121,6 +121,17 @@ def is_query(text: str) -> bool:
     """Is the text of a message one of the queries of the specification (`?APRSP`, `?APRSS`, `?APRSD`, `?APRST`, `?APRSM`, `?APRSH`, `?APRSO`, `?PING?`, `?APRS?`, `?IGATE?`, `?WX?`, with what follows
     them)? A query has no id and is not acknowledged."""
     return _QUERY.match(text.strip()) is not None
+
+
+def query_text(text: str) -> str:
+    """A query the operator wrote (the custom query of a station's field, the command `query` with `custom`) as it goes on the air: without the spaces at its ends and upper-cased (the specification's queries and the
+    calls in them are upper case). Raises MessageError when it is not one: it must begin with `?` and say something after it, be printable ASCII without `|`, `~` or `{` (a `{` would begin a message id, and a query has
+    none) and fit in MAX_TEXT characters, the text of a message, which a directed query is."""
+    query = text.strip()
+    if len(query) < 2 or not query.startswith("?"):
+        raise MessageError("a query begins with ? and says what it asks after it", "query.form")
+    check_text(query)
+    return query.upper()
 
 
 def is_telemetry_definition(text: str) -> bool:

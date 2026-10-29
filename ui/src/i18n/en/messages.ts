@@ -13,6 +13,8 @@ export const messages = {
   "messages.asked.status": "You asked for its status",
   "messages.asked.heard": "You asked what it hears direct",
   "messages.asked.trace": "You asked for the route",
+  "messages.asked.weather": "You asked for its weather",
+  "messages.asked.custom": "You asked {text}",
   "messages.none_yet": "No message yet.",
   "messages.delete_conversation": "Delete the conversation with {call}",
   "messages.delete": "Delete the message",

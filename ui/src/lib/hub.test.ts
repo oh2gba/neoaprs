@@ -79,6 +79,7 @@ function memory() {
     error: (e) => seen.errors.push(e),
     packetHistory: () => undefined,
     speedSeries: () => undefined,
+    stationTraffic: () => undefined,
     positionHistory: () => undefined,
     weatherSeries: (m) => seen.series.push(m),
     alertResult: (m) => seen.alerts.push(m),

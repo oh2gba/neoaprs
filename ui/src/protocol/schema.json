@@ -3034,6 +3034,10 @@
           "description": "who sent the frame we heard; for a third-party packet the iGate (see `gate`); for a packet from the internet the station that sent it",
           "type": "string"
         },
+        "sender": {
+          "description": "the station the packet is from: `source`, or for a third-party packet the source of the packet inside it",
+          "type": "string"
+        },
         "destination": {
           "type": "string"
         },
@@ -3130,6 +3134,7 @@
         "heard_at",
         "direction",
         "source",
+        "sender",
         "destination",
         "path",
         "kind",
@@ -3858,7 +3863,7 @@
     },
     "QueryStation": {
       "additionalProperties": false,
-      "description": "Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it\nhears direct, as a message) or `?APRST` (`trace`: the path our query reached it by, as a message). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic\n`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text is one of the four) as a note of what was asked. The answer is whatever the\nstation sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of a kind to a station in 60 seconds. Answered with an `error` when the station is not in the station book\n(`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago\n(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent).",
+      "description": "Asks a station a directed query (APRS 1.0.1 chapter 15): a message to it with the text of the query, `?APRSP` (`kind` `position`: its position packet), `?APRSS` (`status`: its status report), `?APRSD` (`heard`: the stations it\nhears direct, as a message), `?APRST` (`trace`: the path our query reached it by, as a message), `?WX?` (`weather`: its weather report; a general query in the specification, which many stations do not answer\nwhen it is addressed to them) or the operator's own (`custom`, with `text`: `?APRSH OH2GBA-15`, `?PING?`). The query is sent once, without a message id: no attempts follow and no ack is expected. It is kept as a row of the topic\n`messages` to the station, in state `sending` until it has been transmitted and then `unconfirmed`, whose `text` is the query; the page shows such a row (an `out` message with no `msg_id` whose text begins with `?`) as a note of what was asked. The answer is whatever the\nstation sends: a packet (the station's card changes) or a message (a row `in`). Not more than one query of the same text to a station in 60 seconds. Answered with an `error` when the station is not in the station book\n(`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago\n(`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent); a `custom` text that is no query is refused as invalid.",
       "properties": {
         "cmd": {
           "const": "query",
@@ -3874,9 +3879,24 @@
             "position",
             "status",
             "heard",
-            "trace"
+            "trace",
+            "weather",
+            "custom"
           ],
           "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable ASCII without `|`, `~` or `{` and at most 67 characters, the text of a message; it is sent upper-cased. Absent or null for the other kinds"
         }
       },
       "required": [
@@ -5020,6 +5040,56 @@
         "track"
       ],
       "title": "StationRow",
+      "type": "object"
+    },
+    "StationTraffic": {
+      "additionalProperties": false,
+      "description": "Asks for the latest packets of one station, for the station panel of the Stations tab: those it sent (its own source, or inside a third-party packet an iGate put on the air) and the messages we sent\nto it (a message, an ack, a directed query). Read from the packet log, so that they reach back past the 200 of the topic `packets`; the page adds the packets that come after. While `igate/enabled` is off no packet\nthat came from APRS-IS is read, as the topic shows none. Answered with a `station_traffic` message to the page that asked.",
+      "properties": {
+        "cmd": {
+          "const": "station_traffic",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station, as the `stations` topic has it",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "StationTrafficCommand",
+      "type": "object"
+    },
+    "StationTrafficMsg": {
+      "additionalProperties": false,
+      "description": "The latest packets of one station (at most 50), the answer to `station_traffic`, the newest first. A third-party packet is looked for among the latest 20000 packets of the log, where an iGate's are.",
+      "properties": {
+        "type": {
+          "const": "station_traffic",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station asked about",
+          "type": "string"
+        },
+        "packets": {
+          "description": "the packets, as the rows of the topic `packets` but for `id`, which is the packet's number in the log here (the same packet in the topic has its own); the newest first",
+          "items": {
+            "$ref": "#/$defs/PacketRow"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "call",
+        "packets"
+      ],
+      "title": "StationTrafficMessage",
       "type": "object"
     },
     "Status": {
@@ -6306,6 +6376,7 @@
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
           "speed_series": "#/$defs/SpeedSeries",
+          "station_traffic": "#/$defs/StationTraffic",
           "status": "#/$defs/AskStatus",
           "status_now": "#/$defs/StatusNow",
           "subscribe": "#/$defs/Subscribe",
@@ -6412,6 +6483,9 @@
           "$ref": "#/$defs/SpeedSeries"
         },
         {
+          "$ref": "#/$defs/StationTraffic"
+        },
+        {
           "$ref": "#/$defs/AlertTest"
         },
         {
@@ -6469,6 +6543,7 @@
           "speed_series": "#/$defs/SpeedSeriesMsg",
           "state": "#/$defs/StateMsg",
           "station_alert": "#/$defs/StationAlertMsg",
+          "station_traffic": "#/$defs/StationTrafficMsg",
           "status": "#/$defs/Status",
           "update_result": "#/$defs/UpdateResultMsg",
           "weather_series": "#/$defs/WeatherSeriesMsg"
@@ -6508,6 +6583,9 @@
         },
         {
           "$ref": "#/$defs/SpeedSeriesMsg"
+        },
+        {
+          "$ref": "#/$defs/StationTrafficMsg"
         },
         {
           "$ref": "#/$defs/AlertResultMsg"

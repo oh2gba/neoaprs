@@ -11,7 +11,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import type { Connection } from "@/lib/hub";
-import type { Command, RadioSearchMessage, StationPref, StationRow } from "@/protocol/protocol";
+import type { Command, PacketRow, RadioSearchMessage, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -59,6 +59,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     packetHistory: part(over.packetHistory, null),
     packetHistoryByCall: part(over.packetHistoryByCall, new Map()),
     speedSeriesByCall: part(over.speedSeriesByCall, new Map()),
+    stationTrafficByCall: part(over.stationTrafficByCall, new Map()),
+    packets: over.packets ?? shallowReactive(new Map<string, PacketRow>()),
     positionHistory: part(over.positionHistory, null),
     connected: part(over.connected, true),
     receiveOnly: over.receiveOnly === undefined ? computed(() => config.value?.values["station/transmit"] === "false") : part(over.receiveOnly, false),

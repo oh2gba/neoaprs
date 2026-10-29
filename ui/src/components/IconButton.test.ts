@@ -14,13 +14,6 @@ describe("IconButton", () => {
     expect(close.find("path").attributes("d")).not.toBe(del.find("path").attributes("d"));
   });
 
-  it("is three dots titled with its label for a more, a button that opens a menu", () => {
-    const more = mount(IconButton, { props: { kind: "more", label: "More actions for OH2RDG" } });
-    expect(more.attributes("title")).toBe("More actions for OH2RDG");
-    expect(more.attributes("aria-label")).toBe("More actions for OH2RDG");
-    expect(more.findAll("circle")).toHaveLength(3);
-  });
-
   it("is a pin that says whether it is on: aria-pressed, the filled pin, and the title Pin card or Unpin card", async () => {
     const pin = mount(IconButton, { props: { kind: "pin", label: "Pin card" } });
     expect(pin.attributes("aria-label")).toBe("Pin card");
