@@ -99,7 +99,8 @@ async def test_a_search_with_no_port_left_is_waiting_at_once(ptys: Ptys, tmp_pat
         loop.call_later(0.1, close_pty, master)                        # both cables are pulled during the search
     try:
         await asyncio.wait_for(tnc.start(), 2.0)
-        assert tnc.state is Source.State.WAITING and tnc.problem.startswith("no port delivers KISS frames")
+        # (a cable pulled before the search opened its port is one that could not be listened to, one pulled after it is one that delivered nothing: under load either comes first, and both end the search)
+        assert tnc.state is Source.State.WAITING and tnc.problem.startswith(("no port delivers KISS frames", "no port could be listened to"))
     finally:
         await tnc.stop()
 
