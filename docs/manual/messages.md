@@ -144,7 +144,7 @@ A station can have a path of its own, which overrides the automatic choice: the 
 
 The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
 
-Set it in the field under **Route** of a conversation. It is saved when you change the field and leave it (Enter does it). The x beside the field, or emptying it, gives the choice back to the automatic one.
+Set it in the field under **Route** of a conversation, or build it with the [path builder](#the-path-builder) beside the field. It is saved when you change the field and leave it (Enter does it). The x beside the field, or emptying it, gives the choice back to the automatic one.
 
 One line under the field says what the messages go by:
 
@@ -156,6 +156,19 @@ One line under the field says what the messages go by:
 `WIDE2-1` is the recommended path of a fixed station, as in these examples; a moving station's is `WIDE1-1,WIDE2-1`.
 
 The line is worked out when the station's row is sent, so it follows the station's next packet.
+
+### The path builder
+
+Every field that takes a path has a small button beside it, the same everywhere: a station's path under **Route** (in its conversation and in the Stations tab's panel), the beacon's path (My station, Advanced), the **Path** of Ask around and of Local info, and the path of an object. It opens the **path builder** over the page, which starts from the path in the field, or from the one in force when the field is empty, and changes nothing until you press **Use**:
+
+- The path being built is a row of hops in order, each with an x that takes it out, and under it the path as the field will get it with the number of hops. No hop at all is **Direct**, which goes to the field as `DIRECT`.
+- The usual paths are one click each: **Direct**, `WIDE1-1`, `WIDE2-1` (a fixed station), `WIDE2-2` and `WIDE1-1,WIDE2-1` (a moving station). Hover over one to see what it is for.
+- **Digipeaters heard** lists the digipeaters your station hears direct: the calls that were the last hop of a route you heard, and the stations with a digipeater's symbol whose packets came direct, the one that repeated the most packets for you first, with that number, when it was last heard direct and how far it is. A click adds it as the first hop.
+- Then the list is of the digipeaters seen **next to** that hop in the routes NeoAPRS counted for the stations (each station's best route, its latest route and the routes the map draws), the one seen there for the most stations first. A route heard as A → B means that B hears A, and a path is a route turned round, so a pair counts either way. The list is offered for the first three hops, and not after an alias such as `WIDE2-1`, which no one station answers.
+- In a station's Route, **As its packets come** takes the route most of its packets came by, turned round (the suggested path of its card). It is off while no route of the station is known. When a station's packets reach you via `OH2RCH-2 → OH2RDK-7` (a wide-area digipeater, then the fill-in one near you), the path back is `OH2RDK-7,OH2RCH-2`, which the plain `WIDE2-1` or `WIDE2-2` may not take, as a fill-in digipeater may relay only a packet that names it.
+- Any other hop, up to 8, is typed into the field under the hops and added with **Add** or Enter: a call with an optional SSID, or an alias such as `WIDE3-3`; several can be typed separated by commas.
+
+The path is checked as the field checks it (for a request with RF only, 7 hops at most leave room for `RFONLY`): while it cannot go, it is red and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
 
 ### RF only
 

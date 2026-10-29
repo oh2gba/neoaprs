@@ -24,7 +24,7 @@ const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPa
 const request = useRequestPath("qru");
 const { path, rfOnly, problem } = request;
 /** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */
-const usual = computed(() => effectivePath(prefs.paths.value, fallbackPath.value, "QRU").text || t("route.direct"));
+const usual = computed(() => effectivePath(prefs.paths.value, fallbackPath.value, "QRU").text);
 const typed = ref<string | null>(null); // (what the person typed; null until then, and the field is the map's radius)
 const km = computed({
   get: () => typed.value ?? config.value?.values["map/radius_km"] ?? "",
@@ -109,7 +109,7 @@ function inStations(names: readonly string[]): void {
       />
       <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{ t("objects.qru_km_tip") }}</InfoTip>
     </div>
-    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :placeholder="usual" :problem="problem" />
+    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :usual="usual" :problem="problem" />
     <StatusFold v-if="look" class="qrustatus" :state="look.state" :tone="look.tone" :line="look.line">
       <template v-if="asked" #default>
         <p class="igatefold">{{ t("objects.qru_request", { text: asked.text }) }}</p>

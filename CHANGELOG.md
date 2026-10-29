@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **A path builder.** A small button beside every path field (a station's Route, the beacon's path, Ask around, Local info's Ask, an object) opens a dialog that builds the path: the usual choices in one click, the digipeaters you hear direct and then those seen next to them in the routes heard, hop by hop, or a station's own route turned round (**As its packets come**). **Use** puts it in the field.
+- NeoAPRS answers the general query `?IGATE?` while its iGate puts what the radio hears on APRS-IS (switched on, with a passcode, logged in and verified), as `?APRS?` is answered, with `<IGATE,MSG_CNT=0,LOC_CNT=n,UPL_CNT=n`: no messages to the radio, the stations heard direct in the last hour, and the packets put on APRS-IS since it started.
+
 ## 0.13.0
 
 - **Replay on the map.** **Replay** in the map's menu (a right-click, or a long press on a touch screen) plays back how the stations moved over the last 1, 3, 6, 12 or 24 hours or 2, 3 or 7 days (all the daemon keeps; a span longer than the packets kept begins at the oldest): each station is drawn where it was, with its symbol, its call and its trail fading behind it, while the live markers and tracks give way. A bar at the bottom of the map has play and pause, a slider to go to any time of the span, the clock of the replay, the speed (60× to 3600×, a week in under three minutes) and the span, the two chosen while it is paused (greyed out while it plays, the same size); its cross or Esc closes it and the live map is back as it was. The positions come from the daemon's database (a new command, `position_history`), objects by their names and your own station by your call, thinned the more the longer the span (a week of a busy APRS-IS feed is well under a megabyte), keeping where a station waited before it drove off so that it waits there and then drives.

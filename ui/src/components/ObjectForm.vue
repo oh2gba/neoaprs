@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The form of an object or an item of ours, the first group box of the Objects tab, always there (ComposeBar, as everywhere: the legend reads "Add an object", or "Edit NAME" for the object being changed). With an object selected in the list it changes that object
 // and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc, also with the cursor in a field) leaves the selection and clears the form completely (no place, the default symbol, nothing else); Add stays off, saying so in its title, until there is a place. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the My station tab), the position (the row Location of the My station tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
-// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either; Up and Down step either by one, with Shift by ten), and behind a second closed fold, Advanced, as in the My station tab: the path the object goes by (the placeholder is the beacon's), its category (a choice of the standard groups of local info by their plain names, or Other... with a code of our own; the value is the code that goes on the air, and a station that asks for the group is sent the object) and, once there is a category, whether it is sent only when asked; Advanced
+// coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either; Up and Down step either by one, with Shift by ten), and behind a second closed fold, Advanced, as in the My station tab: the path the object goes by (the placeholder is the beacon's; the path builder's button beside it, PathBuilder), its category (a choice of the standard groups of local info by their plain names, or Other... with a code of our own; the value is the code that goes on the air, and a station that asks for the group is sent the object) and, once there is a category, whether it is sent only when asked; Advanced
 // is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the My station tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { rxOnlyReason } from "@/lib/compose";
@@ -10,6 +10,7 @@ import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import LocationField from "@/components/LocationField.vue";
+import PathBuilder from "@/components/PathBuilder.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -155,6 +156,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             autocomplete="off"
             spellcheck="false"
           />
+          <PathBuilder :value="draft.path" :usual="fallbackPath" @use="draft.path = $event" />
           <InfoTip :label="about('objects.field.path')"
             ><span class="info-line">{{ t("objects.tip.path") }}</span></InfoTip
           >

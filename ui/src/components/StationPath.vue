@@ -2,8 +2,10 @@
 // The path a message to a station, and the ack of one from it, goes by way of: the digipeaters, separated by commas. Left empty the choice is automatic and the line under the field says what it is: the first two attempts of a
 // message go by the path that has lately been heard to reach the station (`heard`, the daemon's), the others by the beacon's path (`fallback`). A path typed is the station's own and is used for every attempt ("Your path:"); the word
 // DIRECT is an own path with no digipeaters. It is saved when the field is changed and left, or Enter is pressed (the browser's change event), and the x (or an empty field) gives the choice back to the automatic one. What is put
-// in the slot (the RF only tickbox) sits beside it.
+// in the slot (the RF only tickbox) sits beside it. The path builder's button (PathBuilder) beside the field builds a path to put in it, from the path in force, with "As its packets come" (the station's best route turned round); Use saves
+// it as Enter would.
 import { computed, ref, useId, watch } from "vue";
+import PathBuilder from "@/components/PathBuilder.vue";
 import { t } from "@/i18n";
 import { DIRECT, parsePathSetting } from "@/lib/calls";
 import { effectivePath } from "@/lib/messages";
@@ -44,6 +46,12 @@ function save(): void {
   draft.value = text;
   if (text !== own.value) emit("set", props.call, text);
 }
+
+/** The path built in the path builder: into the field, and saved. */
+function build(path: string): void {
+  draft.value = path;
+  save();
+}
 </script>
 
 <template>
@@ -61,6 +69,7 @@ function save(): void {
       spellcheck="false"
       @change="save"
     />
+    <PathBuilder :value="draft" :usual="effective.text" :station="call" @use="build" />
     <button
       v-if="effective.own"
       type="button"

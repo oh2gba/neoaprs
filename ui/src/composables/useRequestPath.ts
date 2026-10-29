@@ -21,7 +21,7 @@ export interface RequestPath {
 }
 
 /** Why a path typed for a request cannot go: not calls separated by commas (or more than a frame carries), or so many that RFONLY after them makes too many; "" when it can. */
-function requestPathProblem(text: string, rfOnly: boolean): string {
+export function requestPathProblem(text: string, rfOnly: boolean): string {
   const setting = parsePathSetting(text);
   if (setting === null) return t("route.calls_hint", { max: LIMITS.path.maxCalls });
   if (rfOnly && setting.kind === "calls" && setting.calls.length >= LIMITS.path.maxCalls) {

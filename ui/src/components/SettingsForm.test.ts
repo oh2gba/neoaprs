@@ -1104,7 +1104,7 @@ describe("SettingsForm", () => {
     const beside = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("[role='status']");
 
-    it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the My station tab", () => {
+    it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the My station tab (whose path has the path builder's button)", () => {
       alertWithBoth();
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
@@ -1119,7 +1119,7 @@ describe("SettingsForm", () => {
       ]);
       expect(
         make({}, "beacon")
-          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick):not(.location-place):not(.symbolbtn)")
+          .wrapper.findAll(".field button:not(.info-toggle):not(.location-pick):not(.location-place):not(.symbolbtn):not(.pathbuild-open)")
           .map((b) => b.text()),
       ).toEqual([]);
     });

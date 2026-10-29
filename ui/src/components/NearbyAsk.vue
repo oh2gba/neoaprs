@@ -57,7 +57,7 @@ function ask(): void {
         {{ t("nearby.ask_button") }}
       </button>
     </div>
-    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :placeholder="fallbackPath || t('route.direct')" :problem="problem" />
+    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :usual="fallbackPath" :problem="problem" />
     <p class="ask-line" :class="lines.refused ? 'warn' : 'muted'" :title="lines.title || undefined">{{ lines.line }}</p>
     <p class="ask-line muted" :title="lines.countTitle || undefined">{{ lines.count }}</p>
   </fieldset>
