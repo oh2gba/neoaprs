@@ -1,0 +1,226 @@
+/* the path builder (components/PathBuilderDialog.vue): the frame of the update dialog, narrower, on a phone too (it is put at the end of the body, out of the page's root and its size class). The (i) of WIDEn-N sits beside the
+   title. Hops is a row of buttons as the weather's period is (the one chosen filled), with As its packets come beside it, and the tick under them. The picture of the path (PathDrawing) is one line high, a fixed height, and
+   scrolls sideways when a long path does not fit; each element is a chip with its nodes (a drawing and who takes the hop) over the element as the field writes it and its ×; a hop after the second is amber, an element that
+   is no path red. The path has room for two lines of text and its count a width of its own, the list of digipeaters a height of its own, so that nothing under them moves as hops come and go; the numbers are tabular and
+   right-aligned in columns of their own */
+.pathbuild {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(460px, 100%);
+}
+.pathbuild-title {
+  min-width: 0;
+}
+.pathbuild-tip {
+  flex: 1;
+  margin-top: 4px;
+}
+.pathbuild-reach,
+.pathbuild-seg,
+.pathbuild-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pathbuild-reach {
+  gap: 6px 10px;
+}
+.pathbuild-reach-label {
+  font-weight: 600;
+}
+.pathbuild-seg .btn {
+  min-width: 40px;
+}
+.pathbuild-home {
+  align-self: flex-start;
+  white-space: normal;
+}
+.pathbuild-foot {
+  justify-content: flex-end;
+}
+.pathbuild-path {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pathbuild-drawing {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 78px;
+  margin: 0;
+  padding: 6px 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.pathbuild-drawing > li {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.pathbuild-end {
+  color: var(--muted);
+}
+.pathbuild-end:first-child {
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 2px;
+}
+.pathbuild-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 4px 2px 6px;
+  border-radius: 8px;
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
+}
+.pathbuild-chip.bad {
+  background: var(--bad-soft-bg);
+  color: var(--bad-soft-fg);
+}
+.pathbuild-nodes {
+  display: flex;
+  gap: 6px;
+}
+.pathbuild-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 44px;
+}
+.pathbuild-node.over {
+  color: var(--warn);
+}
+.pathbuild-kind {
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.pathglyph {
+  flex: none;
+}
+.pathbuild-text {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  height: 22px;
+  font-size: 12px;
+}
+.pathbuild-text .mono {
+  flex: 1;
+  text-align: center;
+}
+.pathbuild-x {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.pathbuild-x:hover,
+.pathbuild-x:focus-visible {
+  background: var(--row-hover);
+}
+.pathbuild-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 2.8em;
+  margin: 0;
+}
+.pathbuild-result output {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pathbuild-result output.invalid {
+  color: var(--bad);
+}
+.pathbuild-total {
+  flex: none;
+  min-width: 6em;
+  text-align: end;
+}
+.pathbuild-count {
+  font-variant-numeric: tabular-nums;
+}
+.pathbuild-type {
+  display: flex;
+  gap: 6px;
+}
+.pathbuild-type .input {
+  flex: 1;
+}
+.pathbuild-heading {
+  margin: 0 0 4px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pathbuild-list {
+  height: 162px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.pathbuild-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5em 4.5em 5em;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pathbuild-choice:hover,
+.pathbuild-choice:focus-visible {
+  background: var(--row-hover);
+}
+.pathbuild-call {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pathbuild-num {
+  color: var(--muted);
+  text-align: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pathbuild-none {
+  padding: 6px 8px;
+}
+/* on a phone the frame gives the picture its room: three hops (WIDE1-1,WIDE2-2, in every language) fit on one line without scrolling */
+@media (max-width: 420px) {
+  .pathbuild-backdrop {
+    padding: 8px;
+  }
+  .pathbuild {
+    padding: 10px 10px 12px;
+  }
+}

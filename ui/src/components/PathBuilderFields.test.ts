@@ -31,13 +31,13 @@ describe("the path builder of each path field", () => {
     await wrapper.find("button.pathbuild-open").trigger("click");
     expect(dialog()?.querySelector("output")?.textContent).toBe("WIDE1-1,WIDE2-1");
     expect(button("As its packets come")).toBeDefined();
-    await pick("WIDE2-2", "Cancel");
+    await pick("3", "Cancel");
     expect(wrapper.emitted("set")).toBeUndefined();
     expect(wrapper.find<HTMLInputElement>("input").element.value).toBe("");
     await wrapper.find("button.pathbuild-open").trigger("click");
-    await pick("WIDE2-2", "Use");
-    expect(wrapper.emitted("set")).toEqual([["OH2DPN", "WIDE2-2"]]);
-    expect(wrapper.find<HTMLInputElement>("input").element.value).toBe("WIDE2-2");
+    await pick("1", "Use");
+    expect(wrapper.emitted("set")).toEqual([["OH2DPN", "WIDE1-1"]]);
+    expect(wrapper.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
     await wrapper.find("button.pathbuild-open").trigger("click");
     await pick("Direct", "Use");
     expect(wrapper.emitted("set")?.[1]).toEqual(["OH2DPN", "DIRECT"]);
@@ -51,13 +51,18 @@ describe("the path builder of each path field", () => {
     await wrapper.find("button.pathbuild-open").trigger("click");
     expect(dialog()?.querySelector("output")?.textContent).toBe("WIDE2-1");
     expect(button("As its packets come")).toBeUndefined();
-    await pick("WIDE1-1,WIDE2-1", "Cancel");
+    await pick("2", "Cancel");
     expect(wrapper.emitted("choose")).toBeUndefined();
     await wrapper.find("button.pathbuild-open").trigger("click");
-    await pick("WIDE1-1,WIDE2-1", "Use");
-    expect(wrapper.emitted("choose")).toEqual([["WIDE1-1,WIDE2-1"]]);
-    await wrapper.setProps({ modelValue: "WIDE1-1,WIDE2-1" });
+    await pick("2", "Use");
+    expect(wrapper.emitted("choose")).toEqual([["WIDE2-2"]]);
+    await wrapper.setProps({ modelValue: "WIDE2-2" });
     expect(wrapper.find<HTMLSelectElement>("select").element.value).toBe("custom");
+    await wrapper.find("button.pathbuild-open").trigger("click");
+    await pick("Direct", "Use");
+    expect(wrapper.emitted("choose")?.[1]).toEqual(["DIRECT"]);
+    await wrapper.setProps({ modelValue: "DIRECT" });
+    expect(wrapper.find<HTMLSelectElement>("select").element.value).toBe("direct");
   });
 
   it("of the beacon's path is off while the field is", () => {
@@ -80,8 +85,8 @@ describe("the path builder of each path field", () => {
     await pick("Add");
     expect(button("Use")?.disabled).toBe(true);
     expect(button("Use")?.title).toContain("RF only");
-    await pick("WIDE2-1", "Use");
-    expect(wrapper.emitted("update:path")).toEqual([["WIDE2-1"]]);
+    await pick("Direct", "1", "Use");
+    expect(wrapper.emitted("update:path")).toEqual([["WIDE1-1"]]);
   });
 
   it("of an object puts the path built into the form", async () => {
@@ -90,10 +95,10 @@ describe("the path builder of each path field", () => {
     const opener = wrapper.findAll("button.pathbuild-open");
     expect(opener).toHaveLength(1);
     await opener[0]?.trigger("click");
-    await pick("WIDE2-1", "Cancel");
+    await pick("1", "Cancel");
     expect(view.draft.path).toBe("");
     await opener[0]?.trigger("click");
-    await pick("WIDE2-1", "Use");
-    expect(view.draft.path).toBe("WIDE2-1");
+    await pick("1", "Use");
+    expect(view.draft.path).toBe("WIDE1-1");
   });
 });

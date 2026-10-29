@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **A path builder.** A small button beside every path field (a station's Route, the beacon's path, Ask around, Local info's Ask, an object) opens a dialog that builds the path: the usual choices in one click, the digipeaters you hear direct and then those seen next to them in the routes heard, hop by hop, or a station's own route turned round (**As its packets come**). **Use** puts it in the field.
+- **A path builder.** A small button beside every path field (a station's Route, the beacon's path, Ask around, Local info's Ask, an object) opens a dialog that builds the path: the usual choices in one click, the digipeaters you hear direct and then those seen next to them in the routes heard, hop by hop, or a station's own route turned round (**As its packets come**). **Use** puts it in the field. It makes WIDEn-N plain: choose **Direct** or 1 to 3 hops and whether home digipeaters may take the first hop, see the path drawn hop by hop with who takes each, more than two hops marked and an impossible alias such as WIDE1-2 refused; its (i) is a short guide to WIDEn-N.
 - NeoAPRS answers the general query `?IGATE?` while its iGate puts what the radio hears on APRS-IS (switched on, with a passcode, logged in and verified), as `?APRS?` is answered, with `<IGATE,MSG_CNT=0,LOC_CNT=n,UPL_CNT=n`: no messages to the radio, the stations heard direct in the last hour, and the packets put on APRS-IS since it started.
 
 ## 0.13.0
