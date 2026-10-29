@@ -211,7 +211,7 @@ fieldset.composebox > legend {
   margin: 6px 0;
   font-weight: 600;
 }
-/* the Location control (LocationField), the same in the Beacon tab, the Objects form and the setup guide: the label in the label column of the rows around it, in the input column the button Choose on map and, beside it on the same line, the place as text (a button that
+/* the Location control (LocationField), the same in the My station tab, the Objects form and the setup guide: the label in the label column of the rows around it, in the input column the button Choose on map and, beside it on the same line, the place as text (a button that
    opens the entry; in the guide plain text, the entry is open the whole time); on a narrow panel the place wraps under the button and is never cut off. The entry (latitude, longitude, locator) is the row under it, in the input column. */
 .field.location-field {
   align-items: start;

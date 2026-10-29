@@ -12,7 +12,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
 | `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio |
-| `docs/manual/beacon.md` | the Beacon tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
+| `docs/manual/beacon.md` | the My station tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
 | `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, deleting |
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, the radius and the server, and advanced use as an iGate |
 | `docs/manual/email.md` | email through the APRS gateway |

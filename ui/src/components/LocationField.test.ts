@@ -139,7 +139,7 @@ describe("LocationField", () => {
 });
 
 describe("the one Location control", () => {
-  it("is the same component in the Beacon tab, the Objects form and the first-run guide, where the place is plain text and the entry is open from the start", async () => {
+  it("is the same component in the My station tab, the Objects form and the first-run guide, where the place is plain text and the entry is open from the start", async () => {
     const beacon = mount(SettingsForm, { props: { scope: "beacon" }, global: withDaemon(fakeDaemon({ config: configValues() })) });
     const form = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
     form.place(60.17, 24.94);

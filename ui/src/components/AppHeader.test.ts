@@ -114,7 +114,7 @@ describe("AppHeader", () => {
     expect(header({ pills: [] }).find(".headpills").exists()).toBe(false);
   });
 
-  it("opens the place where a mark is set when it is clicked, and says the control to flash: Settings for RX only and Internet, the Beacon tab for Beacon off and GPS", async () => {
+  it("opens the place where a mark is set when it is clicked, and says the control to flash: Settings for RX only and Internet, the My station tab for Beacon off and GPS", async () => {
     const wrapper = header({ pills: pills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()) });
     for (const mark of wrapper.findAll(".headpills .tag")) await mark.trigger("click");
     expect(wrapper.emitted("open")).toEqual([
@@ -128,7 +128,7 @@ describe("AppHeader", () => {
     const titles = Object.fromEntries(headerPills({ "station/transmit": "false", "gps/source": "gpsd" }, null, igateState()).map((p) => [p.id, t(p.title)]));
     expect(titles.rx).toBe("Nothing is sent. Settings → Radio → RX only");
     expect(titles.internet).toContain("Settings → Internet");
-    expect(titles.gps).toContain("Beacon tab");
+    expect(titles.gps).toContain("My station tab");
   });
 
   it("lets the marks fold as whole marks and never pushes the count off: the row is one mark high and wraps, the last mark, Internet, is the first to fold, the count does not shrink", () => {

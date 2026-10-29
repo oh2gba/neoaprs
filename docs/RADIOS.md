@@ -203,13 +203,13 @@ Not every radio's Bluetooth LE is KISS. The BTech UV-PRO family also has a Bluet
 
 ## A GPS receiver
 
-A moving station ([the Beacon tab](manual/beacon.md#mobile-operation)) takes its position from a GPS. It is not a radio and is not connected the way a radio is.
+A moving station ([the My station tab](manual/beacon.md#mobile-operation)) takes its position from a GPS. It is not a radio and is not connected the way a radio is.
 
-1. **gpsd.** On Linux the GPS service gpsd reads a USB or serial receiver and serves its fixes on TCP port 2947. In the Beacon tab choose **Position**, **A GPS via gpsd**; the **gpsd address** is `127.0.0.1:2947` for a gpsd on this computer, or the address of the one on another computer.
+1. **gpsd.** On Linux the GPS service gpsd reads a USB or serial receiver and serves its fixes on TCP port 2947. In the My station tab choose **Position**, **A GPS via gpsd**; the **gpsd address** is `127.0.0.1:2947` for a gpsd on this computer, or the address of the one on another computer.
 2. **A receiver on a serial port.** Any receiver that sends NMEA sentences (a u-blox USB stick, a GPS puck) can be read directly: **Position**, **A GPS on a serial port**, then the **GPS port** from the list (Refresh after plugging it in, *Other...* for a typed path or `socket://host:port` of a receiver behind a TCP serial server) and the **GPS speed**: 4800 is the speed of NMEA itself, and many USB receivers speak 9600. A wrong speed shows as no fix.
 3. **Keep it apart from the radio.** One device cannot be both: the GPS has a port of its own. With the radio on `/dev/ttyUSB0` the GPS may be `/dev/ttyUSB1`; naming the radio's port in the Settings tab keeps the search for the radio from listening to the GPS ([Not working?](#not-working), item 5).
 
-The beacon status at the top of the Beacon tab says whether the receiver is connected and has a fix. With no fix nothing is sent, and never the position you gave for a fixed station.
+The beacon status at the top of the My station tab says whether the receiver is connected and has a fix. With no fix nothing is sent, and never the position you gave for a fixed station.
 
 ## Permissions on Linux
 

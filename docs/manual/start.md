@@ -14,7 +14,7 @@ If the port says *permission denied* on Linux, add yourself to the group that ow
 On a fresh install the page opens a guide in four steps. It opens by itself once, when NeoAPRS has no call. The amber **no call set** button in the header and **Run the setup guide again** in the Settings tab open it again, and what you typed is still there.
 
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
-2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the Beacon tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
+2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the My station tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
 3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
 4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)). **Finish** is on this step.
 
@@ -28,7 +28,7 @@ The Radio step has two helpers under its fields, the same as the Settings tab:
 - **Terminal**, closed until you open it, shows what the TNC saw and did. Opening it puts the radio you chose in force, so that it shows that radio.
 - The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radio)).
 
-**Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the Beacon tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
+**Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
 
 **Nothing is transmitted until a call is set.** While the call is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits, with at least one of each), NeoAPRS only listens: no beacon, status, message, ack, object, bulletin or answer to a query. A message is refused with "set your call first", and the header says "no call set". The commands that put the TNC in KISS are not transmissions and go on.
 
@@ -52,7 +52,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 
 ## How settings apply
 
-The Settings tab and the Beacon tab have no Save button and no Revert. A setting is put in force as you change it, as on a phone.
+The Settings tab and the My station tab have no Save button and no Revert. A setting is put in force as you change it, as on a phone.
 
 - A tickbox, a choice from a list, the port list, the symbol and **Choose on map** apply at once.
 - A field you type in (the call, the comment, the position, the path) applies when you press Enter or leave the field, never while you type, so a half-typed call or position is never beaconed. Esc puts back the value in force.
@@ -85,7 +85,7 @@ With no file it plays the sample capture inside the package, three minutes of a 
 
 The type **Dummy** needs no capture and no second program: the daemon makes the traffic itself, around your position, and nothing goes on the air ([radio.md](radio.md#the-dummy-radio)).
 
-A moving station can be tried without a car in the same way: `neoaprs gps-replay` plays a drive as a gpsd, and the Beacon tab's **A GPS via gpsd** reads it ([beacon.md](beacon.md#mobile-operation)).
+A moving station can be tried without a car in the same way: `neoaprs gps-replay` plays a drive as a gpsd, and the My station tab's **A GPS via gpsd** reads it ([beacon.md](beacon.md#mobile-operation)).
 
 ## Stopping NeoAPRS
 

@@ -1,4 +1,4 @@
-// The rule for the Settings tab, the Beacon tab and the Objects form: every on/off is a tickbox, never a dropdown with two choices or an On/Off word; a dropdown is a real choice of three values or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
+// The rule for the Settings tab, the My station tab and the Objects form: every on/off is a tickbox, never a dropdown with two choices or an On/Off word; a dropdown is a real choice of three values or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
@@ -42,7 +42,7 @@ function surfaces() {
   return [...settings.map((w) => w.element as Element), objects.element as Element, alerts.element as Element];
 }
 
-describe("the controls of the Settings tab, the Beacon tab and the Objects form", () => {
+describe("the controls of the Settings tab, the My station tab and the Objects form", () => {
   it("have no dropdown that is an on/off: a dropdown offers a real choice of three values or more, or is a list of what is found (a port, a path)", () => {
     for (const root of surfaces()) {
       for (const { id, values } of dropdowns(root)) {

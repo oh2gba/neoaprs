@@ -13,7 +13,7 @@ const say = async (socket: Awaited<ReturnType<typeof open>>["socket"], rev: numb
 };
 
 describe("App: RX only", () => {
-  it("has the RX only tickbox as the first row of the Radio group of the Settings tab, with its (i), and none on the Beacon tab", async () => {
+  it("has the RX only tickbox as the first row of the Radio group of the Settings tab, with its (i), and none on the My station tab", async () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "Settings")?.trigger("click");
     const radio = wrapper.findAll("#pane-settings fieldset").find((f) => f.find("legend").text() === "Radio");
@@ -21,7 +21,7 @@ describe("App: RX only", () => {
     expect(radio?.find(".field input").attributes("type")).toBe("checkbox");
     expect((radio?.find(".field input").element as HTMLInputElement).checked).toBe(false); // (unticked: the station transmits)
     expect(radio?.find(".field .infotip").exists()).toBe(true);
-    await tabButton(wrapper, "Beacon")?.trigger("click");
+    await tabButton(wrapper, "My station")?.trigger("click");
     expect(wrapper.find("#pane-beacon").text()).not.toContain("RX only");
     await radio?.find(".field input").setValue(true);
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "false" } }); // (ticked: RX only, which is station/transmit false)
@@ -40,7 +40,7 @@ describe("App: RX only", () => {
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
   });
 
-  it("opens the Settings tab from the RX only mark and the Beacon tab from Beacon off", async () => {
+  it("opens the Settings tab from the RX only mark and the My station tab from Beacon off", async () => {
     const { wrapper, socket } = await open();
     await say(socket, 1, { [KEY]: "false" });
     await tabButton(wrapper, "Stations")?.trigger("click");
@@ -50,7 +50,7 @@ describe("App: RX only", () => {
     expect(wrapper.find(".appheader .pill-beacon_off").text()).toBe("Beacon off");
     expect(wrapper.find(".appheader .pill-beacon_off").classes()).toContain("tag-neutral");
     await wrapper.find(".appheader .pill-beacon_off").trigger("click");
-    expect(wrapper.find("[aria-selected='true']").text()).toContain("Beacon");
+    expect(wrapper.find("[aria-selected='true']").text()).toContain("My station");
   });
 
   it("brings the group of the control a mark leads to into view, flashes it and focuses the control: RX only, Beacon off, GPS and Internet", async () => {
@@ -93,7 +93,7 @@ describe("App: RX only", () => {
   it("greys the beacon's fields as with Beacon Off and turns every button that sends off with the title RX only: nothing is sent", async () => {
     const { wrapper, socket } = await open();
     await say(socket, 1, { [KEY]: "false" });
-    await tabButton(wrapper, "Beacon")?.trigger("click");
+    await tabButton(wrapper, "My station")?.trigger("click");
     for (const id of ["#set-station-comment", "#set-beacon-travel", "#set-beacon-path"]) {
       const field = wrapper.find(id);
       if (field.exists()) expect((field.element as HTMLInputElement).disabled, id).toBe(true);
@@ -136,7 +136,7 @@ describe("App: a station that an earlier version left in RX only", () => {
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "true" } }); // (unticked: transmits)
     await say(socket, 2, { [KEY]: "true", "beacon/interval_min": "30" });
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
-    await tabButton(wrapper, "Beacon")?.trigger("click");
+    await tabButton(wrapper, "My station")?.trigger("click");
     expect((wrapper.find("#pane-beacon #beacon-now").element as HTMLButtonElement).disabled).toBe(false);
   });
 });

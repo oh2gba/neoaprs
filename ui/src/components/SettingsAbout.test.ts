@@ -59,7 +59,7 @@ describe("the feedback line", () => {
 });
 
 describe("the About group in the Settings tab", () => {
-  it("is the last group, after Help, and the Beacon tab has none", () => {
+  it("is the last group, after Help, and the My station tab has none", () => {
     const settings = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon() });
     const titles = settings.findAll("form > fieldset").map((f) => f.find("legend").text());
     expect(titles.slice(-2)).toEqual(["Help", "About"]);

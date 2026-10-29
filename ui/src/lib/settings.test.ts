@@ -17,7 +17,7 @@ describe("groupKeys", () => {
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
     expect(groups[5]?.keys).toEqual(["map/radius_km"]);
   });
-  it("gives the Beacon tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
+  it("gives the My station tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");
     expect(groups.map((g) => g.id)).toEqual(["station", "beacon", "status"]);
     expect(groups[0]?.keys).toEqual([
@@ -80,7 +80,7 @@ describe("groupKeys", () => {
       ).sort(),
     );
   });
-  it("has the Transmit tickbox first in the Radio group of the Settings tab and not on the Beacon tab", () => {
+  it("has the Transmit tickbox first in the Radio group of the Settings tab and not on the My station tab", () => {
     expect(groupKeys(CONFIG_KEYS, "settings")[0]?.keys[0]).toBe("station/transmit");
     expect(groupKeys(CONFIG_KEYS, "beacon").flatMap((g) => g.keys)).not.toContain("station/transmit");
     expect(FIELDS["station/transmit"]?.kind).toBe("bool");

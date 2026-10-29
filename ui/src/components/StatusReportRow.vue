@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The status report as a row under the Status choice of the Beacon tab: the radio's status row (StatusFold.vue) with the words of lib/statusreport.ts, when the last report went and when the next may, and behind the arrow what the radio's status is now (a text of our own is the Text field above), how
+// The status report as a row under the Status choice of the My station tab: the radio's status row (StatusFold.vue) with the words of lib/statusreport.ts, when the last report went and when the next may, and behind the arrow what the radio's status is now (a text of our own is the Text field above), how
 // often it is sent and, when the status is the radio's, whether rigctld answers. In RX only the row is off in the warn colour. Send status now is a row of its own (SendRow.vue).
 import { computed } from "vue";
 import StatusFold from "@/components/StatusFold.vue";

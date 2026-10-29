@@ -1,4 +1,4 @@
-// What the status row of the Status group of the Beacon tab says (components/StatusReportRow.vue): not the text, which the Text field above it shows, but when a report last went and when the next may. The next is the interval after the last, and goes out then only if what it says has changed
+// What the status row of the Status group of the My station tab says (components/StatusReportRow.vue): not the text, which the Text field above it shows, but when a report last went and when the next may. The next is the interval after the last, and goes out then only if what it says has changed
 // (services/rigstatus.py); while the beacon is Off no status goes by the timer. In RX only (nothing is sent) the row is off in the warn colour, as the Digipeater's.
 import { t } from "@/i18n";
 import { agoWords, untilText } from "@/lib/format";

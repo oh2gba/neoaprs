@@ -1,4 +1,4 @@
-// When the beacon is Off (`beacon/interval_min` is 0, for a station that moves too) or transmitting is switched off (RX only): which fields of the Beacon tab are then greyed out. Off is no automatic beacon and no automatic status (Beacon now still sends), so only the timing is greyed;
+// When the beacon is Off (`beacon/interval_min` is 0, for a station that moves too) or transmitting is switched off (RX only): which fields of the My station tab are then greyed out. Off is no automatic beacon and no automatic status (Beacon now still sends), so only the timing is greyed;
 // RX only sends nothing, so all that the beacon says is greyed, shown with its value and not asked; the Station group and the Beacon choice itself are never greyed. The daemon's rule is Config.beacon_on (neoaprs/config.py).
 
 /** The antenna's keys belong to the station, though they are the beacon's to send. */

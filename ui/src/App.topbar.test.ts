@@ -55,7 +55,7 @@ describe("a text that says RX only", () => {
     const line = digi?.find(".tncstatus button.linkbutton");
     expect(line?.text()).toBe("RX only: nothing is repeated");
     expect(line?.attributes("title")).toBe("Nothing is sent. Settings → Radio → RX only");
-    await tabButton(wrapper, "Beacon")?.trigger("click");
+    await tabButton(wrapper, "My station")?.trigger("click");
     const rows = wrapper.findAll("#pane-beacon .statusfold .tncstatus button.linkbutton");
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((r) => r.text() === "RX only: nothing is sent")).toBe(true);

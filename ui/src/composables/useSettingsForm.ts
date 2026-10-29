@@ -1,4 +1,4 @@
-// The settings form of one tab, over the settings that apply as they are changed (useSettings): the groups and keys of its scope (the Settings tab and the Beacon tab each show their own), and what happens when a field is
+// The settings form of one tab, over the settings that apply as they are changed (useSettings): the groups and keys of its scope (the Settings tab and the My station tab each show their own), and what happens when a field is
 // worked: a typed field is sent when Enter is pressed or the field is left (the fields that belong together wait until the person has left all of them), a choice at once, Esc puts the value in force back, and a change that could
 // cut off the device the page is open on asks first.
 import { computed, ref, type Ref } from "vue";

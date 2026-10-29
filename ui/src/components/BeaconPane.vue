@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Beacon tab: the settings the beacon and the status are made from (our station and where its position comes from, the beacon, the status), which apply as they are changed like the Settings tab's. Under the Beacon choice are the state of the beacon (BeaconStatus: the radio's
+// The My station tab: the settings the beacon and the status are made from (our station and where its position comes from, the beacon, the status), which apply as they are changed like the Settings tab's. Under the Beacon choice are the state of the beacon (BeaconStatus: the radio's
 // status row; for a fixed station when the last beacon went and when the next is due, for a moving one the GPS and what SmartBeaconing does) and the row Beacon now (SendRow); under the Status choice, while a status is chosen, the status report as a row (StatusReportRow), and the row Send status now at the end of the Status group.
 // useSendNow says when the buttons are on and asks twice; both are off, with a tip that says why, while the transmitter is off (RX only).
 import BeaconStatus from "@/components/BeaconStatus.vue";

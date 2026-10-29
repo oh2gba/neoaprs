@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // A symbol as a field: the symbol's picture and its name are the control, a click opens the symbol picker (the accessible name is "Change symbol"), and, only for a symbol that can carry one, a small "Letter or digit on it". The symbol is the two characters
-// the settings write (the table and the code); the user never sees them. Used by the Beacon tab, the first-run guide and the Objects form. The guide gives `more`: it has its grid of the common symbols above, so here the symbol in force is plain text and the button
+// the settings write (the table and the code); the user never sees them. Used by the My station tab, the first-run guide and the Objects form. The guide gives `more`: it has its grid of the common symbols above, so here the symbol in force is plain text and the button
 // beside it, "More symbols…", opens the picker. `update:symbol` follows the field as it is changed (the letter is typed);
-// `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the Beacon tab applies it then).
+// `commit` says a symbol is final: one picked from the picker, or the letter when its field is left or Enter is pressed (the My station tab applies it then).
 import { computed, nextTick, ref, useId } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";

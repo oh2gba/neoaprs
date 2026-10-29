@@ -26,7 +26,7 @@ export const beacon: Readonly<Record<keyof typeof en, Message>> = {
   "beacon.really_send": "Inviare davvero?",
   "beacon.rigctld_on": "rigctld attivo",
   "beacon.rigctld_off": "rigctld spento",
-  "beacon.about_label": "Sulla scheda Beacon",
+  "beacon.about_label": "Sulla scheda La mia stazione",
   "beacon.about1": "Il beacon è la tua posizione, inviata ogni tanto perché le altre stazioni ti vedano sulla mappa.",
   "beacon.about2": "Qui imposti chi sei, dove, e cosa dice il beacon.",
 

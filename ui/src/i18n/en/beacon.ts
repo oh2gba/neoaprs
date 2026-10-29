@@ -1,4 +1,4 @@
-// The Beacon tab: the beacon status at the top (the line of a fixed station, the GPS and SmartBeaconing lines of a moving one), the status line. The fields of the tab are the settings' (settings.ts).
+// The My station tab: the beacon status at the top (the line of a fixed station, the GPS and SmartBeaconing lines of a moving one), the status line. The fields of the tab are the settings' (settings.ts).
 export const beacon = {
   "beacon.label": "Beacon",
   "beacon.state.on": "on",
@@ -24,7 +24,7 @@ export const beacon = {
   "beacon.really_send": "Really send?",
   "beacon.rigctld_on": "rigctld on",
   "beacon.rigctld_off": "rigctld off",
-  "beacon.about_label": "About the Beacon tab",
+  "beacon.about_label": "About the My station tab",
   "beacon.about1": "The beacon is your position, sent every so often so that other stations see you on the map.",
   "beacon.about2": "Here you set who you are, where, and what the beacon says.",
 

@@ -27,7 +27,7 @@ export const beacon: Record<keyof typeof source, Message> = {
   "beacon.really_send": "本当に送信しますか?",
   "beacon.rigctld_on": "rigctld オン",
   "beacon.rigctld_off": "rigctld オフ",
-  "beacon.about_label": "ビーコンタブについて",
+  "beacon.about_label": "自局タブについて",
   "beacon.about1": "ビーコンは、他の局が地図であなたを見られるように、位置を一定間隔で送るものです。",
   "beacon.about2": "ここで、自局が誰で、どこにいて、ビーコンが何を伝えるかを設定します。",
 

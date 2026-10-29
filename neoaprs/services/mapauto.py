@@ -1,5 +1,5 @@
 """The detailed map without a click: when the setup guide goes on from its Position step (the page sends the place when it is new, else the command `map_wanted`) and when a place is set that was not before (or another place, on
-the Beacon tab), the job of Settings, Map, Download (neoaprs/services/mapfetch.py) is begun for the setting's `map/radius_km` round the station (150 km unless the operator changed it; the setting is not touched), unless the
+the My station tab), the job of Settings, Map, Download (neoaprs/services/mapfetch.py) is begun for the setting's `map/radius_km` round the station (150 km unless the operator changed it; the setting is not touched), unless the
 detailed map that is there covers that area already. So the map round the station is there by the end of the setup, and nobody is asked; the header of the page shows the download's progress.
 
 A detailed map covers the place when its area holds the box of COVERED of the radius round the place: a move of a few km does not make the map again, a move to another town does, and so does the 50 km map an earlier

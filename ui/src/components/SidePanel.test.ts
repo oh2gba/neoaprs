@@ -39,7 +39,7 @@ describe("SidePanel", () => {
       "Email",
       "Bulletins",
       "Objects",
-      "Beacon",
+      "My station",
       "Packets",
       "Settings",
     ]);

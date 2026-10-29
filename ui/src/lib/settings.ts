@@ -311,7 +311,7 @@ export const SUBGROUPS: Record<
   },
 };
 
-/** What the Beacon tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
+/** What the My station tab keeps behind a closed heading in the Beacon group: the antenna (the PHG part of the beacon, which only a fixed station has) and the path. */
 export const BEACON_FOLDS: readonly { readonly group: string; readonly title: string; readonly keys: readonly string[] }[] = [
   lazyText({ group: "beacon", keys: ANTENNA }, { title: () => t("settings.fold.antenna") }),
   lazyText({ group: "beacon", keys: ["beacon/path"] }, { title: () => t("settings.fold.advanced") }),
@@ -335,7 +335,7 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
   { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
-/** Which settings a form shows: the Beacon tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
+/** Which settings a form shows: the My station tab has what the beacon says and sends, the Settings tab the rest (and any key this file does not know), so that no key is in two places. */
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
@@ -450,7 +450,7 @@ export function storedFor(key: string, values: Readonly<Record<string, string>>,
   return key === "beacon/interval_min" && isMoving(values) ? (said === "true" ? MOVING_BEACON_ON : "0") : said;
 }
 
-/** Whether a field of the Beacon tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
+/** Whether a field of the My station tab is shown for the values the form holds: the Status group shows what its source needs; the position's own fields follow its choice (the address of gpsd for gpsd, the port and speed for a serial GPS; the station's place only for a fixed station, with a GPS the place stays stored and the daemon uses it until the first fix); a station that moves
  * (a GPS is chosen) has the Travelling choice, and no antenna, which is a fixed station's (the antenna's height, gain and direction come once there is a power: they only make the PHG code with it); the Beacon choice is shown to both, with other choices (an interval, or Off and On). */
 export function shownByValues(key: string, values: Readonly<Record<string, string>>): boolean {
   if (!shownBySwitch(key, values)) return false;

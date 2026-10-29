@@ -26,7 +26,7 @@ export const beacon: Readonly<Record<keyof typeof en, Message>> = {
   "beacon.really_send": "¿Enviar de verdad?",
   "beacon.rigctld_on": "rigctld activado",
   "beacon.rigctld_off": "rigctld desactivado",
-  "beacon.about_label": "Sobre la pestaña Baliza",
+  "beacon.about_label": "Sobre la pestaña Mi estación",
   "beacon.about1": "La baliza es tu posición, enviada cada cierto tiempo para que las demás estaciones te vean en el mapa.",
   "beacon.about2": "Aquí fijas quién eres, dónde y qué dice la baliza.",
 

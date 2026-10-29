@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The call as the Beacon tab and the setup guide ask for it: the call without its SSID in a text field, and the SSID in a dropdown beside it (the recommendations of aprs.org, so that nobody has to look up the number). The value is the call as
+// The call as the My station tab and the setup guide ask for it: the call without its SSID in a text field, and the SSID in a dropdown beside it (the recommendations of aprs.org, so that nobody has to look up the number). The value is the call as
 // the settings keep it (`OH2GBA-9`), put together here and taken apart again. The field takes letters and digits in capitals; a dash with a number after it, typed or pasted (`OH2GBA-9`), moves the number into the dropdown (and out of the
 // field when the field is left, or at once when it was pasted); nothing else is let in. Choosing in the dropdown says `choose` (a call is there to be sent), but not while the field holds no call.
 import { computed, ref, watch } from "vue";

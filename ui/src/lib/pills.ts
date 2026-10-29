@@ -11,7 +11,7 @@ import type { Connection } from "@/lib/hub";
 import type { GpsState, IgateState, MapState, TncState, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
-/** Where a mark leads: the Settings tab (the Radio and Internet groups) or the Beacon tab (the beacon and the GPS). */
+/** Where a mark leads: the Settings tab (the Radio and Internet groups) or the My station tab (the beacon and the GPS). */
 export type PillTarget = "settings" | "beacon";
 
 export interface HeaderPill {

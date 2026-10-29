@@ -205,7 +205,7 @@ describe("ObjectForm", () => {
     expect(wrapper.find(".sympick").exists()).toBe(false);
   });
 
-  it("has the Location row of the Beacon tab: Location in the label column, Choose on map and the place on one line in the input column", () => {
+  it("has the Location row of the My station tab: Location in the label column, Choose on map and the place on one line in the input column", () => {
     const { wrapper } = form();
     const row = wrapper.find(".location-field");
     expect(row.classes()).toContain("field");
@@ -399,7 +399,7 @@ describe("ObjectForm", () => {
     expect(field("Path")?.element.closest("details")).not.toBe(moving?.element);
   });
 
-  it("keeps Path and Category behind a closed fold, Advanced, as the Beacon tab does, for a new object", () => {
+  it("keeps Path and Category behind a closed fold, Advanced, as the My station tab does, for a new object", () => {
     const { wrapper, field } = form();
     const folds = wrapper.findAll<HTMLDetailsElement>("details");
     expect(folds.map((d) => d.find("summary").text())).toEqual(["Moving", "Advanced"]);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The row of the Beacon tab that sends something now (Beacon now, Send status now): an ActionRow with its own label, the button at the left edge of the fields and the (i). The button asks twice (SendButton); the tab's useSendNow decides when it is on.
+// The row of the My station tab that sends something now (Beacon now, Send status now): an ActionRow with its own label, the button at the left edge of the fields and the (i). The button asks twice (SendButton); the tab's useSendNow decides when it is on.
 import ActionRow from "@/components/ActionRow.vue";
 import SendButton from "@/components/SendButton.vue";
 

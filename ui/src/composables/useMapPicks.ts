@@ -1,4 +1,4 @@
-// The places that are picked with a click on the map: the first-run guide's (it asks while its position step is on), the Beacon tab's Choose on map, and the Objects tab's. A click on the map is a place for the guide while it asks for one, else for the Beacon
+// The places that are picked with a click on the map: the first-run guide's (it asks while its position step is on), the My station tab's Choose on map, and the Objects tab's. A click on the map is a place for the guide while it asks for one, else for the Beacon
 // tab, else for the form of an object. `pickingTab` is a place that a tab asked for (the guide's own is its business): a phone shows the map for it (composables/useLayout.ts) and `cancel` ends it.
 import { computed } from "vue";
 import { usePositionPick } from "@/composables/usePositionPick";

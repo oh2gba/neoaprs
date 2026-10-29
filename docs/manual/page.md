@@ -112,7 +112,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). From the t
 - **Help**: one line with the address to send the logs to, and the row **Logs** with **Download logs** and an (i) beside it, which makes a file to e-mail to the project when something does not work ([support.md](support.md));
 - **About**: what NeoAPRS is, the version, who made it, the licence and the source code as links, and a thanks. It has nothing to press.
 
-What the station says on the air, the call and the position are on the Beacon tab. [settings.md](settings.md) lists every setting and where it is.
+What the station says on the air, the call and the position are on the My station tab. [settings.md](settings.md) lists every setting and where it is.
 
 ## The map
 
@@ -291,7 +291,7 @@ The base map is two maps that the daemon serves to the page:
 - The world, drawn under everything so that there is a map from the first second, outside your area and when zoomed out: coastlines, borders, forests, the names of countries and big cities, to zoom 4 (6 MB). It ships with NeoAPRS in every package and needs no download. A world map of its own in the data folder (`basemap-world.pmtiles`, to zoom 5, made by an earlier version) is used instead.
 - `basemap.pmtiles` in the data folder, the OpenStreetMap map of the area round your station: a square of `map/radius_km` (10 to 1000 km, default 150) in every direction, down to zoom 12. The page draws the world magnified until it is there.
 
-**The detailed map comes by itself.** When you leave the Position step of the [setup guide](start.md#the-setup-guide), and when a place is set that was not before or another one (on the Beacon tab too), NeoAPRS starts downloading the map of `map/radius_km` round your station (150 km unless you changed it, a few hundred MB). The guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent of the step until it is done; it opens Settings → Map.
+**The detailed map comes by itself.** When you leave the Position step of the [setup guide](start.md#the-setup-guide), and when a place is set that was not before or another one (on the My station tab too), NeoAPRS starts downloading the map of `map/radius_km` round your station (150 km unless you changed it, a few hundred MB). The guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent of the step until it is done; it opens Settings → Map.
 
 Not when the detailed map it has covers the place already: a move of a few km does not make the map again. A move to another town does, and so does the guide run again when the map is smaller than the radius asks (the 50 km map an earlier version made).
 

@@ -1,4 +1,4 @@
-// The call with its SSID in a dropdown beside it (CallInput), in the Beacon tab and in the setup guide: the call is the letters and digits, the stored setting stays `OH2GBA-9`.
+// The call with its SSID in a dropdown beside it (CallInput), in the My station tab and in the setup guide: the call is the letters and digits, the stored setting stays `OH2GBA-9`.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -17,7 +17,7 @@ function beacon(call = "OH2GBA") {
   return { wrapper, send: daemon.send, field, ssid };
 }
 
-describe("the call field of the Beacon tab", () => {
+describe("the call field of the My station tab", () => {
   it("shows the stored call apart: the call in the field and its SSID in the dropdown beside it, in the same row", () => {
     const { field, ssid } = beacon("OH2GBA-9");
     expect(field().element.value).toBe("OH2GBA");

@@ -1,7 +1,7 @@
 // The settings as they apply while they are changed (no Save button): a draft of every value that starts as the daemon's, and a change that is made (a choice at once, a typed field on Enter or when it is left) goes to the daemon
 // as a `set_config` of just the keys that differ, after the page's own check of the text. One save is out at a time (useSettingsQueue); what the person sees of it is useSettingsFeedback. The daemon's reason for a refusal is
 // shown under the key it names. A value the person has not touched follows the daemon when it changes (another device, the radio found); a field being edited, or one the daemon refused, keeps what was typed.
-// One of these is shared by the Settings tab and the Beacon tab, so that there is one queue; the keys each tab shows are `useSettingsForm`.
+// One of these is shared by the Settings tab and the My station tab, so that there is one queue; the keys each tab shows are `useSettingsForm`.
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSettingsAnswers } from "@/composables/useSettingsAnswers";

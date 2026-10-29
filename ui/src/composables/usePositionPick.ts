@@ -1,4 +1,4 @@
-// The Beacon tab's "Choose on map": while it is on, the map waits for a click (the crosshair), and the place clicked is handed to the Beacon form, which fills our station's latitude and
+// The My station tab's "Choose on map": while it is on, the map waits for a click (the crosshair), and the place clicked is handed to the Beacon form, which fills our station's latitude and
 // longitude with it; the user saves as for any other change. A second press of the button, or the click, ends the waiting.
 import { ref } from "vue";
 

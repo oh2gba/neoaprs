@@ -123,7 +123,7 @@ describe("the tab on show", () => {
     expect(wrapper.find("#tab-packets").classes()).toContain("active");
     expect(button(wrapper).classes()).not.toContain("active");
     await opened(wrapper);
-    expect(listed(wrapper)).toEqual(["Bulletins", "Objects", "Beacon", "Settings"]);
+    expect(listed(wrapper)).toEqual(["Bulletins", "Objects", "My station", "Settings"]);
   });
 
   it("is brought into the row when it is picked from the menu, the row keeping its order otherwise", async () => {
@@ -163,7 +163,7 @@ describe("the More button", () => {
     await opened(wrapper);
     expect(button(wrapper).attributes("aria-expanded")).toBe("true");
     expect(wrapper.find("[role='menu']").attributes("id")).toBe(button(wrapper).attributes("aria-controls"));
-    expect(items(wrapper).map((i) => i.text())).toEqual(["Email", "Bulletins 2", "Objects", "Beacon", "Packets", "Settings"]);
+    expect(items(wrapper).map((i) => i.text())).toEqual(["Email", "Bulletins 2", "Objects", "My station", "Packets", "Settings"]);
     expect(items(wrapper)[1]?.find(".badge").attributes("title")).toBe("2 new bulletins");
     expect(items(wrapper).some((i) => i.attributes("aria-current"))).toBe(false);
   });

@@ -1,4 +1,4 @@
-// Where our status report comes from, as the Status group of the Beacon tab shows it: nothing, a text of our own, or the frequency and mode of the radio (rigctld). The daemon keeps this in `status/source`;
+// Where our status report comes from, as the Status group of the My station tab shows it: nothing, a text of our own, or the frequency and mode of the radio (rigctld). The daemon keeps this in `status/source`;
 // while that is empty it is what the other settings say, as the daemon works it out (Config.status_choice of neoaprs/config.py): the radio when `status/rigctld` is set, else the text when there is one, else nothing.
 
 import { t } from "@/i18n";

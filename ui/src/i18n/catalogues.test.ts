@@ -5,7 +5,7 @@ import { LOCALES } from "@/i18n/locales";
 import { placeholders, texts, type Message } from "@/i18n/message";
 
 const source = en as Record<string, Message>;
-/** The button that chooses the place on the map (the Beacon tab, the Objects form, the setup guide), in each language; nothing says "pick" in it. */
+/** The button that chooses the place on the map (the My station tab, the Objects form, the setup guide), in each language; nothing says "pick" in it. */
 const CHOOSE_ON_MAP: Record<string, string> = {
   en: "Choose on map",
   de: "Auf Karte wählen",

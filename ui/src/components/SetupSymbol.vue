@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Step 3 of the first-run guide: the symbol the station is drawn with: the 12 most common ones from the sprite, or any other from the picker, which has them all and which "More symbols…" opens; the symbol in force is shown under the grid, beside that button (the symbol control of the Beacon tab, SymbolField with `more`).
+// Step 3 of the first-run guide: the symbol the station is drawn with: the 12 most common ones from the sprite, or any other from the picker, which has them all and which "More symbols…" opens; the symbol in force is shown under the grid, beside that button (the symbol control of the My station tab, SymbolField with `more`).
 import SymbolField from "@/components/SymbolField.vue";
 import SymbolButton from "@/components/SymbolButton.vue";
 import { t } from "@/i18n";

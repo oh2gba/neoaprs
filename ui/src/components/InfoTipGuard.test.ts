@@ -15,7 +15,7 @@ import { configValues, ownObject } from "@/test/fixtures";
 
 /** The fields that have no (i) on purpose, by the text of their label, with why. */
 const ALLOWED_OBJECTS: Record<string, string> = {
-  // the place is the Location control of the Beacon tab, shared by the Objects form and the setup guide; its button and the place in words say what it is
+  // the place is the Location control of the My station tab, shared by the Objects form and the setup guide; its button and the place in words say what it is
   Latitude: "part of the Location control: a coordinate, in degrees",
   Longitude: "part of the Location control: a coordinate, in degrees",
   Locator: "part of the Location control: a Maidenhead locator, which the field shows",

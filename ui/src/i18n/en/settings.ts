@@ -1,4 +1,4 @@
-// The Settings tab and the fields of the settings wherever they are shown (the Beacon tab, the first-run guide): the groups, what each field says of itself, the checks of a typed value, the radio link, the map download, the page's own
+// The Settings tab and the fields of the settings wherever they are shown (the My station tab, the first-run guide): the groups, what each field says of itself, the checks of a typed value, the radio link, the map download, the page's own
 // alert, the update check and the access key. The numbers in a text (the limits of a field) are values: they come from the daemon's constants.
 export const settings = {
   "settings.none": "none",

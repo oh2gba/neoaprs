@@ -87,10 +87,10 @@ def check_database(data: Path) -> tuple[Finding, dict[str, str] | None]:
 def check_call(rows: dict[str, str] | None) -> Finding:
     call = Config.from_data(rows).station_call if rows is not None else ""
     if not call:
-        return Finding("warn", "no call is set: NeoAPRS only listens and transmits nothing", "set your call on the page (Beacon tab, Call)")
+        return Finding("warn", "no call is set: NeoAPRS only listens and transmits nothing", "set your call on the page (My station tab, Call)")
     problem = call_problem(call)
     if problem:
-        return Finding("warn", f"the call {call} cannot transmit: {problem}", "set your own call on the page (Beacon tab, Call)")
+        return Finding("warn", f"the call {call} cannot transmit: {problem}", "set your own call on the page (My station tab, Call)")
     return Finding("ok", f"call {call}")
 
 

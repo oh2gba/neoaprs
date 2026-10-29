@@ -129,9 +129,9 @@ describe("App: Esc in the Objects form", () => {
     expect(name(wrapper)?.element.value).toBe("MARK");
   });
 
-  it("ends the choice of the Beacon tab's place too", async () => {
+  it("ends the choice of the My station tab's place too", async () => {
     const { wrapper } = await open();
-    await tabButton(wrapper, "Beacon")?.trigger("click");
+    await tabButton(wrapper, "My station")?.trigger("click");
     const pick = () => wrapper.find("#pane-beacon .location-pick");
     await pick().trigger("click");
     expect(pick().text()).toBe("Cancel");

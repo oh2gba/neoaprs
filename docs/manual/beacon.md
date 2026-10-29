@@ -1,6 +1,6 @@
 # Beacon, status and digipeater
 
-The Beacon tab holds what your station says on the air. A setting applies as you change it ([start.md](start.md#how-settings-apply)). From top to bottom:
+The My station tab holds what your station says on the air. A setting applies as you change it ([start.md](start.md#how-settings-apply)). From top to bottom:
 
 - the **Station** group (call with its SSID, **Position**, location, symbol);
 - the **Beacon** group (the **Beacon** choice, under it the state of the beacon and the row **Send now** with **Beacon now** ([Beacon now](#beacon-now)), what you travel as for a moving station, the comment, a closed **Antenna** heading for a fixed station and a closed **Advanced** heading with the path choice);
@@ -76,7 +76,7 @@ Your own row on the map is your settings (position, symbol and comment), or the 
 
 ## Power, height and gain (PHG)
 
-With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The Beacon tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent. The Antenna heading is for a fixed station: **Position** at **A GPS via gpsd** or **A GPS on a serial port** hides it, and a moving station sends no PHG.
+With a power set (`beacon/power_w`, 0 to 9999 watts) the beacon carries the PHG extension right after the symbol. The My station tab asks for the antenna's height above the average terrain around it (HAAT, not above sea level; 0 to 9999 m), gain (0 to 9 dBi) and direction (`omni` or N, NE, E, SE, S, SW, W, NW) only once there is a power. With no power set no PHG is sent. The Antenna heading is for a fixed station: **Position** at **A GPS via gpsd** or **A GPS on a serial port** hides it, and a moving station sends no PHG.
 
 PHG is written `PHGphgd`:
 
@@ -101,7 +101,7 @@ A beacon you send is in the Packets tab as a packet with direction `out`.
 
 For a car, a bicycle, a walker or a boat the beacon can follow a GPS receiver. Choose **Position**: **A GPS via gpsd** or **A GPS on a serial port**. The position, course, speed and altitude then come from the GPS, and the beacon goes when SmartBeaconing says: often when you move fast or turn a corner, rarely when you stand still. Nothing else needs switching on: the choice of Position alone makes the station a moving one, and **Fixed** makes it a fixed one again, with the location you gave before shown again.
 
-What to set (the Station and Beacon groups of the Beacon tab):
+What to set (the Station and Beacon groups of the My station tab):
 
 1. **Position**: **A GPS via gpsd** reads a gpsd daemon (on this computer or another one on the network; its address, **gpsd address**, is `gps/host`, `127.0.0.1:2947` by default). **A GPS on a serial port** reads the NMEA sentences of a GPS receiver (**GPS port**, `gps/device`, such as `/dev/ttyUSB1`, at **GPS speed**, `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
 
@@ -111,7 +111,7 @@ What to set (the Station and Beacon groups of the Beacon tab):
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon, and also while the beacon is Off. The log says `gps: reading` and the address or port when the GPS is read, and `gps: off` when you choose Fixed again.
 
-**What the Beacon tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again.
+**What the My station tab shows.** Under the choice of Position stand only the fields that apply: the gpsd address for gpsd, the port and speed for a serial receiver. The Location row of the Station group is not shown, because the GPS position is what is sent; the location you gave stays stored, and it is where your station is on the map before the first fix and whenever you choose **Fixed** again.
 
 In the Beacon group the **Beacon** choice is **Off** or **On (SmartBeaconing)**, in the place of the intervals; the Antenna heading is not shown, because a moving beacon has no PHG, and **Travelling** is shown below the choice. While the choice is **Off** nothing is sent, but the beacon status goes on reporting the GPS and its fix, and the line under it says that no automatic beacon goes ([Beacon off](#beacon-off)); choose **On** to send.
 

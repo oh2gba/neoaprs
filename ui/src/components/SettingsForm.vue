@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the Beacon tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
+// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the My station tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
-// for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The Beacon tab's Station group
+// for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at. The Help group (SettingsHelp) follows the Update check group, and the About group (SettingsAbout) is the last.
@@ -69,7 +69,7 @@ function frequencyHint(text: string): string {
   const form = statusFrequencyHint(text);
   return form === null ? "" : t("settings.station_status.hint", { freq: form });
 }
-/** A field the Beacon tab greys out while the beacon is Off (shown, with its value, and not changeable). */
+/** A field the My station tab greys out while the beacon is Off (shown, with its value, and not changeable). */
 const greyed = (key: string): boolean => props.scope === "beacon" && disabledByValues(key, draft);
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
@@ -104,7 +104,7 @@ function editSymbol(text: string): void {
   settings.edit(SYMBOL_TABLE, text.slice(0, 1));
   settings.edit(SYMBOL_CODE, text.slice(1, 2));
 }
-// a place picked on the map (the Beacon tab's Choose on map) is our station's latitude and longitude, sent together
+// a place picked on the map (the My station tab's Choose on map) is our station's latitude and longitude, sent together
 watch(
   () => props.picked,
   (at) => {

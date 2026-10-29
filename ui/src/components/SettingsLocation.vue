@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Our station's place in the Station group of the Beacon tab: the Location control (components/LocationField.vue) with the place in force as its text and the latitude and longitude behind it. A pick applies both at once (the form does that); typed coordinates, or a locator,
+// Our station's place in the Station group of the My station tab: the Location control (components/LocationField.vue) with the place in force as its text and the latitude and longitude behind it. A pick applies both at once (the form does that); typed coordinates, or a locator,
 // apply together when focus leaves the pair and both are right (the fields say `commit` and the form waits for the pair).
 import LocationField, { type LocationPart } from "@/components/LocationField.vue";
 import { placeOfText } from "@/lib/locator";

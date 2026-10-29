@@ -185,7 +185,7 @@ describe("the Help group", () => {
 });
 
 describe("the Help group in the Settings tab", () => {
-  it("is the group before About, after Update check, and the Beacon tab has none", () => {
+  it("is the group before About, after Update check, and the My station tab has none", () => {
     const settings = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon() });
     const titles = settings.findAll("form > fieldset").map((f) => f.find("legend").text());
     expect(titles.slice(-3)).toEqual(["Update check", "Help", "About"]);

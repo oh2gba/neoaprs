@@ -28,7 +28,7 @@ describe("App: the Bulletins tab", () => {
         "Email",
         "Bulletins",
         "Objects",
-        "Beacon",
+        "My station",
         "Packets",
         "Settings",
       ]);

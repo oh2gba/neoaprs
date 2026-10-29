@@ -50,7 +50,7 @@ def test_a_fresh_computer_has_warnings_with_their_fixes_and_no_failure(tmp_path:
     assert any("does not exist yet" in line for line in lines_of(out, "ok"))
     assert any("no database yet" in line for line in lines_of(out, "ok"))
     text = out
-    assert "no call is set" in text and "fix: set your call on the page (Beacon tab, Call)" in text
+    assert "no call is set" in text and "fix: set your call on the page (My station tab, Call)" in text
     assert "/dev/ttyUSB0  FT232R USB UART  VID:PID 0403:6001" in text
     assert "no base map yet" in text and "fix: make it on the page" in text
     assert "the service is not set up" in text and "fix: neoaprs service install" in text

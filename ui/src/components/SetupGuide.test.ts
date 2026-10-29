@@ -223,7 +223,7 @@ describe("SetupGuide: the position", () => {
   });
 });
 
-describe("SetupGuide: the position, with the Location control of the Beacon tab", () => {
+describe("SetupGuide: the position, with the Location control of the My station tab", () => {
   async function onPosition(extra: Record<string, string> = {}) {
     const made = make({ config: fresh(extra) });
     await made.type("setup-call", "oh2abc");

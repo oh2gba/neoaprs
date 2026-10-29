@@ -26,7 +26,7 @@ describe("the language of the page", () => {
     expect(wrapper.find("label[for='language']").text()).toMatch(/^\[!! .* !!\]$/);
   });
 
-  it("is not on the Beacon tab, which shows the settings of the beacon only", async () => {
+  it("is not on the My station tab, which shows the settings of the beacon only", async () => {
     localStorage.setItem("NeoAPRS.tab", "beacon");
     const { wrapper } = await open();
     expect(wrapper.find("#pane-beacon #language").exists()).toBe(false);

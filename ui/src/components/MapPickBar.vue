@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A phone shows the map alone while a place is picked on it (the Beacon tab's and the Objects tab's Choose on map): this bar over the map says what to do and has Cancel, which ends the picking and brings the tab back.
+// A phone shows the map alone while a place is picked on it (the My station tab's and the Objects tab's Choose on map): this bar over the map says what to do and has Cancel, which ends the picking and brings the tab back.
 import { t } from "@/i18n";
 
 const emit = defineEmits<{ cancel: [] }>();

@@ -56,7 +56,7 @@ describe("SettingsForm", () => {
       "Help",
       "About",
     ]);
-    const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the Beacon tab's)
+    const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the My station tab's)
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
       "tcp/port",
@@ -106,7 +106,7 @@ describe("SettingsForm", () => {
     expect(wrapper.findAll(".field label").map((l) => l.text())).toEqual(["Call", "Position", "Symbol", "Beacon", "Comment", "Power", "Path", "Status"]);
   });
 
-  describe("the position choice of the Station group of the Beacon tab", () => {
+  describe("the position choice of the Station group of the My station tab", () => {
     const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
     const labels = (wrapper: ReturnType<typeof make>["wrapper"], title = "Station") =>
       group(wrapper, title)
@@ -353,7 +353,7 @@ describe("SettingsForm", () => {
     });
   });
 
-  describe("the Beacon group of the Beacon tab", () => {
+  describe("the Beacon group of the My station tab", () => {
     const group = (wrapper: ReturnType<typeof make>["wrapper"], title: string) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === title);
     const folds = (wrapper: ReturnType<typeof make>["wrapper"]) => group(wrapper, "Beacon")?.findAll("details.disclosure") ?? [];
 
@@ -451,7 +451,7 @@ describe("SettingsForm", () => {
     });
   });
 
-  it("has a link at the top of the Settings tab which asks for the first-run guide, and none on the Beacon tab", async () => {
+  it("has a link at the top of the Settings tab which asks for the first-run guide, and none on the My station tab", async () => {
     const { wrapper } = make();
     const setup = wrapper.find("button.setup-open");
     expect(setup.text()).toBe("Run the setup guide again");
@@ -994,7 +994,7 @@ describe("SettingsForm", () => {
       expect(cssRule(".settings legend")).toMatch(/font-weight:\s*600/);
       expect(cssRule(".settings fieldset.subbox")).toMatch(/margin:/);
     });
-    it("is not in the Beacon tab", () => {
+    it("is not in the My station tab", () => {
       expect(make({}, "beacon").wrapper.text()).not.toContain("On the NeoAPRS computer");
     });
   });
@@ -1104,7 +1104,7 @@ describe("SettingsForm", () => {
     const beside = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper.find("#set-messages-alert_command").element.closest(".field")?.querySelector("[role='status']");
 
-    it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the Beacon tab", () => {
+    it("is right of the alert command, and of no other field but the update check's and the (i) of the digipeater, and not in the My station tab", () => {
       alertWithBoth();
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
@@ -1246,7 +1246,7 @@ describe("SettingsForm", () => {
   });
 });
 
-describe("SettingsForm: the Location of our station (Beacon tab)", () => {
+describe("SettingsForm: the Location of our station (My station tab)", () => {
   type Wrapper = ReturnType<typeof make>["wrapper"];
   const pick = (wrapper: Wrapper) => wrapper.find<HTMLButtonElement>("button.location-pick");
   const place = (wrapper: Wrapper) => wrapper.find<HTMLButtonElement>("button.location-place");
@@ -1271,7 +1271,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
     expect(order.slice(0, 4)).toEqual(["Call", "Position", "Location", "Symbol"]);
   });
 
-  it("is only on the Beacon tab", () => {
+  it("is only on the My station tab", () => {
     expect(make().wrapper.find(".location-field").exists()).toBe(false);
   });
 
@@ -1374,7 +1374,7 @@ describe("SettingsForm: the Location of our station (Beacon tab)", () => {
   });
 });
 
-describe("SettingsForm: the beacon Off (Beacon tab)", () => {
+describe("SettingsForm: the beacon Off (My station tab)", () => {
   const STATION = [
     "set-station-call",
     "set-gps-source",
@@ -1490,7 +1490,7 @@ describe("SettingsForm: the beacon Off (Beacon tab)", () => {
 });
 
 describe("SettingsForm: the RX only tickbox", () => {
-  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while transmitting is off (station/transmit false), and is not on the Beacon tab", () => {
+  it("is the first row of the Radio group of the Settings tab, a tickbox with its (i), ticked while transmitting is off (station/transmit false), and is not on the My station tab", () => {
     for (const [value, checked] of [
       ["true", false],
       ["false", true],

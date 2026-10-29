@@ -1,4 +1,4 @@
-// The settings area drawn in the pseudo-locale (src/i18n/pseudo.ts): every word of the Settings tab, the Beacon tab's settings, the first-run guide, the guides for pop-ups, the certificate and the update, and the small panels, with the
+// The settings area drawn in the pseudo-locale (src/i18n/pseudo.ts): every word of the Settings tab, the My station tab's settings, the first-run guide, the guides for pop-ups, the certificate and the update, and the small panels, with the
 // parts that show only sometimes switched on (the access key, the secure connection, the search for the radio, a map on disk). A text that still equals an English message of the catalogue was written by hand, not taken from it.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -134,7 +134,7 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(document.body)).toEqual([]);
   });
 
-  it("draws the Beacon tab with its folds and its status", async () => {
+  it("draws the My station tab with its folds and its status", async () => {
     const context = daemon({ "beacon/power_w": "5", "status/source": "rig", "beacon/interval_min": "30" });
     setLocale("en-XA");
     const wrapper = mount(BeaconPane, { global: withDaemon(context), attachTo: document.body });

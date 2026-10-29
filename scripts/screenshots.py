@@ -98,7 +98,7 @@ async def start_gps_replay() -> asyncio.subprocess.Process:
     env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
     with socket.socket() as probe:
         try:
-            probe.bind((demoscene.HOST, GPSD_PORT))                  # (gpsd's own port when it is free, as the Beacon tab then shows what a gpsd user knows, else any free one)
+            probe.bind((demoscene.HOST, GPSD_PORT))                  # (gpsd's own port when it is free, as the My station tab then shows what a gpsd user knows, else any free one)
             port = GPSD_PORT
         except OSError:
             port = 0
@@ -421,7 +421,7 @@ async def shot_beacon(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_de(s: Shots, _: str) -> None:
-    """The Beacon tab of a browser that speaks German: the page starts in the browser's language (seven are there)."""
+    """The My station tab of a browser that speaks German: the page starts in the browser's language (seven are there)."""
     await s.since_start(45)
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, locale="de-DE")
     await page.locator("#pane-beacon summary").filter(has_text="Erweitert").click()
@@ -488,14 +488,14 @@ async def shot_settings_tnc(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_rx(s: Shots, _: str) -> None:
-    """The Beacon tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block has its pill off in the warn colour and says RX only: nothing is sent, and what belongs to the beacon is grey."""
+    """The My station tab of a station that is set to RX only (the daemon's setting station/transmit: the amber badge in the header, beside the title) and has the Beacon Off: the status block has its pill off in the warn colour and says RX only: nothing is sent, and what belongs to the beacon is grey."""
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, url=s.receive_url)
     await settle(page, 400)
     await s.save(page, "beacon-rx")
 
 
 async def shot_phone_beacon_rx(s: Shots, _: str) -> None:
-    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the Beacon tab with its status block saying RX only: nothing is sent and the fields of the beacon grey."""
+    """A phone set to RX only with the Beacon Off: the amber badge beside the title and, under the tab bar, the My station tab with its status block saying RX only: nothing is sent and the fields of the beacon grey."""
     page = await s.page(PHONE, tab="beacon", view=CITY, phone_view="panel", url=s.receive_url)
     await s.save(page, "phone-beacon-rx")
 
@@ -512,7 +512,7 @@ async def shot_nearby(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_gps(s: Shots, _: str) -> None:
-    """The Beacon tab of a moving station: Position is A GPS via gpsd (its address under it), the status block has the GPS with its fix and the line of SmartBeaconing under it, the Beacon choice is On (SmartBeaconing) and Travelling By car; our own station drives round a block on the map (the gpsd is `neoaprs gps-replay`)."""
+    """The My station tab of a moving station: Position is A GPS via gpsd (its address under it), the status block has the GPS with its fix and the line of SmartBeaconing under it, the Beacon choice is On (SmartBeaconing) and Travelling By car; our own station drives round a block on the map (the gpsd is `neoaprs gps-replay`)."""
     await s.since_start(80)
     page = await s.page(DESKTOP, tab="beacon", view=GPS_VIEW, panel=WIDE_PANEL, url=s.moving_url)
     await settle(page, 600)

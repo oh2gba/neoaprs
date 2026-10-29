@@ -34,7 +34,7 @@ describe("App: the Settings tab", () => {
     expect(wrapper.find("[aria-selected='true']").text()).toContain("Settings");
   });
 
-  it("has the map's radius on the Settings tab and the station and beacon keys on the Beacon tab, none twice", async () => {
+  it("has the map's radius on the Settings tab and the station and beacon keys on the My station tab, none twice", async () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "state", topic: "config", rev: 1, value: configValues() });
     await flushPromises();
@@ -64,7 +64,7 @@ describe("App: the Settings tab", () => {
     const told = (socket: FakeSocket, changes: Record<string, string>) =>
       socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ ...changes }) });
 
-    it("has one queue for the Settings tab and the Beacon tab: the second change waits for the answer to the first", async () => {
+    it("has one queue for the Settings tab and the My station tab: the second change waits for the answer to the first", async () => {
       const { wrapper, socket } = await open();
       await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
       await wrapper.find("#pane-beacon #set-beacon-path").setValue("custom");
