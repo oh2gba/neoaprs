@@ -182,7 +182,7 @@ async def test_a_whole_daemon_handed_packets_from_the_internet_that_ask_for_ever
     await idle_for(0.3)
     assert await e.heard(1, timeout_sec=0.3) == b"", "nothing was transmitted: no ack, no answer, no repeat"
     assert e.ctl.messaging.records() == [] and e.ctl.bulletins.records() == []
-    assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until is None
+    assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until == {}
     book = e.ctl.stationbook.get("OH2RDG-7")
     assert book is not None and (book.heard_is, book.heard_rf, book.heard_rf_gated, book.internet_only, book.can_message) == (len(asks), 0, 0, True, False)
     assert len(await e.packets()) == len(asks) + 1 and {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"
@@ -221,7 +221,7 @@ async def test_a_whole_daemon_whose_connection_reads_packets_that_ask_for_everyt
     await idle_for(0.3)
     assert await e.heard(1, timeout_sec=0.3) == b"", "nothing was transmitted: no ack, no answer, no repeat"
     assert e.ctl.messaging.records() == [] and e.ctl.bulletins.records() == []
-    assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until is None
+    assert len(e.ctl.digipeater._seen) == 0 and e.ctl.queries._general_until == {}
     book = e.ctl.stationbook.get("OH2RDG-7")
     assert book is not None and (book.heard_is, book.heard_rf, book.internet_only, book.can_message) == (len(asks), 0, True, False)
     assert {p.via for p in await e.packets()} == {IS}, "the packet log kept them all, as from the internet"

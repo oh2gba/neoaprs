@@ -24,8 +24,20 @@ not answered. The answer is our position packet and then our status report (the 
 not again within GENERAL_EVERY_SEC of the last time it was taken. Every
 answer goes by the path of the asker (the station preferences, else `beacon/path`) as frames of our own; none is a message of messaging, none is retried.
 
-The general queries `?WX?` (the weather report of a weather station) and `?IGATE?` (the capabilities of an IGate) are recognised and never answered: NeoAPRS has no weather report of its own to send and is no IGate, and
-"a queried station that has no relevant information need not respond" (APRS 1.0.1, chapter 15). Each is a line in the log at DEBUG, and the packet is an ordinary `?` packet of the packet log, not an undecoded one."""
+The general query `?IGATE?` (the capabilities of an iGate) is taken as ?APRS? is, by the same rules with a GENERAL_EVERY_SEC of its own, footprint and all (the specification's general query has one form for
+every kind), but only while our iGate (services/igate.py) is `connected`: switched on, logged in and verified, so that it gates what the radio hears. Off, still connecting, or logged in read only (no passcode, or
+one the server did not accept: it only listens) it is no iGate and the query is not answered, a line in the log at DEBUG; that is asked again when the wait is over, before anything is sent. The answer is one
+station capabilities packet (data type `<`, APRS 1.0.1 chapter 15), `capabilities_info`:
+
+    <IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812
+
+MSG_CNT, the messages gated from APRS-IS to the radio, is always 0: the iGate is receive only and nothing of the internet is ever sent on the air. LOC_CNT, the "local" stations, is the stations heard direct within
+DIRECT_WINDOW (the last hour: those ?APRSD lists, not us, not an object), counted when the answer goes. UPL_CNT, one of the counts Dire Wolf adds, is the packets the iGate has put on APRS-IS since the daemon
+started (`Igate.gated`); Dire Wolf's others (PKT_CNT, DIR_CNT, RF_CNT, DNL_CNT) are not sent, for nothing here counts them as Dire Wolf does. A message with the text ?IGATE? is not answered, as one with
+?APRS? is not.
+
+The general query `?WX?` (the weather report of a weather station) is recognised and never answered: NeoAPRS has no weather report of its own to send, and "a queried station that has no relevant information
+need not respond" (APRS 1.0.1, chapter 15). It is a line in the log at DEBUG, and the packet is an ordinary `?` packet of the packet log, not an undecoded one."""
 import asyncio
 import logging
 import random
@@ -53,17 +65,18 @@ from neoaprs.units import MILE_KM
 log = logging.getLogger("neoaprs.queries")
 
 GENERAL = "?APRS?"
+IGATE_QUERY = "?IGATE?"
 GENERAL_DELAY_MAX_SEC = 120.0
 GENERAL_EVERY_SEC = 600.0
 DIRECT_WINDOW = timedelta(hours=1)
 MAX_DIRECT_MESSAGES = 2
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
-_FOOTPRINT = re.compile(rf"\?APRS\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
+_FOOTPRINT = re.compile(rf"\?(?:APRS|IGATE)\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
 _DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING": "path", "?APRSO": "objects", "?APRSM": "messages"}     # by the text without a trailing "?" (?PING? is written with one; a radio may add one to the others)
 _PACED = ("objects", "messages")                                          # the answers of several frames, sent SPACING_SEC apart
 HEARD_HOURS = 8
 _HEARD = re.compile(r"\?APRSH\s*([A-Z0-9-]{1,9})?")
-_NOT_ANSWERED = ("?WX?", "?IGATE?")                                        # general queries of the specification that we have nothing to answer
+_NOT_ANSWERED = ("?WX?",)                                                  # the general query of the specification that we have nothing to answer
 _UNSETTLED = ("sending", "failed", "unconfirmed")
 
 
@@ -81,6 +94,13 @@ class Stations(Protocol):
 class HeardLog(Protocol):
     """What the queries need of the packet log (neoaprs/packetlog.py)."""
     async def heard_since(self, call: str, when: datetime) -> list[datetime]: ...
+
+
+class IgateCounts(Protocol):
+    """What the queries need of the iGate (services/igate.py): its state (`connected` while it gates) and how many packets it has put on APRS-IS."""
+    @property
+    def state(self) -> str: ...
+    gated: int
 
 
 class Objects(Protocol):
@@ -140,21 +160,28 @@ class Footprint:
         return distance_km(self.lat, self.lon, lat, lon) / MILE_KM <= self.miles
 
 
-def _is_general(text: str) -> bool:
-    return text.strip().upper().startswith(GENERAL)
+def general_kind(text: str) -> str | None:
+    """The general query we answer that the text is (GENERAL or IGATE_QUERY), None for any other."""
+    head = text.strip().upper()
+    return next((kind for kind in (GENERAL, IGATE_QUERY) if head.startswith(kind)), None)
 
 
 def footprint_of(text: str) -> Footprint | None:
-    """The footprint a general query carries, None for the plain `?APRS?`; ValueError when what follows the `?APRS?` is not a footprint or the degrees are not on the earth."""
+    """The footprint a general query (`?APRS?` or `?IGATE?`) carries, None for the plain query; ValueError when what follows the query is not a footprint or the degrees are not on the earth."""
     found = _FOOTPRINT.fullmatch(text.strip())
     if found is None:
-        raise ValueError(f"{text.strip()!r} is not ?APRS? with a footprint")
+        raise ValueError(f"{text.strip()!r} is not a general query with a footprint")
     if found.group(1) is None:
         return None
     lat, lon = float(found.group(1)), float(found.group(2))
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         raise ValueError(f"the footprint {lat:g}, {lon:g} is not on the earth")
     return Footprint(lat, lon, int(found.group(3)))
+
+
+def capabilities_info(local: int, uploaded: int) -> bytes:
+    """The information field of our answer to ?IGATE?: `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812` (MSG_CNT 0, for nothing of APRS-IS is gated to the radio)."""
+    return f"<IGATE,MSG_CNT=0,LOC_CNT={local},UPL_CNT={uploaded}".encode("ascii")
 
 
 def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
@@ -177,7 +204,7 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 class Queries:
     def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,
-                 spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None) -> None:
+                 spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None) -> None:
         self._config = config
         self._answers = Answers(tnc, config, paths, spacing_sec)
         self._beacon = beacon
@@ -186,7 +213,8 @@ class Queries:
         self.clock = clock
         self._delay = delay                                     # how long the answer to the general query waits
         self._objects, self._messages, self._heard = objects, messages, heard
-        self._general_until: datetime | None = None             # no general query is taken before this
+        self._igate = igate                                     # ?IGATE? is answered only while it is connected (None: never)
+        self._general_until: dict[str, datetime] = {}           # no general query of the kind (GENERAL, IGATE_QUERY) is taken before this
 
     async def stop(self) -> None:
         """An answer that is waiting is not sent."""
@@ -202,8 +230,8 @@ class Queries:
             if decoded.ack_id is None and decoded.rej_id is None and addressed_to(decoded.addressee, self._config().station_call):
                 self._to_us(packet, decoded.text.strip().upper())
         elif isinstance(decoded, Other) and decoded.kind == "query":
-            if _is_general(decoded.text):
-                self._general(packet, decoded.text)
+            if (kind := general_kind(decoded.text)) is not None:
+                self._general(packet, decoded.text, kind)
             elif decoded.text.strip().upper().startswith(_NOT_ANSWERED):
                 log.debug("the general query %s of %s has nothing to be answered with here", decoded.text.strip(), packet.sender)
 
@@ -273,10 +301,14 @@ class Queries:
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, packet.sender, e)
 
-    # ---- ?APRS?
-    def _general(self, packet: Packet, text: str) -> None:
-        """?APRS?: our position and status after a random wait when we are inside its footprint (if it has one), and no second one before GENERAL_EVERY_SEC has passed."""
+    # ---- ?APRS? and ?IGATE?
+    def _general(self, packet: Packet, text: str, kind: str) -> None:
+        """?APRS? (our position and status) or ?IGATE? (our capabilities, only while the iGate gates) after a random wait when we are inside its footprint (if it has one), and no second one of the kind
+        before GENERAL_EVERY_SEC has passed."""
         if self._answers.refused():
+            return
+        if kind == IGATE_QUERY and (why := self._no_igate()):
+            log.debug("the general query %s of %s is not answered: %s", IGATE_QUERY, packet.sender, why)
             return
         try:
             footprint = footprint_of(text)
@@ -287,20 +319,35 @@ class Queries:
         if footprint is not None and (c.station_position is None or not footprint.contains(*c.station_position)):
             log.debug("the general query of %s is for a footprint we are not in", packet.sender)
             return
-        if self._general_until is not None and packet.heard_at < self._general_until:
-            log.debug("the general query of %s is not taken: one was taken less than %d s ago", packet.sender, GENERAL_EVERY_SEC)
+        until = self._general_until.get(kind)
+        if until is not None and packet.heard_at < until:
+            log.debug("the general query %s of %s is not taken: one was taken less than %d s ago", kind, packet.sender, GENERAL_EVERY_SEC)
             return
-        self._general_until = packet.heard_at + timedelta(seconds=GENERAL_EVERY_SEC)
+        self._general_until[kind] = packet.heard_at + timedelta(seconds=GENERAL_EVERY_SEC)
         delay = self._delay()
-        log.info("the general query of %s: our position and status go out in %.0f s", packet.sender, delay)
-        self._answers.tasks.spawn(self._later(delay, packet.sender), "query-general")
+        log.info("the general query %s of %s: our %s go out in %.0f s", kind, packet.sender, "position and status" if kind == GENERAL else "capabilities", delay)
+        self._answers.tasks.spawn(self._later(delay, packet.sender, kind), "query-general")
 
-    async def _later(self, delay: float, asker: str) -> None:
+    def _no_igate(self) -> str:
+        """Why we are no iGate to answer ?IGATE? now; empty while the iGate is connected (on, logged in and verified: it gates)."""
+        if self._igate is None:
+            return "there is no iGate"
+        state = self._igate.state
+        return "" if state == "connected" else f"the iGate is {state}"
+
+    async def _later(self, delay: float, asker: str, kind: str) -> None:
         await asyncio.sleep(delay)
         if self._answers.refused():
             return
         try:
-            frames = [self._beacon.frame(), self._status()]
+            if kind == IGATE_QUERY:
+                if why := self._no_igate():
+                    log.debug("the general query %s of %s is not answered: %s", IGATE_QUERY, asker, why)
+                    return
+                assert self._igate is not None
+                frames: list[ax25.Frame | None] = [our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))]
+            else:
+                frames = [self._beacon.frame(), self._status()]
             for frame in frames:
                 if frame is not None and not self._answers.send(asker, frame):
                     break

@@ -1,5 +1,5 @@
-"""?APRSH and the general queries that are never answered (neoaprs/services/queries.py): the hours a station was heard in, told from the packet log; the station never heard; the forms of the query; and `?WX?` and
-`?IGATE?`, which pass without an answer and without a word above DEBUG."""
+"""?APRSH and the general query that is never answered (neoaprs/services/queries.py): the hours a station was heard in, told from the packet log; the station never heard; the forms of the query; and `?WX?`,
+which passes without an answer and without a word above DEBUG (`?IGATE?`, answered while the iGate gates, is tests/test_queries_igate.py's)."""
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -142,7 +142,7 @@ async def test_the_packet_log_gives_the_times_a_station_was_heard_and_not_those_
     assert await log.heard_since("OH2NOBODY", now - timedelta(hours=8)) == []
 
 
-# ---- ?WX? and ?IGATE? ----------------------------------------------------------------------------------------------------------------------------
+# ---- ?WX? ---------------------------------------------------------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("info", [b"?WX?", b"?IGATE?", b"?WX?V60.17,24.94,0100", b"?wx?"])
 def test_the_parser_reads_a_general_query_as_a_query_and_not_as_undecoded(info: bytes) -> None:
@@ -150,8 +150,8 @@ def test_the_parser_reads_a_general_query_as_a_query_and_not_as_undecoded(info: 
     assert isinstance(decoded, Other) and decoded.kind == "query" and not isinstance(decoded, Undecoded)
 
 
-@pytest.mark.parametrize("text", ["?WX?", "?IGATE?", "?WX?V60.17,24.94,0100", "?IGATE? "])
-async def test_wx_and_igate_are_recognised_logged_at_debug_and_never_answered(text: str, caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize("text", ["?WX?", "?WX?V60.17,24.94,0100", "?WX? "])
+async def test_wx_is_recognised_logged_at_debug_and_never_answered(text: str, caplog: pytest.LogCaptureFixture) -> None:
     rig = Rig()
     rig.status_text = "QRV"
     with caplog.at_level(logging.DEBUG, logger="neoaprs.queries"):
