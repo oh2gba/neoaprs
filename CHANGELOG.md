@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.5
+
 A review of the whole program against the APRS specification and its own rules: bug fixes on the air, in the station book, in the radio's port handling and on the page, and a tidier code base; nothing new to set up.
 
 - **Fixed:** a message sent or received after a whole conversation was deleted could show no unread count and raise no alert: the database gave it the number of a deleted message, which the page had already marked as read. A number is never given twice now, and the page starts over when the daemon's numbers are below what it remembers (a restored database).
