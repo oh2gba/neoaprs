@@ -88,7 +88,8 @@ def main(argv: list[str]) -> int:
             return 1
     url = wait_for_page(data, child, args.timeout)
     if url is None:
-        why = f"the daemon ended with exit code {child.returncode} (what it said before it had a log is in {data / LAUNCH_NAME})" if child is not None and child.poll() is not None else f"no page within {args.timeout:g} s (is the port taken? see the log)"
+        before = "" if sys.platform == "win32" else f" (what it said before it had a log is in {data / LAUNCH_NAME})"
+        why = f"the daemon ended with exit code {child.returncode}{before}" if child is not None and child.poll() is not None else f"no page within {args.timeout:g} s (is the port taken? see the log)"
         tell_the_user(f"open: NeoAPRS did not come up: {why}. The log is {data / LOG_NAME}")
         return 1
     print(url, flush=True)

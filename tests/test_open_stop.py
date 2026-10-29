@@ -249,7 +249,11 @@ def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_
         wait_until(said, name)
     log = log_with_filler.read_text(encoding="utf-8")
     assert log.count("'first-evil.example' was refused") == 1 and log.count("'second-evil.example' was refused") == 1, "(a daemon that was started by a command did not write its stderr into the log)"
-    assert not [line for line in (data / LAUNCH_NAME).read_text(encoding="utf-8").splitlines() if "was refused" in line]
+    launch = data / LAUNCH_NAME
+    if sys.platform == "win32":
+        assert not launch.exists(), "(a daemon without a console writes nothing before it has its log)"
+    else:
+        assert not [line for line in launch.read_text(encoding="utf-8").splitlines() if "was refused" in line]
     assert command("stop", "--data", str(data)).returncode == 0
     assert not (data / PAGE_FILE).exists()
 
