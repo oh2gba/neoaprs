@@ -4,6 +4,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 
+from neoaprs.aprsisline import parse_is_line
 from neoaprs.clock import iso
 from neoaprs.packetlog import PacketLog
 from neoaprs.store import DB_NAME
@@ -87,3 +88,19 @@ async def test_the_page_that_asks_for_a_station_is_answered_with_its_counts_and_
     await page.send({"cmd": "packet_history", "hours": 3, "call": ""})
     assert (await page.expect("error"))["cmd"] == "packet_history"
     await e.stop()
+
+
+async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor_their_speeds_read(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    top = T0.replace(minute=0, second=0, microsecond=0)
+    assert log.append(position(top - timedelta(minutes=30)))                                                                      # heard on the air
+    assert log.append(parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E>090/050from the internet", top - timedelta(minutes=20)))   # the same station over APRS-IS, with a speed
+    assert log.append(parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-only the internet", top - timedelta(minutes=10)))
+    since = top - timedelta(hours=1)
+    assert await log.heard_by_hour(since) == {top - timedelta(hours=1): 3}
+    assert await log.heard_by_hour(since, internet=False) == {top - timedelta(hours=1): 1}, "only what the radio heard"
+    assert await log.heard_by_hour(since, "OH2RDG", internet=False) == {top - timedelta(hours=1): 1}
+    assert await log.heard_by_hour(since, "OH7XYZ", internet=False) == {}
+    assert [round(kmh) for _, kmh in await log.speeds("OH2RDG", since)] == [93]
+    assert await log.speeds("OH2RDG", since, internet=False) == [], "the speed came over APRS-IS"
