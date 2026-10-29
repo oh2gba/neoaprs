@@ -38,10 +38,12 @@ async def speed_series(ctx: Ctx, cmd: SpeedSeries) -> None:
 @command(PositionHistory)
 async def position_history(ctx: Ctx, cmd: PositionHistory) -> None:
     """Where the stations were over the last hours, for the replay of the map: the positions of the packet log, thinned by the span (neoaprs/web/views.py), to the page that asked. The replay begins at the
-    oldest packet the log keeps when the span reaches back further, so that its slider does not run over days of nothing."""
+    oldest packet the log keeps when the span reaches back further, so that its slider does not run over days of nothing. While `igate/enabled` is off it shows what the stations topic does, no packet that
+    came from APRS-IS: the log keeps them for LOG_KEEP_DAYS after the switch went off, and they are left out in the reading."""
     end = ctx.ctl.clock()
     start = end - timedelta(hours=cmd.hours)
     metres, seconds = replay_thinning(cmd.hours)
-    found = await ctx.ctl.packetlog.position_history(start, ctx.ctl.config.station_call, lambda: Thinning(metres, seconds))
+    config = ctx.ctl.config
+    found = await ctx.ctl.packetlog.position_history(start, config.station_call, lambda: Thinning(metres, seconds), internet=config.igate_enabled)
     begins = start if found.begins is None else max(start, found.begins)
     ctx.conn.send({"type": "position_history", "hours": cmd.hours, "start": iso(begins), "end": iso(end), "stations": replay_tracks(found.tracks)})

@@ -165,18 +165,19 @@ class PacketLog(DbLog):
                 found.append((d.name, packet.heard_at, d.position.lat, d.position.lon))
         return found
 
-    async def position_history(self, since: datetime, own_call: str, thinning: Callable[[], Thinning], count: int = HISTORY_READ) -> History:
+    async def position_history(self, since: datetime, own_call: str, thinning: Callable[[], Thinning], count: int = HISTORY_READ, internet: bool = True) -> History:
         """Where the stations were from `since` on, for the replay of the map (`position_history`): the positions heard and those we sent under `own_call` (our beacons, our objects), by station (the sender,
         the one inside a third-party packet, or the name of a live object or item, as for the tracks), each track thinned as it is read (`thinning` makes the Thinning of one, neoaprs/geo.py), so that a week of a
-        busy feed is never held whole. At most the latest `count` packets are read; `begins` says from when the tracks are whole: the time of the first packet read when there were more, or else the oldest
-        packet the log keeps (null for an empty log)."""
+        busy feed is never held whole. With `internet` false (Internet stations off) the packets that came from APRS-IS are not read, so that the count and the thinning are of what is shown: a station heard
+        both ways keeps the positions the radio heard. At most the latest `count` packets are read; `begins` says from when the tracks are whole: the time of the first packet read when there were more, or
+        else the oldest packet the log keeps (null for an empty log)."""
         text = stamp(since)
 
         def read(conn: Connection) -> History:
-            cut = located_from(conn, text, own_call, count)
+            cut = located_from(conn, text, own_call, count, internet)
             tracks: dict[str, Thinning] = {}
             first: str | None = None
-            for heard_at, source, name, lat, lon, raw, via in located_since(conn, text, own_call, cut):
+            for heard_at, source, name, lat, lon, raw, via in located_since(conn, text, own_call, cut, internet):
                 first = first or str(heard_at)
                 try:
                     station = str(name) if name else _sender(str(source), raw, str(via))

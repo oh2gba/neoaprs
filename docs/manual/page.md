@@ -147,6 +147,8 @@ It plays from the start of the span as soon as the positions have come and stops
 
 While it is open the live markers, tracks and route give way: each station heard with a position in the span is drawn where it was at the time of the replay, with its symbol and call, from its first position on, and stays at its last. A station moves along the line between two positions up to 15 minutes apart; across a longer silence it waits, then jumps. Behind it its trail fades over a quarter of the span. Objects and items are there by their names, your own station by your call (the positions you sent, and those of your objects).
 
+While Settings → Internet stations is off the replay has nothing from APRS-IS, though the daemon still keeps what came from there while it was on: only what was heard on the radio (an iGate's packets too: they were on the air), as the map and the Stations tab show. Turning it on or off while the replay is open asks for the replay again, and it plays on from the same time.
+
 The cross or Esc closes it, and the map is live again as it was. The station cards and the statistics card stand above the bar while it is open.
 
 The daemon keeps packets for 7 days, so a span that reaches back further than the oldest packet it has (a daemon that started two days ago, asked for a week) simply begins at that packet: the slider starts there.

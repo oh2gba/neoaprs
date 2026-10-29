@@ -75,26 +75,32 @@ def radio_position_packets(db: sqlite3.Connection, stamp: str, count: int) -> li
 _LOCATED = "(direction = 'in' OR source = ?) AND kind IN ('position', 'object', 'item') AND heard_at >= ?"
 
 
-def located_from(db: sqlite3.Connection, stamp: str, own: str, count: int) -> str | None:
-    """Where the latest `count` packets at or after `stamp` that carry a position (heard, or sent under our call `own`) begin: the time of the packet just before them, null when there are no more than
-    `count`. By the index of the times, newest first, so that a short span does not read the week the log keeps."""
-    row = db.execute(f"SELECT heard_at FROM packet WHERE {_LOCATED} ORDER BY heard_at DESC LIMIT 1 OFFSET ?", (own, stamp, max(0, count))).fetchone()
+def _located(internet: bool) -> str:
+    """The packets that carry a position, heard or sent under our call; without those that came from APRS-IS when `internet` is false (a packet heard on the radio stays, a third-party one an iGate put on
+    the air too: it was on the air near us)."""
+    return _LOCATED if internet else f"{_LOCATED} AND via != 'is'"
+
+
+def located_from(db: sqlite3.Connection, stamp: str, own: str, count: int, internet: bool = True) -> str | None:
+    """Where the latest `count` packets at or after `stamp` that carry a position (heard, or sent under our call `own`; none from APRS-IS when `internet` is false) begin: the time of the packet just before
+    them, null when there are no more than `count`. By the index of the times, newest first, so that a short span does not read the week the log keeps."""
+    row = db.execute(f"SELECT heard_at FROM packet WHERE {_located(internet)} ORDER BY heard_at DESC LIMIT 1 OFFSET ?", (own, stamp, max(0, count))).fetchone()
     return None if row is None else str(row[0])
 
 
-def located_since(db: sqlite3.Connection, stamp: str, own: str, after: str | None = None) -> sqlite3.Cursor:
-    """(heard_at, source, name, lat, lon, raw, via) of the packets at or after `stamp` (and after `after`, when given) that carry a position, the oldest first, as a cursor to go through row by row: those heard,
-    and those sent under our call `own` (our beacons and our objects; not the copies of other stations' packets the digipeater sent). An object or item that was killed is left out. `name` is the object's or
-    item's (null for a position); the place is read from the JSON of the decoded packet here, so that a week of positions is not decoded in Python one by one. `raw` is only given for a packet that may be a
-    third-party one (its information field begins with `}`: the frame has it after the control and protocol bytes 03 F0, a line of APRS-IS after a colon), whose sender is the station inside it; for any other
-    it is null and the sender is the source."""
+def located_since(db: sqlite3.Connection, stamp: str, own: str, after: str | None = None, internet: bool = True) -> sqlite3.Cursor:
+    """(heard_at, source, name, lat, lon, raw, via) of the packets at or after `stamp` (and after `after`, when given) that carry a position, the oldest first, as a cursor to go through row by row: those heard
+    (none from APRS-IS when `internet` is false), and those sent under our call `own` (our beacons and our objects; not the copies of other stations' packets the digipeater sent). An object or item that was
+    killed is left out. `name` is the object's or item's (null for a position); the place is read from the JSON of the decoded packet here, so that a week of positions is not decoded in Python one by one.
+    `raw` is only given for a packet that may be a third-party one (its information field begins with `}`: the frame has it after the control and protocol bytes 03 F0, a line of APRS-IS after a colon), whose
+    sender is the station inside it; for any other it is null and the sender is the source."""
     return db.execute(
         "SELECT heard_at, source, "
         "CASE kind WHEN 'position' THEN NULL ELSE json_extract(decoded, '$.name') END AS name, "
         "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lat') ELSE json_extract(decoded, '$.position.lat') END AS lat, "
         "CASE kind WHEN 'position' THEN json_extract(decoded, '$.lon') ELSE json_extract(decoded, '$.position.lon') END AS lon, "
         "CASE WHEN instr(raw, x'03f07d') > 0 OR instr(raw, x'3a7d') > 0 THEN raw END AS raw, via "
-        f"FROM packet WHERE {_LOCATED} AND heard_at > ? AND coalesce(json_extract(decoded, '$.alive'), 1) = 1 ORDER BY heard_at", (own, stamp, after or ""))
+        f"FROM packet WHERE {_located(internet)} AND heard_at > ? AND coalesce(json_extract(decoded, '$.alive'), 1) = 1 ORDER BY heard_at", (own, stamp, after or ""))
 
 
 def oldest_packet(db: sqlite3.Connection) -> str | None:

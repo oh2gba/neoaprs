@@ -1,6 +1,7 @@
 """The positions over the last hours for the replay of the map (`position_history`, neoaprs/web/replaywire.py): the packet log finds every position heard in the span (the sender inside a third-party packet,
 an object or item by its name, a killed one left out), and ours under our call, but not the copies of others' packets the digipeater sent; the points of a station are thinned; and the page that asked is
-answered, with an error for hours out of range. A longer span is thinned more (a week of a busy feed stays a few MB), begins at the oldest packet the log keeps when it reaches back further, and its
+answered, with an error for hours out of range. While Internet stations (`igate/enabled`) is off no packet that came from APRS-IS is read, whenever it came: a station heard both ways keeps what the
+radio heard, an iGate's third-party packet heard on the radio stays, and so does ours; the count of packets read is of what is shown. A longer span is thinned more (a week of a busy feed stays a few MB), begins at the oldest packet the log keeps when it reaches back further, and its
 thinning stays inside the gap the page drives a station across."""
 import json
 from datetime import datetime, timedelta
@@ -20,7 +21,8 @@ from neoaprs.policy import LOG_KEEP_DAYS
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, MAX_HOURS, SPAN_DAYS, PositionHistoryMsg
 from neoaprs.web.views import REPLAY_THINNING, replay_thinning, replay_tracks
 from tests.support.clock import FixedClock
-from tests.support.env import Env
+from tests.support.env import Env, until
+from tests.support.fakeaprsis import fake_aprsis
 from tests.support.storedb import store_at
 from tests.support.weather import T0, heard
 
@@ -146,6 +148,51 @@ async def test_the_page_that_asked_is_answered_with_the_tracks_of_the_span(tmp_p
     await page.send({"cmd": "position_history", "hours": 24})
     await page.until(lambda: len(page.of("position_history")) == 2)
     assert page.of("position_history")[-1]["start"] == iso(now - timedelta(minutes=90)), "a span that reaches back further than the log begins at the oldest packet kept"
+    await e.stop()
+
+
+async def test_without_the_internet_the_log_reads_what_was_on_the_air_and_ours(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    minute = timedelta(minutes=1)
+    for packet in (
+        position("OH2RDG", "6010.00", T0),                                                                          # heard on the radio ...
+        parse_is_line("OH2RDG>APRS,TCPIP*,qAC,T2:!6011.00N/02456.00E-and from the internet", T0 + minute),        # ... and the same station over APRS-IS
+        position("OH2RDG", "6012.00", T0 + 2 * minute),
+        position("OH2GBA", "6013.00", T0 + 3 * minute, direction="out"),                                           # our beacon
+        heard(b")AID!6014.00N/02456.00EA aid", "OH2GBA", T0 + 4 * minute, direction="out"),                        # an item of ours
+        heard(b"}OH7ABC>APRS,TCPIP,OH2GTE*:!6015.00N/02456.00E-gated", "OH2GTE", T0 + 5 * minute),                 # an iGate put it on the air: heard on the radio
+        parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-from the internet", T0 + 6 * minute),
+        parse_is_line("OH2IGT>APRS,TCPIP*,qAR,OH2IGT:}OH7DEF>APRS,TCPIP,OH2IGT*:!6017.00N/02456.00E-inside", T0 + 7 * minute),
+    ):
+        assert log.append(packet)
+    ours = await log.position_history(T0 - minute, "OH2GBA", lambda: Thinning(0, 0), internet=False)
+    assert {station: [at - T0 for at, _, _ in points] for station, points in ours.tracks.items()} == {
+        "OH2RDG": [timedelta(0), 2 * minute], "OH2GBA": [3 * minute], "AID": [4 * minute], "OH7ABC": [5 * minute]}, "a station heard both ways keeps what the radio heard, an iGate's packet stays"
+    everything = await log.position_history(T0 - minute, "OH2GBA", lambda: Thinning(0, 0))
+    assert set(everything.tracks) == {"OH2RDG", "OH2GBA", "AID", "OH7ABC", "OH7XYZ", "OH7DEF"} and len(everything.tracks["OH2RDG"]) == 3
+    latest = await log.position_history(T0 - minute, "OH2GBA", lambda: Thinning(0, 0), count=2, internet=False)
+    assert (list(latest.tracks), latest.begins) == (["AID", "OH7ABC"], T0 + 4 * minute), "the count is of what is shown: the internet's later packets take no room"
+
+
+async def test_the_replay_shows_the_internet_only_while_internet_stations_is_on(tmp_path: Path) -> None:
+    server = await fake_aprsis()
+    e = Env(tmp_path, web=True, settings={"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"})
+    await e.start()
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    now = e.now()
+    for packet in (position("OH2RDG", "6010.00", now - timedelta(minutes=30)), position("OH2GBA", "6011.00", now - timedelta(minutes=25), direction="out"),
+                   parse_is_line("OH7XYZ>APRS,TCPIP*,qAC,T2:!6016.00N/02456.00E-from the internet", now - timedelta(minutes=20))):
+        assert e.ctl.packetlog.append(packet)
+    await e.settled()
+    await page.send({"cmd": "position_history", "hours": 1})
+    assert set((await page.expect("position_history"))["stations"]) == {"OH2RDG", "OH2GBA", "OH7XYZ"}
+    await page.send({"cmd": "set_config", "values": {"igate/enabled": "false"}})
+    await until(lambda: not e.ctl.config.igate_enabled)
+    await page.send({"cmd": "position_history", "hours": 1})
+    await page.until(lambda: len(page.of("position_history")) == 2)
+    assert set(page.of("position_history")[-1]["stations"]) == {"OH2RDG", "OH2GBA"}, "the internet's packets are still in the log, and left out"
     await e.stop()
 
 

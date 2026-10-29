@@ -1,14 +1,15 @@
 // The clock of the map's replay and what its bar (components/ReplayBar.vue) changes: the span, asked of the daemon (`position_history`) when the replay opens and again when another span is chosen; the time of the
 // replay, which plays from the start of the span as soon as the answer has come; the speed, so many seconds of the span to a second; play and pause, and the slider, which seeks. The clock is moved by a timer of a
 // tenth of a second (the map is drawn as often: lib/replay.ts makes it smooth enough, and a busy map is not drawn sixty times a second); it stops at the end of the span, and does not run while the browser's tab
-// is hidden. Only an answer that came after the asking is taken: an older one (of the replay opened before) is not played.
+// is hidden. Only an answer that came after the asking is taken: an older one (of the replay opened before) is not played. When Internet stations (`igate/enabled`, the `igate` topic's `enabled`) is switched while
+// the replay is open, the span is asked again, for the daemon answers another set (no packet from APRS-IS while it is off), and the new one plays on from the time it was at, paused if it was paused.
 import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
 import type { DaemonContext } from "@/composables/useDaemonContext";
 import { DEFAULT_HOURS, DEFAULT_SPEED, replayData, type ReplayData } from "@/lib/replay";
 
 const TICK_MS = 100;
 
-export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory">) {
+export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory" | "igate">) {
   const hours = ref(DEFAULT_HOURS);
   const speed = ref(DEFAULT_SPEED);
   const playing = ref(false);
@@ -17,6 +18,8 @@ export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory">)
   const data = shallowRef<ReplayData | null>(null);
   /** the span asked for, until its answer comes */
   const asked = ref<number | null>(null);
+  /** where the replay was, and whether it played, when it was asked again because Internet stations was switched */
+  let resume: { at: number; playing: boolean } | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
   let last = 0;
 
@@ -46,15 +49,27 @@ export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory">)
     (message) => {
       if (!message || message.hours !== asked.value) return;
       asked.value = null;
-      data.value = replayData(message);
-      at.value = data.value.start;
-      playing.value = true;
+      const span = (data.value = replayData(message));
+      at.value = resume ? Math.min(span.end, Math.max(span.start, resume.at)) : span.start;
+      playing.value = resume ? resume.playing : true;
+      resume = null;
+    },
+  );
+
+  watch(
+    () => page.igate.value?.enabled,
+    (now, before) => {
+      if (now === undefined || before === undefined || (data.value === null && asked.value === null)) return;
+      const was = data.value ? { at: at.value, playing: playing.value } : resume;
+      ask(hours.value);
+      resume = was;
     },
   );
 
   /** Asks for the span (the one chosen, or `span`), and forgets what was played. */
   function ask(span: number = hours.value): void {
     hours.value = span;
+    resume = null;
     playing.value = false;
     data.value = null;
     asked.value = page.send({ cmd: "position_history", hours: span }) ? span : null;
@@ -65,6 +80,7 @@ export function useReplay(page: Pick<DaemonContext, "send" | "positionHistory">)
     playing.value = false;
     data.value = null;
     asked.value = null;
+    resume = null;
   }
 
   /** Play or pause; play at the end of the span starts it again. */

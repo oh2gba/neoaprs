@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, shallowRef } from "vue";
 import { useReplay } from "@/composables/useReplay";
-import type { Command, PositionHistoryMessage } from "@/protocol/protocol";
+import type { Command, IgateState, PositionHistoryMessage } from "@/protocol/protocol";
+import { igateState } from "@/test/fixtures";
 
 const START = "2026-10-21T09:00:00Z";
 const T0 = Date.parse(START);
@@ -13,11 +14,12 @@ function answer(hours = 3): PositionHistoryMessage {
 
 function setUp(connected = true) {
   const positionHistory = shallowRef<PositionHistoryMessage | null>(null);
+  const igate = shallowRef<IgateState | null>(igateState({ enabled: true }));
   const send = vi.fn((_command: Command) => connected);
   const scope = effectScope();
-  const replay = scope.run(() => useReplay({ send, positionHistory }));
+  const replay = scope.run(() => useReplay({ send, positionHistory, igate }));
   if (!replay) throw new Error("no replay");
-  return { replay, send, positionHistory, scope };
+  return { replay, send, positionHistory, igate, scope };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -96,6 +98,46 @@ describe("the replay's clock", () => {
     hidden.mockRestore();
     vi.advanceTimersByTime(100);
     expect(replay.at.value).toBe(T0 + HOUR + 30_000); // (the hidden time is not made up for)
+  });
+
+  it("asks again when Internet stations is switched while it is open, and plays on from where it was", async () => {
+    const { replay, send, positionHistory, igate } = setUp();
+    replay.ask(6);
+    positionHistory.value = answer(6);
+    await nextTick();
+    replay.seek(T0 + HOUR);
+    replay.toggle(); // (paused)
+    igate.value = igateState({ enabled: false });
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith({ cmd: "position_history", hours: 6 });
+    expect(replay.data.value).toBeNull(); // (the old set is not shown while the new one comes)
+    positionHistory.value = answer(6);
+    await nextTick();
+    expect(replay.data.value?.hours).toBe(6);
+    expect(replay.at.value).toBe(T0 + HOUR);
+    expect(replay.playing.value).toBe(false);
+    igate.value = igateState({ enabled: false, gated: 99 }); // (the topic told again, the switch the same)
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks nothing when Internet stations is switched while it is closed, or before the iGate's state has come", async () => {
+    const { replay, send, igate } = setUp();
+    igate.value = igateState({ enabled: false });
+    await nextTick();
+    expect(send).not.toHaveBeenCalled();
+    replay.ask();
+    replay.stop();
+    igate.value = igateState({ enabled: true });
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(1);
+    igate.value = null;
+    replay.ask();
+    await nextTick();
+    igate.value = igateState({ enabled: true });
+    await nextTick();
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
   it("forgets the span when it stops, and its timer goes with its scope", async () => {

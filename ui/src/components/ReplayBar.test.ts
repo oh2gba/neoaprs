@@ -16,7 +16,7 @@ function setUp() {
   const send = vi.fn((_command: Command) => true);
   const scope = effectScope();
   scopes.push(scope); // (stopped after the test, with the replay's timer)
-  const replay = scope.run(() => useReplay({ send, positionHistory }));
+  const replay = scope.run(() => useReplay({ send, positionHistory, igate: shallowRef(null) }));
   if (!replay) throw new Error("no replay");
   const wrapper = mount(ReplayBar, { props: { replay }, attachTo: document.body });
   return { replay, send, positionHistory, wrapper };
