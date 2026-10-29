@@ -56,7 +56,7 @@ def test_the_queries_answer_a_query_from_the_radio_and_none_from_the_internet() 
     for text in ("?APRSP", "?APRSD", "?PING?"):
         rig.q.on_packet(internet(rig.packet("OH2RDG", Message("OH2GBA", text, "5"))))
     rig.q.on_packet(internet(rig.packet("OH2RDG", Other("query", "?APRS?", None))))
-    assert rig.tnc.sent == [] and rig.q._general_until is None
+    assert rig.tnc.sent == [] and rig.q._general_until == {}
     rig.ask("OH2RDG", "?APRSP")
     assert rig.tnc.sent == [rig.beacon.frame()], "the same query on the radio is answered"
 

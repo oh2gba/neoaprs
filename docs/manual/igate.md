@@ -37,3 +37,17 @@ A packet heard is not put on APRS-IS when:
 - it did not come from the air: a packet from the internet, or one made up by the Dummy radio, is never put on APRS-IS. While the radio is the Dummy, your own position is not put there either.
 
 The passcode is kept as a setting in the database on your computer, like the access key of the page. The log then has each packet gated at the debug level and every hour a line with the counts. It has nothing to do with `station/transmit` (the **RX only** pill): the radio does not transmit when it is gated, because nothing of the internet is ever sent on the air.
+
+## Answering `?IGATE?`
+
+While the iGate gates (switched on, with a passcode, logged in and verified: the status row says **connected**), NeoAPRS answers the general query `?IGATE?` that stations on the air send to find the iGates near them, as the specification asks. The answer is one packet of yours, by radio:
+
+```
+<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812
+```
+
+- `MSG_CNT` is the messages sent from the internet to the radio: always 0, because nothing of the internet is ever sent on the air;
+- `LOC_CNT` is the "local" stations: those heard direct (by no digipeater) in the last hour, the ones `?APRSD` lists;
+- `UPL_CNT` is the packets put on APRS-IS since NeoAPRS started, one of the counts Dire Wolf adds.
+
+It goes after a random wait of 0 to 120 seconds by the path of the station that asked, and once one is taken another is not for 10 minutes, as for `?APRS?` ([Answers to queries](beacon.md#answers-to-queries)). With the iGate off, still connecting, or only listening (no passcode, or one the server did not accept), it is no iGate and the query is not answered; nor under **RX only**, when nothing is sent at all.

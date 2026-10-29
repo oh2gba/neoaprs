@@ -263,7 +263,11 @@ The general query `?APRS?` is a packet and not the text of a message (a message 
 
 It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: latitude and longitude in degrees (the `V` stands for a space and may be left out; a west or south value has its minus) and the radius in miles. Then you answer only when your position is inside the circle, and a footprint that does not read is not answered.
 
-The general queries `?WX?` (asking the weather stations for a weather report) and `?IGATE?` (asking the iGates for their capabilities) are recognised and never answered: NeoAPRS has no weather report of its own to send, its iGate is receive only and answers no query ([igate.md](igate.md)), and a station that has nothing relevant need not answer. The log notes them at the debug level and the packet is an ordinary packet in the packet log.
+The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radio hears on APRS-IS: switched on, with a passcode, logged in and verified ([Internet stations](igate.md#answering-igate)).
+
+The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour (those `?APRSD` lists) and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
+
+The general query `?WX?` (asking the weather stations for a weather report) is recognised and never answered: NeoAPRS has no weather report of its own to send, and a station that has nothing relevant need not answer. The log notes it at the debug level and the packet is an ordinary packet in the packet log.
 
 A request for local info is not a query to you; if you keep objects in a category, NeoAPRS answers it ([Objects](objects.md#objects-sent-only-when-asked)).
 
