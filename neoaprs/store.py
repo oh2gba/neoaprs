@@ -38,24 +38,26 @@ class Store:
     def is_open(self) -> bool:
         return self.db is not None and self.db.is_open
 
-    async def _read(self, fn: Callable[[Connection], T], default: T) -> T:
-        """fn on the thread, in a read transaction; `default` when the database is not open or cannot be read."""
+    async def _read(self, fn: Callable[[Connection], T], default: T, what: str) -> T:
+        """fn on the thread, in a read transaction; `default` when the database is not open, and also (told as a warning, as `what`) when it cannot be read."""
         db = self.db
         if db is None or not db.is_open:
             return default
         try:
             return await db.read(fn)
-        except (SqlError, DbClosed):
+        except (SqlError, DbClosed) as e:
+            log.warning("%s: %s", what, e)
             return default
 
-    async def _quietly(self, fn: Callable[[Connection], object]) -> bool:
-        """fn on the thread, in a write transaction; whether it was done (an error of the database is not raised)."""
+    async def _quietly(self, fn: Callable[[Connection], object], what: str) -> bool:
+        """fn on the thread, in a write transaction; whether it was done (an error of the database is not raised, it is told as a warning as `what`)."""
         db = self.db
         if db is None or not db.is_open:
             return False
         try:
             await db.write(fn)
-        except (SqlError, DbClosed):
+        except (SqlError, DbClosed) as e:
+            log.warning("%s: %s", what, e)
             return False
         return True
 
@@ -70,10 +72,10 @@ class Store:
 
     # ---- the settings: a key ("station/call") and the raw text of the value
     async def settings(self) -> Settings:
-        return await self._read(read_settings, {})
+        return await self._read(read_settings, {}, "the settings could not be read")
 
     async def setting(self, key: str) -> str | None:
-        return await self._read(lambda db: read_setting(db, key), None)
+        return await self._read(lambda db: read_setting(db, key), None, f"the setting {key} could not be read")
 
     async def put_setting(self, key: str, value: str) -> bool:
         """One setting, replaced in one statement."""
@@ -100,7 +102,7 @@ class Store:
         return True
 
     async def delete_setting(self, key: str) -> None:
-        await self._quietly(lambda db: delete_setting(db, key))
+        await self._quietly(lambda db: delete_setting(db, key), f"the setting {key} could not be deleted")
 
     # ---- a consistent copy, whole, while the daemon runs
     async def backup(self, dest: Path) -> bool:

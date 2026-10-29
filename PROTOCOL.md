@@ -418,13 +418,13 @@ only to a station that asks for it, never on the schedule. Nothing is sent while
 |---|---|---|---|
 | `name` | string |  | (max 9 chars, min 1 chars) |
 | `kind` | "object" \| "item" |  |  |
-| `lat` | number |  | (>= -90, <= 90) |
-| `lon` | number |  | (>= -180, <= 180) |
+| `lat` | number |  | (>= -90.0, <= 90.0) |
+| `lon` | number |  | (>= -180.0, <= 180.0) |
 | `symbol_table` | string |  | (max 1 chars, min 1 chars) |
 | `symbol_code` | string |  | (max 1 chars, min 1 chars) |
 | `comment` | string |  | (max 43 chars) |
 | `course_deg` | integer \| null |  | (>= 0, <= 359) |
-| `speed_kmh` | number \| null |  | (>= 0, <= 1850) |
+| `speed_kmh` | number \| null |  | (>= 0, <= 1850.148) |
 | `path` | string \| null |  | (max 256 chars) |
 | `qru_group` | string |  | (max 8 chars) |
 | `on_request` | boolean |  |  |
@@ -1099,7 +1099,7 @@ An area object (the symbol `\l`): its shape and colour, and how far down and to 
 
 | field | type | | description |
 |---|---|---|---|
-| `shape` | string |  | open circle, line, open ellipse, open triangle, open box, filled circle, coloured line, filled ellipse, filled triangle or filled box |
+| `shape` | string |  | open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box |
 | `colour` | string |  |  |
 | `lat_offset_deg` | number |  |  |
 | `lon_offset_deg` | number |  |  |

@@ -39,7 +39,7 @@ from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, UNCONFIRMED_MAX, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, RETRYABLE, UNCONFIRMED_MAX, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
@@ -56,7 +56,6 @@ from neoaprs.tasks import TaskSet
 log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
-_RETRYABLE = ("failed", "unconfirmed", "rejected", "cancelled")
 
 
 def _in_line(record: MessageRecord) -> bool:
@@ -174,7 +173,7 @@ class Messaging:
         """Sends a failed, unconfirmed, rejected or cancelled message again, from the first attempt of the schedule."""
         our_call(self._config())
         record = self._ours(number)
-        if record.state not in _RETRYABLE:
+        if record.state not in RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None)
         self.delivery.restart(number)

@@ -18,7 +18,7 @@ from neoaprs.config import INSTALL_ID
 from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 from neoaprs.updatefetch import fetch_url
 from neoaprs.versions import Update, compare_versions, parse_update
 
@@ -73,15 +73,14 @@ class UpdateCheck:
         await self._tasks.cancel_all()
 
     async def _run(self) -> None:
-        wait = self.first_sec
-        while True:
-            await asyncio.sleep(wait)
-            wait = self.every_sec if self.enabled else WHILE_OFF_SEC
-            if self.enabled:
-                try:
-                    await self.check()
-                except Exception:                                # (a check that fails must not end the timer)
-                    log.debug("the update check failed", exc_info=True)
+        await every(self._wait, self._round, "the update check", first=self.first_sec)
+
+    def _wait(self) -> float:
+        return self.every_sec if self.enabled else WHILE_OFF_SEC
+
+    async def _round(self) -> None:
+        if self.enabled:
+            await self.check()
 
     async def install_id(self) -> str:
         """The number of this installation: 32 lowercase hex characters from 16 random bytes, made the first time it is needed and kept in the database. A row that is not of that form is made again."""

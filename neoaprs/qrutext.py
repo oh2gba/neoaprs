@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 
+from neoaprs.callsign import AX25_CALL
 from neoaprs.message import MessagingError
 from neoaprs.ownobject import QRU_GROUP_MAX
 
@@ -22,7 +23,7 @@ ASK_GAP_SEC = 10                                    # and any two requests are t
 ARRIVAL_GRACE_SEC = 30                              # the objects of a group are counted until this long after the server's closing line (a late one may still be on its way, or repeated)
 ANSWER_WINDOW_SEC = 300                             # a list or a closing line that comes within this time of a request of ours is its answer (the server waits, then spaces its frames)
 _ASK = re.compile(rf"(?P<word>INFO|NEXT|[A-Z0-9]{{1,{QRU_GROUP_MAX}}})(?: (?P<km>\d{{1,5}}))?")
-_CALL = r"[A-Z0-9]{1,6}(?:-\d{1,2})?"
+_CALL = AX25_CALL.pattern
 _GROUP = rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}"
 _LIST = re.compile(rf"de (?P<call>{_CALL}):(?P<groups>(?:{_GROUP}\(\d{{1,5}}\) ?)*)(?P<more>\+)?(?: ?Max (?P<max>\d{{1,4}})@(?P<range>\d{{1,5}})(?P<unit>km|mi))?")
 _GROUP_COUNT = re.compile(rf"({_GROUP})\((\d+)\)")

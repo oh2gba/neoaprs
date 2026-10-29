@@ -1,7 +1,7 @@
 // Asking QRU for local info (the Nearby tab): the text of a request, from the word (INFO or a group) and the distance the person typed, how long Ask waits after a request, and what the row of the section says of the last one.
 // The daemon checks the text again; the numbers it is held to are LIMITS.qru (the farthest, the seconds between two requests).
 import { t } from "@/i18n";
-import { clockText } from "@/lib/format";
+import { hourMinuteText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { QruAsked, QruServer } from "@/protocol/protocol";
 
@@ -50,7 +50,7 @@ export interface QruLook {
 export function qruLook(asked: QruAsked | null, servers: readonly QruServer[], refusal: string, nowMs: number): QruLook | null {
   if (refusal !== "") return { state: t("objects.qru_refused"), tone: "tnc-waiting", line: refusal };
   if (asked === null) return null;
-  const time = clockText(asked.at).slice(0, 5);
+  const time = hourMinuteText(asked.at);
   const state = t("objects.qru_state");
   if (askWait(asked, nowMs, asked.text) > 0) return { state, tone: "tnc-waiting", line: t("objects.qru_waiting", { time }) };
   const n = answeredSince(asked, servers);

@@ -38,7 +38,8 @@ async def test_the_first_port_that_delivers_a_kiss_frame_is_the_one(monkeypatch:
 
     async def probe(paths: list[str], baud: int, seconds: float, accept: object) -> str:
         asked.append((paths, baud, seconds))
-        assert callable(accept) and accept(frame_bytes()) and not accept(b"noise"), "a complete KISS frame is what a radio on that port would say"
+        assert callable(accept) and accept(frame_bytes()) and not accept(b"noise"), "a KISS frame with a packet in it is what a radio on that port would say"
+        assert not accept(kiss.encode(b"not a packet")) and not accept(b"\r\ncmd:"), "the Tnc's rule: a frame that is no AX.25 packet, or the text of a TNC in command mode, is no KISS port"
         return paths[0]
     monkeypatch.setattr(capturecmd, "probe", probe)
     assert await capturecmd.find_port(1200) == "/dev/ttyUSB7"
@@ -97,3 +98,20 @@ def test_ctrl_c_ends_the_command_with_the_bytes_that_came_kept(tmp_path: Path, m
     monkeypatch.setattr(asyncio, "run", interrupted)
     assert capturecmd.main([str(tmp_path / "out.bin"), "--port", "socket://127.0.0.1:9"]) == 0
     assert f"what came is in {tmp_path / 'out.bin'}" in capsys.readouterr().err
+
+
+# ---- a file that cannot be written
+
+async def test_a_folder_that_is_not_there_is_told_before_any_port_is_opened(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    args = capturecmd.parse(["--port", radio.url, str(tmp_path / "missing" / "out.bin")])
+    assert await capturecmd.run(args) == 1
+    assert radio.connections == 0
+    err = capsys.readouterr().err
+    assert err.startswith("capture: ") and "is not a folder" in err and "Traceback" not in err
+
+
+async def test_a_file_that_cannot_be_written_after_the_port_opened_closes_the_port_and_says_so(radio: FakeRadio, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert await capturecmd.record(radio.url, 9600, 30.0, str(tmp_path)) == 1             # (OUT is a folder)
+    await until(lambda: radio.clients == 0)                                              # (the socket is closed in a thread of its own)
+    err = capsys.readouterr().err
+    assert str(tmp_path) in err and "Traceback" not in err

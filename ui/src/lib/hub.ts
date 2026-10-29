@@ -150,6 +150,8 @@ export class Hub {
   private wanted = false;
   private live = false;
   private readonly revs = new Map<TopicName, number>();
+  /** The topics asked for again, whose state has not come yet: one ask each. */
+  private readonly asked = new Set<TopicName>();
 
   constructor(
     private readonly store: Store,
@@ -212,6 +214,7 @@ export class Hub {
     this.live = true;
     this.delay = FIRST_DELAY_MS;
     this.revs.clear();
+    this.asked.clear();
     this.store.connection("open");
   }
 
@@ -259,6 +262,7 @@ export class Hub {
   private onState(topic: string, rev: number, value: unknown): void {
     if (!isTopic(topic) || !isRecord(value)) return;
     this.revs.set(topic, rev);
+    this.asked.delete(topic);
     this.replace(topic, value);
   }
 
@@ -267,7 +271,8 @@ export class Hub {
     const before = this.revs.get(topic);
     if (before !== undefined && rev <= before) return; // what the page has already
     if (before === undefined || rev !== before + 1) {
-      this.send({ cmd: "subscribe", topics: [topic] }); // a patch was missed: the topic is sent whole
+      // a patch was missed: the topic is sent whole, once, however many patches follow before it comes
+      if (!this.asked.has(topic) && this.send({ cmd: "subscribe", topics: [topic] })) this.asked.add(topic);
       return;
     }
     this.revs.set(topic, rev);

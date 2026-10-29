@@ -137,7 +137,7 @@ class MapAuto:
     def _ended(self) -> None:
         mine, self._mine = self._mine, False
         status = self._fetch.status()
-        if status.detail is not None or (mine and self._fetch.cancelled_by_user):
+        if self._covered() or (mine and self._fetch.cancelled_by_user):
             self._settle()
         elif mine and status.problem:
             self._fetch.later = True
@@ -145,7 +145,7 @@ class MapAuto:
             log.info("the detailed map will be tried again at the next start: %s", status.problem)
 
     def _settle(self) -> None:
-        """Nothing is owed: a detailed map is there, or the operator ended the job."""
+        """Nothing is owed: the detailed map covers the place, or the operator ended the job."""
         if self._state == WANTED:
             self._remember(DONE)
         if self._fetch.later:

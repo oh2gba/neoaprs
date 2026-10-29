@@ -2,12 +2,12 @@
 of them at once, and each fires once for each crossing, not for every packet:
 
     on_air   a packet of the station is heard after it was silent for QUIET (half an hour) or more, or for the first time
-    within   its position comes from farther than N km from us to N km or nearer (or we come that near it); it is outside again only beyond N km and a margin (OUTSIDE_MARGIN), so that a station that stands
+    within   its position comes from farther than N km from us to N km or nearer (or we come that near it), or is first known to be that near (a station never heard, or we without a position of ours, when the alert was set); it is outside again only beyond N km and a margin (OUTSIDE_MARGIN), so that a station that stands
              on the edge and whose positions wander a little is not told again and again
     direct   a packet of it is heard direct (no digipeater: the station book's `last_direct_at`) after none was for QUIET or more
 
 What counts is what the Stations table shows: a packet over the internet counts only while `igate/enabled` is on (else the station's radio side, Station.radio_view, is what is watched). When an alert is set, changed
-or read at the start, the station as it is then is the starting point: an alert never fires for what was already true (a station already near does not fire until it has been outside and comes in again). Our own station
+or read at the start, the station as it is then is the starting point: an alert never fires for what was already true (a station already near does not fire until it has been outside and comes in again; what was not known then is not "true" yet). Our own station
 and our own objects have none (`set` refuses them). A firing is `fired` (the page's topics tell every page with the message `station_alert`; the wiring runs the alert command for it, services/alerts.py) and a line in the log."""
 import logging
 from dataclasses import dataclass
@@ -141,7 +141,7 @@ class StationAlerts:
         if km is None:
             return
         if km <= within_km:
-            if seen.inside is False:
+            if seen.inside is not True:
                 self._fire(Fired(call, "within", f"{call} is {km_text(km)} km from you", at, round(km, 1)))
             seen.inside = True
         elif km > outside_km(within_km):

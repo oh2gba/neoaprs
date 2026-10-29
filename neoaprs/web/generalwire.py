@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Iso, PathText, _Command, _Model
 
 
 class GeneralQuery(_Command):
@@ -16,7 +16,7 @@ class GeneralQuery(_Command):
     or the query of that kind was sent less than 60 seconds ago (`general.too_soon`, with the `seconds` that are left)."""
     cmd: Literal["general_query"]
     kind: Literal["aprs", "igate", "wx"]
-    path: str | None = Field(max_length=256)
+    path: PathText | None
     rf_only: bool
 
 

@@ -18,7 +18,8 @@ from neoaprs.packetsql import PACKET_COLUMNS
 from neoaprs.store import DB_NAME
 from neoaprs.web.protocol import TOPIC_NAMES
 from neoaprs.policy import LOG_KEEP_DAYS
-from neoaprs.web.replaywire import GLIDE_MAX_MIN, MAX_HOURS, SPAN_DAYS, PositionHistoryMsg
+from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS, PositionHistoryMsg
+from neoaprs.web.wirebase import HISTORY_MAX_HOURS as MAX_HOURS
 from neoaprs.web.views import REPLAY_THINNING, replay_thinning, replay_tracks
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until

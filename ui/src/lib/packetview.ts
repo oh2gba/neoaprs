@@ -6,7 +6,7 @@ import { altitudeText, bearingText, dateTimeText, positionText, speedText } from
 import { packetLabel, packetTitle } from "@/lib/channels";
 import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
-import { tempText, windSpeedText } from "@/lib/weather";
+import { tempText } from "@/lib/weather";
 import type { DecodedStatus, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
 
 export interface Fact {
@@ -38,7 +38,7 @@ export function kindWords(row: PacketRow): string {
 }
 
 function weatherText(w: DecodedWeather): string {
-  const parts = [w.temp_c === null ? "" : tempText(w.temp_c), w.wind_kmh === null ? "" : t("packets.wind", { speed: windSpeedText(w.wind_kmh) })];
+  const parts = [w.temp_c === null ? "" : tempText(w.temp_c), w.wind_kmh === null ? "" : t("packets.wind", { speed: speedText(w.wind_kmh) })];
   return parts.filter((part) => part !== "").join(", ");
 }
 

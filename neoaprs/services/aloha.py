@@ -1,6 +1,5 @@
 """The ALOHA circle of our station (neoaprs/aloha.py has the method), kept up to date: worked out at the start, once a minute, and when the settings move our position. `radius_km` is the latest value, in
 tenths of a kilometre; `changed` is emitted when it differs from the one before. None while our position is not known or the stations heard do not fill the channel."""
-import asyncio
 import logging
 
 from neoaprs.aloha import circle
@@ -8,7 +7,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.policy import ALOHA_EVERY_SEC
 from neoaprs.signal import Signal
 from neoaprs.stationbook import StationBook
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 
 log = logging.getLogger("neoaprs.aloha")
 
@@ -31,12 +30,7 @@ class Aloha:
         await self._tasks.cancel_all()
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.every_sec)
-            try:
-                self.refresh()
-            except Exception:
-                log.exception("the ALOHA circle could not be worked out")                 # (the timer goes on: the circle is worked out again at the next tick)
+        await every(self.every_sec, self.refresh, "the ALOHA circle")
 
     def refresh(self) -> None:
         """Works the circle out from the stations as they are now."""

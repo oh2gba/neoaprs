@@ -72,6 +72,8 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
   "station.ext.df_bearing_value": "{bearing}°, portata {range} km, qualità {quality}, riscontri {hits}",
   "station.ext.area_value": "{colour} {shape}, {down}° in basso, {right}° a destra",
+
+  "station.ext.area_value_left": "{colour} {shape}, {down}° in basso, {left}° a sinistra",
   "station.telemetry.numbered": "#{number}: {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} attivo", other: "{name} spento" },
   "station.sent_local": "{time} ora locale",
@@ -136,7 +138,6 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.menu.qrz": "Pagina QRZ",
   "station.menu.forget": "Dimentica",
   "station.menu.forget_sure": "Dimenticare davvero?",
-  "station.menu.copied": "{call} copiato",
   "station.alert.label": "Avvisami quando {call}…",
   "station.alert.on_air": "va in onda",
   "station.alert.on_air_title": "Ricevuta dopo 30 minuti o più di silenzio, o per la prima volta",

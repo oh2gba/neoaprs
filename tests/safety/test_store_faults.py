@@ -1,4 +1,4 @@
-"""The Store (neoaprs/store.py) when the database fails under it: a setting that cannot be deleted is left as it was and the store goes on, a checkpoint that fails is a warning and not an exception, and
+"""The Store (neoaprs/store.py) when the database fails under it: a read or a delete that fails says so in the log, a setting that cannot be deleted is left as it was and the store goes on, a checkpoint that fails is a warning and not an exception, and
 a store whose Db is closed says no to everything."""
 import logging
 import sqlite3
@@ -36,6 +36,27 @@ async def test_a_setting_that_cannot_be_deleted_is_left_as_it_was_and_the_store_
     assert await store.setting("station/call") == "OH2GBA", "nothing was deleted"
     await store.delete_setting("station/call")
     assert await store.setting("station/call") is None
+
+
+async def test_a_read_or_a_delete_that_fails_says_so_once_in_the_log_and_gives_the_default(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    store, made = await faulty_store(tmp_path)
+    assert await store.put_setting("station/call", "OH2GBA")
+    made[0].statements, made[0].fail_at = 0, 2                         # BEGIN, then the SELECT fails
+    with caplog.at_level(logging.WARNING, "neoaprs.store"):
+        assert await store.settings() == {}
+    assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.store"] == ["the settings could not be read: database or disk is full"]
+    caplog.clear()
+    made[0].statements, made[0].fail_at = 0, 2
+    with caplog.at_level(logging.WARNING, "neoaprs.store"):
+        assert await store.setting("station/call") is None
+    assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.store"] == ["the setting station/call could not be read: database or disk is full"]
+    caplog.clear()
+    made[0].statements, made[0].fail_at = 0, 2
+    with caplog.at_level(logging.WARNING, "neoaprs.store"):
+        await store.delete_setting("station/call")
+    assert [r.getMessage() for r in caplog.records if r.name == "neoaprs.store"] == ["the setting station/call could not be deleted: database or disk is full"]
+    made[0].fail_at = None
+    assert await store.setting("station/call") == "OH2GBA"
 
 
 async def test_a_checkpoint_that_fails_is_told_as_a_warning_and_not_raised(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

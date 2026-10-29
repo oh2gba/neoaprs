@@ -998,11 +998,11 @@
      "symbol_code": "r",
      "symbol_table": "/",
      "telemetry": null,
-     "timestamp": "2026-10-11T11:11:00.000000Z",
+     "timestamp": null,
      "timestamp_local": false,
      "weather": null
     },
-    "timestamp": "2026-10-11T11:11:00.000000Z",
+    "timestamp": null,
     "type": "object"
    },
    "destination": "APRS",

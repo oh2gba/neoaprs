@@ -3,12 +3,11 @@
 A row is a tuple in the order of OBJECT_COLUMNS or BULLETIN_COLUMNS; the codec between a row and a value is ownlog.py's. Nothing here begins or commits a transaction."""
 import sqlite3
 from collections.abc import Sequence
-from typing import Any
+
+from .dberror import Row, rows
 
 OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request")
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at")
-
-Row = tuple[Any, ...]
 
 
 def _upsert(table: str, columns: tuple[str, ...]) -> str:
@@ -32,7 +31,7 @@ def delete_object(db: sqlite3.Connection, name: str) -> int:
 
 def all_objects(db: sqlite3.Connection) -> list[Row]:
     """Every object, the oldest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {', '.join(OBJECT_COLUMNS)} FROM own_object ORDER BY created_at, name")]
+    return rows(db.execute(f"SELECT {', '.join(OBJECT_COLUMNS)} FROM own_object ORDER BY created_at, name"))
 
 
 def save_bulletin(db: sqlite3.Connection, row: Sequence[object]) -> None:
@@ -47,4 +46,4 @@ def delete_bulletin(db: sqlite3.Connection, slot: str) -> int:
 
 def all_bulletins(db: sqlite3.Connection) -> list[Row]:
     """Every bulletin, the oldest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {', '.join(BULLETIN_COLUMNS)} FROM own_bulletin ORDER BY created_at, slot")]
+    return rows(db.execute(f"SELECT {', '.join(BULLETIN_COLUMNS)} FROM own_bulletin ORDER BY created_at, slot"))

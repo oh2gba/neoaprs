@@ -32,8 +32,9 @@ import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
-from neoaprs.route import DIRECT_ONLY, FIXED_PATH, WIDE_PATH  # noqa: E402
-from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, call_problem, parse_call  # noqa: E402
+from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
+from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
+from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN  # noqa: E402
 from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
@@ -43,11 +44,13 @@ from neoaprs.ownbulletin import GROUP_MAX, PostError, make_bulletin, slot_of  # 
 from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_NAME, NAME_FORBIDDEN, OBJECT_NAME, QRU_GROUP_MAX, QRU_RESERVED, SPEED_MAX_KMH, OwnError, make_object  # noqa: E402
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
-from neoaprs.symbols import MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
+from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
 from neoaprs.updateasset import wheel_version  # noqa: E402
+from neoaprs.versions import compare_versions  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
+from neoaprs.web.wirebase import HISTORY_MAX_HOURS  # noqa: E402
 
 SCHEMA = ROOT / "ui" / "src" / "protocol" / "schema.json"
 TYPES = ROOT / "ui" / "src" / "protocol" / "protocol.ts"
@@ -207,12 +210,23 @@ def _mobile_symbols() -> str:
             f"export const MOBILE_SYMBOLS = {_literal(dict(MOBILE_CODES))} as const;\n")
 
 
+def _igate_overlays() -> str:
+    return ("/** The overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa (IGATE_OVERLAYS of neoaprs/symbols.py). */\n"
+            f"export const IGATE_OVERLAYS = {_literal(list(IGATE_OVERLAYS))} as const;\n")
+
+
 def symbols_text() -> str:
     """The names of the symbols as the English catalogue's messages: `symbol.<table>.<code in hex>` for each code "!" to "~" of the primary and of the alternate table, and `symbol.unknown` for none."""
     rows = [f'  "symbol.{table}.{ord("!") + index:02x}": {json.dumps(name)},\n' for table in ("primary", "alternate") for index, name in enumerate(SYMBOL_NAMES[table])]
     return ("// The names of the APRS symbols, written from the daemon's own list (SYMBOL_NAMES of neoaprs/symbols.py) by scripts/gen-protocol.py: never edited by hand. The id is the table and the code of the symbol in hex\n"
             "// (`symbol.primary.3e` is the car of `/>`); an overlay table is the alternate one. Another language translates them in its own catalogue; the page falls back to these.\n"
             "export const symbols = {\n" + "".join(rows) + '  "symbol.unknown": "unknown",\n} as const;\n')
+
+
+def _path_text_max() -> int:
+    """The most characters a path typed for a request may have: the length the `qru_ask` command takes for its `path`."""
+    path = build_schema()["$defs"]["AskQru"]["properties"]["path"]
+    return int(next(option["maxLength"] for option in path["anyOf"] if "maxLength" in option))
 
 
 def limits() -> dict[str, Any]:
@@ -225,7 +239,9 @@ def limits() -> dict[str, Any]:
         "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
-        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
+        "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
+        "alert": {"kmMin": ALERT_KM_MIN, "kmMax": ALERT_KM_MAX},
+        "history": {"maxHours": HISTORY_MAX_HOURS},
         "object": {"nameMax": OBJECT_NAME[1], "itemNameMin": ITEM_NAME[0], "nameForbidden": NAME_FORBIDDEN, "commentMax": COMMENT_MAX, "commentMaxMotion": COMMENT_MAX_MOTION,
                    "courseMax": COURSE_MAX, "speedMaxKmh": round(SPEED_MAX_KMH), "qruGroupMax": QRU_GROUP_MAX, "qruReserved": list(QRU_RESERVED)},
         "bulletin": {"groupMax": GROUP_MAX},
@@ -266,6 +282,7 @@ def lists_text() -> str:
         _profiles(),
         _symbol_names(),
         _mobile_symbols(),
+        _igate_overlays(),
         _limits_block(),
         f"/** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */\nexport const SYMBOL_TABLES = {json.dumps(SYMBOL_TABLES)};\n",
     ]
@@ -497,6 +514,13 @@ PHG_CASES = [(p, h, 3, "NE") for p in (0, 1, 2, 5, 25, 81, 100, 9999) for h in (
 POSITIONS = [(60.17, 24.94), (0.0, 0.0), (-33.8688, 151.2093), (90.0, 180.0), (-90.0, -180.0), (59.999999, 24.999999), (0.03125, 0.09375), (60.169999, -24.940001), (-0.00001, -0.00001), (0.0083333, 100.0)]
 BEACON_BASE = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "/", "station/symbol_code": "-", "station/comment": "NeoAPRS",
                "beacon/power_w": "", "beacon/antenna_height_m": "0", "beacon/antenna_gain_db": "0", "beacon/antenna_direction": "omni", "beacon/path": "WIDE1-1,WIDE2-1"}
+STATION_NAMES = ["WINLINK", "OH2XYZ-L", "OH2XYZ-20", "oh2xyz-l", " winlink ", "OH2GBA", "OH2GBA-0", "OH2GBA-15", "OH2GBA-00", "OH2GBA-007", "ABCDEFGHI", "ABCDEFGHIJ", "A", "A-", "-A", "A-B-C", "1", "9-9",
+                 "", "  ", "OH2 XYZ", "OH2XYZ/P", "OH2XYZ_L", "OH2XY*", "EMAIL-2", "\u00c5\u00c4", "\u00df1A", "OH2GB\u00c4", "TCPIP"]
+ROUTE_ELEMENTS = ["WIDE1-1", "WIDE2-2", "WIDE", "WIDE1", "WIDE3-3", "WIDE12-1", "WIDE-1", "WIDE1-100", "wide1-1", "TRACE3-3", "TRACE", "RELAY", "ECHO", "GATE", "TEMP2-2", "TRACK", "SAR", "SAR1-1", "WIDER", "ARISS", "ARISS-1", "APRSAT", "SS3-3", "FI2-2", "HOP7-7", "HOP7", "AB1", "ABCD3-3", "S3-3", "OH2", "OH2-1", "RELAY*", "OH2RCH", "OH2RCH-2",
+                  "WIDE1-1*", "TCPIP", "TCPIP*", "TCPXX", "NOGATE", "RFONLY", "NOTCP", "qAR", "qAO", "qAC", "qA", "q", "qB", "Qar", "NOGATE*", "XTCPIP", "RFONLYX", ""]
+VERSION_PAIRS = [("0.10.0", "0.9.0"), ("0.9.0", "0.10.0"), ("1.0", "1.0.0"), ("1.0.0", "1.0"), ("1.0.0-rc1", "1.0.0"), ("1.0.0", "1.0.0-rc1"), ("1.0.0-rc1", "1.0.0-rc2"), ("1.0.0-RC1", "1.0.0-rc1"), ("1.0.0-rc.2", "1.0.0-rc.10"),
+                 ("1.0.0-alpha", "1.0.0-beta"), ("1.0.0-beta", "1.0.0-alpha"), ("0.14.0", "0.14.0"), ("0.14.1", "0.14.0"), ("0.14.0", "0.14.0.1"), ("1.2.3.4", "1.2.3.5"), ("2", "1.9.9"), ("0.10.0-dev4", "0.10.0"),
+                 (" 1.0.0 ", "1.0.0"), ("1.0.0+build5", "1.0.0"), ("1.0.0", "1.0.0+build5"), ("1.0.0-rc1", "1.0.0-c1"), ("01.0.0", "1.0.0"), ("1.0.0-9", "1.0.0-10"), ("1.0.0-a", "1.0.0-9")]
 WHEEL_VERSIONS = ["0.10.0", "0.10.0-rc1", "1.0.0-rc.2", "1.0.0-alpha", "1.0.0-beta.3", "1.0.0-dev4", "1.0.0-c1", "0.10.1-e2e"]
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
@@ -523,6 +547,14 @@ def _parse_vector(text: str) -> dict[str, Any]:
     except ValueError:
         return {"input": text, "ok": False}
     return {"input": text, "ok": True}
+
+
+def _name_vector(text: str) -> dict[str, Any]:
+    """Whether the text names a station a message may be addressed to (an AX.25 call or a name APRS-IS allows), and the name as it is kept."""
+    try:
+        return {"input": text, "ok": True, "name": normal_name(text)}
+    except CallsignError:
+        return {"input": text, "ok": False, "name": ""}
 
 
 def _path_vector(text: str) -> dict[str, Any]:
@@ -606,7 +638,10 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
     return {
         "calls": [_call_vector(t) for t in CALLS],
         "parse_calls": [_parse_vector(t) for t in CALLS],
+        "station_names": [_name_vector(t) for t in STATION_NAMES],
         "paths": [_path_vector(t) for t in PATHS],
+        "route_elements": [{"input": text, "alias": is_alias(text), "marker": is_marker(text)} for text in ROUTE_ELEMENTS],
+        "compare_versions": [{"a": a, "b": b, "order": compare_versions(a, b)} for a, b in VERSION_PAIRS],
         "message_texts": [_message_vector(t) for t in MESSAGE_TEXTS],
         "bulletin_texts": [_bulletin_text_vector(t) for t in BULLETIN_TEXTS],
         "bulletin_slots": [_bulletin_slot_vector(*row) for row in BULLETIN_SLOTS],

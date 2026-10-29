@@ -23,6 +23,19 @@ describe("useReadMarks", () => {
     expect(useReadMarks().readUpTo("OH2XYZ")).toBe(0);
   });
 
+  it("brings a mark above every message of the thread down to the newest one, once", () => {
+    localStorage.setItem("NeoAPRS.read.OH2RDG", "60");
+    const marks = useReadMarks();
+    marks.settle("OH2RDG", 55);
+    expect(marks.readUpTo("OH2RDG")).toBe(55);
+    expect(localStorage.getItem("NeoAPRS.read.OH2RDG")).toBe("55");
+    marks.settle("OH2RDG", 40);
+    expect(marks.readUpTo("OH2RDG")).toBe(55);
+    localStorage.setItem("NeoAPRS.read.OH2XYZ", "5");
+    marks.settle("OH2XYZ", 9);
+    expect(marks.readUpTo("OH2XYZ")).toBe(5);
+  });
+
   it("ignores a stored value that is no number, and works without localStorage", () => {
     localStorage.setItem("NeoAPRS.read.A", "many");
     expect(useReadMarks().readUpTo("A")).toBe(0);
@@ -48,6 +61,15 @@ describe("useConversations", () => {
       ["OH2RDG", 1],
     ]);
     expect(talk.unread.value).toBe(3);
+  });
+
+  it("counts the messages that follow a restored database as unread although the browser remembers higher ids", () => {
+    localStorage.setItem("NeoAPRS.read.OH2RDG", "60");
+    const messages = table(incoming(2, "OH2RDG"), incoming(5, "OH2RDG"));
+    const talk = useConversations(messages, ref(false));
+    expect(talk.unread.value).toBe(0);
+    messages.set("6", incoming(6, "OH2RDG"));
+    expect(talk.unread.value).toBe(1);
   });
 
   it("does not count a conversation as seen until the tab is on show with it open", async () => {

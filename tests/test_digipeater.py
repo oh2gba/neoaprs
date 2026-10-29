@@ -9,7 +9,8 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.packet import Packet
-from neoaprs.services.digipeater import BURST_MAX, BURST_WINDOW_SEC, DUPLICATE_SEC, Digipeater
+from neoaprs.policy import DIGI_DUPLICATE_SEC
+from neoaprs.services.digipeater import BURST_MAX, BURST_WINDOW_SEC, Digipeater
 from neoaprs.source import Source
 from neoaprs.tncmode import packet_of
 from neoaprs.tncwatchdog import TncStats
@@ -85,10 +86,10 @@ def test_our_own_packets_are_not_repeated_and_neither_is_one_that_shows_our_call
 def test_the_same_packet_is_repeated_again_only_after_thirty_seconds_whatever_the_path() -> None:
     rig = Rig()
     rig.hear(frame("WIDE1-1,WIDE2-1"))
-    rig.clock.advance(DUPLICATE_SEC - 1)
+    rig.clock.advance(DIGI_DUPLICATE_SEC - 1)
     rig.hear(frame("WIDE1-1"))                                           # (a copy by another path)
     assert len(rig.tnc.sent) == 1
-    rig.clock.advance(DUPLICATE_SEC + 1)                                 # (more than 30 s after the copy that was heard last)
+    rig.clock.advance(DIGI_DUPLICATE_SEC + 1)                                 # (more than 30 s after the copy that was heard last)
     rig.hear(frame("WIDE1-1"))
     assert len(rig.tnc.sent) == 2 and rig.stats.digipeated == 2
 
@@ -256,7 +257,7 @@ def test_bytes_that_do_not_decode_as_a_frame_are_not_repeated_and_not_an_error()
     rig = Rig()
     good = rig.hear(frame())
     rig.tnc.sent.clear()
-    rig.clock.advance(DUPLICATE_SEC + 1)
+    rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
     rig.digi.on_packet(replace(good, raw=b"\x01\x02\x03"))                  # (heard on the radio, but the parser of the Tnc and ours do not agree: nothing is sent)
     assert rig.tnc.sent == []
 
@@ -266,7 +267,7 @@ def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_lar
     rig.digi._seen.keep_max = 5
     for n in range(6):                                                       # (six packets that are not ours to repeat, heard at the same minute)
         rig.hear(frame("WIDE2-1", info=b">%d" % n))
-    rig.clock.advance(DUPLICATE_SEC + 1)
+    rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
     rig.hear(frame("WIDE2-1", info=b">late"))                                # (the seventh: the six old ones are over the window and are dropped)
     assert len(rig.digi._seen) == 1
     rig.hear(frame("WIDE1-1", info=b">0"))                                   # (a packet heard long ago is a new one again)

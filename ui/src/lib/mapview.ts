@@ -10,7 +10,6 @@ interface MapView {
   zoom: number;
 }
 
-/** A request to fly to a station; `n` counts up, so that asking for the same station again flies there again. */
 /** A marker on the map: the MapLibre marker, its DOM and where it stands. */
 export interface Placed {
   marker: Marker;
@@ -19,6 +18,7 @@ export interface Placed {
   lon: number;
 }
 
+/** A request to fly to a station; `n` counts up, so that asking for the same station again flies there again. */
 export interface Focus {
   call: string;
   n: number;

@@ -12,6 +12,7 @@ import { onAir } from "@/lib/channels";
 import { frequencyText } from "@/lib/details";
 import { ageText } from "@/lib/format";
 import { hasPosition } from "@/lib/stations";
+import { IGATE_OVERLAYS } from "@/protocol/lists";
 import type { ExtensionValues, StationRow } from "@/protocol/protocol";
 
 /** One line of a list: a station (or the name of a digipeater that was only heard repeating, `row` null), with the lines of words under its call. */
@@ -21,10 +22,8 @@ export interface NearbyItem {
   lines: string[];
 }
 
-/** The table characters a digipeater symbol (`#`) has: the primary table, the alternate one and the overlays 0-9, A-Z (and a-j, the overlay of a compressed position). */
-const DIGI_TABLES = /^[/\\0-9A-Za-j]$/;
-/** The overlay `I` on the alternate `&` is the iGate (the specification's symbol list). */
-const IGATE_TABLE = "I";
+/** The table characters a digipeater symbol (`#`) has: the primary table, the alternate one and the overlays 0-9, A-Z (the daemon writes the overlay of a compressed position, a-j, as 0-9). */
+const DIGI_TABLES = /^[/\\0-9A-Z]$/;
 const IGATE_CODE = "&";
 
 /** Whether the station draws itself as a digipeater: the code `#` in the primary table (the green star), the alternate table (the star with an overlay: `1#` is a WIDE1 fill-in) or any overlay of it. */
@@ -32,9 +31,9 @@ export function isDigipeaterSymbol(row: Pick<StationRow, "symbol_table" | "symbo
   return row.symbol_code === "#" && DIGI_TABLES.test(row.symbol_table);
 }
 
-/** Whether the station draws itself as an iGate (the overlay `I` on the gateway symbol). */
+/** Whether the station draws itself as an iGate: the gateway symbol `&` with one of the overlays that mark one (the daemon's IGATE_OVERLAYS: generic, receive-only, transmit, LoRa). */
 export function isIgateSymbol(row: Pick<StationRow, "symbol_table" | "symbol_code">): boolean {
-  return row.symbol_table === IGATE_TABLE && row.symbol_code === IGATE_CODE;
+  return row.symbol_code === IGATE_CODE && (IGATE_OVERLAYS as readonly string[]).includes(row.symbol_table);
 }
 
 /** A station (not an object or an item, not ourselves). */
@@ -43,7 +42,7 @@ const isStation = (row: StationRow): boolean => row.kind === "station" && !row.i
 const isOther = (row: StationRow): boolean => isStation(row) && onAir(row);
 
 /** The nearest first, a missing distance last. */
-const nearer = (x: number | null, y: number | null): number => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y);
+export const nearer = (x: number | null, y: number | null): number => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y);
 
 /** Rows nearest first; of equal distance (a missing one is equal to another) `tie` decides, then the call. */
 function nearestFirst(rows: StationRow[], tie: (a: StationRow, b: StationRow) => number = () => 0): StationRow[] {

@@ -61,6 +61,25 @@ async def test_a_file_whose_sha256_is_not_the_one_of_sha256sums_is_deleted_and_n
     assert installer.installed == [] and list(tmp_path.iterdir()) == []
 
 
+async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = Path.unlink
+
+    def held(path: Path, missing_ok: bool = False) -> None:
+        if path.name.endswith(".part"):
+            raise PermissionError("[WinError 32] in use by another process")
+        real(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held)
+    job, _ = service(tmp_path, FakeRelease(body=BODY + b"!"))
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "error")
+    await job.stop()                                                          # (the job is over, whatever the clean-up did)
+    assert job.status().problem == "checksum"
+    monkeypatch.setattr(Path, "unlink", real)
+    job.begin("0.7.0")                                                        # not refused as busy
+    await job.stop()
+
+
 async def test_a_file_that_sha256sums_does_not_name_is_not_even_downloaded(tmp_path: Path) -> None:
     release = FakeRelease(sums=f"{hashlib.sha256(BODY).hexdigest()}  NeoAPRS-Setup-0.7.0.exe\n".encode())
     installer = FakeInstaller(tmp_path)

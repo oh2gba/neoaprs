@@ -1,7 +1,7 @@
 """How a packet got to us, told for the person: the way of an internet packet read out of its APRS-IS path, and the two latest routes of a station that the map draws.
 
 The q-construct that APRS-IS servers put in a path says how the packet entered the network. `qAR` and `qAO` (and `qAr`, `qAo`, their indirect forms) name an iGate that heard the packet on the radio, `qAO` one that only listens;
-the starred addresses before the q-construct are the digipeaters that repeated it on the way. `qAC`, `qAS`, `qAX` and `qAU`, or `TCPIP*` with no q-construct, mean a client sent the packet into the network itself, an app or a
+the starred addresses before the q-construct are the digipeaters that repeated it on the way (the line may star only the last of them, as a TNC2 monitor does: the addresses before that star were used too). `qAC`, `qAS`, `qAX` and `qAU`, or `TCPIP*` with no q-construct, mean a client sent the packet into the network itself, an app or a
 program, and it was never on the air. A path that says neither (`qAZ`, a trace, no q-construct at all) is not read.
 
 A station keeps the way of its latest internet packet (`Reach`) and the two latest different routes of its packets of any channel (`RouteMark`): the map draws the latest and the one before it, and no others.
@@ -12,12 +12,9 @@ from datetime import datetime
 from typing import Literal
 
 from .packet import IS, Packet
-from .route import digipeaters, is_q_construct, route_of
+from .route import CLIENT_QS, IGATE_QS, INTERNET_MARKERS, digipeaters, is_q_construct, route_of, used_path
 
 MARKS_KEPT = 2                                      # the routes of a station that are kept: the latest and the one before it that was another
-_IGATE_QS = frozenset({"qAR", "qAr", "qAO", "qAo"})     # an iGate heard it on the radio (qAO: one that only listens)
-_CLIENT_QS = frozenset({"qAC", "qAS", "qAX", "qAU"})    # a client sent it into the network
-_CLIENT_MARKERS = ("TCPIP", "TCPXX")
 
 Kind = Literal["igate", "app"]
 MarkKind = Literal["rf", "gated", "igate", "app"]
@@ -35,12 +32,12 @@ def reach_of_path(path: tuple[str, ...]) -> Reach | None:
     """The way an APRS-IS path says the packet got into the network; None when it says neither (no q-construct and no TCPIP, a trace, an iGate q-construct with no call after it)."""
     at = next((i for i, element in enumerate(path) if is_q_construct(element)), None)
     if at is None:
-        return Reach("app") if any(element.rstrip("*").startswith(_CLIENT_MARKERS) for element in path) else None
+        return Reach("app") if any(element.rstrip("*").startswith(tuple(INTERNET_MARKERS)) for element in path) else None
     code, after = path[at], path[at + 1].rstrip("*") if at + 1 < len(path) else ""
-    if code in _CLIENT_QS:
+    if code in CLIENT_QS:
         return Reach("app")
-    if code in _IGATE_QS and after:
-        return Reach("igate", after, route_of(digipeaters(path[:at])).hops)
+    if code in IGATE_QS and after:
+        return Reach("igate", after, route_of(used_path(digipeaters(path[:at]))).hops)
     return None
 
 

@@ -142,6 +142,18 @@ async def test_a_conversation_is_removed_in_one_write_with_the_overheard_message
     assert await log.delete_conversation("OH2XYZ") is None
 
 
+async def test_the_id_of_a_deleted_message_is_not_given_again_whether_one_or_the_whole_conversation_went(tmp_path: Path) -> None:
+    log, _ = await opened(tmp_path)
+    kept = [await log.insert(out(f"m{n}")) for n in range(3)]
+    assert [m.id for m in kept if m is not None] == [1, 2, 3]
+    assert await log.delete(3)
+    after_one = await log.insert(out("next"))
+    assert after_one is not None and after_one.id == 4, "the newest message went, its id stays used"
+    assert await log.delete_conversation("OH2RDG") == 3
+    after_all = await log.insert(out("after all"))
+    assert after_all is not None and after_all.id == 5, "a page that marked ids 1 to 4 as read must not meet one of them again"
+
+
 async def test_held_gives_the_latest_of_any_kind_newest_first_and_nothing_is_pruned_by_age(tmp_path: Path) -> None:
     log, clock = await opened(tmp_path)
     await log.insert(out("ancient", "1", at=T0 - timedelta(days=400)))

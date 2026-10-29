@@ -58,7 +58,7 @@ async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> Non
     assert states == [Source.State.CONNECTING, Source.State.CONNECTED] and len(changes) == 3
     clock.advance(30)
     s._set_state(Source.State.WAITING, "No such file or directory")
-    assert s.state is Source.State.WAITING and s.problem == s.last_error == "No such file or directory" and s.state_since == clock()
+    assert s.state is Source.State.WAITING and s.problem == s.last_error == "No such file or directory"
     s._set_state(Source.State.WAITING, "Permission denied")
     assert s.problem == "No such file or directory" and s.last_error == "Permission denied", "the first problem is what is shown, the last is what happened last"
     s._set_state(Source.State.CONNECTING)
@@ -68,13 +68,29 @@ async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> Non
     await s.stop()
 
 
+async def test_a_feed_that_waits_says_why_the_line_is_down_now_and_retries_unless_it_was_stopped_meanwhile() -> None:
+    s = Dummy("tnc", FixedClock())
+    tries: list[int] = []
+
+    async def retry() -> None:
+        tries.append(1)
+
+    s._set_problem("the TNC sends text, not KISS frames")
+    s._waiting("socket lost: reset", 0.0, retry)
+    assert s.state is Source.State.WAITING and s.problem == s.last_error == "socket lost: reset"
+    assert s.lines[-1].endswith("NeoAPRS: socket lost: reset; trying again in 0 s")
+    await until(lambda: tries)
+    s._waiting("without a retry", 0.0)
+    assert tries == [1] and s.problem == "without a retry" and len(s._tasks) == 0
+
+
 async def test_the_lines_are_numbered_stamped_bounded_and_counted() -> None:
     clock = FixedClock()
     s = Dummy("tnc", clock)
     s._note("opened /dev/brainbox_1")
     s._saw("x" * 500)
     s._reject()
-    assert s.line_count == 2 and s.stats.frames_in == 1 and s.stats.rejected == 1
+    assert len(s.lines) == 2 and s.stats.frames_in == 1 and s.stats.rejected == 1
     assert s.lines[0] == "12:00:00  NeoAPRS: opened /dev/brainbox_1" and len(s.lines[1]) == len("12:00:00  ") + 300
     for _ in range(Source.MAX_LINES + 10):
         s._saw("line")

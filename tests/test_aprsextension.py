@@ -120,3 +120,10 @@ def test_the_characters_of_a_signpost_are_the_braces_at_the_start() -> None:
 @pytest.mark.parametrize("text", ["", "{}", "{ABCD}", "{55", "text {55}", " {55}", "55}"])
 def test_text_that_is_no_sign_is_left_alone(text: str) -> None:
     assert split_sign(text) == (text, None)
+
+
+@pytest.mark.parametrize(("descriptor", "shape", "lon_sign"), [("110/310", "line", 1), ("610/310", "line down-left", -1), ("710/310", "filled ellipse", 1), ("010/310", "open circle", 1)])
+def test_the_area_line_of_type_6_runs_down_and_to_the_left(descriptor: str, shape: str, lon_sign: int) -> None:
+    ext, _ = split_extension(descriptor, True)
+    assert ext is not None and ext.area is not None and ext.area.shape == shape
+    assert (ext.area.lat_offset_deg, ext.area.lon_offset_deg) == (pytest.approx(4 / 60), pytest.approx(lon_sign * 4 / 60))

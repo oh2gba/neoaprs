@@ -35,11 +35,6 @@ export function heardText(row: Counts): string {
   return parts.length === 0 ? "-" : parts.join(", ");
 }
 
-/** A path to send by as the path field shows it: an empty one is direct. */
-export function pathWords(path: string): string {
-  return path === "" ? t("route.direct") : path;
-}
-
 /** The route most packets came by and what is suggested from it: "via OH2RCH-2; send by OH2RCH-2", "direct; send direct", "via ? → OH2RCH-2; unknown repeater, send by WIDE1-1,WIDE2-1". */
 export function bestText(row: Suggestion): string {
   if (row.best_route === "") return "-";

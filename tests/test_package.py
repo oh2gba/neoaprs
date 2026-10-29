@@ -15,7 +15,8 @@ from pathlib import Path
 import pytest
 
 from neoaprs import VERSION
-from neoaprs.cli.daemonstate import LOG_NAME, page_url
+from neoaprs.cli.daemonstate import page_url
+from neoaprs.cli.logfile import LOG_NAME
 from neoaprs.updateasset import wheel_version
 from tests.conftest import ROOT
 from tests.support.proc import NEW_GROUP, stop

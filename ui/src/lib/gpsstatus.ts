@@ -1,8 +1,8 @@
 // What the beacon status of a moving station says in plain words (lib/beaconstatus.ts, components/BeaconStatus.vue), as the radio status does for the TNC (lib/tncstatus.ts): a word for the state on a pill, one line with the fix or why there
 // is none, and the line that says when SmartBeaconing sends next. The fix is told by the daemon (the topic `gps`); the address or the port that is being connected to is a setting.
-import { formatNumber, t } from "@/i18n";
+import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { NONE, ageText, altitudeText, speedText, untilText } from "@/lib/format";
+import { NONE, ageText, altitudeText, positionText, speedText, untilText } from "@/lib/format";
 import type { GpsState } from "@/protocol/protocol";
 
 const STATES: Record<GpsState["state"], MessageId> = {
@@ -29,10 +29,8 @@ const REASONS: Record<Exclude<GpsState["last_beacon_reason"], "">, MessageId> = 
   request: "gps.reason.request",
 };
 
-/** Degrees with N or S, E or W, to four decimals (11 m), the way the line of a fix writes a place: "60.4295 N 24.1452 E". */
-function placeText(lat: number, lon: number): string {
-  return `${formatNumber(Math.abs(lat), 4)} ${lat < 0 ? "S" : "N"} ${formatNumber(Math.abs(lon), 4)} ${lon < 0 ? "W" : "E"}`;
-}
+/** The decimals of a place in the line of a fix: four, 11 m. */
+const FIX_DECIMALS = 4;
 
 /** What the fix says besides where it is: the speed, the course, the altitude and the satellites, each only when the receiver gave it. */
 function facts(gps: GpsState): string[] {
@@ -60,7 +58,7 @@ export function gpsStatus(gps: GpsState, values: Readonly<Record<string, string>
   if (gps.state === "stale" && gps.fix_at !== null) return t("gps.stale", { span: ageText(gps.fix_at, nowMs) });
   if (gps.state !== "fix" || gps.lat === null || gps.lon === null) return t("gps.no_fix");
   const age = gps.fix_at === null ? [] : [t("time.ago", { span: ageText(gps.fix_at, nowMs) })];
-  return t("gps.fix", { facts: [placeText(gps.lat, gps.lon), ...facts(gps), ...age].join(t("gps.separator")) });
+  return t("gps.fix", { facts: [positionText(gps.lat, gps.lon, FIX_DECIMALS), ...facts(gps), ...age].join(t("gps.separator")) });
 }
 
 /** The daemon's reason there is no fix (its own line, in English: "Connection refused"), when the status line does not already say it; "" for a fix and for an old fix, which the line states. */

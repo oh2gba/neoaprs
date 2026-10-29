@@ -8,6 +8,10 @@ import pytest
 from dataclasses import replace
 
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.controller import Controller
+from neoaprs.message import MessageRecord
+from neoaprs.packet import Message, Packet
+from neoaprs.tnc import Tnc
 from neoaprs.dberror import StoreError
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.source import Source
@@ -136,3 +140,56 @@ async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: P
     await e.stop()
     assert not await e.ctl.save_config(replace(new, beacon_interval_min=0)), "the database is closed: nothing is stored"
     assert e.ctl.config is new
+
+
+async def test_a_save_writes_only_the_settings_it_changes_so_that_one_set_from_the_command_line_meanwhile_stays(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    await e.start(connected=False)
+    assert await e.ctl.store.put_setting("igate/password", "12345")           # (`neoaprs db set igate/password 12345` from another process)
+    assert await e.ctl.change_config(lambda c: replace(c, map_radius_km=200))
+    stored = await e.ctl.store.settings()
+    assert stored["igate/password"] == "12345" and stored["map/radius_km"] == "200"
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="mobile"))
+    assert (await e.ctl.store.settings())["igate/password"] == "12345"
+    await e.stop()
+
+
+class Eager(Tnc):
+    """A Tnc that hears a packet the moment it is started, as a TCP KISS radio with a frame waiting does."""
+
+    def __init__(self, clock: FixedClock, packet: Packet) -> None:
+        super().__init__(clock=clock)
+        self.waiting = packet
+
+    async def start(self) -> None:
+        self.packet.emit(self.waiting)
+
+
+async def test_the_radio_is_started_after_the_parts_that_take_its_packets_so_that_the_ack_it_hears_first_settles_our_message(tmp_path: Path) -> None:
+    clock = FixedClock()
+    ack = Packet(clock(), "in", b"", "OH2RDG", "APRS", (), b":OH2GBA   :ack01", Message("OH2GBA", "", None, "01"))
+    ctl = Controller(tmp_path, clock, tnc=Eager(clock, ack), check_sec=0)
+    await ctl.open_database()
+    await ctl.store.put_setting("station/call", "OH2GBA")
+    kept = await ctl.messagelog.insert(MessageRecord(0, clock(), "out", "OH2GBA", "OH2RDG", "Hello", "01", "sending", 1, clock()))
+    assert kept is not None
+    try:
+        await ctl.start()
+        await until(lambda: ctl.messaging.get(kept.id) is not None and ctl.messaging.get(kept.id).state == "acked")      # type: ignore[union-attr]
+        assert [m.text for m in ctl.messaging.records() if m.state == "received"] == [], "the ack is not kept as a message"
+    finally:
+        await ctl.stop()
+
+
+async def test_one_part_that_fails_to_stop_does_not_leave_the_others_running(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    e = Env(tmp_path)
+    await e.start()
+
+    async def fails() -> None:
+        raise RuntimeError("cannot stop")
+
+    e.ctl.queries.stop = fails                                      # type: ignore[method-assign]
+    with caplog.at_level("ERROR", "neoaprs.controller"):
+        await e.stop()
+    assert "the queries could not be stopped" in caplog.text
+    assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open

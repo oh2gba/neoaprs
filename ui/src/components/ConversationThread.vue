@@ -45,6 +45,7 @@ const copy = useCopyMenu((bubble) => {
       <div
         v-else
         class="bubble copysource"
+        tabindex="0"
         :class="[m.direction === 'in' ? 'in' : 'out', { queued: m.state === 'queued' }]"
         :data-direction="m.direction"
         :data-id="m.id"

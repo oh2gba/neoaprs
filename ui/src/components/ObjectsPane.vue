@@ -32,9 +32,11 @@ const rows = computed(() =>
 );
 const scroller = ref<HTMLElement | null>(null);
 
-/** A click or Enter on a row (not on the buttons in it): the form takes the object, and the map selects it; with Ctrl (Cmd on a Mac) its card is added to the open ones. */
+/** A click, Enter or Space on a row (not on the buttons in it, whose Space is theirs: the key is only the row's own, and so is kept from scrolling the page): the form takes the object, and the map selects it; with Ctrl (Cmd on a Mac) its card is added to the open ones. */
 function select(event: MouseEvent | KeyboardEvent, row: OwnObjectRow): void {
-  if (row.state !== "live" || (event instanceof KeyboardEvent && event.target !== event.currentTarget)) return;
+  if (event instanceof KeyboardEvent && event.target !== event.currentTarget) return;
+  if (event instanceof KeyboardEvent && event.key === " ") event.preventDefault();
+  if (row.state !== "live") return;
   props.form.edit(row.name);
   emit("select", row.name, event.ctrlKey || event.metaKey);
 }
@@ -73,7 +75,7 @@ watch(
             v-on="copy.on.value"
             @click="copy.unlessHeld(() => select($event, row))"
             @keydown.enter="select($event, row)"
-            @keydown.space.prevent="select($event, row)"
+            @keydown.space="select($event, row)"
           >
             <div v-if="row.state === 'live'" class="bulletin-actions" @click.stop>
               <IconButton

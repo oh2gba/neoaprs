@@ -13,7 +13,7 @@ LITTER_AGE_SEC = 300                                          # a copy that is b
 
 def sweep(folder: Path, now: float) -> list[str]:
     """Removes the temporary files (`*.sqlite.tmp`, `*.sqlite.tmp-journal`) of copies that did not end: those whose last change is more than LITTER_AGE_SEC before `now`, so that a
-    copy being written at this moment (by the daemon, `neoaprs-db backup`) is never touched. Nothing else in the folder is looked at. Returns the names removed."""
+    copy being written at this moment (the one taken before a migration, by the daemon or by a tool that opens the file) is never touched. Nothing else in the folder is looked at. Returns the names removed."""
     removed: list[str] = []
     try:
         names = os.listdir(folder)

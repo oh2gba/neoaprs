@@ -20,11 +20,11 @@ from neoaprs.clock import Clock
 
 from .addresses import lan_addresses
 from .connections import LimitedHTTPServer
+from .listen import listen_first, ports_near
 from .tls import Certificates, CertificateStore, TlsError
 
 log = logging.getLogger("neoaprs.web")
 
-PORT_TRIES = 10
 RECHECK_SEC = 3600.0
 RETRY_SEC = 300.0
 ServerFactory = Callable[[ssl.SSLContext], LimitedHTTPServer]
@@ -44,7 +44,7 @@ class SecureState:
 
 def ports_after(plain: int) -> list[int]:
     """The ports to try for the secure listener, in order, after the plain port; a free one (0) when there is no port left to try."""
-    return list(range(plain + 1, min(plain + PORT_TRIES, 65535) + 1)) or [0]
+    return ports_near(plain)[1:] or [0]
 
 
 class SecureSide:
@@ -125,17 +125,12 @@ class SecureSide:
         server = self.server
         assert server is not None
         server.stop_listening()
-        first: OSError | None = None
-        for port in [self.state.port] if self.state.port else ports_after(plain_port):
-            try:
-                server.listen(port, address)
-            except OSError as e:
-                first = first or e
-                continue
-            self._address = address
-            self.state = SecureState(False, port or _bound(server), "", "")
-            return None
-        return first
+        port, first = listen_first(server, address, [self.state.port] if self.state.port else ports_after(plain_port))
+        if port is None:
+            return first
+        self._address = address
+        self.state = SecureState(False, port or _bound(server), "", "")
+        return None
 
     def _fail(self, problem: str) -> None:
         log.error("the secure connection is not working: %s; the page goes on over http", problem)
@@ -157,8 +152,8 @@ class SecureSide:
         if server is not None:
             try:
                 await asyncio.wait_for(server.close_all_connections(), 2.0)
-            except (asyncio.TimeoutError, Exception):
-                pass
+            except Exception as e:                                   # (a timeout too)
+                log.warning("the connections of the secure port did not end in time: %r", e)
 
 
 def _bound(server: LimitedHTTPServer) -> int:

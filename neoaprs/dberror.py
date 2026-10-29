@@ -5,11 +5,25 @@ it comes out of `await db.write(...)` as it was raised.
 This is also the one place where the classes that use the database thread take SQLite's own names from (`Connection`, `SqlError`, `IntegrityError`, `OperationalError`: the same objects as
 sqlite3's), so that nothing but the homes of SQL imports sqlite3 (tests/test_architecture.py, docs/ARCHITECTURE.md)."""
 import sqlite3
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 Connection = sqlite3.Connection              # what the database thread hands to a statement function
 SqlError = sqlite3.Error                     # what SQLite raises, and what `except` clauses catch
 IntegrityError = sqlite3.IntegrityError
 OperationalError = sqlite3.OperationalError
+
+Row = tuple[Any, ...]                        # a row the statements of the *sql.py modules give back: the columns in the order of the module's column list
+
+
+def rows(cursor: Iterable[Sequence[Any]]) -> list[Row]:
+    """Every row of a cursor as a plain tuple."""
+    return [tuple(r) for r in cursor]
+
+
+def limit(count: int) -> int:
+    """The LIMIT for a count somebody asked for: a count below zero asks for none (SQLite takes a negative LIMIT for no limit at all)."""
+    return max(0, count)
 
 
 class StoreError(Exception):

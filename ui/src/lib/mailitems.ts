@@ -3,7 +3,7 @@
 // The gateway's acks are no rows: the daemon uses them to settle the mail they belong to.
 import { monthShort, t } from "@/i18n";
 import { isCheck } from "@/lib/email";
-import { dateTimeText } from "@/lib/format";
+import { dateTimeText, pad2 } from "@/lib/format";
 import type { MessageRow } from "@/protocol/protocol";
 
 type MailKind = "mail" | "get" | "reply" | "forwarded";
@@ -82,12 +82,10 @@ export function mailState(row: MessageRow): MailState | null {
   }
 }
 
-const pad = (n: number): string => String(n).padStart(2, "0");
-
 /** When a row is from, short: "12:41" today, "21 Oct 12:41" before; the full date and time is the title of it. */
 export function mailTime(iso: string, nowMs: number): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return dateTimeText(iso);
-  const clock = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const clock = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   return d.toDateString() === new Date(nowMs).toDateString() ? clock : t("email.date_time", { day: d.getDate(), month: monthShort(d), time: clock });
 }

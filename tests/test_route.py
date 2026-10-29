@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Deliveries, Route, automatic_path, digipeaters, heard_path, is_marker, received_text, recommended_path, rf_only_path, route_of, route_text, suggested_path
+from neoaprs.route import ROUTES_KEPT, WIDE_PATH, Alias, Deliveries, Route, automatic_path, digipeaters, heard_path, is_alias, is_marker, parse_alias, received_text, recommended_path, rf_only_path, route_of, route_text, suggested_path, used_path
 
 
 @pytest.mark.parametrize("path, hops, heard_from, direct, anonymous, text", [
@@ -31,12 +31,12 @@ def test_the_aliases_are_kept_as_the_path_wrote_them() -> None:
     assert route_of(("TRACE2-1*",)).written == ("TRACE2-1",)
 
 
-@pytest.mark.parametrize("alias", ["WIDE1", "WIDE2-1", "TRACE2-2", "TRACE3", "RELAY", "ECHO", "GATE", "TEMP1-1", "SAR", "TRACK1"])
+@pytest.mark.parametrize("alias", ["WIDE1", "WIDE2-1", "TRACE2-2", "TRACE3", "RELAY", "ECHO", "GATE", "TEMP1-1", "SAR", "TRACK1", "SS3-3", "HOP7-7", "FI2-2", "FI2", "CA2-1", "ARISS", "APRSAT"])
 def test_an_alias_is_an_anonymous_hop(alias: str) -> None:
     assert route_of((alias + "*",)).anonymous == 1
 
 
-@pytest.mark.parametrize("call", ["OH2RCH", "OH2RCH-2", "WIDEX1", "OH7JHF-1", "K1ABC-15"])
+@pytest.mark.parametrize("call", ["OH2RCH", "OH2RCH-2", "WIDEX1", "OH7JHF-1", "K1ABC-15", "W1AW", "SSSS3-3", "S3-3", "", "-1", "TCPIP"])
 def test_a_call_is_not_an_alias(call: str) -> None:
     assert route_of((call + "*",)).anonymous == 0
 
@@ -261,3 +261,26 @@ def test_a_group_seeded_from_the_database_brings_its_two_latest_times() -> None:
 @pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-1"), ("/", "#", "WIDE2-1"), ("/", ">", WIDE_PATH), ("\\", "s", WIDE_PATH), ("J", "^", WIDE_PATH), ("/", "?", "WIDE2-1"), ("", "", "WIDE2-1")])
 def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_a_wide_hop_for_any_other(table: str, code: str, path: str) -> None:
     assert recommended_path(table, code) == path
+
+
+@pytest.mark.parametrize("address, expected", [
+    ("WIDE2-1", Alias("WIDE", 2, 1)), ("WIDE2-2*", Alias("WIDE", 2, 2)), ("TRACE3-3", Alias("TRACE", 3, 3)), ("SS3-3", Alias("SS", 3, 3)), ("HOP7-7", Alias("HOP", 7, 7)), ("FI2", Alias("FI", 2, None)),
+    ("RELAY", Alias("RELAY", None, None)), ("ARISS", Alias("ARISS", None, None)), ("WIDE", Alias("WIDE", None, None)), ("OH2RCH-2", None)])
+def test_an_alias_has_its_prefix_the_class_of_digipeater_and_the_hops_left(address: str, expected: Alias | None) -> None:
+    assert parse_alias(address) == expected and is_alias(address) is (expected is not None)
+
+
+@pytest.mark.parametrize("address, hops", [("WIDE2-2", 2), ("WIDE2-1", 1), ("WIDE3", 3), ("SS3-3", 3), ("HOP7-7", 7), ("RELAY", 1), ("WIDE2-0", 0)])
+def test_the_hops_an_alias_asks_for_are_the_number_left_else_the_class_else_one(address: str, hops: int) -> None:
+    alias = parse_alias(address)
+    assert alias is not None and alias.hops == hops
+
+
+@pytest.mark.parametrize("path, made", [
+    (("OH2RCH-2", "OH2RDG*", "WIDE2-1"), ("OH2RCH-2*", "OH2RDG*", "WIDE2-1")),                  # (one star, as a monitor writes it: everything before it was used)
+    (("A", "B", "C*", "D"), ("A*", "B*", "C*", "D")),
+    (("A*", "B*"), ("A*", "B*")),                                                              # (every hop starred, as the AX.25 bits give it)
+    (("WIDE1", "OH2RCH-2*"), ("WIDE1*", "OH2RCH-2*")),
+    (("WIDE1-1", "WIDE2-1"), ("WIDE1-1", "WIDE2-1")), ((), ())])
+def test_a_path_with_one_star_has_every_address_before_it_used(path: tuple[str, ...], made: tuple[str, ...]) -> None:
+    assert used_path(path) == made

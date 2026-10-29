@@ -6,7 +6,7 @@ import logging
 import os
 import time as _time
 from collections import deque
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -88,13 +88,12 @@ class Source:
         self.state = Source.State.STOPPED
         self.last_error = ""
         self.problem = ""                  # why it is not connected
-        self.state_since: datetime = clock()
         self.stats = Stats()
         self.lines: deque[str] = deque(maxlen=self.MAX_LINES)
-        self.line_count = 0
         self.last_byte_at: datetime | None = None          # when the latest byte came (the open, if none has since); kept across a reopen of the line
         self.state_changed: Signal[[Source.State]] = Signal(f"{name}.state_changed")
         self.changed: Signal[[]] = Signal(f"{name}.changed")          # lines or counters moved
+        self._generation = 0                                           # changes at stop(), so that an attempt that was under way knows it is over
         self._tasks = TaskSet(self._task_failed)
 
     # ---- what a feed implements
@@ -167,18 +166,30 @@ class Source:
             self.last_error = problem
             if not self.problem:
                 self.problem = problem
-        self.state_since = self.clock()
         if state != self.state:
             self.state = state
             self.state_changed.emit(state)
         self.changed.emit()
+
+    def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None) -> None:
+        """The line is down: the state is WAITING and the problem is why it is down now, not what was wrong with an earlier line; `retry`, when given, is run after `delay` seconds unless the feed was stopped meanwhile."""
+        logging.getLogger(f"neoaprs.{self.name}").warning("%s: %s; trying again in %g s", self.name, problem, delay)
+        self.problem = ""
+        self._set_state(Source.State.WAITING, problem)
+        self._note(f"{problem}; trying again in {delay:g} s")
+        if retry is not None:
+            self._spawn(self._retry_after(delay, self._generation, retry))
+
+    async def _retry_after(self, delay: float, generation: int, retry: Callable[[], Coroutine[Any, Any, None]]) -> None:
+        await asyncio.sleep(delay)
+        if generation == self._generation:
+            await retry()
 
     def _set_problem(self, text: str) -> None:
         self.problem = text
         self.changed.emit()
 
     def _add_line(self, text: str) -> None:
-        self.line_count += 1
         self.lines.append(self.clock().strftime("%H:%M:%S") + "  " + text)
         self.changed.emit()
 

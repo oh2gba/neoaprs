@@ -1,6 +1,7 @@
 """The entry point as a process (`python -m neoaprs`): it starts, makes the database and the log, and stops cleanly on SIGTERM, SIGINT and SIGHUP; a database of a newer version is refused with exit 2
 and the unit does not restart on that code; the program creates nothing for others."""
 import asyncio
+import io
 import logging
 import os
 import random
@@ -452,3 +453,65 @@ def test_a_log_that_cannot_be_reopened_after_a_failed_rollover_is_reported_by_th
     handler.stream = None
     handler.close()
     logger.removeHandler(handler)
+
+
+def test_the_warnings_go_to_stderr_unless_it_is_a_file_where_the_log_would_have_them_twice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = logging.getLogger()
+    before = list(root.handlers)
+    try:
+        with (tmp_path / "launch.log").open("wb") as launch:
+            monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(launch))
+            (tmp_path / "a").mkdir()
+            setup_logging(tmp_path / "a", False)
+            assert not [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], "(a file: what is said before the log exists, a traceback, is kept there; the log has the rest)"
+        for h in [h for h in root.handlers if h not in before]:
+            root.removeHandler(h)
+        monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(io.BytesIO()))
+        (tmp_path / "b").mkdir()
+        setup_logging(tmp_path / "b", False)
+        assert [h for h in root.handlers if h not in before and not isinstance(h, logging.FileHandler)], "(not a file: the journal, a terminal, a pipe)"
+    finally:
+        for h in [h for h in root.handlers if h not in before]:
+            root.removeHandler(h)
+            h.close()
+
+
+@pytest.mark.parametrize(("value", "debug"), [("1", True), ("0", False), ("", False), ("yes", False)])
+def test_the_debug_variable_is_on_for_1_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str, debug: bool) -> None:
+    seen: list[bool] = []
+
+    async def run(args: SimpleNamespace, after: list[list[str]]) -> int:
+        seen.append(bool(args.debug))
+        return 0
+
+    monkeypatch.setattr(entry, "run", run)
+    monkeypatch.setenv("NEOAPRS_DEBUG", value)
+    assert entry.main(["--data", str(tmp_path)]) == 0
+    assert seen == [debug]
+
+
+def test_a_data_folder_that_cannot_be_made_is_one_sentence_and_exit_1_not_a_traceback(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    afile = tmp_path / "afile"
+    afile.write_text("not a folder")
+    for data in (afile, afile / "inside"):
+        assert entry.main(["--data", str(data)]) == 1
+        err = capsys.readouterr().err
+        assert f"the data folder {data} cannot be made or used" in err and "Traceback" not in err and len(err.strip().splitlines()) == 1
+
+
+@posix_only
+def test_a_second_signal_while_the_closing_hangs_ends_the_process_at_once(tmp_path: Path) -> None:
+    script = ("import asyncio, time\nfrom neoaprs.daemon import _stop_on_signals\n"
+              "async def main():\n    stop = _stop_on_signals(asyncio.get_running_loop())\n    print('ready', flush=True)\n    await stop.wait()\n    print('closing', flush=True)\n    time.sleep(120)\n"
+              "asyncio.run(main())\n")
+    proc = subprocess.Popen([sys.executable, "-c", script], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        assert proc.stdout is not None and proc.stdout.readline().strip() == "ready"
+        proc.send_signal(signal.SIGTERM)
+        assert proc.stdout.readline().strip() == "closing"
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=PATIENCE_SEC) == 128 + signal.SIGTERM
+        assert "a second signal" in proc.stderr.read() if proc.stderr else False
+    finally:
+        proc.kill()
+        proc.communicate()

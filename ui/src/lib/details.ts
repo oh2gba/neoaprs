@@ -1,8 +1,7 @@
 // The details of a position or a station that the daemon decodes beyond where it is: the data extensions (PHG, range, DF, area), the Maidenhead locator, the telemetry channels, the voice frequency with its
 // tone, offset and range, the storm data of a hurricane object, and the time a packet carries (which may be the sender's local time).
 import { formatNumber, t } from "@/i18n";
-import { bearingTitle, dateTimeText, distanceText, positionText } from "@/lib/format";
-import { windSpeedText } from "@/lib/weather";
+import { bearingTitle, dateTimeText, distanceText, pad2, positionText, speedText } from "@/lib/format";
 import type {
   DecodedObject,
   DecodedOther,
@@ -68,7 +67,10 @@ export function extensionRows(ext: ExtensionValues | null): DetailRow[] {
     const a = ext.area;
     rows.push({
       label: t("station.ext.area"),
-      text: t("station.ext.area_value", { colour: a.colour, shape: a.shape, down: a.lat_offset_deg, right: a.lon_offset_deg }),
+      text:
+        a.lon_offset_deg < 0
+          ? t("station.ext.area_value_left", { colour: a.colour, shape: a.shape, down: a.lat_offset_deg, left: -a.lon_offset_deg })
+          : t("station.ext.area_value", { colour: a.colour, shape: a.shape, down: a.lat_offset_deg, right: a.lon_offset_deg }),
     });
   }
   return rows;
@@ -118,8 +120,8 @@ export function frequencyText(f: FrequencyValues): string {
 /** The storm data in words: "Hurricane, wind 278 km/h, gusts 370 km/h, pressure 980 hPa, hurricane winds out to 167 km, ..."; only the fields the report had. */
 export function stormText(s: StormValues): string {
   const parts = [t("station.storm.kind", { kind: s.storm_type })];
-  if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: windSpeedText(s.wind_kmh) }));
-  if (s.gust_kmh !== null) parts.push(t("station.storm.gusts", { speed: windSpeedText(s.gust_kmh) }));
+  if (s.wind_kmh !== null) parts.push(t("station.storm.wind", { speed: speedText(s.wind_kmh) }));
+  if (s.gust_kmh !== null) parts.push(t("station.storm.gusts", { speed: speedText(s.gust_kmh) }));
   if (s.pressure_hpa !== null) parts.push(t("station.storm.pressure", { value: `${s.pressure_hpa} hPa` }));
   if (s.hurricane_radius_km !== null) parts.push(t("station.storm.hurricane_radius", { km: distanceText(s.hurricane_radius_km) }));
   if (s.storm_radius_km !== null) parts.push(t("station.storm.storm_radius", { km: distanceText(s.storm_radius_km) }));
@@ -149,6 +151,5 @@ export function sentTimeText(row: PacketRow): string | null {
   if (sent === null) return null;
   if (!sent.local) return dateTimeText(sent.at);
   const d = new Date(sent.at);
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return t("station.sent_local", { time: `${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` });
+  return t("station.sent_local", { time: `${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` });
 }

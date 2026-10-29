@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { bytesLeft } from "@/lib/messages";
 import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";
-import { parsePath, validCall } from "@/lib/calls";
+import { isAlias, isMarker } from "@/lib/chain";
+import { parsePath, validCall, validName } from "@/lib/calls";
+import { compareVersions } from "@/lib/releasenotes";
 import { wheelVersion } from "@/lib/update";
 import { callOk, problemOf } from "@/lib/fieldcheck";
 import { draftProblems, emptyDraft, nameProblem, objectCommand, qruProblem } from "@/lib/ownobjects";
@@ -16,6 +18,10 @@ describe("the vectors of the daemon", () => {
 
   it("say which calls parse (a path, an addressee), SSID and all", () => {
     for (const { input, ok } of vectors.parse_calls) expect(validCall(input), JSON.stringify(input)).toBe(ok);
+  });
+
+  it("say which names a message may be addressed to: a call or a name APRS-IS allows", () => {
+    for (const { input, ok } of vectors.station_names) expect(validName(input), JSON.stringify(input)).toBe(ok);
   });
 
   it("say which paths the daemon takes", () => {
@@ -60,6 +66,17 @@ describe("the vectors of the daemon", () => {
 
   it("say which values of the settings the daemon takes, for the settings the page checks", () => {
     for (const { key, input, ok } of vectors.settings) expect(problemOf(key, input) === "", JSON.stringify([key, input])).toBe(ok);
+  });
+
+  it("say which elements of a path are aliases and which are markers for the iGates", () => {
+    for (const { input, alias, marker } of vectors.route_elements) {
+      expect(isAlias(input), JSON.stringify(input)).toBe(alias);
+      expect(isMarker(input), JSON.stringify(input)).toBe(marker);
+    }
+  });
+
+  it("say which of two versions is the newer", () => {
+    for (const { a, b, order } of vectors.compare_versions) expect(compareVersions(a, b), JSON.stringify([a, b])).toBe(order);
   });
 
   it("say how a version is written in the name of the wheel", () => {

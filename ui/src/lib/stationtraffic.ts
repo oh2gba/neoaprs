@@ -37,7 +37,7 @@ export function mergeTraffic(live: Iterable<PacketRow>, logged: readonly PacketR
 }
 
 /** The query a packet of ours to `call` is (a message with no id whose text begins with "?"), upper-cased; null for any other packet. */
-export function queryOf(row: PacketRow, call: string): string | null {
+export function queryAsked(row: PacketRow, call: string): string | null {
   const d = ourMessageTo(row, call);
   return d !== null && d.msg_id === null && d.ack_id === null && d.rej_id === null && d.text.startsWith("?") ? d.text.toUpperCase() : null;
 }
@@ -56,7 +56,7 @@ export function answers(query: string, reply: PacketRow): boolean {
 
 /** The state of a query of ours (null for a packet that is none): answered when the station sent the answer after it, else waiting for ANSWER_WAIT_MS and then no answer. `rows` are the lines of the list. */
 export function queryState(row: PacketRow, call: string, rows: readonly PacketRow[], now: number): QueryState | null {
-  const query = queryOf(row, call);
+  const query = queryAsked(row, call);
   if (query === null) return null;
   const sent = time(row);
   if (rows.some((reply) => reply.direction === "in" && reply.sender === call && time(reply) > sent && answers(query, reply))) return "answered";

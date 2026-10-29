@@ -8,6 +8,7 @@
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at. The Help group (SettingsHelp) follows the Update check group, and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
+import TwoWords from "@/components/TwoWords.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
 import MapFetchButton from "@/components/MapFetchButton.vue";
 import MapFetchNotes from "@/components/MapFetchNotes.vue";
@@ -217,7 +218,10 @@ function typed(key: string, text: string): void {
             </template>
             <template v-else-if="key === KEY_KEY" #after>
               <button class="btn" :class="{ danger: newKey.armed.value }" type="button" :disabled="newKey.running.value" @click="newKey.press">
-                {{ newKey.armed.value ? t("settings.new_key_sure") : t("settings.new_key") }}
+                <TwoWords :second="newKey.armed.value">
+                  <template #first>{{ t("settings.new_key") }}</template>
+                  <template #second>{{ t("settings.new_key_sure") }}</template>
+                </TwoWords>
               </button>
             </template>
           </SettingsField>

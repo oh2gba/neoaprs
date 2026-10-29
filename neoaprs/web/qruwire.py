@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Iso, PathText, _Command, _Model
 
 
 class AskQru(_Command):
@@ -15,7 +15,7 @@ class AskQru(_Command):
     interlock's reason), the radio is away, a request to QRU was sent less than 60 seconds ago, whatever it said (`qru.too_soon`, with the `seconds` that are left), or the path is no path or too long with RFONLY (`path.*`, `call.*`)."""
     cmd: Literal["qru_ask"]
     text: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9]{1,8}( \d{1,5})?$")
-    path: str | None = Field(default=None, max_length=256, description="the path the request goes by; left out (or null, or empty) the path of messages to QRU")
+    path: PathText | None = Field(default=None, description="the path the request goes by; left out (or null, or empty) the path of messages to QRU")
     rf_only: bool = Field(default=True, description="RFONLY after the path; left out it is true")
 
 

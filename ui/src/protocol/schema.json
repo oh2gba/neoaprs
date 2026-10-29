@@ -79,7 +79,7 @@
       "description": "An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches.",
       "properties": {
         "shape": {
-          "description": "open circle, line, open ellipse, open triangle, open box, filled circle, coloured line, filled ellipse, filled triangle or filled box",
+          "description": "open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box",
           "type": "string"
         },
         "colour": {
@@ -2594,13 +2594,13 @@
           "type": "string"
         },
         "lat": {
-          "maximum": 90,
-          "minimum": -90,
+          "maximum": 90.0,
+          "minimum": -90.0,
           "type": "number"
         },
         "lon": {
-          "maximum": 180,
-          "minimum": -180,
+          "maximum": 180.0,
+          "minimum": -180.0,
           "type": "number"
         },
         "symbol_table": {
@@ -2632,7 +2632,7 @@
         "speed_kmh": {
           "anyOf": [
             {
-              "maximum": 1850,
+              "maximum": 1850.148,
               "minimum": 0,
               "type": "number"
             },

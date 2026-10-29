@@ -8,7 +8,6 @@ name (`ensure` is asked at the start and whenever the settings change, and now a
 served or logged; only `ca_der`, the authority's certificate, goes to the devices that ask for it.
 """
 import hashlib
-import ipaddress
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -24,6 +23,8 @@ from cryptography.hazmat.primitives.asymmetric.types import PublicKeyTypes
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 from neoaprs.clock import utc
+
+from .addresses import as_address
 
 log = logging.getLogger("neoaprs.web")
 
@@ -63,11 +64,11 @@ def wanted_names(host: str, addresses: Iterable[str], more: Iterable[str] = ()) 
     names: list[str] = []
     for item in (host, f"{host}.local" if host else "", "localhost", "127.0.0.1", "::1", *addresses, *more):
         item = item.strip().lower().rstrip(".")
-        try:
-            item = str(ipaddress.ip_address(item.split("%", 1)[0]))
-        except ValueError:
-            if not item or not item.isascii() or not item.isprintable() or " " in item or len(item) > 253:
-                continue
+        address = as_address(item)
+        if address is not None:
+            item = str(address)
+        elif not item or not item.isascii() or not item.isprintable() or " " in item or len(item) > 253:
+            continue
         if item not in names:
             names.append(item)
     return tuple(names)
@@ -76,10 +77,8 @@ def wanted_names(host: str, addresses: Iterable[str], more: Iterable[str] = ()) 
 def _general_names(names: Names) -> list[x509.GeneralName]:
     out: list[x509.GeneralName] = []
     for name in names:
-        try:
-            out.append(x509.IPAddress(ipaddress.ip_address(name)))
-        except ValueError:
-            out.append(x509.DNSName(name))
+        address = as_address(name)
+        out.append(x509.DNSName(name) if address is None else x509.IPAddress(address))
     return out
 
 

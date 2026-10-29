@@ -6,9 +6,21 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from neoaprs.ax25 import MAX_PATH
 from neoaprs.clock import iso
+from neoaprs.policy import LOG_KEEP_DAYS
+
+HISTORY_MAX_HOURS = LOG_KEEP_DAYS * 24      # how far back a command that reads the logs may ask: all they keep
+# What the wire holds a typed text to is a size, with room over what the core allows: the core says what is wrong with a call, a path or a message text (neoaprs/callsign.py, neoaprs/message.py), coded, so that the
+# page shows it in its own language and with the numbers; a model that refused the text first would show a plain English line of the validation.
+CALL_ROOM = 64                              # a call as typed (the longest there is, base and SSID, is 9)
+TEXT_ROOM = 512                             # a message text as typed (a message carries 67 characters)
+PATH_TEXT_MAX = MAX_PATH * 32               # a path as typed: the calls of MAX_PATH digipeaters at 9 characters or less, and room for the commas and blanks between them
 
 Iso = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", description="UTC, ISO 8601 with a Z")]
+Call = Annotated[str, Field(min_length=1, max_length=CALL_ROOM)]
+PathText = Annotated[str, Field(max_length=PATH_TEXT_MAX)]
+MessageText = Annotated[str, Field(max_length=TEXT_ROOM)]
 
 
 def plain(value: Any) -> Any:
@@ -99,7 +111,7 @@ class DfBearingValues(_Model):
 
 class AreaValues(_Model):
     """An area object (the symbol `\\l`): its shape and colour, and how far down and to the right of the object's position it reaches."""
-    shape: str = Field(description="open circle, line, open ellipse, open triangle, open box, filled circle, coloured line, filled ellipse, filled triangle or filled box")
+    shape: str = Field(description="open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box")
     colour: str
     lat_offset_deg: float
     lon_offset_deg: float

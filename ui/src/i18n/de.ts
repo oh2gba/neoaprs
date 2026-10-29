@@ -600,6 +600,8 @@ export const de: Catalogue = {
   "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
   "station.ext.df_bearing_value": "{bearing}°, Reichweite {range} km, Qualität {quality}, Treffer {hits}",
   "station.ext.area_value": "{colour} {shape}, {down}° nach unten, {right}° nach rechts",
+
+  "station.ext.area_value_left": "{colour} {shape}, {down}° nach unten, {left}° nach links",
   "station.telemetry.numbered": "#{number}: {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} ein", other: "{name} aus" },
   "station.sent_local": "{time} Ortszeit",
@@ -664,7 +666,6 @@ export const de: Catalogue = {
   "station.menu.qrz": "QRZ-Seite",
   "station.menu.forget": "Vergessen",
   "station.menu.forget_sure": "Wirklich vergessen?",
-  "station.menu.copied": "{call} kopiert",
   "station.alert.label": "Benachrichtigen, wenn {call}…",
   "station.alert.on_air": "auf Sendung kommt",
   "station.alert.on_air_title": "Nach 30 Minuten oder mehr Stille gehört, oder zum ersten Mal",

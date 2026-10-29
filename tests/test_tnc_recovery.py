@@ -1,17 +1,19 @@
 """The radio recovers by itself, with no click on Reconnect: a radio that is silent (the port open, no answer) when it comes back, a port that goes away and comes back (a USB adapter plugged in again) and, where the radio is not
 searched for (Windows, macOS), an adapter that comes back as another COM port. The Tnc runs on fake radios (TCP servers on the loopback) with short periods; the pieces of each case are tested closer in tests/test_silent.py, tests/test_tnc.py and
 tests/test_tnc_pty.py."""
+import threading
 from types import SimpleNamespace
 
 import pytest
 
-from neoaprs import serialprobe
+from neoaprs import serialprobe, tncfollow
 from neoaprs.serialprobe import AdapterId, PortInfo
 from neoaprs.serialport import SerialError
 from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncfollow import AdapterFollow
 from tests.support.env import idle_for, until
+from tests.support.fakeport import FakePorts
 from tests.support.fakeradio import FakeRadio
 from tests.test_silent import silent_rig
 from tests.test_tnc import Rigs, kiss_of, stops_rigs, tiny_backoff, ui_frame
@@ -26,8 +28,9 @@ def rig() -> Rigs:
 
 @pytest.fixture
 def no_search(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Windows: the radio is not looked for among the ports, it is the port that was named."""
+    """Windows: the radio is not looked for among the ports, it is the port that was named. The fake radios are sockets on the loopback and stand for COM ports (a socket has no adapter)."""
     monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(tncfollow, "has_adapter", lambda path: True)
 
 
 def usb(device: str, serial: str = "", ids: tuple[int, int] = FTDI) -> PortInfo:
@@ -114,6 +117,7 @@ async def test_an_adapter_that_comes_back_as_another_port_is_followed_to_it(monk
         await tnc.start()
         await first.connected()
         assert tnc.path == first.url
+        await until(lambda: tnc._follow.knows(first.url))           # (the adapter is learnt a moment after the port opens)
         ports.move()                                                # COM5 is gone, the adapter is COM7 now
         await until(lambda: tnc.state is Source.State.CONNECTED and tnc.path == second.url)
         assert tnc.port == first.url, "the setting is not changed: the adapter is what is followed"
@@ -138,6 +142,7 @@ async def test_an_adapter_without_a_serial_number_is_not_followed_when_two_ports
     try:
         await tnc.start()
         await first.connected()
+        await until(lambda: tnc._follow.knows(first.url))
         ports.move()
         ports.listed.append(usb(third.url))                         # another adapter of the same kind: which one is the radio?
         await until(lambda: tnc.state is Source.State.WAITING and tnc.stats.opens == 1)
@@ -186,7 +191,125 @@ async def test_where_the_radio_is_searched_for_the_adapter_is_not_followed_by_na
         raise SerialError("gone")
 
     assert await follow.open("/dev/ttyUSB0", True, opener, print) == ("/dev/ttyUSB0", "/dev/ttyUSB0")
+    await follow.remember("/dev/ttyUSB0", "/dev/ttyUSB0")
     monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("/dev/ttyUSB1", "AAA")])
     with pytest.raises(SerialError):
         await follow.open("/dev/ttyUSB0", True, lambda path: opener("/dev/ttyUSB9"), print)      # (the search for the radio does this on Linux, not the name)
-    assert follow.active is False
+    assert follow.following("/dev/ttyUSB0", True) is False
+
+
+# ---- the adapter is the named port's, and is identified after the line is the Tnc's
+
+async def test_a_port_the_operator_names_instead_is_not_the_adapter_that_was_remembered(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("COM3", "AAA")])
+    follow = AdapterFollow()
+    opened: list[str] = []
+    present = {"COM3"}
+
+    async def opener(path: str) -> str:
+        opened.append(path)
+        if path not in present:
+            raise SerialError(f"{path}: not there")
+        return path
+
+    assert await follow.open("COM3", True, opener, print) == ("COM3", "COM3")
+    await follow.remember("COM3", "COM3")
+    with pytest.raises(SerialError):
+        await follow.open("COM7", True, opener, print)                       # (another radio on another port, not plugged in: the radio on COM3 is not it)
+    assert opened == ["COM3", "COM7"]
+    monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb("COM4", "AAA")])
+    present.clear()
+    present.add("COM4")
+    assert await follow.open("COM3", True, opener, print) == ("COM4", "COM4"), "the port that was named when the adapter was learnt is still followed"
+
+
+@pytest.mark.usefixtures("no_search")
+async def test_a_changed_port_setting_never_opens_the_old_radios_port_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    first, second = FakeRadio(), FakeRadio()
+    await first.start()
+    await second.start()
+    monkeypatch.setattr(serialprobe, "available_ports", lambda: [usb(first.url, "AAA")])
+    tnc = Tnc(first.url, backoff=tiny_backoff(), fallback_probe=False)
+    try:
+        await tnc.start()
+        await first.connected()
+        await until(lambda: tnc._follow._adapter is not None)               # (learnt after the line was open)
+        await tnc.stop()
+        second.refuse()                                                    # the other radio's cable is not plugged in
+        tnc.port = second.url
+        await tnc.start()
+        await until(lambda: tnc.state is Source.State.WAITING)
+        assert first.connections == 1 and tnc.stats.opens == 1 and tnc.path == first.url
+        assert not any("is gone; the adapter is on" in line for line in tnc.lines)
+    finally:
+        await tnc.stop()
+        await first.aclose()
+        await second.aclose()
+
+
+@pytest.fixture
+def ports(monkeypatch: pytest.MonkeyPatch) -> FakePorts:
+    return FakePorts().install(monkeypatch)
+
+
+@pytest.fixture
+def identifying(monkeypatch: pytest.MonkeyPatch) -> "Identifying":
+    """Windows, with the system's list of ports as slow as the test wants."""
+    monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="win32"))
+    return Identifying(monkeypatch)
+
+
+class Identifying:
+    """`serialprobe.identity_of` that waits in its thread until the test lets it go, and says which ports it was asked about."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.asked: list[str] = []
+        self.started, self.go = threading.Event(), threading.Event()
+        monkeypatch.setattr(serialprobe, "identity_of", self.identity_of)
+
+    def identity_of(self, path: str) -> AdapterId | None:
+        self.asked.append(path)
+        self.started.set()
+        self.go.wait(5.0)
+        return None
+
+
+async def test_a_stop_while_the_adapter_is_identified_leaves_no_port_open(ports: FakePorts, identifying: Identifying) -> None:
+    tnc = Tnc("COM3", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
+    try:
+        await tnc.start()
+        assert tnc.state is Source.State.CONNECTED, "the line is the Tnc's before anyone looks for its adapter"
+        await until(identifying.started.is_set)                             # (the system's list is being read)
+        await tnc.stop()
+        assert not ports.port.is_open and tnc.state is Source.State.STOPPED
+    finally:
+        identifying.go.set()
+
+
+async def test_a_line_that_is_open_is_heard_while_the_adapter_is_identified(ports: FakePorts, identifying: Identifying) -> None:
+    tnc = Tnc("COM3", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
+    packets = []
+    tnc.packet.connect(packets.append)
+    try:
+        await tnc.start()
+        await until(identifying.started.is_set)
+        ports.port.feed(kiss_of(ui_frame()))
+        assert len(packets) == 1, "(the first bytes of the line are not thrown away)"
+    finally:
+        identifying.go.set()
+        await tnc.stop()
+
+
+async def test_a_port_that_cannot_be_an_adapter_is_not_asked_about(ports: FakePorts, identifying: Identifying) -> None:
+    for path in ("socket://127.0.0.1:8001", "tcp://127.0.0.1:8001", "bt://AA:BB:CC:DD:EE:FF", "ble://AA:BB:CC:DD:EE:FF"):
+        assert AdapterFollow().following(path, True) is False
+    assert AdapterFollow().following("COM3", True) is True and AdapterFollow().following("COM3", False) is False
+    tnc = Tnc("socket://127.0.0.1:8001", backoff=tiny_backoff(), fallback_probe=False, check_sec=0.0)
+    try:
+        await tnc.start()
+        assert tnc.state is Source.State.CONNECTED and len(tnc._tasks) == 0, "nothing is looked up for a TCP port"
+        assert identifying.asked == []
+    finally:
+        identifying.go.set()
+        await tnc.stop()

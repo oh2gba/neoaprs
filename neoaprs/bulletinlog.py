@@ -5,9 +5,10 @@ write is an append that nobody waits for, in order with everything else the thre
 import logging
 
 from .bulletin import BulletinRecord, board_slot
-from .bulletinsql import Row, all_bulletins, delete_bulletin, save_bulletin
+from .bulletinsql import all_bulletins, delete_bulletin, save_bulletin
 from .clock import Clock, utcnow
 from .db import Db
+from .dberror import Row
 from .dblog import DbLog
 from .packetcodec import parse_stamp, stamp
 

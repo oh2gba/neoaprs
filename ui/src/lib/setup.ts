@@ -6,8 +6,7 @@ import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
 import type { Choice } from "@/lib/settingchoices";
-import { portForProfile, speedFallback } from "@/lib/tncprofile";
-import { TNC_PROFILES } from "@/protocol/lists";
+import { portForProfile, profileOf, speedFallback } from "@/lib/tncprofile";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
@@ -81,8 +80,6 @@ export const KEY_OF: Record<string, FieldName> = {
   "tcp/host": "host",
   "tcp/port": "tcpPort",
 };
-
-export const profileOf = (key: string) => TNC_PROFILES.find((p) => p.key === key);
 
 const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
 /** The Dummy radio: no radio, so no port, no speed and no host to ask for. */

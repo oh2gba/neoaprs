@@ -50,9 +50,10 @@ def app_command(data: Path, platform: str | None = None, frozen: bool | None = N
 
 
 def desktop_exec(argv: list[str]) -> str:
-    """The Exec line of a desktop entry: an argument with a space or a quote is in double quotes, and the characters the specification says (`"`, `` ` ``, `$`, `\\`) have a backslash, `%` is doubled."""
+    """The Exec line of a desktop entry: an argument with a space or a quote is in double quotes, and the characters the specification says (`"`, `` ` ``, `$`) have a backslash, `%` is doubled. A literal backslash is four in the file: the string
+    escape of the file format (`\\\\` is one) is applied first, and the quoting rule then wants that one escaped as well."""
     def one(arg: str) -> str:
-        arg = arg.replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`").replace("$", "\\$").replace("%", "%%")
+        arg = arg.replace("\\", "\\" * 4).replace('"', '\\"').replace("`", "\\`").replace("$", "\\$").replace("%", "%%")
         return f'"{arg}"' if any(c in arg for c in " \t\n\"'\\><~|&;*?#()`$") else arg
     return " ".join(one(a) for a in argv)
 

@@ -9,7 +9,7 @@ from typing import Any
 import tornado.httpserver
 from tornado.iostream import IOStream
 
-from .access import is_loopback
+from .addresses import is_loopback
 
 log = logging.getLogger("neoaprs.web")
 

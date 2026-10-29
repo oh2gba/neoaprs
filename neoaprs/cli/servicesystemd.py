@@ -10,8 +10,9 @@ import urllib.parse
 from importlib import resources
 from pathlib import Path
 
-from .daemonstate import describe
+from .daemonstate import describe, page_address
 from .hostcheck import serial_group_check
+from .logfile import LOG_NAME
 from .servicecmd import REPO, Plan
 
 UNIT_NAME = "neoaprs.service"
@@ -142,7 +143,7 @@ def after_install(plan: Plan) -> None:
     group = serial_group_check()
     if group.status in ("missing", "relogin"):
         print(f"note: {user} cannot open the radio's serial port yet: {group.fix}")
-    print(f"neoaprs runs (journal: journalctl --user -u neoaprs -f; log: {plan.data / 'neoaprs.log'}); the page is on http://127.0.0.1:7303 (the setting web/port)")
+    print(f"neoaprs runs (journal: journalctl --user -u neoaprs -f; log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)")
 
 
 def remove(plan: Plan) -> int:

@@ -48,6 +48,15 @@ def test_a_mice_comment_names_its_device(comment: str, device: str) -> None:
     assert table().by_mice(comment) == device
 
 
+@pytest.mark.parametrize(("tail", "device"), [
+    (b"]=", "Kenwood TM-D710"), (b"]=\r", "Kenwood TM-D710"), (b"]=\r\n", "Kenwood TM-D710"), (b"]", "Kenwood TM-D700"), (b"]\r", "Kenwood TM-D700"),
+    (b">=\r", "Kenwood TH-D72"), (b">Hello^\r", "Kenwood TH-D74"), (b">\r\n", "Kenwood TH-D7A"),
+    (b"`_3", "Yaesu FT5D"), (b"`_3\r", "Yaesu FT5D"), (b"`_3\r\n", "Yaesu FT5D"), (b"`Hello_#\n", "Yaesu VX-8G"), (b"`Hello_9\r", ""),
+])
+def test_the_line_end_a_radio_adds_does_not_hide_or_change_its_type_code(tail: bytes, device: str) -> None:
+    assert packet_device(heard(b"`" + WORKED + tail, "S32UVT")) == device
+
+
 def test_a_mice_packet_is_named_by_its_comment_and_not_by_the_destination() -> None:
     assert packet_device(heard(b"`" + WORKED + b"`Hello_#", "S32UVT")) == "Yaesu VX-8G"
     assert packet_device(heard(b"`" + WORKED + b">Hello^", "S32UVT")) == "Kenwood TH-D74"

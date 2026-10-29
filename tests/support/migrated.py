@@ -11,6 +11,7 @@ from pathlib import Path
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.migrations import history, open_database, schema_version
+from neoaprs.migrationsteps1to11 import _v10
 from neoaprs.migrationsteps12to21 import _v12
 
 
@@ -55,3 +56,5 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
             db.execute(f"ALTER TABLE station DROP COLUMN {column}")
     if version < 22:
         _v12(db)                    # (`station_pref` made again as migration 12 made it, without the columns of the alerts: a column that a CHECK names cannot be dropped; the table of a test is empty here)
+    if version < 23:
+        _v10(db)                    # (`message` made again as migration 10 made it, without AUTOINCREMENT, so that migration 23 finds the table it expects; the rows are kept)

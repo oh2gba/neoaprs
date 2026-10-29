@@ -11,6 +11,7 @@
 // card's, "sure?" for 5 s; armed together with the panel's Forget); a click on them does not select the row. A right-click on a row (a long press on a touch screen) opens a short menu where the pointer is (StationMenu:
 // Copy call, Show on map, QRZ page), as the Packets tab's copies. A station with an alert set has a small quiet bell after its call (AlertBell: every row has its place, so that nothing moves).
 import TagMark from "@/components/TagMark.vue";
+import TwoWords from "@/components/TwoWords.vue";
 import { computed, ref } from "vue";
 import AlertBell from "@/components/AlertBell.vue";
 import BearingArrow from "@/components/BearingArrow.vue";
@@ -37,7 +38,7 @@ import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format"
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
 import { heardDirect } from "@/lib/routes";
-import { canForget, canMessage, firstDirection, listStations, stationRowId, symbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
+import { canForget, canMessage, firstDirection, listStations, stationRowId, rowSymbolName, type QueryKind, type Sort, type SortKey } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
 
 const props = withDefaults(
@@ -160,7 +161,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
           <tr>
             <th v-for="(c, i) in columns" :key="i" :class="{ num: c.numeric, sortable: c.key !== null }" :aria-sort="ariaSort(c.key)">
               <button v-if="c.key" type="button" class="headbtn" @click="sortBy(c.key)">
-                {{ c.title }}<span v-if="sort.key === c.key" aria-hidden="true">{{ sort.dir === 1 ? " ▲" : " ▼" }}</span>
+                {{ c.title }}<span class="sortmark" aria-hidden="true">{{ sort.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : "" }}</span>
               </button>
               <span v-else-if="c.title" class="sr-only">{{ c.title }}</span>
             </th>
@@ -184,7 +185,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
             @pointerup="press.up"
             @pointercancel="press.cancel"
           >
-            <td class="symbol" :title="symbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
+            <td class="symbol" :title="rowSymbolName(row)"><SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="18" /></td>
             <td class="mono strong call">
               <span class="callname">{{ row.call }}</span
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
@@ -255,7 +256,10 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
       <span class="footcount">{{ t("station.table.count", { shown: rows.length, n: stations.size }) }}</span>
       <span class="footaction">
         <button type="button" class="btn forgetall" :class="{ danger: sureAll.armed.value !== null }" :disabled="!anyHeard" @click="forgetAll">
-          {{ sureAll.armed.value !== null ? t("station.table.forget_all_sure") : t("station.table.forget_all") }}
+          <TwoWords :second="sureAll.armed.value !== null">
+            <template #first>{{ t("station.table.forget_all") }}</template>
+            <template #second>{{ t("station.table.forget_all_sure") }}</template>
+          </TwoWords>
         </button>
         <InfoTip :label="t('station.table.forget_all_label')">
           <span class="info-line">{{ t("station.table.forget_tip") }}</span>

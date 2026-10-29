@@ -1,12 +1,19 @@
 """A GPS fix from what a receiver says (neoaprs/gpsfix.py): NMEA sentences with their checksums, a stream of them, and gpsd's TPV and SKY reports."""
+from datetime import datetime
+
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.gpsfix import Fix, GpsdFixes, NmeaFixes, fix_from_gpsd, fix_from_nmea, satellites_of_sky
+from neoaprs.gpsfix import Fix, GpsdFixes, NmeaFixes, fix_from_gpsd, satellites_of_sky
 from tests.support.gps import gga, nmea, rmc, sky, tpv
 
 NOW = utc(2026, 10, 25, 12, 35, 19)
 KNOT_KMH = 1.852
+
+
+def fix_from_nmea(line: str | bytes, now: datetime) -> Fix | None:
+    """The fix of one sentence on its own."""
+    return NmeaFixes().feed(line, now)
 
 
 # ---- one NMEA sentence --------------------------------------------------------------------------------------------------------------------------------
@@ -96,6 +103,29 @@ def test_a_damaged_sentence_is_counted_and_changes_nothing() -> None:
     good = stream.feed(rmc(60.43, 24.145, 1.0, 10.0), NOW)
     assert stream.feed("$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6B", NOW) is None
     assert stream.damaged == 1 and stream.fix == good and not stream.said_none
+
+
+@pytest.mark.parametrize("line", [
+    "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W",            # the end of the line was lost
+    "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*",
+    "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6",           # and one digit of the checksum with it
+    "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,"])
+def test_a_sentence_with_no_checksum_or_a_cut_one_is_damaged_and_changes_nothing(line: str) -> None:
+    stream = NmeaFixes()
+    good = stream.feed(rmc(60.43, 24.145, 1.0, 10.0), NOW)
+    assert stream.feed(line, NOW) is None
+    assert stream.damaged == 1 and stream.fix == good and not stream.said_none
+
+
+@pytest.mark.parametrize("error", [ValueError("not a number"), OverflowError("cannot convert float infinity to integer")])
+def test_a_sentence_the_parser_cannot_make_sense_of_is_damaged_and_never_raised(error: Exception, monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise error
+
+    monkeypatch.setattr("neoaprs.gpsfix.parse_nmea", refuse)
+    stream = NmeaFixes()
+    assert stream.feed(rmc(60.43, 24.145, 1.0, 10.0), NOW) is None
+    assert stream.damaged == 1 and stream.fix is None
 
 
 def test_a_stationary_receiver_with_no_course_has_a_speed_and_no_course() -> None:

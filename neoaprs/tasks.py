@@ -1,7 +1,8 @@
-"""The tasks a part starts, shared by every part that runs on the loop: `cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts."""
+"""The tasks a part starts, shared by every part that runs on the loop: `cancel_all` ends tasks and waits for each, `TaskSet` is the tasks one owner starts, `every` is the loop of a timer."""
 import asyncio
+import inspect
 import logging
-from collections.abc import Callable, Coroutine, Iterable, Iterator
+from collections.abc import Awaitable, Callable, Coroutine, Iterable, Iterator
 from functools import partial
 from typing import Any
 
@@ -10,8 +11,10 @@ log = logging.getLogger("neoaprs.tasks")
 
 async def cancel_all(tasks: Iterable[asyncio.Task[Any]]) -> None:
     """Cancels the tasks and waits until each has ended, whatever it ended with: the shutdown goes on. The task that asks is left alone (a task that stops its
-    owner would otherwise cancel itself), and one that fails while it is cancelled is told in the debug log, not lost."""
+    owner would otherwise cancel itself), and one that fails while it is cancelled is told in the debug log, not lost. The caller's own cancellation is not swallowed: when the caller is
+    cancelled while it waits here, the tasks are still waited for and then the CancelledError goes on."""
     me = asyncio.current_task()
+    asked = 0 if me is None else me.cancelling()
     mine = [t for t in tasks if t is not me and not t.done()]
     for t in mine:
         t.cancel()
@@ -22,6 +25,32 @@ async def cancel_all(tasks: Iterable[asyncio.Task[Any]]) -> None:
             pass
         except Exception as e:
             log.debug("task %s ended with %r while it was cancelled", t.get_name(), e)
+    if me is not None and me.cancelling() > asked:
+        raise asyncio.CancelledError
+
+
+Round = Callable[[], Awaitable[object] | object]
+
+
+async def every(sec: float | Callable[[], float], fn: Round, what: str, first: float | None = None, at_start: bool = False) -> None:
+    """The loop of a timer: waits `sec` seconds (a number, or a function that says how long to wait this time), then runs `fn` (a function, or one whose result is awaited), for ever. An exception in `fn`
+    is logged ("<what> failed", with the traceback) and the timer goes on. `first` is the wait before the first round when that is another; `at_start` runs the first round at once."""
+    if at_start:
+        await _round(fn, what)
+    wait = first
+    while True:
+        await asyncio.sleep(wait if wait is not None else sec() if callable(sec) else sec)
+        wait = None
+        await _round(fn, what)
+
+
+async def _round(fn: Round, what: str) -> None:
+    try:
+        result = fn()
+        if inspect.isawaitable(result):
+            await result
+    except Exception:
+        log.exception("%s failed", what)
 
 
 def _log_failure(logger: logging.Logger, words: str, task: asyncio.Task[Any]) -> None:

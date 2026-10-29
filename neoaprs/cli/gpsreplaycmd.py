@@ -109,7 +109,8 @@ class FakeGpsd:
                 client.write(data)
                 await client.drain()
             except OSError:
-                self.watchers.remove(client)
+                if client in self.watchers:                       # (the client's own task has taken it away if it went while the data was drained)
+                    self.watchers.remove(client)
 
 
 def main(argv: list[str]) -> int:

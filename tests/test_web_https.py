@@ -18,6 +18,7 @@ from neoaprs.clock import utcnow
 from neoaprs.web import access as web_access
 from neoaprs.web import secureside
 from neoaprs.web.access import COOKIE
+from neoaprs.web.listen import PORT_TRIES
 from neoaprs.web.tls import fingerprint_of
 from tests.support.env import Env, until, until_async
 from tests.support.wsclient import WsClient
@@ -114,7 +115,7 @@ def names_of(cert: x509.Certificate) -> set[str]:
 async def test_the_page_is_served_over_tls_on_the_port_after_the_plain_one_to_a_client_that_trusts_the_authority(tmp_path: Path) -> None:
     e = await served(tmp_path, HTTPS)
     assert e.server is not None
-    assert 0 < e.port < secure_port(e) <= e.port + secureside.PORT_TRIES
+    assert 0 < e.port < secure_port(e) <= e.port + PORT_TRIES
     for host in ("127.0.0.1", "localhost"):
         answer = await https_fetch(e, host=host)
         assert answer.code == 200 and b"<" in answer.body and "Content-Security-Policy" in answer.headers, host
@@ -332,7 +333,7 @@ async def test_if_no_port_after_the_plain_one_is_free_the_plain_page_goes_on_and
     e = await served(tmp_path, {"web/network": "true", "web/key": KEY})
     held: list[socket.socket] = []
     try:
-        for port in range(e.port + 1, e.port + 1 + secureside.PORT_TRIES):          # (one that cannot be taken here is skipped: another test may free it meanwhile)
+        for port in range(e.port + 1, e.port + 1 + PORT_TRIES):          # (one that cannot be taken here is skipped: another test may free it meanwhile)
             blocker = socket.socket()
             blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)          # (as Tornado binds: a port that only has connections on it is free)
             try:

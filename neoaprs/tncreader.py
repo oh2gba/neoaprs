@@ -96,8 +96,8 @@ class Reader:
 
     def _heard(self, port: TncPort, chunk: bytes, loop_now: float) -> Mode | None:
         """Bytes came: what the detector makes of them, None while an entry settles (they are thrown away). From a silent radio, which may have been switched on (a TH-D7 starts with its TNC in command mode),
-        the allowance to enter KISS is given back and the detector starts over; KISS is entered unless the bytes are a KISS frame already, or a piece of one (a FEND among them and no whole frame: a line
-        delivers a frame in several reads, and command-mode text never has a FEND), when what follows decides, or an entry of the keep-alive's own is settling."""
+        the allowance to enter KISS is given back and the detector starts over; KISS is entered when the bytes are the text of command mode (not when a FEND is among them), else what follows decides: a line
+        delivers a frame in several reads, so bytes that are a KISS frame already, or a piece of one (a FEND among them, or no text of command mode and no FEND: the middle of a frame), are no reason to type into the TNC. An entry of the keep-alive's own may be settling."""
         tnc = self._tnc
         if tnc.state is not Source.State.SILENT:
             tnc._hear()
@@ -110,7 +110,7 @@ class Reader:
         self.detector.rearm()
         piece = kiss.FEND in chunk
         mode = self.detector.feed(chunk[chunk.index(kiss.FEND):] if piece else chunk)      # (what is before the first FEND is the tail of a frame, never text)
-        enter = tnc.profile.detect_command_mode and mode is not Mode.KISS and not piece
+        enter = tnc.profile.detect_command_mode and mode is Mode.MONITOR and not piece     # (bytes that are no text of command mode and have no FEND may be the middle of a frame)
         tnc._hear("; entering KISS" if enter else "")
         if enter:
             self.enter_kiss(port, "the radio answers again", logging.DEBUG, note=False)

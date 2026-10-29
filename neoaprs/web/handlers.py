@@ -11,7 +11,7 @@ from dataclasses import asdict
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
 from neoaprs.config import RECEIVE_ONLY, Config, SettingError
-from neoaprs.configtypes import redacted
+from neoaprs.cli.redaction import shown_value
 from neoaprs.mapstate import Job, MapError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
@@ -47,7 +47,7 @@ SHOWN_VALUE = 200                    # the longest value a line of the log shows
 
 def shown(key: str, value: str) -> str:
     """A setting's value as the log shows it: a secret only as `(set, N characters)`, an empty value as such, a long one cut."""
-    text = one_line(redacted(key, value), SHOWN_VALUE)
+    text = one_line(shown_value(key, value), SHOWN_VALUE)
     return text or "(empty)"
 
 

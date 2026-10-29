@@ -5,7 +5,7 @@ from pydantic import Field, field_validator, model_validator
 
 from neoaprs.message import query_text
 
-from .wirebase import Iso, _Command, _Message, _Model
+from .wirebase import Call, Iso, MessageText, _Command, _Message, _Model
 
 
 class HopRow(_Model):
@@ -51,8 +51,8 @@ class SendMessage(_Command):
     once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.
     When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused."""
     cmd: Literal["send_message"]
-    to: str = Field(min_length=1, max_length=64)
-    text: str = Field(max_length=512)
+    to: Call
+    text: MessageText
 
 
 class QueryStation(_Command):
@@ -64,9 +64,9 @@ class QueryStation(_Command):
     (`station.unknown`), is no station that takes messages (`query.not_capable`: an object, an item, ourselves, a station whose position says it takes none and that never sent a message), the same query was sent less than 60 seconds ago
     (`query.too_soon`) or the message is refused as `send_message` refuses it (the call is not set, the radio is silent); a `custom` text that is no query is refused as invalid."""
     cmd: Literal["query"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
     kind: Literal["position", "status", "heard", "trace", "weather", "custom"]
-    text: str | None = Field(default=None, max_length=512, description="the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable "
+    text: MessageText | None = Field(default=None, description="the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable "
                                                                        "ASCII without `|`, `~` or `{` and at most 67 characters, the text of a message; it is sent upper-cased. Absent or null for the other kinds")
 
     @field_validator("text")
@@ -106,7 +106,7 @@ class ConversationDelete(_Command):
     the daemon and from every page: each message's row is a `del` of the topic `messages`. A message that is still being sent is cancelled first. The path and the timeout of the station stay. Answered by the
     `del`s, or by an `error` (the call is none, or there is no message with that station)."""
     cmd: Literal["conversation_delete"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
 
 
 class OverheardDelete(_Command):
@@ -114,8 +114,8 @@ class OverheardDelete(_Command):
     from the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the
     `del`s, or by an `error` (no overheard message of that pair)."""
     cmd: Literal["overheard_delete"]
-    from_call: str = Field(min_length=1, max_length=64)
-    to_call: str = Field(min_length=1, max_length=64)
+    from_call: Call
+    to_call: Call
 
 
 class AlertTest(_Command):

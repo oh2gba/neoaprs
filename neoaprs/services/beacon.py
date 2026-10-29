@@ -15,9 +15,9 @@ not send another; then one an interval after each beacon, whether it was sent by
 off at night), is not skipped: `next_due` stays where it was, in the past (told once per outage), and the first tick that finds the radio usable sends it, one beacon however many intervals went by. A Tnc that
 is settling after KISS ON is not usable either, and the beacon waits for it quietly. A frame the Tnc refuses (the write failed) is tried again `retry_sec` later, `ATTEMPTS` times in all; then the interval counts as skipped, and the next is the first interval boundary after now.
 """
-import asyncio
 import logging
 import math
+import re
 from datetime import datetime, timedelta
 
 from neoaprs import ax25
@@ -35,7 +35,7 @@ from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
 from neoaprs.signal import Signal
 from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 from neoaprs.units import FOOT_M
 
 log = logging.getLogger("neoaprs.beacon")
@@ -45,6 +45,12 @@ TICK_SEC = 1.0
 RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the Tnc refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the Tnc refusing the frame this many times in a row skips the interval
+_LOOKS_LIKE_EXTENSION = re.compile(r"\d{3}/\d{3}|PHG|RNG|DFS")        # the starts of the data extensions (course and speed, power-height-gain, range, signal strength): every receiver reads them right after the symbol or the PHG
+
+
+def _comment_text(comment: str) -> str:
+    """The comment as it follows the position: one blank before a comment that starts like a data extension (`144/430 MHz` would be read as a course of 144 degrees and a speed), which a receiver then takes as the comment."""
+    return " " + comment if _LOOKS_LIKE_EXTENSION.match(comment) else comment
 
 
 class BeaconError(ValueError):
@@ -136,7 +142,7 @@ class Beacon:
             position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
         except ValueError as e:
             raise BeaconError(str(e)) from None
-        return b"=" + position + self._phg(c) + c.station_comment.encode("ascii"), None
+        return b"=" + position + self._phg(c) + _comment_text(c.station_comment).encode("ascii"), None
 
     @staticmethod
     def _check_symbol(c: Config) -> None:
@@ -262,9 +268,7 @@ class Beacon:
             self.next_due = self.clock() + timedelta(minutes=self._planned_min)
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.tick_sec)
-            self._tick()
+        await every(self.tick_sec, self._tick, "the beacon ticker")
 
     def _due_reason(self, now: datetime) -> str | None:
         """Why a beacon is due now (`interval`, or for a mobile station what SmartBeaconing says), None when none is."""

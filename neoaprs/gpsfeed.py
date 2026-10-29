@@ -2,13 +2,15 @@
 it never raises out of its tasks. `fixed` is emitted with each fix, `fix` is the latest one (kept when the receiver then says it has none: the service that uses it judges how old it is) and `fix_age_sec` how long ago it came.
 
 gpsd (`kind` "gpsd", `target` host:port): one connection, over which `?WATCH={"enable":true,"json":true}` is sent; gpsd answers with a JSON object on each line (VERSION, DEVICES, WATCH, then TPV and SKY reports), which `GpsdFixes`
-reads. A connection that is refused, lost or hung up is opened again after the back-off.
+reads. A connection that is refused, lost, hung up or silent for `GPSD_SILENT_SEC` (a gpsd with a receiver reports every second; a peer that vanished without closing says nothing, and TCP
+has nothing to find out with, as only one line is ever written) is opened again after the back-off.
 
 Serial (`kind` "serial", `target` the port, `baud`): a `SerialPort` (neoaprs/serialport.py: a device, or `socket://host:port` for a receiver behind a TCP serial server) whose bytes are cut into lines for `NmeaFixes`; a port
 that cannot be opened or is lost is opened again after the back-off. A receiver that reports no fix is a problem the page can show ("no satellite fix"), not a loss of the line."""
 import asyncio
 import json
 import logging
+import socket
 from typing import Any
 
 from .callbackport import CallbackPort
@@ -21,6 +23,7 @@ from .source import Backoff, Source, os_error_text
 log = logging.getLogger("neoaprs.gps")
 
 CONNECT_SEC = 5.0                                              # how long the connection to gpsd may take
+GPSD_SILENT_SEC = 60.0                                         # a gpsd that sends no line at all for this long is taken for gone
 WATCH = b'?WATCH={"enable":true,"json":true}\n'
 NO_FIX = "the receiver has no position fix yet"
 NO_PORT = "no port set: give gps/device the receiver's port"
@@ -41,16 +44,15 @@ def split_address(target: str) -> tuple[str, int]:
 
 
 class GpsFeed(Source):
-    def __init__(self, clock: Clock = utcnow, backoff: Backoff | None = None, connect_sec: float = CONNECT_SEC) -> None:
+    def __init__(self, clock: Clock = utcnow, backoff: Backoff | None = None, connect_sec: float = CONNECT_SEC, silent_sec: float = GPSD_SILENT_SEC) -> None:
         super().__init__("gps", clock)
         self.kind = "off"                                      # "off", "gpsd" or "serial"
         self.target = ""                                       # host:port of the gpsd, or the serial port
         self.baud = 4800
         self.backoff = backoff or Backoff()
-        self.connect_sec = connect_sec
+        self.connect_sec, self.silent_sec = connect_sec, silent_sec
         self.fixed: Signal[[Fix]] = Signal("gps.fixed")
         self.fix: Fix | None = None                            # the latest fix
-        self._generation = 0                                   # changes at stop(), so that an attempt that was under way knows it is over
         self._port: _GpsPort | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._nmea = NmeaFixes()
@@ -123,17 +125,7 @@ class GpsFeed(Source):
         return os_error_text(e) if isinstance(e, OSError) else str(e) or type(e).__name__
 
     def _wait(self, problem: str) -> None:
-        delay = self.backoff.next_delay_sec()
-        log.warning("gps: %s; trying again in %g s", problem, delay)
-        self.problem = ""                                      # (what was wrong before is replaced by why the line is down)
-        self._set_state(Source.State.WAITING, problem)
-        self._note(f"{problem}; trying again in {delay:g} s")
-        self._spawn(self._retry(delay, self._generation))
-
-    async def _retry(self, delay: float, generation: int) -> None:
-        await asyncio.sleep(delay)
-        if generation == self._generation:
-            await self._connect()
+        self._waiting(problem, self.backoff.next_delay_sec(), self._connect)
 
     def _connected(self, what: str) -> None:
         self.backoff.connected()
@@ -153,15 +145,29 @@ class GpsFeed(Source):
             writer.transport.abort()
             return
         self._writer = writer
+        self._keep_alive(writer)
         self._connected(f"connected to gpsd at {self.target}")
         writer.write(WATCH)
         self._spawn(self._read_gpsd(reader, writer, generation))
+
+    @staticmethod
+    def _keep_alive(writer: asyncio.StreamWriter) -> None:
+        """Asks the system to find a dead peer in the end, besides the silence that `_read_gpsd` waits for."""
+        sock = writer.get_extra_info("socket")
+        if sock is not None:
+            try:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            except OSError as e:
+                log.debug("keep-alive not set: %s", os_error_text(e))
 
     async def _read_gpsd(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, generation: int) -> None:
         reports = GpsdFixes()
         try:
             while True:
-                line = await reader.readline()
+                try:
+                    line = await asyncio.wait_for(reader.readline(), self.silent_sec)
+                except TimeoutError:
+                    raise ConnectionError(f"gpsd sent nothing for {self.silent_sec:g} s") from None
                 if generation != self._generation:
                     return
                 if not line:

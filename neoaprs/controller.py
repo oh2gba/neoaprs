@@ -1,22 +1,22 @@
 """The program without a window: the database, the settings, the radio and the station book. The Controller is the composition root's object (docs/ARCHITECTURE.md): the parts are made in
 neoaprs/app.py (`Services`) and connected in neoaprs/wiring.py, and this class brings them up and takes them down. The page and the tests call a part as `ctl.<part>.<method>`; the Controller has
-the order of the start (the message board before the Tnc, the GPS and the beacon, our objects and bulletins, the status and messaging after it, before the page; the stop the other way round), the Tnc's restart when its settings change, and the daily care of the database.
+the order of the start (the message board, the GPS and the beacon, our objects and bulletins, the status and messaging, then the Tnc, whose packets those take, and the page; the stop takes the page and the Tnc first, then the parts, one failing to stop not keeping the others from it), the Tnc's restart when its settings change, and the daily care of the database.
 """
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
-from .config import Config
+from .config import DEFAULTS, Config
 from .policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .store import DB_NAME, Store
-from .tasks import cancel_all
+from .tasks import cancel_all, every
 from .tnc import Tnc
 from .versions import PLAIN_INSTALL, InstallInfo
 
@@ -36,6 +36,7 @@ class Controller(Services):
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
         self._tnc_task: asyncio.Task[None] | None = None
+        self._implied: set[str] = set()         # the settings that a row of an older version implies (configlegacy.py), stored at the first save
         wiring.wire(self)
 
     async def open_database(self) -> None:
@@ -58,11 +59,14 @@ class Controller(Services):
     async def start(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         await self.open_database()
-        self.config = Config.from_data(await self.store.settings())
+        rows = await self.store.settings()
+        self.config = Config.from_data(rows)
+        defaults = DEFAULTS.to_data()
+        self._implied = {key for key, text in self.config.to_data().items() if key not in rows and text != defaults[key]}
         await wiring.seed_station_book(self)
+        self._configure_tnc()                                           # (what the parts ask of the Tnc, such as whether it is the Dummy radio, is true before they start; the radio itself is started last)
         self.running = True
         await self.bulletins.start()
-        self.start_tnc()
         await self.gps.start()
         await self.beacon.start()
         await self.igate.start()
@@ -73,6 +77,7 @@ class Controller(Services):
         self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
         await self.aloha.start()
         await self.messaging.start()
+        self.start_tnc()                                                # (last of the parts that take its packets: the source after its consumers)
         await self._start_web()
         await self.mapauto.start()
         await self.updatecheck.start()
@@ -82,29 +87,22 @@ class Controller(Services):
     async def stop(self) -> None:
         self.running = False
         try:
-            await self._stop_web()
-            await self.updatecheck.stop()
-            await self.aloha.stop()
-            await self.selfupdate.stop()
-            await self.mapauto.stop()
-            await self.mapfetch.stop()
-            await self.radiofinder.stop()
-            await self.queries.stop()
-            await self.qru.stop()
-            await self.qruask.stop()
-            await self.messaging.stop()
-            await self.alerts.stop()
-            await self.rigstatus.stop()
-            await self.ownbulletins.stop()
-            await self.ownobjects.stop()
-            await self.igate.stop()
-            await self.beacon.stop()
-            await self.gps.stop()
-            await self._stop_tnc()
-            await self.tasks.cancel_all()
+            for name, stop in self._stops():
+                try:
+                    await stop()
+                except Exception:
+                    log.exception("%s could not be stopped", name)        # (the parts after it are stopped all the same)
         finally:
             if self.db is not None:
                 await self.db.close()                           # what was asked of the database thread is done, then its connection is closed
+
+    def _stops(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
+        """What the stop ends and in which order: the page, Find my radio and the Tnc first (the source of the packets, so that no packet comes to a part that is stopped), then the parts that take its packets, the
+        others, and last the Controller's own tasks."""
+        return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_tnc), ("the update check", self.updatecheck.stop), ("the ALOHA circle", self.aloha.stop),
+                ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
+                ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
+                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the tasks", self.tasks.cancel_all)]
 
     # ---- the page
     async def _start_web(self) -> None:
@@ -130,9 +128,13 @@ class Controller(Services):
         if previous is not None:
             await cancel_all([previous])
         await self.tnc.stop()
+        self._configure_tnc()
+        await self.tnc.start()
+
+    def _configure_tnc(self) -> None:
+        """The Tnc, which is stopped, takes the settings as they are now."""
         wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
         self.tnc.set_check(self.check_sec)
-        await self.tnc.start()
 
     async def hold_tnc(self) -> None:
         await self._stop_tnc()
@@ -149,7 +151,7 @@ class Controller(Services):
 
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
-        """Stores every setting, puts them in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
+        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
         database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
         async with self.config_lock:
             return await self._save(config)
@@ -160,8 +162,10 @@ class Controller(Services):
             return await self._save(change(self.config))
 
     async def _save(self, config: Config) -> bool:
-        if not await self.store.put_settings(config.to_data()):
+        stored = set(self.config.changed(config)) | self._implied
+        if not await self.store.put_settings({key: text for key, text in config.to_data().items() if key in stored}):        # (only what this save changes: a key written by `neoaprs db set` in the meantime stays)
             return False
+        self._implied = set()
         before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
         previous, self.config = self.config, config
         wiring.place_me(self)
@@ -200,11 +204,7 @@ class Controller(Services):
         return count
 
     async def _prune_daily(self) -> None:
-        while True:
-            await self.prune()
-            await asyncio.sleep(PRUNE_EVERY_SEC)
+        await every(PRUNE_EVERY_SEC, self.prune, "the daily care of the database", at_start=True)
 
     async def _recount_minutely(self) -> None:
-        while True:
-            await asyncio.sleep(RECOUNT_EVERY_SEC)
-            self.stationbook.recount()
+        await every(RECOUNT_EVERY_SEC, self.stationbook.recount, "the recount of the station book")

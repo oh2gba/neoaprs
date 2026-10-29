@@ -2,7 +2,7 @@
 // query (services/generalask.py) and holds a kind to one a minute; the answers are ordinary packets, so the lines say where they arrive, and the second counts the stations that were quiet before the query and spoke after it
 // (the topic `general`: most are answers, but nothing tells an answer from a beacon that fell then, and the line says no more than it knows).
 import { t } from "@/i18n";
-import { clockText } from "@/lib/format";
+import { hourMinuteText } from "@/lib/format";
 import { LIMITS } from "@/protocol/lists";
 import type { GeneralAsked, GeneralState } from "@/protocol/protocol";
 
@@ -34,7 +34,7 @@ export interface AskLines {
   countTitle: string;
 }
 
-const RF_ONLY = "RFONLY";
+const RF_ONLY = LIMITS.path.rfOnly;
 
 /** The two lines under Ask: the latest query of any kind (the topic lists the last of each, the oldest first), or the refusal of the last Ask while there is one. */
 export function askLines(state: GeneralState | null, refusal: string, nowMs: number): AskLines {
@@ -43,7 +43,7 @@ export function askLines(state: GeneralState | null, refusal: string, nowMs: num
   if (latest === undefined) return { line: t("nearby.ask_help"), title: "", refused: false, count: "", countTitle: "" };
   const hops = latest.path.filter((hop) => hop !== RF_ONLY);
   const path = hops.length > 0 ? hops.join(",") : t("route.direct");
-  const time = clockText(latest.at).slice(0, 5);
+  const time = hourMinuteText(latest.at);
   const n = latest.new.length;
   const quiet = { n, min: LIMITS.general.quietMin, after: Math.round(LIMITS.general.countSec / 60) };
   const counting = Date.parse(latest.until) > nowMs;

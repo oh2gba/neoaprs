@@ -3,6 +3,7 @@ WPL (a waypoint's position) are positions; VTG (course and speed alone) and the 
 destination or source call (symbols.py `tracker_symbol`), the sentence has none.
 
 Pure code, like the rest of the foundation."""
+import math
 import re
 from datetime import UTC, datetime
 from functools import reduce
@@ -11,7 +12,8 @@ from neoaprs.aprsposition import FUTURE_TOLERANCE, PositionError, motion, resolv
 from neoaprs.packet import Position
 from neoaprs.symbols import tracker_symbol
 
-_SENTENCE = re.compile(r"\$[A-Z]{2}(GGA|GLL|RMC|WPL)(,.*?)(?:\*([0-9A-Fa-f]{2}))?\s*$", re.DOTALL)
+_SENTENCE = re.compile(r"\$[A-Z]{2}(GGA|GLL|RMC|WPL)(,.*?)(?:\*([0-9A-Fa-f]{2}))?$", re.DOTALL)
+_NUMBER_LIMIT = 1e9                                  # a measured value (speed, course, altitude) beyond this is a damaged field, not a measurement (and keeps a product with a unit finite)
 _COORDINATE = re.compile(r"(\d{2,3})(\d{2}\.\d*)$")
 
 
@@ -52,10 +54,22 @@ def _time(field: str, now: datetime) -> datetime | None:
 
 
 def _number(field: str) -> float | None:
+    """The number in a field; None for a field that is empty, not a number, or not a finite one (`inf`, `nan`, `1e999`) or too large to be a measurement."""
     try:
-        return float(field)
+        value = float(field)
     except ValueError:
         return None
+    return value if math.isfinite(value) and abs(value) <= _NUMBER_LIMIT else None
+
+
+def _measured(field: str) -> float | None:
+    """The number in a field that may be empty (None); a field that holds something that is no number raises NmeaError."""
+    if not field.strip():
+        return None
+    value = _number(field)
+    if value is None:
+        raise NmeaError(f"bad number {field!r}")
+    return value
 
 
 def _date_time(time_field: str, date_field: str, now: datetime) -> datetime | None:
@@ -73,11 +87,11 @@ def _date_time(time_field: str, date_field: str, now: datetime) -> datetime | No
 
 def parse_nmea(info: bytes, source: str, destination: str, now: datetime) -> Position | None:
     """The position in a raw NMEA sentence (the information field, with its `$`); None for a sentence that has none: another type, or a fix that is not valid. Raises NmeaError for a damaged one."""
-    text = info.decode("latin-1")
+    text = info.decode("latin-1").rstrip()
     found = _SENTENCE.match(text)
     if not found:
         return None
-    if not _checksum_ok(text.rstrip(), found.group(3)):
+    if not _checksum_ok(text, found.group(3)):
         raise NmeaError("the NMEA checksum is wrong")
     kind, fields = found.group(1), found.group(2).split(",")[1:]
     if kind == "WPL":
@@ -87,11 +101,11 @@ def parse_nmea(info: bytes, source: str, destination: str, now: datetime) -> Pos
     if kind == "RMC":
         if len(fields) < 9 or not _valid(fields, 1, "A"):
             return None
-        course, speed = motion(round(_number(fields[7]) or 0), _number(fields[6]) or 0.0)
+        course, speed = motion(round(_measured(fields[7]) or 0), _measured(fields[6]) or 0.0)
         return _position(*_place(fields, 2), source, destination, course=course, speed=speed, at=_date_time(fields[0], fields[8], now))
     if len(fields) < 9 or not fields[5].isdigit() or int(fields[5]) == 0:                       # GGA: field 5 is the quality, 0 is no fix
         return None
-    altitude = _number(fields[8]) if len(fields) > 9 and fields[9].upper() == "M" else None
+    altitude = _measured(fields[8]) if len(fields) > 9 and fields[9].upper() == "M" else None
     return _position(*_place(fields, 1), source, destination, altitude=altitude, at=_time(fields[0], now))
 
 

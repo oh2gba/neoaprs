@@ -8,6 +8,7 @@
 // room, saved as each is changed. Our own station has Show, Copy and QRZ, an object of ours Show and Copy, another's object Show, Copy and Forget. The buttons say what they do with events, and the parent does it.
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
+import TwoWords from "@/components/TwoWords.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import StationAlertChoices from "@/components/StationAlertChoices.vue";
 import StationPrefs from "@/components/StationPrefs.vue";
@@ -98,10 +99,10 @@ function onEsc(event: KeyboardEvent): void {
               :data-item="item"
               @click="choose(item)"
             >
-              <span class="twowords"
-                ><span :class="{ 'twowords-off': armed }">{{ itemLabel(item, row, false) }}</span
-                ><span :class="{ 'twowords-off': !armed }">{{ itemLabel(item, row, true) }}</span></span
-              >
+              <TwoWords :second="armed">
+                <template #first>{{ itemLabel(item, row, false) }}</template>
+                <template #second>{{ itemLabel(item, row, true) }}</template>
+              </TwoWords>
             </button>
             <button v-else type="button" class="btn" :data-item="item" @click="choose(item)">{{ itemLabel(item, row, false) }}</button>
           </template>

@@ -8,8 +8,8 @@ import { t } from "@/i18n";
 import { parsePathSetting } from "@/lib/calls";
 import { LIMITS } from "@/protocol/lists";
 
-/** The longest path the field keeps (the daemon takes 256 characters). */
-const PATH_TEXT_MAX = 256;
+/** The longest path the field keeps (what the daemon takes). */
+const PATH_TEXT_MAX = LIMITS.path.textMax;
 
 export interface RequestPath {
   path: Ref<string>;

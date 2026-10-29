@@ -2,19 +2,23 @@
 asked for the page's address, a daemon that cannot start is reported, and `stop` ends the daemon through the file in its data folder, cleanly. The detached daemons are given a TCP radio on the loopback and a free
 page port in their database first (a daemon with neither would listen to the operator's serial ports and take port 7303)."""
 import asyncio
+import http.client
+import http.server
 import os
 import socket
 import subprocess
 import sys
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 
 from neoaprs import PROGRAM, stopfile
 from neoaprs.cli import opencmd, stopcmd
-from neoaprs.cli.daemonstate import is_running, page_answers, page_url
+from neoaprs.cli.daemonstate import SCAN_BYTES, is_running, page_address, page_answers, page_url
+from neoaprs.cli.logfile import LAUNCH_NAME, LOG_NAME, PAGE_FILE, read_page, remove_page, write_page
 from tests.conftest import ROOT
 from tests.support.env import idle_for
 from tests.support.proc import NEW_GROUP
@@ -151,3 +155,109 @@ def test_open_gives_up_when_no_page_comes_in_time(tmp_path: Path, monkeypatch: p
 def test_the_commands_are_known_to_the_neoaprs_command() -> None:
     from neoaprs import cli
     assert "open" in cli.COMMANDS and "stop" in cli.COMMANDS and cli.HANDLERS["open"] is cli._open and cli.HANDLERS["stop"] is cli._stop
+
+
+# ---- where the page is
+
+PAGE = "http://127.0.0.1:7303/"
+
+
+def wait_until(condition: Callable[..., object], *args: object, seconds: float = 30.0) -> None:
+    deadline = time.monotonic() + seconds
+    while not condition(*args):
+        assert time.monotonic() < deadline, "the condition did not come true"
+        time.sleep(0.02)
+
+
+def log_with_a_page(data: Path, lines_after: int) -> None:
+    data.mkdir(parents=True, exist_ok=True)
+    filler = "2026-10-22 12:00:30Z  INFO  beacon sent: OH2GBA-9>APOTC1,WIDE1-1:!6010.00N/02456.00E>\n" * lines_after
+    (data / LOG_NAME).write_text(f"2026-10-22 12:00:00Z  INFO  NeoAPRS 0.14.0 starting, data in {data}\n2026-10-22 12:00:01Z  INFO  web page at {PAGE}\n{filler}", encoding="utf-8")
+
+
+def test_the_address_the_daemon_wrote_is_found_however_long_the_log_has_grown_since(tmp_path: Path) -> None:
+    log_with_a_page(tmp_path, 10)
+    assert page_url(tmp_path) == PAGE, "(a short log has the line)"
+    log_with_a_page(tmp_path, SCAN_BYTES // 80 + 100)
+    assert page_url(tmp_path) is None, "(the line has scrolled out of what is read of the log)"
+    write_page(tmp_path, "http://127.0.0.1:7305/")
+    assert page_url(tmp_path) == "http://127.0.0.1:7305/" and read_page(tmp_path) == "http://127.0.0.1:7305/"
+    remove_page(tmp_path)
+    remove_page(tmp_path)                                                  # (nothing to take away is no error)
+    assert read_page(tmp_path) is None and page_url(tmp_path) is None
+
+
+@pytest.mark.parametrize("text", ["", "not an address", "http://", "https://127.0.0.1:7304/", "http://127.0.0.1:7303/ and more"])
+def test_a_file_that_holds_no_address_is_no_address_and_the_log_is_looked_at(tmp_path: Path, text: str) -> None:
+    log_with_a_page(tmp_path, 3)
+    (tmp_path / PAGE_FILE).write_text(text + "\n", encoding="ascii")
+    assert read_page(tmp_path) is None and page_url(tmp_path) == PAGE
+
+
+def test_the_page_a_service_is_told_to_be_on_is_the_port_of_the_settings(data: Path) -> None:
+    assert page_address(data.parent / "nothing") == "http://127.0.0.1:7303/", "(no database yet: the default)"
+    assert page_address(data) == "(a free port: the log says which)", "(the fixture's web/port is 0)"
+    assert command("db", "--data", str(data), "set", "web/port", "7411").returncode == 0
+    assert page_address(data) == "http://127.0.0.1:7411/"
+
+
+class Answer(http.server.BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        self.send_response(200)
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, format: str, *args: object) -> None:
+        return None
+
+
+def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environment_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Answer)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        for name in ("http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"):
+            monkeypatch.setenv(name, "http://127.0.0.1:9")                  # (nothing listens there: a request that goes by the proxy fails)
+        for name in ("no_proxy", "NO_PROXY"):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr("urllib.request._opener", None)
+        assert page_answers(f"http://127.0.0.1:{server.server_address[1]}/")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_the_daemon_writes_its_page_into_the_data_folder_and_takes_it_away_at_a_clean_stop_and_says_each_warning_once(data: Path) -> None:
+    opened = command("open", "--data", str(data), "--no-browser", "--timeout", "60")
+    assert opened.returncode == 0, opened
+    url = opened.stdout.strip()
+    assert read_page(data) == url
+    log_with_filler = data / LOG_NAME
+    with log_with_filler.open("a", encoding="utf-8") as f:
+        f.write("2026-10-22 12:00:30Z  INFO  beacon sent\n" * (SCAN_BYTES // 40))
+    assert page_url(data) == url, "(the log has grown past what is read of it)"
+    port = int(url.rsplit(":", 1)[1].rstrip("/"))
+
+    def said(name: str) -> bool:
+        return name in log_with_filler.read_text(encoding="utf-8")
+
+    for name in ("first-evil.example", "second-evil.example"):
+        link = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+        link.request("GET", "/", headers={"Host": name})
+        assert link.getresponse().status == 403
+        link.close()
+        wait_until(said, name)
+    log = log_with_filler.read_text(encoding="utf-8")
+    assert log.count("'first-evil.example' was refused") == 1 and log.count("'second-evil.example' was refused") == 1, "(a daemon that was started by a command did not write its stderr into the log)"
+    assert not [line for line in (data / LAUNCH_NAME).read_text(encoding="utf-8").splitlines() if "was refused" in line]
+    assert command("stop", "--data", str(data)).returncode == 0
+    assert not (data / PAGE_FILE).exists()
+
+
+def test_a_data_folder_that_cannot_be_used_is_one_sentence_and_exit_1(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    afile = tmp_path / "afile"
+    afile.write_text("not a folder")
+    shown: list[str] = []
+    monkeypatch.setattr(opencmd, "tell_the_user", lambda text: shown.append(text))
+    assert opencmd.main(["--data", str(afile / "inside"), "--no-browser", "--timeout", "1"]) == 1
+    assert len(shown) == 1 and "could not be started" in shown[0] and "Traceback" not in shown[0] and str(afile / "inside") in shown[0]

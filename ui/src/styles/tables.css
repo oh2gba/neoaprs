@@ -71,6 +71,14 @@
   font-weight: 600;
   cursor: pointer;
 }
+/* the room of the sort arrow of a column head, kept whether the arrow is shown or not, so that the columns do not move when the sort changes */
+.headbtn .sortmark {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 1.6em;
+  padding-left: 0.4em;
+  text-align: left;
+}
 .grid td {
   padding: 3px 8px;
   border-bottom: 1px solid var(--border);
@@ -126,9 +134,6 @@
   min-height: 28px;
   padding: 0 4px;
   vertical-align: middle;
-}
-.grid.stations td.actions .forgetbtn {
-  min-width: 46px;
 }
 .grid.stations .arrow {
   display: inline-block;

@@ -13,7 +13,7 @@ FILE_HELP: dict[str, str] = {
     "logs/neoaprs.log": "the log of the program (and neoaprs.log.1 and so on, the rotated ones, newest first); the newest lines are kept within a size budget",
     "logs/neoaprs-app.log": "the log of the desktop app (its window and tray icon), when there is one",
     "logs/journal.txt": "the last 3000 lines of what the system's journal has of the NeoAPRS service (Linux)",
-    "settings.json": "every setting with its value; the access key is only said to be set",
+    "settings.json": "every setting with its value; the access key, the alert command and a changed update address are only said to be set",
     "state.json": "what the running daemon knows now: the radio and its latest lines, the GPS, the beacon, the base map, the update, the serial ports and who holds them, the size of the process",
     "doctor.txt": "the checks of `neoaprs doctor`: Python, folders, database, call, serial ports, the daemon, the map, the service",
     "database.txt": "the version of the database, its migrations, the rows of each table, the sizes of the files and whether SQLite finds the file sound",
@@ -24,6 +24,7 @@ FILE_HELP: dict[str, str] = {
 
 LEFT_OUT: tuple[tuple[str, str], ...] = (
     ("The access key", "it lets a device on your network into the page. The settings show it only as \"(set, N characters)\", and it is taken out of every file of the bundle."),
+    ("The alert command and a changed update address", "a command often holds the token of a chat or push service, and an address a name and a password. The settings show them only as \"(set, N characters)\" (the usual ones as they are), and they are taken out of every file of the bundle."),
     ("The key and the certificates of the secure connection", "the private key is a secret, and nothing is wrong in them that the log does not say."),
     ("Your messages as the program keeps them", "they are yours, and a fault is found without them."),
     ("The database file itself", "it holds all of your messages and the history of your positions. database.txt says what is in it, and packets.txt has the latest packets."),

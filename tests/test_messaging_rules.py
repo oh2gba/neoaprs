@@ -63,6 +63,17 @@ async def test_an_ack_that_names_a_message_of_ours_is_an_ack_in_whatever_state_t
     assert [m.state for m in rig.m.records()] == ["acked"], "no message came of the later ones, and the state stays"
 
 
+async def test_a_repeated_ack_settles_only_the_newest_message_with_the_id_not_an_older_failed_one_after_the_ids_went_round(rig: Rig) -> None:
+    old = await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "old", "05", "failed", 4, rig.clock()))
+    new = await rig.log.insert(MessageRecord(0, rig.clock(), "out", "OH2GBA", "OH2RDG", "new", "05", "acked", 1, rig.clock(), rig.clock()))
+    assert old is not None and new is not None
+    rig.m.put(old)
+    rig.m.put(new)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="05"))                     # (the second copy of the ack of the newer message, by another digipeater)
+    await rig.settled()
+    assert (rig.m.get(old.id).state, rig.m.get(new.id).state) == ("failed", "acked")    # type: ignore[union-attr]
+
+
 async def test_an_ack_from_another_station_or_with_another_id_is_a_word_like_any_other(rig: Rig) -> None:
     await rig.m.send("OH2RDG", "Hello")
     rig.m.on_packet(rig.heard("OH2XYZ", "OH2GBA", ack="01"))

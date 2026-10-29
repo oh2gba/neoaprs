@@ -214,6 +214,21 @@ async def test_without_a_connection_the_world_stays_the_page_is_told_it_will_com
     assert (start.data / DETAIL).is_file()
 
 
+async def test_a_failed_job_is_not_settled_by_an_old_map_of_another_place(make) -> None:
+    rig = make()
+    await rig.auto.start()
+    await rig.move(HELSINKI)
+    await until(lambda: rig.fetch.status().state == "ready", 5)
+    await rig.row("done")
+    rig.fake.mode("fail")
+    await rig.move(ROME)                                                    # (the map of Helsinki is there, it does not cover Rome)
+    await rig.idle()
+    await until(lambda: rig.fetch.later, 5)                                 # (the status shows `later` only while there is no detailed map at all)
+    status = rig.fetch.status()
+    assert status.state == "error" and status.detail is not None and not covers(status.detail, *ROME, 150)
+    await rig.row("wanted")
+
+
 async def test_a_job_started_by_hand_that_makes_the_map_counts_as_done_and_a_new_job_takes_the_later_note_back(make) -> None:
     rig = make(place=HELSINKI)
     rig.rows.rows[MAP_AUTO] = "wanted"

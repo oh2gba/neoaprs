@@ -26,6 +26,7 @@ log = logging.getLogger("neoaprs.serialport")
 DEFAULT_PATTERN = DEFAULT_SERIAL_PATTERN       # what the search looks at when the settings say nothing else: the usual names of USB serial adapters
 PATTERN_ENV = "NEOAPRS_SERIAL_PATTERN"         # the globs of this variable, when it is set and not empty, are searched instead of serial/pattern and the default (the tests: a pattern that matches nothing)
 HEARD_KEPT_BYTES = 16384            # a listening port keeps this much of the latest bytes for the validity test, so a port that never stops talking noise costs no memory
+NUDGE_SEC = 10.0                    # how long a port is listened to before a carriage return is written to it: a TNC in command mode answers it, one in KISS mode ignores it
 RELIST_SEC = 10.0                   # how often a search that listens lists its ports again: one that appeared is opened, one that vanished is closed
 
 
@@ -220,7 +221,7 @@ async def _open_all(paths: list[str], baud: int, looks_valid: Callable[[bytes], 
     for path in paths:
         if port_key(path) in never:
             log.log(level, "probe: skipping %s: on the skip list", path)
-        elif held := held_by(path):
+        elif held := await asyncio.to_thread(held_by, path):
             log.log(level, "probe: skipping %s: %s", path, held)
         else:
             ports.append(_Listener(path, baud, looks_valid, wake))
@@ -275,7 +276,7 @@ async def _sleep_until(wake: asyncio.Event, times: list[float], now: float) -> N
         pass
 
 
-async def probe(paths: list[str], baud: int, seconds: float | None, looks_valid: Callable[[bytes], bool], nudge: bytes | None = None, nudge_after_sec: float = 10.0,
+async def probe(paths: list[str], baud: int, seconds: float | None, looks_valid: Callable[[bytes], bool], nudge: bytes | None = None, nudge_after_sec: float = NUDGE_SEC,
                 on_open: Callable[[list[str]], None] | None = None, skip: Collection[str] = (), relist: Callable[[], Awaitable[list[str]]] | None = None) -> str | None:
     """Opens every path it can and listens to all of them at once; the first one whose bytes satisfy `looks_valid` is the radio's. Every port it opened is closed again, whatever ends the search,
     cancellation included. A path that another process has open (`holders`), or that is in `skip` (compared by what it resolves to), is never touched: not opened, not written to. A path that cannot be opened is skipped; a port whose line dies, or that cannot be written to, is dropped; with no port left the answer is None at once.
@@ -288,7 +289,7 @@ async def probe(paths: list[str], baud: int, seconds: float | None, looks_valid:
     return None if found is None else found[0]
 
 
-async def probe_heard(paths: list[str], baud: int, seconds: float | None, looks_valid: Callable[[bytes], bool], nudge: bytes | None = None, nudge_after_sec: float = 10.0,
+async def probe_heard(paths: list[str], baud: int, seconds: float | None, looks_valid: Callable[[bytes], bool], nudge: bytes | None = None, nudge_after_sec: float = NUDGE_SEC,
                       on_open: Callable[[list[str]], None] | None = None, skip: Collection[str] = (), relist: Callable[[], Awaitable[list[str]]] | None = None) -> tuple[str, bytes] | None:
     """`probe`, with what the port it chose was heard to say (the latest HEARD_KEPT_BYTES of it), so that the caller can tell a TNC that types command-mode text from one that sends KISS frames."""
     loop = asyncio.get_running_loop()

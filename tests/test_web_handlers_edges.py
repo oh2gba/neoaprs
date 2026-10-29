@@ -112,3 +112,12 @@ async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_
     await find_radio(ctx, FindRadio(cmd="find_radio"))  # type: ignore[arg-type]
     assert finder.cancelled == cancelled
     assert [m["state"] for m in page.sent] == ["trying", "cancelled"]
+
+
+async def test_the_alert_command_is_not_in_the_log_when_the_settings_are_saved(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    e, page = await with_page(tmp_path)
+    caplog.set_level("INFO", logger="neoaprs.web")
+    command = "curl -s https://api.telegram.org/bot123456:ABCdefGhIjKlMnOpQrStUvWxYz/sendMessage -d chat_id=1"
+    await page.send({"cmd": "set_config", "values": {"messages/alert_command": command, "map/radius_km": "200"}})
+    await page.until(lambda: "settings: map/radius_km = 200" in caplog.text)
+    assert "ABCdef" not in caplog.text and f"settings: messages/alert_command = (set, {len(command)} characters)" in caplog.text

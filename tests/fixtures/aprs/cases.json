@@ -2935,5 +2935,31 @@
     "sign": null
    }
   }
+ },
+ {
+  "name": "raw NMEA RMC with a course that is not a number is undecoded and never raises",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,inf,230394,003.1,W",
+  "expected": {
+   "kind": "undecoded",
+   "error_contains": "bad number"
+  }
+ },
+ {
+  "name": "object with the time 111111z is a permanent object and has no particular time",
+  "source": "OH2XYZ-9",
+  "destination": "APRS",
+  "info": ";LEADER   *111111z4903.50N/07201.75W>088/036Hello",
+  "expected": {
+   "kind": "object",
+   "name": "LEADER",
+   "timestamp": null,
+   "position": {
+    "timestamp": null,
+    "course_deg": 88,
+    "comment": "Hello"
+   }
+  }
  }
 ]

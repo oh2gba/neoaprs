@@ -1,14 +1,14 @@
 """One request of the update check: a GET of the version page with the program's version and platform and the number of this installation (when there is one) in the query and nothing else, in a thread of its own so that it works on every event loop (and a request that hangs does not hold up the
 program's end). A failure of any kind is None: the check is asked again the next day. `fetch_url` is the same GET of any https address (the changelog of the latest release, for What's new), with a limit of its own."""
-import asyncio
 import http.client
 import logging
-import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from typing import IO
+
+from .updatedownload import in_thread
 
 log = logging.getLogger("neoaprs.update")
 
@@ -53,32 +53,20 @@ def get(base: str, version: str, platform: str, install_id: str = "", timeout_se
     return get_url(request_url(base, version, platform, install_id), version, platform, timeout_sec)
 
 
-async def _on_thread(work: Callable[[], bytes | None], name: str) -> bytes | None:
-    """`work` on a thread of its own, awaited."""
-    loop = asyncio.get_running_loop()
-    done: asyncio.Future[bytes | None] = loop.create_future()
-
-    def finish(body: bytes | None) -> None:
-        if not done.done():
-            done.set_result(body)
-
-    def run() -> None:
-        body = work()
-        try:
-            loop.call_soon_threadsafe(finish, body)
-        except RuntimeError:                         # (the loop is closed: the program is ending)
-            pass
-
-    threading.Thread(target=run, name=name, daemon=True).start()
-    return await done
+async def _quietly(work: Callable[[], bytes | None], name: str) -> bytes | None:
+    """`work` on a thread of its own, awaited; an error that `get_url` did not expect is logged and is None too, as every other failure."""
+    try:
+        return await in_thread(work, name)
+    except Exception:
+        log.exception("the update check failed")
+        return None
 
 
 async def fetch(base: str, version: str, platform: str, install_id: str = "") -> bytes | None:
     """`get` on a thread of its own, awaited."""
-    return await _on_thread(lambda: get(base, version, platform, install_id), "update-check")
+    return await _quietly(lambda: get(base, version, platform, install_id), "update-check")
 
 
 async def fetch_url(url: str, version: str, platform: str, max_bytes: int) -> bytes | None:
     """`get_url` on a thread of its own, awaited."""
-    return await _on_thread(lambda: get_url(url, version, platform, max_bytes=max_bytes), "update-fetch")
-
+    return await _quietly(lambda: get_url(url, version, platform, max_bytes=max_bytes), "update-fetch")

@@ -352,6 +352,17 @@ describe("Hub", () => {
     expect(seen.packets.size).toBe(0);
   });
 
+  it("asks once for a topic with a gap, however many patches follow before its state comes, and again for the next gap", () => {
+    const { socket } = opened();
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+    socket.say(state("packets", 5, {}));
+    for (const rev of [8, 9, 10]) socket.say(patch("packets", rev, [{ op: "set", key: String(rev), value: packet(rev) }]));
+    expect(socket.sent).toEqual([{ cmd: "subscribe", topics: ["packets"] }]);
+    socket.say(state("packets", 10, {}));
+    socket.say(patch("packets", 13, [{ op: "set", key: "13", value: packet(13) }]));
+    expect(socket.sent).toHaveLength(2);
+  });
+
   it("asks for a topic whose state it never had", () => {
     const { socket } = opened();
     socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });

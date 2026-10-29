@@ -73,6 +73,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
   "station.ext.df_bearing_value": "{bearing}°, alcance {range} km, qualidade {quality}, acertos {hits}",
   "station.ext.area_value": "{colour} {shape}, {down}° para baixo, {right}° para a direita",
+
+  "station.ext.area_value_left": "{colour} {shape}, {down}° para baixo, {left}° para a esquerda",
   "station.telemetry.numbered": "#{number}: {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} ligado", other: "{name} desligado" },
   "station.sent_local": "{time} local",
@@ -137,7 +139,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.qrz": "Página do QRZ",
   "station.menu.forget": "Esquecer",
   "station.menu.forget_sure": "Esquecer mesmo?",
-  "station.menu.copied": "{call} copiado",
   "station.alert.label": "Avisar quando {call}…",
   "station.alert.on_air": "entrar no ar",
   "station.alert.on_air_title": "Recebida após 30 minutos ou mais de silêncio, ou pela primeira vez",

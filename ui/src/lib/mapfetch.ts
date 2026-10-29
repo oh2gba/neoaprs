@@ -1,7 +1,6 @@
 // The Map group of the Settings tab, in words: sizes, the day the map was downloaded, what the running job is doing, and which of the daemon's `map` state the button and the map may rely on.
-import { formatNumber, locale, t } from "@/i18n";
+import { formatNumber, monthShort, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
-import { PSEUDO, SOURCE } from "@/i18n/locales";
 import type { MapSizeEstimate, MapState } from "@/protocol/protocol";
 
 /** What `step` of the topic `map` is called in the progress line (the id of the words). */
@@ -26,19 +25,14 @@ export function formatBytes(bytes: number): string {
   return `${formatNumber(value, digits)} ${units[unit]}`;
 }
 
-/** The short name of a month (0 is January) in the language of the page: "Oct". */
-function monthShort(month: number): string {
-  return new Intl.DateTimeFormat(locale.value === PSEUDO ? SOURCE : locale.value, { month: "short", timeZone: "UTC" }).format(
-    new Date(Date.UTC(2000, month, 15)),
-  );
-}
-
 /** The one plain line about the map on disk: "Map downloaded 23 Oct" when there is a detailed map, else nothing. The world map ships with NeoAPRS and is not mentioned; the rest is in the log. */
 export function downloadedLine(map: MapState): string {
   if (!map.detail) return "";
   const day = /^\d{4}-(\d{2})-(\d{2})/.exec(map.detail.modified);
   const month = Number(day?.[1]) - 1;
-  return day && month >= 0 && month < 12 ? t("settings.map.downloaded_on", { day: Number(day[2]), month: monthShort(month) }) : t("settings.map.downloaded");
+  return day && month >= 0 && month < 12
+    ? t("settings.map.downloaded_on", { day: Number(day[2]), month: monthShort(new Date(2000, month, 15)) })
+    : t("settings.map.downloaded");
 }
 
 /** The estimate, if it is for the area and the zoom the settings ask for now; an older one is not shown. */

@@ -50,3 +50,23 @@ def test_the_loopback_and_the_unspecified_address_are_never_given(monkeypatch: p
 def test_a_system_that_cannot_make_the_socket_has_no_address_and_no_error(monkeypatch: pytest.MonkeyPatch) -> None:
     with_socket(monkeypatch, FakeSocket(fail=OSError))
     assert addresses.lan_addresses() == []
+
+
+@pytest.mark.parametrize(("text", "expected"), [
+    ("192.168.1.20", "192.168.1.20"), ("::1", "::1"), ("fe80::1%eth0", "fe80::1"), ("::ffff:127.0.0.1", "127.0.0.1"), ("::ffff:192.168.1.20%2", "192.168.1.20"),
+    ("pi.local", None), ("localhost", None), ("", None), ("300.1.1.1", None), ("192.168.1.20:7303", None),
+])
+def test_an_address_is_read_with_its_zone_left_off_and_an_ipv4_address_in_its_ipv6_form_as_the_ipv4_one(text: str, expected: str | None) -> None:
+    address = addresses.as_address(text)
+    assert (None if address is None else str(address)) == expected
+
+
+@pytest.mark.parametrize(("text", "loopback"), [("127.0.0.1", True), ("127.9.9.9", True), ("::1", True), ("::ffff:127.0.0.1", True), ("::1%lo", True), ("192.168.1.20", False), ("fe80::1", False), ("localhost", False), ("", False)])
+def test_the_loopback_is_any_form_of_an_address_of_this_computer_itself(text: str, loopback: bool) -> None:
+    assert addresses.is_loopback(text) is loopback
+
+
+def test_a_probe_that_answers_with_a_loopback_or_an_unset_address_is_no_address_on_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    for answer in ("127.0.0.1", "127.8.0.3", "0.0.0.0"):
+        with_socket(monkeypatch, FakeSocket(address=answer))
+        assert addresses.lan_addresses() == []

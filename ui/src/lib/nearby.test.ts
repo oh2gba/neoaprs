@@ -43,13 +43,14 @@ const calls = (list: { call: string }[]): string[] => list.map((item) => item.ca
 
 describe("the symbols", () => {
   it("know a digipeater by its code in the primary table, the alternate one and any overlay", () => {
-    for (const table of ["/", "\\", "1", "S", "a"]) expect(isDigipeaterSymbol({ symbol_table: table, symbol_code: "#" })).toBe(true);
+    for (const table of ["/", "\\", "1", "S"]) expect(isDigipeaterSymbol({ symbol_table: table, symbol_code: "#" })).toBe(true);
     expect(isDigipeaterSymbol({ symbol_table: "/", symbol_code: ">" })).toBe(false);
     expect(isDigipeaterSymbol({ symbol_table: "", symbol_code: "" })).toBe(false);
   });
 
-  it("know an iGate by the overlay I on the gateway symbol", () => {
-    expect(isIgateSymbol({ symbol_table: "I", symbol_code: "&" })).toBe(true);
+  it("know an iGate by one of its overlays on the gateway symbol", () => {
+    for (const table of ["I", "R", "T", "2", "L"]) expect(isIgateSymbol({ symbol_table: table, symbol_code: "&" }), table).toBe(true);
+    expect(isIgateSymbol({ symbol_table: "X", symbol_code: "&" })).toBe(false);
     expect(isIgateSymbol({ symbol_table: "\\", symbol_code: "&" })).toBe(false);
     expect(isIgateSymbol({ symbol_table: "I", symbol_code: "#" })).toBe(false);
   });

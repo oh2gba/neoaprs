@@ -40,7 +40,7 @@ def test_in_the_frozen_app_it_is_its_own_windowless_program_whichever_one_of_the
 def test_an_exec_line_quotes_what_the_specification_says() -> None:
     assert desktop_exec(["/usr/bin/neoaprs-app", "--tray"]) == "/usr/bin/neoaprs-app --tray"
     assert desktop_exec(["/home/jo doe/bin/neoaprs-app", "--tray", "--data", "/data/100%"]) == '"/home/jo doe/bin/neoaprs-app" --tray --data /data/100%%'
-    assert desktop_exec(["a", 'say "hi"', "$HOME", "back\\slash"]) == 'a "say \\"hi\\"" "\\$HOME" "back\\\\slash"'
+    assert desktop_exec(["a", 'say "hi"', "$HOME", "back\\slash"]) == 'a "say \\"hi\\"" "\\$HOME" "back\\\\\\\\slash"'
 
 
 def test_linux_writes_and_removes_an_autostart_file_in_the_config_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

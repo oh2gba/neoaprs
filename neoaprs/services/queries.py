@@ -19,7 +19,7 @@ The frames of ?APRSO and ?APRSM go out one at a time, SPACING_SEC apart (service
 which the QRU server (services/qru.py) uses as well.
 
 The general query ?APRS? is a `?` packet (the information field starts with `?APRS?`), not the text of a message, and a message with that text is not answered. It may carry a target footprint,
-`?APRS?V34.02,-117.15,0200` (latitude and longitude in degrees, the radius in miles; the V stands for a space and may be left out): we answer only when our position is inside it, and a footprint that does not read is
+`?APRS?V34.02,-117.15,0200` (latitude and longitude in degrees, the radius in miles; the V stands for a space and may be left out): we answer only when our position (where we are now: the GPS fix of a moving station, else the place of the settings) is inside it, and a footprint that does not read is
 not answered. The answer is our position packet and then our status report (the status only when one has been sent or is kept), after a random delay of 0 to GENERAL_DELAY_MAX_SEC seconds, and
 not again within GENERAL_EVERY_SEC of the last time it was taken. Every
 answer goes by the path of the asker (the station preferences, else `beacon/path`) as frames of our own; none is a message of messaging, none is retried.
@@ -49,10 +49,10 @@ from typing import Protocol
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError
-from neoaprs.callsign import CallsignError
+from neoaprs.callsign import INTERNET_NAME, CallsignError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
-from neoaprs.message import MessageRecord, addressed_to, same_call
+from neoaprs.message import QUERY_TEXT, UNSETTLED, MessageRecord, addressed_to, same_call
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
@@ -64,20 +64,19 @@ from neoaprs.units import MILE_KM
 
 log = logging.getLogger("neoaprs.queries")
 
-GENERAL = "?APRS?"
-IGATE_QUERY = "?IGATE?"
+GENERAL = QUERY_TEXT["aprs"]
+IGATE_QUERY = QUERY_TEXT["igate"]
 GENERAL_DELAY_MAX_SEC = 120.0
 GENERAL_EVERY_SEC = 600.0
 DIRECT_WINDOW = timedelta(hours=1)
 MAX_DIRECT_MESSAGES = 2
 _NUMBER = r"V?\s*([-+]?\d+(?:\.\d+)?)"                                     # (the V is the specification's mark of a positive value)
 _FOOTPRINT = re.compile(rf"\?(?:APRS|IGATE)\?(?:\s*{_NUMBER}\s*[,\s]\s*{_NUMBER}\s*[,\s]\s*(\d{{1,4}}))?", re.IGNORECASE)
-_DIRECTED = {"?APRSP": "position", "?APRSS": "status", "?APRSD": "directs", "?APRST": "path", "?PING": "path", "?APRSO": "objects", "?APRSM": "messages"}     # by the text without a trailing "?" (?PING? is written with one; a radio may add one to the others)
+_DIRECTED = {QUERY_TEXT[kind]: kind for kind in ("position", "status", "directs", "path", "objects", "messages")} | {QUERY_TEXT["ping"].removesuffix("?"): "path"}     # by the text without a trailing "?" (?PING? is written with one; a radio may add one to the others)
 _PACED = ("objects", "messages")                                          # the answers of several frames, sent SPACING_SEC apart
 HEARD_HOURS = 8
-_HEARD = re.compile(r"\?APRSH\s*([A-Z0-9-]{1,9})?")
-_NOT_ANSWERED = ("?WX?",)                                                  # the general query of the specification that we have nothing to answer
-_UNSETTLED = ("sending", "failed", "unconfirmed")
+_HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.pattern})?")
+_NOT_ANSWERED = (QUERY_TEXT["wx"],)                                                # the general query of the specification that we have nothing to answer
 
 
 class Frames(Protocol):
@@ -86,9 +85,11 @@ class Frames(Protocol):
 
 
 class Stations(Protocol):
-    """What the queries need of the station book."""
+    """What the queries need of the station book: the stations, and where we are (the book's row of ours, which follows the GPS fix of a moving station)."""
     def stations(self) -> list[Station]: ...
     def get(self, call: str) -> Station | None: ...
+    @property
+    def me_position(self) -> tuple[float, float] | None: ...
 
 
 class HeardLog(Protocol):
@@ -277,7 +278,7 @@ class Queries:
 
     def _unsettled(self, asker: str) -> list[MessageRecord]:
         """Our messages to the asker that no ack has settled, the latest ANSWER_FRAMES_MAX, oldest first."""
-        ours = [r for r in self._messages.records() if r.direction == "out" and r.msg_id is not None and r.state in _UNSETTLED and same_call(r.to_call, asker)]
+        ours = [r for r in self._messages.records() if r.direction == "out" and r.msg_id is not None and r.state in UNSETTLED and same_call(r.to_call, asker)]
         return sorted(ours, key=lambda r: r.id)[-ANSWER_FRAMES_MAX:]
 
     # ---- ?APRSH
@@ -315,8 +316,8 @@ class Queries:
         except ValueError as e:
             log.debug("the general query of %s is not answered: %s", packet.sender, e)
             return
-        c = self._config()
-        if footprint is not None and (c.station_position is None or not footprint.contains(*c.station_position)):
+        here = self._book.me_position
+        if footprint is not None and (here is None or not footprint.contains(*here)):
             log.debug("the general query of %s is for a footprint we are not in", packet.sender)
             return
         until = self._general_until.get(kind)
@@ -344,15 +345,26 @@ class Queries:
                 if why := self._no_igate():
                     log.debug("the general query %s of %s is not answered: %s", IGATE_QUERY, asker, why)
                     return
-                assert self._igate is not None
-                frames: list[ax25.Frame | None] = [our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))]
+                self._send_frames(asker, [self._capabilities])
             else:
-                frames = [self._beacon.frame(), self._status()]
-            for frame in frames:
-                if frame is not None and not self._answers.send(asker, frame):
-                    break
+                self._send_frames(asker, [self._beacon.frame, self._status])
         except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
             log.warning("the general query of %s was not answered: %s", asker, e)
+
+    def _capabilities(self) -> ax25.Frame:
+        assert self._igate is not None
+        return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
+
+    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]]) -> None:
+        """Each frame is made and sent on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it."""
+        for make in makers:
+            try:
+                frame = make()
+            except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
+                log.warning("the answer to the general query of %s lacks a frame: %s", asker, e)
+                continue
+            if frame is not None and not self._answers.send(asker, frame):
+                break
 
     # ---- the answers
     def _directs(self, now: datetime) -> list[str]:

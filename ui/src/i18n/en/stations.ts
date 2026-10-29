@@ -71,6 +71,8 @@ export const stations = {
   "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
   "station.ext.df_bearing_value": "{bearing}°, range {range} km, quality {quality}, hits {hits}",
   "station.ext.area_value": "{colour} {shape}, {down}° down, {right}° right",
+
+  "station.ext.area_value_left": "{colour} {shape}, {down}° down, {left}° left",
   "station.telemetry.numbered": "#{number}: {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} on", other: "{name} off" },
   "station.sent_local": "{time} local",
@@ -135,7 +137,6 @@ export const stations = {
   "station.menu.qrz": "QRZ page",
   "station.menu.forget": "Forget",
   "station.menu.forget_sure": "Really forget?",
-  "station.menu.copied": "Copied {call}",
   "station.alert.label": "Alert me when {call}…",
   "station.alert.on_air": "comes on the air",
   "station.alert.on_air_title": "Heard after 30 minutes or more of silence, or for the first time",

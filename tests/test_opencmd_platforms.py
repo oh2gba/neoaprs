@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from neoaprs.cli import opencmd, servicecmd, servicewindows
+from neoaprs.cli.logfile import LAUNCH_NAME, LOG_NAME
 
 
 class Spawned:
@@ -34,15 +35,15 @@ def test_on_windows_the_daemon_is_the_windowless_program_and_is_started_detached
     opencmd.spawn(argv, tmp_path / "data")
     [(started, options)] = spawned.calls
     assert started == argv and options["creationflags"] == servicewindows.DETACHED and options["stdout"] == subprocess.DEVNULL and options["stderr"] == subprocess.DEVNULL
-    assert (tmp_path / "data").is_dir() and not (tmp_path / "data" / opencmd.LOG_NAME).exists(), "(Windows has no console: the daemon logs to its file itself)"
+    assert (tmp_path / "data").is_dir() and not (tmp_path / "data" / LOG_NAME).exists(), "(Windows has no console: the daemon logs to its file itself)"
 
 
-def test_elsewhere_the_daemon_is_a_session_of_its_own_whose_output_goes_to_the_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_elsewhere_the_daemon_is_a_session_of_its_own_whose_output_goes_to_a_file_of_its_own_not_the_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     spawned = Spawned(monkeypatch)
     opencmd.spawn(["neoaprs", "run"], tmp_path / "data")
     [(_, options)] = spawned.calls
-    assert options["start_new_session"] is True and "creationflags" not in options and (tmp_path / "data" / opencmd.LOG_NAME).is_file()
+    assert options["start_new_session"] is True and "creationflags" not in options and (tmp_path / "data" / LAUNCH_NAME).is_file() and not (tmp_path / "data" / LOG_NAME).exists(), "(the daemon's warnings would be in the log twice)"
 
 
 class Windows:

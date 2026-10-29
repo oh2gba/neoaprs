@@ -9,7 +9,7 @@ from neoaprs import TOCALL, ax25
 from neoaprs.aprsparse import parse
 from neoaprs.aprsposition import parse_position
 from neoaprs.config import RECEIVE_ONLY, Config
-from neoaprs.packet import Status
+from neoaprs.packet import Position, Status
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
 from neoaprs.source import Source
 from tests.support.rig import ServiceRig
@@ -32,6 +32,21 @@ def test_the_default_beacon_is_the_uncompressed_position_with_the_comment_to_the
     assert (str(frame.destination), str(frame.source), frame.path_text, frame.is_ui) == ("APZNEO", "OH2GBA", "WIDE1-1,WIDE2-1", True)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
     assert ax25.decode(ax25.encode(frame)) == frame, "it is a frame that goes over the air and comes back"
+
+
+@pytest.mark.parametrize("comment", ["144/430 MHz dual", "PHG2360 digi", "RNG0025 fill-in", "DFS2132 beam", "123/456", "PHG2360"])
+@pytest.mark.parametrize("power", [None, 25])
+def test_a_comment_that_starts_like_a_data_extension_gets_a_blank_before_it_so_that_every_receiver_reads_it_as_the_comment(comment: str, power: int | None) -> None:
+    frame = Rig(station_comment=comment, beacon_power_w=power, beacon_antenna_height_m=10 if power else None, beacon_antenna_gain_db=3 if power else None).beacon.frame()
+    decoded = parse(frame.info, "OH2GBA", "APZNEO", FixedClock()())
+    assert isinstance(decoded, Position) and decoded.comment.strip() == comment
+    assert decoded.course_deg is None and decoded.speed_kmh is None
+    assert (decoded.extensions is None) if power is None else (decoded.extensions is not None and decoded.extensions.phg is not None and decoded.extensions.range_km is None and decoded.extensions.dfs is None)
+    assert frame.info.endswith(b" " + comment.encode())
+
+
+def test_a_comment_that_starts_like_nothing_special_is_sent_as_it_is() -> None:
+    assert Rig(station_comment="144.390 MHz").beacon.frame().info == b"=6010.20N/02456.40E-144.390 MHz"
 
 
 def test_a_stored_destination_compressed_or_dao_is_ignored_and_the_tocall_is_the_codes() -> None:

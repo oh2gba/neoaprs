@@ -94,7 +94,7 @@ def _decode_address(chunk: bytes, index: int) -> tuple[Address, bool]:
         letter = byte >> 1
         if not 0x20 <= letter <= 0x7E:
             raise Ax25Error(f"address {index} has a character outside the printable range (byte 0x{byte:02X})")
-        letters.append(chr(letter))
+        letters.append(chr(letter).upper())                      # (an AX.25 address is written in capitals: a lower-case letter on the air is the same station)
     call = "".join(letters).rstrip(" ")
     if not call or " " in call:
         raise Ax25Error(f"address {index} has a call of spaces or with a space inside: {''.join(letters)!r}")

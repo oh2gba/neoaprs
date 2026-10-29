@@ -88,6 +88,19 @@ describe("App: Esc in the Objects form", () => {
     expect(map.flights).toHaveLength(1);
   });
 
+  it("closes the note of an (i) of the form first and leaves what was typed, and the next Esc clears the form", async () => {
+    const { wrapper } = await opened();
+    await name(wrapper)?.setValue("MARK");
+    const tip = wrapper.find<HTMLButtonElement>("#pane-objects .objform .info-toggle");
+    await tip.trigger("click");
+    expect(wrapper.find("#pane-objects .info-text").exists()).toBe(true);
+    await esc(tip.element);
+    expect(wrapper.find("#pane-objects .info-text").exists()).toBe(false);
+    expect(name(wrapper)?.element.value).toBe("MARK");
+    await esc(tip.element);
+    expect(name(wrapper)?.element.value).toBe("");
+  });
+
   it("leaves a field outside the form its first Esc", async () => {
     const { wrapper } = await opened();
     await name(wrapper)?.setValue("MARK");

@@ -14,6 +14,7 @@ from neoaprs.aprstelemetry import split_comment_telemetry
 from neoaprs.devicedata import MICE
 from neoaprs.packet import Position, decode_text
 from neoaprs.symbols import table_of
+from neoaprs.units import base91
 
 _STANDARD = ("Emergency", "Priority", "Special", "Committed", "Returning", "In Service", "En Route", "Off Duty")
 _CUSTOM = ("Emergency", "Custom 6", "Custom 5", "Custom 4", "Custom 3", "Custom 2", "Custom 1", "Custom 0")
@@ -107,27 +108,36 @@ def _motion(body: bytes) -> tuple[int | None, float | None]:
     return motion(course, speed)
 
 
-def _strip_type(rest: bytes) -> bytes:
-    """The status text without the radio's type code or the telemetry that may start it. The type code (aprs-deviceid's mice and micelegacy tables): a leading ">" with an optional trailing "=", "^"
-    or "&" of Kenwood's handhelds, "]" with an optional "=" of its mobiles, or a leading "`" or "'" and one of the two-byte suffixes of the newer radios and trackers; a suffix that is not in the
-    table stays in the text. The telemetry of the original Mic-E (obsolete since the type codes took the same first bytes): the flag "`" and two values in two hex digits each, the flag "'" and five,
-    the flag 0x1d and five binary values. A text that ends with a known suffix is a radio's, whatever its first characters look like: "`1296 MHz_3" is a Yaesu saying 1296 MHz, not telemetry."""
+class MicType(NamedTuple):
+    """What a Mic-E status text starts and ends with: the radio's type code (`lead`: the first byte, empty when the text has none) and its `suffix` (the one or two bytes at the end that tell the models apart,
+    empty when there is none), and the `text` without them."""
+    lead: bytes
+    suffix: bytes
+    text: bytes
+
+
+def mice_type(rest: bytes) -> MicType:
+    """The type code, the suffix and the status text of the bytes that follow the symbol of a Mic-E packet (any CR or LF the radio ends them with is not part of them: Kenwood and Yaesu add a CR). The type code
+    (aprs-deviceid's mice and micelegacy tables): a leading ">" with an optional trailing "=", "^" or "&" of Kenwood's handhelds, "]" with an optional "=" of its mobiles, or a leading "`" or "'" and one of the
+    two-byte suffixes of the newer radios and trackers; a suffix that is not in the table stays in the text. The telemetry of the original Mic-E (obsolete since the type codes took the same first bytes) is
+    taken off the text and has no type code: the flag "`" and two values in two hex digits each, the flag "'" and five, the flag 0x1d and five binary values. A text that ends with a known suffix is a radio's,
+    whatever its first characters look like: "`1296 MHz_3" is a Yaesu saying 1296 MHz, not telemetry."""
     rest = rest.rstrip(b"\r\n")
     lead = rest[:1]
     if lead in (b"`", b"'") and rest[-2:] in _SUFFIXES:
-        return rest[1:-2]
+        return MicType(lead, rest[-2:], rest[1:-2])
     if lead == b"`" and len(rest) >= 5 and _HEX.match(rest[1:5]):
-        return rest[5:]
+        return MicType(b"", b"", rest[5:])
     if lead == b"'" and len(rest) >= 11 and _HEX.match(rest[1:11]):
-        return rest[11:]
+        return MicType(b"", b"", rest[11:])
     if lead == b"\x1d" and len(rest) >= 6:
-        return rest[6:]
+        return MicType(b"", b"", rest[6:])
     if lead not in (b">", b"]", b"`", b"'"):
-        return rest
+        return MicType(b"", b"", rest)
     rest = rest[1:]
     if rest[-1:] in _LEGACY_SUFFIXES.get(lead, ()):
-        rest = rest[:-1]
-    return rest
+        return MicType(lead, rest[-1:], rest[:-1])
+    return MicType(lead, b"", rest)
 
 
 def _altitude_in(rest: bytes) -> tuple[float | None, bytes]:
@@ -135,15 +145,12 @@ def _altitude_in(rest: bytes) -> tuple[float | None, bytes]:
     found = _ALTITUDE.match(rest)
     if not found:
         return None, rest
-    value = 0
-    for b in found.group(1):
-        value = value * 91 + b - 33
-    return value - 10000.0, rest[:found.start()] + rest[found.end():]
+    return base91(found.group(1)) - 10000.0, rest[:found.start()] + rest[found.end():]
 
 
 def _altitude_and_comment(rest: bytes) -> tuple[float | None, str, Locator | None]:
     """The altitude, the comment and the Maidenhead locator of the status text: the locator is first in the text, the altitude right after it (or first, without one)."""
-    text = decode_text(_strip_type(rest))
+    text = decode_text(mice_type(rest).text)
     locator, text = split_locator(text)
     altitude, remains = _altitude_in(text.encode("utf-8"))
     return altitude, decode_text(remains).strip(), locator

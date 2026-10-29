@@ -9,7 +9,7 @@ from neoaprs.aprsfreq import Frequency
 from neoaprs.aprslocator import Locator
 from neoaprs.aprsstorm import Storm
 from neoaprs.aprstelemetry import Telemetry
-from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, channel_of, decode_text, via_of
+from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, channel_of, decode_text, duplicate_key, via_of
 
 T = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 POS = Position(60.17, 24.94, "/", "-", "comment")
@@ -141,3 +141,9 @@ def test_a_packet_of_the_dummy_radio_is_on_the_air_for_every_service_but_is_neve
     assert channel_of(None, dummy=True) == "dummy" and channel_of(ThirdParty("A", "B"), dummy=True) == "dummy" and channel_of(None, internet=True, dummy=True) == "is"
     wrapped = Packet(T, "in", b"", "QDUMMY-1", "APRS", (), b"", Status("x"), ThirdParty("QDUMMY-2", "APRS"), "dummy")
     assert (wrapped.sender, wrapped.gate) == ("QDUMMY-2", "")
+
+
+def test_two_copies_of_a_packet_are_one_by_source_destination_without_its_ssid_and_information() -> None:
+    assert duplicate_key("OH2XYZ-9", "APRS-3", b"!x") == duplicate_key("OH2XYZ-9", "APRS", b"!x") == ("OH2XYZ-9", "APRS", b"!x")
+    assert duplicate_key("OH2XYZ-9", "APRS", b"!x") != duplicate_key("OH2XYZ-8", "APRS", b"!x")
+    assert duplicate_key("OH2XYZ-9", "APRS", b"!x") != duplicate_key("OH2XYZ-9", "APRS", b"!y")

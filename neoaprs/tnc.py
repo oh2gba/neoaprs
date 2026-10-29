@@ -13,7 +13,7 @@ typed into it first. A line that goes quiet after it was opened is looked after 
 SILENT: the line is open, but the radio does not answer (it is switched off; the USB adapter is still there). The keep-alive's check sends the KISS exit frame, a carriage return and KISS ON, and a radio that
 is on answers that with text within a second or two; when no byte at all comes within `answer_sec` the Tnc is SILENT. It sends nothing while SILENT (`usable` is False) and the keep-alive probes the line every
 `probe_sec`. The first byte that arrives from the line, whatever it is, ends it: the allowance to enter KISS is given back, the mode detector starts over, and the Tnc enters KISS unless the bytes are a KISS frame
-already or a piece of one (a FEND among them: a line delivers a frame in several reads, and command-mode text has no FEND), when what follows decides. The Tnc is `usable` only when CONNECTED and not settling: not
+already or a piece of one (a FEND among them, or bytes that are no command-mode text: a line delivers a frame in several reads, and command-mode text has no FEND), when what follows decides. The Tnc is `usable` only when CONNECTED and not settling: not
 while a check is under way and not for the settle time after the entry, so that no frame is typed into a TNC in command mode.
 
 A fresh open of a line to a TNC that can be asked is not `usable` until the radio has shown that it is there (`confirmed`): the keep-alive makes its check at once, the first byte that arrives from the line, a packet or the
@@ -93,7 +93,7 @@ class Tnc(TimedSource):
     stats: TncStats
 
     def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
-                 backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = 10.0,
+                 backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = serialprobe.NUDGE_SEC,
                  skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
@@ -110,7 +110,6 @@ class Tnc(TimedSource):
         self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)    # the wait after the last step (None: the profile's), the factor on the others
         self._port: TncPort | None = None
         self._follow = AdapterFollow()                                   # the USB adapter of the named port, found again when the system gives it another name
-        self._generation = 0                                             # changes at stop(), so that an attempt that was under way knows it is over
         self._watchdog_task: asyncio.Task[None] | None = None
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
         self.last_watchdog_action = ""                                   # "check", "probe" or "reopen"; empty until the watchdog has done anything
@@ -133,10 +132,10 @@ class Tnc(TimedSource):
 
     async def stop(self) -> None:
         self._generation += 1
-        await self._cancel_tasks()
-        port, self._port = self._port, None
+        port, self._port = self._port, None                      # (first: what the line says while the tasks end is no one's)
         if port is not None:
             port.close()
+        await self._cancel_tasks()
         self._watchdog_task = None
         self.watchdog.probes = 0
         self._set_state(Source.State.STOPPED)
@@ -144,7 +143,8 @@ class Tnc(TimedSource):
     async def _connect(self, reopen: str = "", silent: bool = False) -> None:
         """Opens the line: `reopen` is the path to open again (the keep-alive's, which says nothing of it above DEBUG and keeps a silent radio silent), else the named port, else the one the search finds."""
         generation = self._generation
-        self._set_state(Source.State.CONNECTING)
+        if not silent:                                                   # (a radio that is silent stays so while its port is opened again)
+            self._set_state(Source.State.CONNECTING)
         named = bool(reopen or self.port) and not self._probe_next       # (a probe attempt is followed by one at the named port again)
         self._probe_next = False
         try:
@@ -158,16 +158,27 @@ class Tnc(TimedSource):
             self._wait(f"{type(e).__name__}: {e}")
             return
         if found is not None:
-            self._opened(*found, named, reopen, silent)
+            try:
+                self._opened(*found, named, reopen, silent)
+            except BaseException:
+                self._port = None
+                found[0].close()
+                raise
 
     async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
         """The line, open, with its path and what the search heard on it; None when `stop` came meanwhile. Raises SerialError."""
         path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
         if generation != self._generation:
             return None
-        if named and not self.is_dummy and (held := held_by(path)):
+        if named and not self.is_dummy and (held := await asyncio.to_thread(held_by, path)):
             raise SerialError(f"{path}: {held}")
+        asked = path
         port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)
+        if generation != self._generation:                               # (stopped while the port was being opened: no one is to have it)
+            port.close()
+            return None
+        if self._follow.following(path, named and not self.is_dummy):
+            self._spawn(self._follow.remember(asked, path))              # (a task of the Tnc, which starts after `_opened`: the memory is for the next time)
         return port, path, heard
 
     def _opened(self, port: TncPort | DummyPort, path: str, heard: bytes, named: bool, reopen: str, silent: bool) -> None:
@@ -187,16 +198,8 @@ class Tnc(TimedSource):
         self._start_watchdog()
 
     def _wait(self, problem: str) -> None:
-        delay = self.backoff.next_delay_sec()
         self.watchdog.probes = 0
-        log.warning("tnc: %s; trying again in %g s", problem, delay)
-        self._set_state(Source.State.WAITING, problem)
-        self._note(f"{problem}; trying again in {delay:g} s")
-        self._spawn(self._retry(delay))
-
-    async def _retry(self, delay: float) -> None:
-        await asyncio.sleep(delay)
-        await self._connect()
+        self._waiting(problem, self.backoff.next_delay_sec(), self._connect)
 
     def _on_lost(self, port: TncPort, reason: str) -> None:
         if port is not self._port:

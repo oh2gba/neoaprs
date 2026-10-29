@@ -64,13 +64,7 @@ describe("layerStyle", () => {
 
 describe("symbolText", () => {
   it("names the symbol of a table and a code, an overlay table being the alternate one", () => {
-    expect([symbolText("/", ">"), symbolText("\\", ">"), symbolText("S", "#"), symbolText("a", "#"), symbolText("/", "_")]).toEqual([
-      "Car",
-      "Car",
-      "Digipeater",
-      "Digipeater",
-      "Weather station",
-    ]);
+    expect([symbolText("/", ">"), symbolText("\\", ">"), symbolText("S", "#"), symbolText("/", "_")]).toEqual(["Car", "Car", "Digipeater", "Weather station"]);
   });
   it("has the name of every code of the daemon's lists", () => {
     for (const [table, names] of [
@@ -135,8 +129,8 @@ describe("the type of a station from its symbol", () => {
     expect(isMobileSymbol(table, named(table, name)), name).toBe(false);
     expect(recommendedPath(table, named(table, name))).toBe("WIDE2-1");
   });
-  it("sees through an overlay and a compressed overlay, and takes anything that is no symbol for a fixed station", () => {
-    expect([isMobileSymbol("E", ">"), isMobileSymbol("4", "s"), isMobileSymbol("e", ">"), isMobileSymbol("S", "#")]).toEqual([true, true, true, false]);
+  it("sees through an overlay, and takes anything that is no symbol for a fixed station", () => {
+    expect([isMobileSymbol("E", ">"), isMobileSymbol("4", "s"), isMobileSymbol("S", "#")]).toEqual([true, true, false]);
     expect([isMobileSymbol("", ">"), isMobileSymbol("?", ">"), isMobileSymbol("/", ""), isMobileSymbol("/", ">>")]).toEqual([false, false, false, false]);
   });
   it("is the daemon's list, and every code of it is a symbol that has a name", () => {

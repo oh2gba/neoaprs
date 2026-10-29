@@ -1,7 +1,10 @@
 import { cssRule } from "@/test/css";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h, nextTick } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
+import { useCardEsc } from "@/composables/useCardEsc";
+import { useFormEsc } from "@/composables/useFormEsc";
 import { openTip } from "@/lib/infotip";
 
 const mounted: ReturnType<typeof mount>[] = [];
@@ -102,6 +105,37 @@ describe("InfoTip", () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".info-text").exists()).toBe(false);
     expect(document.activeElement).toBe(wrapper.find("button").element);
+  });
+
+  it("takes its Esc alone: the station cards and the form around it are left as they are", async () => {
+    const closeAll = vi.fn(() => true);
+    const closeForm = vi.fn(() => true);
+    const outer = vi.fn();
+    const Host = defineComponent({
+      setup() {
+        useFormEsc({ cancelPick: () => false, closeForm, blocked: () => false });
+        useCardEsc(closeAll, () => false);
+        return () => h("form", { class: "objform", onKeydown: outer }, [h("input"), h(InfoTip, { label: "About" }, () => "text")]);
+      },
+    });
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const wrapper = mount(Host, { attachTo: host });
+    mounted.push(wrapper);
+    const button = wrapper.find<HTMLButtonElement>(".info-toggle");
+    await button.trigger("click");
+    button.element.focus();
+    outer.mockClear();
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    button.element.dispatchEvent(event);
+    await nextTick();
+    expect(wrapper.find(".info-text").exists()).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(closeAll).not.toHaveBeenCalled();
+    expect(closeForm).not.toHaveBeenCalled();
+    expect(outer).not.toHaveBeenCalled();
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); // (the next Esc is theirs)
+    expect(closeForm).toHaveBeenCalledTimes(1);
   });
 
   it("stays open for other keys and for a click inside the note, and closes on a click or tap outside", async () => {

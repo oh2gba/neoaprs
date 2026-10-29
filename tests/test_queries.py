@@ -8,7 +8,7 @@ import pytest
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, parse_message
 from neoaprs.packet import Message, Other, Packet, Status
-from neoaprs.services.beacon import Beacon
+from neoaprs.services.beacon import Beacon, BeaconError
 from neoaprs.message import MessageRecord
 from neoaprs.ownobject import make_object
 from neoaprs.services.queries import ANSWER_FRAMES_MAX, GENERAL_DELAY_MAX_SEC, GENERAL_EVERY_SEC, Queries, directs_messages, path_text
@@ -283,6 +283,37 @@ async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, 
     general(rig, text=text)
     await idle_for(0.1)
     assert len(rig.tnc.sent) == (1 if inside else 0)
+
+
+async def test_a_footprint_is_tested_against_where_a_moving_station_is_not_against_the_home_it_left() -> None:
+    rig = Rig()                                          # (the home of the settings is 60.17 N 24.94 E)
+    rig.book.set_me("OH2GBA", 34.02, -117.15)           # (the GPS fix: the station book's row follows it)
+    general(rig, "OH2RDG", text="?APRS?V60.17,24.94,0010")
+    await idle_for(0.1)
+    assert rig.tnc.sent == [], "the footprint round the old home is not ours"
+    general(rig, "OH2RDG", text="?APRS?V34.02,-117.15,0010")
+    await until(lambda: len(rig.tnc.sent) == 1)
+
+
+async def test_a_footprint_is_not_answered_while_the_book_has_no_place_of_ours() -> None:
+    rig = Rig()
+    rig.book.clear_me()
+    general(rig, "OH2RDG", text="?APRS?V60.17,24.94,0010")
+    await idle_for(0.1)
+    assert rig.tnc.sent == []
+
+
+async def test_a_status_that_cannot_be_made_does_not_take_the_position_with_it() -> None:
+    rig = Rig()
+
+    def broken() -> ax25.Frame | None:
+        raise BeaconError("the status is too long")
+
+    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, broken, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
+    remember_stop(rig.q.stop)
+    general(rig)
+    await until(lambda: len(rig.tnc.sent) == 1)
+    assert rig.tnc.sent == [rig.beacon.frame()]
 
 
 async def test_a_footprint_that_does_not_read_is_not_answered_and_a_query_outside_the_footprint_does_not_start_the_ten_minutes() -> None:

@@ -355,3 +355,26 @@ def test_every_connection_is_a_link_of_the_hub_and_asks_the_socket_how_much_it_h
     hub.add(Topic("one", lambda: {"n": 0}))
     hub.attach(conn)
     assert json.loads(socket.frames[0])["topic"] == "one" and conn.buffered() == 0
+
+
+def test_a_topic_named_twice_in_one_subscribe_is_sent_once_in_the_order_given() -> None:
+    hub, _, _ = hub_of()
+    page = Page()
+    hub.attach(page)
+    page.frames.clear()
+    assert hub.subscribe(page, ["one", "rows", "one", "nothing", "rows", "nothing"] * 3) == ["nothing"]
+    assert [f["topic"] for f in page.frames] == ["one", "rows"]
+
+
+def test_a_number_that_is_not_finite_goes_out_as_null_with_one_line_for_each_kind_of_message(caplog: pytest.LogCaptureFixture) -> None:
+    outbound.NOT_FINITE_SEEN.clear()
+    socket = Socket()
+    conn = Publisher(validate_out=False).open(socket, "127.0.0.1")
+    for value in (float("nan"), float("inf"), -float("inf")):
+        conn.send({"type": "state", "topic": "gps", "rev": 1, "value": {"speed": value, "track": [1.5, value], "ok": 2.5}})
+    conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z"})
+    strict = json.JSONDecoder(parse_constant=lambda word: (_ for _ in ()).throw(ValueError(word)))          # (what a browser's JSON.parse does with NaN)
+    frames = [strict.decode(text) for text in socket.frames]
+    assert all(f["value"] == {"speed": None, "track": [1.5, None], "ok": 2.5} for f in frames[:3]) and frames[3]["type"] == "pong"
+    assert len([r for r in caplog.records if "not finite" in r.getMessage()]) == 1 and "state gps" in caplog.text
+    outbound.NOT_FINITE_SEEN.clear()

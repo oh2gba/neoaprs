@@ -3,6 +3,7 @@ An open that fails or raises something nobody listed, a write that is refused, a
 and the repeats of the KISS entry that wait longer each time (their waits are the program's own 10 s to 60 s, passed in no time)."""
 import asyncio
 import logging
+import threading
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from typing import Any
@@ -113,6 +114,77 @@ async def test_bytes_and_a_loss_from_a_port_that_is_not_the_tncs_any_more_are_ig
         old.lose("again")
         assert tnc.stats.bytes_in == 0 and ports.port.written == [], "nothing the old port says is taken"
         assert tnc.state is Source.State.CONNECTED
+
+
+async def test_a_lost_line_says_why_it_is_lost_not_what_was_wrong_with_the_line_before(ports: FakePorts) -> None:
+    async with virtual_time(), started(backoff=QUICK) as tnc:
+        ports.port.feed(MONITOR_LINE)
+        await asyncio.sleep(SETTLE + 0.1)
+        ports.port.feed(MONITOR_LINE)                                    # the TNC types text after the entry: command mode
+        assert "command mode" in tnc.problem
+        ports.port.lose("the cable was pulled")
+        assert tnc.state is Source.State.WAITING and "the cable was pulled" in tnc.problem and "command mode" not in tnc.problem
+
+
+async def test_a_loss_that_comes_while_the_tasks_end_does_not_open_the_line_again_after_the_stop(ports: FakePorts) -> None:
+    async with virtual_time(), started(check_sec=60.0, backoff=QUICK) as tnc:
+        port = ports.port
+        stopper = asyncio.create_task(tnc.stop())
+        await asyncio.sleep(0)                                           # (the stop has cancelled the keep-alive and waits for it to end)
+        port.lose("the cable was pulled")
+        await stopper
+        await asyncio.sleep(30.0)
+        assert tnc.state is Source.State.STOPPED and len(ports.opened) == 1 and len(tnc._tasks) == 0 and not port.is_open
+
+
+async def test_a_retry_that_was_made_before_a_stop_connects_nothing_after_it(ports: FakePorts) -> None:
+    async with started(backoff=QUICK) as tnc:
+        tnc._generation += 1
+        await tnc._retry_after(0.0, tnc._generation - 1, tnc._connect)
+        assert len(ports.opened) == 1
+
+
+async def test_a_stop_while_the_start_is_opening_the_line_leaves_no_port_open(ports: FakePorts) -> None:
+    opening, release = asyncio.Event(), asyncio.Event()
+
+    async def held() -> None:
+        opening.set()
+        await release.wait()
+
+    ports.open_gate = held
+    tnc = Tnc(PATH, check_sec=0.0)
+    starting = asyncio.create_task(tnc.start())
+    await until(opening.is_set)
+    await tnc.stop()
+    release.set()
+    await starting
+    assert tnc.state is Source.State.STOPPED and not ports.port.is_open and tnc._port is None
+
+
+async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loop(ports: FakePorts, monkeypatch: pytest.MonkeyPatch) -> None:
+    threads: list[int] = []
+
+    def held_by(path: str) -> str:
+        threads.append(threading.get_ident())
+        return ""
+
+    monkeypatch.setattr("neoaprs.tnc.held_by", held_by)
+    async with started():
+        pass
+    assert threads and threading.get_ident() not in threads
+
+
+async def test_a_line_that_cannot_be_handed_over_is_closed_and_not_kept(ports: FakePorts, monkeypatch: pytest.MonkeyPatch) -> None:
+    tnc = Tnc(PATH, check_sec=0.0)
+
+    def refuse() -> None:
+        raise RuntimeError("the watchdog does not start")
+
+    monkeypatch.setattr(tnc, "_start_watchdog", refuse)
+    with pytest.raises(RuntimeError):
+        await tnc.start()
+    assert not ports.port.is_open and tnc._port is None
+    await tnc.stop()
 
 
 async def test_asking_a_tnc_that_has_no_line_is_refused_and_a_reopen_of_nothing_opens_nothing(ports: FakePorts) -> None:

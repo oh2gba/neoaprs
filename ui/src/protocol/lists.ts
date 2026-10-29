@@ -303,6 +303,9 @@ export const SYMBOL_NAMES = {
 /** The codes `!` to `~` of the symbols of a station that moves or is carried, in the primary and in the alternate table (MOBILE_CODES of neoaprs/symbols.py): a station with one of them is recommended WIDE1-1,WIDE2-1, any other WIDE2-1. */
 export const MOBILE_SYMBOLS = {"primary": "'()*<=>CFOPRSUVXY[^abefgjkpsuv", "alternate": ">^ksuv"} as const;
 
+/** The overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa (IGATE_OVERLAYS of neoaprs/symbols.py). */
+export const IGATE_OVERLAYS = ["I", "R", "T", "2", "L"] as const;
+
 /** Every number the page checks a value against, by area, from the daemon's own constants (the ranges of the settings by key: RANGES of neoaprs/config.py; the comment, status and message lengths, the least interval, the calls, the objects and bulletins, the time a station stays on the map, the longer spans of the map's replay). */
 export const LIMITS = {
   range: {
@@ -324,7 +327,9 @@ export const LIMITS = {
   interval: { beaconMinMin: 20, statusMinMin: 15 },
   message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2" },
   call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },
-  path: { maxCalls: 8, direct: "DIRECT", recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
+  path: { maxCalls: 8, direct: "DIRECT", rfOnly: "RFONLY", textMax: 256, recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
+  alert: { kmMin: 1, kmMax: 1000 },
+  history: { maxHours: 168 },
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },
   bulletin: { groupMax: 5 },
   qru: { kmMax: 20000, askEverySec: 60, askGapSec: 10 },

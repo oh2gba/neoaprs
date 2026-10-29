@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Model
+from .wirebase import Call, ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Model
 
 
 class WeatherValues(_Model):
@@ -133,7 +133,7 @@ class StationRow(_Model):
 class ForgetStation(_Command):
     """Removes a station from the station book (and its cache in the database) until it is heard again. Not our own station. Answered by the `del` of the row, or by an `error`."""
     cmd: Literal["forget_station"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
 
 
 class ForgetAllStations(_Command):

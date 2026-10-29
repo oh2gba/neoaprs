@@ -17,7 +17,7 @@ from typing import Literal, Protocol
 
 from neoaprs.coded import CodedError
 from neoaprs.clock import Clock, utcnow
-from neoaprs.message import MessagingError, request_path, same_call
+from neoaprs.message import QUERY_TEXT, MessagingError, request_path, same_call
 from neoaprs.packet import RF_GATED, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
 from neoaprs.signal import Signal
@@ -26,7 +26,7 @@ from neoaprs.station import Station
 log = logging.getLogger("neoaprs.queries")
 
 Kind = Literal["aprs", "igate", "wx"]
-QUERIES: dict[Kind, str] = {"aprs": "?APRS?", "igate": "?IGATE?", "wx": "?WX?"}       # the information field of each kind, exactly
+QUERIES: dict[Kind, str] = {"aprs": QUERY_TEXT["aprs"], "igate": QUERY_TEXT["igate"], "wx": QUERY_TEXT["wx"]}       # the information field of each kind, exactly
 ASK_EVERY_SEC = 60                      # one query of a kind in this time
 COUNT_FOR = timedelta(minutes=2)        # how long after a query the stations that speak are counted
 QUIET_BEFORE = timedelta(minutes=10)    # a station heard on the radio this long before the query is no newcomer

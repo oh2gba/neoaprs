@@ -73,6 +73,8 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.ext.dfs_value": "S{strength}、{height} m、{gain} dB",
   "station.ext.df_bearing_value": "{bearing}°、到達距離 {range} km、品質 {quality}、ヒット数 {hits}",
   "station.ext.area_value": "{colour} {shape}、下に{down}°、右に{right}°",
+
+  "station.ext.area_value_left": "{colour} {shape}、下に{down}°、左に{left}°",
   "station.telemetry.numbered": "#{number}: {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} オン", other: "{name} オフ" },
   "station.sent_local": "現地時間 {time}",
@@ -137,7 +139,6 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.menu.qrz": "QRZページ",
   "station.menu.forget": "消去",
   "station.menu.forget_sure": "本当に消去しますか?",
-  "station.menu.copied": "{call}をコピーしました",
   "station.alert.label": "{call}を通知する条件…",
   "station.alert.on_air": "交信を始めたとき",
   "station.alert.on_air_title": "30分以上受信がなかった後、または初めて受信したとき",

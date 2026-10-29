@@ -11,7 +11,7 @@ import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { bearingTitle, distanceText } from "@/lib/format";
 import type { NearbyItem } from "@/lib/nearby";
-import { symbolName } from "@/lib/stations";
+import { rowSymbolName } from "@/lib/stations";
 
 const props = defineProps<{ items: readonly NearbyItem[]; selected: string | null; others?: readonly string[]; label: string }>();
 const emit = defineEmits<{ select: [call: string, multi?: boolean] }>();
@@ -50,7 +50,7 @@ const copy = useCopyMenu((row) => (row.dataset["call"] === undefined ? [] : [{ k
         @click="item.row !== null && copy.unlessHeld(() => emit('select', item.call, withKey($event)))"
         @keydown.enter="item.row !== null && emit('select', item.call, withKey($event))"
       >
-        <td class="symbol" :title="item.row === null ? undefined : symbolName(item.row)">
+        <td class="symbol" :title="item.row === null ? undefined : rowSymbolName(item.row)">
           <SymbolIcon v-if="item.row !== null" :table="item.row.symbol_table" :code="item.row.symbol_code" :size="18" />
         </td>
         <td class="mono strong call">{{ item.call }}</td>

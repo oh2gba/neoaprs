@@ -74,8 +74,9 @@ def _build(cls: type, data: dict[str, Any]) -> Any:
 
 
 def encode_decoded(decoded: Decoded) -> str:
+    """The decoded packet as JSON. Raises ValueError for a number that is not finite (`Infinity` and `NaN` are no JSON, and an SQLite that reads JSON refuses a row that holds one): the parser that made it is wrong."""
     kind = next(k for k, cls in _TYPES.items() if type(decoded) is cls)
-    return json.dumps({"type": kind, **_plain(decoded)}, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps({"type": kind, **_plain(decoded)}, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
 
 
 def decode_decoded(text: str) -> Decoded:

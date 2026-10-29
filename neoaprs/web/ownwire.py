@@ -4,10 +4,11 @@ from typing import Literal
 
 from pydantic import Field
 
+from neoaprs.config import LATITUDE, LONGITUDE
 from neoaprs.ownbulletin import GROUP_MAX
-from neoaprs.ownobject import COMMENT_MAX, OBJECT_NAME, QRU_GROUP_MAX
+from neoaprs.ownobject import COMMENT_MAX, COURSE_MAX, OBJECT_NAME, QRU_GROUP_MAX, SPEED_MAX_KMH
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Iso, MessageText, PathText, _Command, _Model
 
 SLOT_LENGTH = (4, 3 + 1 + GROUP_MAX)                 # BLN and an identifier, up to a group of five characters
 
@@ -58,14 +59,14 @@ class ObjectSet(_Command):
     cmd: Literal["object_set"]
     name: str = Field(min_length=OBJECT_NAME[0], max_length=OBJECT_NAME[1])
     kind: Literal["object", "item"]
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
+    lat: float = Field(ge=LATITUDE[0], le=LATITUDE[1])
+    lon: float = Field(ge=LONGITUDE[0], le=LONGITUDE[1])
     symbol_table: str = Field(min_length=1, max_length=1)
     symbol_code: str = Field(min_length=1, max_length=1)
     comment: str = Field(max_length=COMMENT_MAX)
-    course_deg: int | None = Field(ge=0, le=359)
-    speed_kmh: float | None = Field(ge=0, le=1850)
-    path: str | None = Field(max_length=256)
+    course_deg: int | None = Field(ge=0, le=COURSE_MAX)
+    speed_kmh: float | None = Field(ge=0, le=SPEED_MAX_KMH)
+    path: PathText | None
     qru_group: str = Field(max_length=QRU_GROUP_MAX)
     on_request: bool
 
@@ -83,7 +84,7 @@ class BulletinPost(_Command):
     a text for a slot that holds one replaces it. Nothing is sent while the call is not set. Answered by the `set` of its row in `own_bulletins`, or by an `error` that names the reason."""
     cmd: Literal["bulletin_post"]
     slot: str = Field(min_length=SLOT_LENGTH[0], max_length=SLOT_LENGTH[1])
-    text: str = Field(min_length=1, max_length=512)
+    text: MessageText = Field(min_length=1)
 
 
 class BulletinUnpost(_Command):

@@ -254,3 +254,25 @@ def test_as_a_process_it_prints_the_address_and_reports_the_drive_to_a_plain_soc
 
 def test_the_default_port_is_2948_and_the_host_the_loopback() -> None:
     assert (gpsreplaycmd.HOST, gpsreplaycmd.DEFAULT_PORT) == ("127.0.0.1", 2948)
+
+
+class Leaver:
+    """A client whose own task takes it out of the list while the report waits for its buffer, and whose buffer then fails."""
+
+    def __init__(self, watchers: list[object]) -> None:
+        self.watchers = watchers
+
+    def write(self, data: bytes) -> None:
+        return None
+
+    async def drain(self) -> None:
+        self.watchers.remove(self)
+        raise ConnectionResetError("the client went away while the data was drained")
+
+
+async def test_a_client_that_leaves_while_the_report_is_drained_does_not_end_the_server() -> None:
+    server = FakeGpsd(Trip(*HELSINKI, 50.0), 0.01)
+    leaver = Leaver(server.watchers)  # type: ignore[arg-type]
+    server.watchers.append(leaver)  # type: ignore[arg-type]
+    await server._report()
+    assert server.watchers == [] and server.reports == 1

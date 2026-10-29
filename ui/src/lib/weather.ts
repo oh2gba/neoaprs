@@ -1,6 +1,6 @@
 // The weather as the page writes it and draws it: the readings as text, the wind arrow's angle, and the series of the daemon's `weather_series` message cut into the points of one graph.
 import { formatNumber } from "@/i18n";
-import { NONE } from "@/lib/format";
+import { NONE, speedText } from "@/lib/format";
 import { extent, type Point } from "@/lib/chart";
 import type { StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
@@ -60,9 +60,8 @@ export function humidityText(percent: number | null): string {
   return percent === null ? NONE : `${percent} %`;
 }
 
-export function windSpeedText(kmh: number | null): string {
-  return kmh === null ? NONE : `${Math.round(kmh)} km/h`;
-}
+/** `speedText` under the name that WeatherPanel.vue imports. */
+export const windSpeedText = speedText;
 
 export function rainText(mm: number | null): string {
   return mm === null ? NONE : `${formatNumber(mm, 1)} mm`;

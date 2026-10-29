@@ -17,6 +17,13 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
   const book = useAddressBook();
   const thread = computed(() => threadOf(messages.values(), EMAIL_GATEWAY));
   const unread = computed(() => threadUnread(thread.value, marks.readUpTo(EMAIL_GATEWAY)));
+  watch(
+    thread,
+    (now) => {
+      if (now.length > 0) marks.settle(EMAIL_GATEWAY, newestIncomingId(now));
+    },
+    { immediate: true },
+  );
 
   // The rows that came in after `freshAfter` are shown as new (bold): the mark of what was seen when the tab last came on show, so that they stay new for as long as the tab is open and are not new the next time.
   const freshAfter = shallowRef(marks.readUpTo(EMAIL_GATEWAY));

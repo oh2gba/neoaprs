@@ -153,6 +153,17 @@ describe("a message to us", () => {
     expect(asked.tabTitle.value).toBe("✉ OH2DPN");
   });
 
+  it("is the tab alert when the permission was taken back after the page loaded", async () => {
+    FakeNotification.permission = "granted";
+    const alerts = make();
+    await click();
+    FakeNotification.permission = "denied";
+    alerts.announce([incoming(5, "OH2DPN")]);
+    expect(FakeNotification.shown).toEqual([]);
+    expect(alerts.tabTitle.value).toBe("✉ OH2DPN");
+    expect(alerts.popupOn.value).toBe(false);
+  });
+
   it("is the chime again when the browser refuses the pop-up", async () => {
     FakeNotification.permission = "granted";
     FakeNotification.refuses = true;

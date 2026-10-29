@@ -6,7 +6,7 @@ we did not send are not linked. The attempts and hops are held here for every me
 from collections.abc import Iterable
 from datetime import datetime
 
-from neoaprs.chain import INTERNET, Attempt, HopSeen, attempt_before, hops_used, internet_hops
+from neoaprs.chain import AT_GATE, Attempt, HopSeen, attempt_before, hops_used, internet_hops
 from neoaprs.message import MessageRecord, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
@@ -57,7 +57,7 @@ class Delivery:
         gate = packet.gate
         if gate:
             inner = () if packet.third_party is None else packet.third_party.path
-            found = [HopSeen(INTERNET, gate, packet.heard_at, True)] + [HopSeen(p, c, packet.heard_at, True) for p, c in internet_hops(attempt.path, inner, gate)]
+            found = [HopSeen(AT_GATE, gate, packet.heard_at, True)] + [HopSeen(p, c, packet.heard_at, True) for p, c in internet_hops(attempt.path, inner, gate)]
         else:
             found = [HopSeen(p, c, packet.heard_at, False) for p, c in hops_used(attempt.path, packet.path)]
         new = [seen for seen in found if not attempt.has(seen.position, seen.via_internet)]

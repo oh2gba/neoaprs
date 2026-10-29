@@ -13,6 +13,15 @@ from .aprstelemetry import Telemetry
 from .aprsweather import Weather, weather_text
 
 
+DuplicateKey = tuple[str, str, bytes]
+
+
+def duplicate_key(source: str, destination: str, information: bytes) -> DuplicateKey:
+    """What makes two copies of a packet the same one, for a digipeater and an iGate: the source, the destination without its SSID and the information field; the path is not part of it (the server's own test, and
+    WB2OSZ's digipeater algorithm). A copy is a duplicate within policy.DIGI_DUPLICATE_SEC."""
+    return source, destination.partition("-")[0], information
+
+
 def decode_text(data: bytes) -> str:
     """The text of a comment, a status or a message: UTF-8 when it is, else latin-1 (which cannot fail)."""
     try:

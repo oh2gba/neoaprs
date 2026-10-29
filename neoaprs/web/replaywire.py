@@ -7,10 +7,9 @@ from pydantic import Field
 from neoaprs.config import STATION_HOURS
 from neoaprs.policy import LOG_KEEP_DAYS
 
-from .wirebase import Iso, _Command, _Message
+from .wirebase import HISTORY_MAX_HOURS, Iso, _Command, _Message
 
 SPAN_DAYS = (2, 3, LOG_KEEP_DAYS)           # the spans of more than a day the replay offers, in days, after the hours of the Stations tab's On map for; the longest is all the packet log keeps
-MAX_HOURS = LOG_KEEP_DAYS * 24
 GLIDE_MAX_MIN = 15                          # the page drives a station between two of its points at most this far apart in time; across a longer gap it waits, then jumps (ui/src/lib/replay.ts)
 Point = tuple[Iso, float, float]
 
@@ -18,7 +17,7 @@ Point = tuple[Iso, float, float]
 class PositionHistory(_Command):
     """Asks where the stations were in the last `hours` hours, for the replay of the map. Answered with a `position_history` message to the page that asked, or an `error` for hours out of range."""
     cmd: Literal["position_history"]
-    hours: int = Field(ge=1, le=MAX_HOURS, description=f"how far back to go: the replay offers {', '.join(map(str, STATION_HOURS))} (the choices of the Stations tab's On map for) and "
+    hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description=f"how far back to go: the replay offers {', '.join(map(str, STATION_HOURS))} (the choices of the Stations tab's On map for) and "
                        f"{', '.join(str(d * 24) for d in SPAN_DAYS)} ({', '.join(map(str, SPAN_DAYS))} days; the packet log keeps {LOG_KEEP_DAYS})")
 
 
@@ -30,7 +29,7 @@ class PositionHistoryMsg(_Message):
     The last point is always there, and so is the one where a station still was just before it moved off. The latest 1 000 000 position packets at most are read: on a feed busier than that, the span
     begins at the first of them."""
     type: Literal["position_history"]
-    hours: int = Field(ge=1, le=MAX_HOURS, description="the hours asked for")
+    hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="the hours asked for")
     start: Iso = Field(description="where the replay begins, UTC: `hours` hours before `end`, or the oldest packet the log keeps when that is later (a daemon that has run for less than the span, or a log "
                                    "busier than the packets read)")
     end: Iso = Field(description="where the replay ends, UTC: when the daemon answered")

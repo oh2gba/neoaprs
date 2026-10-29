@@ -9,7 +9,7 @@
 import { t } from "@/i18n";
 import { isAlias } from "@/lib/chain";
 import { DIRECT, callList, parsePathSetting, validCall } from "@/lib/calls";
-import { digipeaters } from "@/lib/nearby";
+import { digipeaters, nearer } from "@/lib/nearby";
 import { routeHops } from "@/lib/routeline";
 import { LIMITS } from "@/protocol/lists";
 import type { StationRow } from "@/protocol/protocol";
@@ -48,7 +48,6 @@ export function typedHops(text: string): string[] | null {
 }
 
 const time = (iso: string | null): number => (iso === null ? 0 : Date.parse(iso));
-const nearer = (x: number | null, y: number | null): number => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x - y);
 
 /** The digipeaters we hear direct, the most useful first. */
 export function firstHops(rows: Iterable<StationRow>): HopChoice[] {

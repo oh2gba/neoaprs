@@ -7,7 +7,7 @@ import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { timedOut, type Aging } from "@/lib/aging";
 import { internetOnly, onAir, packetLabel } from "@/lib/channels";
-import { ageText, bytesText, distanceText } from "@/lib/format";
+import { HOUR_MS, ageText, bytesText, distanceText } from "@/lib/format";
 import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
@@ -163,7 +163,6 @@ export function mapStats(input: StatsInput): StatSection[] {
 
 /** How far back the graph of the packets by the hour goes. */
 export const HISTORY_HOURS = 24;
-const HOUR_MS = 3_600_000;
 
 /** The bars of the graph: one point in the middle of each hour counted, and the span of the axis, the whole hours from the first to the end of the running one. */
 export function historyPoints(history: PacketHistoryMessage): { from: number; to: number; points: Point[] } {

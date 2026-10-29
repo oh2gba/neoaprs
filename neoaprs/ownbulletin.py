@@ -43,7 +43,7 @@ class OwnBulletin:
 
 def slot_of(slot: str) -> tuple[str, str, Kind]:
     """The slot written the way it is sent (capitals), its group, and its kind: PostError when it is none of ours (a bulletin `BLN0`..`BLN9`, an announcement `BLNA`..`BLNZ`, a group bulletin
-    `BLN` a digit and a group of one to five letters, digits and dashes)."""
+    `BLN` a digit and a group of one to five letters and digits: the dash that a received group may hold is refused for one we post)."""
     name = slot.strip().upper()
     found = board_slot(name)
     if found is None or found.kind not in ("bulletin", "announcement", "group") or not name.startswith("BLN") or len(name) > 9:

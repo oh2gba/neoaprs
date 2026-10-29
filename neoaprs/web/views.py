@@ -10,7 +10,7 @@ from typing import Any, Protocol
 from neoaprs.aprstelemetry import describe
 from neoaprs.aprsweather import Weather
 from neoaprs.bulletin import BulletinRecord
-from neoaprs.chain import INTERNET, Attempt
+from neoaprs.chain import AT_GATE, Attempt
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.geo import Point
@@ -37,11 +37,11 @@ from .messagewire import AttemptRow, MessageRow
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationAlertMsg, StationPref
-from .replaywire import MAX_HOURS
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
 from .tncwire import TncState, TncStats
+from .wirebase import HISTORY_MAX_HOURS
 
 LINES_MAX = 100                     # lines of the TNC told to a page
 
@@ -76,7 +76,7 @@ def weather_points(observations: list[Observation]) -> list[list[Any]]:
 # seconds after it, is left out. Up to a day the replay keeps what shows at the scale of a street (a station heard by two digipeaters, or one that beacons fast, is one point); up to three days a point every
 # two minutes and a move of 200 m; a week a point every five minutes and a move of 300 m, so that a week of a busy APRS-IS feed is a few hundred KB and not several MB. Each step is well inside the gap the page still
 # drives a station across (GLIDE_MAX_MIN of neoaprs/web/replaywire.py; a test holds them to it), so that a thinned trip of a week glides as a day's does.
-REPLAY_THINNING = ((24, 10, 30), (3 * 24, 200, 120), (MAX_HOURS, 300, 300))
+REPLAY_THINNING = ((24, 10, 30), (3 * 24, 200, 120), (HISTORY_MAX_HOURS, 300, 300))
 
 
 def replay_thinning(hours: int) -> tuple[int, int]:
@@ -114,7 +114,7 @@ def attempt_rows(record: MessageRecord, attempts: tuple[Attempt, ...]) -> list[d
 
 def _attempt_row(attempt: Attempt, acked: bool) -> dict[str, Any]:
     hops = [_hop_row(attempt, position, call) for position, call in enumerate(digipeaters(attempt.path), 1)]
-    return AttemptRow.row(attempt, hops=hops, internet=next((s.call for s in attempt.seen if s.position == INTERNET), None), acked=acked)
+    return AttemptRow.row(attempt, hops=hops, internet=next((s.call for s in attempt.seen if s.position == AT_GATE), None), acked=acked)
 
 
 def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:

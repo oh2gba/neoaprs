@@ -8,12 +8,15 @@ import re
 from dataclasses import dataclass, replace
 from typing import NamedTuple
 
+from neoaprs.units import base91
+
 _SEQUENCE = re.compile(r"T#(?:MIC,?|(\d{1,5}),)")
 _VALUE = re.compile(r"-?(?:\d+(?:\.\d*)?|\.\d+)")
 _BITS = re.compile(r"[01]{1,8}")
 _COMMENT_TELEMETRY = re.compile(r"\|((?:[!-{]{2}){2,7})\|")
 _ANALOG, _DIGITAL = 5, 8
 _NUMBER = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)$")
+VALUE_LIMIT = 1e9                                           # the largest magnitude of a value or a coefficient that is believed: real ones are in the hundreds, and past this a*v^2 could leave the range of a number
 IDENTITY = (0.0, 1.0, 0.0)                                  # the coefficients of a channel that has no equation: the value as it was sent
 
 
@@ -72,6 +75,8 @@ def parse_telemetry(info: str) -> Telemetry | None:
     if not count:
         return None
     analog, rest = [float(v) for v in fields[:count]], ",".join(fields[count:])
+    if not all(abs(v) <= VALUE_LIMIT for v in analog):                 # (a run of nines too long for a number is infinity, and no report)
+        return None
     bits = _BITS.match(rest) if count == _ANALOG else None
     return Telemetry(None if head.group(1) is None else int(head.group(1)), analog, bits.group() if bits else "", rest[bits.end() if bits else 0:].lstrip(",").strip())
 
@@ -82,7 +87,8 @@ def split_comment_telemetry(text: str) -> tuple[str, Telemetry | None]:
     found = _COMMENT_TELEMETRY.search(text)
     if not found:
         return text, None
-    values = [(ord(pair[0]) - 33) * 91 + ord(pair[1]) - 33 for pair in (found.group(1)[i:i + 2] for i in range(0, len(found.group(1)), 2))]
+    digits = found.group(1).encode("ascii")
+    values = [base91(digits[i:i + 2]) for i in range(0, len(digits), 2)]
     sequence, analog = values[0], values[1:1 + _ANALOG]
     bits = "".join("1" if values[-1] >> i & 1 else "0" for i in range(_DIGITAL)) if len(values) == 2 + _ANALOG else ""
     return (text[:found.start()] + text[found.end():]).strip(), Telemetry(sequence, [float(v) for v in analog], bits)
@@ -95,7 +101,10 @@ def _numbers(items: list[str]) -> tuple[tuple[float, float, float], ...]:
         triple = items[i:i + 3]
         if not all(_NUMBER.match(t.strip()) for t in triple):
             break
-        groups.append((float(triple[0]), float(triple[1]), float(triple[2])))
+        numbers = (float(triple[0]), float(triple[1]), float(triple[2]))
+        if not all(abs(n) <= VALUE_LIMIT for n in numbers):
+            break
+        groups.append(numbers)
     return tuple(groups)
 
 

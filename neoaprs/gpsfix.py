@@ -16,6 +16,7 @@ from neoaprs.aprsnmea import NmeaError, parse_nmea
 from neoaprs.units import KNOT_KMH, MS_KMH
 
 _SENTENCE = re.compile(r"\$[A-Z]{2}(RMC|GGA),")
+_CHECKSUM = re.compile(r"\*[0-9A-Fa-f]{2}$")                    # a GPS receiver ends every sentence with it: one without, or cut short, was damaged on the way
 RMC_FRESH_SEC = 3.0                                            # a GGA gives a fix of its own only when no RMC came this recently (a receiver that sends both gives one fix a second, from the RMC)
 GGA_FRESH_SEC = 5.0                                            # the altitude and the satellites of a GGA go with an RMC that comes this soon after it
 
@@ -48,7 +49,7 @@ def _course(value: float | None) -> int | None:
 
 class NmeaFixes:
     """The fixes of a stream of NMEA sentences. `feed(line, now)` takes one sentence (text or bytes, with or without its line end) and gives the fix it completes, else None. Other sentences are
-    ignored; a damaged one (bad checksum) is counted in `damaged` and changes nothing. `fix` is the latest fix, None after a sentence that says there is none; `said_none` is whether the sentence
+    ignored; a damaged one (no checksum, a bad one, a field that is no number) is counted in `damaged` and changes nothing. `fix` is the latest fix, None after a sentence that says there is none; `said_none` is whether the sentence
     fed last was such a one."""
 
     def __init__(self) -> None:
@@ -65,8 +66,10 @@ class NmeaFixes:
         if not found:
             return None
         try:
+            if not _CHECKSUM.search(text):
+                raise NmeaError("no checksum")
             position = parse_nmea(text.encode("latin-1"), "GPS", "GPS", now)
-        except NmeaError:
+        except (NmeaError, ValueError, OverflowError):
             self.damaged += 1
             return None
         if position is None:                                   # RMC with status V, GGA with quality 0: the receiver has no fix
@@ -95,12 +98,6 @@ class NmeaFixes:
         if self._altitude is None or (now - self._altitude[0]).total_seconds() > GGA_FRESH_SEC:
             return None, None
         return self._altitude[1], self._altitude[2]
-
-
-def fix_from_nmea(line: str | bytes, now: datetime) -> Fix | None:
-    """The fix of one sentence on its own: an RMC gives position, speed and course; a GGA position, altitude and satellites. None for another sentence, a damaged one, or one that says there is no fix.
-    A stream is read with `NmeaFixes`, which puts the two together."""
-    return NmeaFixes().feed(line, now)
 
 
 def satellites_of_sky(report: Mapping[str, Any]) -> int | None:

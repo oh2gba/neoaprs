@@ -29,7 +29,7 @@ const copy = useCopyMenu(() => [
 </script>
 
 <template>
-  <li class="mail copysource" :class="[row.direction, { fresh, open }]" v-on="copy.on.value">
+  <li class="mail copysource" tabindex="0" :class="[row.direction, { fresh, open }]" v-on="copy.on.value">
     <div class="mail-top">
       <button type="button" class="mail-body" :aria-expanded="open" :title="item.line" @click="copy.unlessHeld(() => (open = !open))">
         <span class="mail-title">{{ item.title }}</span>

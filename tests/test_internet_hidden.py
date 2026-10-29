@@ -1,9 +1,15 @@
 """Internet stations off hides the internet and keeps it (neoaprs/web/topics.py, `Station.radio_view`, neoaprs/web/packetwindow.py): while `igate/enabled` is off the pages are shown no station known only from APRS-IS and no packet from it, and a station heard both
 ways has its radio side only (no internet count or time, the position the radio gave); the database keeps everything, and turning the setting on shows it all again without a restart."""
-from datetime import timedelta
+import random
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from neoaprs.packet import IS
+from neoaprs.aprsextension import Extensions
+from neoaprs.aprsstorm import Storm
+from neoaprs.clock import utc
+from neoaprs.packet import IS, RF, Decoded, Message, Packet, Position, Status, Via
+from neoaprs.station import Station
+from neoaprs.stationbook import StationBook
 from tests.support.air import from_internet, on_air
 from tests.support.env import Env, until
 from tests.support.fakeaprsis import fake_aprsis
@@ -98,3 +104,100 @@ async def test_a_restart_with_the_internet_off_still_shows_a_station_heard_both_
     assert (both["heard_is"], both["position_via"], round(both["lat"], 3), both["packets"], len(both["track"])) == (0, "rf", 61.017, 1, 1)
     assert both["packets_hour"] == 1
     await second.stop()
+
+
+# ---- the radio view of a station is the station a book that heard only the radio would hold
+T0 = utc(2026, 10, 21, 12, 0, 0)
+
+
+def heard(decoded: Decoded, at: datetime, via: Via) -> Packet:
+    return Packet(at, "in", b"", "OH2AAA", "APRS", ("OH2RCH-2*",) if via != IS else (), b"", decoded, via=via)
+
+
+def place(lat: float, lon: float, code: str = ">", comment: str = "", **more: object) -> Position:
+    return Position(lat, lon, "/", code, comment, **more)  # type: ignore[arg-type]
+
+
+def view_of(book: StationBook) -> Station:
+    station = book.get("OH2AAA")
+    assert station is not None
+    view = station.radio_view()
+    assert view is not None
+    return view
+
+
+def test_the_radio_view_of_a_station_whose_only_position_came_from_the_internet_has_no_trace_of_it() -> None:
+    book = StationBook()
+    book.take(heard(place(60.1, 24.9, "-", "internet only comment", extensions=Extensions(range_km=40.0), storm=Storm("HC"), sign="55"), T0, IS))
+    book.take(heard(Status("on the air"), T0 + timedelta(minutes=1), RF))
+    view = view_of(book)
+    assert (view.lat, view.lon, view.last_position_at, view.position_via, view.track) == (None, None, None, None, [])
+    assert (view.symbol_table, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == ("", "", "", None, None, None)
+    assert view.last_status == "on the air" and view.packets == 1
+    whole = book.get("OH2AAA")
+    assert whole is not None and (whole.symbol_code, whole.last_comment, whole.sign) == ("-", "internet only comment", "55"), "the station itself is as it was"
+
+
+def test_the_radio_view_keeps_what_the_radios_position_said_when_a_later_one_from_the_internet_says_otherwise() -> None:
+    book = StationBook()
+    book.take(heard(place(60.0, 24.0, ">", "by radio", extensions=Extensions(range_km=40.0), storm=Storm("TS"), sign="12"), T0, RF))
+    book.take(heard(place(61.0, 25.0, "-", "by the net", sign="99"), T0 + timedelta(minutes=1), IS))
+    view = view_of(book)
+    assert (view.lat, view.symbol_code, view.last_comment, view.extensions, view.storm, view.sign) == (60.0, ">", "by radio", Extensions(range_km=40.0), Storm("TS"), "12")
+
+
+def test_the_track_of_the_radio_view_has_the_positions_heard_on_the_radio_before_the_first_packet_from_the_internet_even_when_that_had_no_position() -> None:
+    book = StationBook()
+    book.take(heard(place(60.0, 24.0), T0, RF))
+    book.take(heard(place(60.01, 24.01), T0 + timedelta(minutes=10), RF))
+    book.take(heard(Status("x"), T0 + timedelta(minutes=11), IS))
+    book.take(heard(place(60.02, 24.02), T0 + timedelta(minutes=20), RF))
+    station = book.get("OH2AAA")
+    assert station is not None and len(station.track) == 3
+    assert [(lat, lon) for _, lat, lon in view_of(book).track] == [(60.0, 24.0), (60.01, 24.01), (60.02, 24.02)]
+
+
+def test_a_position_from_the_internet_before_the_radios_does_not_start_the_radios_track() -> None:
+    book = StationBook()
+    book.take(heard(place(61.0, 25.0), T0, IS))
+    book.take(heard(place(60.0, 24.0), T0 + timedelta(minutes=10), RF))
+    assert len(book.get("OH2AAA").track) == 2 and [(lat, lon) for _, lat, lon in view_of(book).track] == [(60.0, 24.0)]  # type: ignore[union-attr]
+
+
+RADIO_FIELDS = ("symbol_table", "symbol_code", "extensions", "storm", "sign", "altitude_m", "course_deg", "speed_kmh", "lat", "lon", "last_position_at", "position_via", "last_comment", "packets", "heard_rf", "heard_rf_gated",
+                "heard_is", "last_heard", "last_path")
+
+
+def session(seed: int) -> tuple[StationBook, StationBook]:
+    """A book that heard a random run of packets of one station, from the radio and the internet, and one that heard only those of the radio."""
+    rnd = random.Random(seed)
+    everything, radio = StationBook(), StationBook()
+    at = T0
+    for _ in range(rnd.randint(1, 14)):
+        at += timedelta(seconds=rnd.choice([1, 20, 400, 4000]))
+        kind = rnd.choice(["position", "position", "status", "message"])
+        decoded: Decoded = Status(rnd.choice(["s1", "s2"])) if kind == "status" else Message("OH2ZZZ", "hi")
+        if kind == "position":
+            decoded = place(60 + rnd.random(), 24 + rnd.random(), rnd.choice([">", "-"]), rnd.choice(["a", "b"]), speed_kmh=rnd.choice([None, 10.0]), extensions=rnd.choice([None, Extensions(range_km=20.0), Extensions(range_km=60.0)]),
+                            storm=rnd.choice([None, Storm("TS")]), sign=rnd.choice([None, "12"]))
+        packet = heard(decoded, at, rnd.choice([IS, IS, RF]))
+        everything.take(packet)
+        if packet.via != IS:
+            radio.take(packet)
+    return everything, radio
+
+
+def test_the_radio_view_equals_the_station_of_a_book_that_heard_only_the_radio_in_a_thousand_random_runs() -> None:
+    wrong: list[tuple[int, str]] = []
+    for seed in range(1000):
+        everything, radio = session(seed)
+        view, expected = everything.get("OH2AAA").radio_view(), radio.get("OH2AAA")  # type: ignore[union-attr]
+        if expected is None or view is None:
+            assert expected is None and view is None, seed
+            continue
+        wrong += [(seed, name) for name in RADIO_FIELDS if getattr(view, name) != getattr(expected, name)]
+        if view.track != expected.track:
+            wrong.append((seed, "track"))
+        if view.hour.total != expected.hour.total:
+            wrong.append((seed, "hour"))
+    assert wrong == []

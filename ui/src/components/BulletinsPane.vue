@@ -54,6 +54,7 @@ const remove = (b: BoardEntry): void =>
             v-for="b in section.rows"
             :key="keyOf(b)"
             class="bulletin copysource"
+            tabindex="0"
             :class="{ mine: b.own !== undefined }"
             :data-key="keyOf(b)"
             v-on="copy.on.value"

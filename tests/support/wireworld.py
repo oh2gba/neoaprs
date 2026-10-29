@@ -6,7 +6,7 @@ from typing import Any
 from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsparse import parse
 from neoaprs.bulletin import BulletinRecord
-from neoaprs.chain import INTERNET, Attempt, HopSeen
+from neoaprs.chain import AT_GATE, Attempt, HopSeen
 from neoaprs.gpsfix import Fix
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -89,7 +89,7 @@ def book() -> StationBook:
 
 def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
     """A message in each state and with attempts: acked (heard back by radio and by the internet), failed, sending, received, overheard."""
-    seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(INTERNET, "OH7JHF-1", T0 + timedelta(seconds=6), True))
+    seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True))
     a1 = Attempt(1, T0, ("OH2RCH-2", "WIDE2-1"), seen)
     a2 = Attempt(2, T0 + timedelta(seconds=30), ("WIDE1-1",), ())
     a3 = Attempt(3, T0 + timedelta(seconds=90), (), ())

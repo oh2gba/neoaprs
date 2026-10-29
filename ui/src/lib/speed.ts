@@ -1,13 +1,14 @@
 // The speed graph of a moving station's card (components/StationSpeed.vue): which stations move, the span of the graph (the station's trip: its track as the map draws it, from its oldest point to now), and the line
 // of the speeds the daemon read from the station's positions (`speed_series`). Plain functions of the station's row and the answer.
 import type { Point } from "@/lib/chart";
+import { HOUR_MS } from "@/lib/format";
+import { LIMITS } from "@/protocol/lists";
 import type { SpeedSeriesMessage, StationRow } from "@/protocol/protocol";
 
 /** How far back a station's track is looked at for whether it moves. */
 const MOVING_HOURS = 24;
-const HOUR_MS = 3_600_000;
 /** The longest trip the daemon is asked for (`speed_series`' limit, a week: all the packets it keeps). */
-const MAX_TRIP_HOURS = 168;
+const MAX_TRIP_HOURS = LIMITS.history.maxHours;
 /** The shortest span the graph is drawn over, so that a trip of two positions a minute apart is not a graph of one minute. */
 const MIN_TRIP_MS = 15 * 60_000;
 /** A track whose points in the span are farther apart than this is a station that moved: a fixed station's track gets a point every 5 minutes too (neoaprs/station.py), a few metres apart at most by its GPS. */
@@ -17,7 +18,8 @@ const EARTH_RADIUS_M = 6_371_008.8; // the daemon's sphere (neoaprs/geo.py)
 /** The distance between two points, flat over the short distances that are compared here. */
 function metresApart(a: readonly [string, number, number], b: readonly [string, number, number]): number {
   const toRad = Math.PI / 180;
-  const x = (b[2] - a[2]) * toRad * Math.cos(((a[1] + b[1]) / 2) * toRad);
+  const east = ((((b[2] - a[2]) % 360) + 540) % 360) - 180; // the short way round the earth: the date line is no gap
+  const x = east * toRad * Math.cos(((a[1] + b[1]) / 2) * toRad);
   const y = (b[1] - a[1]) * toRad;
   return Math.hypot(x, y) * EARTH_RADIUS_M;
 }

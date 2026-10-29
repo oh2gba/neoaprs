@@ -86,7 +86,7 @@ async def test_a_search_that_ran_out_of_time_is_waiting_and_tries_again(ptys: Pt
         await tnc.start()
         assert tnc.state is Source.State.WAITING
         assert tnc.problem == f"no port delivers KISS frames (tried {tmp_path / 'port_1'}, {tmp_path / 'port_2'})"
-        await until(lambda: any("trying again" in line for line in tnc.lines) and tnc.line_count > 3)
+        await until(lambda: any("trying again" in line for line in tnc.lines) and len(tnc.lines) > 3)
     finally:
         await tnc.stop()
 

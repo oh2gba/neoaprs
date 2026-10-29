@@ -12,6 +12,7 @@ import tornado.web
 
 from neoaprs.web import secureside
 from neoaprs.web.connections import LimitedHTTPServer
+from neoaprs.web.listen import PORT_TRIES
 from neoaprs.web.secureside import RECHECK_SEC, RETRY_SEC, SecureSide, SecureState, _bound, ports_after
 from neoaprs.web.tls import Certificates, TlsError
 from tests.support.clock import FixedClock
@@ -52,7 +53,7 @@ async def test_a_listener_is_started_kept_and_stopped_as_the_wish_goes_and_the_p
     side = made(tmp_path)
     assert side.port == 0 and side.ca_der is None and side.retry_sec == RECHECK_SEC
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
-    assert side.state.on and PLAIN_PORT < side.port <= PLAIN_PORT + secureside.PORT_TRIES and side.ca_der is not None and side.state.fingerprint
+    assert side.state.on and PLAIN_PORT < side.port <= PLAIN_PORT + PORT_TRIES and side.ca_der is not None and side.state.fingerprint
     server, before = side.server, side.state
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is False, "the same wish changes nothing"
     assert side.server is server and side.state == before, "and the same certificate is not loaded again"

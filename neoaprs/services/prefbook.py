@@ -61,15 +61,6 @@ class PrefBook:
             raise MessagingError(f"path too long for RF only: {len(path)} digipeaters and RFONLY make more than the {MAX_PATH} a path may have")
         return added
 
-    def automatic_path(self, call: str) -> tuple[str, ...] | None:
-        """The path that has lately been heard to reach the station, which the first attempts of a message to it go by when the operator has set no path of its own; None when there is none (`beacon/path`)."""
-        try:
-            key = normal_name(call)
-        except ValueError:
-            return None
-        deliveries = self._heard(key)
-        return None if deliveries is None else automatic_path(deliveries, self._clock(), 1)
-
     # ---- the path
     async def set_path(self, call: str, path: str) -> tuple[str, ...]:
         """Gives the station a path of its own: 1 to 8 digipeater calls separated by commas, checked as beacon/path is, or DIRECT for no digipeaters at all; an empty path takes the station's own away (it is

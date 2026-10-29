@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import SymbolPicker from "@/components/SymbolPicker.vue";
 import { ALL_SYMBOLS } from "@/lib/symbolpicker";
 
@@ -12,8 +13,9 @@ function picker(table = "/", code = "-") {
 const names = (wrapper: ReturnType<typeof picker>) => wrapper.findAll(".sympick-symbol").map((b) => b.text());
 
 describe("SymbolPicker", () => {
-  it("is a dialog with a search box that has the focus, the usual symbols first and then all of them with their pictures", () => {
+  it("is a dialog with a search box that has the focus, the usual symbols first and then all of them with their pictures", async () => {
     const wrapper = picker();
+    await nextTick();
     expect(wrapper.find(".sympick").attributes("role")).toBe("dialog");
     expect(wrapper.find(".sympick").attributes("aria-modal")).toBe("true");
     expect(document.activeElement).toBe(wrapper.find("input[type=search]").element);
@@ -94,5 +96,39 @@ describe("SymbolPicker", () => {
       ?.trigger("click");
     expect(wrapper.emitted("close")).toHaveLength(3);
     wrapper.unmount();
+  });
+
+  it("keeps the focus inside while it is open: Tab from the last button goes to the search box and Shift+Tab from it to the last button", async () => {
+    const wrapper = picker();
+    await nextTick();
+    const search = wrapper.find<HTMLInputElement>("input[type=search]").element;
+    const buttons = wrapper.findAll<HTMLButtonElement>("button");
+    const last = buttons[buttons.length - 1]?.element as HTMLButtonElement;
+    last.focus();
+    await wrapper.find(".sympick-backdrop").trigger("keydown", { key: "Tab" });
+    expect(document.activeElement).toBe(search);
+    await wrapper.find(".sympick-backdrop").trigger("keydown", { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    wrapper.unmount();
+  });
+
+  it("takes its Esc alone (marked as handled, passed on to nothing) and gives the focus back to where it was when it goes", async () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const outer: KeyboardEvent[] = [];
+    const heard = (event: KeyboardEvent): number => outer.push(event);
+    document.addEventListener("keydown", heard);
+    const wrapper = picker();
+    await nextTick();
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    wrapper.find("input[type=search]").element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(outer).toEqual([]);
+    expect(wrapper.emitted("close")).toHaveLength(1);
+    wrapper.unmount();
+    expect(document.activeElement).toBe(opener);
+    document.removeEventListener("keydown", heard);
+    opener.remove();
   });
 });

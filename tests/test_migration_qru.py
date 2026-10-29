@@ -34,7 +34,7 @@ def test_every_object_there_is_keeps_its_values_and_gets_no_group_and_the_schedu
     migrated = opened(old, clock)
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 18
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][17:] == [(18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][17:] == [(18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23])]
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     assert migrated.db.execute("SELECT name, comment, sent, qru_group, on_request FROM own_object").fetchall() == [("LEADER", "Rescue 1", 2, "", 0)]
     for opened_ in (migrated, fresh):

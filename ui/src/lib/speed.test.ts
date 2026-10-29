@@ -23,6 +23,24 @@ describe("speed: which station moves", () => {
     expect(isMoving(trip, NOW)).toBe(true);
   });
 
+  it("is not a station that sits still on both sides of the date line", () => {
+    const still = station("ZK1AAA", {
+      track: [
+        [ago(900), 0.0, 179.9999],
+        [ago(600), 0.0, -179.9999],
+        [ago(300), 0.0, 179.9999],
+      ],
+    });
+    expect(isMoving(still, NOW)).toBe(false);
+    const driving = station("ZK1BBB", {
+      track: [
+        [ago(900), 0.0, 179.99],
+        [ago(300), 0.0, -179.99],
+      ],
+    });
+    expect(isMoving(driving, NOW)).toBe(true);
+  });
+
   it("is not a fixed station, whose track gets a point every 5 minutes a few metres apart, nor one that moved only before the 24 hours", () => {
     const fixed = station("OH2RDG", {
       track: [

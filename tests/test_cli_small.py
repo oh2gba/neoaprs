@@ -5,6 +5,7 @@ import runpy
 import signal
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -68,3 +69,14 @@ def test_a_thread_that_ends_with_an_exit_or_with_nothing_to_say_is_not_logged_an
     records = [r for r in caplog.records if r.name == "neoaprs.test"]
     assert [r.getMessage() for r in records] == ["uncaught exception in the thread neoaprs-test-thread", "uncaught exception in the thread ?"]
     assert [type(e) for e in printed] == [ValueError, KeyError]
+
+
+def test_the_app_on_a_data_folder_that_cannot_be_made_says_one_sentence_and_ends_with_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs.desktop import cmd as app
+    afile = tmp_path / "afile"
+    afile.write_text("not a folder")
+    shown: list[str] = []
+    monkeypatch.setattr(app.opencmd, "tell_the_user", lambda text: shown.append(text))
+    assert app.main(["--data", str(afile / "inside")]) == 1
+    assert len(shown) == 1 and "cannot be made or used" in shown[0] and "Traceback" not in shown[0]
+    assert not (afile / "inside").exists()

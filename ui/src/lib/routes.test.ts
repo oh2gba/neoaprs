@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
-import { bestText, heardDirect, heardDirectRecently, heardText, internetText, pathWords, reachedText, routeWords, viaName } from "@/lib/routes";
+import { bestText, heardDirect, heardDirectRecently, heardText, internetText, reachedText, routeWords, viaName } from "@/lib/routes";
 import { NOW, ago, station } from "@/test/fixtures";
 
 describe("heardText", () => {
@@ -39,9 +39,8 @@ describe("bestText", () => {
   });
 });
 
-describe("pathWords and viaName", () => {
-  it("writes an empty path as direct and ? as an unnamed repeater", () => {
-    expect([pathWords(""), pathWords("OH2RCH-2")]).toEqual(["direct", "OH2RCH-2"]);
+describe("viaName", () => {
+  it("writes ? as an unnamed repeater", () => {
     expect([viaName("?"), viaName("OH2RCH-2")]).toEqual(["an unnamed repeater", "OH2RCH-2"]);
   });
 });

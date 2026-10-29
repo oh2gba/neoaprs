@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { describe, expect, it, vi } from "vitest";
 import EmailCompose from "@/components/EmailCompose.vue";
 
@@ -115,7 +116,7 @@ describe("EmailCompose: the addresses used before", () => {
     const wrapper = box({ addresses: used });
     await wrapper.find("#mail-to").trigger("focus");
     const x = wrapper.findAll(".suggestion .xbtn");
-    expect(x.map((b) => b.text())).toEqual(["", "", ""]);
+    expect(x.map((b) => shown(b))).toEqual(["", "", ""]);
     expect(x[0]?.attributes("title")).toBe("Forget me");
     await x[0]?.trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["me"]]);

@@ -1,17 +1,21 @@
-"""What a command can find out about a daemon without starting one or talking to its socket: whether one holds the lock of the data folder, where its page is (the daemon logs "web page at ..."
-when it has bound the port, which is also the only place the port that was free is written), whether that page answers, and the end of its log."""
-import re
+"""What a command can find out about a daemon without starting one or talking to its socket: whether one holds the lock of the data folder, where its page is (the file the daemon writes when it has bound
+the port, and, for a daemon that did not write one, its log line "web page at ..."; neoaprs/cli/logfile.py), whether that page answers, and the end of its log."""
 import urllib.error
 import urllib.request
 from pathlib import Path
 
+from neoaprs.config import DEFAULTS
+from neoaprs.dberror import SqlError
 from neoaprs.instancelock import LOCK_NAME, is_held
+from neoaprs.store import DB_NAME
+from neoaprs.storesql import read_setting
+from neoaprs.supportsql import open_readonly
 
-LOG_NAME = "neoaprs.log"
+from .logfile import LOG_NAME, PAGE_LINE, START_LINE, read_page
+
 SCAN_BYTES = 256 * 1024                  # the end of the log that is looked at for the page's address
-PAGE_LINE = re.compile(r"web page at (http://\S+?/)(?:\s|$)")
-START_LINE = " starting, data in "
 PROBE_SEC = 2.0
+LOCAL_ONLY = urllib.request.build_opener(urllib.request.ProxyHandler({}))         # (the page is on this computer: a proxy of the environment has nothing to say about it)
 
 
 def is_running(data_dir: Path) -> bool:
@@ -33,7 +37,10 @@ def tail(path: Path, lines: int = 50) -> list[str]:
 
 
 def page_url(data_dir: Path) -> str | None:
-    """The page address the latest run of the daemon logged, or None (no log, or the latest run has no page: its ports were taken)."""
+    """The page address the daemon wrote into the data folder, or else the latest run's log line; None when there is neither (the latest run has no page: its ports were taken)."""
+    written = read_page(data_dir)
+    if written is not None:
+        return written
     found: str | None = None
     for line in tail(data_dir / LOG_NAME, 100_000):
         if START_LINE in line:
@@ -47,10 +54,26 @@ def page_url(data_dir: Path) -> str | None:
 def page_answers(url: str) -> bool:
     """Whether something answers the page's address with a page."""
     try:
-        with urllib.request.urlopen(url, timeout=PROBE_SEC) as response:
+        with LOCAL_ONLY.open(url, timeout=PROBE_SEC) as response:
             return bool(response.status == 200)
     except (urllib.error.URLError, OSError, ValueError):
         return False
+
+
+def page_address(data_dir: Path) -> str:
+    """Where the page of a daemon on the data folder will be, by the web/port the folder's database stores (the default while it has none), as the daemon starts without a flag: the first free port after it
+    is taken is the log's to say, and so is a port 0."""
+    port = DEFAULTS.web_port
+    try:
+        conn = open_readonly(data_dir / DB_NAME)
+        try:
+            stored = read_setting(conn, "web/port")
+        finally:
+            conn.close()
+        port = DEFAULTS.web_port if stored is None else int(stored)
+    except (SqlError, OSError, ValueError):
+        pass
+    return f"http://127.0.0.1:{port}/" if port else "(a free port: the log says which)"
 
 
 def describe(data_dir: Path) -> tuple[bool, str]:

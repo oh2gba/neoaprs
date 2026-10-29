@@ -61,13 +61,14 @@ def host_name(text: str) -> str:
 
 
 def map_source(text: str) -> str:
-    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file; never a word that starts with a dash, which the extract tool would take for an option."""
+    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file, which may have blanks in it (the extract tool is started with the value as one argument); never a
+    control character, nor a word that starts with a dash, which the extract tool would take for an option."""
     value = text.strip()
     if value == "":
         return ""
-    if len(value) > MAX_MAP_SOURCE or any(c.isspace() for c in value) or not value.isprintable() or value.startswith("-"):
+    if len(value) > MAX_MAP_SOURCE or not value.isprintable() or value.startswith("-"):
         raise CodedError(f"{text!r} is not a web address or the path of a PMTiles file", "setting.not_map_source", value=text)
-    if "://" in value and urlsplit(value).scheme not in ("http", "https"):
+    if "://" in value and (urlsplit(value).scheme not in ("http", "https") or " " in value):
         raise CodedError(f"{text!r} is not an http or https address", "setting.not_web_address", value=text)
     return value
 

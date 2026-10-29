@@ -1,4 +1,5 @@
 import "@/test/mockmap";
+import { shown } from "@/test/shown";
 import { describe, expect, it } from "vitest";
 import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import { FakeMap, FakeMarker } from "@/test/fakemap";
@@ -207,7 +208,7 @@ describe("App: the Objects tab", () => {
       await flushPromises();
       const kill = () => wrapper.find(".card .card-foot .forget");
       await kill().trigger("click");
-      expect(kill().text()).toBe("Really kill?");
+      expect(shown(kill())).toBe("Really kill?");
       await kill().trigger("click");
       expect(sent(socket, "object_kill")).toEqual([{ cmd: "object_kill", name: "LEADER" }]);
       expect(sent(socket, "forget_station")).toEqual([]);

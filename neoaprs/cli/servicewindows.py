@@ -7,7 +7,8 @@ import subprocess
 import sys
 from typing import Any
 
-from .daemonstate import describe, is_running
+from .daemonstate import describe, is_running, page_address
+from .logfile import LOG_NAME
 from .servicecmd import Plan
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -86,7 +87,7 @@ def install(plan: Plan) -> int:
         print("a daemon is running on this data folder already; it is left alone")
     else:
         spawn(launch_argv(plan))
-        print(f"started it now; its log is {plan.data / 'neoaprs.log'}, its page http://127.0.0.1:7303/ (the setting web/port)")
+        print(f"started it now; its log is {plan.data / LOG_NAME}, its page {page_address(plan.data)} (the setting web/port)")
     return 0
 
 

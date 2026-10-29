@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.dbthread import Tuning
+from neoaprs.dbthread import Tuning, environmental
 from tests.support.env import until
 from tests.support.dbactor import (QUICK, Injected, arm, committed, faulty_connection,
                                    started)
@@ -137,6 +137,45 @@ async def test_an_append_that_fails_for_its_own_reasons_is_undone_alone(tmp_path
     assert committed(path) == [1, 3] and committed(path, "SELECT n FROM pair ORDER BY n") == [1, 3], "the failed append left nothing, its neighbours are in"
     assert db.stats()["poisoned"] == 1 and db.stats()["retried"] == 0
     await db.close()
+
+
+@pytest.mark.expects_errors
+async def test_an_append_with_a_wrong_statement_is_dropped_alone_and_the_batch_around_it_is_kept(tmp_path: Path) -> None:
+    path = tmp_path / "x.sqlite"
+    db = await started(path, None, Tuning(tick=0.05, retry_sec=0.001, attempts=3))
+    for n in (1, 2, 3):
+        db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
+    db.write_nowait(lambda conn: conn.execute("INSERT INTO nosuch VALUES (1)"))                  # an OperationalError that will come again
+    for n in (4, 5):
+        db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'x')", (n,)))
+    await db.barrier()
+    assert committed(path) == [1, 2, 3, 4, 5], "the good appends of the batch are in"
+    stats = db.stats()
+    assert stats["poisoned"] == 1 and stats["retried"] == 0 and stats["lost"] == 0
+    await db.close()
+
+
+def sqlite_error(kind: type[sqlite3.Error], code: int | None) -> sqlite3.Error:
+    e = kind("x")
+    if code is not None:
+        e.sqlite_errorcode = code
+    return e
+
+
+@pytest.mark.parametrize("code", [sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_NOMEM, sqlite3.SQLITE_READONLY, sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE_CANTOPEN,
+                                  sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_BUSY_SNAPSHOT, sqlite3.SQLITE_IOERR_WRITE, sqlite3.SQLITE_READONLY_DBMOVED])
+def test_an_error_of_the_place_is_told_from_its_result_code_whatever_its_extended_code(code: int) -> None:
+    assert environmental(sqlite_error(sqlite3.OperationalError, code))
+
+
+@pytest.mark.parametrize("code", [sqlite3.SQLITE_ERROR, sqlite3.SQLITE_CONSTRAINT, sqlite3.SQLITE_TOOBIG, sqlite3.SQLITE_RANGE, sqlite3.SQLITE_MISUSE, sqlite3.SQLITE_CONSTRAINT_UNIQUE])
+def test_an_error_of_the_statement_is_not_the_places_even_when_it_is_an_operational_error(code: int) -> None:
+    assert not environmental(sqlite_error(sqlite3.OperationalError, code))
+
+
+def test_an_error_without_a_result_code_is_taken_for_the_places_and_a_data_error_is_not() -> None:
+    assert environmental(sqlite_error(sqlite3.OperationalError, None)) and environmental(sqlite_error(sqlite3.DatabaseError, sqlite3.SQLITE_CORRUPT))
+    assert not environmental(sqlite_error(sqlite3.IntegrityError, sqlite3.SQLITE_CONSTRAINT)) and not environmental(sqlite_error(sqlite3.DataError, None))
 
 
 # ---- the queue of appends is bounded

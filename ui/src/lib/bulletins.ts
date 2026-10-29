@@ -113,14 +113,16 @@ export function slotOf(draft: PostDraft): string {
   return `BLN${draft.id}${draft.kind === "group" ? groupOf(draft.group) : ""}`;
 }
 
-/** Whether the group is one the daemon takes: one to five letters and digits. */
+const GROUP = new RegExp(`^[A-Z0-9]{1,${GROUP_MAX}}$`);
+
+/** Whether the group is one the daemon takes: one to `GROUP_MAX` letters and digits. */
 export function groupOk(text: string): boolean {
-  return /^[A-Z0-9]{1,5}$/.test(groupOf(text));
+  return GROUP.test(groupOf(text));
 }
 
-/** Whether the text can be sent as it is: printable ASCII without `| ~ {`, at most as many characters as a message has. */
+/** Whether the text can be sent as it is: printable ASCII without the characters a message may not hold (`| ~ {`), at most as many characters as a message has. */
 export function textOk(text: string): boolean {
-  return /^[\x20-\x7e]+$/.test(text.trim()) && !/[|~{]/.test(text) && text.trim().length <= LIMITS.message.textMax;
+  return /^[\x20-\x7e]+$/.test(text.trim()) && ![...LIMITS.message.forbidden].some((c) => text.includes(c)) && text.trim().length <= LIMITS.message.textMax;
 }
 
 /** How many characters more the text may have; negative when it is too long. */

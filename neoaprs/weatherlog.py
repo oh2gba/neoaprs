@@ -13,7 +13,8 @@ from .db import Db
 from .dblog import DbLog
 from .packet import Packet, channel_of
 from .packetcodec import info_of, parse_stamp, stamp
-from .weathersql import (Row, count_weather, delete_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
+from .dberror import Row
+from .weathersql import (count_weather, delete_weather, insert_weather, insert_weather_many, latest_weather, latest_weather_all, prune_weather_before, weather_packets, weather_since)
 
 log = logging.getLogger("neoaprs.weatherlog")
 

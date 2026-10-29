@@ -1,4 +1,6 @@
 import { mount } from "@vue/test-utils";
+import { cssRule } from "@/test/css";
+import { shown } from "@/test/shown";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
@@ -22,15 +24,34 @@ afterEach(() => vi.useRealTimers());
 describe("Forget all at the foot of the Stations table", () => {
   it("asks twice: the first press says Really forget all? and sends nothing, the second sends the command", async () => {
     const { button, daemon } = make();
-    expect(button().text()).toBe("Forget all");
+    expect(shown(button())).toBe("Forget all");
     await button().trigger("click");
     expect(daemon.send).not.toHaveBeenCalled();
-    expect(button().text()).toBe("Really forget all?");
+    expect(shown(button())).toBe("Really forget all?");
     expect(button().classes()).toContain("danger");
     await button().trigger("click");
     expect(daemon.send).toHaveBeenCalledExactlyOnceWith({ cmd: "forget_all_stations" });
-    expect(button().text()).toBe("Forget all");
+    expect(shown(button())).toBe("Forget all");
     expect(button().classes()).not.toContain("danger");
+  });
+
+  it("has both words in one place, the one not said hidden, so that the button keeps its width through the first press", async () => {
+    const { button } = make();
+    const faces = () =>
+      button()
+        .findAll(".twowords > span")
+        .map((face) => [face.text(), face.classes().includes("twowords-off")]);
+    expect(faces()).toEqual([
+      ["Forget all", false],
+      ["Really forget all?", true],
+    ]);
+    await button().trigger("click");
+    expect(faces()).toEqual([
+      ["Forget all", true],
+      ["Really forget all?", false],
+    ]);
+    expect(cssRule(".twowords > .twowords-off")).toMatch(/visibility:\s*hidden/);
+    expect(cssRule(".grid.stations td.actions .forgetbtn")).not.toMatch(/min-width/); // (the trash can of a row is as wide as its two faces, not as a guess)
   });
 
   it("takes the question back after 5 seconds", async () => {
@@ -40,7 +61,7 @@ describe("Forget all at the foot of the Stations table", () => {
     vi.advanceTimersByTime(5001);
     await button().trigger("click");
     expect(daemon.send).not.toHaveBeenCalled();
-    expect(button().text()).toBe("Really forget all?");
+    expect(shown(button())).toBe("Really forget all?");
   });
 
   it("has an (i) that says what goes and what stays, and is greyed while only our own station and objects are in the list", () => {

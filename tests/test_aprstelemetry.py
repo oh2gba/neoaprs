@@ -1,4 +1,6 @@
 """Telemetry: the report, the four definition messages and the scaling."""
+import math
+
 import pytest
 
 from neoaprs.aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, describe, is_definition, parse_telemetry, split_comment_telemetry
@@ -108,3 +110,17 @@ def test_later_messages_replace_earlier_ones_of_their_kind_only() -> None:
 def test_other_messages_are_not_definitions(text: str) -> None:
     assert apply_definition(TelemetryDefinition(), text) is None and not is_definition(text)
     assert is_definition("EQNS.0,1,0")
+
+
+@pytest.mark.parametrize("text", ["T#001," + "9" * 320 + ",2,3,4,5,00000000", "T#001,1e999,2,3,4,5,00000000", "T#001,1,2,3,4," + "9" * 400, "T#001," + "9" * 320])
+def test_a_value_that_is_not_a_finite_number_is_no_report(text: str) -> None:
+    assert parse_telemetry(text) is None
+
+
+def test_a_coefficient_that_is_not_a_finite_number_ends_the_list_and_a_channel_is_always_finite() -> None:
+    definition = apply_definition(TelemetryDefinition(), "EQNS.0,1,0," + "9" * 320 + ",0,0,0,0,0")
+    assert definition is not None and definition.coefficients == ((0.0, 1.0, 0.0),)
+    huge = apply_definition(TelemetryDefinition(), "EQNS.1e9,1e9,0")
+    report = parse_telemetry("T#001,1000000000,2,3,4,5,00000000")
+    assert huge is not None and report is not None
+    assert all(math.isfinite(channel.value) for channel in describe(report, huge).channels)

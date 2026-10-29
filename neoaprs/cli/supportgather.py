@@ -13,14 +13,16 @@ from typing import Any
 
 from neoaprs import ax25
 from neoaprs.config import DEFAULTS, Config
-from neoaprs.configtypes import is_secret, redacted
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, source_hash
 from neoaprs.packetcodec import PacketRow
 from neoaprs.store import DB_NAME
 from neoaprs.storesql import read_settings
-from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, open_readonly, quick_check, table_counts
+from neoaprs.packetsql import recent_packets
+from neoaprs.supportsql import file_facts, latest_undecoded, open_readonly, quick_check, table_counts
 
 from . import doctor
+from .logfile import LOG_NAME, START_LINE
+from .redaction import hides, shown_value
 from .supportbundle import rotated_logs, tail_text
 from .supportsummary import DbFacts, megabytes, stamp
 
@@ -30,9 +32,7 @@ QUICK_CHECK_MAX_BYTES = 500 * 1024 * 1024
 PROBLEM_SCAN_BYTES = 8 * 1024 * 1024
 JOURNAL_LINES = 3000
 JOURNAL_WAIT_SEC = 5.0
-LOG_NAME = "neoaprs.log"
 APP_LOG_NAME = "neoaprs-app.log"
-START_LINE = " starting, data in "
 
 
 @contextlib.contextmanager
@@ -70,20 +70,20 @@ def system_description() -> str:
 # ---- the settings
 
 def settings_json(rows: dict[str, str]) -> str:
-    """Every setting with the value in force and which of them are stored, a secret only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the beacon's memory of when it last sent, say)."""
+    """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the beacon's memory of when it last sent, say)."""
     effective = config_of(rows).to_data()
     out: dict[str, Any] = {
-        "values": {key: redacted(key, value) for key, value in effective.items()},
+        "values": {key: shown_value(key, value) for key, value in effective.items()},
         "defaults_are_used_for": [key for key in DEFAULTS.to_data() if key not in rows],
-        "stored_text_differs": {key: redacted(key, rows[key]) for key in effective if key in rows and rows[key] != effective[key]},
-        "other_rows": {key: redacted(key, value) for key, value in rows.items() if key not in effective},
+        "stored_text_differs": {key: shown_value(key, rows[key]) for key in effective if key in rows and rows[key] != effective[key]},
+        "other_rows": {key: shown_value(key, value) for key, value in rows.items() if key not in effective},
     }
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"
 
 
 def secrets_of(rows: dict[str, str]) -> list[str]:
     """The values of the secret settings, so that the zip can be held free of them."""
-    return [value for key, value in rows.items() if value and is_secret(key)]
+    return [value for key, value in rows.items() if value and hides(key, value)]
 
 
 # ---- the logs
@@ -228,7 +228,7 @@ def packets_text(data: Path) -> str:
     """The latest packets heard and sent, then the latest that did not decode, each oldest first."""
     conn = open_readonly(data / DB_NAME)
     try:
-        latest, bad = latest_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)
+        latest, bad = recent_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)
     finally:
         conn.close()
     out = [f"The last {PACKETS_SHOWN} packets heard (in) and sent (out), the newest last; {len(latest)} here.", "These went over the air, where they are public.", ""]

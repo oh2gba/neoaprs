@@ -10,7 +10,8 @@ from .db import Db
 from .dblog import DbLog
 from .ownbulletin import OwnBulletin, slot_of
 from .ownobject import OwnObject
-from .ownsql import Row, all_bulletins, all_objects, delete_bulletin, delete_object, save_bulletin, save_object
+from .dberror import Row
+from .ownsql import all_bulletins, all_objects, delete_bulletin, delete_object, save_bulletin, save_object
 from .packetcodec import parse_stamp, stamp
 
 log = logging.getLogger("neoaprs.ownlog")

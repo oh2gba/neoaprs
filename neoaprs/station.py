@@ -45,6 +45,9 @@ class RadioPlace:
     speed_kmh: float | None = None
     comment: str = ""
     track: Track = field(default_factory=list)
+    extensions: Extensions | None = None
+    storm: Storm | None = None
+    sign: str | None = None
 
 
 @dataclass
@@ -135,8 +138,9 @@ class Station:
         return self.deliveries.best()
 
     def radio_view(self) -> "Station | None":
-        """The station as it is without the internet: None for one known only from there; for one heard both ways a copy that has only the radio's side (no packets, times, hour or position from the internet);
-        a station never heard from the internet is itself. The status, the weather, the telemetry and the like are whatever the latest packet of any channel said."""
+        """The station as it is without the internet: None for one known only from there; for one heard both ways the copy a book that was given only the radio's packets would hold (no packets, times, hour or position
+        from the internet, and what a position says besides where it is: the symbol, the comment, the extensions, the storm data and the sign); a station never heard from the internet is itself. The status, the weather,
+        the telemetry, the frequency, the locator and the like are whatever the latest packet of any channel said."""
         if self.internet_only:
             return None
         if self.heard_is == 0:
@@ -146,7 +150,8 @@ class Station:
         place = self.radio
         if place is not None:
             return replace(view, lat=place.lat, lon=place.lon, last_position_at=place.at, position_via=place.via, symbol_table=place.symbol_table, symbol_code=place.symbol_code,
-                           altitude_m=place.altitude_m, course_deg=place.course_deg, speed_kmh=place.speed_kmh, last_comment=place.comment, track=place.track)
+                           altitude_m=place.altitude_m, course_deg=place.course_deg, speed_kmh=place.speed_kmh, last_comment=place.comment, track=place.track, extensions=place.extensions, storm=place.storm, sign=place.sign)
         if self.position_via == IS or self.position_via is None:
-            return replace(view, lat=None, lon=None, last_position_at=None, position_via=None, altitude_m=None, course_deg=None, speed_kmh=None, track=[])
+            return replace(view, lat=None, lon=None, last_position_at=None, position_via=None, altitude_m=None, course_deg=None, speed_kmh=None, track=[],
+                           symbol_table="", symbol_code="", last_comment="", extensions=None, storm=None, sign=None)
         return view

@@ -6,6 +6,7 @@ describe("recipients", () => {
     expect(addable("oh2abc-9", [])).toBe(true);
     expect(addable("OH2ABC", ["OH2ABC"])).toBe(false);
     expect(addable("not a call", [])).toBe(false);
+    for (const name of ["WINLINK", "OH2XYZ-L", "oh2xyz-20"]) expect(addable(name, []), name).toBe(true);
     expect(addable("EMAIL-2", [])).toBe(false);
   });
 
@@ -19,6 +20,8 @@ describe("recipients", () => {
   it("has Send on for a recipient and a text that fits, and off for a bad call in To, no recipient, no text or no TNC", () => {
     expect(canSendAll(true, ["OH2AAA"], "", "Hi")).toBe(true);
     expect(canSendAll(true, [], "OH2RDG", "Hi")).toBe(true);
+    expect(canSendAll(true, [], "WINLINK", "Hi")).toBe(true);
+    expect(recipientsOf([], "oh2xyz-l")).toEqual(["OH2XYZ-L"]);
     expect(canSendAll(true, ["OH2AAA"], "oops!", "Hi")).toBe(false);
     expect(canSendAll(true, ["OH2AAA"], "EMAIL-2", "Hi")).toBe(false);
     expect(canSendAll(true, [], "", "Hi")).toBe(false);

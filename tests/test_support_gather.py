@@ -1,12 +1,14 @@
 """The parts of the support bundle that read the computer and the database (neoaprs/cli/supportgather.py) where the whole-bundle tests (tests/test_support_bundle.py) do not go: the name of the system on each system (the
 platform module is faked), a log that cannot be read, a log whose start line has no time, the migrations of a database that this program does not know, and a packet that is no frame."""
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 from neoaprs.cli import supportgather
-from neoaprs.cli.supportgather import START_LINE
+from neoaprs.config import DEFAULTS
+from neoaprs.cli.logfile import START_LINE
 from neoaprs.migrations import MIGRATIONS, source_hash
 from neoaprs.packetcodec import PacketRow
 
@@ -88,3 +90,21 @@ def test_a_packet_that_is_no_ax25_frame_is_shown_with_what_the_columns_say() -> 
     assert text.startswith("OH2XYZ>APRS,WIDE1-1,WIDE2-1: (not an AX.25 frame) b'") and text.isprintable()
     assert supportgather.packet_text(row_of(b"\x01", path="")).startswith("OH2XYZ>APRS: (not an AX.25 frame)")
     assert "NOT DECODED: no position" in supportgather.packet_line(row)
+
+
+# ---- the settings whose value is free text that holds a secret
+
+TOKEN = "123456:ABCdefGhIjKlMnOpQrStUvWxYz"
+
+
+def test_the_alert_command_and_a_changed_update_address_are_only_said_to_be_set_while_the_default_is_shown() -> None:
+    command = f"curl -s https://api.telegram.org/bot{TOKEN}/sendMessage -d chat_id=1"
+    rows = {"messages/alert_command": command, "update/url": f"https://user:{TOKEN}@example.org/version", "web/key": "k7m2-x9pq-4hrt"}
+    text = supportgather.settings_json(rows)
+    assert TOKEN not in text and "k7m2" not in text
+    values = json.loads(text)["values"]
+    assert values["messages/alert_command"] == f"(set, {len(command)} characters)" and values["update/url"].startswith("(set, ") and values["web/key"] == "(set, 14 characters)"
+    default = json.loads(supportgather.settings_json({}))["values"]
+    assert default["messages/alert_command"] == DEFAULTS.messages_alert_command and default["update/url"] == DEFAULTS.update_url
+    assert set(supportgather.secrets_of(rows)) == {command, rows["update/url"], rows["web/key"]}, "(the net under the redaction takes them out of every file)"
+    assert supportgather.secrets_of({"messages/alert_command": DEFAULTS.messages_alert_command}) == [], "(the default holds nothing)"

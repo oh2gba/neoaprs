@@ -103,6 +103,13 @@ def test_decode_by_hand() -> None:
     assert decode(data) == Frame(Address("APRS"), Address("OH2GBA", 7), (Address("WIDE1", 1, True),), info=b"!6010.50N/02456.25E>")
 
 
+def test_decode_writes_a_lower_case_letter_in_capitals() -> None:
+    data = raw_address("aprs", flag=True) + raw_address("oh2gba", ssid=7) + raw_address("Wide1", flag=True, last=True, ssid=1) + b"\x03\xf0!x"
+    frame = decode(data)
+    assert (str(frame.destination), str(frame.source), str(frame.path[0])) == ("APRS", "OH2GBA-7", "WIDE1-1*")
+    assert frame.tnc2() == "OH2GBA-7>APRS,WIDE1-1*:!x"
+
+
 def test_decode_reads_the_ssid_from_bits_1_to_4_only() -> None:
     data = raw_address("APRS") + raw_address("OH2GBA", last=True) + b"\x03\xf0"
     patched = data[:13] + bytes([0xFF]) + data[14:]                  # 0xFF: every bit of the source's seventh byte set

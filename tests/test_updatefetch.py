@@ -8,7 +8,8 @@ from io import BytesIO
 
 import pytest
 
-from neoaprs.updatefetch import MAX_BYTES, _NotDowngraded, fetch, get, request_url
+from neoaprs import updatefetch
+from neoaprs.updatefetch import MAX_BYTES, _NotDowngraded, fetch, fetch_url, get, request_url
 from tests.support.fakeversionpage import version_page
 
 
@@ -45,6 +46,17 @@ async def test_a_page_that_says_no_or_is_not_there_is_none() -> None:
     assert await fetch(page.url, "0.1.0", "linux") is None
     await page.stop()
     assert await fetch(page.url, "0.1.0", "linux") is None, "nothing listens"
+
+
+@pytest.mark.expects_errors
+async def test_an_error_nobody_expected_on_the_thread_is_none_and_not_a_request_that_never_ends(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args: object, **kwargs: object) -> bytes:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(updatefetch, "get", boom)
+    monkeypatch.setattr(updatefetch, "get_url", boom)
+    assert await asyncio.wait_for(fetch("https://example.org/v.php", "0.1.0", "linux"), 5.0) is None
+    assert await asyncio.wait_for(fetch_url("https://example.org/CHANGELOG.md", "0.1.0", "linux", 100), 5.0) is None
 
 
 async def test_a_page_that_hangs_is_none_after_the_timeout() -> None:

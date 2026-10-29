@@ -44,7 +44,7 @@
   kills and timeouts on a fake `subprocess`; `neoaprs db` on a database that is not one, an older or a newer one; `neoaprs capture` choosing a port, losing it,
   not opening it; the replay's pseudo-terminal; a folder that cannot be synced; the app's size file and log; the LAN address.
 * `test_serialport.py`, `test_serialport_pty.py`: the serial line (`neoaprs/serialport.py`, `serialprobe.py`, `serialholders.py`). The first on the fake radio
-  and on stand-ins for pyserial's object, so it runs on every system: reading and writing through the threads, 8N1 with DTR and RTS low before the open,
+  and on stand-ins for pyserial's object, so it runs on every system: reading and writing through the threads, 8N1 with DTR and RTS set low as soon as the open allows,
   `tcp://` for `socket://`, the open in a thread and cancelled, a connection refused, Windows's access denied as in use by another program, a line that dies
   (read, write, stuck write), the list of ports, the probe of several ports at once (nudge, skip list, dying ports, cancellation) and the guard. The second
   (POSIX only) on a pseudo-terminal as a device file: pyserial's lock, a device that goes away, the holders in /proc, the globs.

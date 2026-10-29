@@ -2,12 +2,12 @@
 way the TNC reports them, the reconnection after a loss, and a feed that never raises into the loop."""
 import asyncio
 import logging
-
+import socket
 import sys
 
 import pytest
 
-from neoaprs.gpsfeed import NO_ADDRESS, NO_FIX, NO_PORT, GpsFeed, _GpsPort, split_address
+from neoaprs.gpsfeed import GPSD_SILENT_SEC, NO_ADDRESS, NO_FIX, NO_PORT, GpsFeed, _GpsPort, split_address
 from neoaprs.gpsfix import Fix
 from neoaprs.source import Backoff, Source
 from tests.support.clock import FixedClock
@@ -15,9 +15,9 @@ from tests.support.env import remember_stop, until
 from tests.support.gps import FakeGpsd, fake_gpsd, gga, rmc, sky, tpv
 
 
-def feed_of(kind: str, target: str, baud: int = 4800) -> tuple[GpsFeed, list[Fix], FixedClock]:
+def feed_of(kind: str, target: str, baud: int = 4800, silent_sec: float = GPSD_SILENT_SEC) -> tuple[GpsFeed, list[Fix], FixedClock]:
     clock = FixedClock()
-    feed = GpsFeed(clock, Backoff([0.05]), connect_sec=1.0)
+    feed = GpsFeed(clock, Backoff([0.05]), connect_sec=1.0, silent_sec=silent_sec)
     feed.configure(kind, target, baud)
     fixes: list[Fix] = []
     feed.fixed.connect(fixes.append)
@@ -124,6 +124,26 @@ async def test_what_is_not_json_is_counted_and_the_feed_goes_on() -> None:
     gpsd.send(tpv(60.43, 24.145))
     await until(lambda: fixes)
     assert feed.stats.rejected == 2
+
+
+async def test_a_gpsd_that_falls_silent_without_hanging_up_is_taken_for_gone_and_asked_again() -> None:
+    gpsd = await fake_gpsd(greet=False)
+    feed, fixes, _ = feed_of("gpsd", gpsd.address, silent_sec=0.2)
+    await feed.start()
+    await until(lambda: feed.state is Source.State.CONNECTED and gpsd.watching)
+    gpsd.send(tpv(60.43, 24.145))
+    await until(lambda: fixes)
+    await until(lambda: feed.state is Source.State.WAITING and "sent nothing for 0.2 s" in feed.problem)      # (the socket is open, nothing comes: a peer that vanished)
+    await until(lambda: sum(line.startswith("?WATCH=") for line in gpsd.received) >= 2, 3.0)           # (connected to again, and asked again to watch)
+
+
+async def test_the_connection_to_gpsd_asks_the_system_to_find_a_dead_peer() -> None:
+    gpsd = await fake_gpsd()
+    feed, _, _ = feed_of("gpsd", gpsd.address)
+    await feed.start()
+    await until(lambda: feed.state is Source.State.CONNECTED and feed._writer is not None)
+    assert feed._writer is not None
+    assert feed._writer.get_extra_info("socket").getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
 
 
 async def test_a_gpsd_that_is_not_there_is_a_problem_and_tried_again_until_it_is() -> None:
@@ -379,7 +399,7 @@ async def test_a_serial_port_that_opens_after_the_feed_was_stopped_is_closed_at_
 async def test_the_retry_of_a_feed_that_was_stopped_since_connects_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     feed, _, _ = feed_of("gpsd", "127.0.0.1:1")
     feed._generation = 3
-    await feed._retry(0.0, 2)
+    await feed._retry_after(0.0, 2, feed._connect)
     assert feed.state is Source.State.STOPPED and feed.stats.opens == 0
 
 

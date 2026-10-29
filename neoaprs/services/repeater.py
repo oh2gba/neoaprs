@@ -2,14 +2,13 @@
 
 A subclass keeps its things by key and says when each is next due (`_due`: None for one that is not sent again) and how one is transmitted (`_transmit`: True when it went out, False when the radio would
 not take it, SendError when the values make no frame). A thing whose frame cannot be made is told in the log once and waits, the rest are not held up by it."""
-import asyncio
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 
 from neoaprs.clock import Clock, utcnow
 from neoaprs.services.sender import SendError, Sender
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 
 log = logging.getLogger("neoaprs.sender")
 
@@ -43,12 +42,7 @@ class Repeater[K](ABC):
         await self._tasks.cancel_all()
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.tick_sec)
-            try:
-                self.tick()
-            except Exception:
-                log.exception("the %s ticker failed", self.kind)
+        await every(self.tick_sec, self.tick, f"the {self.kind} ticker")
 
     def tick(self) -> bool:
         """Sends what is due, the one due longest first; whether something went out."""

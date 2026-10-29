@@ -62,10 +62,20 @@ class Op:
     loop: asyncio.AbstractEventLoop | None = None
 
 
+# The result codes (the low byte of `sqlite_errorcode`) of the place: another connection holds the file, no memory, the file is read-only, a disk fault, no space, the file cannot be opened, it is damaged or is not a database
+# (and the lock protocol of the write-ahead log, which a retry gets past). Every other code is the statement's.
+PLACE_CODES = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_NOMEM, sqlite3.SQLITE_READONLY, sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE_CANTOPEN,
+                         sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_PROTOCOL})
+
+
 def environmental(e: BaseException) -> bool:
-    """An error of the place (the file is locked, the disk is full, the file is damaged) and not of the statement: trying again later may work. IntegrityError, DataError and
-    the like are the statement's: they will happen again."""
-    return isinstance(e, (sqlite3.OperationalError, sqlite3.InternalError)) or type(e) is sqlite3.DatabaseError
+    """An error of the place (the file is locked, the disk is full, the file is damaged) and not of the statement: trying again later may work. IntegrityError, DataError and the like are the
+    statement's, and so is an OperationalError of any other kind (no such table or column, a syntax error, too many variables): they will happen again. An error that does not come from SQLite
+    (no result code) is taken for the place's."""
+    if not (isinstance(e, (sqlite3.OperationalError, sqlite3.InternalError)) or type(e) is sqlite3.DatabaseError):
+        return False
+    code = getattr(e, "sqlite_errorcode", None)
+    return code is None or code & 0xFF in PLACE_CODES
 
 
 def often(n: int) -> bool:

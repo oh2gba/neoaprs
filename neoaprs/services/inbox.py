@@ -35,7 +35,7 @@ from typing import Literal, Protocol
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError, normal_name
-from neoaprs.message import MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
+from neoaprs.message import ACK_SETTLES, MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
@@ -44,8 +44,6 @@ from neoaprs.services.heard import ACK_AGAIN_SEC, Heard
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.messaging")
-
-_UNSETTLED = ("sending", "failed", "unconfirmed", "cancelled")           # an ack or a rej that comes settles a message in one of these states
 
 
 def _station(call: str) -> str:
@@ -160,18 +158,18 @@ class Inbox:
         self._host.put(kept)
 
     def _settle(self, packet: Packet, msg_id: str, state: Literal["acked", "rejected"]) -> bool:
-        """Settles the newest unsettled message of ours to the sender that has the id; whether the sender has a message of ours with that id at all (settled or not)."""
+        """Settles the newest message of ours to the sender that has the id, when it is not settled yet (the ids go round, so an older message with the same id is not the one that is acked); whether the
+        sender has a message of ours with that id at all (settled or not)."""
         source = _station(packet.sender)
         ours = sorted((r for r in self._host.records() if r.direction == "out" and r.to_call == source and r.msg_id == msg_id), key=lambda r: r.id, reverse=True)
         if not ours:
             log.debug("%s %s from %s settles no message of ours", state, msg_id, packet.sender)
             return False
         self.heard.settled(source)
-        for record in ours:
-            if record.state in _UNSETTLED:
-                self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None))
-                log.info("message %d to %s is %s", record.id, record.to_call, state)
-                break
+        record = ours[0]
+        if record.state in ACK_SETTLES:
+            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None))
+            log.info("message %d to %s is %s", record.id, record.to_call, state)
         return True
 
     def forget_before(self, cutoff: datetime) -> None:

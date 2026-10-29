@@ -3,6 +3,7 @@ tables refuse."""
 import json
 import logging
 import sqlite3
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -21,10 +22,12 @@ from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
 from neoaprs.packetcodec import decode_decoded, encode_decoded, packet_of, packet_row, parse_stamp, stamp, tnc2
 from neoaprs.packetlog import PacketLog
+from neoaprs.packetsql import packets_since
 from neoaprs.station import Station
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
+from tests.support.migrated import opened
 from tests.support.storedb import sql, store_at
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
@@ -56,6 +59,14 @@ DECODED = [POSITION, DETAILED, LOCAL, Status("on air", frequency=Frequency(145.5
 @pytest.mark.parametrize("decoded", DECODED, ids=lambda d: type(d).__name__)
 def test_the_json_of_what_the_parser_made_gives_it_back_equal(decoded: object) -> None:
     assert decode_decoded(encode_decoded(decoded)) == decoded  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+def test_a_number_that_is_not_finite_fails_at_the_source_and_is_no_json(value: float) -> None:
+    with pytest.raises(ValueError):
+        encode_decoded(Telemetry(1, [value, 0.0, 0.0, 0.0, 0.0], ""))
+    with pytest.raises(ValueError):
+        encode_decoded(Position(60.1, 24.9, "/", ">", speed_kmh=value))
 
 
 def test_the_capture_decodes_the_same_from_the_json() -> None:
@@ -114,6 +125,27 @@ async def test_every_packet_is_kept_and_read_back_the_newest_first(tmp_path: Pat
     assert [p.source for p in await log.since(T0 + timedelta(seconds=2))] == ["OH2RDS", "OH2PU-9", "OH2AAA-3"], "the oldest first"
     assert await log.since(T0 + timedelta(days=1)) == []
     assert log.dropped == 0
+
+
+async def test_packets_of_the_same_second_come_back_in_the_order_they_were_kept(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    for n, seconds in enumerate([1, 0, 1, 1]):
+        assert log.append(replace(made(POSITION, T0 + timedelta(seconds=seconds)), source=f"OH2A{n}"))
+    assert [p.source for p in await log.since(T0)] == ["OH2A1", "OH2A0", "OH2A2", "OH2A3"], "by the time, and by the order kept for the same time"
+    assert [p.source for p in await log.since(T0 + timedelta(seconds=1))] == ["OH2A0", "OH2A2", "OH2A3"]
+
+
+def test_the_packets_since_a_time_are_found_by_the_index_of_the_times_and_the_table_is_not_read_through(tmp_path: Path) -> None:
+    s = opened(tmp_path / DB_NAME)
+    statements: list[str] = []
+    s.db.set_trace_callback(statements.append)
+    packets_since(s.db, stamp(T0))
+    s.db.set_trace_callback(None)
+    asked = next(text for text in statements if "FROM packet" in text)
+    plan = " | ".join(str(r[3]) for r in s.db.execute(f"EXPLAIN QUERY PLAN {asked}"))
+    assert "packet_heard_at" in plan and "SCAN packet" not in plan and "TEMP B-TREE" not in plan, plan
+    s.close()
 
 
 async def test_the_rows_are_what_the_columns_say(tmp_path: Path) -> None:

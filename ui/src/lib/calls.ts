@@ -4,15 +4,14 @@
 import { LIMITS } from "@/protocol/lists";
 
 const CALL = new RegExp(`^[A-Z0-9]{1,${LIMITS.call.baseMax}}(-[0-9]{1,2})?$`);
+/** A station's name on APRS-IS (neoaprs/callsign.py `normal_name`): 1 to 9 letters, digits and hyphens, the first not a hyphen. */
+const STATION_NAME = /^[A-Z0-9][A-Z0-9-]{0,8}$/;
 const AMATEUR = new RegExp(`^(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{${LIMITS.call.amateurBaseMin},${LIMITS.call.baseMax}}$`);
 
 /** A call as it is typed: spaces off, upper case. */
 export function normalizeCall(text: string): string {
   return text.trim().toUpperCase();
 }
-
-/** The SSIDs a call may carry, as the text of the number: "1" to "15" (no SSID, and `-0`, is the empty text). */
-export const SSIDS: readonly string[] = Array.from({ length: LIMITS.call.maxSsid }, (_, i) => String(i + 1));
 
 /** A call as the settings keep it, taken apart for the call field: the call and its SSID ("" for none, else "1" to "15"; a `-0` is none). A text that has no SSID of this kind is all call. */
 export function splitCall(text: string): { base: string; ssid: string } {
@@ -51,6 +50,12 @@ export function validCall(text: string): boolean {
   if ([...call].some((c) => c.charCodeAt(0) > 127)) return false;
   const found = CALL.exec(call.toUpperCase());
   return found !== null && (found[1] === undefined || Number(found[1].slice(1)) <= LIMITS.call.maxSsid);
+}
+
+/** Whether the text names a station a message may be addressed to: a call (validCall) or a name APRS-IS allows (`OH2XYZ-L`, `OH2XYZ-20`, `WINLINK`), which the daemon answers through an iGate. Paths and our own call stay calls. */
+export function validName(text: string): boolean {
+  const name = text.trim();
+  return [...name].every((c) => c.charCodeAt(0) <= 127) && STATION_NAME.test(name.toUpperCase());
 }
 
 /** Whether the call is a placeholder that programs ship with (N0CALL, NOCALL, MYCALL): never the call of anybody. */

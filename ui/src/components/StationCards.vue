@@ -97,8 +97,12 @@ function resized(): void {
 }
 useResized(stack, resized);
 // Cards come and go and the others stay where they are: the cards behind one that closes are pinned where they stand (before the page is drawn without it), and a card that is opened is put in the first free slot (once it is in the page, before it is drawn)
-const callsOf = (): string[] => props.rows.map((row) => row.call);
-watch(callsOf, (calls, before) => {
+// (watched as one string, so that a card whose row is made again with the same call, a packet more heard, is no change)
+const callsKey = (): string => props.rows.map((row) => row.call).join(" ");
+const callsIn = (key: string): string[] => (key === "" ? [] : key.split(" "));
+watch(callsKey, (key, was) => {
+  const calls = callsIn(key);
+  const before = callsIn(was);
   const gone = before.filter((call) => !calls.includes(call));
   if (gone.length === 0) return;
   // (one write: what the page is told is seen only when it has been drawn again)
@@ -117,9 +121,10 @@ function watchSizes(): void {
   sizes = observer;
 }
 watch(
-  callsOf,
-  (calls, before) => {
-    drag.placeNew(calls.filter((one) => !before.includes(one)));
+  callsKey,
+  (key, was) => {
+    const before = callsIn(was);
+    drag.placeNew(callsIn(key).filter((one) => !before.includes(one)));
     watchSizes();
   },
   { flush: "post" },

@@ -11,8 +11,8 @@ import {
   placeholderCall,
   qrzUrl,
   splitCall,
-  SSIDS,
   validCall,
+  validName,
 } from "@/lib/calls";
 
 describe("calls", () => {
@@ -20,6 +20,11 @@ describe("calls", () => {
     for (const ok of ["OH2RDG", "oh2rdg", " oh2rdg-7 ", "OH2RDG-0", "OH2RDG-15", "A", "WIDE1-1"]) expect(validCall(ok), ok).toBe(true);
     for (const bad of ["", " ", "OH2RDG-16", "OH2RDG-", "TOOLONGCALL", "OH2 RDG", "OH2RDG-1-2", "ÅÄÖ"]) expect(validCall(bad), bad).toBe(false);
     expect(normalizeCall(" oh2rdg-7 ")).toBe("OH2RDG-7");
+  });
+
+  it("takes the name of a station on APRS-IS for a message: a call, or 1 to 9 letters, digits and hyphens", () => {
+    for (const ok of ["OH2RDG-7", "WINLINK", "oh2xyz-l", "OH2XYZ-20", "ABCDEFGHI"]) expect(validName(ok), ok).toBe(true);
+    for (const bad of ["", " ", "-A", "ABCDEFGHIJ", "OH2 RDG", "OH2RDG/P", "ÅÄÖ", "ß1A"]) expect(validName(bad), bad).toBe(false);
   });
 
   it("takes the SSID with a leading zero and nothing but ASCII, as the daemon does", () => {
@@ -113,14 +118,11 @@ describe("calls: the SSID taken apart from the call and put together again", () 
     expect(joinCall("", "9")).toBe("");
   });
 
-  it("is the same call after a split and a join, and the SSIDs are 1 to 15", () => {
+  it("is the same call after a split and a join", () => {
     for (const call of ["OH2GBA", "OH2GBA-1", "OH2GBA-15", "W1AW-9"]) {
       const { base, ssid } = splitCall(call);
       expect(joinCall(base, ssid), call).toBe(call);
     }
-    expect(SSIDS).toHaveLength(15);
-    expect(SSIDS[0]).toBe("1");
-    expect(SSIDS[14]).toBe("15");
   });
 });
 

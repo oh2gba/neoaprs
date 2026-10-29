@@ -8,9 +8,10 @@ from dataclasses import replace
 from .chain import Attempt, HopSeen
 from .clock import Clock, utcnow
 from .db import Db
+from .dberror import Row
 from .dblog import DbLog
 from .message import MessageRecord
-from .messagesql import (Row, all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
+from .messagesql import (all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
                          update_message)
 from .packetcodec import parse_stamp, stamp
 from .pref import Alert

@@ -65,6 +65,11 @@ function showStationPopup(fired: StationAlertMessage, failed: () => void): boole
   return notify(t("station.alert.popup_title", { call: fired.call }), firedText(fired), tag, () => undefined, failed);
 }
 
+/** What the browser lets the page do with pop-ups at this moment; denied where it cannot show one. */
+function permissionNow(possible: boolean): NotificationPermission {
+  return possible ? Notification.permission : "denied";
+}
+
 /** The first click or key press in the page unlocks the audio (a browser lets a page make sound only after one); the listeners go once it has worked. */
 function useAudioUnlock(chime: Chime): void {
   function unlock(): void {
@@ -90,7 +95,7 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
   const secure = window.isSecureContext === true;
   /** The browser can show pop-ups here: a secure context (localhost, https, an address the browser was told to trust) with the API. */
   const possible = typeof Notification !== "undefined" && secure;
-  const permission = ref<NotificationPermission>(possible ? Notification.permission : "denied");
+  const permission = ref<NotificationPermission>(permissionNow(possible));
   /** why a pop-up cannot be chosen, else undefined */
   const why = computed(() => popupWhy(possible, permission.value));
   const mode = ref<AlertMode>(storedMode(here, popupWhy(possible, permission.value)));
@@ -135,6 +140,7 @@ export function useBrowserAlerts(openConversation: (call: string) => void) {
     if (mode.value === "off") return;
     if (wantsSound(mode.value)) chime.play();
     const tabAlert = () => tab.start(call, false, bell);
+    permission.value = permissionNow(possible); // read now: the person may have blocked pop-ups in the browser's settings since the page loaded
     const shown = popupOn.value && popups(tabAlert).includes(true);
     if (!shown) tabAlert();
   }

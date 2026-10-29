@@ -208,6 +208,51 @@ describe("the other places of the page", () => {
     expect(written).toEqual(["OH2PU-9"]);
   });
 
+  it("a station's card: a long press on the head opens the menu too, and a finger that goes on to drag the card does not", async () => {
+    vi.useFakeTimers();
+    wrapper = mount(StationCard, { props: { row: station("OH2PU-9"), now: NOW }, attachTo: document.body, global: withDaemon(daemon) });
+    const head = wrapper.find(".card-head");
+    await head.trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
+    await head.trigger("pointermove", { clientX: 60, clientY: 140 });
+    vi.advanceTimersByTime(600);
+    await wrapper.vm.$nextTick();
+    expect(menu().exists()).toBe(false);
+    await head.trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
+    vi.advanceTimersByTime(600);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(labels()).toEqual(["Copy OH2PU-9"]);
+  });
+
+  it("a bubble, a bulletin and a mail take the focus, so that the menu key opens their menu and Esc gives the focus back to them", async () => {
+    wrapper = mount(ConversationThread, {
+      props: { thread: [incoming(2, "OH2RDG", { text: "Hello" })], peer: "OH2RDG" },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
+    const bubble = wrapper.find(".bubble");
+    expect(bubble.attributes("tabindex")).toBe("0");
+    await rightClick(bubble);
+    await menu().trigger("keydown", { key: "Escape" });
+    expect(document.activeElement).toBe(bubble.element);
+    wrapper.unmount();
+    const rows: BulletinRow[] = [bulletin("BLN1", { sender: "OH2ABC", text: "Road closed" })];
+    wrapper = mount(BulletinsPane, {
+      props: { bulletins: new Map(rows.map((r) => [`${r.sender}/${r.slot}`, r])), ownBulletins: new Map<string, OwnBulletinRow>() },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
+    expect(wrapper.find("li.bulletin").attributes("tabindex")).toBe("0");
+    wrapper.unmount();
+    const mail = mailItem(message(1, { to_call: "EMAIL-2", text: "jane@example.com Hello Jane" }));
+    wrapper = mount(EmailRow, {
+      props: { item: mail, fresh: false, now: NOW, heardDirect: new Set<string>() },
+      attachTo: document.body,
+      global: withDaemon(daemon),
+    });
+    expect(wrapper.find("li.mail").attributes("tabindex")).toBe("0");
+  });
+
   it("Bulletins: a bulletin offers its text and its sender", async () => {
     const rows: BulletinRow[] = [bulletin("BLN1", { sender: "OH2ABC", text: "Road closed at Kaivopuisto" })];
     wrapper = mount(BulletinsPane, {

@@ -21,7 +21,7 @@ from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
 from .migrationlog import log
 from .migrationsteps12to21 import _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21
 from .migrationsteps1to11 import _v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11
-from .migrationsteps22on import _v22
+from .migrationsteps22on import _v22, _v23
 
 
 def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
@@ -33,7 +33,7 @@ def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
 
 
 # one function per version, in order: version N is reached by running MIGRATIONS[N - 1] on version N - 1
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23]
 SCHEMA_VERSION = len(MIGRATIONS)
 
 

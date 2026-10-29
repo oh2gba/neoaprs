@@ -17,11 +17,11 @@ export interface Chip {
 }
 
 const MARKER = /^(TCPIP|TCPXX|NOGATE|RFONLY|NOTCP|qA)/;
-const ALIAS = /^(WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR)\d?(-\d{1,2})?$/;
+const ALIAS = /^(?:WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR|ARISS|APRSAT|[A-Z]{2,3}(?=\d))\d?(?:-\d{1,2})?$/;
 
-/** Whether a call is an alias of a path (WIDE1-1): any digipeater may answer it, so there is no one station to hear. */
+/** Whether a call is an alias of a path (WIDE2-1, TRACE3-3, RELAY, ARISS, a regional SS3-3), as the daemon reads one (neoaprs/route.py): any digipeater may answer it, so there is no one station to hear. A star after it is ignored. */
 export function isAlias(call: string): boolean {
-  return ALIAS.test(call);
+  return ALIAS.test(call.replace(/\*$/, ""));
 }
 
 /** Whether a path element is a marker for the iGates and the internet (RFONLY, NOGATE, TCPIP, TCPXX, a q-construct such as qAR) and no hop: nothing repeats it, so the chain has no chip for it. */

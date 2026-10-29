@@ -141,7 +141,7 @@ def test_the_serial_layer_has_no_descriptor_for_the_loop_and_no_terminal_calls(m
 
 # ---- the settings of the line
 
-async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_low_before_the_open(radios: Radios, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_line_is_8n1_without_flow_control_with_the_control_lines_set_low_in_the_object_that_is_opened(radios: Radios, monkeypatch: pytest.MonkeyPatch) -> None:
     radio = await one(radios)
     seen: list[dict[str, Any]] = []
     real = serial.serial_for_url
@@ -780,3 +780,15 @@ def test_the_guard_is_wired_in_and_fails_a_test_that_touches_the_radio(tmp_path:
         "test_opens_the_radio_and_swallows_the_error": "ERROR",
         "test_opens_a_tty_through_pyserial_and_swallows_the_error": "ERROR",
     }, proc.stdout + proc.stderr
+
+
+async def test_the_scan_for_a_program_that_holds_a_port_is_not_made_on_the_loop_and_a_held_port_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    threads: list[int] = []
+
+    def held(path: str) -> str:
+        threads.append(threading.get_ident())
+        return "held by rotctld (pid 7)"
+
+    monkeypatch.setattr(serialprobe, "held_by", held)
+    assert await probe(["/dev/ttyUSB7"], 9600, 1.0, lambda data: True) is None
+    assert threads and threading.get_ident() not in threads

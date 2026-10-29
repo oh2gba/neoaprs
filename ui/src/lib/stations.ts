@@ -90,11 +90,7 @@ export interface Sort {
 
 /** The order a column starts in when it is clicked: the call and the path from A, the rest (distance, age, packets) as people read them: nearest, newest, most first. */
 export function firstDirection(key: SortKey): 1 | -1 {
-  return key === "call" || key === "last_path"
-    ? 1
-    : key === "last_heard" || key === "last_position_at" || key === "last_direct_at" || key === "packets" || key === "temp_c"
-      ? -1
-      : 1;
+  return key === "last_heard" || key === "last_position_at" || key === "last_direct_at" || key === "packets" || key === "temp_c" ? -1 : 1;
 }
 
 function sortValue(row: StationRow, key: SortKey): string | number | null {
@@ -134,19 +130,19 @@ interface ListOptions {
 }
 
 /** The name of the station's symbol in the page's language ("Car"); "unknown" for a station with none. */
-export function symbolName(row: Pick<StationRow, "symbol_table" | "symbol_code">): string {
+export function rowSymbolName(row: Pick<StationRow, "symbol_table" | "symbol_code">): string {
   return symbolText(row.symbol_table, row.symbol_code);
 }
 
 /** The name of the symbol with who owns the station: "Car (ours)" for an object or an item of ours, and with `me` "Car (our station)" for our own station. */
 export function symbolLabel(row: Pick<StationRow, "symbol_table" | "symbol_code" | "own" | "is_me">, me = false): string {
-  const name = symbolName(row);
+  const name = rowSymbolName(row);
   return me && row.is_me ? t("station.symbol.me", { name }) : row.own ? t("station.symbol.own", { name }) : name;
 }
 
 function matches(row: StationRow, needle: string): boolean {
   if (needle === "") return true;
-  const text = `${row.call} ${symbolName(row)} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
+  const text = `${row.call} ${rowSymbolName(row)} ${row.last_comment} ${row.last_status} ${row.last_path.join(",")} ${row.reported_by}`.toLowerCase();
   return text.includes(needle);
 }
 

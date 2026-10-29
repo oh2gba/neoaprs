@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
@@ -119,6 +120,18 @@ describe("ObjectsPane", () => {
     expect(wrapper.emitted("select")).toHaveLength(2);
   });
 
+  it("keeps Space from scrolling the page only on the row itself: on the trash can it is left to the button", () => {
+    const { wrapper } = pane(rows);
+    const space = (target: Element | undefined): boolean => {
+      const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+      target?.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    const row = wrapper.findAll(".ownobject")[0];
+    expect(space(row?.element)).toBe(true);
+    expect(space(row?.find(".bulletin-delete").element)).toBe(false);
+  });
+
   it("does not select a row for a click on its x", async () => {
     const { wrapper, form } = pane(rows);
     await wrapper.findAll(".ownobject")[0]?.find(".bulletin-delete").trigger("click");
@@ -204,15 +217,15 @@ describe("ObjectsPane", () => {
   it("has an x on each that asks twice and then kills the object", async () => {
     const { wrapper, sent } = pane(rows);
     const x = () => wrapper.findAll(".ownobject")[1]?.find(".bulletin-delete");
-    expect(x()?.text()).toBe("");
+    expect(shown(x())).toBe("");
     expect(x()?.attributes("aria-label")).toBe("Delete the item AID");
     await x()?.trigger("click");
-    expect(x()?.text()).toBe("sure?");
-    expect(wrapper.findAll(".bulletin-delete")[0]?.text()).toBe("");
+    expect(shown(x())).toBe("sure?");
+    expect(shown(wrapper.findAll(".bulletin-delete")[0])).toBe("");
     expect(sent).toEqual([]);
     await x()?.trigger("click");
     expect(sent).toEqual([{ cmd: "object_kill", name: "AID" }]);
-    expect(x()?.text()).toBe("");
+    expect(shown(x())).toBe("");
   });
 
   it("shows an object that is being killed as such, not selectable and with no x", async () => {

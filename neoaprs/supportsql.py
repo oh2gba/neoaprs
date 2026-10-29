@@ -3,11 +3,10 @@ daemon's own connection (the write-ahead log lets a reader and the writer go on 
 import sqlite3
 from pathlib import Path
 
-from .dberror import Connection
-from .packetsql import PACKET_COLUMNS, Row
+from .dberror import Connection, Row, limit, rows
+from .packetsql import PACKET_LIST
 
 OPEN_WAIT_SEC = 3.0
-_PACKET_LIST = ", ".join(PACKET_COLUMNS)
 
 
 def open_readonly(path: str | Path) -> Connection:
@@ -40,11 +39,8 @@ def quick_check(db: Connection) -> list[str]:
     return [str(r[0]) for r in db.execute("PRAGMA quick_check")]
 
 
-def latest_packets(db: Connection, count: int) -> list[Row]:
-    """The latest `count` packets, the newest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet ORDER BY id DESC LIMIT ?", (max(0, count),))]
 
 
 def latest_undecoded(db: Connection, count: int) -> list[Row]:
     """The latest `count` packets the parser could not read, the newest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {_PACKET_LIST} FROM packet WHERE kind = 'undecoded' ORDER BY id DESC LIMIT ?", (max(0, count),))]
+    return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE kind = 'undecoded' ORDER BY id DESC LIMIT ?", (limit(count),)))

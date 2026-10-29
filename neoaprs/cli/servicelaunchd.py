@@ -5,7 +5,8 @@ import plistlib
 import subprocess
 from pathlib import Path
 
-from .daemonstate import describe
+from .daemonstate import describe, page_address
+from .logfile import LOG_NAME
 from .servicecmd import Plan
 
 LABEL = "eu.oh2gba.neoaprs"
@@ -83,7 +84,7 @@ def install(plan: Plan) -> int:
     if launchctl("bootstrap", domain(), str(path)) != 0:
         print("launchctl did not load the agent; try: launchctl bootstrap " + domain() + " " + path.as_posix())
         return 1
-    print(f"neoaprs runs and starts at login (log: {plan.data / 'neoaprs.log'}); the page is on http://127.0.0.1:7303 (the setting web/port)")
+    print(f"neoaprs runs and starts at login (log: {plan.data / LOG_NAME}); the page is on {page_address(plan.data)} (the setting web/port)")
     return 0
 
 

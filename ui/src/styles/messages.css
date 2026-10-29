@@ -312,6 +312,14 @@
 }
 .xbtn.armed {
   color: var(--bad);
+}
+/* the trash can and its "sure?" in one place (TwoWords), each centred, the word always bold: the button is as wide as the word and does not change size when it is pressed */
+.xbtn .twowords > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.xbtn .twowords > span:last-child {
   font-weight: 600;
 }
 /* a pin that is on: the pin is filled and in the accent colour */

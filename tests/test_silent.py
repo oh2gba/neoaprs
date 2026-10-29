@@ -126,11 +126,18 @@ async def test_the_tail_of_a_frame_as_the_first_bytes_of_a_silent_radio_is_not_c
 
 
 @stops_rigs
-async def test_other_bytes_from_a_silent_radio_enter_kiss_too(rig: Rigs) -> None:
+async def test_the_middle_of_a_frame_as_the_first_bytes_of_a_silent_radio_waits_for_what_follows(rig: Rigs) -> None:
     r, _ = await silent_rig(rig)
-    r.radio.feed(b"\x00\x01noise")
-    assert await hear_until(r.radio, ENTER_KISS, 1.0)
-    assert r.tnc.state is Source.State.CONNECTED and r.tnc.usable is False
+    await idle_for(SETTLE + 0.05)                                   # (the check's own entry has settled)
+    wire = kiss_of(ui_frame())
+    middle = wire[8:-1]                                             # a port that was opened again while a frame was on its way: no FEND, no text
+    assert b"\xc0" not in middle
+    r.radio.feed(middle)
+    await until(lambda: r.tnc.state is Source.State.CONNECTED)
+    assert await r.radio.said(1, 0.1) == b"", "bytes that may be the middle of a frame are no reason to type KISS ON into a TNC that is in KISS"
+    r.radio.feed(wire)
+    await until(lambda: len(r.packets) == 1)
+    assert r.tnc.usable
 
 
 @stops_rigs
@@ -190,6 +197,8 @@ async def test_a_hundred_unanswered_probes_make_one_warning_and_no_info_and_ever
 @stops_rigs
 async def test_the_fifth_probe_closes_and_opens_the_port_and_the_radio_stays_silent_across_it(rig: Rigs) -> None:
     r, _ = await silent_rig(rig, probe_sec=0.1, probe_answer_sec=0.0)
+    states: list[Source.State] = []
+    r.tnc.state_changed.connect(states.append)
     feeder = asyncio.create_task(drain(r.radio))
     try:
         await until(lambda: r.tnc.stats.watchdog_probes == 4, 5.0)
@@ -198,6 +207,7 @@ async def test_the_fifth_probe_closes_and_opens_the_port_and_the_radio_stays_sil
         await until(lambda: r.tnc.stats.opens == 2, 5.0)
         assert r.tnc.stats.watchdog_probes == 5 and r.tnc.last_watchdog_action == "reopen"
         assert r.tnc.state is Source.State.SILENT and r.tnc.silent_since is not None
+        assert states == [], "the state is not told to go through connecting and back"
         await until(lambda: r.tnc.stats.watchdog_probes == 6, 5.0)       # the probing goes on after the reopen
         r.radio.feed(b"\r\ncmd:")                                      # and a byte on the new line ends the silence
         await until(lambda: r.tnc.state is Source.State.CONNECTED, 2.0)

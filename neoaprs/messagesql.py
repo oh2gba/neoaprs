@@ -3,14 +3,13 @@
 A row is a tuple in the order of MESSAGE_COLUMNS; the codec between a row and a `MessageRecord` is messagelog.py's. Nothing here begins or commits a transaction."""
 import sqlite3
 from collections.abc import Sequence
-from typing import Any
+
+from .dberror import Row as Row, limit, rows
 
 MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route")
 _LIST = ", ".join(MESSAGE_COLUMNS)
 _NEW_LIST = ", ".join(MESSAGE_COLUMNS[1:])
 _NEW_PLACES = ", ".join("?" * (len(MESSAGE_COLUMNS) - 1))
-
-Row = tuple[Any, ...]
 
 
 def insert_message(db: sqlite3.Connection, row: Sequence[object]) -> int:
@@ -45,24 +44,24 @@ def delete_overheard(db: sqlite3.Connection, from_call: str, to_call: str) -> in
 
 def recent_messages(db: sqlite3.Connection, count: int, overheard: bool) -> list[Row]:
     """The latest `count` messages, the newest first: those we sent or were sent, or (`overheard`) those we only overheard."""
-    return [tuple(r) for r in db.execute(f"SELECT {_LIST} FROM message WHERE (state = 'overheard') = ? ORDER BY id DESC LIMIT ?", (overheard, max(0, count)))]
+    return rows(db.execute(f"SELECT {_LIST} FROM message WHERE (state = 'overheard') = ? ORDER BY id DESC LIMIT ?", (overheard, limit(count))))
 
 
 def held_messages(db: sqlite3.Connection, count: int) -> list[Row]:
     """The latest `count` messages of any kind (overheard ones too), the newest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {_LIST} FROM message ORDER BY id DESC LIMIT ?", (max(0, count),))]
+    return rows(db.execute(f"SELECT {_LIST} FROM message ORDER BY id DESC LIMIT ?", (limit(count),)))
 
 
 def sending_messages(db: sqlite3.Connection) -> list[Row]:
     """The messages that are still being sent, the oldest first."""
-    return [tuple(r) for r in db.execute(f"SELECT {_LIST} FROM message WHERE state = 'sending' ORDER BY id")]
+    return rows(db.execute(f"SELECT {_LIST} FROM message WHERE state = 'sending' ORDER BY id"))
 
 
 def all_prefs(db: sqlite3.Connection) -> list[Row]:
     """(call, path, rf_only, alert_on_air, alert_within_km, alert_direct) of every station the operator has said something about; path and alert_within_km are null where nothing was said, the flags 0 or 1. The columns
     `attempts` and `hide_after_min` are not read: a value kept by an older version is ignored (migration 17 cleared the timeouts), and a row that holds only that says nothing."""
-    return [tuple(r) for r in db.execute("SELECT call, path, rf_only, alert_on_air, alert_within_km, alert_direct FROM station_pref "
-                                         "WHERE path IS NOT NULL OR rf_only = 1 OR alert_on_air = 1 OR alert_within_km IS NOT NULL OR alert_direct = 1 ORDER BY call")]
+    return rows(db.execute("SELECT call, path, rf_only, alert_on_air, alert_within_km, alert_direct FROM station_pref "
+                           "WHERE path IS NOT NULL OR rf_only = 1 OR alert_on_air = 1 OR alert_within_km IS NOT NULL OR alert_direct = 1 ORDER BY call"))
 
 
 def save_pref(db: sqlite3.Connection, call: str, path: str | None, rf_only: bool, alert: tuple[bool, int | None, bool], stamp: str) -> None:
@@ -95,9 +94,9 @@ def clear_chain(db: sqlite3.Connection, number: int) -> None:
 
 def all_attempts(db: sqlite3.Connection) -> list[Row]:
     """(message_id, attempt, sent_at, path) of every attempt, in order."""
-    return [tuple(r) for r in db.execute("SELECT message_id, attempt, sent_at, path FROM message_attempt ORDER BY message_id, attempt")]
+    return rows(db.execute("SELECT message_id, attempt, sent_at, path FROM message_attempt ORDER BY message_id, attempt"))
 
 
 def all_hops(db: sqlite3.Connection) -> list[Row]:
     """(message_id, attempt, position, call, heard_at, via_internet) of every hop heard, in order."""
-    return [tuple(r) for r in db.execute("SELECT message_id, attempt, position, call, heard_at, via_internet FROM message_hop ORDER BY message_id, attempt, position, via_internet")]
+    return rows(db.execute("SELECT message_id, attempt, position, call, heard_at, via_internet FROM message_hop ORDER BY message_id, attempt, position, via_internet"))

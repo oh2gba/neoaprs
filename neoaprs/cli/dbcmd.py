@@ -3,7 +3,7 @@ seconds for it.
 
     neoaprs db list                      every setting with its value and whether it is stored or the default
     neoaprs db get station/call          one setting
-    neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it; the daemon reads settings at its start (or when the page saves them)
+    neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it against the settings stored; the daemon reads settings at its start (or when the page saves them)
     neoaprs db stations                  the stations the daemon knows: call, kind, last heard, position, packets
     neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the parser made of it
 
@@ -37,13 +37,19 @@ def parse(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", default=str(default_data_dir()), help="the data folder (default %(default)s)")
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
-    commands.add_parser("list", help="every setting")
-    commands.add_parser("get", help="one setting").add_argument("key")
-    setter = commands.add_parser("set", help="change a setting")
+
+    def command(name: str, help: str) -> argparse.ArgumentParser:
+        sub = commands.add_parser(name, help=help)
+        sub.add_argument("--data", default=argparse.SUPPRESS, help="the data folder, as given before the command (the subcommand takes it too)")          # (no default of its own: it would put the default over the one given before the command)
+        return sub
+
+    command("list", "every setting")
+    command("get", "one setting").add_argument("key")
+    setter = command("set", "change a setting")
     setter.add_argument("key")
     setter.add_argument("value")
-    commands.add_parser("stations", help="the stations the daemon knows")
-    packets = commands.add_parser("packets", help="the latest packets")
+    command("stations", "the stations the daemon knows")
+    packets = command("packets", "the latest packets")
     packets.add_argument("-n", type=int, default=20, help="how many (default 20)")
     return parser.parse_args(argv)
 
@@ -94,6 +100,20 @@ async def show_packets(log: Any, count: int) -> int:
     return 0
 
 
+async def store_setting(store: Store, key: str, value: str, text: str) -> int:
+    """`set`: the value `text` (`value` as the setting keeps it) stored when it goes with the settings stored, by the rules between settings that a save of the page applies; the exit code."""
+    try:
+        Config.checked(Config.from_data(await store.settings()), {key: value})
+    except ValueError as e:
+        say(f"{PROG}: {e}")
+        return 2
+    if not await store.put_setting(key, text):
+        say(f"{PROG}: {key} could not be stored")
+        return 1
+    print(f"{key} = {text}")
+    return 0
+
+
 async def run(args: argparse.Namespace) -> int:
     path = Path(args.data).expanduser() / DB_NAME
     writing = args.command == "set"
@@ -103,7 +123,11 @@ async def run(args: argparse.Namespace) -> int:
         except ValueError as e:
             say(f"{PROG}: {e}")
             return 2
-        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            say(f"{PROG}: the data folder {path.parent} cannot be made or used: {e.strerror or e}")
+            return 1
     elif not path.is_file():
         say(f"{PROG}: there is no database at {path} (has the daemon run? --data DIR)")
         return 1
@@ -122,11 +146,7 @@ async def run(args: argparse.Namespace) -> int:
             say(f"{PROG}: {path} is of version {version}, this NeoAPRS needs {SCHEMA_VERSION}: start the daemon once, it migrates the file")
             return 1
         if writing:
-            if not await store.put_setting(args.key, text):
-                say(f"{PROG}: {args.key} could not be stored")
-                return 1
-            print(f"{args.key} = {text}")
-            return 0
+            return await store_setting(store, args.key, args.value, text)
         if args.command in ("list", "get"):
             return await show_settings(store, args.key if args.command == "get" else None)
         if args.command == "stations":

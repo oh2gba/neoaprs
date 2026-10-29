@@ -3,6 +3,7 @@ a frame is held to a cap, and here the outgoing check against neoaprs/web/protoc
 """
 import json
 import logging
+import math
 import os
 from collections import Counter
 from typing import Any
@@ -22,6 +23,7 @@ MAX_MESSAGE = 16 * MEGABYTE        # the largest message sent to one page, whole
 # Every message that did not match neoaprs/web/protocol.py, when outgoing validation is on. The tests look at it after each test: a signal handler that raises is only logged by the Signal, the list is
 # what cannot be missed.
 VIOLATIONS: list[str] = []
+NOT_FINITE_SEEN: set[str] = set()      # the kinds of message that had a number that is not finite, each told once
 SEEN: Counter[str] = Counter()          # per message type: how many were checked and found right (the contract tests read it)
 
 
@@ -29,9 +31,29 @@ class ProtocolViolation(Exception):
     """A message the daemon was about to send does not match neoaprs/web/protocol.py."""
 
 
+def _finite(value: Any) -> Any:
+    """The value with every number that JSON has no word for (NaN, infinity) as null."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _finite(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite(item) for item in value]
+    return value
+
+
 def encode(message: dict[str, Any]) -> str:
-    """The frame: compact JSON, what JSON cannot hold written as text."""
-    return json.dumps(message, separators=(",", ":"), default=str)
+    """The frame: compact JSON, what JSON cannot hold written as text. A number that is not finite is `NaN` or `Infinity` in the default JSON, which a browser's JSON.parse refuses and drops the whole frame
+    for; it goes out as null, with one line in the log for each kind of message (a part that makes one has a fault)."""
+    try:
+        return json.dumps(message, separators=(",", ":"), default=str, allow_nan=False)
+    except ValueError:
+        pass
+    kind = f"{message.get('type', '?')} {message.get('topic', '')}".strip()
+    if kind not in NOT_FINITE_SEEN:
+        NOT_FINITE_SEEN.add(kind)
+        log.warning("a %s message holds a number that is not finite (NaN or infinity): it is sent as null (reported once for each kind)", kind)
+    return json.dumps(_finite(message), separators=(",", ":"), default=str, allow_nan=False)
 
 
 def _type_of(text: str) -> str:

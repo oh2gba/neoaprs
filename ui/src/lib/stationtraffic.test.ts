@@ -2,7 +2,7 @@
 // query held to the daemon's rule (lib/query.ts).
 import { describe, expect, it } from "vitest";
 import { customQuery } from "@/lib/query";
-import { ANSWER_WAIT_MS, answers, isTrafficOf, mergeTraffic, nextDeadline, queryOf, queryState, TRAFFIC_SHOWN } from "@/lib/stationtraffic";
+import { ANSWER_WAIT_MS, answers, isTrafficOf, mergeTraffic, nextDeadline, queryAsked, queryState, TRAFFIC_SHOWN } from "@/lib/stationtraffic";
 import { NOW, packet, packetAt as at, sentMessage as msg } from "@/test/fixtures";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -44,17 +44,17 @@ describe("the traffic of a station", () => {
 
 describe("a directed query of ours in the traffic", () => {
   it("is a message of ours to the station with no id whose text begins with ?", () => {
-    expect(queryOf(msg(1, "OH2GBA", "OH2RDG", "?aprsp", 0), "OH2RDG")).toBe("?APRSP");
+    expect(queryAsked(msg(1, "OH2GBA", "OH2RDG", "?aprsp", 0), "OH2RDG")).toBe("?APRSP");
     expect(
-      queryOf(
+      queryAsked(
         msg(1, "OH2GBA", "OH2RDG", "?APRSP", 0, {
           decoded: { type: "message", addressee: "OH2RDG", text: "?APRSP", msg_id: "01", ack_id: null, rej_id: null },
         }),
         "OH2RDG",
       ),
     ).toBeNull();
-    expect(queryOf(msg(1, "OH2GBA", "OH2RDG", "hello", 0), "OH2RDG")).toBeNull();
-    expect(queryOf(msg(1, "OH2XYZ", "OH2RDG", "?APRSP", 0), "OH2RDG")).toBeNull();
+    expect(queryAsked(msg(1, "OH2GBA", "OH2RDG", "hello", 0), "OH2RDG")).toBeNull();
+    expect(queryAsked(msg(1, "OH2XYZ", "OH2RDG", "?APRSP", 0), "OH2RDG")).toBeNull();
   });
 
   it.each([

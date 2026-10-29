@@ -7,7 +7,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from neoaprs.units import FOOT_M, MILE_KM
+from neoaprs.units import FOOT_M, MILE_KM, base91
 
 _PHG = re.compile(r"PHG(\d)([0-~])(\d)(\d)(?:[0-9A-Z]/)?")              # APRS 1.2 adds an optional digit (A = 10) and a mandatory "/" for the beacons an hour of a "probe" (`PHG72604/`): read past, not kept
 _RNG = re.compile(r"RNG(\d{4})")
@@ -15,8 +15,9 @@ _DFS = re.compile(r"DFS(\d)([0-~])(\d)(\d)")
 _BEARING = re.compile(r"/(\d{3})/(\d)(\d)(\d)")
 _AREA = re.compile(r"(\d)(\d\d)([/1])(\d)(\d\d)")
 _SIGN = re.compile(r"\{([^{}]{1,3})\}")
+_LINE_DOWN_LEFT = 6                                 # the area type whose line runs down and to the left, where the type 1 line runs down and to the right
 _AREA_SCALE = 1500                                 # an offset is sent as the square root of the degrees times this (APRS 1.1 areaobjects.txt; the 1.0.1 text said 100, which no program uses)
-_SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "coloured line", "filled ellipse", "filled triangle", "filled box")
+_SHAPES = ("open circle", "line", "open ellipse", "open triangle", "open box", "filled circle", "line down-left", "filled ellipse", "filled triangle", "filled box")
 _COLOURS = ("black", "blue", "green", "cyan", "red", "violet", "yellow", "gray", "dim black", "dim blue", "dim green", "dim cyan", "dim red", "dim violet", "dim yellow", "dim gray")
 
 
@@ -50,7 +51,7 @@ class DfBearing:
 
 @dataclass(frozen=True, slots=True)
 class Area:
-    """An area object (symbol `\\l`): the shape, the colour and the offsets down and to the right (degrees) from the object's position, which is its upper left corner; `710/310` is 4 minutes each way."""
+    """An area object (symbol `\\l`): the shape, the colour and the offsets down and to the right (degrees; the longitude offset of the line down-left is negative) from the object's position, which is its upper left corner (the upper right one of the line down-left); `710/310` is 4 minutes each way."""
     shape: str
     colour: str
     lat_offset_deg: float
@@ -88,7 +89,8 @@ def _phg(found: re.Match[str]) -> Phg:
 def _area(found: re.Match[str]) -> Area:
     shape, lat, tens, colour, lon = int(found.group(1)), int(found.group(2)), found.group(3), int(found.group(4)), int(found.group(5))
     index = colour + (10 if tens == "1" else 0)
-    return Area(_SHAPES[shape], _COLOURS[index] if index < len(_COLOURS) else "unknown", lat * lat / _AREA_SCALE, lon * lon / _AREA_SCALE)
+    lon_offset = lon * lon / _AREA_SCALE
+    return Area(_SHAPES[shape], _COLOURS[index] if index < len(_COLOURS) else "unknown", lat * lat / _AREA_SCALE, -lon_offset if shape == _LINE_DOWN_LEFT else lon_offset)
 
 
 def split_extension(text: str, area: bool) -> tuple[Extensions | None, str]:
@@ -148,11 +150,11 @@ def extension_lines(ext: Extensions) -> list[str]:
 _DAO = re.compile(r"!([A-Z])([\d ])([\d ])!|!([a-z])([!-{ ])([!-{ ])!")
 
 
-def _dao_minutes(char: str, base91: bool) -> float:
+def _dao_minutes(char: str, is_base91: bool) -> float:
     """The minutes one byte of `!DAO!` adds: a digit of thousandths of a minute, or a base-91 value of 0 to 90 for 0 to 0.0099 minutes (the two digits after the thousandths, divided by 1.1); a blank adds none."""
     if char == " ":
         return 0.0
-    return (ord(char) - 33) * 1.1 / 10000 if base91 else int(char) / 1000
+    return base91(char.encode("ascii")) * 1.1 / 10000 if is_base91 else int(char) / 1000
 
 
 def split_dao(text: str) -> tuple[str, tuple[float, float] | None]:
@@ -162,9 +164,9 @@ def split_dao(text: str) -> tuple[str, tuple[float, float] | None]:
     if not found:
         return text, None
     last = found[-1]
-    base91 = last.group(4) is not None
-    lat, lon = (last.group(5), last.group(6)) if base91 else (last.group(2), last.group(3))
-    return _DAO.sub("", text).strip(), (_dao_minutes(lat, base91), _dao_minutes(lon, base91))
+    is_base91 = last.group(4) is not None
+    lat, lon = (last.group(5), last.group(6)) if is_base91 else (last.group(2), last.group(3))
+    return _DAO.sub("", text).strip(), (_dao_minutes(lat, is_base91), _dao_minutes(lon, is_base91))
 
 
 def with_dao(lat: float, lon: float, extra: tuple[float, float] | None) -> tuple[float, float]:

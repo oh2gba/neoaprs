@@ -22,12 +22,12 @@ export interface Scan {
   fresh: MessageRow[];
 }
 
-/** The messages to us that were not there before (ids above the mark), and the new mark: the highest id of any row, whoever it is for. The first scan alerts nothing: what the page loaded with is not new. */
+/** The messages to us that were not there before (ids above the mark), and the new mark: the highest id of any row, whoever it is for. The first scan alerts nothing: what the page loaded with is not new. Rows whose highest id is below the mark are a database that was restored or reset: they are the new baseline, so that the messages after them are not taken for seen. */
 export function scan(rows: Iterable<MessageRow>, mark: number | null): Scan {
   const all = [...rows];
-  const top = all.reduce((most, row) => Math.max(most, row.id), mark ?? 0);
-  if (mark === null) return { mark: top, fresh: [] };
-  return { mark: top, fresh: all.filter((row) => row.id > mark && isForUs(row)).sort((a, b) => a.id - b.id) };
+  const top = all.reduce((most, row) => Math.max(most, row.id), 0);
+  if (mark === null || (all.length > 0 && top < mark)) return { mark: top, fresh: [] };
+  return { mark: Math.max(top, mark), fresh: all.filter((row) => row.id > mark && isForUs(row)).sort((a, b) => a.id - b.id) };
 }
 
 /** The title of the notification. */

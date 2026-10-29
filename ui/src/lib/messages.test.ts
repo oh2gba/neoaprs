@@ -13,6 +13,7 @@ import {
   isHighlighted,
   markOf,
   isOverheard,
+  newestIncomingByCall,
   newestIncomingId,
   peerOf,
   replyTo,
@@ -106,6 +107,20 @@ describe("messages: a thread", () => {
   it("knows the newest message that came in", () => {
     expect(newestIncomingId([message(9), incoming(5, "A"), incoming(3, "A")])).toBe(5);
     expect(newestIncomingId([message(9)])).toBe(0);
+  });
+
+  it("knows the newest message that came in from each station", () => {
+    const newest = newestIncomingByCall([
+      message(9, { to_call: "OH2RDG" }),
+      incoming(5, "A"),
+      incoming(3, "A"),
+      incoming(4, "B"),
+      incoming(8, "B", { state: "overheard", to_call: "C" }),
+    ]);
+    expect([...newest]).toEqual([
+      ["A", 5],
+      ["B", 4],
+    ]);
   });
 });
 

@@ -3,6 +3,7 @@
 // at its last; between two positions that are near in time it is moved along the line between them, as far as the time has gone, so that a moving station drives and does not hop; across a longer gap (it was not
 // heard for a while) it waits where it was and jumps. The spans are the hours of the Stations tab's On map for and then days, up to the week the daemon keeps.
 import { t } from "@/i18n";
+import { pad2 } from "@/lib/format";
 import { fadingLines, type TrackCollection } from "@/lib/tracks";
 import { STATION_HOURS, trailOpacity } from "@/lib/aging";
 import { LIMITS } from "@/protocol/lists";
@@ -13,7 +14,7 @@ import type { PositionHistoryMessage } from "@/protocol/protocol";
 export const REPLAY_SPEEDS: readonly number[] = [60, 300, 900, 3600];
 export const DEFAULT_SPEED = 300;
 /** The span the bar asks for when it opens, the default of the Stations tab's On map for. */
-export const DEFAULT_HOURS = 3;
+export const DEFAULT_HOURS: number = LIMITS.station.defaultHours;
 /** The spans of the bar in hours: those of On map for, then the days of the daemon (SPAN_DAYS of neoaprs/web/replaywire.py: 2, 3 and the 7 its packet log keeps). */
 export const REPLAY_SPANS: readonly number[] = [...STATION_HOURS, ...LIMITS.replay.days.map((days) => days * 24)];
 
@@ -110,13 +111,12 @@ export function trailLines(data: ReplayData, t: number): TrackCollection {
   return { type: "FeatureCollection", features };
 }
 
-const pad = (n: number): string => String(n).padStart(2, "0");
 /** The clock while there is no span to play (the answer has not come). */
 export const CLOCK_NONE = "--:--:--";
 
 /** The clock of the bar, in the viewer's time: HH:MM:SS, with the date (MM-DD) before it when the span crosses midnight, so that the hours of two days are told apart. */
 export function replayClock(t: number, start: number, end: number): string {
   const d = new Date(t);
-  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  return new Date(start).toDateString() === new Date(end).toDateString() ? time : `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`;
+  const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  return new Date(start).toDateString() === new Date(end).toDateString() ? time : `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${time}`;
 }

@@ -12,11 +12,10 @@ from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
+from neoaprs.services.pace import SPACING_SEC
 from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.sender")
-
-SPACING_SEC = 10.0
 
 
 class SendError(ValueError):

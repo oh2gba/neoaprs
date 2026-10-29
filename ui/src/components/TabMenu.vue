@@ -45,7 +45,7 @@ function buttonKey(event: KeyboardEvent): void {
   event.preventDefault();
   void show(event.key === "ArrowDown" ? 0 : props.tabs.length - 1);
 }
-const popup = usePopup({ open, root, trigger: button, close: () => close(false), focusAway: false, stopEscape: true });
+const popup = usePopup({ open, root, trigger: button, close: () => close(false), focusAway: false, stopEscape: true, escapeAnywhere: true });
 function menuKey(event: KeyboardEvent): void {
   const at = items.value.findIndex((item) => item === document.activeElement);
   const step: Record<string, () => void> = {

@@ -115,6 +115,7 @@ class StateHub:
         peer = self._peers.get(link)
         if peer is None:
             return []
+        names = list(dict.fromkeys(names))                        # (each once, in the order given: a name repeated is not sent again)
         unknown = [n for n in names if n not in self.topics]
         for name in names:
             if name in self.topics:

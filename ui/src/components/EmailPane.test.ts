@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EmailPane from "@/components/EmailPane.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
@@ -85,7 +86,7 @@ describe("EmailPane: the box to write in", () => {
   it("suggests the addresses used before and passes up a forgotten one", async () => {
     const wrapper = pane({ addresses: ["carl@example.net", "jane@example.com"] });
     await wrapper.find("#mail-to").trigger("focus");
-    expect(wrapper.findAll(".suggestion").map((li) => li.text())).toEqual(["carl@example.net", "jane@example.com"]);
+    expect(wrapper.findAll(".suggestion").map((li) => shown(li))).toEqual(["carl@example.net", "jane@example.com"]);
     await wrapper.find(".suggestion .xbtn").trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["carl@example.net"]]);
     wrapper.unmount();
@@ -273,7 +274,7 @@ describe("EmailPane: unread rows and the actions on a row", () => {
     expect(wrapper.emitted("delete")).toBeUndefined();
     vi.advanceTimersByTime(5000);
     await wrapper.vm.$nextTick();
-    expect(can()?.text()).toBe("");
+    expect(shown(can())).toBe("");
     await can()?.trigger("click");
     await can()?.trigger("click");
     expect(wrapper.emitted("delete")).toEqual([[1]]);

@@ -657,6 +657,19 @@ def test_a_station_that_transmits_under_the_name_of_an_object_heard_is_the_stati
     assert book.take(packet(ObjectReport("OH2RCH-2", True, position(60.3, 25.0)), source="OH2CLB", at=T0 + timedelta(minutes=2))) is None and book.get("OH2RCH-2") is station
 
 
+def test_a_station_that_beacons_under_the_name_of_an_object_of_ours_leaves_ours_alone_and_is_not_recorded() -> None:
+    book = StationBook(lambda: T0)
+    heard = Heard(book)
+    book.set_me("OH2GBA", 60.17, 24.94)
+    mine = book.own_object(OwnObject("OH2XYZ", "object", 61.0, 25.0, "/", "-", created_at=T0, updated_at=T0))
+    assert mine is not None
+    heard.changed.clear()
+    assert book.take(packet(position(10.0, 11.0), source="OH2XYZ", at=T0 + timedelta(minutes=1))) is None
+    assert book.get("OH2XYZ") is mine and mine.own and mine.kind == "object" and (mine.lat, mine.lon) == (61.0, 25.0) and mine.reported_by == "OH2GBA" and mine.packets == 0 and heard.changed == []
+    assert book.take(packet(ObjectReport("OH2XYZ", False, position()), source="OH2AAA", at=T0 + timedelta(minutes=2))) is None, "another station's kill of the name does not end ours either"
+    assert book.get("OH2XYZ") is mine and (mine.lat, mine.lon) == (61.0, 25.0) and heard.removed == []
+
+
 def test_an_object_or_a_kill_under_our_own_call_leaves_our_station_alone() -> None:
     book = StationBook(lambda: T0)
     heard = Heard(book)

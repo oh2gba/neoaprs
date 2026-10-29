@@ -9,6 +9,7 @@
 // Several cards can be open (Ctrl+click, components/StationCards.vue), side by side: each is this whole card, as when it is alone. Forget (the trash can, "Forget OH2XYZ") takes it out of the station book (it is back when it is heard again); it asks twice ("sure?"), and forgets the first click after 5 s like the other buttons that ask twice (`useSure`). An object or an item of ours has "Edit" (the Objects tab opens with it) and "Kill" (it asks twice, too) in place of "Message" and "Forget", and none of the fields of a station that is heard.
 import { computed, watch } from "vue";
 import AlertBell from "@/components/AlertBell.vue";
+import TwoWords from "@/components/TwoWords.vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -115,7 +116,7 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
 
 <template>
   <section class="card" :aria-label="t('station.card.label')">
-    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined" @contextmenu="copy.on.value.contextmenu">
+    <header class="card-head" :title="movable ? t('station.card.drag_title') : undefined" v-on="copy.on.value">
       <SymbolIcon :table="row.symbol_table" :code="row.symbol_code" :size="32" />
       <div class="card-title">
         <span class="card-call">
@@ -208,7 +209,10 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
     <footer v-if="row.own" class="card-foot">
       <button class="btn primary" type="button" @click="emit('edit', row.call)">{{ t("station.card.edit") }}</button>
       <button class="btn forget" :class="{ danger: armed }" type="button" @click="kill">
-        {{ armed ? t("station.card.kill_sure") : t("station.card.kill") }}
+        <TwoWords :second="armed">
+          <template #first>{{ t("station.card.kill") }}</template>
+          <template #second>{{ t("station.card.kill_sure") }}</template>
+        </TwoWords>
       </button>
     </footer>
     <footer v-else-if="canForget(row)" class="card-foot">

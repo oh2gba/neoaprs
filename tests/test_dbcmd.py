@@ -87,6 +87,17 @@ def test_a_value_the_database_will_not_take_is_told_and_exit_1(data: Path, monke
     assert "station/call could not be stored" in capsys.readouterr().err
 
 
+def test_set_applies_the_rules_between_settings_against_the_stored_ones_as_a_save_of_the_page_does(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert db("set", "serial/port", "/dev/ttyUSB0", data=data) == 0
+    capsys.readouterr()
+    assert db("set", "tnc/profile", "kiss-tcp", data=data) == 2, "a TCP profile and a serial port do not go together"
+    assert "serial/port" in capsys.readouterr().err
+    assert db("get", "tnc/profile", data=data) == 0 and capsys.readouterr().out.strip() != "kiss-tcp", "and nothing was stored"
+    assert db("set", "status/source", "rig", data=data) == 2, "the radio as the source of the status needs status/rigctld"
+    assert "status/rigctld" in capsys.readouterr().err
+    assert db("set", "serial/port", "", data=data) == 0 and db("set", "tnc/profile", "kiss-tcp", data=data) == 0, "once the port is clear the profile is taken"
+
+
 def test_a_database_error_while_reading_is_told_not_raised(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     async def broken(store: object, only: str | None) -> int:
         raise SqlError("disk I/O error")
@@ -101,3 +112,18 @@ def test_ctrl_c_ends_the_command_with_130(monkeypatch: pytest.MonkeyPatch) -> No
         raise KeyboardInterrupt
     monkeypatch.setattr(asyncio, "run", interrupted)
     assert dbcmd.main(["list"]) == 130
+
+
+def test_the_data_folder_may_be_given_after_the_command_and_a_folder_that_cannot_be_made_is_one_sentence(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    folder = tmp_path / "after"
+    assert dbcmd.main(["set", "--data", str(folder), "station/call", "oh2gba"]) == 0
+    capsys.readouterr()
+    assert dbcmd.main(["get", "--data", str(folder), "station/call"]) == 0
+    assert dbcmd.main(["--data", str(tmp_path / "unused"), "get", "--data", str(folder), "station/call"]) == 0, "(the one after the command is the one that counts)"
+    assert capsys.readouterr().out.splitlines() == ["OH2GBA", "OH2GBA"]
+    afile = tmp_path / "afile"
+    afile.write_text("not a folder")
+    capsys.readouterr()
+    assert db("set", "station/call", "oh2gba", data=afile / "inside") == 1
+    err = capsys.readouterr().err
+    assert "cannot be made or used" in err and "Traceback" not in err

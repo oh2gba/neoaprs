@@ -4,17 +4,20 @@ working. This is how the fixtures of the tests (tests/fixtures) are made from a 
     neoaprs capture OUT                                  probe the USB serial ports (Linux), record 60 seconds
     neoaprs capture --port COM3 --seconds 300 OUT        a port you name: /dev/ttyUSB0, COM3, socket://127.0.0.1:8001
 
-Without --port every port of the default serial/pattern (/dev/serial/by-id/*, /dev/ttyUSB*, /dev/ttyACM*) is listened to for up to 20 seconds and the first that delivers a complete KISS frame is used (a quiet
+Without --port every port of the default serial/pattern (/dev/serial/by-id/*, /dev/ttyUSB*, /dev/ttyACM*) is listened to for up to 20 seconds and the first that delivers a KISS frame with an AX.25 packet in it is used (a quiet
 band may need --port; on Windows and macOS the port is always named). The daemon must not be running: the port is opened exclusively. OUT is not overwritten without --force. Stop early with Ctrl-C:
 what came is kept."""
 import argparse
 import asyncio
+import os
 from pathlib import Path
 from typing import BinaryIO
 
 from neoaprs.kiss import KissDecoder
 from neoaprs.serialport import SerialError, SerialPort
+from neoaprs.source import os_error_text
 from neoaprs.serialprobe import can_search, probe, search_pattern, searchable_ports
+from neoaprs.tncmode import looks_valid
 
 from .output import ctrl_break_is_ctrl_c, say
 
@@ -40,7 +43,7 @@ async def find_port(baud: int) -> str | None:
         say("capture: no USB serial port to look at here; give the port with --port (COM3, /dev/ttyUSB0, socket://127.0.0.1:8001)")
         return None
     say(f"capture: listening for a KISS frame on {', '.join(paths)} ({PROBE_SECONDS:.0f} s each)")
-    found = await probe(paths, baud, PROBE_SECONDS, lambda data: bool(KissDecoder().feed(data)))
+    found = await probe(paths, baud, PROBE_SECONDS, lambda data: looks_valid(data, False))
     if found is None:
         say("capture: no port delivered a KISS frame; is the radio in KISS mode and hearing anything? try --port")
     return found
@@ -76,20 +79,35 @@ async def record(path: str, baud: int, seconds: float, out_path: str) -> int:
     except SerialError as e:
         say(f"capture: {e}")
         return 1
-    with open(out_path, "wb") as handle:              # after the port opened, so that a failure leaves no empty file behind
-        sink.append(handle)
-        say(f"capture: reading {path} at {baud} baud for {seconds:g} s (Ctrl-C ends it early)")
-        try:
-            await asyncio.wait_for(stopped.wait(), seconds)
-        except TimeoutError:
-            pass
-        finally:
-            port.close()
+    try:
+        with open(out_path, "wb") as handle:          # after the port opened, so that a failure of the port leaves no empty file behind
+            sink.append(handle)
+            say(f"capture: reading {path} at {baud} baud for {seconds:g} s (Ctrl-C ends it early)")
+            try:
+                await asyncio.wait_for(stopped.wait(), seconds)
+            except TimeoutError:
+                pass
+    except OSError as e:
+        say(f"capture: {out_path}: {os_error_text(e)}")
+        exit_code = 1
+    finally:
+        port.close()
     say(f"capture: {totals['bytes']} bytes, {totals['frames']} KISS frames, {decoder.dropped} dropped")
     return exit_code
 
 
+def cannot_write(out_path: str) -> str:
+    """Why OUT cannot be written, else an empty string: its folder is not there or not for writing."""
+    folder = Path(out_path).absolute().parent
+    if not folder.is_dir():
+        return f"{folder} is not a folder"
+    return "" if os.access(folder, os.W_OK) else f"{folder} cannot be written to"
+
+
 async def run(args: argparse.Namespace) -> int:
+    if problem := cannot_write(args.out):
+        say(f"capture: {args.out}: {problem}")
+        return 1
     path = args.port or await find_port(args.baud)
     if path is None:
         return 1

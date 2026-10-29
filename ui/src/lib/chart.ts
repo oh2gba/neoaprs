@@ -2,6 +2,7 @@
 // the page draws inline SVG in its own colours with no chart library. A point is a time in ms and a value, null where the station did not send one.
 
 import { weekdayShort } from "@/i18n";
+import { HOUR_MS, pad2 } from "@/lib/format";
 
 export interface Point {
   t: number;
@@ -19,8 +20,6 @@ interface TimeTick {
   at: number;
   label: string;
 }
-
-const HOUR = 3_600_000;
 
 /** The function that maps a value of `domain` to a place in `range` (the range may run backwards: the y axis of a screen); a domain of no width maps everything to the middle. */
 export function linearScale(domain: readonly [number, number], range: readonly [number, number]): (v: number) => number {
@@ -57,17 +56,15 @@ export function tickDecimals(step: number): number {
   return step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(step) - 1e-9));
 }
 
-const pad = (n: number): string => String(n).padStart(2, "0");
-
 /** Ticks on whole hours of the viewer's clock between two times, a step of 1, 2, 3, 6, 12 or 24 hours that gives at most seven; a day step is labelled with the day ("Mon 19"), the others with the hour ("06:00"). */
 export function timeTicks(from: number, to: number): TimeTick[] {
-  const stepHours = [1, 2, 3, 6, 12, 24].find((s) => (to - from) / (s * HOUR) <= 7.5) ?? 24;
+  const stepHours = [1, 2, 3, 6, 12, 24].find((s) => (to - from) / (s * HOUR_MS) <= 7.5) ?? 24;
   const d = new Date(from);
   d.setMinutes(0, 0, 0);
   d.setHours(stepHours >= 24 ? 0 : Math.floor(d.getHours() / stepHours) * stepHours);
   const ticks: TimeTick[] = [];
   for (let guard = 0; d.getTime() <= to && guard < 400; guard++) {
-    if (d.getTime() >= from) ticks.push({ at: d.getTime(), label: stepHours >= 24 ? `${weekdayShort(d)} ${d.getDate()}` : `${pad(d.getHours())}:00` });
+    if (d.getTime() >= from) ticks.push({ at: d.getTime(), label: stepHours >= 24 ? `${weekdayShort(d)} ${d.getDate()}` : `${pad2(d.getHours())}:00` });
     d.setHours(d.getHours() + stepHours);
   }
   return ticks;

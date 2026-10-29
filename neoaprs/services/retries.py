@@ -15,6 +15,7 @@ from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
 from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at
 from neoaprs.services.common import ConfigSource, Radio
+from neoaprs.tasks import every
 
 log = logging.getLogger("neoaprs.messaging")
 
@@ -73,12 +74,7 @@ class Retries:
         return False
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self._tick_sec())
-            try:
-                self.tick()
-            except Exception:
-                log.exception("the messaging tick failed")
+        await every(self._tick_sec, self.tick, "the messaging ticker")
 
     def tick(self) -> None:
         now = self._clock()

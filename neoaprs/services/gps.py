@@ -22,7 +22,7 @@ from neoaprs.policy import GPS_PLACE_EVERY_SEC, GPS_PLACE_MOVED_M, GPS_STALE_SEC
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.source import Source
-from neoaprs.tasks import TaskSet, cancel_all
+from neoaprs.tasks import TaskSet, cancel_all, every
 
 log = logging.getLogger("neoaprs.gps")
 
@@ -102,12 +102,7 @@ class Gps:
         self._announce()
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.tick_sec)
-            try:
-                self._announce()
-            except Exception:
-                log.exception("the GPS state could not be announced")                    # (the timer goes on)
+        await every(self.tick_sec, self._announce, "the GPS state announcement")
 
     # ---- what the feed says (connected by the composition root)
     def take(self, fix: Fix) -> None:

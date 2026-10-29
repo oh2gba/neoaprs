@@ -3,14 +3,13 @@
 A row is a tuple in the order of BULLETIN_COLUMNS; the codec between a row and a `BulletinRecord` is bulletinlog.py's. Nothing here begins or commits a transaction."""
 import sqlite3
 from collections.abc import Sequence
-from typing import Any
+
+from .dberror import Row as Row, rows
 
 BULLETIN_COLUMNS = ("sender", "slot", "group_name", "text", "first_heard", "last_heard", "times_heard")
 _LIST = ", ".join(BULLETIN_COLUMNS)
 _PLACES = ", ".join("?" * len(BULLETIN_COLUMNS))
 _UPDATE = ", ".join(f"{c} = excluded.{c}" for c in BULLETIN_COLUMNS[2:])
-
-Row = tuple[Any, ...]
 
 
 def save_bulletin(db: sqlite3.Connection, row: Sequence[object]) -> None:
@@ -25,4 +24,4 @@ def delete_bulletin(db: sqlite3.Connection, sender: str, slot: str) -> int:
 
 def all_bulletins(db: sqlite3.Connection) -> list[Row]:
     """Every bulletin, the one heard last first."""
-    return [tuple(r) for r in db.execute(f"SELECT {_LIST} FROM bulletin ORDER BY last_heard DESC, sender, slot")]
+    return rows(db.execute(f"SELECT {_LIST} FROM bulletin ORDER BY last_heard DESC, sender, slot"))

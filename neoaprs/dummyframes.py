@@ -7,9 +7,10 @@ from neoaprs import ax25
 from neoaprs.aprsmessage import format_ack, format_message
 from neoaprs.aprsmiceout import mice_packet
 from neoaprs.aprsposition import compressed_position, uncompressed_position
-from neoaprs.units import KNOT_KMH
+from neoaprs.route import WIDE_PATH
+from neoaprs.units import INCH_MM, KNOT_KMH, MILE_KM
 
-PATH = "WIDE1-1,WIDE2-1"                    # what a mobile asks for: the nearest fill-in digipeater, then a wide one
+PATH = WIDE_PATH                            # what a mobile asks for: the nearest fill-in digipeater, then a wide one
 
 
 def address(text: str) -> ax25.Address:
@@ -58,10 +59,10 @@ def mice(lat: float, lon: float, symbol: str, comment: str, course: int, speed_k
 def weather(lat: float, lon: float, comment: str, direction: int, wind_kmh: float, gust_kmh: float, temp_c: float, rain_hour_mm: float, rain_day_mm: float, humidity: int, hpa: float) -> bytes:
     """A weather station's position with the weather symbol and its fields: wind in miles an hour, temperature in degrees F, rain in hundredths of an inch, pressure in tenths of a hPa."""
     def mph(kmh: float) -> int:
-        return round(kmh / 1.609344)
+        return round(kmh / MILE_KM)
 
     def hundredths(mm: float) -> int:
-        return round(mm / 0.254)
+        return round(mm / (INCH_MM / 100))
 
     f = round(temp_c * 9 / 5 + 32)
     temp = f"t{f:03d}" if f >= 0 else f"t-{-f:02d}"

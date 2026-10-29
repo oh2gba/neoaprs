@@ -120,3 +120,22 @@ def test_a_long_comment_is_cut_to_the_forty_characters_a_compressed_report_may_h
 def test_the_altitude_and_the_comment_read_back() -> None:
     p = decoded(compressed_position(60.43, 24.145, "/", ">", 270, 54.0) + compressed_comment(31.4, "NeoAPRS mobile").encode())
     assert p.altitude_m == pytest.approx(31.4, abs=FOOT_M) and p.comment == "NeoAPRS mobile" and p.compressed
+
+
+@pytest.mark.parametrize("cs", [b"!\x01", b"\x10!", b"\x1f\x1f", b"!\x7f", b"\x7f!", b"|!", b"~!", b"!~", b"!\xff", b"\xff\xff"])
+def test_cs_bytes_that_are_not_base_91_digits_are_no_course_and_speed(cs: bytes) -> None:
+    p = decoded(b"/5L!!<*e7>" + cs + b"[")
+    assert (p.course_deg, p.speed_kmh, p.altitude_m, p.extensions) == (None, None, None, None)
+
+
+@pytest.mark.parametrize("cs", [b"!\x01", b"\x10!", b"!\x7f", b"\x7f!"])
+def test_cs_bytes_that_are_not_base_91_digits_are_no_altitude_and_no_wind_either(cs: bytes) -> None:
+    assert decoded(b"/5L!!<*e7>" + cs + b"\x35").altitude_m is None            # (T = 0x35: a GGA fix, cs is an altitude)
+    assert decoded(b"/5L!!<*e7_" + cs + b"[").weather is None
+
+
+def test_the_cs_digits_at_the_ends_of_their_range_are_read() -> None:
+    p = decoded(b"/5L!!<*e7>z![")                       # c = 89 (the last course step): 356 degrees; s = 0
+    assert (p.course_deg, p.speed_kmh) == (356, 0.0)
+    q = decoded(b"/5L!!<*e7>!{[")                       # c = 0, s = 90: north at the greatest speed that cs can hold
+    assert q.course_deg == 0 and q.speed_kmh == pytest.approx((1.08 ** 90 - 1) * KNOT_KMH)

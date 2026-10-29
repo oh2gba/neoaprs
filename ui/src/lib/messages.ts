@@ -125,6 +125,17 @@ export function newestIncomingId(rows: readonly MessageRow[]): number {
   return rows.reduce((most, r) => (r.state === "received" && r.id > most ? r.id : most), 0);
 }
 
+/** The highest id among the messages that were sent to us, by the station they came from. */
+export function newestIncomingByCall(rows: Iterable<MessageRow>): Map<string, number> {
+  const newest = new Map<string, number>();
+  for (const row of rows) {
+    if (row.state !== "received") continue;
+    const call = peerOf(row);
+    if (row.id > (newest.get(call) ?? 0)) newest.set(call, row.id);
+  }
+  return newest;
+}
+
 /** Which attempt a message that is being sent is at, of how many it was given when it was sent: "attempt 3 of 6". */
 export function attemptText(row: MessageRow): string {
   return t("messages.attempt", { attempt: row.attempts, max: row.attempts_max });

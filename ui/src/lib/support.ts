@@ -2,6 +2,7 @@
 // the file it answers with, the saving of it as a download and the e-mail that goes with it. The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
 import { endpoint } from "@/lib/access";
 import { pageBuild } from "@/lib/build";
+import { pad2 } from "@/lib/format";
 import { sizeOf, type SizeClass } from "@/lib/layout";
 import type { Connection } from "@/lib/hub";
 import type { PageErrorEntry } from "@/lib/pageerrors";
@@ -93,12 +94,10 @@ export type BundleProblem = "access" | "busy" | "unreachable" | "failed";
 
 export type Bundle = { ok: true; blob: Blob; filename: string } | { ok: false; problem: BundleProblem; status: number };
 
-const pad = (n: number): string => String(n).padStart(2, "0");
-
 /** The name the daemon gives (`neoaprs-support-CALL-YYYYmmdd-HHMMSSZ.zip`) when it did not say, made the same way from this browser's clock. */
 export function madeName(call: string | null, now: number): string {
   const d = new Date(now);
-  const stamp = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}-${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+  const stamp = `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}-${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
   return `neoaprs-support-${call ? `${call.replace(/[^\w-]/g, "")}-` : ""}${stamp}.zip`;
 }
 

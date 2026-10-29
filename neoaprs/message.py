@@ -16,6 +16,9 @@ from neoaprs.route import DIRECT_ONLY, rf_only_path
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 STATES: tuple[str, ...] = get_args(State)
+UNSETTLED: tuple[State, ...] = ("sending", "failed", "unconfirmed")            # our messages that no ack has settled: being sent, or ended without one
+ACK_SETTLES: tuple[State, ...] = (*UNSETTLED, "cancelled")                   # an ack or a rej that comes settles a message of ours in one of these states
+RETRYABLE: tuple[State, ...] = ("failed", "unconfirmed", "rejected", "cancelled")   # the states from which the operator sends a message again
 
 STATION_ATTEMPTS = 4                            # how many times a message to a station is transmitted before it has failed; fixed, the operator does not choose it
 EMAIL_ATTEMPTS = 2                              # the email gateway's acks rarely reach us (they come back through an iGate), so a mail is sent twice and then left `unconfirmed`
@@ -29,11 +32,14 @@ MESSAGES_HELD_MAX = 10000                       # the daemon holds every message
 _ALNUM = string.digits + string.ascii_uppercase
 MSG_IDS: tuple[str, ...] = (*(f"{n:02d}" for n in range(1, 100)), *(a + b for a in string.ascii_uppercase for b in _ALNUM), *(d + c for d in string.digits for c in string.ascii_uppercase), "00")
 _ID_INDEX = {ident: n for n, ident in enumerate(MSG_IDS)}       # the ids we give: 01..99, A0..ZZ, 0A..9Z and 00, every two-character id once (1296), in the order they are used
-_QUERY = re.compile(r"\?(APRS[DHMOPST]?|IGATE|WX|PING)(\?.*|\s.*)?$", re.IGNORECASE)
+QUERY_TEXT: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "directs": "?APRSD", "path": "?APRST", "objects": "?APRSO", "messages": "?APRSM", "heard": "?APRSH",
+                              "ping": "?PING?", "aprs": "?APRS?", "igate": "?IGATE?", "wx": "?WX?"}
+"""The queries of the specification (APRS 1.0.1 ch. 15) that we know, by what each asks for: the one list the others take from (the page's queries below, the answers of services/queries.py, the asking of services/generalask.py, `is_query`)."""
+_QUERY = re.compile(r"\?(?:" + "|".join(sorted((t.strip("?") for t in QUERY_TEXT.values()), key=len, reverse=True)) + r")(\?.*|\s.*)?$", re.IGNORECASE)
 TELEMETRY_DEFINITIONS = ("PARM.", "UNIT.", "EQNS.", "BITS.")
 
 
-QUERIES: dict[str, str] = {"position": "?APRSP", "status": "?APRSS", "heard": "?APRSD", "trace": "?APRST", "weather": "?WX?"}     # the directed queries the page can send (APRS 1.0.1 ch. 15; `?WX?` is a general query there, asked of one station all the same), by kind: the text of the message
+QUERIES: dict[str, str] = {"position": QUERY_TEXT["position"], "status": QUERY_TEXT["status"], "heard": QUERY_TEXT["directs"], "trace": QUERY_TEXT["path"], "weather": QUERY_TEXT["wx"]}     # the directed queries the page can send (APRS 1.0.1 ch. 15; `?WX?` is a general query there, asked of one station all the same), by kind: the text of the message
 QUERY_EVERY_SEC = 60                            # one query of a kind to a station in this time; the same question again sooner is refused
 
 

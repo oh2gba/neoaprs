@@ -7,7 +7,6 @@ import {
   fieldsFrom,
   isDummy,
   KEY_OF,
-  profileOf,
   setupChanges,
   stepOk,
   stepProblems,
@@ -17,6 +16,7 @@ import {
   type SetupFields,
 } from "@/lib/setup";
 import { onEarth, parseNumber } from "@/lib/fieldcheck";
+import { profileOf } from "@/lib/tncprofile";
 
 export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref<boolean | null>) {
   const fields = reactive<SetupFields>(fieldsFrom({}));

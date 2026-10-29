@@ -12,7 +12,8 @@ from types import ModuleType
 
 from neoaprs.paths import default_data_dir
 
-from .daemonstate import LOG_NAME, tail
+from .daemonstate import tail
+from .logfile import LOG_NAME
 
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/oh2gba/neoaprs"

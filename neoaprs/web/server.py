@@ -10,7 +10,6 @@ folder (`neoaprs/page/`, made by scripts/build-page, as it was when the daemon s
 Host name that is not ours (neoaprs/web/pagefiles.py); the socket and the map are refused to a device that has not logged in.
 """
 import asyncio
-import ipaddress
 import logging
 import re
 import socket
@@ -25,12 +24,13 @@ import tornado.web
 import tornado.websocket
 from tornado.iostream import IOStream
 
+from neoaprs.cli.logfile import PAGE_FORMAT, remove_page, write_page
 from neoaprs.config import Config
 from neoaprs.controller import Controller
 from neoaprs.worldmap import world_file
 
 from .access import Access, Login, NewKey, new_key
-from .addresses import lan_addresses
+from .addresses import as_address, lan_addresses
 from .api import Api
 from .connections import LimitedHTTPServer
 from .headers import host_name
@@ -88,11 +88,7 @@ class WebServer:
             return False
         if name in self._own_names:
             return True
-        try:
-            ipaddress.ip_address(name.split("%", 1)[0])
-        except ValueError:
-            return False
-        return True
+        return as_address(name) is not None
 
     def page_proved(self, stream: IOStream) -> None:
         """A socket that was let in as a page: the connection cap does not close it to make room for another."""
@@ -150,6 +146,7 @@ class WebServer:
         self._app = app
         await self.api.start()                      # (before the first page can come: the packets the database holds are in the window, the signals are connected)
         server = self._limited(None)
+        remove_page(self.controller.data_dir)                       # (what an earlier run left is over, whether this one has a page or not)
         failure = listen_near(server, self.address, c.web_port)
         if failure is not None:
             log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure)
@@ -158,11 +155,19 @@ class WebServer:
             return False
         self._server = server
         self.port = self.bound_port()
-        log.info("web page at %s", self.url())
+        log.info(PAGE_FORMAT, self.url())
+        self._tell_the_page()
         await self._follow_secure(quiet=True)
         self.api.tasks.spawn(self._watch_secure(), "web-https")
         self._say_reach()
         return True
+
+    def _tell_the_page(self) -> None:
+        """The page's address goes into the data folder, where a command finds it however long the log has grown since; the page goes on without it when the folder cannot be written."""
+        try:
+            write_page(self.controller.data_dir, self.url())
+        except OSError as e:
+            log.warning("the page's address could not be written into the data folder (%s); the commands look for it in the log", e)
 
     def _limited(self, context: ssl.SSLContext | None) -> LimitedHTTPServer:
         assert self._app is not None
@@ -257,6 +262,7 @@ class WebServer:
         return 0
 
     async def stop(self) -> None:
+        remove_page(self.controller.data_dir)
         await self.api.stop()
         # the sockets of the open tabs are closed with a reason; otherwise close_all_connections waits out its timeout
         for client in list(self.api.clients):
@@ -267,6 +273,6 @@ class WebServer:
             self._server.stop()
             try:
                 await asyncio.wait_for(self._server.close_all_connections(), 2.0)
-            except (asyncio.TimeoutError, Exception):
-                pass
+            except Exception as e:                                   # (a timeout too)
+                log.warning("the connections of the page did not end in time: %r", e)
             self._server = None

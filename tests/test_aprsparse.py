@@ -80,6 +80,14 @@ def test_an_exception_from_inside_is_undecoded_not_raised() -> None:
     assert isinstance(d, Undecoded)
 
 
+def test_an_overflow_from_inside_is_undecoded_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    def overflow(*args: object, **kwargs: object) -> object:
+        raise OverflowError("cannot convert float infinity to integer")
+    monkeypatch.setattr("neoaprs.aprsparse.parse_position", overflow)
+    d = parse(b"!4903.50N/07201.75W-", "A", "B", NOW)
+    assert isinstance(d, Undecoded) and "OverflowError" in d.error
+
+
 def test_messaging_follows_the_identifier() -> None:
     results = {chr(i): parse(i.to_bytes(1) + b"4903.50N/07201.75W-", "A", "B", NOW) for i in b"!=/@"}
     assert {k: isinstance(v, Position) and v.messaging for k, v in results.items()} == {"!": False, "=": True, "/": False, "@": True}

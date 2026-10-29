@@ -11,6 +11,7 @@ Pure code: a path is the strings of `Packet.path`, each with its own star as `Ad
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from neoaprs.policy import HEARD_PATH_ATTEMPTS, HEARD_PATH_MAX_DIGIPEATERS, HEARD_PATH_MIN_PACKETS, HEARD_PATH_WINDOW_MIN
 from neoaprs.symbols import is_mobile
@@ -23,9 +24,14 @@ TIMES_KEPT = 2                                      # the times of the latest pa
 ROUTES_KEPT = 8                                     # the routes counted for one station
 RF_ONLY = "RFONLY"                                  # the path element that an iGate does not gate to the internet a packet with (NOGATE says the same)
 NO_GATE = "NOGATE"
-_MARKERS = ("TCPIP", "TCPXX", NO_GATE, RF_ONLY, "NOTCP", "qA")
-_ALIAS = re.compile(r"^(WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR)\d?(-\d{1,2})?$")
-_Q_CONSTRUCT = re.compile(r"q[A-Za-z]{2}")              # how an APRS-IS server marks the way a packet entered the network (`qAR`, `qAO`, `qAC` ...; aprsisline.py reads which)
+INTERNET_MARKERS = frozenset({"TCPIP", "TCPXX"})    # a packet with one in its path has been on the internet (or is a client's own)
+NO_GATE_MARKERS = frozenset({NO_GATE, RF_ONLY})     # a packet that asks to stay off the internet
+IGATE_QS = frozenset({"qAR", "qAr", "qAO", "qAo"})  # the q-constructs that say an iGate heard the packet on the radio (qAO: one that only listens; the lower-case ones: indirectly)
+CLIENT_QS = frozenset({"qAC", "qAS", "qAX", "qAU"})  # the q-constructs that say a client sent the packet into the network
+_MARKERS = (*sorted(INTERNET_MARKERS), *sorted(NO_GATE_MARKERS), "NOTCP", "qA")
+_WORD_ALIAS = "WIDE|TRACE|RELAY|ECHO|GATE|TEMP|TRACK|SAR|ARISS|APRSAT"
+_ALIAS = re.compile(rf"(?:({_WORD_ALIAS})|([A-Z]{{2,3}}(?=\d)))(\d?)(?:-(\d{{1,2}}))?")      # WIDE2-1, TRACE3-3, RELAY, ARISS, and the regional New-N aliases of a prefix of two or three letters and a digit (SS3-3, FI2-2, HOP7-7)
+_Q_CONSTRUCT = re.compile(r"q[A-Z]{2}", re.IGNORECASE)      # how an APRS-IS server marks the way a packet entered the network (`qAR`, `qAO`, `qAC` ...; aprsisline.py reads which)
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,8 +44,31 @@ class Route:
     written: tuple[str, ...] = field(default=(), compare=False)   # the hops as the path wrote them ("WIDE1", "OH2RCH-2"), without the star; empty for a route rebuilt from a count
 
 
+class Alias(NamedTuple):
+    """A path element that stands for whichever digipeater answers it: `WIDE2-2` is the prefix `WIDE`, n 2 (the class of digipeater that answers) and 2 hops left; `RELAY` has neither number."""
+    prefix: str
+    n: int | None
+    left: int | None
+
+    @property
+    def hops(self) -> int:
+        """How many hops the element asks for: the number left, else n, else one."""
+        if self.n is None:
+            return 1
+        return self.n if self.left is None else self.left
+
+
+def parse_alias(address: str) -> Alias | None:
+    """The alias a path element is (`XXXn-N`: WIDE2-1, TRACE3-3, SS3-3, FI2-2, HOP7-7, and the plain ones: RELAY, WIDE, ARISS; a star after it is ignored), None for a call or anything else."""
+    found = _ALIAS.fullmatch(address.removesuffix("*"))
+    if found is None:
+        return None
+    prefix, digit, left = found.group(1) or found.group(2), found.group(3), found.group(4)
+    return Alias(prefix, int(digit) if digit else None, int(left) if left else None)
+
+
 def is_alias(address: str) -> bool:
-    return _ALIAS.match(address) is not None
+    return parse_alias(address) is not None
 
 
 def is_q_construct(element: str) -> bool:
@@ -57,9 +86,16 @@ def digipeaters(path: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(address for address in path if not is_marker(address))
 
 
+def used_path(path: tuple[str, ...]) -> tuple[str, ...]:
+    """The path with every element up to the last starred one starred. An AX.25 frame marks each digipeater it has been through; an APRS-IS line (the TNC2 monitor form) writes one star after the last one, and
+    every address before it is implied used (`OH2RCH-2,OH2RDG*` went through both). A path with no star is as it is."""
+    last = max((i for i, address in enumerate(path) if address.endswith("*")), default=-1)
+    return tuple(address if address.endswith("*") or i > last else address + "*" for i, address in enumerate(path))
+
+
 def rf_only_path(path: tuple[str, ...]) -> tuple[str, ...]:
     """The path with RFONLY as its last element, which asks the iGates not to put the packet on the internet; a path that holds RFONLY or NOGATE already is as it is."""
-    return path if any(address.rstrip("*") in (RF_ONLY, NO_GATE) for address in path) else (*path, RF_ONLY)
+    return path if any(address.rstrip("*") in NO_GATE_MARKERS for address in path) else (*path, RF_ONLY)
 
 
 def route_of(path: tuple[str, ...], gate: str = "") -> Route:

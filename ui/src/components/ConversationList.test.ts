@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ConversationList from "@/components/ConversationList.vue";
 import { conversations } from "@/lib/messages";
@@ -75,7 +76,7 @@ describe("ConversationList", () => {
 
     it("has a trash at the right end of every row, outside the button that opens the row", () => {
       const wrapper = list();
-      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["", ""]);
+      expect(wrapper.findAll(".conv-delete").map((b) => shown(b))).toEqual(["", ""]);
       expect(x(wrapper, 1)?.attributes("aria-label")).toBe("Delete the conversation with OH2RDG");
       expect(wrapper.find(".conv .conv-delete").exists()).toBe(false);
     });
@@ -84,11 +85,11 @@ describe("ConversationList", () => {
       const wrapper = list();
       await x(wrapper, 1)?.trigger("click");
       expect(x(wrapper, 1)?.text()).toBe("sure?");
-      expect(x(wrapper, 0)?.text()).toBe("");
+      expect(shown(x(wrapper, 0))).toBe("");
       expect(wrapper.emitted("deleteConversation")).toBeUndefined();
       await x(wrapper, 1)?.trigger("click");
       expect(wrapper.emitted("deleteConversation")).toEqual([["OH2RDG"]]);
-      expect(x(wrapper, 1)?.text()).toBe("");
+      expect(shown(x(wrapper, 1))).toBe("");
       expect(wrapper.emitted("select")).toBeUndefined();
     });
 
@@ -96,10 +97,10 @@ describe("ConversationList", () => {
       const wrapper = list();
       await x(wrapper, 0)?.trigger("click");
       await vi.advanceTimersByTimeAsync(5100);
-      expect(x(wrapper, 0)?.text()).toBe("");
+      expect(shown(x(wrapper, 0))).toBe("");
       await x(wrapper, 0)?.trigger("click");
       await x(wrapper, 1)?.trigger("click");
-      expect(wrapper.findAll(".conv-delete").map((b) => b.text())).toEqual(["", "sure?"]);
+      expect(wrapper.findAll(".conv-delete").map((b) => shown(b))).toEqual(["", "sure?"]);
       expect(wrapper.emitted("deleteConversation")).toBeUndefined();
     });
 
@@ -123,20 +124,20 @@ describe("ConversationList", () => {
         const wrapper = wide();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("sure?");
-        expect(at(wrapper, "OH2RDG")?.text()).toBe("");
+        expect(shown(at(wrapper, "OH2RDG"))).toBe("");
         expect(wrapper.emitted("deleteOverheard")).toBeUndefined();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         expect(wrapper.emitted("deleteOverheard")).toEqual([["OH2AAA", "OH2BBB"]]);
         expect(wrapper.emitted("deleteConversation")).toBeUndefined();
         expect(wrapper.emitted("select")).toBeUndefined();
-        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("");
+        expect(shown(at(wrapper, "OH2AAA > OH2BBB"))).toBe("");
       });
 
       it("forgets the first click after 5 seconds, and a conversation still sends deleteConversation", async () => {
         const wrapper = wide();
         await at(wrapper, "OH2AAA > OH2BBB")?.trigger("click");
         await vi.advanceTimersByTimeAsync(5100);
-        expect(at(wrapper, "OH2AAA > OH2BBB")?.text()).toBe("");
+        expect(shown(at(wrapper, "OH2AAA > OH2BBB"))).toBe("");
         await at(wrapper, "OH2RDG")?.trigger("click");
         await at(wrapper, "OH2RDG")?.trigger("click");
         expect(wrapper.emitted("deleteConversation")).toEqual([["OH2RDG"]]);

@@ -19,7 +19,7 @@ The Port choice offers *find automatically* (empty), the ports the system lists,
 - **A Bluetooth port** has no speed and is never searched for or opened to list it. A link that drops (the radio is switched off or out of range) is opened again like any other. On Windows the paired device's COM port is the way, on macOS its `/dev/cu.*` port ([`docs/RADIOS.md`](../RADIOS.md#bluetooth)).
 - **A Bluetooth LE port** has no speed and is never searched for. It is not paired the way a classic device is: NeoAPRS looks for the device by its address when the port is opened, connects and uses the KISS service it finds (the log says which). A device that another program or a phone is connected to cannot be reached: LE allows one connection at a time. A link that drops is opened again like any other ([`docs/RADIOS.md`](../RADIOS.md#bluetooth)).
 - **A serial port** has a speed in baud, 8N1. Empty means the type's own, which is 9600 for every serial type. The NinoTNC needs 57600; the Mobilinkd and the TH-D74/D75 ignore it. A TH-D7 on the Brainboxes adapter is 9600.
-- **The control lines** DTR and RTS are held low from the moment the port is opened, because a sound-card interface keys the transmitter on RTS.
+- **The control lines** DTR and RTS are set low as soon as the port is open, because a sound-card interface keys the transmitter on RTS.
 - **A TCP type** (`kiss-tcp`) connects to the **TCP host** and **TCP port** settings when the port is empty: `127.0.0.1` and `8001` by default. Direwolf uses 8001, UZ7HO SoundModem and QtSoundModem 8100 (the program's KISS port, not its AGW port). A TCP type is refused, with the reason, while the port names a serial device.
 
 ## Finding the radio

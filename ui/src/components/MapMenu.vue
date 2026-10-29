@@ -6,8 +6,7 @@ import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
-import { copyText } from "@/lib/clipboard";
-import { saidText } from "@/lib/copy";
+import { copyAndSay } from "@/components/copyAndSay";
 import { positionToLocator } from "@/lib/locator";
 
 const props = defineProps<{ lat: number; lon: number; x: number; y: number; trigger: HTMLElement | null }>();
@@ -24,7 +23,7 @@ const locator = computed(() => positionToLocator(props.lat, props.lon));
 
 async function copy(text: string): Promise<void> {
   menu.done();
-  if (await copyText(text)) say(t("copy.copied", { text: saidText(text) }));
+  await copyAndSay(text, say);
 }
 
 function choose(item: "stats" | "replay"): void {

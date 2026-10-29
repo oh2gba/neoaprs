@@ -1,13 +1,14 @@
 // The alerts the operator sets on stations ("Alert me when…" in the menu of a row of the Stations table): which stations can have one, what the bell of a row says, and the words of an alert that fired. The daemon keeps the alert
 // (the topic `station_prefs`, its `alert`) and watches the stations, so it works with no page open; a page is told what fired by the message `station_alert` and says it in the language of the page.
 import { t } from "@/i18n";
-import { clockText, distanceText } from "@/lib/format";
+import { distanceText, hourMinuteText } from "@/lib/format";
+import { LIMITS } from "@/protocol/lists";
 import type { AlertWhen, StationAlertMessage, StationRow } from "@/protocol/protocol";
 
 /** The distance the choice starts with for "comes within N km of me". */
 export const ALERT_KM_DEFAULT = 10;
-export const ALERT_KM_MIN = 1;
-export const ALERT_KM_MAX = 1000;
+export const ALERT_KM_MIN = LIMITS.alert.kmMin;
+export const ALERT_KM_MAX = LIMITS.alert.kmMax;
 
 /** Whether a station can have an alert: a station heard (not an object or an item), not ourselves and not one of ours. */
 export function canAlert(row: Pick<StationRow, "kind" | "is_me" | "own">): boolean {
@@ -32,5 +33,5 @@ export function firedText(message: Pick<StationAlertMessage, "call" | "kind" | "
 
 /** The words of the toast: what happened, with the time of the packet that fired it ("12:03 OH2XYZ is on the air"). */
 export function firedLine(message: StationAlertMessage): string {
-  return t("station.alert.fired.line", { time: clockText(message.at).slice(0, 5), text: firedText(message) });
+  return t("station.alert.fired.line", { time: hourMinuteText(message.at), text: firedText(message) });
 }

@@ -1,8 +1,8 @@
 """The line of the radio, on every system: a serial port (`/dev/ttyUSB0`, `COM3`), a TCP socket (`socket://host:port`, KISS over TCP: Direwolf on 8001, the sound-card modems; `tcp://host:port` is accepted for it) or, on Linux,
 a Bluetooth serial port that is paired with the system (`bt://AA:BB:CC:DD:EE:FF`, `btserial.py`), or on any system a Bluetooth LE KISS TNC (`ble://AA:BB:CC:DD:EE:FF`, `btle.py`).
 
-`SerialPort` reports what happens as signals (`data`, `dropped`); it never reopens by itself: the TNC that owns it decides when to try again. The port is made with pyserial's `serial_for_url`, the control lines held low
-before the open (a sound-card interface keys the transmitter on RTS), the open run in a thread (a Bluetooth COM port can take seconds to say no), and each open line has a thread that reads it and a thread that writes it,
+`SerialPort` reports what happens as signals (`data`, `dropped`); it never reopens by itself: the TNC that owns it decides when to try again. The port is made with pyserial's `serial_for_url`, the control lines set low
+as soon as the open allows (a sound-card interface keys the transmitter on RTS; on a POSIX device the system raises them for the moment of the open itself), the open run in a thread (a Bluetooth COM port can take seconds to say no), and each open line has a thread that reads it and a thread that writes it,
 so nothing here waits on the event loop and no descriptor is given to the loop to wait for, which Windows could not do for a serial handle. The loop gets the bytes by `call_soon_threadsafe`, in the order they came."""
 import asyncio
 import errno
@@ -75,7 +75,7 @@ def _in_use(e: BaseException) -> bool:
 
 
 def _build(path: str, baud: int) -> Any:
-    """The pyserial object, not yet open: 8N1, no flow control, DTR and RTS low before the open (they are what a sound-card interface keys the transmitter with), and exclusive on a POSIX device."""
+    """The pyserial object, not yet open: 8N1, no flow control, DTR and RTS set low as soon as the open allows (they are what a sound-card interface keys the transmitter with), and exclusive on a POSIX device."""
     url = normalize(path)
     settings: dict[str, Any] = dict(baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
     if is_bluetooth(url) or is_ble(url):                  # (pyserial does not know bt:// or ble://: its port class is made here, as serial_for_url would)

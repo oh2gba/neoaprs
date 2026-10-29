@@ -20,12 +20,13 @@ def test_the_radius_and_the_zoom_are_whole_numbers_in_their_ranges(key: str, goo
             Config.check(key, text)
 
 
-@pytest.mark.parametrize("text", ["", "https://build.protomaps.com/20261022.pmtiles", "http://127.0.0.1:8000/planet.pmtiles", "/maps/planet.pmtiles", "C:\\maps\\planet.pmtiles", "planet.pmtiles"])
+@pytest.mark.parametrize("text", ["", "https://build.protomaps.com/20261022.pmtiles", "http://127.0.0.1:8000/planet.pmtiles", "/maps/planet.pmtiles", "C:\\maps\\planet.pmtiles", "planet.pmtiles",
+                                  "/data/My Maps/planet.pmtiles", "C:\\Users\\John Doe\\planet.pmtiles"])
 def test_a_source_is_empty_a_web_address_or_a_path(text: str) -> None:
     assert Config.check("map/source", text) == text
 
 
-@pytest.mark.parametrize("text", ["--help", "-o", "ftp://host/x.pmtiles", "s3://bucket/x.pmtiles", "two words.pmtiles", "x" * 501, "line\nbreak"])
+@pytest.mark.parametrize("text", ["--help", "-o", "ftp://host/x.pmtiles", "s3://bucket/x.pmtiles", "https://host/two words.pmtiles", "x" * 501, "line\nbreak", "tab\there.pmtiles", "bell\x07.pmtiles", "nbsp\u00a0here.pmtiles", "- spaced option"])
 def test_a_source_that_is_an_option_another_kind_of_address_or_not_printable_is_refused(text: str) -> None:
     with pytest.raises(ValueError, match="map/source"):
         Config.check("map/source", text)

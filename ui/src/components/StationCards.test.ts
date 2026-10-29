@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import StationCards from "@/components/StationCards.vue";
 import type { Aging } from "@/lib/aging";
 import type { SizeClass } from "@/lib/layout";
@@ -332,5 +332,35 @@ describe("StationCards: Message these N", () => {
         .find(".cards-actions")
         .exists(),
     ).toBe(false);
+  });
+});
+
+describe("StationCards: the watching of the sizes of the cards", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is made again when the set of cards changes, not when a card's row is made again with the same call (a packet more)", async () => {
+    let made = 0;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor() {
+          made += 1;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      },
+    );
+    const wrapper = make([car]);
+    await nextTick();
+    const first = made;
+    for (let i = 1; i <= 3; i += 1) {
+      await wrapper.setProps({ rows: [{ ...car, packets: car.packets + i }] });
+      await nextTick();
+    }
+    expect(made).toBe(first);
+    await wrapper.setProps({ rows: [car, wx("OH2ZWA")] });
+    await nextTick();
+    expect(made).toBe(first + 1);
   });
 });

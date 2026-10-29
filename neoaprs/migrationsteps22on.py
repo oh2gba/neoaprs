@@ -44,3 +44,28 @@ def _v22(db: sqlite3.Connection) -> None:
     db.execute("DROP TABLE station_pref_old")
     if db.execute("DELETE FROM settings WHERE key = 'messages/alert_command' AND value IN (?, ?)", (_OLD_LINUX_ALERT, _OLD_WINDOWS_ALERT)).rowcount:
         log.info("messages/alert_command was the old default: the new default, which titles each kind of alert, is in force")
+
+
+def _v23(db: sqlite3.Connection) -> None:
+    """A message never gets the id of one that was deleted: `message.id` is now AUTOINCREMENT, so the next id is above every one the table has held (SQLite kept the highest only while the row was there). The page marks
+    what it has shown by id, and a new message with the id of a deleted one was taken for one already read. The delivery chain of a message (`message_attempt`, `message_hop`) is keyed by the id and may hold rows of a
+    message that is gone, so the next id is above those too. The table is rebuilt from its own statement (the one migration 10 left, read from the schema) with that one word added, every row keeps its id, the rows
+    are counted and compared, the index is made again, and any doubt raises: the rollback leaves the old table."""
+    key = "id INTEGER PRIMARY KEY,"
+    statement = str(db.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'message'").fetchone()[0])
+    if statement.count(key) != 1:
+        raise StoreError("the message table is not the one migration 10 made; nothing was changed")
+    db.execute("ALTER TABLE message RENAME TO message_old")
+    db.execute("DROP INDEX message_calls")
+    db.execute(statement.replace(key, "id INTEGER PRIMARY KEY AUTOINCREMENT,"))
+    db.execute("INSERT INTO message SELECT * FROM message_old")
+    before, after = (int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for table in ("message_old", "message"))
+    lost = int(db.execute("SELECT COUNT(*) FROM (SELECT * FROM message_old EXCEPT SELECT * FROM message)").fetchone()[0])
+    if before != after or lost:
+        raise StoreError(f"message has {before} rows, the new one got {after} and {lost} differ; nothing was changed")
+    db.execute("DROP TABLE message_old")
+    db.execute("CREATE INDEX message_calls ON message (to_call, from_call, at)")
+    top = int(db.execute("SELECT MAX(COALESCE((SELECT MAX(id) FROM message), 0), COALESCE((SELECT MAX(message_id) FROM message_attempt), 0), COALESCE((SELECT MAX(message_id) FROM message_hop), 0))").fetchone()[0])
+    db.execute("DELETE FROM sqlite_sequence WHERE name = 'message'")
+    if top:
+        db.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('message', ?)", (top,))

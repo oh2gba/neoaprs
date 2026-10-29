@@ -173,21 +173,22 @@ def note_telemetry(stations: Mapping[str, Station], definitions: dict[str, Telem
     return stations.get(decoded.addressee)
 
 
-def note_radio_place(station: Station, packet: Packet, position: Position) -> None:
-    """A packet is about to give the station its position. A station that is heard from the internet keeps the place the radio gave it apart (`Station.radio`), so that the internet can be hidden: the first packet from the
-    internet takes a copy of the place the station has (when the radio gave it), and a packet that is not from the internet moves the radio's place. A station never heard from the internet has none."""
+def note_radio_place(station: Station, packet: Packet, position: Position, replay: bool = False) -> None:
+    """A packet is about to give the station its position. A station that is heard from the internet keeps the place the radio gave it apart (`Station.radio`), so that the internet can be hidden: the place the station has
+    is copied when it is the radio's and the first packet from the internet is a position, or the station has been heard from the internet and a packet that is not from it gives a position (every position so far was
+    the radio's, and so is its track), and a packet that is not from the internet moves the radio's place. A station never heard from the internet has none. `replay`: the packets are the log being read again, oldest
+    first, over a station that has its final state already: the place is made from them alone."""
     place = station.radio
-    if packet.via == IS:
-        if place is None and station.position_via not in (None, IS) and station.lat is not None and station.lon is not None and station.last_position_at is not None:
-            assert station.position_via is not None
-            station.radio = RadioPlace(station.lat, station.lon, station.last_position_at, station.position_via, station.symbol_table, station.symbol_code, station.altitude_m, station.course_deg,
-                                       station.speed_kmh, station.last_comment, list(station.track))
-        return
-    if place is None and station.heard_is == 0:
+    if (place is None and not replay and station.position_via not in (None, IS) and station.lat is not None and station.lon is not None and station.last_position_at is not None
+            and (packet.via == IS or station.heard_is > 0)):
+        assert station.position_via is not None
+        place = station.radio = RadioPlace(station.lat, station.lon, station.last_position_at, station.position_via, station.symbol_table, station.symbol_code, station.altitude_m, station.course_deg,
+                                           station.speed_kmh, station.last_comment, list(station.track), station.extensions, station.storm, station.sign)
+    if packet.via == IS or (place is None and station.heard_is == 0):
         return
     track = [] if place is None else place.track
-    station.radio = place = RadioPlace(position.lat, position.lon, packet.heard_at, packet.via, position.symbol_table, position.symbol_code, position.altitude_m, position.course_deg, position.speed_kmh,
-                                       position.comment, track)
+    station.radio = RadioPlace(position.lat, position.lon, packet.heard_at, packet.via, position.symbol_table, position.symbol_code, position.altitude_m, position.course_deg, position.speed_kmh,
+                               position.comment, track, position.extensions or (None if place is None else place.extensions), position.storm, position.sign)
     add_track_point(track, packet.heard_at, position.lat, position.lon)
 
 
@@ -203,4 +204,4 @@ def seed_radio(stations: Mapping[str, Station], packets: Iterable[Packet]) -> No
             continue
         station = stations.get(name)
         if packet.direction == "in" and packet.via != IS and station is not None and not station.is_me and not station.own and station.heard_is > 0:
-            note_radio_place(station, packet, position)
+            note_radio_place(station, packet, position, replay=True)

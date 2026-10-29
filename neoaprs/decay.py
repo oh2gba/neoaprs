@@ -10,11 +10,10 @@ The net cycle time follows the path (the spec's chapter 2, point 4): 10 minutes 
   after the waits of `early`, then every `every` seconds as long as the next one is no later than `lasts` seconds after the first (`bulletin_wait_sec`; None when it is over).
 
 No packet of one thing goes out less than MIN_GAP_SEC after the one before it, whatever the change."""
-import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from neoaprs.route import digipeaters
+from neoaprs.route import digipeaters, parse_alias
 
 FIRST_WAIT_SEC = 60
 MIN_GAP_SEC = 60                                     # the least between two packets of one object or bulletin, a change included
@@ -22,16 +21,15 @@ KILL_SENDS = 3
 KILL_WAIT_SEC = 60
 _NET_CYCLE_MIN = (10, 10, 20)                        # by the number of digipeaters: 0, 1, 2; 30 from three on
 _NET_CYCLE_FAR_MIN = 30
-_WIDE_N = re.compile(r"^(?:WIDE|TRACE)(\d)(?:-(\d))?\*?$")
 
 
 def hops(path: tuple[str, ...]) -> int:
-    """How many digipeaters the path asks for: each call or alias counts one, a WIDEn-N or TRACEn-N counts the N hops it has left (`WIDE2-2` is two, `WIDE1-1,WIDE2-1` is two); RFONLY, NOGATE and the internet's
-    markers are no digipeater."""
+    """How many digipeaters the path asks for: each call or alias counts one, an alias of the form XXXn-N (WIDE2-2, TRACE3-3, SS3-3, HOP7-7) counts the N hops it has left (`WIDE2-2` is two, `WIDE1-1,WIDE2-1`
+    is two); RFONLY, NOGATE and the internet's markers are no digipeater."""
     total = 0
     for address in digipeaters(path):
-        found = _WIDE_N.match(address)
-        total += int(found.group(2) or found.group(1)) if found else 1
+        alias = parse_alias(address)
+        total += alias.hops if alias else 1
     return total
 
 

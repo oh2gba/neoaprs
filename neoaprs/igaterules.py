@@ -24,15 +24,14 @@ from dataclasses import dataclass
 from neoaprs import ax25
 from neoaprs.aprsthirdparty import MARK, header_of
 from neoaprs.callsign import PLACEHOLDER_CALLS, CallsignError, normal_name
+from neoaprs.packet import DuplicateKey, duplicate_key
+from neoaprs.route import INTERNET_MARKERS, NO_GATE_MARKERS, is_q_construct
 
 Q_CONSTRUCT = "qAO"
 MAX_LINE = 512                                       # bytes of a line of APRS-IS with its CR LF
 MAX_UNWRAP = 3                                       # third-party wrappers opened one in another; a deeper one is not a packet
-INTERNET = frozenset({"TCPIP", "TCPXX"})             # a packet with one in its path has been on the internet
-NOT_TO_BE_GATED = frozenset({"NOGATE", "RFONLY"})    # a packet that asks to stay off the internet
 ALIASES = ("WIDE", "TRACE", "RELAY", "TCP", "NOGATE", "RFONLY", "SERVER", "BEACON")        # sources that are no station: the names of paths and of the internet
-_PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")
-_Q_ELEMENT = re.compile(r"q[A-Za-z]{2}|I", re.IGNORECASE)       # a q construct or the `,I` construct in any case: an AX.25 address is written in capitals, and neither belongs on the air
+_PATH_ELEMENT = re.compile(r"[A-Za-z0-9]{1,9}(?:-[A-Za-z0-9]{1,2})?\*?")      # an element of a path on the air (stricter than a name on APRS-IS: callsign.PATH_ELEMENT)
 
 TCPIP, NOGATE, QUERY, SOURCE, OWN, NEWLINE, LONG, FRAME, DUPLICATE, OFFLINE, NOT_AIR = "tcpip", "nogate", "query", "source", "own", "newline", "long", "frame", "duplicate", "offline", "not_air"
 REASON_WORDS = {TCPIP: "TCPIP", NOGATE: "NOGATE", QUERY: "query", SOURCE: "bad source", OWN: "own", NEWLINE: "line break", LONG: "too long", FRAME: "bad frame", DUPLICATE: "duplicate", OFFLINE: "offline", NOT_AIR: "not from the air"}
@@ -54,9 +53,9 @@ class Gate:
         return f"{self.source}>{self.destination}{path},{Q_CONSTRUCT},{igate_call}:".encode("ascii") + self.info
 
     @property
-    def key(self) -> tuple[str, str, bytes]:
-        """What makes two copies of a packet the same one (the server's own test: source, destination without its SSID, information field; the path is not part of it)."""
-        return self.source, self.destination.partition("-")[0], self.info
+    def key(self) -> DuplicateKey:
+        """What makes two copies of a packet the same one (packet.duplicate_key)."""
+        return duplicate_key(self.source, self.destination, self.info)
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,13 +70,18 @@ def element_names(path: list[str]) -> set[str]:
 
 def _header_reason(path: list[str]) -> str | None:
     names = element_names(path)
-    if names & INTERNET:
+    if names & INTERNET_MARKERS:
         return TCPIP
-    if names & NOT_TO_BE_GATED:
+    if names & NO_GATE_MARKERS:
         return NOGATE
-    if any(_Q_ELEMENT.fullmatch(element) for element in path) or any(_PATH_ELEMENT.fullmatch(element) is None for element in path):
+    if any(_never_on_air(element) for element in path) or any(_PATH_ELEMENT.fullmatch(element) is None for element in path):
         return FRAME
     return None
+
+
+def _never_on_air(element: str) -> bool:
+    """Whether a path element is a q construct or the `,I` construct, in any case (an AX.25 address is written in capitals): neither belongs on the air."""
+    return is_q_construct(element) or element.upper() == "I"
 
 
 def source_is_station(name: str) -> bool:

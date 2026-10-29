@@ -46,7 +46,7 @@ describe("StationsTable", () => {
 
   it("has the columns symbol, Call, a check mark, km, the bearing as an arrow and Last heard, and nothing else: the rest is on the card", () => {
     const wrapper = make();
-    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "Heard on", "km", "bearing", "Last heard ▼", ""]);
+    expect(wrapper.findAll("thead th").map((th) => th.text())).toEqual(["", "Call", "Heard on", "km", "bearing", "Last heard▼", ""]);
     for (const tr of wrapper.findAll("tbody tr")) expect(tr.findAll("td")).toHaveLength(7);
     const text = wrapper.findAll("tbody tr")[2]?.text() ?? "";
     expect(text).toContain("OH2PU-9");
@@ -119,6 +119,22 @@ describe("StationsTable", () => {
     await distance?.trigger("click");
     expect(calls(wrapper)).toEqual(["OH2GBA", "OH2RDG", "OH2PU-9", "OH2NOPOS"]);
     expect(wrapper.find("th[aria-sort='descending']").exists()).toBe(true);
+  });
+
+  it("keeps the room of the sort arrow in every sortable head, shown or not, so that the columns do not move when the sort changes", async () => {
+    const wrapper = make();
+    const marks = () => wrapper.findAll("th button .sortmark").map((m) => m.text());
+    const heads = wrapper.findAll("th button").length;
+    expect(wrapper.findAll("th button .sortmark")).toHaveLength(heads);
+    expect(marks().filter((m) => m !== "")).toEqual(["▼"]);
+    await wrapper
+      .findAll("th button")
+      .find((b) => b.text().startsWith("km"))
+      ?.trigger("click");
+    expect(wrapper.findAll("th button .sortmark")).toHaveLength(heads);
+    expect(marks().filter((m) => m !== "")).toEqual(["▲"]);
+    expect(cssRule(".headbtn .sortmark")).toMatch(/display:\s*inline-block/);
+    expect(cssRule(".headbtn .sortmark")).toMatch(/width:\s*1\.6em/);
   });
 
   it("filters by the text of the box", async () => {

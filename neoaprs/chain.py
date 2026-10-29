@@ -12,12 +12,12 @@ from datetime import datetime
 
 from neoaprs.route import digipeaters, is_alias, is_marker
 
-INTERNET = 0                                        # the position of "a copy came back over the internet, by this iGate"
+AT_GATE = 0                                         # the position of "a copy came back over the internet, by this iGate"
 
 
 @dataclass(frozen=True, slots=True)
 class HopSeen:
-    position: int                                   # 1 for the first digipeater of the path we used; INTERNET (0) for a copy gated back whose path names no hop
+    position: int                                   # 1 for the first digipeater of the path we used; AT_GATE (0) for a copy gated back whose path names no hop
     call: str                                       # the call that did it (an alias of the path is replaced by the call heard); the iGate's call at position 0
     heard_at: datetime                              # when the first copy that showed it was heard
     via_internet: bool                              # seen in a third-party copy, not by RF

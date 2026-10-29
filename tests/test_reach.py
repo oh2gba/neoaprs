@@ -46,6 +46,20 @@ def test_a_path_that_does_not_say_is_not_read(text: str) -> None:
     assert reach_of_path(path(text)) is None
 
 
+@pytest.mark.parametrize("text, expected", [
+    ("OH2RCH-2,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),                  # (the monitor form: one star after the last digipeater used)
+    ("OH2RCH-1,OH2RCH-2,OH2RDG*,qAO,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-1", "OH2RCH-2", "OH2RDG"))),
+    ("WIDE1,OH2RCH-2*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("?", "OH2RCH-2"))),
+    ("OH2RCH-2*,OH2RDG*,WIDE2-1,qAR,OH2GW-10", Reach("igate", "OH2GW-10", ("OH2RCH-2", "OH2RDG"))),               # (every hop starred, the form of the AX.25 bits: the same)
+])
+def test_an_internet_path_with_one_star_has_every_hop_before_it_used(text: str, expected: Reach) -> None:
+    assert reach_of_path(path(text)) == expected
+    line = parse_is_line(f"OH2XYZ-9>APZ123,{text}:!6010.00N/02456.00E>", T0)
+    assert reach_of(line) == expected
+    mark = mark_of(line, 60.1, 24.9)
+    assert mark is not None and mark.hops == expected.hops
+
+
 def test_an_internet_packet_is_read_and_one_heard_on_the_radio_is_not() -> None:
     line = parse_is_line("OH2RDG-7>APRX29,WIDE1*,OH2RCH-2*,WIDE2-1,qAR,OH2RDK-1:!6010.00N/02456.00E>", T0)
     assert reach_of(line) == Reach("igate", "OH2RDK-1", ("?", "OH2RCH-2"))

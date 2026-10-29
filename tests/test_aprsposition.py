@@ -119,6 +119,19 @@ def test_course_edge_cases() -> None:
     assert (p.course_deg, p.comment) == (None, "361/010x")
 
 
+@pytest.mark.parametrize("extension, course, speed, comment", [
+    (".../...", None, None, ""), (".../...Hi", None, None, "Hi"), ("   /   ", None, None, ""), ("   /   Hi", None, None, "Hi"), ("088/...", 88, None, ""), (".../036", None, pytest.approx(36 * 1.852), ""),
+    ("088/036", 88, pytest.approx(36 * 1.852), ""), ("..../...", None, None, "..../...")])
+def test_the_extension_that_says_course_and_speed_are_not_known_is_taken_off_the_comment(extension: str, course: int | None, speed: float | None, comment: str) -> None:
+    p = parse_position(BODY + extension.encode(), NOW)
+    assert (p.course_deg, p.speed_kmh, p.comment) == (course, speed, comment)
+
+
+def test_the_unknown_course_and_speed_leave_a_df_bearing_after_them_to_be_read() -> None:
+    p = parse_position(b"4903.50N/07201.75W\\.../.../270/729", NOW)
+    assert p.extensions is not None and p.extensions.df_bearing is not None and p.extensions.df_bearing.bearing_deg == 270
+
+
 def test_course_and_speed_only_at_the_start_of_the_comment() -> None:
     p = parse_position(BODY + b"Hi 088/036", NOW)
     assert (p.course_deg, p.comment) == (None, "Hi 088/036")
@@ -199,6 +212,11 @@ def test_degrees_helper() -> None:
 def test_an_overlay_digit_is_written_as_a_letter_and_read_back() -> None:
     assert compress_position(0.0, 0.0, "5", "#")[0:1] == b"f"
     assert parse_position(compress_position(0.0, 0.0, "5", "#"), NOW).symbol_table == "5"
+
+
+def test_the_time_111111z_of_a_permanent_object_is_no_time() -> None:
+    p = parse_position(b"111111z4903.50N/07201.75W>x", NOW)
+    assert (p.timestamp, p.timestamp_local, p.comment) == (None, False, "x")
 
 
 def test_a_timestamp_that_is_none_leaves_the_position_without_a_time() -> None:

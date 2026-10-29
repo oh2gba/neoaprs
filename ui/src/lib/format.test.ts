@@ -5,11 +5,14 @@ import {
   ageSeconds,
   ageText,
   bearingText,
+  bearingTitle,
   bytesText,
   clockText,
   compassPoint,
   dateTimeText,
   distanceText,
+  hourMinuteText,
+  pad2,
   pathText,
   positionText,
   processText,
@@ -67,6 +70,9 @@ describe("numbers", () => {
     expect(distanceText(0.74)).toBe("0.7");
     expect(distanceText(25.4)).toBe("25");
     expect(distanceText(null)).toBe("-");
+    expect(distanceText(9.96)).toBe("10");
+    expect(distanceText(9.94)).toBe("9.9");
+    expect(distanceText(10.4)).toBe("10");
   });
   it("names the compass point of a bearing", () => {
     expect(compassPoint(0)).toBe("N");
@@ -76,11 +82,15 @@ describe("numbers", () => {
     expect(compassPoint(-90)).toBe("W");
     expect(bearingText(150)).toBe("150° SSE");
     expect(bearingText(null)).toBe("-");
+    expect(bearingText(359.6)).toBe("0° N");
+    expect(bearingText(359.4)).toBe("359° N");
+    expect(bearingTitle(359.6)).toBe("N, 0°");
   });
   it("writes a position with the hemispheres", () => {
     expect(positionText(60.17, 24.94)).toBe("60.17000 N 24.94000 E");
     expect(positionText(-33.5, -70.25)).toBe("33.50000 S 70.25000 W");
     expect(positionText(null, 24)).toBe("-");
+    expect(positionText(60.42951, 24.14519, 4)).toBe("60.4295 N 24.1452 E");
   });
   it("writes speed, path and bytes", () => {
     expect(speedText(12.6)).toBe("13 km/h");
@@ -96,8 +106,10 @@ describe("times", () => {
   it("writes a time of the wire in the viewer's time", () => {
     const iso = "2026-10-21T12:34:56Z";
     const d = new Date(iso);
-    const pad = (n: number): string => String(n).padStart(2, "0");
-    expect(clockText(iso)).toBe(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+    expect(clockText(iso)).toBe(`${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`);
+    expect(hourMinuteText(iso)).toBe(clockText(iso).slice(0, 5));
+    expect(hourMinuteText("nope")).toBe("-");
+    expect([pad2(0), pad2(7), pad2(31)]).toEqual(["00", "07", "31"]);
     expect(dateTimeText(iso)).toContain(String(d.getFullYear()));
     expect(dateTimeText(null)).toBe("-");
     expect(clockText("nope")).toBe("-");

@@ -69,6 +69,14 @@ def describe_file(path: Path) -> MapFile | None:
                    header.min_zoom if header else None, header.max_zoom if header else None, build)
 
 
+def _remove(part: Path) -> None:
+    """Deletes a `.part` file; one that cannot be deleted now (a program that was just ended still holds it, on Windows) is told in the log and left, never an error that keeps the job busy."""
+    try:
+        part.unlink(missing_ok=True)
+    except OSError as e:
+        log.warning("%s could not be deleted: %s", part.name, e)
+
+
 class MapFetch:
     def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
                  probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE, world: Callable[[Path], Path | None] = world_file) -> None:
@@ -207,11 +215,13 @@ class MapFetch:
             if raising:
                 raise
         finally:
-            self._radius = 0
-            for part in parts:
-                part.unlink(missing_ok=True)
-            self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
-            self.changed.emit()
+            try:
+                self._radius = 0
+                for part in parts:
+                    _remove(part)
+            finally:
+                self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
+                self.changed.emit()
 
     async def _program(self) -> Path:
         bin_dir = self.data_dir / "bin"

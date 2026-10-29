@@ -4,9 +4,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Message, _Model
-
-ALERT_KM_MIN, ALERT_KM_MAX = 1, 1000                # (neoaprs/pref.py has the same: the core does not import the wire)
+from ..pref import ALERT_KM_MAX, ALERT_KM_MIN
+from .wirebase import Call, Iso, PathText, _Command, _Message, _Model
 
 
 class AlertWhen(_Model):
@@ -32,15 +31,15 @@ class SetStationPath(_Command):
     `beacon/path` is, or `DIRECT` for a path of its own with no digipeaters at all; an empty `path` is no path of its own, as `clear_station_path` makes it. Answered by the `set` of the station's entry in the topic `station_prefs`
     (its `rf_only` is whatever it was), or by an `error` that names the reason."""
     cmd: Literal["set_station_path"]
-    call: str = Field(min_length=1, max_length=64)
-    path: str = Field(max_length=256)
+    call: Call
+    path: PathText
 
 
 class ClearStationPath(_Command):
     """Takes a station's own path away, so that it has the path of the setting `beacon/path` again (a station without one is no error). Answered by the `set` of its entry in `station_prefs` with a null `path`
     (or the `del` of the entry when it was not RF only either), or by an `error`."""
     cmd: Literal["clear_station_path"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
 
 
 class SetStationRfOnly(_Command):
@@ -48,7 +47,7 @@ class SetStationRfOnly(_Command):
     already gets no second one). A path that would be more than 8 elements with it is refused when a message is sent ("path too long for RF only"). The email gateway `EMAIL-2` is on the internet and is refused. Answered by the `set`
     of the station's entry in the topic `station_prefs` (its other parts are whatever they were), or by the `del` of the entry when `on` is false and nothing else is set, or by an `error` that names the reason."""
     cmd: Literal["set_station_rf_only"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
     on: bool
 
 
@@ -56,7 +55,7 @@ class SetStationAlert(_Command):
     """Sets when the operator is told about a station (see `AlertWhen`): `on_air`, `within_km` (1 to 1000, null for none) and `direct`, any of them at once; all off takes the alert away. Our own station and our own objects and items
     are refused. Answered by the `set` of the station's entry in the topic `station_prefs` (its path and RF only are whatever they were), or by its `del` when nothing else is set and the alert is taken away, or by an `error`."""
     cmd: Literal["set_station_alert"]
-    call: str = Field(min_length=1, max_length=64)
+    call: Call
     on_air: bool
     within_km: int | None = Field(ge=ALERT_KM_MIN, le=ALERT_KM_MAX)
     direct: bool

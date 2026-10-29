@@ -13,12 +13,12 @@ from datetime import datetime
 from typing import NamedTuple
 
 from .aprsthirdparty import parse_packet
-from .callsign import CallsignError, normal_name
+from .callsign import PATH_ELEMENT, CallsignError, normal_name
 from .packet import IS, Packet
-from .route import is_q_construct
+from .route import IGATE_QS, is_q_construct
 
 PATH_MAX = 32                                      # elements between the destination and the colon (a server adds a few to the 8 an AX.25 path may have)
-_ELEMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,8}\*?")
+_IPV6_ELEMENT = re.compile(r"[0-9A-Fa-f]{32}")      # what aprsc puts after the q-construct for a client it knows by an IPv6 address
 
 
 class IsLineError(ValueError):
@@ -45,7 +45,17 @@ def q_construct(path: tuple[str, ...]) -> QConstruct | None:
 def heard_by_radio(path: tuple[str, ...]) -> bool:
     """Whether the q-construct says an iGate heard the packet on the radio (`qAR`, `qAO`) and not that a client sent it into the network itself."""
     found = q_construct(path)
-    return found is not None and found.code in ("qAR", "qAO")
+    return found is not None and found.code in IGATE_QS
+
+
+def _path_is_sound(path: list[str]) -> bool:
+    """Every element of the path is a name of APRS-IS, with a star if it has been repeated; after the q-construct one may also be the 32 hex characters of an IPv6 address."""
+    after_q = False
+    for element in path:
+        if PATH_ELEMENT.fullmatch(element) is None and not (after_q and _IPV6_ELEMENT.fullmatch(element)):
+            return False
+        after_q = after_q or is_q_construct(element)
+    return True
 
 
 def is_comment(line: bytes | str) -> bool:
@@ -70,7 +80,7 @@ def parse_is_line(line: bytes | str, now: datetime) -> Packet:
         names = [normal_name(name) for name in (source, destination)]
     except CallsignError:
         raise IsLineError("the source or the destination is neither a call nor a name APRS-IS allows") from None
-    if len(path) > PATH_MAX or any(_ELEMENT.fullmatch(element) is None for element in path):
+    if len(path) > PATH_MAX or not _path_is_sound(path):
         raise IsLineError("the path has an element that is none")
     decoded, third_party = parse_packet(info, names[0], names[1], now)
     return Packet(heard_at=now, direction="in", raw=data, source=names[0], destination=names[1], path=tuple(path), info=info, decoded=decoded, third_party=third_party, via=IS)

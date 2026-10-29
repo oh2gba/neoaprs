@@ -125,8 +125,12 @@ class SelfUpdate:
         except OSError as e:
             self._fail("download", f"{part.name} could not be written: {e}")
         finally:
-            part.unlink(missing_ok=True)
-            self._busy = False
+            try:
+                part.unlink(missing_ok=True)
+            except OSError as e:
+                log.warning("%s could not be deleted: %s", part.name, e)
+            finally:
+                self._busy = False
 
     async def _download_and_install(self, version: str, name: str, part: Path, cancelled: threading.Event) -> None:
         assert self.installer is not None

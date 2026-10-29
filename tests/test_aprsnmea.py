@@ -81,3 +81,23 @@ def test_a_date_that_is_none_is_an_error() -> None:
         parse(sentence("GPRMC,120000,A,6010.2000,N,02456.4000,E,0,0,311126,,"))
     with pytest.raises(NmeaError):
         parse(sentence("GPGLL,6010.2000,N,02456.4000,E,256000,A"))
+
+
+@pytest.mark.parametrize("speed, course", [("022.4", "inf"), ("1e999", "084.4"), ("nan", "084.4"), ("022.4", "-inf"), ("022.4", "nan"), ("abc", "084.4"), ("1e308", "084.4")])
+def test_a_speed_or_course_that_is_not_a_finite_number_is_an_error(speed: str, course: str) -> None:
+    with pytest.raises(NmeaError):
+        parse(f"$GPRMC,123519,A,4807.038,N,01131.000,E,{speed},{course},230394,003.1,W".encode())
+
+
+def test_an_empty_speed_and_course_are_no_motion() -> None:
+    p = parse(sentence("GPRMC,123519,A,4807.038,N,01131.000,E,,,230394,003.1,W"))
+    assert p is not None and (p.course_deg, p.speed_kmh) == (None, None)       # type: ignore[attr-defined]
+
+
+def test_an_altitude_that_is_not_a_number_is_an_error() -> None:
+    with pytest.raises(NmeaError):
+        parse(sentence("GPGGA,102705,5157.9762,N,00029.3256,W,1,04,2.0,inf,M,47.6,M,,"))
+
+
+def test_a_long_run_of_blanks_inside_a_sentence_is_not_a_position() -> None:
+    assert parse(b"$GPRMC," + b" " * 50000 + b"x") is None            # (the match is linear in the length; one that tried every end of the blanks took seconds)

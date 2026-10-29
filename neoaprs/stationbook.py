@@ -5,7 +5,8 @@ A packet applies to the book in `take`. The sender of every packet heard counts 
 digipeaters (route.py), is counted for the sender. A position sets where the sender is; an object or an item is a station of its own, named by the object and marked with who reported it, and removed again when the report says it was killed. A packet from our own call, heard on the air (our beacon repeated or echoed), moves only the time we were last heard: where we are is the settings'.
 
 A name is one entry, and a station that transmits wins it: an object or item reported under the call of a station in the book (a club posting the object of the local digipeater, which beacons itself) is not taken, and its
-kill does not take the station out; a station that transmits under the name of an object heard before is the station from then on, and the object is forgotten. Our own station and our own objects are never replaced by a report."""
+kill does not take the station out; a station that transmits under the name of an object heard before is the station from then on, and the object is forgotten. Our own station is never replaced by a report, and our own objects not by a station
+that beacons under their name (it is not recorded under that name) nor by another station's kill; another station's report of an object by the name of one of ours takes it over (the specification's "Replacement": services/ownobjects.py drops ours)."""
 from collections.abc import Iterable, Mapping
 from datetime import datetime
 
@@ -245,6 +246,8 @@ class StationBook:
             return None
         if packet.sender == self._me:
             return None if packet.via == IS else self._heard_ourselves(packet)         # (our own call over the internet is not proof that the radio was heard)
+        if (held := self._stations.get(packet.sender)) is not None and held.own:
+            return None                                                                  # (a station that calls itself by the name of an object of ours does not take the entry)
         sender = self._heard(packet.sender, packet)
         sender.device = packet_device(packet) or sender.device
         about: Station | None = sender
@@ -279,7 +282,7 @@ class StationBook:
 
     def _heard(self, call: str, packet: Packet) -> Station:
         station = self._stations.get(call)
-        if station is None or (station.kind != "station" and not station.own):      # (an object heard under this call before gives way to the station that transmits under it)
+        if station is None or station.kind != "station":                            # (an object heard under this call before gives way to the station that transmits under it)
             station = self._stations[call] = Station(call, first_heard=packet.heard_at, last_heard=packet.heard_at)
         note_heard(station, packet)
         return station

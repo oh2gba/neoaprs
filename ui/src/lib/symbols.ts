@@ -61,18 +61,16 @@ export function layerStyle(layer: SpriteLayer, size: number): Record<string, str
   };
 }
 
-const COMPRESSED_OVERLAY = /^[a-j]$/;
-
 /** The name of the symbol of a table and a code in the page's language ("Car", "Digipeater"), "unknown" for none: the catalogue has a message for each of the codes `!` to `~` of the two tables (`symbol.primary.3e`, written from the daemon's own list); an overlay table is the alternate one. */
 export function symbolText(table: string, code: string): string {
-  const known = table === "/" || table === "\\" || OVERLAYS.test(table) || COMPRESSED_OVERLAY.test(table);
+  const known = table === "/" || table === "\\" || OVERLAYS.test(table);
   const id = `symbol.${table === "/" ? "primary" : "alternate"}.${code.length === 1 ? code.charCodeAt(0).toString(16) : ""}`;
   return known && hasMessage(id) ? t(id) : t("symbol.unknown");
 }
 
 /** Whether a symbol is the one of a station that moves or is carried (a car, a bike, a jogger, a boat, an aircraft ...), by the daemon's own list (MOBILE_SYMBOLS): in either table and with any overlay, false for any other. */
 export function isMobileSymbol(table: string, code: string): boolean {
-  const known = table === "/" || table === "\\" || OVERLAYS.test(table) || COMPRESSED_OVERLAY.test(table);
+  const known = table === "/" || table === "\\" || OVERLAYS.test(table);
   return known && code.length === 1 && (table === "/" ? MOBILE_SYMBOLS.primary : MOBILE_SYMBOLS.alternate).includes(code);
 }
 

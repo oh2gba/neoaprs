@@ -37,8 +37,14 @@ describe("scan", () => {
     expect(found.mark).toBe(10);
   });
 
-  it("does not move the mark back when the rows are fewer (a message deleted)", () => {
-    expect(scan([incoming(2, "OH2RDG")], 7)).toEqual({ mark: 7, fresh: [] });
+  it("keeps the mark when no rows are left", () => {
+    expect(scan([], 7)).toEqual({ mark: 7, fresh: [] });
+  });
+
+  it("takes rows that all lie below the mark for a database that was restored, and alerts for the messages after them", () => {
+    expect(scan([incoming(2, "OH2RDG"), incoming(5, "OH2RDG")], 60)).toEqual({ mark: 5, fresh: [] });
+    const next = scan([incoming(2, "OH2RDG"), incoming(5, "OH2RDG"), incoming(6, "OH2XYZ")], 5);
+    expect(next.fresh.map((m) => m.id)).toEqual([6]);
   });
 });
 

@@ -45,6 +45,8 @@ MOBILE_NAMES = {
 }
 MOBILE_CODES = {table: "".join(chr(33 + i) for i, name in enumerate(SYMBOL_NAMES[table]) if name in names) for table, names in MOBILE_NAMES.items()}     # the codes "!" to "~" of those, for the page
 
+IGATE_OVERLAYS = ("I", "R", "T", "2", "L")     # the overlays of the gateway symbol `&` that mark an iGate: generic, receive-only, one-hop and two-hop transmit, LoRa
+
 
 def is_mobile(table: str, code: str) -> bool:
     """True for the symbol of a station that moves or is carried (a car, a bike, a jogger, a boat, an aircraft ...), in either table and with any overlay; false for any other, an unknown one included."""

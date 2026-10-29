@@ -12,7 +12,7 @@ import webbrowser
 from pathlib import Path
 
 from neoaprs.cli import opencmd, uncaught
-from neoaprs.cli.daemonstate import LOG_NAME
+from neoaprs.cli.logfile import LOG_NAME
 from neoaprs.cli.output import say
 from neoaprs.paths import default_data_dir
 
@@ -109,7 +109,11 @@ def main(argv: list[str] | None = None) -> int:
     data = Path(args.data).expanduser().resolve()
     if args.quit:
         return quit_the_app(data, QUIT_WAIT_SEC)
-    data.mkdir(parents=True, exist_ok=True)
+    try:
+        data.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        opencmd.tell_the_user(f"app: the data folder {data} cannot be made or used: {e.strerror or e}")
+        return 1
     appstate.setup_logging(data, args.debug)
     uncaught.install(log, chain=True)
     return run(args)

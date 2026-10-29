@@ -89,7 +89,6 @@ class AprsIs(Source):
         self.heard: Signal[[Packet]] = Signal("aprsis.heard")  # a packet of the internet, parsed from a line of the server (`Packet.via` is `is`)
         self.read = 0                                          # lines of the server handed on as packets
         self.unreadable = 0                                    # lines of the server that are no packet (counted, never raised)
-        self._generation = 0
         self._queue: deque[bytes] = deque(maxlen=queue_max)
         self._wake = asyncio.Event()
         self._last_tx = 0.0
@@ -177,10 +176,7 @@ class AprsIs(Source):
             if generation != self._generation:
                 return
             delay = self.backoff.next_delay_sec()
-            log.warning("aprsis: %s; trying again in %g s", problem, delay)
-            self.problem = ""                                  # (what was wrong before is replaced by why the line is down)
-            self._set_state(Source.State.WAITING, problem)
-            self._note(f"{problem}; trying again in {delay:g} s")
+            self._waiting(problem, delay)
             await asyncio.sleep(delay)
 
     async def _attempt(self) -> str:

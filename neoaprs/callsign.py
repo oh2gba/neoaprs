@@ -5,7 +5,10 @@ A call here is the base (1 to 6 characters of A-Z and 0-9) and an SSID from 0 to
 
 A station on the internet may have a name that is no AX.25 call: a D-STAR gateway's `OH2XYZ-L`, an SSID above 15, more than six characters (`WINLINK`). APRS-IS allows 1 to 9 letters, digits and
 hyphens, and such a station can send us a message through an iGate (a third-party packet) and be answered: `normal_name` takes those, for the sender of a message and for whom we write to.
-Our own call and every address of a frame on the air stay AX.25 calls."""
+Our own call and every address of a frame on the air stay AX.25 calls.
+
+Three shapes of name, each written once here: the AX.25 call (`AX25_CALL`), the name of a station on APRS-IS (`INTERNET_NAME`) and an element of an APRS-IS line's path, which is such a name with a star after it
+if it has been repeated (`PATH_ELEMENT`). The path of a frame on the air has its own, stricter rule (igaterules.py)."""
 import re
 
 from .coded import CodedError
@@ -13,9 +16,10 @@ from .coded import CodedError
 MAX_SSID = 15
 BASE_MAX = 6                         # the most characters of a call's base
 AMATEUR_BASE_MIN = 3                 # the fewest characters of an amateur call's base
-_CALL = re.compile(rf"([A-Z0-9]{{1,{BASE_MAX}}})(?:-([0-9]{{1,2}}))?")
+AX25_CALL = re.compile(rf"([A-Z0-9]{{1,{BASE_MAX}}})(?:-([0-9]{{1,2}}))?")        # (the SSID is checked after: 0 to 15)
 PLACEHOLDER_CALLS = frozenset({"N0CALL", "NOCALL", "MYCALL"})        # what a program's example settings say: not the call of anybody, never transmitted under
-_INTERNET_NAME = re.compile(r"[A-Z0-9][A-Z0-9-]{0,8}")                 # a station's name on APRS-IS: 1 to 9 letters, digits and hyphens
+INTERNET_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,8}")                 # a station's name on APRS-IS: 1 to 9 letters, digits and hyphens
+PATH_ELEMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,8}\*?")                # an element of the path of an APRS-IS line: a name, with a star when it has been repeated
 _AMATEUR_CALL = re.compile(rf"(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z0-9]{{{AMATEUR_BASE_MIN},{BASE_MAX}}}")      # 3 to 6 characters with a digit and a letter; the ITU's rules for a prefix are not asked
 SET_CALL_FIRST = "set your call first"
 
@@ -28,7 +32,7 @@ def parse_call(text: str) -> tuple[str, int]:
     """'oh2gba-7' gives ('OH2GBA', 7), 'OH2GBA' gives ('OH2GBA', 0). Anything else raises CallsignError naming the text."""
     if not text.isascii():
         raise CallsignError(f"call {text!r} has characters other than A-Z, 0-9 and a '-SSID'", "call.characters", value=text)
-    match = _CALL.fullmatch(text.upper())
+    match = AX25_CALL.fullmatch(text.upper())
     if match is None:
         raise CallsignError(f"call {text!r} is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'", "call.shape", value=text)
     base, ssid_text = match.groups()
@@ -49,7 +53,7 @@ def normal_name(text: str) -> str:
         return format_call(*parse_call(text.strip()))
     except CallsignError:
         name = text.strip().upper()
-        if text.isascii() and _INTERNET_NAME.fullmatch(name):
+        if text.isascii() and INTERNET_NAME.fullmatch(name):
             return name
         raise
 

@@ -30,21 +30,20 @@ from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
 from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
-from neoaprs.packet import GATEABLE, Packet
+from neoaprs.packet import GATEABLE, DuplicateKey, Packet
+from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.recent import Recent
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
-from neoaprs.tasks import TaskSet, cancel_all
+from neoaprs.tasks import TaskSet, cancel_all, every
 
 log = logging.getLogger("neoaprs.igate")
 
-DUPLICATE_SEC = 30.0
 POSITION_SEC = 1800.0
 MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
 IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
-Key = tuple[str, str, bytes]
 
 
 class Wanted(NamedTuple):
@@ -56,7 +55,7 @@ class Wanted(NamedTuple):
 
 
 class Igate:
-    def __init__(self, link: AprsIs, config: ConfigSource, position: Callable[[], bytes], where: Callable[[], tuple[float, float] | None], clock: Clock = utcnow, duplicate_sec: float = DUPLICATE_SEC,
+    def __init__(self, link: AprsIs, config: ConfigSource, position: Callable[[], bytes], where: Callable[[], tuple[float, float] | None], clock: Clock = utcnow, duplicate_sec: float = DIGI_DUPLICATE_SEC,
                  position_sec: float = POSITION_SEC, mobile_every_sec: float = MOBILE_EVERY_SEC, summary_sec: float = SUMMARY_SEC, tick_sec: float = TICK_SEC) -> None:
         self._link = link
         self._config = config
@@ -74,7 +73,7 @@ class Igate:
         self._hour_gated = 0
         self._hour_dropped: Counter[str] = Counter()
         self._summary_due: datetime | None = None
-        self._seen: Recent[Key] = Recent(duplicate_sec)              # what was gated lately, for the duplicate check
+        self._seen: Recent[DuplicateKey] = Recent(duplicate_sec)              # what was gated lately, for the duplicate check
         self.made_up: Callable[[], bool] = lambda: False             # whether the radio only makes up its traffic (the Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not (set by app.py)
         self._position_due: datetime | None = None
         self._position_sent: datetime | None = None
@@ -135,9 +134,7 @@ class Igate:
         self.changed.emit()
 
     async def _run(self) -> None:
-        while True:
-            await asyncio.sleep(self.tick_sec)
-            self.tick()
+        await every(self.tick_sec, self.tick, "the iGate ticker")
 
     def tick(self) -> None:
         """What is due by the clock: the filter (our position may have moved), our position, and the summary of the hour."""

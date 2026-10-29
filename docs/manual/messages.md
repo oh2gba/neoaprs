@@ -201,7 +201,7 @@ A path of 8 digipeaters has no room for it. A message to the station is then ref
 
 The path of a received packet lists up to 8 digipeaters, and each has a has-been-repeated bit, written as a star (`OH2RCH-2*`). A digipeater that repeats a packet usually puts its own call in place of the alias it used (`WIDE1-1` becomes `OH2RCH-2*`). So the starred addresses, in order, are the **route**, and the last of them is the station whose transmission you heard.
 
-- A starred alias (`WIDE1*`, `WIDE2-1*`, `TRACE2-1*`, and `WIDE`, `TRACE`, `RELAY`, `ECHO`, `GATE`, `TEMP`, `TRACK`, `SAR` with a digit and an SSID) is a hop whose call is not known: an anonymous one, written `?`.
+- A starred alias (`WIDE1*`, `WIDE2-1*`, `TRACE2-1*`, and `WIDE`, `TRACE`, `RELAY`, `ECHO`, `GATE`, `TEMP`, `TRACK`, `SAR`, `ARISS`, `APRSAT` with a digit and an SSID, or a regional alias of two or three letters and a digit such as `SS3-3`, `FI2-2`, `HOP7-7`) is a hop whose call is not known: an anonymous one, written `?`.
 - An address without a star has not been used and is not part of the route. A packet with no starred address came straight from its sender.
 - Examples: `OH2RCH-2*` is "via OH2RCH-2"; `OH2RCH-3*,TRACE2-1` is also "via OH2RCH-3"; `WIDE1*,OH2RCH-2*,WIDE2-2` is "via ? → OH2RCH-2"; `OH2RCH-1*,OH2RCH-3*` is "via OH2RCH-1 → OH2RCH-3".
 

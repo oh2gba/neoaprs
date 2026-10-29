@@ -22,7 +22,7 @@ from neoaprs.store import DB_NAME
 from neoaprs.versions import InstallInfo
 
 from . import supportgather as gather
-from .daemonstate import LOG_NAME, is_running, page_url, tail
+from .daemonstate import is_running, page_url
 from .installkind import detect_here
 from .supportbundle import Member, bundle_name, log_members, write_zip
 from .supportreadme import readme_text
@@ -107,7 +107,7 @@ def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[s
     def summary() -> str:
         db = facts[0] if facts else DbFacts(None, SCHEMA_VERSION, 0, 0, col.failed.get("database.txt", "not read"))
         known = Facts(VERSION, install or detect_here(data), bool(getattr(sys, "frozen", False)), gather.system_description(), platform.machine(), platform.python_version(), data, now, by,
-                      is_running(data) if running is None else running, gather.started_at(tail(data / LOG_NAME, 100_000)), config, col.failed.get("settings.json", ""), live, page_url(data) or "", db,
+                      is_running(data) if running is None else running, gather.started_at(gather.log_lines(daemon_logs)), config, col.failed.get("settings.json", ""), live, page_url(data) or "", db,
                       problem_groups(gather.log_lines(daemon_logs)), col.members["doctor.txt"].text if "doctor.txt" in col.members else "")
         return summary_text(known)
 

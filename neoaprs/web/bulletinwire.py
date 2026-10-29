@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Call, Iso, _Command, _Model
 
 
 class BulletinRow(_Model):
@@ -25,5 +25,5 @@ class BulletinDelete(_Command):
     """Removes an entry from the message board, from the database and from every page: its row is a `del` of the topic `bulletins`. The same bulletin heard again afterwards is a new entry (heard once). Answered by
     the `del`, or by an `error` (no such entry)."""
     cmd: Literal["bulletin_delete"]
-    sender: str = Field(min_length=1, max_length=64, description="the call that sent it, as the row has it")
+    sender: Call = Field(description="the call that sent it, as the row has it")
     slot: str = Field(min_length=1, max_length=16, description="the addressee as the row has it: `BLN1`, `BLNA`, `BLN3HAMS`, `QST`")

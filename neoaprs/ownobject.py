@@ -18,7 +18,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Literal, get_args
 
-from neoaprs.aprsposition import uncompressed_position
+from neoaprs.aprsposition import north_as_360, uncompressed_position
 from neoaprs.config import MAX_COMMENT, MAX_COMMENT_PHG, SYMBOL_TABLES
 from neoaprs.coded import CodedError
 from neoaprs.configtypes import over_the_air_refusal
@@ -35,7 +35,7 @@ NAME_FORBIDDEN = "!_|~"
 COMMENT_MAX = MAX_COMMENT                    # without a data extension
 COMMENT_MAX_MOTION = MAX_COMMENT_PHG         # behind the course and speed
 COURSE_MAX = 359                             # degrees from north; the course 360 is how north is written on the air
-SPEED_MAX_KMH = 999 * KNOT_KMH               # three digits of knots
+SPEED_MAX_KMH = round(999 * KNOT_KMH, 3)     # three digits of knots, 1850.148 km/h
 QRU_GROUP_MAX = 8                            # the longest group name of the list of QRU servers (LIFEBOAT)
 QRU_RESERVED = ("INFO", "NEXT")              # what a station says to QRU that is not a group: the list of groups, the next objects of the last group
 _QRU_GROUP = re.compile(rf"[A-Z0-9]{{1,{QRU_GROUP_MAX}}}")
@@ -141,7 +141,7 @@ def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, sym
 def _motion_text(obj: OwnObject) -> bytes:
     if obj.course_deg is None and obj.speed_kmh is None:
         return b""
-    course = 0 if obj.course_deg is None else obj.course_deg or 360
+    course = 0 if obj.course_deg is None else north_as_360(obj.course_deg)
     knots = 0 if obj.speed_kmh is None else round(obj.speed_kmh / KNOT_KMH)
     return f"{course:03d}/{min(knots, 999):03d}".encode("ascii")
 

@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { beforeEach, describe, expect, it } from "vitest";
 import BulletinsPane from "@/components/BulletinsPane.vue";
 import type { BulletinRow, OwnBulletinRow } from "@/protocol/protocol";
@@ -69,7 +70,7 @@ describe("BulletinsPane", () => {
 
     it("is a small x at the corner of every row", () => {
       const wrapper = pane(...rows);
-      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "", "", ""]);
+      expect(wrapper.findAll(".bulletin-delete").map((b) => shown(b))).toEqual(["", "", "", ""]);
       expect(x(wrapper, 1)?.attributes("aria-label")).toBe("Delete the bulletin BLN1 from OH2XYZ");
       expect(x(wrapper, 0)?.classes()).toContain("xbtn");
     });
@@ -78,18 +79,18 @@ describe("BulletinsPane", () => {
       const wrapper = pane(...rows);
       await x(wrapper, 1)?.trigger("click");
       expect(x(wrapper, 1)?.text()).toBe("sure?");
-      expect(x(wrapper, 0)?.text()).toBe("");
+      expect(shown(x(wrapper, 0))).toBe("");
       expect(sent("bulletin_delete")).toEqual([]);
       await x(wrapper, 1)?.trigger("click");
       expect(sent("bulletin_delete")).toEqual([{ cmd: "bulletin_delete", sender: "OH2XYZ", slot: "BLN1" }]);
-      expect(x(wrapper, 1)?.text()).toBe("");
+      expect(shown(x(wrapper, 1))).toBe("");
     });
 
     it("arms one row at a time", async () => {
       const wrapper = pane(...rows);
       await x(wrapper, 0)?.trigger("click");
       await x(wrapper, 1)?.trigger("click");
-      expect(wrapper.findAll(".bulletin-delete").map((b) => b.text())).toEqual(["", "sure?", "", ""]);
+      expect(wrapper.findAll(".bulletin-delete").map((b) => shown(b))).toEqual(["", "sure?", "", ""]);
       expect(sent("bulletin_delete")).toEqual([]);
     });
   });

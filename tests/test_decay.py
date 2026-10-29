@@ -6,12 +6,13 @@ from neoaprs.decay import ANNOUNCEMENT, BULLETIN, KILL_SENDS, bulletin_wait_sec,
 
 @pytest.mark.parametrize("path, count", [
     ((), 0), (("WIDE1-1",), 1), (("WIDE1-1", "WIDE2-1"), 2), (("WIDE2-2",), 2), (("WIDE3-3",), 3), (("OH2RCH-2",), 1), (("OH2RCH-2", "OH2RDG", "OH2RCH-1"), 3), (("WIDE1-1*", "WIDE2-1"), 2),
-    (("TRACE3-3",), 3), (("WIDE2-1", "RFONLY"), 1), (("NOGATE",), 0), (("WIDE1-1", "TCPIP"), 1), (("RELAY",), 1), (("WIDE2",), 2)])
+    (("TRACE3-3",), 3), (("WIDE2-1", "RFONLY"), 1), (("NOGATE",), 0), (("WIDE1-1", "TCPIP"), 1), (("RELAY",), 1), (("WIDE2",), 2),
+    (("SS3-3",), 3), (("HOP7-7",), 7), (("FI2-2",), 2), (("FI2-2*",), 2), (("WIDE1-1", "SS2-2"), 3), (("ARISS",), 1), (("WIDEX1",), 1)])
 def test_a_path_asks_for_the_hops_its_calls_and_aliases_have_left(path: tuple[str, ...], count: int) -> None:
     assert hops(path) == count
 
 
-@pytest.mark.parametrize("path, minutes", [((), 10), (("WIDE1-1",), 10), (("WIDE1-1", "WIDE2-1"), 20), (("WIDE2-2",), 20), (("WIDE3-3",), 30), (("A1", "B2", "C3", "D4"), 30)])
+@pytest.mark.parametrize("path, minutes", [((), 10), (("WIDE1-1",), 10), (("WIDE1-1", "WIDE2-1"), 20), (("WIDE2-2",), 20), (("WIDE3-3",), 30), (("A1", "B2", "C3", "D4"), 30), (("SS3-3",), 30), (("SS2-2",), 20)])
 def test_the_net_cycle_time_is_10_minutes_to_one_digipeater_20_to_two_and_30_from_three_on(path: tuple[str, ...], minutes: int) -> None:
     assert net_cycle_sec(path) == minutes * 60
 

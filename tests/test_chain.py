@@ -21,6 +21,8 @@ WIDE = ("WIDE1-1", "WIDE2-1")
     (("WIDE2-2",), ("OH2RCH-2*", "OH2RDG*", "WIDE2*"), [(1, "OH2RCH-2")]),
     (("WIDE1-1", "OH2RDG"), ("OH2RDG*",), [(1, "WIDE1-1"), (2, "OH2RDG")]),                  # (OH2RDG is the second hop's call, not the alias's: the first is implied)
     ((), ("OH2RCH-2*",), []),
+    (("SS3-3",), ("OH2RCH-2*", "SS3-2"), [(1, "OH2RCH-2")]),                                 # (a regional New-N alias is an alias like WIDE: the call that used it takes its place)
+    (("HOP7-7",), ("FI2*",), [(1, "FI2")]),
     (SENT + ("RFONLY",), ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),           # (RFONLY, NOGATE, TCPIP and the q-constructs are no hops, in the path we sent or the one heard)
     (SENT + ("RFONLY",), ("OH2RCH-2*", "OH2RDG", "RFONLY"), [(1, "OH2RCH-2")]),
     (("OH2RCH-2", "NOGATE", "OH2RDG"), ("OH2RCH-2*", "OH2RDG*"), [(1, "OH2RCH-2"), (2, "OH2RDG")]),

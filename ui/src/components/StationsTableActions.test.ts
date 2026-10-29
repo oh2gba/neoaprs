@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import StationsTable from "@/components/StationsTable.vue";
 import { cssRule } from "@/test/css";
@@ -69,10 +70,10 @@ describe("the buttons at the end of a row of the Stations table", () => {
     expect(wrapper.emitted("forget")).toBeUndefined();
     expect(forget(wrapper, "OH2RDG").text()).toBe("sure?");
     expect(forget(wrapper, "OH2RDG").attributes("aria-label")).toBe("Really forget OH2RDG?");
-    expect(forget(wrapper, "OH2PU-9").text()).toBe("");
+    expect(shown(forget(wrapper, "OH2PU-9"))).toBe("");
     await forget(wrapper, "OH2RDG").trigger("click");
     expect(wrapper.emitted("forget")).toEqual([["OH2RDG"]]);
-    expect(forget(wrapper, "OH2RDG").text()).toBe("");
+    expect(shown(forget(wrapper, "OH2RDG"))).toBe("");
     expect(wrapper.emitted("select")).toBeUndefined();
     await forget(wrapper, "OH2RDG").trigger("keydown.enter");
     expect(wrapper.emitted("select")).toBeUndefined();
@@ -84,10 +85,10 @@ describe("the buttons at the end of a row of the Stations table", () => {
     await forget(wrapper, "OH2RDG").trigger("click");
     vi.advanceTimersByTime(5001);
     await wrapper.vm.$nextTick();
-    expect(forget(wrapper, "OH2RDG").text()).toBe("");
+    expect(shown(forget(wrapper, "OH2RDG"))).toBe("");
     await forget(wrapper, "OH2RDG").trigger("click");
     await forget(wrapper, "OH2PU-9").trigger("click");
-    expect(forget(wrapper, "OH2RDG").text()).toBe("");
+    expect(shown(forget(wrapper, "OH2RDG"))).toBe("");
     expect(forget(wrapper, "OH2PU-9").text()).toBe("sure?");
     expect(wrapper.emitted("forget")).toBeUndefined();
   });

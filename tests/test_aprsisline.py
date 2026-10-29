@@ -29,7 +29,7 @@ def test_a_position_from_a_client_is_a_packet_that_came_by_the_internet() -> Non
     ("OH2UDP>APRS,qAU,T2FINLAND:>udp", "qAU", "T2FINLAND", False),
     ("CW1234>APRS,TCPXX*,qAX,CWOP-5:>unverified", "qAX", "CWOP-5", False),
     ("OH2TRC>APRS,TCPIP*,qAI,T2FINLAND,OH2ABC:>traced", "qAI", "T2FINLAND", False),
-    ("OH2LOW>APRS,qAo,OH2RDK-1:>lower case", "qAo", "OH2RDK-1", False),
+    ("OH2LOW>APRS,qAo,OH2RDK-1:>lower case", "qAo", "OH2RDK-1", True),                 # (qAr and qAo: an iGate heard it on the radio, and said so indirectly)
 ])
 def test_the_q_construct_and_the_call_after_it_are_read_from_the_path(line: str, q: str, server: str, radio: bool) -> None:
     packet = parse_is_line(line, NOW)
@@ -107,3 +107,21 @@ def test_the_time_is_the_time_given_and_must_be_aware() -> None:
     assert parse_is_line("OH2ABC>APRS:>x", NOW + timedelta(seconds=5)).heard_at == NOW + timedelta(seconds=5)
     with pytest.raises(ValueError, match="timezone-aware"):
         parse_is_line("OH2ABC>APRS:>x", NOW.replace(tzinfo=None))
+
+
+IPV6 = "20010DB8000000000000000000000001"
+
+
+@pytest.mark.parametrize("line", [
+    f"OH2XYZ>APRS,TCPIP*,qAS,{IPV6}:>x", f"OH2XYZ>APRS,qAS,{IPV6.lower()}:>x", f"OH2XYZ>APRS,TCPIP*,qAI,T2FINLAND,{IPV6}:>x", f"OH2XYZ>APRS,qAR,OH2RDK-1,{IPV6}:>x"])
+def test_an_element_after_the_q_construct_may_be_the_32_hex_characters_of_an_ipv6_address(line: str) -> None:
+    packet = parse_is_line(line, NOW)
+    assert packet.path[-1] in (IPV6, IPV6.lower()) and packet.info == b">x"
+
+
+@pytest.mark.parametrize("line", [
+    f"OH2XYZ>APRS,{IPV6},qAS,T2FINLAND:>x",                       # (before the q-construct it is nothing)
+    f"OH2XYZ>APRS,qAS,{IPV6}0:>x", f"OH2XYZ>APRS,qAS,{IPV6[:-1]}:>x", f"OH2XYZ>APRS,qAS,{IPV6[:-1]}G:>x", "OH2XYZ>APRS,qAS,T2FINLAND,OH2ABCDEFGHIJKL:>x"])
+def test_no_other_long_element_is_a_name(line: str) -> None:
+    with pytest.raises(IsLineError):
+        parse_is_line(line, NOW)

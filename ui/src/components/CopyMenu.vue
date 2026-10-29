@@ -6,8 +6,8 @@ import { ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
-import { copyText } from "@/lib/clipboard";
-import { saidText, type CopyItem } from "@/lib/copy";
+import { copyAndSay } from "@/components/copyAndSay";
+import type { CopyItem } from "@/lib/copy";
 
 const props = defineProps<{ items: readonly CopyItem[]; x: number; y: number; trigger: HTMLElement | null }>();
 const emit = defineEmits<{ close: [] }>();
@@ -34,7 +34,7 @@ function label(item: CopyItem): string {
 
 async function choose(item: CopyItem): Promise<void> {
   menu.done();
-  if (await copyText(item.text)) say(t("copy.copied", { text: saidText(item.text) }));
+  await copyAndSay(item.text, say);
 }
 </script>
 

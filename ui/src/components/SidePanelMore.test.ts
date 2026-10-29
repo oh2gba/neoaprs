@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import SidePanel from "@/components/SidePanel.vue";
 import { TAB_IDS, type SizeClass, type TabId } from "@/lib/layout";
@@ -184,6 +184,26 @@ describe("the More button", () => {
     await key(wrapper, "[role='menu']", "Escape");
     expect(wrapper.find("[role='menu']").exists()).toBe(false);
     expect(document.activeElement).toBe(button(wrapper).element);
+  });
+
+  it("closes with Esc also when it was opened with the mouse, the focus on the button or on the page, and leaves the Esc to nothing else", async () => {
+    const wrapper = await make(400);
+    const after = vi.fn();
+    document.addEventListener("keydown", after);
+    await button(wrapper).trigger("click");
+    expect(wrapper.find("[role='menu']").exists()).toBe(true);
+    await button(wrapper).trigger("keydown", { key: "Escape" });
+    expect(wrapper.find("[role='menu']").exists()).toBe(false);
+    expect(document.activeElement).toBe(button(wrapper).element);
+    await button(wrapper).trigger("click");
+    (document.activeElement as HTMLElement).blur();
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    await nextTick();
+    expect(wrapper.find("[role='menu']").exists()).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(after).not.toHaveBeenCalled();
+    document.removeEventListener("keydown", after);
   });
 
   it("closes with a click outside, and not with one inside", async () => {

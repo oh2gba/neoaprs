@@ -587,6 +587,8 @@ export const fr: Catalogue = {
   "station.ext.dfs_value": "S{strength}, {height} m, {gain} dB",
   "station.ext.df_bearing_value": "{bearing}°, portée {range} km, qualité {quality}, contacts {hits}",
   "station.ext.area_value": "{colour} {shape}, {down}° vers le bas, {right}° vers la droite",
+
+  "station.ext.area_value_left": "{colour} {shape}, {down}° vers le bas, {left}° vers la gauche",
   "station.telemetry.numbered": "n° {number} : {channels}",
   "station.telemetry.bit": { select: "state", on: "{name} actif", other: "{name} inactif" },
   "station.sent_local": "{time} heure locale",
@@ -651,7 +653,6 @@ export const fr: Catalogue = {
   "station.menu.qrz": "Page QRZ",
   "station.menu.forget": "Oublier",
   "station.menu.forget_sure": "Vraiment oublier ?",
-  "station.menu.copied": "{call} copié",
   "station.alert.label": "M'avertir quand {call}…",
   "station.alert.on_air": "arrive sur l'air",
   "station.alert.on_air_title": "Entendu après 30 minutes de silence ou plus, ou pour la première fois",

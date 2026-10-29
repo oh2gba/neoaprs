@@ -235,6 +235,29 @@ async def test_a_cancel_ends_the_program_removes_the_part_and_keeps_the_map(rig:
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and not list(rig.data.glob("*.part"))
 
 
+async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_job_busy(rig: Rig, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    real, deleted = Path.unlink, []
+
+    def held(path: Path, missing_ok: bool = False) -> None:
+        if path.name.endswith(".part") and deleted:                          # (the clean-up after the job, not the one before it)
+            raise PermissionError("[WinError 32] in use by another process")
+        if path.name.endswith(".part"):
+            deleted.append(path)
+        real(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held)
+    rig.fake.mode("fail")
+    rig.service.begin("fetch")
+    await rig.idle()
+    status = rig.status()
+    assert not rig.service.busy and status.state == "error" and status.blocked == "" and rig.seen[-1].state == "error"
+    assert "could not be deleted" in caplog.text
+    monkeypatch.setattr(Path, "unlink", real)
+    rig.fake.mode("ok")
+    await rig.service.fetch()                                                # (a new job is accepted)
+    assert rig.status().state == "ready"
+
+
 async def test_one_job_at_a_time(rig: Rig) -> None:
     rig.fake.mode("slow")
     rig.service.begin("fetch")

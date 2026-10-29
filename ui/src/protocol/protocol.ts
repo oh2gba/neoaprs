@@ -31,7 +31,7 @@ export interface AlertWhen {
 
 /** An area object (the symbol `\l`): its shape and colour, and how far down and to the right of the object's position it reaches. */
 export interface AreaValues {
-  /** open circle, line, open ellipse, open triangle, open box, filled circle, coloured line, filled ellipse, filled triangle or filled box */
+  /** open circle, line, open ellipse, open triangle, open box, filled circle, line down-left, filled ellipse, filled triangle or filled box */
   shape: string;
   colour: string;
   lat_offset_deg: number;

@@ -6,7 +6,6 @@ never in a cookie. Wrong keys are counted for each address; too many in a minute
 """
 import hashlib
 import hmac
-import ipaddress
 import json
 import logging
 import secrets
@@ -21,6 +20,7 @@ from neoaprs.clock import Clock
 from neoaprs.config import Config
 from neoaprs.configtypes import KEY_ALPHABET, KEY_GROUP_SIZE, KEY_GROUPS, access_key
 
+from .addresses import is_loopback
 from .headers import origin_is_host
 from .pagefiles import Secured
 
@@ -38,16 +38,6 @@ PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip")      # a request t
 
 def new_key() -> str:
     return access_key("".join(secrets.choice(KEY_ALPHABET) for _ in range(KEY_GROUPS * KEY_GROUP_SIZE)))
-
-
-def is_loopback(ip: str) -> bool:
-    try:
-        address = ipaddress.ip_address(ip.split("%", 1)[0])
-    except ValueError:
-        return False
-    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
-        address = address.ipv4_mapped
-    return address.is_loopback
 
 
 def is_local(request: tornado.httputil.HTTPServerRequest) -> bool:

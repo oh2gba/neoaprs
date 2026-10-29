@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The symbol picker: every symbol of the APRS set as a picture with its name, the usual ones first, searchable by words ("house", "car", "digi", "wx"). A click on a symbol chooses it and closes the picker;
-// Esc, the Close button or a click outside closes it without a choice. The symbol now in use is marked. It says nothing of tables and codes: the choice is the table and the code, written as the settings write them.
-import { computed, onMounted, ref } from "vue";
+// Esc, the Close button or a click outside closes it without a choice; the focus goes to the search box and stays inside (Tab goes round: useDialogFocus). The symbol now in use is marked. It says nothing of tables and codes: the choice is the table and the code, written as the settings write them.
+import { computed, ref } from "vue";
 import SymbolButton from "@/components/SymbolButton.vue";
+import { useDialogFocus } from "@/composables/useDialogFocus";
 import { t } from "@/i18n";
 import { ALL_SYMBOLS, filterSymbols, symbolName, type PickSymbol } from "@/lib/symbolpicker";
 import { SYMBOL_CHOICES } from "@/lib/setup";
@@ -12,18 +13,18 @@ const emit = defineEmits<{ pick: [table: string, code: string]; close: [] }>();
 
 const query = ref("");
 const search = ref<HTMLInputElement | null>(null);
+const dialog = ref<HTMLElement | null>(null);
+const keys = useDialogFocus(dialog, () => emit("close"), { first: () => search.value });
 const usual = computed<PickSymbol[]>(() => SYMBOL_CHOICES.map((s) => ({ table: s.table, code: s.code, name: symbolName(s.table, s.code) || s.name })));
 const found = computed(() => filterSymbols(ALL_SYMBOLS, query.value));
 const searching = computed(() => query.value.trim() !== "");
 /** The symbol in use: an overlay table is the alternate table with a character over it. */
 const current = (s: PickSymbol): boolean => s.code === props.code && (s.table === "/" ? props.table === "/" : props.table !== "/");
-
-onMounted(() => search.value?.focus());
 </script>
 
 <template>
-  <div class="sympick-backdrop" @pointerdown.self="emit('close')" @keydown.esc.stop="emit('close')">
-    <div class="sympick" role="dialog" aria-modal="true" :aria-label="t('settings.picker.title')">
+  <div class="sympick-backdrop" @pointerdown.self="emit('close')" @keydown="keys.onKey">
+    <div ref="dialog" class="sympick" role="dialog" aria-modal="true" :aria-label="t('settings.picker.title')" tabindex="-1">
       <div class="sympick-head">
         <input
           ref="search"

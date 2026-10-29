@@ -165,5 +165,5 @@ def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
         return decoded
     except (PositionError, MicEError, MessageError, NmeaError) as e:
         return Undecoded(str(e), info.decode("latin-1"))
-    except (ValueError, IndexError) as e:
+    except (ValueError, IndexError, OverflowError) as e:
         return Undecoded(f"malformed field ({type(e).__name__}: {e})", info.decode("latin-1"))

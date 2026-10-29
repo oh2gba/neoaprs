@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import Field
 
-from .wirebase import ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Message, _Model
+from .wirebase import Call, ExtensionValues, FrequencyValues, Iso, LocatorValues, StormValues, _Command, _Message, _Model
 
 Stamp = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$", description="UTC, ISO 8601 with a Z, with fractions of a second")]
 
@@ -153,7 +153,7 @@ class StationTraffic(_Command):
     to it (a message, an ack, a directed query). Read from the packet log, so that they reach back past the 200 of the topic `packets`; the page adds the packets that come after. While `igate/enabled` is off no packet
     that came from APRS-IS is read, as the topic shows none. Answered with a `station_traffic` message to the page that asked."""
     cmd: Literal["station_traffic"]
-    call: str = Field(min_length=1, max_length=64, description="the station, as the `stations` topic has it")
+    call: Call = Field(description="the station, as the `stations` topic has it")
 
 
 class StationTrafficMsg(_Message):

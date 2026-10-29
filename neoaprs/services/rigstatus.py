@@ -11,7 +11,6 @@ send) and read at the start, so a restart sends nothing inside the interval and,
 beacon's destination and path. `last_text` is what `?APRSS` answers with (`status_frame()`) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval and whether it changed (the page's "Send status now"), by the same checks of the interlock, the length and the Tnc. No automatic status report goes while the beacon is off (`beacon/interval_min` is 0: quietly, as nothing is due; `send_now` still sends), and one that was held back goes at the first poll after the beacon is on if it differs and the interval has passed. A report that cannot go (the Tnc is not connected or the radio is silent, would not take it, the
 settings make no frame) is told once for each reason and tried again at the next poll.
 """
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -27,7 +26,7 @@ from neoaprs.rigctld import Reading, RigError, read_rig
 from neoaprs.services.beacon import BeaconError
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
-from neoaprs.tasks import TaskSet
+from neoaprs.tasks import TaskSet, every
 
 log = logging.getLogger("neoaprs.status")
 
@@ -86,12 +85,7 @@ class RigStatus:
         await self._remembered.flush()
 
     async def _run(self) -> None:
-        while True:
-            try:
-                await self.poll()
-            except Exception:                                    # (a poll that fails must not end the timer)
-                log.exception("the status poll failed")
-            await asyncio.sleep(self.poll_sec)
+        await every(self.poll_sec, self.poll, "the status poll", at_start=True)
 
     # ---- one poll
     async def poll(self) -> None:

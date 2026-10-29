@@ -1,4 +1,5 @@
 import { mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import StationCard from "@/components/StationCard.vue";
 import type { Aging } from "@/lib/aging";
@@ -248,7 +249,7 @@ describe("StationCard", () => {
     expect(button.text()).toBe("sure?");
     vi.advanceTimersByTime(1);
     await wrapper.vm.$nextTick();
-    expect(button.text()).toBe("");
+    expect(shown(button)).toBe("");
     expect(button.attributes("aria-label")).toBe("Forget OH2PU-9");
     await button.trigger("click");
     expect(wrapper.emitted("forget")).toBeUndefined();
@@ -259,7 +260,7 @@ describe("StationCard", () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     await wrapper.find(".card-foot .card-forget").trigger("click");
     await wrapper.setProps({ row: station("OH2RDG") });
-    expect(wrapper.find(".card-foot .card-forget").text()).toBe("");
+    expect(shown(wrapper.find(".card-foot .card-forget"))).toBe("");
     await wrapper.find(".card-foot .card-forget").trigger("click");
     expect(wrapper.emitted("forget")).toBeUndefined();
   });
@@ -289,18 +290,18 @@ describe("StationCard", () => {
 
   it("has the Message and Forget buttons of a station, in that order, with Message emitting the call", async () => {
     const wrapper = mount(StationCard, { props: { row: house, now: NOW } });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", ""]);
+    expect(wrapper.findAll(".card-foot button").map((b) => shown(b))).toEqual(["Message", ""]);
     await wrapper.find(".card-foot .btn.primary").trigger("click");
     expect(wrapper.emitted("message")).toEqual([["OH2DPN"]]);
   });
 
   it("has no Message button for a station that cannot do messages, and no gap where it was", async () => {
     const wrapper = mount(StationCard, { props: { row: station("OH2TRK", { can_message: false }), now: NOW } });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual([""]);
+    expect(wrapper.findAll(".card-foot button").map((b) => shown(b))).toEqual([""]);
     expect(wrapper.find(".card-foot .btn.primary").exists()).toBe(false);
     expect(wrapper.find(".card-foot .card-forget").exists()).toBe(true);
     await wrapper.setProps({ row: station("OH2TRK", { can_message: true }) });
-    expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Message", ""]);
+    expect(wrapper.findAll(".card-foot button").map((b) => shown(b))).toEqual(["Message", ""]);
   });
 
   it("offers to write to a station, and not to our own station or to an object", async () => {
@@ -374,7 +375,7 @@ describe("StationCard", () => {
     const wrapper = mount(StationCard, { props: { row, now: NOW } });
     await wrapper.find(".card-foot .card-forget").trigger("click");
     await wrapper.setProps({ row: station("OH2RDG") });
-    expect(wrapper.find(".card-foot .card-forget").text()).toBe("");
+    expect(shown(wrapper.find(".card-foot .card-forget"))).toBe("");
   });
 
   it("does not offer to forget our own station, and closes", async () => {
@@ -469,7 +470,7 @@ describe("StationCard", () => {
 
     it("has Edit and Kill in place of Message and Forget, and none of the fields of a station that is heard", () => {
       const wrapper = card();
-      expect(wrapper.findAll(".card-foot button").map((b) => b.text())).toEqual(["Edit", "Kill"]);
+      expect(wrapper.findAll(".card-foot button").map((b) => shown(b))).toEqual(["Edit", "Kill"]);
       expect(wrapper.find(".forget").classes()).not.toContain("danger");
     });
 
@@ -484,12 +485,13 @@ describe("StationCard", () => {
       const wrapper = card();
       const button = wrapper.find(".card-foot .forget");
       await button.trigger("click");
-      expect(button.text()).toBe("Really kill?");
+      expect(shown(button)).toBe("Really kill?");
+      expect(button.findAll(".twowords > span").map((face) => face.text())).toEqual(["Kill", "Really kill?"]); // (both are there: the button keeps its width)
       expect(button.classes()).toContain("danger");
       expect(wrapper.emitted("kill")).toBeUndefined();
       vi.advanceTimersByTime(5001);
       await wrapper.vm.$nextTick();
-      expect(button.text()).toBe("Kill");
+      expect(shown(button)).toBe("Kill");
       await button.trigger("click");
       await button.trigger("click");
       expect(wrapper.emitted("kill")).toEqual([["LEADER"]]);

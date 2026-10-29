@@ -1,5 +1,6 @@
 // The Web group of the settings form: the switch for network access, the access key and the addresses.
 import { flushPromises, mount } from "@vue/test-utils";
+import { shown } from "@/test/shown";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { openedAt, resetSeen } from "@/test/fakealert";
@@ -62,10 +63,15 @@ describe("the network access", () => {
     const daemon = new FakeFetch(204);
     vi.stubGlobal("fetch", daemon.fetch);
     const { wrapper, say } = make(ON);
-    const button = () => wrapper.findAll("button").find((b) => b.text() === "New key" || b.text() === "sure?");
-    expect(button()?.text()).toBe("New key");
+    const button = () => wrapper.findAll("button").find((b) => b.text().startsWith("New key"));
+    expect(shown(button())).toBe("New key");
+    expect(
+      button()
+        ?.findAll(".twowords > span")
+        .map((face) => face.text()),
+    ).toEqual(["New key", "sure?"]); // (both are there: the button keeps its width)
     await button()?.trigger("click");
-    expect(button()?.text()).toBe("sure?");
+    expect(shown(button())).toBe("sure?");
     expect(daemon.calls).toEqual([]);
     await button()?.trigger("click");
     await flushPromises();

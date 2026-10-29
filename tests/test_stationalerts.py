@@ -123,6 +123,21 @@ async def test_a_station_already_near_when_the_alert_is_set_fires_only_after_it_
     assert rig.kinds() == [("OH2XYZ", "within")]
 
 
+async def test_within_fires_for_the_first_position_known_when_it_is_near_as_on_the_air_does_for_a_first_packet(rig: Rig) -> None:
+    await rig.alerts.set("OH2NEW-9", Alert(within_km=10))                    # (never heard)
+    rig.hear("OH2NEW-9", decoded=north(3))
+    assert rig.kinds() == [("OH2NEW-9", "within")] and rig.fired[0].km == 3.0
+    rig.hear("OH2NEW-9", decoded=north(2))
+    assert len(rig.fired) == 1
+
+
+async def test_within_fires_for_the_first_position_of_a_station_that_had_none_when_the_alert_was_set(rig: Rig) -> None:
+    rig.hear("OH2OLD")
+    await rig.alerts.set("OH2OLD", Alert(within_km=10))
+    rig.hear("OH2OLD", decoded=north(3))
+    assert rig.kinds() == [("OH2OLD", "within")]
+
+
 async def test_within_fires_when_we_come_near_a_station_that_stands_still(rig: Rig) -> None:
     rig.hear(decoded=north(30))
     await rig.alerts.set("OH2XYZ", Alert(within_km=10))
