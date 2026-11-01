@@ -278,8 +278,8 @@ async def test_a_named_port_that_another_program_holds_is_waiting_with_the_holde
             name = open(f"/proc/{child.pid}/comm").read().strip()
             assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0
             assert tnc.problem == f"{path}: held by {name} (pid {child.pid})"
-            await idle_for(0.3)                                 # (several attempts later)
-            assert tnc.state is Source.State.WAITING and tnc.stats.opens == 0 and not select.select([master], [], [], 0)[0], "the held port is not opened, nothing is written to it"
+            await idle_for(0.3)                                 # (several attempts later: between two the state is CONNECTING for a moment, so the state is not asked again)
+            assert tnc.state is not Source.State.CONNECTED and tnc.stats.opens == 0 and not select.select([master], [], [], 0)[0], "the held port is not opened, nothing is written to it"
         await until(lambda: tnc.state is Source.State.CONNECTED)
         assert tnc.path == path and tnc.stats.opens == 1
     finally:
