@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.15.0
+
 The page in Finnish, and a map download that is kept when it is done.
 
 - **New:** the page speaks Suomi. It is chosen like the other languages: the browser's language, or **Language** at the top of the Settings tab. The translation waits for native-speaking hams to read it: corrections are welcome.
