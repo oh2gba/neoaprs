@@ -2,7 +2,7 @@
 bar redrawn with a carriage return) and writes a file that has a PMTiles header. Nothing is fetched from anywhere.
 
     fake = install_fake(tmp_path / "bin")          # the program, `fake.path`
-    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), stall-once (slow for the first run, ok after), grow (a bar at 10% that never moves again while the file grows for a second, then done), linger (a bar at 75% for a second, then done), nosize (a dry run that says nothing of the size), wrongversion (`version` says another version than the pinned one)
+    fake.mode("fail")                              # ok (default), fail (a part of the file, then an error), slow (a bar at 10% and then waits to be killed), stall-once (slow for the first run, ok after), grow (a bar at 10% that never moves again while the file grows for a second, then done), linger (a bar at 75% for a second, then done), long (the bar redrawn 300 times more than the lines the tool keeps, then done), nosize (a dry run that says nothing of the size), wrongversion (`version` says another version than the pinned one)
     fake.calls()                                   # one list of the arguments for each run, in order
     fake.pid()                                     # the process id of the latest run"""
 import json
@@ -83,6 +83,9 @@ with open(target, "wb") as out:
         sys.exit(0)
     for percent in (0, 25, 50, 75):
         say("\r" + bar.format(percent, "#" * (percent // 10), percent * 5))
+    if mode == "long":
+        for redraw in range(300):
+            say("\r" + bar.format(75 + redraw // 12, "#" * 7, 375 + redraw // 3))
     if mode == "linger":
         time.sleep(1.2)
     if mode == "fail":

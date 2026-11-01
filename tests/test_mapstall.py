@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.pmtilestool import UNREACHABLE
 from neoaprs.services.mapfetch import DETAIL, SLOW, WORLD, MapFetch, Patience
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
@@ -72,7 +73,7 @@ async def test_a_failure_of_the_tool_is_not_retried(rig: Rig) -> None:
     rig.fake.mode("fail")
     rig.service.begin("fetch")
     await rig.idle()
-    assert rig.status().state == "error" and "connection refused" in rig.status().problem and len(rig.fake.calls()) == 1 and rig.notes() == []
+    assert rig.status().state == "error" and rig.status().problem == UNREACHABLE and len(rig.fake.calls()) == 1 and rig.notes() == []
 
 
 async def test_the_size_of_the_part_file_is_told_with_the_percent(rig: Rig) -> None:

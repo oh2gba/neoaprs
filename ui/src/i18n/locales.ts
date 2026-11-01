@@ -6,6 +6,7 @@ import type { Catalogue } from "@/i18n/catalogue";
 import { de } from "@/i18n/de";
 import { en } from "@/i18n/en";
 import { es } from "@/i18n/es";
+import { fi } from "@/i18n/fi";
 import { fr } from "@/i18n/fr";
 import { it } from "@/i18n/it";
 import { ja } from "@/i18n/ja";
@@ -23,6 +24,7 @@ export const LOCALES: readonly LocaleInfo[] = [
   { code: "en", name: "English", messages: en },
   { code: "de", name: "Deutsch", messages: de },
   { code: "es", name: "Español", messages: es },
+  { code: "fi", name: "Suomi", messages: fi },
   { code: "fr", name: "Français", messages: fr },
   { code: "it", name: "Italiano", messages: it },
   { code: "ja", name: "日本語", messages: ja },

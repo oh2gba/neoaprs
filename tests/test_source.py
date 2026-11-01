@@ -1,10 +1,11 @@
 """What every feed of packets looks like from outside (neoaprs/source.py): the state and the problem, the lines it keeps, its tasks, and the back-off between two tries."""
 import asyncio
 import errno
+import socket
 
 import pytest
 
-from neoaprs.source import Backoff, Source, os_error_text
+from neoaprs.source import NO_LOOKUP, Backoff, Source, os_error_text
 from tests.support.clock import FixedClock
 from tests.support.env import until
 
@@ -43,6 +44,8 @@ def test_the_words_of_an_os_error_are_the_systems() -> None:
     assert os_error_text(FileNotFoundError(errno.ENOENT, "ignored")) == "No such file or directory"
     assert os_error_text(OSError("odd")) == "odd" and os_error_text(OSError(0, "from strerror")) == "from strerror"
     assert os_error_text(ValueError()) == "ValueError" and os_error_text(ValueError("bad")) == "bad"
+    assert os_error_text(socket.gaierror(-3, "Temporary failure in name resolution")) == NO_LOOKUP, "the resolver's code is never shown as 'Unknown error -3'"
+    assert os_error_text(OSError(-2, "Name or service not known")) == "Name or service not known", "the system's words before its number"
 
 
 async def test_state_changes_are_told_once_each_and_the_problem_is_kept() -> None:

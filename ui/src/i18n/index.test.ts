@@ -41,7 +41,7 @@ describe("detectLocale", () => {
   });
 
   it("is English when the browser asks for nothing the page has", () => {
-    expect(detectLocale(["sv", "fi"])).toBe("en");
+    expect(detectLocale(["sv", "nb"])).toBe("en");
     expect(detectLocale([])).toBe("en");
   });
 });

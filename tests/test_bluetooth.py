@@ -14,7 +14,7 @@ from neoaprs import ax25, btpaired, btsdp, btserial, serialprobe
 from neoaprs.btserial import BluetoothSerial, is_bluetooth, parse_url
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, port_key
-from neoaprs.serialport import SerialError, SerialPort, is_socket, is_url
+from neoaprs.serialport import LOST, SerialError, SerialPort, is_socket, is_url
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import KISS
@@ -240,7 +240,7 @@ async def test_a_device_that_goes_away_drops_the_line(device: FakeBluetooth) -> 
     await device.connected()
     device.drop()
     await until(lambda: bool(reasons))
-    assert not port.is_open and "disconnected" in reasons[0]
+    assert not port.is_open and reasons[0] == LOST
 
 
 async def test_the_tnc_opens_a_bluetooth_port_again_when_the_radio_comes_back(device: FakeBluetooth) -> None:

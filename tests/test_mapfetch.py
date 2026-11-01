@@ -10,9 +10,9 @@ import pytest
 from neoaprs.config import Config
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Job, MapError
-from neoaprs.pmtilestool import ToolError
+from neoaprs.pmtilestool import UNREACHABLE, ToolError
 from neoaprs.pmtilestool import latest_build
-from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch
+from neoaprs.services.mapfetch import DETAIL, FAILED, WORLD, MapFetch
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop, until
 from tests.support.maprig import MapRig, own_world
@@ -187,7 +187,7 @@ async def test_a_failure_leaves_the_map_that_was_there_and_no_part(rig: Rig) -> 
     rig.service.begin("fetch")
     await rig.idle()
     status = rig.status()
-    assert status.state == "error" and status.problem == 'Failed to extract, Get "https://build.example/20261020.pmtiles": connection refused'
+    assert status.state == "error" and status.problem == UNREACHABLE
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and (rig.data / WORLD).read_bytes() == b"the old world"
     assert not list(rig.data.glob("*.part")), "the half-made file is removed"
 
@@ -326,6 +326,24 @@ async def test_a_program_that_cannot_be_had_is_the_error_of_the_job(rig: Rig) ->
     rig.service.begin("fetch")
     await rig.idle()
     assert rig.status().state == "error" and rig.status().problem == "could not download https://github.com/x: boom"
+
+
+async def test_a_failure_of_the_daemons_own_is_told_in_words_and_the_detail_goes_to_the_log(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+    """The page never shows a Python exception name; a file that could not be written says what the system said."""
+    (rig.data / "bin" / "pmtiles").unlink()
+
+    async def broken(bin_dir: Path) -> Path:
+        raise RuntimeError("an invariant of the installer")
+
+    async def no_room(bin_dir: Path) -> Path:
+        raise OSError(28, "No space left on device")
+    for installer, problem in ((broken, FAILED), (no_room, f"{FAILED}: No space left on device")):
+        rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
+        remember_stop(rig.service.stop)
+        rig.service.begin("fetch")
+        await rig.idle()
+        assert rig.status().state == "error" and rig.status().problem == problem
+    assert "an invariant of the installer" in caplog.text and "RuntimeError" not in rig.status().problem
 
 
 async def test_a_program_on_the_path_is_used_before_the_one_in_bin(rig: Rig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

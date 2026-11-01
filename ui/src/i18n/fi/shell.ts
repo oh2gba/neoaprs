@@ -1,0 +1,86 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { shell as source } from "@/i18n/en/shell";
+import type { Message } from "@/i18n/message";
+
+export const shell: Record<keyof typeof source, Message> = {
+  "common.dismiss": "Sulje",
+
+  "header.project_title": "NeoAPRS-projektin sivu",
+  "pill.rx": "Vain RX",
+  "pill.rx_title": "Mitään ei lähetetä. Asetukset → Radio → Vain vastaanotto",
+  "pill.beacon_off": "Majakka pois",
+  "pill.beacon_off_title": "Ei automaattista majakkaa eikä tilaviestiä. Oma asema -välilehti",
+  "pill.internet": "Internet",
+  "pill.internet_title": "Internet: APRS-IS-asemat kartalla. Asetukset → Internet-asemat",
+  "pill.map": "Kartta {percent} %",
+  "pill.map_working": "Kartta…",
+  "pill.map_title": "Ladataan alueesi karttaa. Asetukset → Kartta",
+  "pill.update": "Päivitys",
+  "pill.update_title": "Päivitä versioon {version}",
+  "pill.gps": "GPS",
+  "pill.gps_fix_title": "GPS: paikannus. Oma asema -välilehti",
+  "pill.gps_nofix_title": "GPS: ei vielä paikannusta. Oma asema -välilehti",
+  "pill.rx_send": "Vain RX: mitään ei lähetetä",
+  "pill.daemon": "Palvelu",
+  "pill.daemon_title": "Sivu on yhteydessä NeoAPRSiin",
+  "pill.daemon_connecting": "Palvelu: yhdistetään…",
+  "pill.daemon_connecting_title": "Sivu avaa yhteyttä NeoAPRSiin",
+  "pill.daemon_offline": "Palvelu: ei yhteyttä",
+  "pill.daemon_offline_title": "NeoAPRS ei vastaa. Sivu yhdistää itse uudelleen",
+  "pill.radio": "Radio",
+  "pill.radio_title": "Radio yhdistetty. Asetukset → Radio",
+  "pill.radio_dummy_title": "Testiradio: keksittyä liikennettä, mitään ei lähde ilmaan. Asetukset → Radio",
+  "pill.radio_silent": "Radio: hiljaa",
+  "pill.radio_kiss": "Radio: siirrytään KISS-tilaan…",
+  "pill.radio_searching": "Radio: etsitään…",
+  "pill.radio_off": "Radio: ei yhteyttä",
+  "pill.radio_waiting": "Radio: odotetaan…",
+  "pill.radio_why_title": "{why}. Asetukset → Radio",
+  "pill.radio_waiting_why": "TNC ei ole vielä vastannut",
+  "header.no_call": "kutsua ei asetettu",
+  "header.no_call_title": "Mitään ei lähetetä ennen kuin kutsu on asetettu: avaa käyttöönotto",
+  "header.unread_open": {
+    one: "{n} viesti vielä näkemättä: avaa viestit",
+    other: "{n} viestiä vielä näkemättä: avaa viestit",
+  },
+
+  "unread.not_seen": { one: "{n} viesti vielä näkemättä", other: "{n} viestiä vielä näkemättä" },
+  "unread.new_bulletins": { one: "{n} uusi tiedote", other: "{n} uutta tiedotetta" },
+
+  "tab.messages": "Viestit",
+  "tab.stations": "Asemat",
+  "tab.nearby": "Lähellä",
+  "tab.email": "Sähköposti",
+  "tab.bulletins": "Tiedotteet",
+  "tab.objects": "Kohteet",
+  "tab.beacon": "Oma asema",
+  "tab.packets": "Paketit",
+  "tab.settings": "Asetukset",
+  "tab.more": "Lisää",
+  "tab.menu_new": ", {n} uutta",
+
+  "panel.label": "Tiedot",
+  "panel.map": "Kartta",
+  "panel.width": "Paneelin leveys",
+  "panel.show": "Näytä paneeli",
+  "panel.hide": "Piilota paneeli",
+  "panel.show_unseen": "Näytä paneeli, {unseen}",
+
+  "footer.cost": "NeoAPRS käyttää {cpu} % yhdestä prosessoriytimestä ja {mb} MB muistia, käynnissä {span}",
+  "footer.cost_no_memory": "NeoAPRS käyttää {cpu} % yhdestä prosessoriytimestä, käynnissä {span}",
+
+  "mismatch.notice":
+    "Tämä sivu ja NeoAPRS eivät vastaa toisiaan (sivu {page}, NeoAPRS {neoaprs}). Lataa sivu uudelleen; jos tilanne ei muutu, käynnistä NeoAPRS uudelleen.",
+  "mismatch.reload": "Lataa uudelleen",
+
+  "copy.menu_label": "Kopioi",
+  "copy.call": "Kopioi {call}",
+  "copy.message": "Kopioi viesti",
+  "copy.packet": "Kopioi paketti",
+  "copy.address": "Kopioi osoite",
+  "copy.name": "Kopioi nimi",
+  "copy.copied": "Kopioitu {text}",
+
+  "settings.language.label": "Kieli",
+  "settings.language.tip1": "Tämän sivun kieli. Jokainen selain ja laite muistaa oman valintansa.",
+};

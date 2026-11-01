@@ -12,6 +12,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.call.shape": "o indicativo '{value}' não tem de 1 a 6 caracteres de A-Z e 0-9 com um '-SSID' opcional",
   "error.call.ssid": "o indicativo '{value}' tem um SSID acima de {max}",
   "error.general.too_soon": "cedo demais para outra consulta {query}: aguarde {seconds} s",
+  "error.failed": "Não deu certo; tente de novo. Se continuar, envie os arquivos de log (Ajustes → Ajuda).",
   "error.map.no_job": "nenhum trabalho de mapa em andamento",
   "error.update.unsupported": "esta cópia do NeoAPRS não consegue se atualizar sozinha; a página tem os passos",
   "error.update.blocked": "o NeoAPRS não consegue se atualizar sozinho aqui: {reason}",

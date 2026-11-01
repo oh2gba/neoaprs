@@ -105,6 +105,7 @@ export const fr: Catalogue = {
   "error.call.shape": "l'indicatif « {value} » n'est pas formé de 1 à 6 caractères A-Z et 0-9 avec un « -SSID » facultatif",
   "error.call.ssid": "l'indicatif « {value} » a un SSID supérieur à {max}",
   "error.general.too_soon": "trop tôt pour une autre requête {query} : attendez {seconds} s",
+  "error.failed": "Cela n’a pas fonctionné ; réessayez. Si cela continue, envoyez les journaux (Réglages → Aide).",
   "error.map.no_job": "aucune tâche de carte n'est en cours",
   "error.update.unsupported": "cette copie de NeoAPRS ne peut pas se mettre à jour elle-même ; la page donne les étapes",
   "error.update.blocked": "NeoAPRS ne peut pas se mettre à jour lui-même ici : {reason}",

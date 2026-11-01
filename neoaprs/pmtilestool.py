@@ -4,7 +4,9 @@ The tool is one program without dependencies. It is found in the `bin/` folder n
 downloaded from GitHub, checked against the SHA-256 written below (the digest GitHub shows for each file of the release; the pin is the trust, not the server), and unpacked into `bin/`.
 
 `extract` runs `pmtiles extract` with a subprocess in a thread, which works on every event loop (Tornado forces the selector loop on Windows, which cannot start subprocesses of its own), and reads its
-output a line at a time: the percent of the bar it draws, and the sizes of a dry run. Nothing here imports Tornado or the settings."""
+output a line at a time: the percent of the bar it draws, and the sizes it says (a dry run is for them; a download is complete without them). The lines that say a size are kept as they go by, apart from the last
+lines kept for a failure: a download redraws its bar thousands of times after the line that says the tiles. A program that fails is told in plain words where its last line is a connection that could not be made.
+Nothing here imports Tornado or the settings."""
 import asyncio
 import contextlib
 import hashlib
@@ -207,6 +209,9 @@ _ARCHIVE = re.compile(r"archive size of ([\d.]+\s*[kMGTP]?B)\b")
 _PERCENT = re.compile(r"(?<![\d.])(\d{1,3})%\s*\S")                     # (a bar that is cut off in the middle of its percent has no character after it yet)
 _PREFIX = re.compile(r"^\d{4}/\d\d/\d\d \d\d:\d\d:\d\d \S+?: ")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+_NO_CONNECTION = re.compile(r"no such host|connection refused|connection reset|i/o timeout|network is unreachable|dial tcp|tls handshake|server misbehaving|name resolution|unexpected EOF", re.IGNORECASE)
+UNREACHABLE = "the map server could not be reached; is there a connection?"
+LINES_KEPT = 200
 
 
 def parse_size(text: str) -> int:
@@ -229,17 +234,25 @@ class Sizes:
     bytes: int                                       # what the archive will hold of tiles
 
 
-def read_sizes(lines: list[str]) -> Sizes:
-    """The tiles and the size an extract makes (what a dry run is for), from what the tool said."""
+def says_size(line: str) -> bool:
+    """Whether the line is one of the two that say how big the extract is (the tiles, the size of the archive)."""
+    return _TILES.search(line) is not None or _ARCHIVE.search(line) is not None
+
+
+def read_sizes(lines: list[str]) -> Sizes | None:
+    """The tiles and the size an extract makes, from what the tool said; None when it did not say the size of the archive (0 tiles when it said the size and not those)."""
     tiles = size = None
     for line in lines:
         if found := _TILES.search(line):
             tiles = int(found.group(1))
         if found := _ARCHIVE.search(line):
             size = parse_size(found.group(1))
-    if tiles is None or size is None:
-        raise ToolError("the pmtiles program did not say how big the extract is" + (f": {lines[-1]}" if lines else ""))
-    return Sizes(tiles, size)
+    return None if size is None else Sizes(tiles or 0, size)
+
+
+def plain_failure(line: str) -> str:
+    """What a program that failed says, in words for the operator: the one thing they can do something about, a connection that could not be made, is said as that; any other last line as it is."""
+    return UNREACHABLE if _NO_CONNECTION.search(line) else line
 
 
 def _clean(raw: bytes) -> str:
@@ -257,7 +270,8 @@ def command_line(program: Path, source: str, target: Path, bbox: tuple[float, fl
 
 
 class _Run:
-    """One run of the program, in a thread: its output a line at a time (the bar redraws itself with a carriage return, so that ends a line too)."""
+    """One run of the program, in a thread: its output a line at a time (the bar redraws itself with a carriage return, so that ends a line too). The last LINES_KEPT lines are kept for a failure, and the lines that say a
+    size apart (`said`), whole: a download redraws its bar far more than that after the line that says the tiles."""
 
     def __init__(self, command: list[str], on_percent: Callable[[int], None]) -> None:
         self.command = command
@@ -266,6 +280,7 @@ class _Run:
         self._process: subprocess.Popen[bytes] | None = None
         self._lock = threading.Lock()
         self.lines: list[str] = []
+        self.said: list[str] = []
         self._percent = -1
 
     def stop(self) -> None:
@@ -291,7 +306,9 @@ class _Run:
         if not text:
             return
         self.lines.append(text)
-        del self.lines[:-200]
+        del self.lines[:-LINES_KEPT]
+        if says_size(text):
+            self.said.append(text)
         self._report(text)
 
     def _report(self, text: str) -> None:
@@ -318,14 +335,15 @@ class _Run:
         if self.stopped:
             raise ToolError("stopped")
         if code != 0:
-            raise ToolError(self.lines[-1] if self.lines else f"{Path(self.command[0]).name} ended with {code}")
+            raise ToolError(plain_failure(self.lines[-1]) if self.lines else f"{Path(self.command[0]).name} ended with {code}")
         return self.lines
 
 
 async def extract(program: Path, source: str, target: Path, bbox: tuple[float, float, float, float] | None, maxzoom: int, dry_run: bool = False,
-                  on_percent: Callable[[int], None] | None = None) -> Sizes:
+                  on_percent: Callable[[int], None] | None = None) -> Sizes | None:
     """Cuts the box (the whole world without one) down to `maxzoom` out of `source`, a web address or a file, into `target`; with `dry_run` nothing is written and the sizes are what it would make.
-    `on_percent` is told the percent of the bar, on the event loop. A task that is cancelled ends the program and waits for it. ToolError for a program that fails."""
+    The sizes the program said, None when it did not say the size of the archive (a download is complete without them; a dry run is for them). `on_percent` is told the percent of the bar, on the event loop.
+    A task that is cancelled ends the program and waits for it. ToolError for a program that fails."""
     loop = asyncio.get_running_loop()
     told = on_percent or (lambda percent: None)
     def from_thread(percent: int) -> None:
@@ -334,13 +352,13 @@ async def extract(program: Path, source: str, target: Path, bbox: tuple[float, f
     run = _Run(command_line(program, source, target, bbox, maxzoom, dry_run), from_thread)
     thread = asyncio.ensure_future(asyncio.to_thread(run.go))
     try:
-        lines = await asyncio.shield(thread)
+        await asyncio.shield(thread)
     except asyncio.CancelledError:
         run.stop()
         with contextlib.suppress(Exception):
             await thread
         raise
-    return read_sizes(lines)
+    return read_sizes(run.said)
 
 
 def url_exists(url: str) -> bool:

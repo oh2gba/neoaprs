@@ -106,6 +106,7 @@ export const de: Catalogue = {
   "error.call.shape": "Rufzeichen „{value}“ besteht nicht aus 1 bis 6 Zeichen A-Z und 0-9 mit einer optionalen „-SSID“",
   "error.call.ssid": "Rufzeichen „{value}“ hat eine SSID über {max}",
   "error.general.too_soon": "zu früh für eine weitere Abfrage {query}: {seconds} s warten",
+  "error.failed": "Das hat nicht geklappt; noch einmal versuchen. Bleibt es so, die Logs senden (Einstellungen → Hilfe).",
   "error.map.no_job": "es läuft kein Kartenauftrag",
   "error.update.unsupported": "diese Kopie von NeoAPRS kann sich nicht selbst aktualisieren; die Seite zeigt die Schritte",
   "error.update.blocked": "NeoAPRS kann sich hier nicht selbst aktualisieren: {reason}",

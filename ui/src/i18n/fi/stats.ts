@@ -1,0 +1,60 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { stats as source } from "@/i18n/en/stats";
+import type { Message } from "@/i18n/message";
+
+export const stats: Record<keyof typeof source, Message> = {
+  "stats.title": "Tilastot",
+  "stats.label": "Tilastokortti",
+  "stats.chart": "Paketteja tunnissa, viimeiset 24 tuntia",
+  "stats.chart_unit": "pakettia",
+
+  "stats.section.stations": "Asemat",
+  "stats.stations": "Kuultu",
+  "stats.on_map": "Kartalla",
+  "stats.direct": "Kuultu suoraan",
+  "stats.internet_only": "Vain internetin kautta",
+  "stats.objects": "Kohteet ja itemit",
+  "stats.digipeaters": "Digipeaterit",
+  "stats.igates": "iGatet",
+  "stats.weather": "Sääasemat",
+  "stats.devices": "Yleisimmät",
+
+  "stats.section.reach": "Kantama",
+  "stats.aloha": "ALOHA-ympyrä",
+  "stats.farthest_direct": "Kauimpana suoraan",
+  "stats.farthest_rf": "Kauimpana radiolla",
+  "stats.most_used": "Käytetyimmät digipeaterit",
+
+  "stats.section.packets": "Paketit",
+  "stats.packets_total": "Tietokannassa",
+  "stats.packets_hour": "Viimeisen tunnin aikana",
+  "stats.busiest": "Vilkkain asema",
+  "stats.by_kind": "Viimeiset {n} lajeittain",
+  "stats.by_channel": "Kanavittain",
+  "stats.direct_share": "Kuultu suoraan",
+  "stats.rate": "Tahti",
+
+  "stats.section.radio": "Palvelun käynnistyksestä",
+  "stats.running": "Käynnissä",
+  "stats.frames": "Kehyksiä TNC:ltä",
+  "stats.bytes": "Tavuja sisään · ulos",
+  "stats.digipeated": "Toistettu muille",
+  "stats.gated": "Viety internetiin",
+
+  "stats.counted": "{name} ({n})",
+  "stats.station_km": "{call}, {km} km",
+  "stats.km": "{km} km",
+  "stats.busiest_value": "{call}, {n} viimeisen tunnin aikana",
+  "stats.kind_count": "{n} {kind}",
+  "stats.kind.position": "sijaintia",
+  "stats.kind.message": "viestiä",
+  "stats.kind.object": "kohdetta",
+  "stats.kind.item": "itemiä",
+  "stats.kind.status": "tilaviestiä",
+  "stats.kind.other": "muuta",
+  "stats.kind.undecoded": "lukukelvotonta",
+  "stats.percent_of_radio": "{percent} % radion kautta tulleista",
+  "stats.per_minute": "{n} minuutissa",
+  "stats.frames_value": "{n}, {bad} lukukelvotonta",
+  "stats.in_out": "{in} · {out}",
+};

@@ -91,13 +91,13 @@ describe("a refusal on the page", () => {
       text: "set_config: station/lat: 95 is not between -90 and 90",
     };
     expect(errorReason(error)).toBe("95 is not between -90 and 90");
-    expect(errorLine(error)).toBe(error.text);
+    expect(errorLine(error), "the toast has no command name and no setting key: they say nothing to the person").toBe("95 is not between -90 and 90");
   });
 
   it("is the daemon's English one, without the command and the setting in front, for a code it has none for", () => {
     const text = "send_message: OH2GBA is our own call";
     expect(errorReason({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
-    expect(errorLine({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe(text);
+    expect(errorLine({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
     expect(errorReason({ cmd: "", key: null, code: "nope.nothing", params: {}, text: "Not connected to the daemon." })).toBe("Not connected to the daemon.");
   });
 

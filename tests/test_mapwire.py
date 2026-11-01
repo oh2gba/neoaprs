@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.pmtilestool import UNREACHABLE
 from tests.support.env import Env
 from tests.support.fakepmtiles import alive, install_fake
 from tests.support.wsclient import WsClient
@@ -86,7 +87,7 @@ async def test_a_failed_job_is_the_state_error_with_the_reason(tmp_path: Path) -
     e, page = await daemon(tmp_path, "fail")
     await page.send({"cmd": "map_fetch"})
     await page.until(lambda: page.topics["map"]["state"] == "error")
-    assert "connection refused" in page.topics["map"]["problem"] and page.topics["map"]["detail"] is None
+    assert page.topics["map"]["problem"] == UNREACHABLE and page.topics["map"]["detail"] is None
 
 
 async def test_without_a_position_the_jobs_are_refused_and_the_topic_says_why(tmp_path: Path) -> None:

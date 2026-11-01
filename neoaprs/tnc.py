@@ -153,9 +153,9 @@ class Tnc(TimedSource):
             self._probe_next = named and self.fallback_probe and self._search.possible
             self._wait(str(e))
             return
-        except Exception as e:
+        except Exception:
             log.exception("tnc: connecting failed")
-            self._wait(f"{type(e).__name__}: {e}")
+            self._wait("the radio could not be opened; the log says why")
             return
         if found is not None:
             try:

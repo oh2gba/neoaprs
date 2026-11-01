@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.config import Config
+from neoaprs.pmtilestool import UNREACHABLE
 from tests.conftest import ROOT
 from tests.support.fakepmtiles import FakePmtiles, install_fake
 from tests.support.storedb import store_at
@@ -66,5 +67,5 @@ def test_a_wrong_flag_is_refused_with_the_key_and_exit_2(tmp_path: Path, fake: F
 def test_a_program_that_fails_is_said_with_exit_1(tmp_path: Path, fake: FakePmtiles) -> None:
     fake.mode("fail")
     done = mapfetch(tmp_path, fake, "--lat", "60", "--lon", "24")
-    assert done.returncode == 1 and "connection refused" in done.stderr
+    assert done.returncode == 1 and UNREACHABLE in done.stderr
     assert not list((tmp_path / "data").glob("*.pmtiles*"))

@@ -1,6 +1,7 @@
 """The dispatcher: an information field and the destination and source calls to what the packet says, by its data type identifier.
 
 `parse` never raises: a field that should have decoded and did not becomes `Undecoded` with the reason."""
+import logging
 import re
 from dataclasses import replace
 from collections.abc import Callable
@@ -15,6 +16,9 @@ from neoaprs.aprsposition import PositionError, parse_position, resolve_mdhm, re
 from neoaprs.aprstelemetry import parse_telemetry
 from neoaprs.aprsweather import parse_report
 from neoaprs.packet import Decoded, ItemReport, ObjectReport, Other, Position, Status, Undecoded, decode_text
+
+log = logging.getLogger("neoaprs.aprsparse")
+DAMAGED = "the packet is damaged or not in a form NeoAPRS understands"
 
 _OTHER_KINDS = {b"?": "query", b"}": "third-party", b"{": "user-defined", b"#": "weather", b"*": "weather", b",": "test", b"+": "shelter", b".": "space-weather"}      # the data types that are only named (the decoded ones are in _HANDLERS)
 _MICE = (b"'", b"`", b"\x1c", b"\x1d")
@@ -166,4 +170,5 @@ def parse(info: bytes, source: str, destination: str, now: datetime) -> Decoded:
     except (PositionError, MicEError, MessageError, NmeaError) as e:
         return Undecoded(str(e), info.decode("latin-1"))
     except (ValueError, IndexError, OverflowError) as e:
-        return Undecoded(f"malformed field ({type(e).__name__}: {e})", info.decode("latin-1"))
+        log.debug("undecoded %r: %s: %s", info, type(e).__name__, e)
+        return Undecoded(DAMAGED, info.decode("latin-1"))

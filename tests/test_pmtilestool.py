@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.pmtilestool import ASSETS, VERSION, Asset, ToolError, asset_for, ensure, extract, find, install, parse_size, percent_of, platform_key, read_header, read_sizes, tool_file, url_exists
+from neoaprs.pmtilestool import ASSETS, UNREACHABLE, VERSION, Asset, Sizes, ToolError, asset_for, ensure, extract, find, install, parse_size, percent_of, plain_failure, platform_key, read_header, read_sizes, says_size, tool_file, url_exists
 from tests.support.env import until
 from tests.support.fakepmtiles import alive, install_fake
 
@@ -223,9 +223,17 @@ def test_a_dry_run_gives_the_tiles_and_the_size_of_the_archive() -> None:
     lines = ["fetching 3 dirs, 3 chunks, 1 requests", "Region tiles 83211, result tile entries 41233", "fetching 41233 tiles, 5000 chunks, 120 requests",
              "Extract transferred 512 MB (overfetch 0.05) for an archive size of 493 MB"]
     sizes = read_sizes(lines)
-    assert (sizes.tiles, sizes.bytes) == (41233, 493_000_000)
-    with pytest.raises(ToolError, match="did not say how big"):
-        read_sizes(lines[:3])
+    assert sizes is not None and (sizes.tiles, sizes.bytes) == (41233, 493_000_000)
+    assert read_sizes(lines[:3]) is None, "no size of the archive: no sizes"
+    assert read_sizes(lines[3:]) == Sizes(0, 493_000_000), "the size without the tiles is still the size"
+    assert [says_size(line) for line in lines] == [False, False, True, True]
+
+
+def test_a_connection_that_could_not_be_made_is_said_in_words_and_any_other_failure_as_it_is() -> None:
+    assert plain_failure('Failed to extract, Get "https://build.protomaps.com/20261101.pmtiles": dial tcp: lookup build.protomaps.com: no such host') == UNREACHABLE
+    assert plain_failure('Failed to extract, Get "src": connection refused') == UNREACHABLE
+    assert plain_failure("Failed to extract, context deadline exceeded (Client.Timeout exceeded while awaiting headers) i/o timeout") == UNREACHABLE
+    assert plain_failure("Failed to extract, the archive has no tiles at zoom 14") == "Failed to extract, the archive has no tiles at zoom 14"
 
 
 def test_the_zooms_and_the_box_are_read_from_the_header_of_an_archive(tmp_path: Path) -> None:
@@ -241,7 +249,7 @@ def test_the_zooms_and_the_box_are_read_from_the_header_of_an_archive(tmp_path: 
 async def test_a_dry_run_asks_for_the_box_and_the_zoom_and_gives_the_sizes(tmp_path: Path) -> None:
     fake = install_fake(tmp_path / "bin")
     sizes = await extract(fake.path, "https://build.example/20261022.pmtiles", tmp_path / "out.pmtiles", (23.5, 58.9, 26.4, 61.4), 12, dry_run=True)
-    assert (sizes.tiles, sizes.bytes) == (41233, 493_000_000)
+    assert sizes is not None and (sizes.tiles, sizes.bytes) == (41233, 493_000_000)
     assert fake.calls() == [["extract", "https://build.example/20261022.pmtiles", str(tmp_path / "out.pmtiles"), "--maxzoom=12", "--bbox=23.50000,58.90000,26.40000,61.40000", "--download-threads=8", "--dry-run"]]
     assert not (tmp_path / "out.pmtiles").exists(), "a dry run writes nothing"
 
@@ -256,16 +264,25 @@ async def test_a_run_writes_the_file_and_tells_the_percent_of_the_bar_as_it_goes
     assert header is not None and header.max_zoom == 10 and header.bbox == (24.0, 60.0, 25.0, 61.0)
 
 
+async def test_a_download_whose_bar_is_redrawn_more_than_the_lines_kept_is_complete_with_its_sizes(tmp_path: Path) -> None:
+    """The real thing: a 100 MB download redraws its bar thousands of times after the line that says the tiles (0.14.5 threw the finished map away for want of that line)."""
+    fake = install_fake(tmp_path / "bin")
+    fake.mode("long")
+    told: list[int] = []
+    sizes = await extract(fake.path, "src", tmp_path / "out.pmtiles", (24.0, 60.0, 25.0, 61.0), 10, on_percent=told.append)
+    assert sizes == Sizes(41233, 493_000_000) and told[-1] == 100 and read_header(tmp_path / "out.pmtiles") is not None
+
+
 async def test_the_world_is_asked_for_without_a_box(tmp_path: Path) -> None:
     fake = install_fake(tmp_path / "bin")
     await extract(fake.path, "src", tmp_path / "world.pmtiles", None, 5)
     assert not any(a.startswith("--bbox") for a in fake.calls()[0]) and "--maxzoom=5" in fake.calls()[0]
 
 
-async def test_a_program_that_fails_is_told_with_its_last_line_without_the_date_and_the_place(tmp_path: Path) -> None:
+async def test_a_program_that_cannot_reach_the_server_is_told_in_words(tmp_path: Path) -> None:
     fake = install_fake(tmp_path / "bin")
     fake.mode("fail")
-    with pytest.raises(ToolError, match=r'^Failed to extract, Get "src": connection refused$'):
+    with pytest.raises(ToolError, match=f"^{re.escape(UNREACHABLE)}$"):
         await extract(fake.path, "src", tmp_path / "out.pmtiles", None, 5)
 
 
@@ -276,11 +293,10 @@ async def test_a_program_that_cannot_be_started_is_told(tmp_path: Path) -> None:
         await extract(tmp_path / "pmtiles", "src", tmp_path / "out.pmtiles", None, 5)
 
 
-async def test_a_dry_run_that_does_not_say_the_size_is_an_error(tmp_path: Path) -> None:
+async def test_a_dry_run_that_does_not_say_the_size_gives_none(tmp_path: Path) -> None:
     fake = install_fake(tmp_path / "bin")
     fake.mode("nosize")
-    with pytest.raises(ToolError, match="did not say how big"):
-        await extract(fake.path, "src", tmp_path / "out.pmtiles", None, 5, dry_run=True)
+    assert await extract(fake.path, "src", tmp_path / "out.pmtiles", None, 5, dry_run=True) is None
 
 
 async def test_a_task_that_is_cancelled_ends_the_program_and_waits_for_it(tmp_path: Path) -> None:

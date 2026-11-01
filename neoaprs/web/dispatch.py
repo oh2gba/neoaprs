@@ -21,6 +21,7 @@ from .protocol import COMMAND_NAMES, COMMANDS, AnyCommand
 from .session import Connection
 
 log = logging.getLogger("neoaprs.web")
+FAILED = "that did not work; the log says why"                               # (the page says it by the code `failed`)
 
 
 class UserError(Exception):
@@ -98,9 +99,9 @@ class Dispatcher:
             await self._call(conn, name, cmd)
         except UserError as e:
             conn.error(str(e), name, e.code, e.key, e.params)
-        except Exception as e:
+        except Exception:
             log.exception("command %s failed", name)
-            conn.error(f"{name}: {e}", name, "failed")
+            conn.error(f"{name}: {FAILED}", name, code="failed")                     # (the page says it in its language by the code; the exception is for the log, not the operator)
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
         await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors), cmd)

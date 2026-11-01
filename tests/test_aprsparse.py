@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from neoaprs.aprsparse import parse
+from neoaprs.aprsparse import DAMAGED, parse
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.clock import iso
 from neoaprs.packet import Other, Packet, Position, Undecoded
@@ -85,7 +85,7 @@ def test_an_overflow_from_inside_is_undecoded_too(monkeypatch: pytest.MonkeyPatc
         raise OverflowError("cannot convert float infinity to integer")
     monkeypatch.setattr("neoaprs.aprsparse.parse_position", overflow)
     d = parse(b"!4903.50N/07201.75W-", "A", "B", NOW)
-    assert isinstance(d, Undecoded) and "OverflowError" in d.error
+    assert isinstance(d, Undecoded) and d.error == DAMAGED, "the page never names a Python exception"
 
 
 def test_messaging_follows_the_identifier() -> None:

@@ -36,6 +36,8 @@ DETAIL = "basemap.pmtiles"
 WORLD = WORLD_FILE
 WORLD_MAXZOOM = 5
 SLOW = "the map server is too slow now; try again later"
+NO_SIZE = "the size of the map could not be worked out; the download works without it"
+FAILED = "the map could not be made; the log says why"
 
 
 @dataclass(frozen=True)
@@ -210,7 +212,7 @@ class MapFetch:
             if raising:
                 raise
         except Exception as e:
-            self._problem = f"{type(e).__name__}: {e}"
+            self._problem = FAILED if not isinstance(e, OSError) else f"{FAILED}: {e.strerror or e}"       # (the page shows this: words for the operator, the detail is in the log)
             log.exception("the map %s failed", job)
             if raising:
                 raise
@@ -246,6 +248,8 @@ class MapFetch:
         source, build = await self._source()
         self._set("area")
         sizes = await extract(program, source, self.data_dir / (DETAIL + ".part"), box, zoom, dry_run=True)
+        if sizes is None:
+            raise ToolError(NO_SIZE)
         self._estimate = Estimate(sizes.bytes, sizes.tiles, radius, zoom, box, build)
         log.info("the map of %d km round us to zoom %d is %.0f MB (%d tiles)", radius, zoom, sizes.bytes / 1e6, sizes.tiles)
 

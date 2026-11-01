@@ -9,6 +9,7 @@ from collections.abc import Callable
 import pytest
 
 from neoaprs import ax25, btle, serialport
+from neoaprs.serialport import LOST
 from neoaprs.btle import BleSerial, is_ble, parse_url, profile_for
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, port_key
@@ -365,7 +366,7 @@ async def test_the_line_is_dropped_when_the_device_goes_away(monkeypatch: pytest
     await port.open()
     ble.drop()
     await until(lambda: bool(reasons))
-    assert not port.is_open and "disconnected" in reasons[0]
+    assert not port.is_open and reasons[0] == LOST
     await until(lambda: ble_threads() == [])
 
 

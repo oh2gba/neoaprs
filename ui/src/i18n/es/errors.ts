@@ -11,6 +11,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.call.shape": "el indicativo “{value}” no es de 1 a 6 caracteres A-Z y 0-9 con un “-SSID” opcional",
   "error.call.ssid": "el indicativo “{value}” tiene un SSID superior a {max}",
   "error.general.too_soon": "demasiado pronto para otra consulta {query}: espera {seconds} s",
+  "error.failed": "No ha funcionado; inténtalo de nuevo. Si sigue pasando, envía los registros (Ajustes → Ayuda).",
   "error.map.no_job": "no hay ninguna descarga de mapa en curso",
   "error.update.unsupported": "esta copia de NeoAPRS no puede actualizarse sola; la página tiene los pasos",
   "error.update.blocked": "NeoAPRS no puede actualizarse solo aquí: {reason}",

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from neoaprs import VERSION
 from neoaprs.config import DEFAULTS
-from neoaprs.services.updatecheck import CheckResult, UpdateCheck
+from neoaprs.services.updatecheck import NO_ANSWER, NO_VERSION, CheckResult, UpdateCheck
 from neoaprs.updatefetch import fetch
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeversionpage import version_page
@@ -61,11 +61,11 @@ async def test_a_page_that_cannot_be_reached_or_understood_is_no_answer_with_the
     fake.status = 503
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 2)
-    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page could not be reached"}
+    assert page.of("update_result")[1] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": NO_ANSWER}
     fake.status, fake.body = 200, b"<html>moved</html>"
     await page.send({"cmd": "update_check"})
     await page.until(lambda: len(page.of("update_result")) == 3)
-    assert page.of("update_result")[2] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": "the version page gave an answer that is not a version"}
+    assert page.of("update_result")[2] == {"type": "update_result", "outcome": "no_answer", "version": "", "text": NO_VERSION}
     assert e.ctl.updatecheck.latest is not None, "what was known stays"
     await e.stop()
 

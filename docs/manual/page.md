@@ -270,7 +270,7 @@ When the update check has found a newer version, an **Update** mark is the first
 
 ## The page's language
 
-The page speaks English, Deutsch, Español, Français, Italiano, 日本語 and Português (Brasil). It starts in your browser's language when it has it, else in English. **Language**, at the top of the Settings tab, changes it for this browser. The translations have not all been read by native-speaking hams yet: corrections are welcome. The daemon's own words (the log, the radio's terminal, the packet summaries, the names of the radio types) and the manual stay English.
+The page speaks English, Deutsch, Español, Suomi, Français, Italiano, 日本語 and Português (Brasil). It starts in your browser's language when it has it, else in English. **Language**, at the top of the Settings tab, changes it for this browser. The translations have not all been read by native-speaking hams yet: corrections are welcome. The daemon's own words (the log, the radio's terminal, the packet summaries, the names of the radio types) and the manual stay English.
 
 ## What the page remembers
 

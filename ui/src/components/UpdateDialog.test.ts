@@ -191,13 +191,14 @@ describe("UpdateDialog", () => {
     expect(wrapper.find(".updatedialog-progress").text()).toBe("NeoAPRS restarts in a moment");
   });
 
-  it("says a failure in plain words, with the detail as its title, offers Try again and opens the steps by hand", async () => {
+  it("says a failure in plain words, without the daemon's detail (that is for the log), offers Try again and opens the steps by hand", async () => {
     const detail = "NeoAPRS-0.4.0-x86_64.AppImage is not the file of the release: its SHA-256 is ab, SHA256SUMS says cd";
     const { wrapper, daemon } = dialog({ install: install("appimage"), selfUpdate: job({ state: "error", version: "0.4.0", problem: "checksum", detail }) });
     const problem = wrapper.find(".updatedialog-problem");
     expect(problem.text()).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
     expect(problem.attributes("role")).toBe("alert");
-    expect(problem.attributes("title")).toBe(detail);
+    expect(problem.attributes("title")).toBeUndefined();
+    expect(wrapper.html()).not.toContain("SHA-256 is ab");
     expect(wrapper.find("details.updatedialog-hand").attributes("open")).toBeDefined();
     await wrapper.find(".updatedialog-go").trigger("click");
     expect(wrapper.find(".updatedialog-go").text()).toBe("Try again");

@@ -12,6 +12,7 @@ from neoaprs.config import MAP_AUTO
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Box, MapFile
 from neoaprs.services.mapauto import MapAuto, covers, inside
+from neoaprs.pmtilestool import UNREACHABLE
 from neoaprs.services.mapfetch import DETAIL, WORLD, MapFetch
 from tests.support.clock import FixedClock
 from neoaprs.config import DEFAULTS
@@ -201,7 +202,7 @@ async def test_without_a_connection_the_world_stays_the_page_is_told_it_will_com
     await rig.move(HELSINKI)
     await until(lambda: rig.fetch.status().later, 5)
     status = rig.fetch.status()
-    assert status.state == "error" and "connection refused" in status.problem and status.detail is None and status.world is not None
+    assert status.state == "error" and status.problem == UNREACHABLE and status.detail is None and status.world is not None
     await rig.row("wanted")
     await rig.move(TURKU)                                                   # (the place changed again: tried again at once, and failing again)
     await until(lambda: rig.fetch.status().later and len(rig.fake.calls()) == 2, 5)

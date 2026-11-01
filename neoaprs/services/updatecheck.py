@@ -31,6 +31,8 @@ ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"             # "0" is off for this run, whate
 Fetch = Callable[[str, str, str, str], Awaitable[bytes | None]]     # (address, version, platform, installation number) to the body of the answer
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]  # (address, version, platform, the most bytes wanted) to the body of the answer
 INSTALL_ID_FORM = re.compile(r"[0-9a-f]{32}")
+NO_ANSWER = "no answer from the update server; is there a connection?"
+NO_VERSION = "the update server gave no usable answer; try again later"
 NOTES_UNREACHABLE = "the release notes could not be fetched"
 NOTES_UNKNOWN_VERSION = "that version is neither the newer one known nor this one"
 
@@ -99,9 +101,9 @@ class UpdateCheck:
         address = self._config().update_url
         body = await self._fetch(address, self.version, self.platform, await self.install_id())
         if body is None:
-            return None, "the version page could not be reached"
+            return None, NO_ANSWER
         answer = parse_update(body)
-        return (answer, "") if answer is not None else (None, "the version page gave an answer that is not a version")
+        return (answer, "") if answer is not None else (None, NO_VERSION)
 
     def _take(self, answer: Update) -> Update | None:
         newer = answer if compare_versions(answer.version, self.version) > 0 else None

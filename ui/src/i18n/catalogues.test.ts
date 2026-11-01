@@ -10,6 +10,7 @@ const CHOOSE_ON_MAP: Record<string, string> = {
   en: "Choose on map",
   de: "Auf Karte wählen",
   es: "Elegir en el mapa",
+  fi: "Valitse kartalta",
   fr: "Choisir sur la carte",
   it: "Scegli sulla mappa",
   ja: "地図で選択",

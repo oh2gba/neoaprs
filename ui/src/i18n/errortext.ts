@@ -23,11 +23,6 @@ function idOf(error: Failure): MessageId | null {
   return error.code !== "other" && hasMessage(id) ? id : null;
 }
 
-/** The prefix the daemon puts before a reason: the command, then the setting. */
-function prefix(error: Failure): string {
-  return (error.cmd === "" ? "" : `${error.cmd}: `) + (error.key === null ? "" : `${error.key}: `);
-}
-
 /** What is wrong, without the command and the setting in front: from the catalogue for a code it has, else the daemon's English words with those taken off the front. */
 export function errorReason(error: Failure): string {
   const id = idOf(error);
@@ -38,7 +33,7 @@ export function errorReason(error: Failure): string {
   return text;
 }
 
-/** The whole line for a toast, the way the daemon writes it: the command, the setting, the reason. */
+/** The line for a toast: the reason alone. The command's name (`send_message`, `set_config`) and the setting's key are the protocol's words, which say nothing to the person; the daemon's log has them. */
 export function errorLine(error: Failure): string {
-  return idOf(error) ? prefix(error) + errorReason(error) : error.text;
+  return errorReason(error);
 }

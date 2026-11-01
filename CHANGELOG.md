@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+The page in Finnish, and a map download that is kept when it is done.
+
+- **New:** the page speaks Suomi. It is chosen like the other languages: the browser's language, or **Language** at the top of the Settings tab. The translation waits for native-speaking hams to read it: corrections are welcome.
+- **Fixed:** a detailed map that had downloaded whole was thrown away, and the page showed the pmtiles program's own last line as the error ("did not say how big the extract is: Extract transferred 101 MB …"). The daemon looked for a line the program had written before the thousands of redraws of its progress bar, and had kept only the last two hundred lines. A download is complete without that line now, and the lines that say a size are kept apart (reported by Marko, OH2BEA).
+- **Fixed:** what the map download says when it fails is for the operator: a server that could not be reached says so ("the map server could not be reached; is there a connection?") instead of the program's network error, and a failure of the daemon's own says that the log has the details instead of a Python exception name.
+- **Fixed:** more texts that said nothing to the operator, after a review of every error the page can show. A server whose name cannot be looked up (the computer is offline) said "Unknown error -3" in the Internet stations line and the GPS line; it says that the name cannot be looked up and asks about the connection. A USB radio or GPS that is unplugged showed the serial library's own prose ("device reports readiness to read but returned no data…", on Windows "ClearCommError failed (PermissionError(13, …))"); it says that the device stopped answering. A refusal in the toast bar started with the command's protocol name ("send_message: …", "set_config: station/lat: …"); the reason stands alone now. A command that failed inside the daemon showed the Python exception's text; the page says in its own language that it did not work and where the logs are, and the log has the exception. A packet that could not be decoded said "malformed field (IndexError: string index out of range)"; it says the packet is damaged. The update check's "answer that is not a version" and the detail of a failed update (hover text with the library's error) are gone from the page.
+
 ## 0.14.5
 
 A review of the whole program against the APRS specification and its own rules: bug fixes on the air, in the station book, in the radio's port handling and on the page, and a tidier code base; nothing new to set up.

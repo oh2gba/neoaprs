@@ -12,6 +12,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.call.shape": "コールサイン「{value}」は A-Z と 0-9 の1〜6文字(任意で「-SSID」付き)ではありません",
   "error.call.ssid": "コールサイン「{value}」のSSIDが{max}を超えています",
   "error.general.too_soon": "{query}の次の問い合わせにはまだ早すぎます。{seconds}秒待ってください",
+  "error.failed": "うまくいきませんでした。もう一度お試しください。続く場合はログを送ってください（設定 → ヘルプ）。",
   "error.map.no_job": "実行中の地図ジョブはありません",
   "error.update.unsupported": "この NeoAPRS は自分で更新できません。手順はページにあります",
   "error.update.blocked": "ここでは NeoAPRS は自分で更新できません: {reason}",

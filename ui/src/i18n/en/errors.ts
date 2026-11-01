@@ -11,6 +11,7 @@ export const errors = {
   "error.call.shape": "call '{value}' is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'",
   "error.call.ssid": "call '{value}' has an SSID above {max}",
   "error.general.too_soon": "too soon for another {query}: wait {seconds} s",
+  "error.failed": "That did not work; try again. If it keeps happening, send the logs (Settings → Help).",
   "error.map.no_job": "no map job is running",
   "error.update.unsupported": "this copy of NeoAPRS cannot update itself; the page has the steps",
   "error.update.blocked": "NeoAPRS cannot update itself here: {reason}",

@@ -101,7 +101,7 @@ const cancel = (): boolean => send({ cmd: "update_cancel" });
             <button v-if="cancellable" type="button" class="btn" @click="cancel">{{ t("help.update.cancel") }}</button>
           </template>
           <template v-else>
-            <p v-if="failed" class="updatedialog-problem" role="alert" :title="failed.detail">{{ problemText(failed.problem) }}</p>
+            <p v-if="failed" class="updatedialog-problem" role="alert">{{ problemText(failed.problem) }}</p>
             <button type="button" class="btn primary updatedialog-go" @click="updateNow">{{ t(failed ? "help.update.retry" : "help.update.now") }}</button>
           </template>
         </section>

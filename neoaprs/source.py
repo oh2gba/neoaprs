@@ -4,6 +4,7 @@ and did. The page shows the one feed there is (the TNC, tnc.py) from this. `Back
 import asyncio
 import logging
 import os
+import socket
 import time as _time
 from collections import deque
 from collections.abc import Callable, Coroutine
@@ -51,11 +52,18 @@ def minutes_between(earlier: datetime, later: datetime) -> str:
     return f"{int((later - earlier).total_seconds() // 60)} min"
 
 
+NO_LOOKUP = "the server's name cannot be looked up; is there a connection?"
+
+
 def os_error_text(e: BaseException) -> str:
-    """The system's words for the error: "No such file or directory", not the Python wording."""
+    """The system's words for the error: "No such file or directory", not the Python wording. A name that cannot be looked up (no DNS: the computer is offline) is said as that, not as the resolver's code
+    ("Unknown error -3"), and an exception without words is said by what it is."""
+    if isinstance(e, socket.gaierror):
+        return NO_LOOKUP
     if isinstance(e, OSError):
-        if e.errno:
-            return os.strerror(e.errno)
+        words = os.strerror(e.errno) if e.errno else ""
+        if words and not words.startswith("Unknown error"):              # (a resolver's or a library's own number has no words in the system's table)
+            return words
         if e.strerror:
             return str(e.strerror)
     return str(e) or type(e).__name__

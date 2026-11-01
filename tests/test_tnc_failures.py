@@ -68,7 +68,7 @@ async def test_an_open_that_is_refused_waits_and_tries_again_after_the_back_off(
 async def test_an_open_that_raises_something_nobody_listed_is_logged_and_waited_out_like_a_refusal(ports: FakePorts, caplog: pytest.LogCaptureFixture) -> None:
     ports.open_error = RuntimeError("the driver is confused")
     async with started(backoff=QUICK) as tnc:
-        assert tnc.state is Source.State.WAITING and tnc.problem == "RuntimeError: the driver is confused"
+        assert tnc.state is Source.State.WAITING and tnc.problem == "the radio could not be opened; the log says why" and "the driver is confused" in caplog.text
         assert "tnc: connecting failed" in caplog.text
         ports.open_error = None
         await until(lambda: tnc.state is Source.State.CONNECTED)

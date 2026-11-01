@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from neoaprs.gpsfeed import GpsFeed
+from neoaprs.gpsfeed import NO_ADDRESS, NO_PORT, GpsFeed
 from neoaprs.services.gps import Gps
 from neoaprs.source import Backoff, Source
 from tests.support.env import idle_for, remember_stop, until
@@ -67,8 +67,8 @@ async def test_a_gpsd_that_is_not_there_is_connecting_with_the_reason() -> None:
 
 
 @pytest.mark.parametrize(("changes", "problem"), [
-    ({"gps_source": "serial", "gps_device": ""}, "no port set: give gps/device the receiver's port"),
-    ({"gps_source": "gpsd", "gps_host": ""}, "no address set: give gps/host the gpsd's host:port"),
+    ({"gps_source": "serial", "gps_device": ""}, NO_PORT),
+    ({"gps_source": "gpsd", "gps_host": ""}, NO_ADDRESS),
 ])
 async def test_a_source_without_its_port_or_address_is_connecting_and_says_what_to_give(changes: dict[str, str], problem: str) -> None:
     rig = Rig(**changes)

@@ -318,11 +318,19 @@ def test_windows_words_for_a_port_that_is_not_there_and_one_that_another_program
     assert serialport._words("COM9", gone) == "COM9: The system cannot find the file specified"
     taken = serial.SerialException("could not open port 'COM3': PermissionError(13, 'Access is denied.', None, 5)")
     assert serialport._words("COM3", taken) == "COM3: Access is denied"
+    assert serialport._words("socket://nohost:9000", serial.SerialException("Could not open port socket://nohost:9000: [Errno -2] Name or service not known")) == "socket://nohost:9000: Name or service not known"
     monkeypatch.setattr(serialport, "_on_windows", lambda: True)
     assert serialport._in_use(taken) and serialport._in_use(PermissionError(13, "Permission denied")) and not serialport._in_use(gone)
     monkeypatch.setattr(serialport, "_on_windows", lambda: False)
     assert not serialport._in_use(taken) and not serialport._in_use(PermissionError(13, "Permission denied")), "(on Linux a permission error is the user's group, not another program)"
     assert serialport._in_use(serial.SerialException(11, "Could not exclusively lock port /dev/ttyUSB0"))
+
+
+def test_a_line_that_is_lost_is_said_in_the_systems_words_or_as_the_device_gone_never_in_pyserials_prose() -> None:
+    assert serialport._lost_words(OSError(5, "Input/output error")) == "Input/output error"
+    assert serialport._lost_words(serial.SerialException("device reports readiness to read but returned no data (device disconnected or multiple access on port?)")) == serialport.LOST
+    assert serialport._lost_words(serial.SerialException("ClearCommError failed (PermissionError(13, 'The device does not recognize the command.', None, 22))")) == serialport.LOST
+    assert serialport._lost_words(RuntimeError()) == serialport.LOST
 
 
 async def test_a_com_port_refused_with_access_denied_is_in_use_by_another_program(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -348,7 +356,7 @@ async def test_a_connection_that_closes_emits_dropped_once_and_closes_the_port(r
     radio.drop()
     await until(lambda: reasons)
     await idle_for(0.1)
-    assert len(reasons) == 1 and "disconnected" in reasons[0]
+    assert len(reasons) == 1 and reasons[0] == serialport.LOST, "the operator is told that the line is gone, not what pyserial said"
     assert not port.is_open
     with pytest.raises(SerialError):
         port.write(b"x")

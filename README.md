@@ -25,7 +25,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - your beacon: fixed, or following a GPS with SmartBeaconing for a car, a bicycle, a walker or a boat
 - objects and items of your own, on the map and on the air
 - an optional fill-in digipeater, and stations from the internet on the map
-- a page for a phone, a tablet and a desktop, in English, German, Spanish, French, Italian, Japanese and Brazilian Portuguese
+- a page for a phone, a tablet and a desktop, in English, German, Spanish, Finnish, French, Italian, Japanese and Brazilian Portuguese
 - alerts for a new message, and access from your home network with an access key
 
 ## Radios

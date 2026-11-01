@@ -60,9 +60,21 @@ def _words(path: str, e: BaseException) -> str:
     text = os_error_text(e)
     if match := re.search(r"\(\d+, '([^']+)'", text):                 # PermissionError(13, 'Access is denied.', None, 5)
         text = match.group(1).rstrip(".")
-    elif match := re.search(r"\[(?:Errno|WinError) \d+\] ([^\[\]]+)$", text):      # Could not open port socket://h:1: [Errno 111] Connection refused (on Windows: [WinError 10061] No connection could be made ...)
+    elif match := re.search(r"\[(?:Errno|WinError) -?\d+\] ([^\[\]]+)$", text):      # Could not open port socket://h:1: [Errno 111] Connection refused (on Windows: [WinError 10061] No connection could be made ...; [Errno -2] a name that cannot be looked up)
         text = match.group(1)
     return f"{path}: {text}"
+
+
+LOST = "the line is gone (unplugged, or the other end closed it)"
+
+
+def _lost_words(e: BaseException) -> str:
+    """Why a line that was open went away, for the operator: the system's words when it gave some (a cable pulled: "Input/output error"), else the one thing that is true of every such loss. pyserial's own
+    prose ("device reports readiness to read but returned no data", "ClearCommError failed (PermissionError(13, ...))") says nothing to the operator and goes to the log."""
+    if isinstance(e, OSError) and (e.errno or e.strerror):
+        return os_error_text(e)
+    log.info("the line was lost: %s: %s", type(e).__name__, e)
+    return LOST
 
 
 def _in_use(e: BaseException) -> bool:
@@ -161,7 +173,7 @@ class _Line:
                     chunk += ser.read(more)
             except Exception as e:                        # the device went away, the socket was closed, the port was closed under us
                 if not self._stop.is_set():
-                    self._post(self._on_lost, os_error_text(e))
+                    self._post(self._on_lost, _lost_words(e))
                 return
             if chunk:
                 self._post(self._on_data, bytes(chunk))
@@ -172,7 +184,7 @@ class _Line:
                 self.ser.write(data)
             except Exception as e:
                 if not self._stop.is_set():
-                    self._post(self._on_lost, f"write failed: {os_error_text(e)}")
+                    self._post(self._on_lost, f"write failed: {_lost_words(e)}")
                 return
 
     def end(self) -> None:

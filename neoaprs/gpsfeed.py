@@ -26,8 +26,8 @@ CONNECT_SEC = 5.0                                              # how long the co
 GPSD_SILENT_SEC = 60.0                                         # a gpsd that sends no line at all for this long is taken for gone
 WATCH = b'?WATCH={"enable":true,"json":true}\n'
 NO_FIX = "the receiver has no position fix yet"
-NO_PORT = "no port set: give gps/device the receiver's port"
-NO_ADDRESS = "no address set: give gps/host the gpsd's host:port"
+NO_PORT = "no GPS port set: choose the receiver's port in the settings"
+NO_ADDRESS = "no gpsd address set: give its host:port in the settings"
 MAX_LINE_BYTES = 4096                                          # a piece of serial data this long without a line end is not NMEA: it is thrown away
 
 

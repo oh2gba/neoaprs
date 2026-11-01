@@ -9,6 +9,7 @@
  "call.characters": {"params": ["value"], "text": ["call '{value}' has characters other than A-Z, 0-9 and a '-SSID'"]},
  "call.shape": {"params": ["value"], "text": ["call '{value}' is not 1 to 6 characters of A-Z and 0-9 with an optional '-SSID'"]},
  "call.ssid": {"params": ["max", "value"], "text": ["call '{value}' has an SSID above {max}"]},
+ "failed": {"params": [], "text": ["{*}"]},
  "general.too_soon": {"params": ["query", "seconds"], "text": ["too soon for another {query}: wait {seconds} s"]},
  "map.no_job": {"params": [], "text": ["no map job is running"]},
  "message.control": {"params": [], "text": ["the text has a control character"]},
