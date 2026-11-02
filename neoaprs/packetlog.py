@@ -4,7 +4,7 @@ Like the message log it runs on the database thread (db.py) and says no instead 
 for (the hot path: a packet must never wait for the disk); the reads are awaited. The statements are packetsql.py's, the rows of a packet packetcodec.py's."""
 import logging
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import NamedTuple
 
 from . import ax25
@@ -16,7 +16,7 @@ from .dblog import DbLog
 from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_before,
+from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_slice,
                         radio_position_packets, recent_packets, station_positions, station_traffic, upsert_station, window_packets)
 from .station import Station
 
@@ -25,6 +25,8 @@ log = logging.getLogger("neoaprs.packetlog")
 DELIVERIES_SEEN = 2000                   # the packets the station book counts the routes of at its start
 TRACKS_SEEN = 5000                       # the position packets the station book makes the tracks from at its start
 THIRD_PARTY_SEEN = 20_000              # the latest packets one station's third-party packets are looked for in (by the ids: the rest of the log is not read for them)
+PRUNE_SLICE = 5_000                      # the packets one transaction of the daily prune deletes: the write-ahead log of one is a few MB, and what waits behind it waits for that one
+HISTORY_FRESH_SEC = 60                   # how long the count of all packets by the hour (the statistics card's graph, asked again each minute by every page that shows it) is kept before it is counted again
 HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
 
 
@@ -77,6 +79,7 @@ def station_of(row: Row) -> Station:
 class PacketLog(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the packet log could not be read")
+        self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}       # (since, internet) -> (when counted, the counts): the answer for all stations
 
     # ---- appends: nobody waits
     def append(self, packet: Packet) -> bool:
@@ -122,10 +125,19 @@ class PacketLog(DbLog):
 
     async def heard_by_hour(self, since: datetime, source: str | None = None, internet: bool = True) -> dict[datetime, int]:
         """How many packets were heard (not sent by us) in each hour of the clock at or after `since`, all of them or those whose source is `source` (one station's), by the top of the hour (UTC); hours with
-        none are not in it. With `internet` false (Internet stations off) the packets that came from APRS-IS are not counted."""
+        none are not in it. With `internet` false (Internet stations off) the packets that came from APRS-IS are not counted. The count of all stations scans a day of the log, so it is kept for
+        HISTORY_FRESH_SEC: pages that ask within the minute get the same answer, and the running hour is at most that much behind. Forgetting the heard packets drops it."""
+        key = (since, internet)
+        now = self.clock()
+        if source is None and key in self._history and timedelta(0) <= now - self._history[key][0] < timedelta(seconds=HISTORY_FRESH_SEC):
+            return dict(self._history[key][1])
         text = stamp(since)
         rows: list[tuple[str, int]] = await self._read(lambda conn: heard_by_hour(conn, text, source, internet), [])
-        return {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
+        counted = {parse_stamp(hour + ":00:00.000000Z"): count for hour, count in rows}
+        if source is None:
+            self._history = {k: v for k, v in self._history.items() if now - v[0] < timedelta(seconds=HISTORY_FRESH_SEC)}       # (what is older is not asked for any more: the hour moved on)
+            self._history[key] = (now, counted)
+        return dict(counted)
 
     async def traffic(self, call: str, own_call: str, count: int, internet: bool = True) -> list[tuple[int, Packet]]:
         """(the number in the log, the packet) of the latest `count` packets of the station, the newest first, for its panel in the Stations tab: those it sent (its source, or the sender inside a third-party
@@ -228,9 +240,21 @@ class PacketLog(DbLog):
     # ---- care
     async def forget_heard(self, keep_call: str) -> int:
         """Deletes every packet that was heard (those we sent stay) and every cached station but `keep_call`, ours; how many packets. -1 when the database would not."""
-        return await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
+        gone = await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
+        self._history.clear()
+        return gone
 
     async def prune(self, keep_days: int) -> int:
-        """Deletes the packets heard more than `keep_days` days ago; how many. The stations are the station book's to prune (the cache follows through `delete_station`)."""
+        """Deletes the packets heard more than `keep_days` days ago; how many. A slice of PRUNE_SLICE packets at a time, each its own transaction, so that what is asked of the database meanwhile (a message,
+        a page's query, the packets being appended) is served between the slices and the write-ahead log never holds a day's deletes at once. The stations are the station book's to prune (the cache
+        follows through `delete_station`)."""
         cutoff = stamp(self.clock() - days(keep_days))
-        return await self._write(lambda conn: prune_packets_before(conn, cutoff), 0, "the packet log could not be pruned")
+        removed = 0
+        while True:
+            gone = await self._write(lambda conn: prune_packets_slice(conn, cutoff, PRUNE_SLICE), -1, "the packet log could not be pruned")
+            if gone < 0:
+                break                                       # the database would not: what was deleted stays deleted, the next day goes on
+            removed += gone
+            if gone < PRUNE_SLICE:
+                break
+        return removed

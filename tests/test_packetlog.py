@@ -1,5 +1,6 @@
 """The packet log and the station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py) on a real database thread: what goes in comes out equal, the order, the care, and the rows the
 tables refuse."""
+import asyncio
 import json
 import logging
 import sqlite3
@@ -334,3 +335,27 @@ async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None
     [first, second] = sorted(await log.stations(), key=lambda s: s.call)
     assert first == station
     assert (second.heard_rf, second.heard_rf_gated, second.heard_is, second.last_rf_at, second.last_rf_gated_at, second.last_is_at, second.position_via) == (0, 0, 0, None, None, None, None)
+
+
+async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_between_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    for minutes in range(7):
+        log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
+    log.append(made(POSITION, T0))
+    assert await log.count() == 8
+    pruning = asyncio.create_task(log.prune(30))
+    await asyncio.sleep(0)                                  # the first slice is queued
+    assert await log.count() == 5, "the read waited for one slice of three, not for the whole delete"
+    assert await pruning == 7 and await log.count() == 1
+
+
+async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    for minutes in range(6):
+        log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
+    assert await log.prune(30) == 6 and await log.count() == 0
+    assert await PacketLog(None, FixedClock()).prune(30) == 0
