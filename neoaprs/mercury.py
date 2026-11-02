@@ -65,7 +65,8 @@ def tune_command(level_dbfs: float) -> str:
 
 # The Dummy HF radio (neoaprs/dummyhfscene.py) makes up what is heard and sends nothing on the air; what we send is played through the computer's own speakers as Mercury's real audio, so that the operator hears
 # what the modem sounds like: the bundled Mercury is started keying nothing (`-P none`) on its `fifo` audio backend, two named pipes the daemon paces and plays (neoaprs/mercuryspeaker.py says how and why), and
-# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on its default devices and is not heard.
+# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on WASAPI's default recording and playback
+# devices instead (`command(..., audio=())`): the recording device paces it and is heard by nobody, the playback device is the speakers.
 
 
 def speaker_audio(capture_fifo: str, playback_fifo: str) -> list[str]:
