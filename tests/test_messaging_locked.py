@@ -204,7 +204,7 @@ async def test_the_messages_come_back_with_what_they_are_after_a_restart(rig: Ri
 
 # ---- a key or a sender that cannot be used
 async def test_a_key_that_cannot_make_a_shared_key_leaves_a_locked_message_from_that_station_shut_and_acked_and_a_locked_message_to_it_refused(rig: Rig) -> None:
-    assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "key"             # (a key of 32 zero bytes: X25519 with it is no exchange)
+    assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "" and rig.ring.shared_with("OH2RDG-7") is None             # (a key of 32 zero bytes: X25519 with it is no exchange, and the keyring keeps no such key)
     rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", rig.peer_seals("Hello"), "51"))
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack51"]
     await rig.settled()

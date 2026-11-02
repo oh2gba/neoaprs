@@ -24,7 +24,7 @@ class FakeIgate:
 
 def rig_with(igate: IgateCounts | None, delay: float = 0.0, **changes: object) -> Rig:
     rig = Rig(delay=delay, **changes)
-    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda: rig.beacon.status_frame(rig.status_text), rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock,
+    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda radio=None: rig.beacon.status_frame(rig.status_text, radio), rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock,
                     delay=lambda: delay, igate=igate)
     remember_stop(rig.q.stop)
     return rig

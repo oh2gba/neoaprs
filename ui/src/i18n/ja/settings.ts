@@ -346,6 +346,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.connecting_to": "{path}に接続中…",
   "settings.tnc.not_connected": "未接続",
   "settings.tnc.not_connected_why": "未接続: {why}",
+  "settings.tnc.hf.not_installed": "このインストールにはMercuryが含まれていません",
+  "settings.tnc.hf.stopped": "停止中",
+  "settings.tnc.hf.network": "未起動: Mercuryがネットワークに開かれてしまいます",
+  "settings.tnc.hf.no_port": "停止中: 空きポートがありません",
+  "settings.tnc.hf.not_started": "Mercuryを起動できませんでした",
+  "settings.tnc.hf.firewall": "未起動: インストーラーのWindowsファイアウォール規則がありません",
+  "settings.tnc.hf.sound_card": "サウンドカードを開けません: 別のものを選んでください",
   "settings.tnc.counts": {
     other: "受信{n}パケット、入力 {bytes_in}、出力 {bytes_out}、中継 {digipeated}",
   },

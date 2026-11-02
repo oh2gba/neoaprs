@@ -5,6 +5,7 @@ for (the hot path: a packet must never wait for the disk); the reads are awaited
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from functools import partial
 from typing import NamedTuple
 
 from . import ax25
@@ -76,9 +77,13 @@ def station_of(row: Row) -> Station:
                    heard_fm=int(heard_fm), heard_hf=int(heard_hf), last_fm_at=_parsed(fm_at), last_hf_at=_parsed(hf_at))
 
 
+STATION_FLUSH_SEC = 30.0                       # how often the station rows that changed are written (save_station): a half minute of a station's packets is one write of its row
+
+
 class PacketLog(DbLog):
     def __init__(self, db: Db | None = None, clock: Clock = utcnow) -> None:
         super().__init__(db, clock, log, "the packet log could not be read")
+        self._dirty: dict[str, Station] = {}           # the stations that changed since the last flush, by call, each the live object (its row is made when it is written)
         self._history: dict[tuple[datetime, bool], tuple[datetime, dict[datetime, int]]] = {}       # (since, internet) -> (when counted, the counts): the answer for all stations
 
     # ---- appends: nobody waits
@@ -88,13 +93,27 @@ class PacketLog(DbLog):
         return self._append(lambda conn: insert_packet(conn, row))
 
     def save_station(self, station: Station) -> bool:
-        """Keeps the station as it is now (the row is made at once: the station goes on changing). An object of ours is not a station of the cache (ownlog.py keeps it); False for that."""
+        """Notes the station as changed: its row is written at the next `flush_stations` (the controller's every STATION_FLUSH_SEC, every read of the table, the stop), as the station is then, so that a station
+        heard ten times in that while costs one write of its row (1 to 3 KB with its track and its routes) and not ten, which on a Raspberry Pi's card at a few packets a second was most of what the card wrote.
+        An object of ours is not a station of the cache (ownlog.py keeps it); False for that, and for a log whose database is not open (counted in `dropped`, as an append that could not be queued is)."""
         if station.own:
             return False
-        row = station_row(station)
-        return self._append(lambda conn: upsert_station(conn, row))
+        if not self.is_open():
+            self.dropped += 1
+            return False
+        self._dirty[station.call] = station
+        return True
+
+    def flush_stations(self) -> int:
+        """Writes the rows of the stations that changed since the last flush, each as it is now; how many were queued."""
+        dirty, self._dirty = self._dirty, {}
+        queued = 0
+        for station in dirty.values():
+            queued += self._append(partial(upsert_station, row=station_row(station)))
+        return queued
 
     def delete_station(self, call: str) -> bool:
+        self._dirty.pop(call, None)
         return self._append(lambda conn: delete_station(conn, call))
 
     # ---- reads
@@ -233,28 +252,34 @@ class PacketLog(DbLog):
         return await self._read(count_packets, 0)
 
     async def stations(self) -> list[Station]:
-        """The cached stations, the latest heard first: what the station book starts with."""
+        """The cached stations, the latest heard first: what the station book starts with. The rows that changed and were not yet written go first, so the read sees every station as it was last saved."""
+        self.flush_stations()
         rows: list[Row] = await self._read(all_stations, [])
         return self._decoded(rows, station_of, "station")
 
     # ---- care
     async def forget_heard(self, keep_call: str) -> int:
-        """Deletes every packet that was heard (those we sent stay) and every cached station but `keep_call`, ours; how many packets. -1 when the database would not."""
+        """Deletes every packet that was heard (those we sent stay) and every cached station but `keep_call`, ours; how many packets. -1 when the database would not. A station that changed and was not yet written
+        is forgotten with the rest, so that no flush brings it back; the count of the packets by the hour is counted anew."""
+        self._dirty = {call: station for call, station in self._dirty.items() if call == keep_call}
         gone = await self._write(lambda conn: delete_heard(conn, keep_call), -1, "the heard packets could not be forgotten")
         self._history.clear()
         return gone
 
-    async def prune(self, keep_days: int) -> int:
-        """Deletes the packets heard more than `keep_days` days ago; how many. A slice of PRUNE_SLICE packets at a time, each its own transaction, so that what is asked of the database meanwhile (a message,
-        a page's query, the packets being appended) is served between the slices and the write-ahead log never holds a day's deletes at once. The stations are the station book's to prune (the cache
-        follows through `delete_station`)."""
-        cutoff = stamp(self.clock() - days(keep_days))
+    async def prune(self, keep_days: int, internet_keep_days: int | None = None) -> int:
+        """Deletes the packets heard more than `keep_days` days ago, and those from the internet heard more than `internet_keep_days` ago when that is given (policy.INTERNET_KEEP_DAYS: they are the bulk of the
+        file, and the file has no other bound); how many. A slice of PRUNE_SLICE packets at a time, each its own transaction, so that what is asked of the database meanwhile (a message, a page's query, the
+        packets being appended) is served between the slices and the write-ahead log never holds a day's deletes at once. The stations are the station book's to prune (the cache follows through `delete_station`)."""
         removed = 0
-        while True:
-            gone = await self._write(lambda conn: prune_packets_slice(conn, cutoff, PRUNE_SLICE), -1, "the packet log could not be pruned")
-            if gone < 0:
-                break                                       # the database would not: what was deleted stays deleted, the next day goes on
-            removed += gone
-            if gone < PRUNE_SLICE:
-                break
+        for keep, internet in ((keep_days, False), (internet_keep_days, True)):
+            if keep is None:
+                continue
+            step = partial(prune_packets_slice, stamp=stamp(self.clock() - days(keep)), rows=PRUNE_SLICE, internet_only=internet)
+            while True:
+                gone = await self._write(step, -1, "the packet log could not be pruned")
+                if gone < 0:
+                    return removed                              # the database would not: what was deleted stays deleted, the next day goes on
+                removed += gone
+                if gone < PRUNE_SLICE:
+                    break
         return removed

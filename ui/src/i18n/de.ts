@@ -1460,6 +1460,13 @@ export const de: Catalogue = {
   "settings.tnc.connecting_to": "Verbinde mit {path}…",
   "settings.tnc.not_connected": "Nicht verbunden",
   "settings.tnc.not_connected_why": "Nicht verbunden: {why}",
+  "settings.tnc.hf.not_installed": "Diese Installation enthält kein Mercury",
+  "settings.tnc.hf.stopped": "Läuft nicht",
+  "settings.tnc.hf.network": "Nicht gestartet: Mercury wäre für das Netzwerk offen",
+  "settings.tnc.hf.no_port": "Läuft nicht: kein freier Port",
+  "settings.tnc.hf.not_started": "Mercury konnte nicht gestartet werden",
+  "settings.tnc.hf.firewall": "Nicht gestartet: die Windows-Firewall-Regel des Installers fehlt",
+  "settings.tnc.hf.sound_card": "Soundkarte lässt sich nicht öffnen: eine andere wählen",
   "settings.tnc.counts": {
     one: "{n} Paket gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",
     other: "{n} Pakete gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",

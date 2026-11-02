@@ -293,8 +293,9 @@ class Env:
 
     # ---- what the daemon did
     async def settled(self) -> None:
-        """Everything asked of the database so far is done (the packets and stations queued are committed)."""
+        """Everything asked of the database so far is done (the packets and stations queued are committed; the station rows that changed are written first, as the controller's timer would)."""
         assert self.ctl.db is not None
+        self.ctl.packetlog.flush_stations()
         await self.ctl.db.barrier()
 
     async def packets(self, count: int = 1000) -> list[Packet]:

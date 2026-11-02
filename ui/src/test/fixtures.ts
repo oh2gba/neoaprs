@@ -338,6 +338,7 @@ export function hfState(extra: Partial<TncState> = {}): TncState {
     modem: {
       state: "running",
       problem: "",
+      reason: "",
       mode: "DATAC3",
       keyed: false,
       busy: false,

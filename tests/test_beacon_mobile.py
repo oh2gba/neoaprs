@@ -15,6 +15,7 @@ from neoaprs.stationbook import StationBook
 from tests.support.env import idle_for, remember_stop, until
 from tests.support.gps import FakeFixes, fix_at
 from tests.support.rig import ServiceRig
+from tests.support.stubtnc import StubTnc
 
 # 60.43 N, 24.145 E, 54 km/h, 270 degrees, 31.4 m, as the compressed position of a car (symbol `>`)
 KNOWN_INFO = b"=//w5#TW?M>eM[/A=000103NeoAPRS"
@@ -293,6 +294,27 @@ def test_a_request_sends_the_live_frame_and_the_times_count_from_it() -> None:
     assert len(rig.tnc.sent) == 2, "100 seconds after the request: the 111 of the rate are not over"
 
 
+async def test_a_moving_station_on_hf_sends_its_fix_by_the_timed_interval_and_not_by_smartbeaconing() -> None:
+    rig = Rig(tnc=StubTnc(max_frame=123), hf_enabled=True)
+    rig.beacon.jitter = lambda most: 0.0
+    await rig.beacon.start()
+    try:
+        assert rig.beacon.send_now()
+        assert parse_position(rig.tnc.sent[-1].info[1:], rig.clock()).compressed, "the frame carries the fix, as a mobile position"
+        assert rig.beacon.next_due == rig.clock() + timedelta(minutes=30), "the next is the HF floor of the timed interval, not the time the speed of the fix says"
+        assert rig.beacon.mobile.last is None and rig.beacon.mobile.last_reason is None, "nothing is remembered for SmartBeaconing, which HF does not have"
+        rig.clock.advance(60)
+        rig.move()
+        rig.tick()
+        assert len(rig.tnc.sent) == 1
+        rig.clock.advance(29 * 60)
+        rig.move()
+        rig.tick()
+        assert len(rig.tnc.sent) == 2
+    finally:
+        await rig.beacon.stop()
+
+
 def test_a_corner_is_measured_from_the_course_of_the_last_beacon_even_when_it_was_a_request() -> None:
     rig = Rig(fix=False)
     rig.move(speed=60.0, course=90)
@@ -394,7 +416,7 @@ class QueryRig(Rig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.book = StationBook(self.clock)
-        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda: None, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
+        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda radio=None: None, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
         remember_stop(self.q.stop)
 
     def ask(self, text: str) -> None:

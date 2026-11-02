@@ -240,9 +240,15 @@ def test_a_copy_that_cannot_be_made_leaves_the_earlier_one_and_a_disk_without_ro
 def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / DB_NAME
     opened(path).close()
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    (folder / "premigrate-v22-to-v23-20260101-000000.sqlite").write_bytes(b"the copy at the old version, made by the migration before")
     with_steps(monkeypatch, v_next, broken)
     ok, why = try_open(path)
     assert not ok and "the disk is full" in why
+    names = sorted(p.name for p in folder.iterdir())
+    assert names[0] == "premigrate-v22-to-v23-20260101-000000.sqlite" and len(names) == 2 and names[1].startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 1}-"), \
+        "a migration that did not get through removes no copy: the one at the old version is the way back, and this run's copy is of the file as it was at the start"
     db = raw(path)
     assert db.execute("PRAGMA user_version").fetchone()[0] == NEXT, "every step is a transaction of its own: the first is in, the failing step is rolled back and the file stays at the version it had"
     names = {r[0] for r in db.execute("SELECT name FROM sqlite_master")}

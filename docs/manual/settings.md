@@ -76,7 +76,7 @@ The table below is made from the program, so it lists every setting there is, wi
 These are not settings. They are fixed by design, and no field or `neoaprs db set` changes them.
 
 <!-- doc-settings:fixed -->
-- Packets, weather observations and stations are kept 7 days and cleaned up once a day. Messages and bulletins are kept until you delete them.
+- Packets, weather observations and stations are kept 7 days (packets from the internet 2 days) and cleaned up once a day. Messages and bulletins are kept until you delete them.
 - The keep-alive asks a TNC that can be asked after 10 minutes of silence on the line (and a random minute or two more).
 - A message to a station is sent 4 times, and one to the email gateway 2 times, before it has failed or is unconfirmed.
 - Your own frames go out at least 10 seconds apart, except acks, answers to queries and digipeated packets.

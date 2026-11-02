@@ -52,8 +52,26 @@ function modemLine(tnc: TncState, modem: ModemState, nowMs: number): string {
   return parts.join(" · ");
 }
 
+/** Why the Mercury program is not running, in the page's words by the daemon's code (`ModemState.reason`; the English of `problem` is the log's and is never shown). A stopped program is quiet: the daemon starts it again and the operator can do nothing here. */
+const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
+  "": "settings.tnc.not_connected",
+  not_installed: "settings.tnc.hf.not_installed",
+  stopped: "settings.tnc.hf.stopped",
+  network: "settings.tnc.hf.network",
+  no_port: "settings.tnc.hf.no_port",
+  not_started: "settings.tnc.hf.not_started",
+  firewall: "settings.tnc.hf.firewall",
+  sound_card: "settings.tnc.hf.sound_card",
+};
+
+/** The HF radio's line while its line is not open: the modem's reason when the program is not running, "Connecting…" while the program starts or runs and the line is between two attempts, else "Not connected". Never the daemon's English problem. */
+function hfDownText(tnc: TncState): string {
+  if (tnc.modem?.state === "waiting") return t(MODEM_WAITING[tnc.modem.reason]);
+  return t(tnc.state === "waiting" ? "settings.tnc.connecting" : "settings.tnc.not_connected");
+}
+
 /** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air;
- * for the Mercury HF modem its mode, what it does (listening, transmitting, the channel busy, tuning, keyed), the SNR and the last packet. The HF radio never shows the address its modem is reached on: while it connects the line says so and no more. */
+ * for the Mercury HF modem its mode, what it does (listening, transmitting, the channel busy, tuning, keyed), the SNR and the last packet. The HF radio never shows the address its modem is reached on, nor the daemon's English problem: while it connects the line says so and no more, and when the program does not run it says why in the page's words. */
 export function tncStatus(tnc: TncState, nowMs: number): string {
   if (dummyShown(tnc)) return t(isHf(tnc) ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
@@ -61,6 +79,7 @@ export function tncStatus(tnc: TncState, nowMs: number): string {
   if (tnc.state === "connected" && tnc.modem) return modemLine(tnc, tnc.modem, nowMs);
   if (tnc.state === "connected") return lastPacketText(tnc, nowMs);
   if (tnc.state === "connecting") return tnc.path === "" || isHf(tnc) ? t("settings.tnc.connecting") : t("settings.tnc.connecting_to", { path: tnc.path });
+  if (isHf(tnc)) return hfDownText(tnc);
   const why = tnc.problem || tnc.last_error;
   return why === "" ? t("settings.tnc.not_connected") : t("settings.tnc.not_connected_why", { why });
 }

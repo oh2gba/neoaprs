@@ -1,6 +1,8 @@
 """What the program keeps and for how long: fixed numbers that are not settings."""
 
 LOG_KEEP_DAYS = 7                    # packets, weather observations and stations are kept this long (the weather graphs reach back 7 days)
+INTERNET_KEEP_DAYS = 2               # the packets that came from APRS-IS are kept this long: they are the bulk of what a station with the internet stations on keeps (at five a second, 743 bytes a row with the
+                                     # indexes, seven days would be 2 GB on a Raspberry Pi's card, and the file has no other bound), and two days of them is what the map and the stations' tracks need
 TNC_CHECK_SEC = 600                  # seconds of nothing at all on the line before the keep-alive asks a TNC that can be asked (the Kenwood and Kantronics profiles) whether the radio is there: a check deafens the TNC for a few seconds, and after one quiet minute it fell again and again on the next beacon of a station that sends one a minute
 TNC_CHECK_JITTER = 0.2               # each quiet period is longer by a random part of it, up to this share, so that the checks never keep step with a station's beacons
 HEARD_PATH_WINDOW_MIN = 60           # the automatic path of a message goes by the way a station's packets reached us only if they came that way this recently (minutes)

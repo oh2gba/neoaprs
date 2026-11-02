@@ -120,6 +120,46 @@ def test_a_topic_may_ask_for_a_gap_between_two_patches() -> None:
     assert hub.flush() is None and len(page.frames) == 2 and page.frames[1]["rev"] == 2
 
 
+def test_an_item_that_cannot_be_built_is_left_out_of_the_patch_and_logged_once_and_the_other_keys_are_told(caplog: pytest.LogCaptureFixture) -> None:
+    def item(key: str) -> dict[str, Any] | None:
+        if key == "odd":
+            raise ValueError("a packet the view cannot read")
+        return {"k": key}
+
+    topic = Topic("rows", dict, item)
+    for key in ("a", "odd", "b"):
+        topic.touch(key)
+    assert topic.take() == [{"op": "set", "key": "a", "value": {"k": "a"}}, {"op": "set", "key": "b", "value": {"k": "b"}}]
+    assert not topic.pending and topic.take() == [], "the key that failed is not asked for again until it changes"
+    assert len([r for r in caplog.records if r.exc_info]) == 1 and "the item odd of rows" in caplog.text
+    topic.touch("odd")
+    assert topic.take() == []
+    assert len([r for r in caplog.records if r.exc_info]) == 1 and len(caplog.records) == 2, "the second time is a line without the traceback"
+
+
+def test_a_topic_that_cannot_be_built_is_dropped_and_the_topics_after_it_are_still_told(caplog: pytest.LogCaptureFixture) -> None:
+    broken = False
+
+    def build() -> dict[str, Any]:
+        if broken:
+            raise RuntimeError("the view fails")
+        return {"n": 0}
+
+    hub = StateHub(clock=Seconds())
+    first = hub.add(Topic("first", build))
+    hub.add(Topic("second", lambda: {"n": 1}))
+    page = Page()
+    hub.attach(page)
+    page.frames.clear()
+    broken = True
+    hub.changed("first")
+    hub.changed("second")
+    assert hub.flush() is None, "nothing is left to retry"
+    assert [(f["type"], f["topic"]) for f in page.frames] == [("patch", "second")]
+    assert not first.pending and "the topic first" in caplog.text
+    assert hub.flush() is None and len(page.frames) == 1
+
+
 async def test_the_tick_tells_the_pages_by_itself_and_stops_with_the_hub() -> None:
     hub, rows, _ = hub_of()
     page = Page()

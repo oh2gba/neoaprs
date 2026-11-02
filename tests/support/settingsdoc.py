@@ -12,7 +12,7 @@ from neoaprs.configstatus import MAX_STATUS
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
-from neoaprs.policy import GPS_STALE_SEC, LOG_KEEP_DAYS, TNC_CHECK_SEC
+from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.radiorules import HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
@@ -132,7 +132,7 @@ def fixed() -> str:
     """Numbers the program decides, with no setting."""
     updates = int(UPDATE_EVERY_SEC // 3600)
     items = [
-        f"Packets, weather observations and stations are kept {LOG_KEEP_DAYS} days and cleaned up once a day. Messages and bulletins are kept until you delete them.",
+        f"Packets, weather observations and stations are kept {LOG_KEEP_DAYS} days (packets from the internet {INTERNET_KEEP_DAYS} days) and cleaned up once a day. Messages and bulletins are kept until you delete them.",
         f"The keep-alive asks a TNC that can be asked after {TNC_CHECK_SEC // 60} minutes of silence on the line (and a random minute or two more).",
         f"A message to a station is sent {STATION_ATTEMPTS} times, and one to the email gateway {EMAIL_ATTEMPTS} times, before it has failed or is unconfirmed.",
         f"Your own frames go out at least {int(SPACING_SEC)} seconds apart, except acks, answers to queries and digipeated packets.",

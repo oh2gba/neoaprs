@@ -126,7 +126,7 @@ async def test_the_start_does_not_wait_for_the_search_and_the_stop_ends_it(tmp_p
 async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
-    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune"}
+    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "station-flush"}
     await e.stop()
     assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
 

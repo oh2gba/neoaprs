@@ -141,9 +141,11 @@ def count_packets(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT COUNT(*) FROM packet").fetchone()[0])
 
 
-def prune_packets_slice(db: sqlite3.Connection, stamp: str, rows: int) -> int:
-    """Deletes the oldest `rows` packets heard before `stamp` (fewer when there are fewer); how many. By the index of the times, so that a slice reads only what it deletes."""
-    return db.execute("DELETE FROM packet WHERE id IN (SELECT id FROM packet WHERE heard_at < ? ORDER BY heard_at LIMIT ?)", (stamp, rows)).rowcount
+def prune_packets_slice(db: sqlite3.Connection, stamp: str, rows: int, internet_only: bool = False) -> int:
+    """Deletes the oldest `rows` packets heard before `stamp` (fewer when there are fewer), those from the internet (`via` is) alone with `internet_only`; how many. By the index of the times, so that a slice reads
+    only what it deletes."""
+    where = "heard_at < ? AND via = 'is'" if internet_only else "heard_at < ?"
+    return db.execute(f"DELETE FROM packet WHERE id IN (SELECT id FROM packet WHERE {where} ORDER BY heard_at LIMIT ?)", (stamp, rows)).rowcount
 
 
 def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:

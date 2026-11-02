@@ -1,8 +1,8 @@
 """The opening of the one database file and its migrations' runner: the file is versioned (SQLite's user_version) and brought up to date by the steps (migrationsteps*.py, listed in
 MIGRATIONS below), one after the other; a file from
 a newer NeoAPRS than this one is refused, not damaged. Before the first migration step that is going to run on a file that holds anything, the file is copied whole into backup/ next to it
-(premigrate-v<from>-to-v<to>-<time>.sqlite; the one of the migration before is removed once this one is whole, so the folder holds the latest only); if that copy cannot be made, or the disk
-has no room for it, nothing is migrated. Every step that ran is written to the table
+(premigrate-v<from>-to-v<to>-<time>.sqlite; the copies of the migrations before are removed once this whole migration has succeeded, so the folder holds the latest only: a migration that
+fails, or is cut short, leaves every copy, and the one at the old version among them); if that copy cannot be made, or the disk has no room for it, nothing is migrated. Every step that ran is written to the table
 schema_history (version, name, a checksum of the function's source, the time). A migration that has been applied is never edited: a change is a new migration (the checksum of the
 source of each step is pinned by tests/test_migrations.py; the steps keep the names and the annotations they were written with, which is why they name sqlite3 and not dberror.py's aliases).
 
@@ -63,6 +63,7 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
 
         configure(db, path, busy_ms)                        # WAL, synchronous=FULL, the busy time, the bound of the log, the file private (dbfile.py)
 
+        copy: Path | None = None
         if version < SCHEMA_VERSION and str(path) != ":memory:" and db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None:
             copy = premigration_backup(db, Path(path), version, clock)
             log.info("the database %s is of version %d, this NeoAPRS needs %d: a copy of it is in %s", path, version, SCHEMA_VERSION, copy)
@@ -70,6 +71,8 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
         for number in range(version + 1, SCHEMA_VERSION + 1):
             if _step(db, number, clock) and version:
                 log.info("the database %s is now version %d (was %d)", path, number, number - 1)
+        if copy is not None:
+            drop_older_copies(copy.parent, copy.name)        # (only now, every step in: a migration cut short at a middle version would otherwise have taken the one copy at the old version with it)
         for problem in _history_problems(db):
             log.warning("%s: %s", path, problem)
     except sqlite3.Error as e:
@@ -116,8 +119,8 @@ def _step(db: sqlite3.Connection, number: int, clock: Clock) -> bool:
 
 
 def premigration_backup(db: sqlite3.Connection, path: Path, version: int, clock: Clock) -> Path:
-    """The file as it is, whole, in backup/ next to it: premigrate-v<from>-to-v<to>-<time>.sqlite. The copies of earlier migrations are removed when this one is whole, never before: a
-    failed copy leaves them. Raises StoreError when it cannot be made or the disk has no room for it, and the caller migrates nothing."""
+    """The file as it is, whole, in backup/ next to it: premigrate-v<from>-to-v<to>-<time>.sqlite. The copies of earlier migrations are left to the caller to remove once the whole migration has
+    succeeded (`drop_older_copies`): a failed copy, or a failed step, leaves them. Raises StoreError when it cannot be made or the disk has no room for it, and the caller migrates nothing."""
     folder = path.absolute().parent / "backup"
     stem = f"premigrate-v{version}-to-v{SCHEMA_VERSION}-{clock():%Y%m%d-%H%M%S}"
     dest = folder / f"{stem}.sqlite"
@@ -131,7 +134,6 @@ def premigration_backup(db: sqlite3.Connection, path: Path, version: int, clock:
         _copy_database(db, dest)
     except (sqlite3.Error, OSError) as e:
         raise StoreError(f"the copy of the database before the migration could not be made ({e}); nothing was changed") from e
-    drop_older_copies(folder, dest.name)
     return dest
 
 

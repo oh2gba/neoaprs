@@ -175,6 +175,9 @@ class Services:
     def release_tnc(self) -> None:
         """The radio takes its line again (the controller does)."""
 
+    def repoint_hf(self) -> None:
+        """The modem was started again on other ports: the HF Tnc is pointed at them (the controller does)."""
+
     def _announced(self) -> str | None:
         latest = self.updatecheck.latest
         return latest.version if latest is not None else None

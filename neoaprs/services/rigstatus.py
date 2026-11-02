@@ -37,8 +37,8 @@ Reader = Callable[[str, int], Awaitable[Reading]]
 
 
 class Frames(Protocol):
-    """What the status needs of the beacon: the frame of a report."""
-    def status_frame(self, text: str) -> ax25.Frame | None: ...
+    """What the status needs of the beacon: the frame of a report, built for the radio it goes on."""
+    def status_frame(self, text: str, radio: Radio | None = None) -> ax25.Frame | None: ...
 
 
 def freq_text(hz: int) -> str:
@@ -136,7 +136,7 @@ class RigStatus:
                 (log.warning if state == "off" else log.info)("%s", words)
 
     def _offer(self, key: Key, text: str, interval_min: int) -> None:
-        if self._config().beacon_interval_of(self._tnc.rules) == 0:
+        if self._config().beacon_interval() == 0:
             return                                                   # (the radio's beacon Off is no automatic status; Status now still sends)
         now = self.clock()
         if self._unchanged(key, text) or (self.last_sent_at is not None and now - self.last_sent_at < timedelta(minutes=interval_min)):
@@ -148,7 +148,7 @@ class RigStatus:
         if reason := self._interlock.refused("status"):
             return reason
         try:
-            frame = self._beacon.status_frame(text)
+            frame = self._beacon.status_frame(text, self._tnc)             # (for the radio it goes on: no path and the frame cap when that is the HF radio, the FM one being off)
         except BeaconError as e:
             reason = f"the settings make no status: {e}"
             self._tell(reason, warn=True)
@@ -178,6 +178,7 @@ class RigStatus:
             (log.warning if warn else log.info)("no status sent: %s", reason)
 
     # ---- what ?APRSS answers with
-    def status_frame(self) -> ax25.Frame | None:
-        """The frame of the status as it was last sent, with the time of now; None while none has been sent. Raises BeaconError when the settings make no frame."""
-        return self._beacon.status_frame(self.last_text)
+    def status_frame(self, radio: Radio | None = None) -> ax25.Frame | None:
+        """The frame of the status as it was last sent, with the time of now, for `radio` (the one the question came on; the default radio when none is named); None while none has been sent. Raises BeaconError when
+        the settings make no frame."""
+        return self._beacon.status_frame(self.last_text, radio or self._tnc)

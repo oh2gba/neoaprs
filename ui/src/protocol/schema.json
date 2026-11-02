@@ -2639,6 +2639,20 @@
           "description": "why the modem is not running (not installed, stopped); empty while it runs",
           "type": "string"
         },
+        "reason": {
+          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall rule of the installer is missing; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting`",
+          "enum": [
+            "",
+            "not_installed",
+            "stopped",
+            "network",
+            "no_port",
+            "not_started",
+            "firewall",
+            "sound_card"
+          ],
+          "type": "string"
+        },
         "mode": {
           "description": "the modem's mode, the same for every station: `DATAC3`",
           "type": "string"
@@ -2693,6 +2707,7 @@
       "required": [
         "state",
         "problem",
+        "reason",
         "mode",
         "keyed",
         "busy",

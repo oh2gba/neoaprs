@@ -352,6 +352,13 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.connecting_to": "Yhdistetään: {path}…",
   "settings.tnc.not_connected": "Ei yhteyttä",
   "settings.tnc.not_connected_why": "Ei yhteyttä: {why}",
+  "settings.tnc.hf.not_installed": "Tämä asennus ei sisällä Mercurya",
+  "settings.tnc.hf.stopped": "Ei käynnissä",
+  "settings.tnc.hf.network": "Ei käynnistetty: Mercury olisi avoin verkkoon",
+  "settings.tnc.hf.no_port": "Ei käynnissä: vapaata porttia ei ole",
+  "settings.tnc.hf.not_started": "Mercuryn käynnistys ei onnistunut",
+  "settings.tnc.hf.firewall": "Ei käynnistetty: asennusohjelman Windowsin palomuurisääntö puuttuu",
+  "settings.tnc.hf.sound_card": "Äänikorttia ei voitu avata: valitse toinen",
   "settings.tnc.counts": {
     one: "{n} paketti kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",
     other: "{n} pakettia kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",

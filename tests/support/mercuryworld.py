@@ -101,7 +101,7 @@ class World:
         on the air our own frame holds it for 3.8 s), and the ticker learns of the hold's end only at its next tick, so a test that moves the clock before that would have the whole jump counted as time
         the radio was held, and its retry would fall due a clock jump later than the schedule says. The budget is for a slow machine; it is settled in a tick here."""
         e = self.stations[call]
-        await until(lambda: e.hf.usable and e.ctl.messaging.retries._down_since is None, timeout_sec)
+        await until(lambda: e.hf.usable and not e.ctl.messaging.retries.away(e.hf), timeout_sec)
 
     def __getitem__(self, call: str) -> Env:
         return self.stations[call]

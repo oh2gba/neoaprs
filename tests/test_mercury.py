@@ -271,10 +271,10 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
 def test_the_one_beacon_interval_is_raised_to_30_minutes_while_the_hf_radio_is_on_and_is_todays_otherwise() -> None:
     assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_beacon_interval_min"), "one setting for both radios"
     fm_only = replace(DEFAULTS, beacon_interval_min=20)
-    assert fm_only.beacon_interval_of(FM) == 20 and fm_only.beacon_interval_of(HF) == 20, "with HF off, today's floor of 20"
+    assert fm_only.beacon_interval() == 20, "with HF off, today's floor of 20"
     both = replace(fm_only, hf_enabled=True)
-    assert both.beacon_interval_of(FM) == 30 and both.beacon_interval_of(HF) == 30, "with HF on, 30 at the least, for both beacons"
-    assert replace(both, beacon_interval_min=60).beacon_interval_of(HF) == 60 and replace(both, beacon_interval_min=0).beacon_interval_of(HF) == 0, "a longer interval stays, Off stays Off"
+    assert both.beacon_interval() == 30, "with HF on, 30 at the least, for both beacons"
+    assert replace(both, beacon_interval_min=60).beacon_interval() == 60 and replace(both, beacon_interval_min=0).beacon_interval() == 0, "a longer interval stays, Off stays Off"
     with pytest.raises(ValueError, match="no_radio|at least one radio"):
         Config.checked(DEFAULTS, {"fm/enabled": "false"})
     assert Config.checked(replace(DEFAULTS, hf_enabled=True), {"fm/enabled": "false"}).hf_enabled, "the FM radio may go when the HF one is on"
