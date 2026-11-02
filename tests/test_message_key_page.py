@@ -21,6 +21,7 @@ async def test_the_page_sees_the_fingerprint_and_makes_a_new_key_only_while_encr
     assert e.ctl.keyring.fingerprint() == first, "no new key was made"
     e.ctl.keyring.allowed = True
     await page.send({"cmd": "message_key_new"})
-    made = (await page.expect("status"))["message_key"]
+    await page.until(lambda: any(s["message_key"] not in ("", first) for s in page.of("status")))          # (a status of the ten-second timer, built before the key, may arrive first: the one that carries the new key is waited for)
+    made = e.ctl.keyring.fingerprint()
     assert made and made != first
     await e.stop()
