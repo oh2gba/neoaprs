@@ -17,7 +17,7 @@ IGATE = "IGATE"                     # the token of a capabilities packet (`<IGAT
 
 def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
-    was last heard now. One heard on the radio (the Dummy radio's too) sets the path it came by and, with `route`, is counted for its route; one from the internet came by no route and leaves them as they were."""
+    was last heard now. One heard on the radio (the Dummy radio's too) sets the path it came by and, with `route`, is counted for its route (one of the HF radio is not: it came by no digipeater); one from the internet came by no route and leaves them as they were."""
     station.packets += 1
     station.last_heard = packet.heard_at
     station.hour.note(packet.heard_at)
@@ -37,7 +37,7 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     else:
         station.heard_rf, station.last_rf_at = station.heard_rf + 1, packet.heard_at
     station.last_path, station.last_via = packet.path, packet.gate
-    if route:
+    if route and packet.radio != "hf":                            # (every frame over HF is direct: counted, it would send a message by FM direct)
         station.deliveries.note(route_of(packet.path, packet.gate), 1, packet.heard_at)
 
 

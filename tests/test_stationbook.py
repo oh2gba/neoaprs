@@ -1,4 +1,5 @@
 """The station book (neoaprs/stationbook.py): what a packet does to it, the track, objects and items, us, pruning, and the signals; with the packets of the live capture and made-up ones."""
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 import pytest
@@ -269,6 +270,14 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 
 
 # ---- how the packets reached us (neoaprs/route.py)
+
+def test_a_packet_heard_over_hf_is_no_route_for_a_message_by_fm() -> None:
+    book = StationBook()
+    book.take(packet(Status("x"), path=("OH2RCH-2*",)))
+    book.take(replace(packet(Status("x"), path=()), radio="hf"))
+    station = book.get("OH2AAA")
+    assert station is not None and station.deliveries.direct == 0 and station.heard_hf == 1 and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
+
 
 def test_every_packet_of_a_station_counts_the_route_it_came_by() -> None:
     book = StationBook()

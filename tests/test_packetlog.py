@@ -308,6 +308,14 @@ def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherw
         packet_of(packet_row(plain)._replace(via="tcp"))
 
 
+async def test_the_deliveries_leave_out_what_the_hf_radio_heard(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
+    log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio="hf"))
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None)]
+
+
 async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())

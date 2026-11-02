@@ -99,7 +99,7 @@ class Services:
         self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the FM radio, where the network has digipeaters; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
-        self.igate.made_up = lambda: self.tnc.is_dummy                       # (a Dummy radio makes up its traffic: neither it nor our position goes to APRS-IS)
+        self.igate.made_up = lambda: any(radio.is_dummy for radio in self.radios.on)       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it

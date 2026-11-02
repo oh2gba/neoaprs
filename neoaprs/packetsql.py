@@ -78,8 +78,9 @@ def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, spa
 
 
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
-    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
-    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
+    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route; not those of the HF radio: every frame there is direct, the
+    routes are those of the FM radio's digipeaters), the oldest first."""
+    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} AND radio != 'hf' ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 
 def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
