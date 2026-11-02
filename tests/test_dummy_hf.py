@@ -143,29 +143,32 @@ async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio
 
 
 async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_hf_starts_mercury_as_the_speaker_and_plays_the_beacon(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture) -> None:
+    """Where there are named pipes (Linux, macOS) the bundled Mercury is started on its fifo backend as the speaker and the beacon goes to it; on Windows the speaker is not started (the modem on the default sound devices
+    would be heard, and hear, for real) and the Dummy HF radio runs without the sound: the made-up stations are heard all the same."""
     caplog.set_level(logging.INFO, logger="neoaprs.mercury")
     e = Env(tmp_path, radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30"})
     e.ctl.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
     await e.start()
     await until(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
-    assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
-    started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
-    if hasattr(os, "mkfifo"):
-        assert (tmp_path / "mercury-capture.fifo").exists() and "-x fifo" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
+    speaking = hasattr(os, "mkfifo")
+    if speaking:
+        assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
+        started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
+        assert (tmp_path / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
+        await until(lambda: e.ctl.mercury.speaker_line.open, 5.0)
     else:
-        assert not (tmp_path / "mercury-capture.fifo").exists() and "-x" not in started and "-i" not in started, "on Windows Mercury runs on its default recording and playback devices"
-    assert "-P none" in started and "-m 1" in started
-    await until(lambda: e.ctl.mercury.speaker_line.open, 5.0)
+        assert e.ctl.mercury.state == "stopped" and e.ctl.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
     for _ in range(40):
         e.now.advance(5)                                                         # type: ignore[attr-defined]
         await asyncio.sleep(0.02)
-        if len(e.ctl.stationbook.stations()) >= 4 and e.ctl.mercury.speaker_line.played >= 1:
+        if len(e.ctl.stationbook.stations()) >= 4 and (not speaking or e.ctl.mercury.speaker_line.played >= 1):
             break
     stations = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]
     assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
-    assert e.ctl.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
-    await until(lambda: (tmp_path / fakemercury.BROADCAST_FILE).exists() and (tmp_path / fakemercury.BROADCAST_FILE).stat().st_size > 0, 5.0)
+    if speaking:
+        assert e.ctl.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
+        await until(lambda: (tmp_path / fakemercury.BROADCAST_FILE).exists() and (tmp_path / fakemercury.BROADCAST_FILE).stat().st_size > 0, 5.0)
     assert e.ctl.config.serial_last_port == ""
     await e.stop()
     assert e.ctl.mercury.state == "stopped"

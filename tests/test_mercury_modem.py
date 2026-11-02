@@ -628,18 +628,31 @@ async def test_without_named_pipes_the_speaker_of_the_dummy_hf_radio_is_not_star
     await stopped(m)
 
 
-async def test_the_shipped_binary_is_not_started_while_the_firewall_does_not_shield_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercurymodem, "loopback_only", lambda program: f"the Windows Firewall rule 'NeoAPRS Mercury' of the installer is missing ({program.name})")
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "mercury.exe")], backoff=QUICK)
+async def test_the_shipped_binary_is_not_started_while_the_firewall_does_not_shield_it_and_nothing_else_is_asked_about(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The installer's firewall rule is for the mercury.exe it installs, the one file `find` gives; the tests' fake (an interpreter and a module), a program named by its path elsewhere, and a Mercury something else runs
+    are not it, and the Windows Firewall is never asked about them (CI's Windows runner has no rule, and a fake is not to fail for one)."""
+    asked: list[str] = []
+    monkeypatch.setattr(mercurymodem, "loopback_only", lambda program: (asked.append(program.name), f"the Windows Firewall rule 'NeoAPRS Mercury' of the installer is missing ({program.name})")[1])
+    shipped = tmp_path / "tools" / "mercury" / mercuryhelper.program_file()
+    shipped.parent.mkdir(parents=True)
+    shipped.write_text("")
+    monkeypatch.setattr(mercuryhelper, "tools_dir", lambda: tmp_path / "tools")
+    assert mercuryhelper.is_shipped([str(shipped)]) and not mercuryhelper.is_shipped([str(tmp_path / "mercury.exe")]) and not mercuryhelper.is_shipped(fakemercury.program())
+    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK)
     await m.start(HF)
-    assert m.state == "waiting" and m.reason == "firewall" and "NeoAPRS Mercury" in m.problem and m.starts == 0
+    assert m.state == "waiting" and m.reason == "firewall" and "NeoAPRS Mercury" in m.problem and m.starts == 0 and asked == [shipped.name]
     await asyncio.sleep(0.3)
     assert m.starts == 0, "not tried again by itself: the rule does not appear by itself"
+    await stopped(m)
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK)          # (a program named by its path elsewhere: not asked about; what it is said to be is the system's words)
+    await m.start(HF)
+    assert m.reason == "not_started" and asked == [shipped.name]
     await stopped(m)
     m = modem(tmp_path)                                                    # (the fake program is an interpreter and a module, not the shipped binary: not asked)
     await m.start(HF)
     try:
         await until(lambda: m.running, 5.0)
+        assert asked == [shipped.name]
     finally:
         await stopped(m)
 

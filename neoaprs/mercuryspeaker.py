@@ -7,9 +7,8 @@ pipe, which it hands to the system's own player, `pw-play` (PipeWire), `paplay` 
 does not. The frames to play come in on Mercury's broadcast port as KISS (`SpeakerLine`), as they would from the Tnc.
 
 Windows has no named pipes, and Mercury's fifo and null backends are one sound system for both directions with no Windows pipe in them (its audioio.c opens the path with open() and nothing else), so there the
-speaker runs Mercury on its own defaults, WASAPI's default recording device and default playback device: the recording device is the sound card's clock in place of the thread here, and what it hears
-goes nowhere (the dummy's Tnc is not connected to this Mercury, and the daemon reads its broadcast port only to drop what comes); Mercury itself plays on the default output, so no player is needed. A
-Windows machine with no recording device has Mercury's capture fail, which the log says, and the dummy runs without the sound.
+speaker is not started (mercurymodem.py says so in the log): Mercury on WASAPI's default devices would play the modem's audio out of the speakers and read the microphone for real, with a radio on the default
+output keying by VOX, which the Dummy's "nothing goes on the air" does not allow. The Dummy HF radio runs without the sound on Windows; whether it is to play there is a decision for later.
 
 Nothing of it is a must: no player, no pipes, a Mercury that is not there, are each a line in the log, and the Dummy HF radio makes its traffic all the same."""
 import asyncio

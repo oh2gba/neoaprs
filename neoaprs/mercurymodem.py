@@ -32,7 +32,7 @@ from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SE
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryfirewall import loopback_only
-from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, find, foreign_listeners, free_ports, list_sound_cards
+from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, find, foreign_listeners, free_ports, is_shipped, list_sound_cards
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
 from .serialprobe import available_ports
 from .signal import Signal
@@ -150,7 +150,7 @@ class Mercury(Tuning):
         if program is None:
             self._set("waiting", NOT_INSTALLED, "not_installed")
             return
-        if len(program) == 1 and (why := await asyncio.to_thread(loopback_only, Path(program[0]))):        # (the shipped binary on Windows: the installer's firewall rule must be in force; "" elsewhere)
+        if is_shipped(program) and (why := await asyncio.to_thread(loopback_only, Path(program[0]))):        # (the shipped binary on Windows: the installer's firewall rule must be in force; "" elsewhere, and nothing is asked of a program that is not the shipped one)
             self._set("waiting", why, "firewall")
             return
         ini, pid_file = self.data_dir / INI_FILE, self.data_dir / PID_FILE
