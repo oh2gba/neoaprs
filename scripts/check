@@ -3,6 +3,8 @@
 #
 #   scripts/check                 every stage, in order, stopping at the first failure
 #   scripts/check --stage NAME    one stage only (see STAGES below)
+#   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about five minutes, Linux only, and the Mercury built once with
+#                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
 #   scripts/check --list          the stage names
 #
 # One line per stage with its time; the output of a failing stage is printed under its line. Runs from any directory.
@@ -14,7 +16,8 @@ cd "$root"
 
 # The stages: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the Python tree (jscpd, from ui/node_modules).
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py)
-ALL_STAGES=("${STAGES[@]}")
+EXTRA_STAGES=(sim)                     # run only by name (--stage sim): minutes long, Linux only
+ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
 
 only=""
 while [ $# -gt 0 ]; do
@@ -89,6 +92,14 @@ stage_ui_build() { ui_run npx vite build; }
 stage_page() { "$python" -m pytest -q tests/test_page_build.py; }      # page/ (what the daemon serves) is a fresh build of ui/
 stage_dup() { ui_run npm run --silent dup; }                              # jscpd over ui/src: duplicated code over the threshold of ui/.jscpd.json fails
 stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ against scripts/dup-baseline.json
+# The simulation of an HF net (docs/development.md, "The simulators"): five real Mercury instances on the suite's channel, a daemon on each, the scenario of scripts/mercury-sim; the report is left in build/mercury-sim.json.
+# Linux only (named pipes); the Mercury of the venv (scripts/build-mercury --install, which needs gcc, make and libasound2-dev) is built when it is not there. Budget: about five minutes.
+stage_sim() {
+    [ "$(uname -s)" = Linux ] || { echo "the simulation runs on Linux only (named pipes)"; return 1; }
+    if ! "$python" -c 'import sys; from neoaprs.mercuryhelper import find; sys.exit(0 if find() else 1)'; then "$python" scripts/build-mercury --install || return 1; fi
+    mkdir -p build || return 1
+    "$python" scripts/mercury-sim --report build/mercury-sim.json
+}
 
 # --- the runner ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -109,6 +120,7 @@ run_stage() {
 total_start=$(date +%s)
 for name in "${ALL_STAGES[@]}"; do
     if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
+    if [ -z "$only" ]; then case " ${EXTRA_STAGES[*]} " in *" $name "*) continue ;; esac; fi          # (an extra stage runs only when named)
     run_stage "$name"
 done
 printf 'all green in %ss\n' "$(( $(date +%s) - total_start ))"

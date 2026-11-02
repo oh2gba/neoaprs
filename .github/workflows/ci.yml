@@ -7,6 +7,7 @@ on:
     branches: [master, "ci/**"]
   pull_request:
     branches: [master]
+  workflow_dispatch:          # (by hand, on any branch: the same jobs, the simulation included)
 
 permissions:
   contents: read
@@ -109,3 +110,46 @@ jobs:
           scripts/build-page
           git add --intent-to-add neoaprs/page
           git diff --exit-code -- neoaprs/page
+
+  # The simulation of an HF net with real Mercury instances (scripts/mercury-sim; docs/development.md, "The simulators"): the pinned Mercury built from source as the release's `mercury` job builds it, then five
+  # Mercury instances on the suite's simulated channel, a daemon on each, and the scenario checked to the end: every beacon heard, the longest message around the ring, a collision, a lost ack, a Mercury that dies, a
+  # daemon restarted mid-conversation, a weak link, a poor fading channel at 0 dB, both radios, the iGate. About six minutes (the scenario waits on the air, not on the CPU); the report is an artifact, and the
+  # daemons' and Mercury's logs too when it failed. The same as `scripts/check --stage sim`.
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: The tools of the Mercury build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libasound2-data
+      - run: uv sync --frozen
+      - name: Build the pinned Mercury into the venv (scripts/build-mercury --install)
+        run: uv run scripts/build-mercury --install
+      - name: The simulation
+        run: uv run scripts/mercury-sim --report mercury-sim.json --keep 2>&1 | tee mercury-sim.log
+      - name: The report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mercury-sim
+          path: |
+            mercury-sim.json
+            mercury-sim.log
+          if-no-files-found: ignore
+      - name: The folders of the run (the daemons' logs, Mercury's output), when it failed
+        if: failure()
+        run: |
+          folder="$(sed -n 's/^sim: kept \(.*\): .*/\1/p' mercury-sim.log | tail -n 1)"
+          [ -n "$folder" ] && tar czf mercury-sim-folders.tar.gz -C "$folder" . || echo "no folder kept"
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mercury-sim-folders
+          path: mercury-sim-folders.tar.gz
+          if-no-files-found: ignore

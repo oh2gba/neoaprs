@@ -7,9 +7,9 @@ from datetime import timedelta
 from pathlib import Path
 
 from neoaprs import ax25
-from neoaprs.message import FIRST_WAIT_SEC
+from neoaprs.message import FINAL_WAIT_SEC, FIRST_WAIT_SEC
 from neoaprs.mercury import FRAME_SEC
-from tests.support.env import idle_for, until
+from tests.support.env import Env, idle_for, until
 from tests.support.fakeaprsis import FakeAprsIs
 from tests.support.mercuryworld import World
 
@@ -148,3 +148,72 @@ async def test_the_hf_beacon_goes_out_at_the_one_interval_with_the_random_pause(
     assert len(w.air.delivered) == 1, "the interval has passed but the pause has not"
     w.pass_time(30)
     await w.until(lambda: len(w.air.delivered) == 2, 5.0)
+
+
+async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_message_is_kept_once(tmp_path: Path) -> None:
+    """The far station hears the message and acks it, but the sender does not hear the ack (its radio is keyed at that moment: a keyed station hears nothing); the sender tries again after the first wait, 32 s, the
+    far station acks the copy again (a copy that comes 30 s or more after the last ack is acked again) and keeps the message once."""
+    w = World(tmp_path, frame_sec=0.1)
+    a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
+    await w.start()
+    record = await a.ctl.messaging.send("OH2B", "lost ack")
+    await w.until(lambda: len(w.air.delivered) == 1 and b.ctl.messaging.records() != [])          # (the message reached B)
+    assert a.hf_radio is not None
+    a.hf_radio.keyed = True                                                                        # (A's radio keyed by hand: it hears nothing of B's ack)
+    await w.until(lambda: b.ctl.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)        # (B's ack went into the void)
+    a.hf_radio.keyed = False
+    await idle_for(0.2)
+    assert a.ctl.messaging.get(record.id).state == "sending" and a.ctl.messaging.get(record.id).attempts == 1 and len(w.air.delivered) == 1       # type: ignore[union-attr]
+    w.pass_time(FIRST_WAIT_SEC + 1)
+    await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)                    # type: ignore[union-attr]
+    assert a.ctl.messaging.get(record.id).attempts == 2 and b.ctl.mercury.frames_keyed == 2, "the copy was acked again"        # type: ignore[union-attr]
+    assert [m.text for m in b.ctl.messaging.records() if m.direction == "in"] == ["lost ack"], "kept once"
+    assert w.air.collisions == 0
+
+
+async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_each_a_whole_direct_frame_and_the_message_fails(tmp_path: Path) -> None:
+    w = World(tmp_path, frame_sec=0.1)
+    a = await w.add("OH2A")
+    await w.add("OH2B", lat=61.5, lon=23.8)
+    await w.start()
+    record = await a.ctl.messaging.send("OH2Z", "anybody there?")                                  # (nobody of that name on the air)
+    for n, wait in enumerate((32, 32, 64), 2):                                                     # (the attempts at 0, 32, 64 and 128 s: schedule_sec)
+        await w.until(lambda n=n: len(w.air.delivered) == n - 1 and a.hf.usable)                   # type: ignore[misc]  (the attempt is on the air and the radio is free again: a wait that runs while the radio is held is moved on by that time, so the clock moves only while it is free)
+        await idle_for(0.1)                                                                        # (and the ticker has seen it free: a wait that runs while the radio is held is moved on by the time it was held, which is the frame's 3.8 s on the air)
+        w.pass_time(wait - 2)
+        await idle_for(0.15)
+        assert a.ctl.messaging.get(record.id).attempts == n - 1, f"attempt {n} waits its {wait} s"              # type: ignore[union-attr]
+        w.pass_time(3)
+        await w.until(lambda n=n: a.ctl.messaging.get(record.id).attempts == n, 5.0)                          # type: ignore[misc, union-attr]
+    await w.until(lambda: len(w.air.delivered) == 4 and a.hf.usable)
+    assert a.ctl.messaging.get(record.id).state == "sending" and a.ctl.messaging.get(record.id).attempts_max == 4       # type: ignore[union-attr]
+    w.pass_time(FINAL_WAIT_SEC + 1)
+    await w.until(lambda: a.ctl.messaging.get(record.id).state == "failed", 5.0)                   # type: ignore[union-attr]
+    frames = sent_by(w, "OH2A")
+    assert len(frames) == 4 and all(f.path == () and len(ax25.encode(f)) <= 123 for f in frames) and len({f.info for f in frames}) == 1, "the same frame four times, direct and whole"
+    assert a.ctl.mercury.frames_keyed == 4 and w.air.collisions == 0
+
+
+async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its_database_and_the_message_is_acked(tmp_path: Path) -> None:
+    """The sender's daemon stops right after its first attempt (the ack that comes meanwhile is lost: nobody is listening) and starts again on the same data folder and the same radio: the message is still `sending`
+    with one attempt made, the retry falls due on the schedule, and the far station acks the copy."""
+    w = World(tmp_path, frame_sec=0.1)
+    a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
+    await w.start()
+    record = await a.ctl.messaging.send("OH2B", "across a restart")
+    await w.until(lambda: len(w.air.delivered) == 1)
+    first_sent = a.ctl.messaging.get(record.id).last_attempt_at                                   # type: ignore[union-attr]
+    assert a.hf_radio is not None
+    a.hf_radio.keyed = True                                                                        # (nothing reaches A from here: it is going down)
+    await a.stop()                                                                                 # (B's ack goes out while A is down)
+    await w.until(lambda: b.ctl.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)
+    a.hf_radio.keyed = False
+    again = Env(a.dir, radio=False, hf=a.hf_radio, settings=a.settings, clock=a.now)
+    w.stations["OH2A"] = again
+    await again.start()
+    kept = again.ctl.messaging.get(record.id)
+    assert kept is not None and kept.state == "sending" and kept.attempts == 1 and kept.last_attempt_at == first_sent, "the message as the database kept it"
+    w.pass_time(FIRST_WAIT_SEC + 1)
+    await w.until(lambda: again.ctl.messaging.get(record.id).state == "acked", 5.0)               # type: ignore[union-attr]
+    assert again.ctl.messaging.get(record.id).attempts == 2 and len(w.air.delivered) == 3 and b.ctl.mercury.frames_keyed == 2, "the retry and its ack, after the first attempt (the first ack reached nobody)"      # type: ignore[union-attr]
+    assert [m.text for m in b.ctl.messaging.records() if m.direction == "in"] == ["across a restart"]

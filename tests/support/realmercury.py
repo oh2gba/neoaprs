@@ -76,14 +76,14 @@ def start_daemon(data: Path, ports: tuple[int, int], daemon: list[str] | None = 
     return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=daemon_env())
 
 
-def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -> str:
-    """The address of the daemon's page, read from its log when it is up."""
+def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float, offset: int = 0) -> str:
+    """The address of the daemon's page, read from its log when it is up (from `offset` bytes into the log: a daemon started again on the same folder writes after the old run's lines)."""
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if daemon.poll() is not None:
             raise Failure(f"the daemon on {data.name} ended with exit code {daemon.returncode} before its page was up")
         try:
-            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", (data / "neoaprs.log").read_text(encoding="utf-8", errors="replace"))
+            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", (data / "neoaprs.log").read_bytes()[offset:].decode("utf-8", errors="replace"))
         except OSError:
             found = None
         if found:

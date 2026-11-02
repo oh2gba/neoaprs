@@ -4,6 +4,7 @@ link's gain with noise at the asked SNR, a keyed station hears only noise, two k
 stall the others, a part of a block waits for its rest, a reader that is slow or gone costs blocks (counted), the same seed and bytes give the same bytes, and the pace holds in a thread and costs a small part of a block."""
 import math
 import os
+import random
 import time
 from array import array
 from collections.abc import Callable
@@ -11,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.hfchannel import REFERENCE_RMS, RATE, Channel, pcm_to_s32le, s32le_to_pcm
+from tests.support.hfchannel import HILBERT_TAPS, PRESETS, REFERENCE_RMS, RATE, Channel, Fading, _Tap, hilbert_taps, pcm_to_s32le, s32le_to_pcm
 
 BLOCK = 160
 INF = math.inf
@@ -90,6 +91,8 @@ class Rig:
 
 @pytest.fixture
 def make(tmp_path: Path):
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("named pipes of this kind are POSIX's: the channel runs on Linux (the fading and the transformer are tested without them)")
     rigs: list[Rig] = []
 
     def build(names: str = "ABC", **channel: object) -> Rig:
@@ -225,6 +228,96 @@ def test_a_shaper_is_applied_to_its_link_before_the_gain(make) -> None:
     rig.run(2, plan_of((0, "A", sent)))
     assert rig.samples("C") == sent
     assert rig.samples("B") == array("h", [round(-x / 2) for x in sent])
+
+
+# ---- fading: the Watterson channel ----
+
+
+def test_the_hilbert_transformer_turns_a_tone_into_its_quadrature_and_a_steady_path_is_the_tone_itself_a_little_late() -> None:
+    """A one-path channel with no Doppler spread is the identity but for the transformer's delay, and the transformer's quadrature of a cosine at 1 kHz is the sine, within a percent, which is what the fading multiplies."""
+    half = HILBERT_TAPS // 2
+    taps = dict(hilbert_taps())
+    assert all(m % 2 for m in taps) and len(taps) == half + 1 and taps[1] == pytest.approx(2 / math.pi, rel=0.01) and taps[-1] == -taps[1]
+    for freq in (500.0, 1000.0, 1500.0, 3000.0):
+        quadrature = sum(h * math.sin(2 * math.pi * freq * m / RATE) for m, h in taps.items())          # (the transformer's response at this frequency is -j times this: 1 for the ideal one)
+        assert quadrature == pytest.approx(1.0, abs=0.012), (freq, quadrature)
+    steady = Fading(delay_ms=0.0, doppler_hz=0.0, paths=1)
+    sent = tone(4)
+    heard = array("h")
+    for k in range(4):
+        heard.extend(steady(sent[k * BLOCK:(k + 1) * BLOCK]))
+    assert list(heard[half:half + 3 * BLOCK]) == pytest.approx(list(sent[:3 * BLOCK]), abs=1), "the tone itself, `half` samples late"
+
+
+def test_two_steady_paths_are_an_echo_at_the_delay_with_the_powers_summing_to_one() -> None:
+    half = HILBERT_TAPS // 2
+    echo = Fading(delay_ms=2.0, doppler_hz=0.0)
+    assert echo.delay == 16, "2 ms at 8000 samples a second"
+    impulse = array("h", [0] * BLOCK)
+    impulse[10] = 10000
+    heard = echo(impulse)
+    heard.extend(echo(array("h", [0] * BLOCK)))
+    assert heard[10 + half] == pytest.approx(10000 / math.sqrt(2), abs=2) and heard[10 + half + 16] == pytest.approx(10000 / math.sqrt(2), abs=2)
+    assert sum(abs(v) for i, v in enumerate(heard) if i not in (10 + half, 10 + half + 16)) < 0.25 * 10000, "the transformer's ripple only"
+
+
+def test_the_gain_process_has_unit_power_and_the_gaussian_spectrum_of_the_doppler_spread() -> None:
+    """The tap process at its low rate: E|g|^2 = 1, and its autocorrelation is the Gaussian spectrum's, exp(-2 pi^2 sigma^2 tau^2) with sigma half the spread (ITU-R F.1487), checked at one and three low-rate steps."""
+    for spread in (1.0, 0.5):
+        tap = _Tap(spread, RATE, random.Random(5))
+        low_rate = RATE / tap.ratio
+        assert 64 * spread <= low_rate < 128 * spread, "drawn at 64 to 128 times the spread"
+        samples = [tap._next() for _ in range(20000)]
+        power = sum(abs(g) ** 2 for g in samples) / len(samples)
+        assert power == pytest.approx(1.0, rel=0.1), (spread, power)
+        sigma = spread / 2
+        for lag in (1, 3):
+            measured = sum((samples[i] * samples[i + lag].conjugate()).real for i in range(len(samples) - lag)) / (len(samples) - lag) / power
+            expected = math.exp(-2 * math.pi ** 2 * sigma ** 2 * (lag / low_rate) ** 2)
+            assert measured == pytest.approx(expected, abs=0.04), (spread, lag, measured, expected)
+
+
+def test_a_poor_channel_fades_a_tone_deeply_and_keeps_its_average_power(make) -> None:
+    """Twenty seconds of a tone through the poor channel: the average power is the tone's within a decibel or so, and there are blocks faded by more than 10 dB (a fade of 10 dB about once in two seconds on this channel)."""
+    poor = Fading("poor", seed=3)
+    assert poor.describe() == "poor: 2 path(s), 2 ms, 1 Hz, seed 3" and PRESETS["poor"] == (2.0, 1.0)
+    blocks = 1000
+    sent = tone(1)
+    levels = []
+    for _ in range(blocks):
+        heard = poor(sent)
+        levels.append(rms(heard))
+    average = math.sqrt(sum(v * v for v in levels) / blocks)
+    assert 20 * math.log10(average / TONE_RMS) == pytest.approx(0.0, abs=1.5)
+    deep = sum(1 for v in levels if v < TONE_RMS * 10 ** (-10 / 20))
+    assert 20 <= deep <= 400, f"{deep} of {blocks} blocks more than 10 dB down"
+    assert any(v > TONE_RMS * 1.3 for v in levels), "and the two paths add up in phase at times"
+
+
+def test_set_fading_gives_each_direction_its_own_channel_and_keeps_the_links_gains(make) -> None:
+    rig = make("ABC", snr_db=INF)
+    rig.channel.set_link("A", "B", gain_db=-6.0, delay=0, symmetric=False)
+    rig.channel.set_fading("poor", seed=1)
+    links = rig.channel.links
+    assert {key for key in links} == {("A", "B"), ("B", "A"), ("A", "C"), ("C", "A"), ("B", "C"), ("C", "B")}
+    assert links[("A", "B")].gain_db == -6.0 and links[("B", "A")].gain_db == 0.0
+    shapers = [link.shaper for link in links.values()]
+    assert all(isinstance(s, Fading) for s in shapers) and len({s.seed for s in shapers}) == 6, "a channel of its own in each direction"
+    rig.run(10, plan_of((0, "A", tone(8))))
+    b, c = rig.samples("B", 2, 10), rig.samples("C", 2, 10)
+    assert b != c and rms(b) > 0 and rms(c) > 0, "B and C hear A through different fades"
+    rig.channel.set_fading(None)
+    assert all(link.shaper is None for link in rig.channel.links.values()) and rig.channel.links[("A", "B")].gain_db == -6.0
+
+
+def test_a_block_through_four_faded_links_costs_a_part_of_the_twenty_milliseconds(make, capsys) -> None:
+    rig = make("ABCDE", snr_db=20.0)
+    rig.channel.set_fading("poor", seed=2)
+    rig.run(50, plan_of((0, "A", tone(50))))
+    totals = rig.channel.report()["totals"]
+    with capsys.disabled():
+        print(f"\n5 stations, 1 keyed, every link faded: {totals['block_ms_mean']:.2f} ms a block on average, {totals['block_ms_max']:.2f} ms at most, of {1000 * rig.channel.block_sec:.0f}")
+    assert totals["block_ms_mean"] < 12
 
 
 def test_links_to_stations_that_are_not_there_or_with_a_negative_delay_are_refused(make) -> None:

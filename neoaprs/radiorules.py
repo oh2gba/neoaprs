@@ -6,15 +6,17 @@ Why each number is what it is:
 - FM: the paths and the fill-in digipeater of the VHF network, SmartBeaconing for a moving station, the beacon from 20 minutes (the net cycle of a 2-hop path), AX.25's own frame limit.
 - HF (Mercury): no path ever (every station on the mode hears every frame direct, there are no digipeaters, and a path costs bytes of a frame that carries 123); no digipeater (a repeat would only fill a channel
   every station already hears); no SmartBeaconing (a moving station sends its timed beacon with the current fix: on HF a report every few tens of seconds in a turn would take the channel for everyone); the one
-  beacon interval of the station (`beacon/interval_min`) with a floor of 30 minutes while this radio is on (John's rule: not very often, a frame of 3.9 s on a shared channel); a random pause of up to BEACON_JITTER_SEC after each interval, because fixed stations have stable clocks
+  beacon interval of the station (`beacon/interval_min`) with a floor of 30 minutes while this radio is on (John's rule: not very often, a frame of 3.8 s on a shared channel); a random pause of up to BEACON_JITTER_SEC after each interval, because fixed stations have stable clocks
   and those that started their hour at the same moment would key up together on one channel every hour from then on (the start of the daemon is a random phase already; the pause keeps two stations on the same
-  interval apart afterwards: with a frame of 3.9 s and the pause drawn from 300 s, two stations on one interval overlap in about 2.6 percent of their rounds, five stations in about one round in four, which the
-  retry of a message and the next beacon absorb, while the pause stays small against an hour; tests/test_mercury.py samples it); frames up to the 123 bytes the mode carries."""
+  interval apart afterwards). The size was measured by `scripts/mercury-measure beacons` (docs/mercury.md): on the 30-minute interval with a frame of 3.8 s, stations that started within one minute of each other
+  lose 14 percent of their beacons without the pause when there are two of them and 43 percent when there are five; with the pause of 300 s they lose 0.8 and 2.7 percent, within a point of what stations with random
+  phases lose by chance (0.4 and 1.6 percent: the floor), while a pause of 120 s leaves them at 1.3 and 5.0 percent. A beacon lost by chance is made up by the next one; tests/test_mercury.py samples the pause.
+  Frames up to the 123 bytes the mode carries."""
 from dataclasses import dataclass
 
 FM_BEACON_MIN_MIN = 20
 HF_BEACON_MIN_MIN = 30                 # the floor of beacon/interval_min while the HF radio is on (the FM radio's alone: FM_BEACON_MIN_MIN)
-HF_BEACON_JITTER_SEC = 300
+HF_BEACON_JITTER_SEC = 300             # measured: the smallest pause that puts stations started together within a point of the random-phase floor (the docstring above; docs/mercury.md)
 HF_MAX_FRAME = 123
 
 

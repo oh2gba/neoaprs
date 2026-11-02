@@ -1,0 +1,427 @@
+#!/usr/bin/env python3
+"""The measurements behind the numbers NeoAPRS fixes for the Mercury HF modem (docs/mercury.md has the table and the figures these gave): real Mercury instances on the simulated channel of the suite
+(tests/support/hfchannel.py), nothing keyed, nothing on the air. Each measurement prints a table and, with --report FILE, writes the same as JSON, so that a number in the docs can be made again.
+
+  scripts/mercury-measure frame   [--frames N]                            one frame's levels and times: the peak and the RMS of what Mercury plays (the channel's reference level), how long the frame is on the air,
+                                                                          PTT ON to PTT OFF, hand-in to the far station's KISS port, the busy detector's lag and hang time, the SNR the far station reports
+  scripts/mercury-measure decode  --snr 0,3,6 [--fading poor] [--frames N]  frames delivered of N sent, at each signal-to-noise ratio, on a flat channel or a fading one (the Watterson presets of the channel:
+                                                                          good, moderate, poor, flutter)
+  scripts/mercury-measure acks    [--messages N] [--snr DB] [--fading P]  two daemons on the channel: N messages one after another, the time to each ack, its distribution against the retry schedule
+  scripts/mercury-measure beacons [--hours H] [--stations 2,5,10]         no Mercury: fixed stations on one beacon interval with the random pause, over H hours of simulated time, for each size of the pause:
+                                                                          how often two beacons overlap, and how many frames an hour are lost to it
+
+Common: --mercury PATH (default: the Mercury the checkout carries, scripts/build-mercury --install), --first-port N (18500: two pairs of ports from there, so that it runs beside scripts/mercury-sim), --seed S,
+--timeout SEC, --report FILE, --keep. Linux only (named pipes). A `decode` point of 50 frames takes about four minutes (a frame is 3.9 s on the air and the next waits for the channel to clear); the points of one
+run go one after another, so several runs with different --first-port values are how a table is made quickly."""
+import argparse
+import asyncio
+import json
+import math
+import random
+import shutil
+import statistics
+import sys
+import tempfile
+import time
+from array import array
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from neoaprs import kiss  # noqa: E402
+from neoaprs.mercury import FRAME_SEC, parse_control_line, split_control_lines  # noqa: E402
+from neoaprs.mercuryhelper import find  # noqa: E402
+from neoaprs.message import FIRST_WAIT_SEC  # noqa: E402
+from neoaprs.radiorules import HF_BEACON_JITTER_SEC  # noqa: E402
+from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Channel  # noqa: E402
+from tests.support.realmercury import Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
+
+PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet of a hundred bytes, as a beacon with a comment is on the air....."         # (100 bytes: the frame is its full size whatever the payload)
+SHORT_PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-"
+
+
+def say(text: str) -> None:
+    print(f"measure: {text}", flush=True)
+
+
+def table(rows: list[tuple[str, str]]) -> None:
+    width = max(len(what) for what, _ in rows)
+    print()
+    for what, result in rows:
+        print(f"  {what.ljust(width)}  {result}")
+    print()
+
+
+def db(value: float, reference: float = 32768.0) -> float:
+    return 20 * math.log10(value / reference) if value > 0 else -math.inf
+
+
+class Recorder:
+    """A shaper of the channel that records what goes through a link, unchanged."""
+
+    def __init__(self) -> None:
+        self.samples = array("h")
+
+    def __call__(self, samples: array[int]) -> array[int]:
+        self.samples.extend(samples)
+        return samples
+
+
+class Modem:
+    """A Mercury of the measurement: its process, a KISS client on its broadcast port and a reader of its control port, with every line stamped."""
+
+    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int]) -> None:
+        self.name, self.ports = name, ports
+        self.rx, self.tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
+        channel.add(name, self.rx, self.tx)
+        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports)
+        self.frames: list[tuple[float, bytes]] = []                 # (when, payload) of every frame heard on the broadcast port
+        self.events: list[tuple[float, str, bool]] = []             # (when, kind, on) of PTT and BUSY, and ("snr", value) as (when, "snr", value)
+        self.snr: list[float] = []
+        self._kiss: asyncio.StreamWriter | None = None
+        self._control: asyncio.StreamWriter | None = None             # (kept: a writer that is dropped closes the connection, and Mercury then says nothing)
+        self._tasks: list[asyncio.Task[None]] = []
+
+    async def connect(self, timeout: float) -> None:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                reader, self._kiss = await asyncio.open_connection("127.0.0.1", self.ports[0])
+                control_reader, self._control = await asyncio.open_connection("127.0.0.1", self.ports[1])
+                break
+            except OSError as e:
+                if self.process.poll() is not None:
+                    raise Failure(f"Mercury {self.name} ended with exit code {self.process.returncode} before its ports were up") from e
+                if time.monotonic() > deadline:
+                    raise Failure(f"Mercury {self.name} did not open its ports within {timeout:g} s") from e
+                await asyncio.sleep(0.2)
+        self._tasks = [asyncio.ensure_future(self._read_kiss(reader)), asyncio.ensure_future(self._read_control(control_reader))]
+
+    async def _read_kiss(self, reader: asyncio.StreamReader) -> None:
+        decoder = kiss.KissDecoder()
+        while data := await reader.read(4096):
+            for frame in decoder.feed(data):
+                self.frames.append((time.monotonic(), frame.payload))
+
+    async def _read_control(self, reader: asyncio.StreamReader) -> None:
+        buffer = bytearray()
+        while data := await reader.read(4096):
+            buffer.extend(data)
+            for line in split_control_lines(buffer):
+                event = parse_control_line(line)
+                if event.kind in ("ptt", "busy"):
+                    self.events.append((time.monotonic(), event.kind, event.on))
+                elif event.kind == "snr" and event.value is not None:
+                    self.snr.append(event.value)
+
+    def send(self, payload: bytes) -> float:
+        assert self._kiss is not None
+        self._kiss.write(kiss.encode(payload))
+        return time.monotonic()
+
+    async def when(self, kind: str, on: bool, after: float, timeout: float) -> float:
+        """The time of the first `kind` ON/OFF event after `after`; Failure when none comes within `timeout`."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for when, k, state in self.events:
+                if when >= after and k == kind and state == on:
+                    return when
+            await asyncio.sleep(0.02)
+        raise Failure(f"{self.name}: no {kind.upper()} {'ON' if on else 'OFF'} within {timeout:g} s")
+
+    async def frame_after(self, after: float, timeout: float) -> float | None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for when, _ in self.frames:
+                if when >= after:
+                    return when
+            await asyncio.sleep(0.02)
+        return None
+
+    def close(self) -> None:
+        for task in self._tasks:
+            task.cancel()
+        for writer in (self._kiss, self._control):
+            if writer is not None:
+                writer.close()
+        stop(self.process, 5.0)
+
+
+def binary_of(args: argparse.Namespace) -> str:
+    shipped = find()
+    binary = args.mercury or (shipped[0] if shipped else "")
+    if not binary:
+        raise Failure("no Mercury in this checkout: build it with scripts/build-mercury --install, or give --mercury PATH")
+    return binary
+
+
+def pair(args: argparse.Namespace, folder: Path, channel: Channel) -> tuple[Modem, Modem]:
+    binary = binary_of(args)
+    a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
+    b = Modem("B", binary, folder, channel, (args.first_port + 10, args.first_port + 210))
+    return a, b
+
+
+# ---- frame
+
+async def measure_frame(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
+    channel = Channel(snr_db=30.0, seed=args.seed)
+    a, b = pair(args, folder, channel)
+    recorder = Recorder()
+    channel.set_link("A", "B", shaper=recorder, symmetric=False)
+    channel.start()
+    try:
+        await a.connect(args.timeout)
+        await b.connect(args.timeout)
+        await asyncio.sleep(2.0)                                      # (the busy detectors take their floor from the noise)
+        runs: list[dict[str, float]] = []
+        for n in range(args.frames):
+            payload = PAYLOAD if n % 2 == 0 else SHORT_PAYLOAD
+            before = len(recorder.samples)
+            t0 = a.send(payload)
+            t_on = await a.when("ptt", True, t0, args.timeout)
+            t_off = await a.when("ptt", False, t_on, args.timeout)
+            t_heard = await b.frame_after(t0, args.timeout)
+            if t_heard is None:
+                raise Failure(f"frame {n} was not heard by B within {args.timeout:g} s")
+            busy_on = await b.when("busy", True, t0, 2.0)
+            busy_off = await b.when("busy", False, busy_on, args.timeout)
+            await asyncio.sleep(1.0)
+            burst = recorder.samples[before:]
+            nonzero = [i for i, v in enumerate(burst) if v]
+            first, last = nonzero[0], nonzero[-1]
+            samples = burst[first:last + 1]
+            rms = math.sqrt(sum(v * v for v in samples) / len(samples))
+            peak = max(abs(v) for v in samples)
+            runs.append({"payload_bytes": len(payload), "samples": len(samples), "air_sec": len(samples) / 8000, "rms": rms, "peak": peak, "ptt_sec": t_off - t_on, "handin_to_ptt_sec": t_on - t0,
+                         "delivery_sec": t_heard - t0, "decode_after_ptt_off_sec": t_heard - t_off, "busy_on_after_ptt_on_sec": busy_on - t_on, "busy_off_after_ptt_off_sec": busy_off - t_off,
+                         "snr_db": b.snr[-1] if b.snr else math.nan})
+        mean = {key: statistics.fmean(r[key] for r in runs) for key in runs[0] if key != "payload_bytes"}
+        rows = [
+            ("frames sent (100 and 32 byte payloads in turn)", f"{len(runs)}, all heard by B"),
+            ("samples of audio in a frame (first to last non-zero), seconds on the air", f"{mean['samples']:.0f} = {mean['air_sec']:.2f} s (payloads differ, the frame does not: {min(r['samples'] for r in runs)} to {max(r['samples'] for r in runs)})"),
+            ("PTT ON to PTT OFF", f"{mean['ptt_sec']:.2f} s"),
+            ("hand-in at the KISS port to PTT ON", f"{mean['handin_to_ptt_sec']:.2f} s"),
+            ("hand-in to the frame at B's KISS port (delivery)", f"{mean['delivery_sec']:.2f} s (slowest {max(r['delivery_sec'] for r in runs):.2f})"),
+            ("PTT OFF to the frame at B", f"{mean['decode_after_ptt_off_sec']:.2f} s"),
+            ("peak of what Mercury plays", f"{mean['peak']:.0f} of 32768 ({db(mean['peak']):.1f} dBFS)"),
+            ("RMS of the frame (the channel's reference level, REFERENCE_RMS)", f"{mean['rms']:.0f} ({db(mean['rms']):.1f} dBFS; the channel assumes {REFERENCE_RMS:.0f}, {db(REFERENCE_RMS):.1f} dBFS)"),
+            ("crest factor (peak over RMS)", f"{db(mean['peak'], mean['rms']):.1f} dB"),
+            ("B's busy detector: BUSY ON after A's PTT ON", f"{mean['busy_on_after_ptt_on_sec']:.2f} s"),
+            ("B's busy detector: BUSY OFF after A's PTT OFF (the hang time)", f"{mean['busy_off_after_ptt_off_sec']:.2f} s"),
+            ("SNR B reported (the channel is set to 30 dB)", f"{mean['snr_db']:.1f} dB"),
+        ]
+        table(rows)
+        return {"runs": runs, "mean": mean, "rows": rows}
+    finally:
+        a.close()
+        b.close()
+        channel.stop()
+
+
+# ---- decode
+
+async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
+    points = [float(v) for v in args.snr.split(",")]
+    channel = Channel(snr_db=points[0], seed=args.seed)
+    a, b = pair(args, folder, channel)
+    if args.fading:
+        channel.set_fading(args.fading, seed=args.seed)
+    channel.start()
+    results: list[dict[str, Any]] = []
+    try:
+        await a.connect(args.timeout)
+        await b.connect(args.timeout)
+        await asyncio.sleep(2.0)
+        for snr in points:
+            channel.snr_db = snr
+            await asyncio.sleep(1.0)
+            heard_before, snr_before = len(b.frames), len(b.snr)
+            started = time.monotonic()
+            for _ in range(args.frames):
+                t0 = a.send(PAYLOAD)
+                t_on = await a.when("ptt", True, t0, args.timeout)
+                t_off = await a.when("ptt", False, t_on, args.timeout)
+                await asyncio.sleep(1.5)                            # (the far side decodes within a few hundred milliseconds of the end; the next frame waits a little more)
+                del t_off
+            delivered = len(b.frames) - heard_before
+            reported = b.snr[snr_before:]
+            result = {"snr_db": snr, "fading": args.fading, "sent": args.frames, "delivered": delivered, "snr_reported_mean": statistics.fmean(reported) if reported else None, "seconds": round(time.monotonic() - started, 1)}
+            results.append(result)
+            say(f"{args.fading or 'flat'} at {snr:g} dB: {delivered} of {args.frames} delivered" + (f", SNR reported {result['snr_reported_mean']:.1f} dB" if reported else "") + f" ({result['seconds']} s)")
+        rows = [(f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR", f"{r['delivered']} of {r['sent']} frames delivered" + (f", reported SNR {r['snr_reported_mean']:.1f} dB" if r["snr_reported_mean"] is not None else "")) for r in results]
+        table(rows)
+        return {"points": results, "rows": rows}
+    finally:
+        a.close()
+        b.close()
+        channel.stop()
+
+
+# ---- acks
+
+async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
+    channel = Channel(snr_db=args.snr_one, seed=args.seed)
+    binary = binary_of(args)
+    ports = {"A": (args.first_port, args.first_port + 200), "B": (args.first_port + 10, args.first_port + 210)}
+    mercuries = {}
+    for name in ("A", "B"):
+        rx, tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
+        channel.add(name, rx, tx)
+        mercuries[name] = start_mercury(binary, folder, name.lower(), rx, tx, ports[name])
+    if args.fading:
+        channel.set_fading(args.fading, seed=args.seed)
+    channel.start()
+    daemons = {}
+    pages = {"A": Page("A"), "B": Page("B")}
+    try:
+        for name, call in (("A", "OH2A"), ("B", "OH2B")):
+            data = folder / name.lower()
+            write_settings(data, {"station/call": call, "station/lat": "60.17", "station/lon": "24.94", "hf/enabled": "true", "fm/enabled": "false", "beacon/interval_min": "0", "messages/alert": "false"})
+            daemons[name] = start_daemon(data, ports[name])
+        bases = {name: wait_for_page(d, folder / name.lower(), args.timeout) for name, d in daemons.items()}
+        for name, page in pages.items():
+            await page.open(bases[name])
+        for page in pages.values():
+            await page.until("the radio connected", page.ready, args.timeout)
+        await asyncio.sleep(2.0)
+        a = pages["A"]
+        delays: list[float] = []
+        attempts: list[int] = []
+        lost = 0
+        for n in range(args.messages):
+            before = a.acked()
+            await a.until("the radio free", a.free, args.timeout)
+            started = time.monotonic()
+            await a.send({"cmd": "send_message", "to": "OH2B", "text": f"message {n + 1} of {args.messages}"})
+            try:
+                took = await a.until(f"the ack of message {n + 1}", lambda before=before: a.acked() > before, args.timeout * 4)
+            except Failure:
+                lost += 1
+                say(f"message {n + 1}: not acked within {args.timeout * 4:g} s")
+                continue
+            record = max((m for m in a.messages().values() if m.get("direction") == "out"), key=lambda m: m.get("id") or 0)
+            tries = int(record.get("attempts") or 1)
+            delays.append(took)
+            attempts.append(tries)
+            say(f"message {n + 1}: acked after {took:.1f} s on attempt {tries}" + ("" if tries == 1 else " (a retry)"))
+            del started
+        first_try = [d for d, t in zip(delays, attempts) if t == 1]
+        rows = [
+            ("messages sent / acked / not acked", f"{args.messages} / {len(delays)} / {lost}"),
+            ("channel", f"{args.fading or 'flat'} at {args.snr_one:g} dB SNR"),
+            ("acked on the first attempt", f"{len(first_try)} of {len(delays)}"),
+        ]
+        if first_try:
+            rows += [
+                ("ack delay on the first attempt: min / median / mean / max", f"{min(first_try):.1f} / {statistics.median(first_try):.1f} / {statistics.fmean(first_try):.1f} / {max(first_try):.1f} s"),
+                ("the first wait of the retry schedule (FIRST_WAIT_SEC)", f"{FIRST_WAIT_SEC} s: {'every' if max(first_try) < FIRST_WAIT_SEC else 'NOT every'} first-attempt ack inside it, the slowest at {100 * max(first_try) / FIRST_WAIT_SEC:.0f} % of it"),
+            ]
+        retried = [d for d, t in zip(delays, attempts) if t > 1]
+        if retried:
+            rows.append(("acked on a retry: delays", ", ".join(f"{d:.1f} s (attempt {t})" for d, t in zip(delays, attempts) if t > 1)))
+        table(rows)
+        return {"delays": delays, "attempts": attempts, "lost": lost, "rows": rows, "snr_db": args.snr_one, "fading": args.fading}
+    finally:
+        for page in pages.values():
+            page.close()
+        for d in daemons.values():
+            stop(d, args.timeout)
+        for m in mercuries.values():
+            stop(m, 5.0)
+        channel.stop()
+
+
+# ---- beacons
+
+def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
+    """Fixed stations on one interval of `interval_min` minutes, each started at a random moment of the first interval (the start of a daemon is a random phase already) and adding a random pause of up to J seconds
+    after every interval (the pause of radiorules.HF_BEACON_JITTER_SEC): over `hours` of simulated time, how many beacons were lost to an overlap (two frames on the air within FRAME_SEC of each other are both lost,
+    as Mercury's broadcast plane has no carrier sense), for each J. Also the case the pause is for: every station started in the same minute (a net that switched on together, or clocks that agree)."""
+    rng = random.Random(args.seed)
+    sizes = [int(v) for v in args.stations.split(",")]
+    pauses = [0, 30, 60, 120, 180, 300, 600]
+    interval = args.interval_min * 60
+    results: list[dict[str, Any]] = []
+    rows: list[tuple[str, str]] = []
+    for count in sizes:
+        for together in (False, True):
+            for pause in pauses:
+                sent = lost = 0
+                for _ in range(args.rounds):
+                    phase = [rng.uniform(0, 60) if together else rng.uniform(0, interval) for _ in range(count)]
+                    times: list[tuple[float, int]] = []
+                    for i in range(count):
+                        t = phase[i]
+                        while t < args.hours * 3600:
+                            times.append((t, i))
+                            t += interval + rng.uniform(0, pause)
+                    times.sort()
+                    collided = [False] * len(times)
+                    for k in range(1, len(times)):
+                        if times[k][0] - times[k - 1][0] < FRAME_SEC:
+                            collided[k] = collided[k - 1] = True
+                    sent += len(times)
+                    lost += sum(collided)
+                share = lost / sent if sent else 0.0
+                per_hour = lost / (args.rounds * args.hours)
+                results.append({"stations": count, "together": together, "pause_sec": pause, "sent": sent, "lost": lost, "lost_share": share, "lost_per_hour": per_hour})
+                rows.append((f"{count} stations, {'started within one minute' if together else 'random phases'}, pause up to {pause} s", f"{100 * share:.2f} % of beacons lost, {per_hour:.3f} an hour"))
+    table(rows)
+    say(f"the pause in the code is {HF_BEACON_JITTER_SEC} s; interval {args.interval_min} min, frame {FRAME_SEC} s, {args.rounds} rounds of {args.hours} hours each")
+    return {"points": results, "rows": rows, "interval_min": args.interval_min, "hours": args.hours, "rounds": args.rounds}
+
+
+# ---- main
+
+def run(args: argparse.Namespace) -> int:
+    if args.what == "beacons":
+        report = measure_beacons(args)
+    else:
+        folder = Path(tempfile.mkdtemp(prefix="mercury-measure-"))
+        try:
+            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "acks": measure_acks}[args.what](args, folder))
+        finally:
+            if args.keep:
+                say(f"kept {folder}")
+            else:
+                shutil.rmtree(folder, ignore_errors=True)
+    if args.report:
+        Path(args.report).write_text(json.dumps({"what": args.what, "seed": args.seed, **report}, indent=1, default=str), encoding="utf-8")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel")
+    parser.add_argument("what", choices=("frame", "decode", "acks", "beacons"))
+    parser.add_argument("--frames", type=int, default=6, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50)")
+    parser.add_argument("--snr", default="0,3,6,9", metavar="DB,DB", help="decode: the signal-to-noise ratios in 3 kHz to try; default %(default)s")
+    parser.add_argument("--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s")
+    parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, acks: the Watterson preset of every link (default: a flat channel)")
+    parser.add_argument("--messages", type=int, default=20, metavar="N", help="acks: how many messages; default %(default)s")
+    parser.add_argument("--hours", type=int, default=50, metavar="H", help="beacons: hours of simulated time per round; default %(default)s")
+    parser.add_argument("--rounds", type=int, default=400, metavar="R", help="beacons: rounds of H hours (each round draws the stations' phases again; without the pause an overlap of phases lasts the whole round, so many short rounds measure it); default %(default)s")
+    parser.add_argument("--stations", default="2,3,5,10", metavar="N,N", help="beacons: the sizes of the net to try; default %(default)s")
+    parser.add_argument("--interval-min", type=int, default=30, metavar="MIN", help="beacons: the beacon interval; default %(default)s (the floor while the HF radio is on)")
+    parser.add_argument("--mercury", metavar="PATH", help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)")
+    parser.add_argument("--first-port", type=int, default=18500, metavar="N", help="the first of the ports (two Mercury instances: N, N+10 and their control ports 200 above); default %(default)s")
+    parser.add_argument("--seed", type=int, default=1, metavar="S")
+    parser.add_argument("--timeout", type=float, default=30.0, metavar="SEC", help="how long one wait may take; default %(default)s")
+    parser.add_argument("--report", metavar="FILE", help="write the result as JSON here too")
+    parser.add_argument("--keep", action="store_true", help="keep the folder of the run")
+    args = parser.parse_args()
+    if args.what == "decode" and args.frames == 6:
+        args.frames = 50
+    if sys.platform == "win32" and args.what != "beacons":
+        print("measure: named pipes of this kind are Linux's; run it there", file=sys.stderr)
+        return 2
+    try:
+        return run(args)
+    except Failure as e:
+        print(f"measure: FAILED: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

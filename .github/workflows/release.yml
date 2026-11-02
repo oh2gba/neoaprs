@@ -5,6 +5,8 @@
 # failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
 # "A release"; what the jobs do: docs/development.md.
 name: release
+# A run on a tag is a release; a run by hand on a branch is a build for testing (docs/MAINTAINING.md, "A build for testing"): the name says which.
+run-name: ${{ github.ref_type == 'tag' && format('release {0}', github.ref_name) || format('build for testing: {0} @ {1}', github.ref_name, github.sha) }}
 
 on:
   push:

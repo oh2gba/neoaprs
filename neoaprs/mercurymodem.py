@@ -33,7 +33,7 @@ PID_FILE = "mercury.pid"
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
-KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long is not believed: a transmitter that stayed keyed is Mercury's safety timer's business, and ours is not to wait for ever
+KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 STATES = ("stopped", "starting", "running", "waiting")
 
 

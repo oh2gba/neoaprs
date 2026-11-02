@@ -2,7 +2,7 @@
 Mercury 1.9.21 does on the air (what the bench of two real Mercury instances over named pipes showed, 2 November 2026):
 
 - a KISS frame handed in is **cut to the mode's payload** (123 bytes for DATAC3) without a word to the client, and goes out as one modem frame;
-- a frame **takes the mode's time on the air** (`frame_sec`, 3.9 s for DATAC3; the tests scale it down), and the station says `PTT ON` and `PTT OFF` on its control port round it;
+- a frame **takes the mode's time on the air** (`frame_sec`, 3.8 s for DATAC3; the tests scale it down), and the station says `PTT ON` and `PTT OFF` on its control port round it;
 - **there is no carrier sense**: a station keys whenever it is asked, and two frames whose times on the air overlap are both lost (a station that transmits hears nothing either);
 - every other station on the air hears a frame that went whole, with the sender's command byte, when its time on the air is over;
 - with `busy_detect` the other stations say `BUSY ON` while a frame is on the air and `BUSY OFF` after it (Mercury's detector, switched on in the configuration the daemon writes).
