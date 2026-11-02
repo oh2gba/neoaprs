@@ -113,3 +113,38 @@ def test_removal_takes_the_folder_and_leaves_the_data_and_says_so(tmp_path: Path
     gone = subprocess.run(["sh", str(DEB / "postrm"), "remove"], capture_output=True, text=True, check=True, env=env).stdout
     assert not (root / "opt" / "neoaprs").exists()
     assert "~/.local/share/neoaprs is left" in gone and "systemctl --user disable --now neoaprs" in gone
+
+
+def build(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["bash", str(ROOT / "scripts" / "build-deb"), *args], capture_output=True, text=True, timeout=30)
+
+
+def test_the_package_carries_mercury_at_opt_neoaprs_tools_without_its_simulators_and_counts_it_in_the_glibc_it_needs() -> None:
+    unpack = 'tar -xzf "$mercury" -C "$app/tools" --exclude=\'mercury/dev\''
+    assert unpack in SCRIPT and f"{DEB_PREFIX}/tools/mercury" == "/opt/neoaprs/tools/mercury", "$app is /opt/neoaprs: neoaprs/bundled.py looks in <sys.prefix>/tools/mercury"
+    assert SCRIPT.index('ln -s "$PREFIX/bin/neoaprs"') < SCRIPT.index(unpack) < SCRIPT.index("# The lowest glibc"), "unpacked before the permissions are set, the sizes and the md5sums are made, and the glibc is looked up"
+    assert "-o -name 'python3.13' -o -name mercury \\)" in SCRIPT, "the program asks glibc for something too"
+    assert "lib/libasound.so.2 share/alsa/alsa.conf" in SCRIPT
+
+
+def test_a_build_without_mercury_must_say_so_and_the_tarball_must_be_of_the_architecture(tmp_path: Path) -> None:
+    refused = build("--arch", "amd64", "--out", str(tmp_path / "out"))
+    assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, "a release can never silently lack Mercury"
+    x86, arm = tmp_path / "mercury-1.9.21-linux-x86_64.tar.gz", tmp_path / "mercury-1.9.21-linux-aarch64.tar.gz"
+    x86.write_bytes(b"")
+    arm.write_bytes(b"")
+    for arch, wrong in (("amd64", arm), ("arm64", x86)):
+        done = build("--arch", arch, "--mercury", str(wrong))
+        assert done.returncode == 2 and f"is not a Mercury tarball for {arch}" in done.stderr
+    assert build("--arch", "amd64", "--mercury", str(x86), "--no-mercury").returncode == 2
+    assert build("--arch", "arm64", "--mercury", str(tmp_path / "gone.tar.gz")).returncode == 2
+
+
+def test_the_copyright_file_names_mercury_by_its_pinned_source_and_the_alsa_library() -> None:
+    from neoaprs import mercury
+    text = (DEB / "copyright").read_text(encoding="utf-8")
+    paragraph = next(p for p in text.split("\n\n") if p.startswith("Files: opt/neoaprs/tools/mercury/*"))
+    assert "Rhizomatica" in paragraph and "License: GPL-3.0-or-later" in paragraph and mercury.SOURCE_URL in paragraph and mercury.SOURCE_SHA256 in paragraph, "the source the pins name"
+    alsa = next(p for p in text.split("\n\n") if p.startswith("Files: opt/neoaprs/tools/mercury/lib/*"))
+    assert "License: LGPL-2.1\n" in alsa and "/usr/share/common-licenses/LGPL-2.1" in alsa
+    assert text.index("Files: opt/neoaprs/tools/mercury/*") < text.index("Files: opt/neoaprs/tools/mercury/lib/*") < text.index("\nLicense: GPL-3.0-or-later\n This program"), "the last paragraph that matches a file wins, and the licence texts come at the end"

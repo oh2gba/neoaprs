@@ -13,6 +13,16 @@ from dataclasses import dataclass
 
 from .coded import CodedError
 
+# The one Mercury NeoAPRS ships: every release carries this version, built from this source (scripts/build-mercury, Linux) or taken from this signed release file (packaging/windows/bundle_mercury.py), so that what
+# the suite and the simulators ran against is what the operator has. A new Mercury is a change of these four lines, tried by the suite, never something that happens on the operator's computer.
+VERSION = "1.9.21"
+SOURCE_COMMIT = "edca701ba2e432aecd7d4e217ec8fa717ed23aa3"           # the commit the tag v1.9.21 points at
+SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
+SOURCE_SHA256 = "d991640df2672fa6df29ab973ebf3cd57b65ce2bb12417033e5aa2354cac0191"
+WINDOWS_URL = f"https://github.com/Rhizomatica/mercury/releases/download/v{VERSION}/mercury-{VERSION}-w64-{SOURCE_COMMIT[:8]}.zip"
+WINDOWS_SHA256 = "85163f2c2db65e03cbbeaac0b32c6a0cacf930616923c1a18d4d17730b74b806"
+WINDOWS_SIZE = 16_065_263
+
 MODE = "DATAC3"                        # the one mode, for every station (Mercury's `-m 1`)
 MODE_INDEX = 1
 FRAME_BYTES = 126                      # what a DATAC3 modem frame carries

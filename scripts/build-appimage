@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Builds NeoAPRS-<version>-x86_64.AppImage, the Linux download: one file that holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine) and the icon.
 #
-#   scripts/build-appimage [--wheel FILE] [--out DIR]
+#   scripts/build-appimage (--mercury TARBALL | --no-mercury) [--wheel FILE] [--out DIR]
 #   scripts/build-appimage --retag FILE VERSION [--out DIR]
 #
-# Without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage out of the AppImage FILE with nothing changed
+# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes for x86_64 (mercury-VERSION-linux-x86_64.tar.gz): its folder mercury/ goes to usr/tools/mercury
+# (the simulators of its dev/ folder are left out). A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the file of a developer who has no Mercury to hand).
+# The file is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage out of the AppImage FILE with nothing changed
 # but the VERSION it says: the newer file of the end-to-end test of Update now (scripts/update-e2e.py), never a release. The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
 # pinned by version and SHA-256 below (the digest GitHub shows for each file of the release; the pin is the trust, not the server): the relocatable CPython of python-build-standalone, appimagetool and the
 # AppImage runtime it puts in front of the image. The runtime is static: the computer that runs the file needs FUSE (fusermount and /dev/fuse), not libfuse2. Needs uv, curl and a Linux x86_64 machine;
@@ -21,12 +23,16 @@ RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/2025110
 RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 
 wheel=""
+mercury=""
+no_mercury=0
 retag=""
 retag_version=""
 out="$ROOT/dist-appimage"
 while [ $# -gt 0 ]; do
     case "$1" in
         --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-appimage: --wheel needs a wheel file" >&2; exit 2; } ;;
+        --mercury) shift; mercury="${1:-}"; [ -f "$mercury" ] || { echo "build-appimage: --mercury needs the tarball that scripts/build-mercury --tar makes" >&2; exit 2; } ;;
+        --no-mercury) no_mercury=1 ;;
         --retag) retag="${2:-}"; retag_version="${3:-}"; shift 2
                  [ -f "$retag" ] && [[ "$retag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+)?$ ]] || { echo "build-appimage: --retag needs an AppImage and a version" >&2; exit 2; } ;;
         --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-appimage: --out needs a folder" >&2; exit 2; } ;;
@@ -34,6 +40,11 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+if [ -z "$retag" ]; then
+    [ -n "$mercury" ] || [ "$no_mercury" = 1 ] || { echo "build-appimage: give --mercury TARBALL (a release carries Mercury) or --no-mercury" >&2; exit 2; }
+    [ -z "$mercury" ] || [ "$no_mercury" = 0 ] || { echo "build-appimage: --mercury and --no-mercury exclude each other" >&2; exit 2; }
+    case "$(basename "${mercury:-mercury-0-linux-x86_64.tar.gz}")" in mercury-*-linux-x86_64.tar.gz) ;; *) echo "build-appimage: $mercury is not a Mercury tarball for x86_64 (mercury-VERSION-linux-x86_64.tar.gz)" >&2; exit 2 ;; esac
+fi
 [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || { echo "build-appimage: this builds for Linux x86_64 only" >&2; exit 1; }
 command -v uv >/dev/null || { echo "build-appimage: uv is not installed" >&2; exit 1; }
 command -v curl >/dev/null || { echo "build-appimage: curl is not installed" >&2; exit 1; }
@@ -109,6 +120,14 @@ uv pip install --python "$python" --break-system-packages --no-config --no-deps 
 find "$app/usr/bin" -type f ! -name 'python3*' -delete
 find "$app/usr/bin" -xtype l -delete
 
+# Mercury, the HF modem: the program with its ALSA library and configuration, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+if [ -n "$mercury" ]; then
+    mkdir -p "$app/usr/tools"
+    tar -xzf "$mercury" -C "$app/usr/tools" --exclude='mercury/dev'
+    for needed in mercury lib/libasound.so.2 share/alsa/alsa.conf LICENSE; do [ -e "$app/usr/tools/mercury/$needed" ] || { echo "build-appimage: $mercury has no mercury/$needed" >&2; exit 1; }; done
+    [ -x "$app/usr/tools/mercury/mercury" ] && [ ! -e "$app/usr/tools/mercury/dev" ]
+fi
+
 # Size: what the image does not run is taken out
 "$python" -I "$ROOT/packaging/appimage/prune.py" "$app/usr"
 
@@ -133,4 +152,4 @@ ln -s neoaprs.png "$app/.DirIcon"
 
 target="$out/NeoAPRS-$version-x86_64.AppImage"
 pack "$app" "$target"
-echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1))"
+echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1); Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"

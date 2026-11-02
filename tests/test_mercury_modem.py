@@ -12,13 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, kiss, mercuryfetch
+from neoaprs import ax25, kiss
 from dataclasses import replace
 
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
-from neoaprs.mercuryfetch import BY_HAND, MercuryFetchError, program_path
-from neoaprs.mercuryhelper import end_stale, find, free_ports, list_sound_cards
+from neoaprs import mercuryhelper, mercurymodem
+from neoaprs.mercuryhelper import end_stale, environment, find, free_ports, list_sound_cards
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
@@ -30,14 +30,6 @@ from tests.test_tnc import Rigs, stops_rigs, ui_frame
 
 HF: Config = replace(DEFAULTS, tnc_profile="mercury", mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 QUICK = Backoff([0.1, 0.1])
-
-
-@pytest.fixture(autouse=True)
-def nothing_is_downloaded(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A Mercury that is not found is not fetched from the internet by a test: the fetch says what it says on a Mac. (tests/test_mercury_fetch.py has the fetch.)"""
-    def refuse(data_dir: Path) -> list[str]:
-        raise MercuryFetchError(BY_HAND)
-    monkeypatch.setattr(mercuryfetch, "fetch", refuse)
 
 
 @pytest.fixture
@@ -77,23 +69,40 @@ async def connects(port: int) -> bool:
 
 # ---- finding the program and its ports
 
-def test_the_program_is_found_bundled_then_on_the_path_then_in_the_data_folders_bin(tmp_path: Path) -> None:
+def test_the_program_is_the_shipped_one_in_the_tools_folder_and_nothing_else(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Not on the PATH, not in the data folder: the operator's system is left alone, and the Mercury that runs is the one the release carries (bundled.py says where each install kind puts it)."""
     name = "mercury.exe" if sys.platform == "win32" else "mercury"
-    assert find(tmp_path, search_path=str(tmp_path / "nowhere"), bundled=tmp_path / "nobundle") is None
+    assert find(tmp_path / "nothing") is None
     on_path = tmp_path / "path" / name
     on_path.parent.mkdir()
     on_path.write_text("#!/bin/sh\n")
     on_path.chmod(0o755)
-    assert find(tmp_path, search_path=str(on_path.parent), bundled=tmp_path / "nobundle") == [str(on_path)]
-    mine = program_path(tmp_path / "bin", sys.platform == "win32")
-    mine.parent.mkdir(parents=True)
-    mine.write_text("#!/bin/sh\n")
-    mine.chmod(0o755)
-    assert find(tmp_path, search_path=str(tmp_path / "nowhere"), bundled=tmp_path / "nobundle") == [str(mine)]
-    bundled = tmp_path / "app" / "bin"
-    bundled.mkdir(parents=True)
-    (bundled / name).write_text("")
-    assert find(tmp_path, search_path=str(on_path.parent), bundled=bundled) == [str(bundled / name)], "a frozen app's own copy comes first"
+    monkeypatch.setenv("PATH", str(on_path.parent))
+    assert find(tmp_path / "nothing") is None, "a Mercury on the PATH is the operator's, not ours"
+    shipped = tmp_path / "tools" / "mercury" / name
+    shipped.parent.mkdir(parents=True)
+    shipped.write_text("#!/bin/sh\n")
+    assert find(tmp_path / "tools") is None, "a file that cannot be run is no program"
+    shipped.chmod(0o755)
+    assert find(tmp_path / "tools") == [str(shipped)]
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    monkeypatch.setattr(sys, "prefix", str(tmp_path))
+    assert find() == [str(shipped)], "a venv, the AppImage and the .deb: tools/ of the Python's prefix"
+
+
+def test_the_bundled_alsa_configuration_is_given_to_the_program_through_the_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Linux bundle carries its own ALSA library and configuration (a machine without ALSA installed has no /usr/share/alsa/alsa.conf); ALSA_CONFIG_PATH is the one way to tell the library where it is."""
+    monkeypatch.delenv("ALSA_CONFIG_PATH", raising=False)
+    program = tmp_path / "mercury" / "mercury"
+    program.parent.mkdir()
+    program.write_text("")
+    assert "ALSA_CONFIG_PATH" not in environment([str(program)]), "no configuration beside the program: the system's"
+    conf = tmp_path / "mercury" / "share" / "alsa" / "alsa.conf"
+    conf.parent.mkdir(parents=True)
+    conf.write_text("")
+    assert environment([str(program)])["ALSA_CONFIG_PATH"] == str(conf)
+    assert "ALSA_CONFIG_PATH" not in environment([sys.executable, "-m", "tests.support.fakemercury"]), "the fake that stands in for the program is not a bundle"
+    assert "PATH" in environment([str(program)]), "the reduced environment of a child, as for every program the daemon starts"
 
 
 def test_the_ports_are_mercurys_defaults_when_free_else_the_next_pair_with_the_control_port_200_above() -> None:
@@ -348,3 +357,36 @@ async def test_a_frame_from_a_station_of_the_fake_air_reaches_the_tnc_with_the_s
         await tnc.stop()
         await air.aclose()
     logging.getLogger("neoaprs.tnc").info("done")
+
+
+# ---- the rest of the shipped program's path: no free pair of ports, a data folder that cannot be written, a program that ignores the request to end (and lists no sound card)
+
+async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def none() -> tuple[int, int]:
+        raise OSError("no free pair of ports from 8100 to 8150")
+    monkeypatch.setattr(mercurymodem, "free_ports", none)
+    m = modem(tmp_path)
+    await m.start(HF)
+    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
+    await stopped(m)
+
+
+async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
+    m = modem(tmp_path / "gone")                    # (no such folder: the configuration cannot be written there)
+    await m.start(HF)
+    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written to ") and "gone" in m.problem and m.starts == 0
+    await stopped(m)
+
+
+async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_lists_no_sound_card_runs_on_the_default_device(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mercury is asked to end (SIGTERM) and killed after STOP_WAIT_SEC when it does not; a `-z` that lists nothing leaves the sound card the system's default and the keying VOX."""
+    monkeypatch.setattr(mercuryhelper, "STOP_WAIT_SEC", 0.2)
+    stubborn = [sys.executable, "-c", "import signal, sys, time\nif '-z' in sys.argv: sys.exit(0)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(60)"]
+    m = Mercury(tmp_path, finder=lambda: stubborn, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
+    pid = m.pid
+    assert pid is not None and _alive(pid) and m.starts == 1 and m.sound_card == "" and m.keying == Keying("vox")
+    await m.stop()
+    assert not _alive(pid) and m.state == "stopped"
+

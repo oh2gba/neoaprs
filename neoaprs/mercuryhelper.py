@@ -1,7 +1,8 @@
 """The Mercury program as a child of the daemon: where it is, the ports it is given, how it is started and watched, how it is stopped, and the list of its sound cards.
 
-Mercury is one program, found bundled in the `bin/` folder next to a frozen program (the Windows app), on the PATH (the Debian package puts it in /usr/bin) or in the `bin/` folder of the data folder, where
-mercuryfetch.py puts the release it fetches when there is none of these.
+Mercury is the one NeoAPRS ships (bundled.py says where): the folder `mercury/` of the shipped programs, with the program and what it needs beside it, and never one found on the PATH or fetched, so that the
+operator's system is left alone and the Mercury that runs is the one the suite ran against. On Linux the folder carries its own ALSA library and configuration (the operator's machine need not have them), and
+the program is told where the configuration is through the one variable ALSA reads, ALSA_CONFIG_PATH.
 It is started with `subprocess.Popen` and read by a thread, as the serial line is: the daemon's loop may be the one Tornado forces on Windows, which cannot start subprocesses of its own, and what the program prints goes
 to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner (mercurymodem.py) can start it again. Two
 NeoAPRS on one computer, or a Mercury that something else runs, must not fight over the ports: `free_ports` finds the first pair (the broadcast port and the control port 200 above it) that is free, from the defaults
@@ -9,7 +10,6 @@ up. A Mercury of ours left behind by a crash of the daemon holds the sound card:
 import asyncio
 import logging
 import os
-import shutil
 import signal
 import socket
 import subprocess
@@ -19,9 +19,9 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
+from .bundled import tools_dir
 from .childenv import child_environment
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard, parse_sound_cards
-from .mercuryfetch import program_path
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -40,22 +40,21 @@ def program_file(system: str | None = None) -> str:
     return f"{NAME}.exe" if (system or sys.platform).startswith("win") else NAME
 
 
-def bundled_dir() -> Path | None:
-    """The `bin/` folder next to the executable of a frozen program (the Windows app), None for a program run from Python."""
-    return Path(sys.executable).resolve().parent / "bin" if getattr(sys, "frozen", False) else None
+def find(tools: Path | None = None) -> Command | None:
+    """The Mercury NeoAPRS ships: `mercury/mercury[.exe]` in the folder of the shipped programs (`tools`, by default this installation's); None when this installation has none (a wheel installed with pip or uv tool: the
+    AppImage, the .deb and the Windows installer carry it)."""
+    program = (tools if tools is not None else tools_dir()) / NAME / program_file()
+    return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
 
 
-def find(data_dir: Path, search_path: str | None = None, bundled: Path | None = None) -> Command | None:
-    """The Mercury program bundled with a frozen program, else on the PATH (or in `search_path`), else in the `bin/` folder of the data folder (on Windows the folder of the fetched release, with the DLLs beside the exe); None when there is none."""
-    name = program_file()
-    bundled = bundled if bundled is not None else bundled_dir()
-    if bundled is not None and (bundled / name).is_file():
-        return [str(bundled / name)]
-    on_path = shutil.which(name, path=search_path)
-    if on_path:
-        return [on_path]
-    mine = program_path(data_dir / "bin", name.endswith(".exe"))
-    return [str(mine)] if mine.is_file() and os.access(mine, os.X_OK) else None
+def environment(command: Command) -> dict[str, str]:
+    """The environment the program runs with: the daemon's reduced one (childenv.py), and ALSA_CONFIG_PATH pointing at the ALSA configuration shipped beside the program when there is one (Linux: the bundled ALSA library
+    would otherwise look for the system's /usr/share/alsa/alsa.conf, which a machine without ALSA installed does not have, and open no sound card)."""
+    env = child_environment()
+    conf = Path(command[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
+    if len(command) == 1 and conf.is_file():
+        env["ALSA_CONFIG_PATH"] = str(conf)
+    return env
 
 
 def _free(port: int) -> bool:
@@ -79,7 +78,7 @@ def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[in
 def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) -> list[SoundCard]:
     """The sound cards Mercury lists (`-z`): run in the calling thread (not on the loop). None, with a line in the log, when the program cannot be run or says nothing a list is made of."""
     try:
-        done = subprocess.run([*command, "-z"], capture_output=True, text=True, timeout=timeout_sec, env=child_environment(), creationflags=HIDDEN_WINDOW, check=False)
+        done = subprocess.run([*command, "-z"], capture_output=True, text=True, timeout=timeout_sec, env=environment(command), creationflags=HIDDEN_WINDOW, check=False)
     except (OSError, subprocess.TimeoutExpired) as e:
         log.warning("mercury -z could not be run: %s", e)
         return []
@@ -149,7 +148,7 @@ class Program:
         """Starts the program and the thread that reads it; OSError when it cannot be started (not there, not executable, the wrong architecture)."""
         loop = asyncio.get_running_loop()
         self._process = subprocess.Popen(argv, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
-                                         env=child_environment(), creationflags=HIDDEN_WINDOW)
+                                         env=environment(argv), creationflags=HIDDEN_WINDOW)
         if pid_file is not None:
             try:
                 pid_file.write_text(str(self._process.pid), encoding="ascii")

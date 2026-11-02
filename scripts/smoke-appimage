@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # The smoke test of an AppImage made by scripts/build-appimage, as a user would meet it: on data folders of its own, with no radio and no serial device, and nothing leaves the loopback.
 #
-#   scripts/smoke-appimage FILE [--python PYTHON]
+#   scripts/smoke-appimage FILE [--python PYTHON] [--no-mercury]
 #
-# It checks, in order: `--version`; scripts/smoke.py against the file (a fake KISS TNC on a TCP port, the page and its WebSocket, the stop by SIGTERM); the daemon on its own (no `--port`: it has no radio, the
+# It checks, in order: `--version`; the Mercury inside (usr/tools/mercury/mercury, run with its own ALSA library and configuration, must say the version neoaprs/mercury.py pins; --no-mercury for a file built
+# with scripts/build-appimage --no-mercury); scripts/smoke.py against the file (a fake KISS TNC on a TCP port, the page and its WebSocket, the stop by SIGTERM); the daemon on its own (no `--port`: it has no radio, the
 # page answers, it ends cleanly); `service install` with a HOME and a systemctl of the test's own, whose ExecStart must be the file and not the mount; and the desktop app started with no arguments on the
 # offscreen platform, which must start its daemon and the window with the web engine, stay up, and end at `app --quit` together with the daemon. PYTHON (default .venv/bin/python, else python3) runs
 # smoke.py and needs Tornado. Without FUSE (no /dev/fuse or no fusermount) the file is extracted once and its AppRun run with the two variables the runtime would set (`--appimage-extract-and-run`
@@ -13,12 +14,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 file="${1:-}"
-[ -f "$file" ] || { echo "smoke-appimage: usage: scripts/smoke-appimage FILE [--python PYTHON]" >&2; exit 2; }
+[ -f "$file" ] || { echo "smoke-appimage: usage: scripts/smoke-appimage FILE [--python PYTHON] [--no-mercury]" >&2; exit 2; }
 file="$(readlink -f "$file")"
 shift
 python="$ROOT/.venv/bin/python"
 [ -x "$python" ] || python=python3
-if [ "${1:-}" = --python ]; then python="${2:?--python needs a program}"; fi
+with_mercury=1
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --python) python="${2:?--python needs a program}"; shift ;;
+        --no-mercury) with_mercury=0 ;;
+        *) echo "smoke-appimage: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 export NEOAPRS_UPDATE_CHECK=0           # none of the daemons below asks the version page
 say() { echo "smoke-appimage: $*"; }
@@ -58,6 +67,19 @@ wait_for() {
 
 say "--version"
 "$run" --version | grep -q '^NeoAPRS [0-9]' || fail "--version did not say NeoAPRS and a number"
+
+if [ "$with_mercury" = 1 ]; then
+    say "the Mercury inside starts with its own ALSA library and configuration, and is the pinned version"
+    # (the program is run from the folder the file holds it in, extracted: it is the program's files that are looked at, not the mount)
+    if [ -d "$work/squashfs-root" ]; then root="$work/squashfs-root"; else root="$work/mercury-extract"; mkdir "$root"; (cd "$root" && "$file" --appimage-extract 'usr/tools/mercury/**' > /dev/null); root="$root/squashfs-root"; fi      # (the runtime extracts into squashfs-root/ of the folder it runs in)
+    folder="$root/usr/tools/mercury"
+    [ -x "$folder/mercury" ] && [ -f "$folder/share/alsa/alsa.conf" ] && [ -f "$folder/lib/libasound.so.2" ] && [ -f "$folder/LICENSE" ] || fail "the file has no Mercury in usr/tools/mercury"
+    [ ! -e "$folder/dev" ] || fail "the simulators of Mercury's dev/ folder are in the file"
+    wanted="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/mercury.py")"
+    ldd "$folder/mercury" | grep -q 'not found' && fail "a library of Mercury is missing: $(ldd "$folder/mercury" | grep 'not found' | tr -s '\t ' ' ')"
+    said="$(ALSA_CONFIG_PATH="$folder/share/alsa/alsa.conf" "$folder/mercury" -V 2>&1 || true)"
+    echo "$said" | grep -qF "$wanted" || fail "mercury -V says '$said', not the pinned $wanted"
+fi
 
 say "scripts/smoke.py against the file"
 "$python" "$ROOT/scripts/smoke.py" --command "$run"

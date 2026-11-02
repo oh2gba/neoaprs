@@ -14,7 +14,6 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from . import mercuryfetch
 from .clock import Clock, utcnow
 from .config import Config
 from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, ControlEvent, Keying, SerialPort, SoundCard, choose_keying, choose_sound_card, command, ini_text, keying_of
@@ -31,7 +30,7 @@ log = logging.getLogger("neoaprs.mercury")
 HOST = "127.0.0.1"
 INI_FILE = "mercury.ini"
 PID_FILE = "mercury.pid"
-NOT_INSTALLED = mercuryfetch.BY_HAND
+NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long is not believed: a transmitter that stayed keyed is Mercury's safety timer's business, and ours is not to wait for ever
@@ -51,12 +50,10 @@ def _address(url: str) -> tuple[str, int]:
 
 
 class Mercury:
-    fetching = False                                                 # the program is being fetched into the data folder (the radio's status line says so)
-
     def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None) -> None:
         self.data_dir = data_dir
         self.clock = clock
-        self._finder = finder or (lambda: find(data_dir))
+        self._finder = finder or find                                # the shipped program (mercuryhelper.find); a test gives its own
         self.backoff = backoff or Backoff()                          # between two starts of a program that died
         self._control_backoff = control_backoff
         self.changed: Signal[[]] = Signal("mercury.changed")        # the state, the keying, the busy channel: the page's radio topic is told again
@@ -111,8 +108,9 @@ class Mercury:
         """One start of the program: found, given free ports and the configuration written for these settings, a Mercury of ours left behind ended first."""
         config = self._config
         assert config is not None
-        program = self._finder() or await self._fetch()
+        program = self._finder()
         if program is None:
+            self._set("waiting", NOT_INSTALLED)
             return
         try:
             self.broadcast_port, self.control_port = free_ports()
@@ -152,22 +150,6 @@ class Mercury:
         chosen = choose_keying(name, ports)
         log.info("Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)", chosen.text, name or "the system's default", ", ".join(p.device for p in ports) or "none")
         return card, chosen
-
-    async def _fetch(self) -> Command | None:
-        """The program fetched into the data folder's `bin/` in a thread, the modem `starting` meanwhile; None, with the problem set in the operator's words, when it cannot be had (the modem waits: the next start tries again),
-        and when the modem was stopped or started again while the fetch ran."""
-        generation = self._generation
-        self.fetching = True
-        self._set("starting", "")
-        try:
-            program = await asyncio.to_thread(mercuryfetch.fetch, self.data_dir)
-        except mercuryfetch.MercuryFetchError as e:
-            program = None
-            if generation == self._generation:
-                self._set("waiting", str(e))
-        finally:
-            self.fetching = False
-        return program if generation == self._generation else None
 
     def _ended(self, code: int | None, lines: list[str]) -> None:
         """The program ended by itself (told from its reader thread): started again after the back-off, unless it was stopped."""
@@ -230,8 +212,6 @@ class Mercury:
     def describe(self) -> str:
         """The modem in a few words, for the radio's status line: "Mercury DATAC3 at 127.0.0.1:8100, listening, SNR 3 dB"."""
         where = self.attached.split("://", 1)[-1] if self.attached else f"{HOST}:{self.broadcast_port}"
-        if self.fetching:
-            return f"Mercury {MODE}: fetching the program"
         if self.state == "waiting":
             return f"Mercury {MODE}: {self.problem}"
         if self.state != "running":
@@ -250,7 +230,7 @@ class Mercury:
         return self._program.pid
 
     def sound_cards(self) -> list[SoundCard]:
-        """The sound cards Mercury lists; none when it is not installed. Runs the program: for a thread, not the loop."""
+        """The sound cards Mercury lists; none when this installation has no Mercury. Runs the program: for a thread, not the loop."""
         program = self._finder()
         return [] if program is None else list_sound_cards(program)
 

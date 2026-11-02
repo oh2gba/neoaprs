@@ -35,7 +35,7 @@ The radio is a COM port. The page lists the ports of the computer to pick from (
 
 ## Linux AppImage
 
-`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside (about 150 MB). Nothing is installed. It runs on x86_64 Linux with glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35 and newer) and the usual desktop libraries.
+`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed. It runs on x86_64 Linux with glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35 and newer) and the usual desktop libraries.
 
 ```bash
 chmod +x NeoAPRS-<version>-x86_64.AppImage
@@ -54,7 +54,7 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 
 `neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported.
 
-NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries (about 20 MB to download, 60 to 70 MB installed). It uses nothing of the system's Python and does not include the desktop app.
+NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed). It uses nothing of the system's Python and does not include the desktop app.
 
 ```bash
 sudo apt install ./neoaprs_<version>_arm64.deb      # apt, not dpkg -i; the file name must start with ./

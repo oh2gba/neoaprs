@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux and lays it out as the folder `mercury/` that NeoAPRS ships: the program (RUNPATH `$ORIGIN/lib`, stripped), the one library it needs beyond glibc, the ALSA
+configuration, Mercury's licence and the source offer, and, for the simulators only, the HF channel simulator.
+
+  scripts/build-mercury [--out DIR] [--tar] [--install] [--source FILE]
+
+  --out DIR      the folder DIR/mercury/ is made there (default build/mercury/dist/)
+  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz, with mercury/ as its top folder: what the AppImage, the .deb and the release workflow take (their --mercury argument)
+  --install      the folder is copied to <sys.prefix>/tools/mercury of the virtual environment this script runs in, where the daemon run from a checkout looks for it (neoaprs/bundled.py); the default when neither --out
+                 nor --tar is given. Run it as `.venv/bin/python scripts/build-mercury`
+  --source FILE  the source archive at hand instead of the download; it has to be the pinned one all the same
+
+The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/mercury.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
+checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
+a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
+ALSA device), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does (`-V`, `-z`) and prints what it says.
+Needs gcc, make and libasound2-dev (with libasound2-data for the ALSA configuration) and a Linux machine; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
+the floor of the AppImage and the .deb. How it is used: docs/development.md, "Scripts"."""
+import argparse
+import datetime
+import hashlib
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def pins() -> dict[str, str]:
+    """The four pins read out of neoaprs/mercury.py as text: the script runs on the Python of the release workflow's ubuntu:22.04 container (3.10), which cannot import the daemon's modules (they use the syntax of 3.12)."""
+    found: dict[str, str] = {}
+    for line in (ROOT / "neoaprs" / "mercury.py").read_text(encoding="utf-8").splitlines():
+        m = re.match(r'^(VERSION|SOURCE_COMMIT|SOURCE_URL|SOURCE_SHA256) = (f?"[^"]*")', line)
+        if m:
+            found[m.group(1)] = eval(m.group(2), {}, dict(found))  # noqa: S307  (a string literal of our own file, f-strings included)
+    missing = {"VERSION", "SOURCE_COMMIT", "SOURCE_URL", "SOURCE_SHA256"} - found.keys()
+    if missing:
+        raise SystemExit(f"build-mercury: neoaprs/mercury.py has no pin {', '.join(sorted(missing))}")
+    return found
+
+
+_PINS = pins()
+VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256 = _PINS["VERSION"], _PINS["SOURCE_COMMIT"], _PINS["SOURCE_URL"], _PINS["SOURCE_SHA256"]
+
+STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
+WORK = ROOT / "build" / "mercury" / "work"
+DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
+ALSA_DATA = Path("/usr/share/alsa")
+ALSA_SKIP = ("ucm", "ucm2", "topology")            # what only the sound servers and alsaucm read: 4 MB the program never opens
+
+MAKE_FLAGS = ("HAVE_HAMLIB=0", "HAVE_HIDAPI=0", "WS_TLS=0")
+# The Makefile asks pkg-config for hamlib, hidapi and OpenSSL and sets their flags whatever HAVE_* says on the command line (HAVE_HAMLIB=0 only keeps the code out; the libraries would still be on the link line), so their
+# flags are given empty too; command-line variables beat the Makefile's own assignments, `+=` ones included.
+MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "HIDAPI_CFLAGS", "HIDAPI_LDFLAGS", "HIDAPI_OBJS", "WS_TLS_CFLAGS", "WS_TLS_LDFLAGS")
+# Mercury's Makefile puts `-lpulse` into FFAUDIO_LINKFLAGS in a Linux-only branch; the variable is given whole on the command line, which beats it (the alternative, a sed on the two Makefile lines, would break at the first
+# change of those lines and say nothing). The RUNPATH goes through EXTRA_LDFLAGS, the Makefile's hook for the caller's linker flags that it puts in front of the objects of every link: `$$` is make's `$`, the quotes keep
+# the shell from expanding $ORIGIN.
+LINK_FLAGS = "-lasound -lpthread -lrt"
+RUNPATH_FLAGS = "-Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN/lib' -Wl,--as-needed"
+ENV_DROPPED = ("CFLAGS", "CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")            # the caller's flags would be copied into every link by the Makefile
+
+NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libpthread\.|librt\.|libdl\.|libasound\.so)")
+NEEDED_NEVER = ("libpulse", "libhamlib", "libhidapi", "libssl", "libcrypto")
+
+
+class BuildError(Exception):
+    pass
+
+
+def machine_name(machine: str | None = None) -> str:
+    """The architecture as the tarball names it: x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it."""
+    name = (machine or platform.machine()).lower()
+    return {"amd64": "x86_64", "arm64": "aarch64"}.get(name, name)
+
+
+def tarball_name(machine: str | None = None) -> str:
+    return f"mercury-{VERSION}-linux-{machine_name(machine)}.tar.gz"
+
+
+def cache_dir() -> Path:
+    return Path(os.environ.get("NEOAPRS_BUILD_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build")
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def fetch_source() -> Path:
+    """The pinned source archive in the cache: used as it is when its digest is the pin's, downloaded when it is not there, and removed when what came is another file (the pin is the trust, not the server)."""
+    cache = cache_dir()
+    cache.mkdir(parents=True, exist_ok=True)
+    file = cache / f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz"
+    if file.is_file() and sha256(file) == SOURCE_SHA256:
+        return file
+    part = file.with_name(file.name + ".part")
+    last: Exception | None = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(SOURCE_URL, headers={"User-Agent": "neoaprs-build-mercury"}), timeout=60) as reply, part.open("wb") as out:
+                shutil.copyfileobj(reply, out)
+            last = None
+            break
+        except OSError as error:
+            last = error
+            time.sleep(2 * (attempt + 1))
+    if last is not None:
+        part.unlink(missing_ok=True)
+        raise BuildError(f"{SOURCE_URL} could not be fetched: {last}")
+    if sha256(part) != SOURCE_SHA256:
+        part.unlink()
+        raise BuildError(f"{SOURCE_URL} is not the file with SHA-256 {SOURCE_SHA256}")
+    part.replace(file)
+    return file
+
+
+def unpack(archive: Path, into: Path) -> Path:
+    """The tree of the archive (one folder, mercury-<commit>/) under INTO, which is made empty first."""
+    shutil.rmtree(into, ignore_errors=True)
+    into.mkdir(parents=True)
+    with tarfile.open(archive) as tar:
+        tar.extractall(into, filter="data")
+    folders = [entry for entry in into.iterdir() if entry.is_dir()]
+    if len(folders) != 1 or not (folders[0] / "Makefile").is_file():
+        raise BuildError(f"{archive} does not hold one Mercury source folder")
+    return folders[0]
+
+
+def run(command: list[str]) -> str:
+    """The output of a small tool (ldd, readelf, strip), its error output with it; BuildError when it fails."""
+    done = subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if done.returncode != 0:
+        raise BuildError(f"{command[0]} failed with {done.returncode}:\n{done.stdout}")
+    return done.stdout
+
+
+def build(tree: Path) -> None:
+    """The stub over the PulseAudio backend, then make, with the flags above."""
+    if not STUB.is_file():
+        raise BuildError(f"{STUB} is missing")
+    shutil.copyfile(STUB, tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c")
+    command = ["make", f"-j{os.cpu_count() or 1}", *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}",
+               f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
+    env = {key: value for key, value in os.environ.items() if key not in ENV_DROPPED}
+    print("+ " + " ".join(command), flush=True)
+    done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if done.returncode != 0:
+        raise BuildError(f"make failed with {done.returncode}; the end of its output:\n" + "\n".join(done.stdout.splitlines()[-40:]))
+    for name in ("mercury", "utils/watterson_test"):
+        if not (tree / name).is_file():
+            raise BuildError(f"make left no {name}")
+
+
+def libraries(program: Path) -> dict[str, str]:
+    """What ldd finds for PROGRAM: library name -> the path it resolves to ('' for one not found)."""
+    found: dict[str, str] = {}
+    for line in run(["ldd", str(program)]).splitlines():
+        name, arrow, rest = line.strip().partition(" => ")
+        if not arrow:
+            name = name.split(" ")[0]
+            found[Path(name).name if name.startswith("/") else name] = name if name.startswith("/") else ""
+            continue
+        found[name] = "" if rest.startswith("not found") else rest.split(" (")[0]
+    return found
+
+
+def check_links(program: Path, folder: Path) -> str:
+    """The ldd output of the staged program, after the checks: only libasound (from the folder's lib/), glibc and its helpers; nothing of PulseAudio, hamlib, hidapi or OpenSSL; nothing not found."""
+    text = run(["ldd", str(program)])
+    found = libraries(program)
+    for name, path in found.items():
+        if any(name.startswith(never) for never in NEEDED_NEVER):
+            raise BuildError(f"{program.name} links {name}, which the bundle does not carry:\n{text}")
+        if not path and not NEEDED_OK.match(name):
+            raise BuildError(f"{program.name} needs {name}, which is not found:\n{text}")
+        if not NEEDED_OK.match(name):
+            raise BuildError(f"{program.name} links {name} ({path}), which is none of libasound and glibc:\n{text}")
+    asound = found.get("libasound.so.2", "")
+    if not asound or Path(asound).resolve() != (folder / "lib" / "libasound.so.2").resolve():
+        raise BuildError(f"libasound.so.2 is not taken from {folder / 'lib'} (ldd says {asound or 'nothing'}):\n{text}")
+    return text
+
+
+def runpath(program: Path) -> str:
+    for line in run(["readelf", "-d", str(program)]).splitlines():
+        if "RUNPATH" in line or "RPATH" in line:
+            return line.strip()
+    raise BuildError(f"{program} has no RUNPATH")
+
+
+def glibc_needed(path: Path) -> str:
+    """The newest glibc symbol version PATH asks for (what decides the oldest system the folder runs on)."""
+    versions = {tuple(int(part) for part in found.split(".")) for found in re.findall(r"GLIBC_(\d+(?:\.\d+)+)", run(["readelf", "--dyn-syms", "--wide", str(path)]))}
+    return ".".join(str(part) for part in max(versions)) if versions else "none"
+
+
+def stage(tree: Path, out: Path, started: float) -> Path:
+    """The folder OUT/mercury/ from the built TREE and the build machine's libasound and ALSA configuration."""
+    asound = libraries(tree / "mercury").get("libasound.so.2", "")
+    if not asound:
+        raise BuildError("the built program does not link libasound.so.2")
+    if not (ALSA_DATA / "alsa.conf").is_file():
+        raise BuildError(f"{ALSA_DATA}/alsa.conf is missing (libasound2-data)")
+    folder = out / "mercury"
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "lib").mkdir(parents=True)
+    (folder / "dev").mkdir()
+    shutil.copyfile(tree / "mercury", folder / "mercury")
+    run(["strip", str(folder / "mercury")])
+    (folder / "mercury").chmod(0o755)
+    shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")           # the file the soname's symlink points at, under the soname
+    (folder / "lib" / "libasound.so.2").chmod(0o644)
+    shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
+    shutil.copyfile(tree / "LICENSE", folder / "LICENSE")
+    if (tree / "LICENSE-freedv").is_file():
+        shutil.copyfile(tree / "LICENSE-freedv", folder / "LICENSE-freedv")
+    shutil.copyfile(tree / "utils" / "watterson_test", folder / "dev" / "watterson_test")
+    (folder / "dev" / "watterson_test").chmod(0o755)
+    flags = " ".join((*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"FFAUDIO_LINKFLAGS={LINK_FLAGS}"))
+    (folder / "SOURCE.txt").write_text(
+        f"Mercury {VERSION}, Rhizomatica's HF modem (GPL-3.0-or-later, see LICENSE), built by NeoAPRS (scripts/build-mercury).\n"
+        f"Source: {SOURCE_URL}\n"
+        f"Commit: {SOURCE_COMMIT} (the tag v{VERSION})\n"
+        f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
+        f"Built: make {flags}\n"
+        f"Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
+        f"lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n"
+        f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
+        f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
+    print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
+    return folder
+
+
+def folder_size(folder: Path) -> int:
+    return sum(path.stat().st_size for path in folder.rglob("*") if path.is_file() and not path.is_symlink())
+
+
+def make_tarball(folder: Path, out: Path) -> Path:
+    """OUT/mercury-<version>-linux-<machine>.tar.gz with mercury/ as its top folder, the entries in name order and owned by no one."""
+    target = out / tarball_name()
+
+    def anonymous(info: tarfile.TarInfo) -> tarfile.TarInfo:
+        info.uid = info.gid = 0
+        info.uname = info.gname = ""
+        return info
+
+    with tarfile.open(target, "w:gz", compresslevel=9) as tar:
+        for path in sorted([folder, *folder.rglob("*")]):
+            tar.add(path, arcname=str(Path("mercury") / path.relative_to(folder)), recursive=False, filter=anonymous)
+    return target
+
+
+def install(folder: Path) -> Path:
+    """The folder copied to <sys.prefix>/tools/mercury of the virtual environment this runs in (neoaprs/bundled.py looks there), whatever was there before replaced."""
+    if sys.prefix == sys.base_prefix:
+        raise BuildError("--install needs the virtual environment's Python: .venv/bin/python scripts/build-mercury --install")
+    target = Path(sys.prefix) / "tools" / "mercury"
+    shutil.rmtree(target, ignore_errors=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(folder, target, symlinks=True)
+    return target
+
+
+def check(folder: Path) -> None:
+    """The program as the daemon starts it: from its folder, with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with none."""
+    env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
+    env["ALSA_CONFIG_PATH"] = str(folder / "share" / "alsa" / "alsa.conf")
+    program = str(folder / "mercury")
+    print(f"check: {folder}")
+    print(f"  {runpath(folder / 'mercury')}")
+    print(f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}")
+    print("  " + check_links(folder / "mercury", folder).replace("\n", "\n  ").rstrip())
+    shown = subprocess.run([program, "-V"], env=env, check=False, text=True, capture_output=True, timeout=60)
+    print(f"  $ mercury -V (exit {shown.returncode})\n    " + (shown.stdout + shown.stderr).strip().replace("\n", "\n    "))
+    if shown.returncode != 0 or VERSION not in shown.stdout + shown.stderr:
+        raise BuildError(f"mercury -V does not say {VERSION}")
+    cards = subprocess.run([program, "-z"], env=env, check=False, text=True, capture_output=True, timeout=60)
+    print(f"  $ mercury -z (exit {cards.returncode})\n    " + (cards.stdout + cards.stderr).strip().replace("\n", "\n    "))
+    if cards.returncode != 0:
+        raise BuildError("mercury -z does not exit 0")
+
+
+def megabytes(size: int) -> str:
+    return f"{size:,} bytes, {size / (1 << 20):.1f} MB"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux and lays it out as the folder mercury/ that NeoAPRS ships.")
+    parser.add_argument("--out", type=Path, help="the folder in which mercury/ is made (default build/mercury/dist)")
+    parser.add_argument("--tar", action="store_true", help=f"also make {tarball_name()} in it")
+    parser.add_argument("--install", action="store_true", help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)")
+    parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
+    args = parser.parse_args(argv)
+    if sys.platform != "linux":
+        print("build-mercury: this builds for Linux only", file=sys.stderr)
+        return 1
+    for tool in ("gcc", "make", "ldd", "readelf", "strip"):
+        if shutil.which(tool) is None:
+            print(f"build-mercury: {tool} is not installed", file=sys.stderr)
+            return 1
+    do_install = args.install or (args.out is None and not args.tar)
+    out = (args.out or DEFAULT_OUT).resolve()
+    started = time.monotonic()
+    try:
+        archive = args.source.resolve() if args.source else fetch_source()
+        if not archive.is_file() or sha256(archive) != SOURCE_SHA256:
+            raise BuildError(f"{archive} is not the file with SHA-256 {SOURCE_SHA256}")
+        tree = unpack(archive, WORK)
+        build(tree)
+        out.mkdir(parents=True, exist_ok=True)
+        folder = stage(tree, out, started)
+        check(folder)
+        tarball = make_tarball(folder, out) if args.tar else None
+        installed = install(folder) if do_install else None
+        if installed is not None:
+            check(installed)
+    except BuildError as error:
+        print(f"build-mercury: {error}", file=sys.stderr)
+        return 1
+    print(f"build-mercury: {folder}, {megabytes(folder_size(folder))}")
+    if tarball is not None:
+        print(f"build-mercury: {tarball}, {megabytes(tarball.stat().st_size)}")
+    if installed is not None:
+        print(f"build-mercury: installed at {installed}")
+    print(f"build-mercury: done in {time.monotonic() - started:.0f} s")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

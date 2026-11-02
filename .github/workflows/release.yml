@@ -1,5 +1,5 @@
 # What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the Linux and macOS
-# install script, and SHA256SUMS. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
+# install script, and SHA256SUMS. The Windows installer, the AppImage and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the others. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
 # or a fresh home), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
 # a dry run: the same builds and checks, the files kept as the artifacts of the run, and no release; run by hand on a tag (`gh workflow run release.yml --ref v<version>`) it publishes that tag's release again. A tag run that
 # failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
@@ -132,6 +132,15 @@ jobs:
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
       - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
         run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
+      - name: The pinned Mercury, checked against its SHA-256, into bin/mercury/ (mercury.exe and its DLLs), and it starts
+        run: |
+          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS
+          test -f dist/NeoAPRS/bin/mercury/mercury.exe
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          [ -n "$version" ]
+          said="$(dist/NeoAPRS/bin/mercury/mercury.exe -V 2>&1 || true)"
+          echo "mercury.exe -V: $said"
+          echo "$said" | grep -qF "$version"
       - name: The world map is in the frozen app (the page has a map from the first start; scripts/smoke.py then asks the daemon for it)
         run: test -f dist/NeoAPRS/_internal/neoaprs/maps/basemap-world.pmtiles
       - name: Smoke test of the app folder
@@ -163,7 +172,7 @@ jobs:
           $p.WaitForExit()
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
-          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
+          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', 'bin\mercury\mercury.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
           foreach ($l in 'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
           # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS
@@ -172,6 +181,12 @@ jobs:
           if ((Get-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk").Length -eq 0) { throw "empty Start menu entry" }
       - name: Smoke test of the installed app
         run: build-venv/Scripts/python.exe scripts/smoke.py --command "$LOCALAPPDATA\\Programs\\NeoAPRS\\neoaprs.exe"
+      - name: The installed Mercury starts (its DLLs came through the installer)
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          said="$("$LOCALAPPDATA\\Programs\\NeoAPRS\\bin\\mercury\\mercury.exe" -V 2>&1 || true)"
+          echo "mercury.exe -V: $said"
+          echo "$said" | grep -qF "$version"
       - name: open and stop on a data folder of their own (what the Start menu entries run)
         shell: pwsh
         run: |
@@ -274,6 +289,7 @@ jobs:
           rm -rf build-venv/Lib/site-packages/neoaprs/__pycache__
           (cd packaging/windows && ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist-e2e --workpath ../../build-e2e neoaprs.spec)
           build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist-e2e/NeoAPRS
+          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist-e2e/NeoAPRS
           [ "$(dist-e2e/NeoAPRS/neoaprs.exe --version)" = "NeoAPRS $next" ]
       - name: "Update now: Inno Setup for the next version"
         shell: pwsh
@@ -308,12 +324,52 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+  # Mercury, the HF modem every Linux download carries (the Windows one gets Rhizomatica's own build): built from the pinned source (scripts/build-mercury) for each architecture, in ubuntu:22.04, so that the program asks
+  # for glibc 2.35 at most, the floor the AppImage and the .deb document, and its one other library (ALSA) and that library's configuration travel in the folder. The folder is the tarball the two jobs below unpack
+  # into their files. The container's Python is the 3.10 of Ubuntu 22.04: scripts/build-mercury runs on it.
+  mercury:
+    needs: verify
+    if: ${{ !failure() && !cancelled() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:22.04
+    steps:
+      - name: The tools of the build (a bare container has none)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libasound2-data python3 ca-certificates git
+      - uses: actions/checkout@v7
+      - name: Build Mercury from the pinned source
+        run: python3 scripts/build-mercury --tar --out dist-mercury
+      - name: It starts, and it is the pinned version (with the ALSA configuration it brought)
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          [ -n "$version" ]
+          said="$(ALSA_CONFIG_PATH="$PWD/dist-mercury/mercury/share/alsa/alsa.conf" dist-mercury/mercury/mercury -V 2>&1 || true)"
+          echo "mercury -V: $said"
+          echo "$said" | grep -qF "$version"
+          [ -f "dist-mercury/mercury-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l)" = 1 ]
+          ls -l dist-mercury dist-mercury/mercury
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mercury-${{ matrix.arch }}
+          path: dist-mercury/mercury-*-linux-*.tar.gz
+          if-no-files-found: error
+          overwrite: true
+
   # The Linux app as one file: CPython, the wheel and the locked dependencies of its extra app (Qt with the web engine) in an AppImage (scripts/build-appimage, from the wheel of the job above), then run as a user
   # would (scripts/smoke-appimage: the daemon, the page, the service unit, the window on the offscreen platform). ubuntu-22.04 and not latest: it has glibc 2.35, the oldest that the Qt wheels
   # inside (glibc 2.34) run on, so that the file is shown to run on the oldest system it claims (what is inside does not depend on the runner that builds it). GitHub retires a runner image some two years
   # after the next LTS: when ubuntu-22.04 goes, this job moves to ubuntu-24.04 and only loses that proof; the file itself stays the same.
   appimage:
-    needs: [verify, wheel]
+    needs: [verify, wheel, mercury]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-22.04
     steps:
@@ -331,13 +387,17 @@ jobs:
         with:
           name: dist
           path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: mercury-amd64
+          path: dist-mercury
       - name: FUSE, which the file mounts itself with, and the system libraries of the Qt web engine (the smoke test starts the window)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends fuse libfuse2 libegl1 libgl1 libnss3 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2 libdbus-1-3 libfontconfig1 libxcb-cursor0 libxkbfile1
-      - name: Build the AppImage from the wheel
+      - name: Build the AppImage from the wheel and the Mercury of the job above
         run: |
-          scripts/build-appimage --wheel dist/neoaprs-*.whl --out dist-appimage
+          scripts/build-appimage --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-linux-x86_64.tar.gz --out dist-appimage
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           [ -f "dist-appimage/NeoAPRS-$version-x86_64.AppImage" ] && [ "$(ls dist-appimage | wc -l)" = 1 ]
           ls -l dist-appimage
@@ -414,7 +474,7 @@ jobs:
   # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb, from the wheel of the job above: CPython and the locked dependencies in /opt/neoaprs), one for each architecture, each built and
   # tried on a runner of its own: installed with apt, the command, the daemon against a fake TNC with the Python of the package, the unit a service install writes, an upgrade over itself, and the removal.
   deb:
-    needs: [verify, wheel]
+    needs: [verify, wheel, mercury]
     if: ${{ !failure() && !cancelled() }}
     strategy:
       fail-fast: false
@@ -439,9 +499,13 @@ jobs:
         with:
           name: dist
           path: dist
-      - name: Build the package from the wheel
+      - uses: actions/download-artifact@v8
+        with:
+          name: mercury-${{ matrix.arch }}
+          path: dist-mercury
+      - name: Build the package from the wheel and the Mercury of this architecture
         run: |
-          scripts/build-deb --arch "${{ matrix.arch }}" --wheel dist/neoaprs-*.whl --out dist-deb
+          scripts/build-deb --arch "${{ matrix.arch }}" --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-linux-*.tar.gz --out dist-deb
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           [ -f "dist-deb/neoaprs_${version}_${{ matrix.arch }}.deb" ] && [ "$(ls dist-deb | wc -l)" = 1 ]
           ls -l dist-deb
@@ -463,6 +527,34 @@ jobs:
           assert (info.kind, info.arch) == ("deb", sys.argv[1]), info
           PY
           /opt/neoaprs/bin/python3 -I scripts/smoke.py --command /usr/bin/neoaprs
+          mercury_version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          said="$(ALSA_CONFIG_PATH=/opt/neoaprs/tools/mercury/share/alsa/alsa.conf /opt/neoaprs/tools/mercury/mercury -V 2>&1 || true)"
+          echo "mercury -V: $said"
+          echo "$said" | grep -qF "$mercury_version"
+          [ -f /opt/neoaprs/tools/mercury/LICENSE ] && [ ! -e /opt/neoaprs/tools/mercury/dev ]
+      - name: "Mercury needs nothing of the system: a bare Debian 12 without the ALSA library installs the package and runs it (ldd finds the bundled library, nothing missing)"
+        run: |
+          mercury_version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          docker run --rm -i -e MERCURY_VERSION="$mercury_version" -v "$PWD/dist-deb:/pkg:ro" debian:bookworm-slim sh -s <<'SH'
+          set -eu
+          apt-get update -qq
+          apt-get install -y -qq /pkg/*.deb
+          # (a `!` does not stop a script under set -e: the checks are ifs)
+          if dpkg -s libasound2 > /dev/null 2>&1; then echo "libasound2 is installed here: the proof proves nothing"; exit 1; fi
+          bundled=/opt/neoaprs/tools/mercury
+          ldd "$bundled/mercury" | tee /tmp/ldd.txt
+          if grep -q 'not found' /tmp/ldd.txt; then echo "a library of mercury is missing"; exit 1; fi
+          grep -q "$bundled/lib/libasound.so.2" /tmp/ldd.txt
+          export ALSA_CONFIG_PATH="$bundled/share/alsa/alsa.conf"
+          said="$("$bundled/mercury" -V 2>&1 || true)"
+          echo "mercury -V: $said"
+          echo "$said" | grep -qF "$MERCURY_VERSION"
+          # (-z opens the sound system: with no sound card it lists none, and it must neither fail to load nor crash)
+          status=0
+          "$bundled/mercury" -z > /tmp/z.txt 2>&1 || status=$?
+          cat /tmp/z.txt
+          if [ "$status" -ge 126 ] || grep -q 'error while loading' /tmp/z.txt; then echo "mercury -z did not run (exit $status)"; exit 1; fi
+          SH
       - name: A service install writes a unit that starts the Python of the package (a HOME and a systemctl of the test's own)
         run: |
           mkdir -p "$RUNNER_TEMP/home" "$RUNNER_TEMP/fakebin"

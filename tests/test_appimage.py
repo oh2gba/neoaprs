@@ -111,3 +111,35 @@ def test_every_download_of_the_build_is_pinned_by_version_and_digest() -> None:
     for name, url in urls.items():
         assert url.startswith("https://github.com/") and "/latest/" not in url and "continuous" not in url, f"{name} is not a fixed release: {url}"
         assert re.search(r"/download/[^/]*\d[^/]*/", url), f"{name} names no version: {url}"
+
+
+def build(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["bash", str(ROOT / "scripts" / "build-appimage"), *args], capture_output=True, text=True, timeout=30)
+
+
+def test_the_build_puts_mercury_at_usr_tools_without_its_simulators_after_the_cleanup_of_usr_bin() -> None:
+    script = (ROOT / "scripts" / "build-appimage").read_text(encoding="utf-8")
+    unpack = 'tar -xzf "$mercury" -C "$app/usr/tools" --exclude=\'mercury/dev\''
+    assert unpack in script and script.index('find "$app/usr/bin" -xtype l -delete') < script.index(unpack) < script.index("prune.py")
+    assert "mercury/$needed" in script and "lib/libasound.so.2 share/alsa/alsa.conf" in script, "a tarball without the program, its ALSA library and configuration is refused"
+    assert not re.search(r"^MERCURY\w*_URL=", script, re.M), "no download was added: the tarball comes in"
+
+
+@posix_only
+def test_a_build_without_mercury_must_say_so(tmp_path: Path) -> None:
+    refused = build("--out", str(tmp_path / "out"))
+    assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, "a release can never silently lack Mercury"
+    tarball = tmp_path / "mercury-1.9.21-linux-x86_64.tar.gz"
+    tarball.write_bytes(b"")
+    both = build("--mercury", str(tarball), "--no-mercury")
+    assert both.returncode == 2 and "exclude each other" in both.stderr
+    wrong = tmp_path / "mercury-1.9.21-linux-aarch64.tar.gz"
+    wrong.write_bytes(b"")
+    arm = build("--mercury", str(wrong))
+    assert arm.returncode == 2 and "x86_64" in arm.stderr, "the program is for the machine the AppImage is for"
+    assert build("--mercury", str(tmp_path / "gone.tar.gz")).returncode == 2
+
+
+def test_the_smoke_test_runs_the_bundled_mercury_unless_told_that_there_is_none() -> None:
+    smoke = (ROOT / "scripts" / "smoke-appimage").read_text(encoding="utf-8")
+    assert "--no-mercury) with_mercury=0" in smoke and "usr/tools/mercury" in smoke

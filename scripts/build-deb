@@ -2,9 +2,11 @@
 # Builds neoaprs_<version>_<arch>.deb, the download for the Raspberry Pi and for Debian and Ubuntu: NeoAPRS with its own CPython 3.13 and the locked dependencies (without the desktop app's extra: a Pi is
 # headless) in /opt/neoaprs, and /usr/bin/neoaprs linked to it. The system's Python is not used, so Raspberry Pi OS and Debian 12, which have no 3.13, are served.
 #
-#   scripts/build-deb [--arch amd64|arm64] [--wheel FILE] [--out DIR]
+#   scripts/build-deb (--mercury TARBALL | --no-mercury) [--arch amd64|arm64] [--wheel FILE] [--out DIR]
 #
-# Without --arch the package is for this machine's architecture; without --wheel the wheel is built from this tree (uv build). The file is made in DIR (default dist-deb/). Nothing is compiled, so either
+# Without --arch the package is for this machine's architecture; without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes for the same
+# architecture (mercury-VERSION-linux-x86_64.tar.gz for amd64, -aarch64 for arm64): its folder mercury/ goes to /opt/neoaprs/tools/mercury (the simulators of its dev/ folder are left out), and the program counts
+# in the lowest glibc the package needs. A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the package of a developer who has no Mercury to hand). The file is made in DIR (default dist-deb/). Nothing is compiled, so either
 # architecture can be made on either kind of machine: the relocatable CPython of python-build-standalone is unpacked (fetched once into $NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build, pinned by version
 # and SHA-256 below; the pin is the trust, not the server) and the wheels for the target are installed by uv into its site-packages. The work folder is build/deb-ARCH/. Needs uv (with a Python 3.13, which
 # compiles the bytecode), curl, tar, gzip, dpkg-deb and a Linux machine. The file is reproducible: the same inputs and the same SOURCE_DATE_EPOCH (default: the time of the last commit) give the same bytes.
@@ -20,11 +22,15 @@ PREFIX=/opt/neoaprs
 
 arch=""
 wheel=""
+mercury=""
+no_mercury=0
 out="$ROOT/dist-deb"
 while [ $# -gt 0 ]; do
     case "$1" in
         --arch) shift; arch="${1:-}" ;;
         --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-deb: --wheel needs a wheel file" >&2; exit 2; } ;;
+        --mercury) shift; mercury="${1:-}"; [ -f "$mercury" ] || { echo "build-deb: --mercury needs the tarball that scripts/build-mercury --tar makes" >&2; exit 2; } ;;
+        --no-mercury) no_mercury=1 ;;
         --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-deb: --out needs a folder" >&2; exit 2; } ;;
         *) echo "build-deb: unknown argument $1" >&2; exit 2 ;;
     esac
@@ -35,6 +41,13 @@ if [ -z "$arch" ]; then
 fi
 case "$arch" in amd64) pin="$PYTHON_amd64" ;; arm64) pin="$PYTHON_arm64" ;; *) echo "build-deb: --arch is amd64 or arm64" >&2; exit 2 ;; esac
 read -r python_file python_sha256 platform <<<"$pin"
+[ -n "$mercury" ] || [ "$no_mercury" = 1 ] || { echo "build-deb: give --mercury TARBALL (a release carries Mercury) or --no-mercury" >&2; exit 2; }
+[ -z "$mercury" ] || [ "$no_mercury" = 0 ] || { echo "build-deb: --mercury and --no-mercury exclude each other" >&2; exit 2; }
+# (the program is for one architecture: the tarball's name says which, and it must be the package's)
+if [ -n "$mercury" ]; then
+    case "$arch" in amd64) mercury_machine=x86_64 ;; arm64) mercury_machine=aarch64 ;; esac
+    case "$(basename "$mercury")" in mercury-*-linux-"$mercury_machine".tar.gz) ;; *) echo "build-deb: $mercury is not a Mercury tarball for $arch (mercury-VERSION-linux-$mercury_machine.tar.gz)" >&2; exit 2 ;; esac
+fi
 [ "$(uname -s)" = Linux ] || { echo "build-deb: this builds on Linux only" >&2; exit 1; }
 for tool in uv curl tar gzip dpkg-deb; do command -v "$tool" >/dev/null || { echo "build-deb: $tool is not installed" >&2; exit 1; }; done
 
@@ -93,6 +106,14 @@ install -m 755 "$ROOT/packaging/deb/neoaprs" "$app/bin/neoaprs"
 mkdir -p "$pkg/usr/bin"
 ln -s "$PREFIX/bin/neoaprs" "$pkg/usr/bin/neoaprs"
 
+# Mercury, the HF modem: the program with its ALSA library and configuration, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+if [ -n "$mercury" ]; then
+    mkdir -p "$app/tools"
+    tar -xzf "$mercury" -C "$app/tools" --exclude='mercury/dev'
+    for needed in mercury lib/libasound.so.2 share/alsa/alsa.conf LICENSE; do [ -e "$app/tools/mercury/$needed" ] || { echo "build-deb: $mercury has no mercury/$needed" >&2; exit 1; }; done
+    [ -x "$app/tools/mercury/mercury" ] && [ ! -e "$app/tools/mercury/dev" ]
+fi
+
 # Size: what NeoAPRS does not run is taken out (tests, Tk, documentation, pip), then the bytecode of everything is made now, because /opt is read-only for the users and a module without it is compiled at every start
 "$host_python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app"
 "$host_python" -I -m compileall -q -j 1 --invalidation-mode checked-hash -s "$pkg" "$app/lib/python3.13" >/dev/null
@@ -107,7 +128,7 @@ mkdir -p "$doc/manual"
 for page in "$ROOT"/docs/manual/*.md "$ROOT/docs/RADIOS.md"; do gzip -9n -c "$page" > "$doc/manual/$(basename "$page").gz"; done
 
 # The lowest glibc the package needs: the highest version any program or library of it asks for
-glibc="$(find "$app" -type f \( -name '*.so*' -o -name 'python3.13' \) -exec objdump -T {} + 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -n 1)"
+glibc="$(find "$app" -type f \( -name '*.so*' -o -name 'python3.13' -o -name mercury \) -exec objdump -T {} + 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -n 1)"
 [ -n "$glibc" ] || { echo "build-deb: no GLIBC version found in the package" >&2; exit 1; }
 
 # The permissions do not depend on the umask of the machine, and the files are root's
@@ -125,4 +146,4 @@ chmod 644 "$pkg/DEBIAN/control" "$pkg/DEBIAN/md5sums"
 target="$out/neoaprs_${version}_$arch.deb"
 rm -f "$target"
 dpkg-deb --root-owner-group -Zxz --build "$pkg" "$target" >/dev/null
-echo "build-deb: $target ($(du -h "$target" | cut -f1); $(( size / 1024 )) MB installed)"
+echo "build-deb: $target ($(du -h "$target" | cut -f1); $(( size / 1024 )) MB installed; Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"
