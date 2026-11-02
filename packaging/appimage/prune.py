@@ -95,16 +95,31 @@ def prune_qt_mac(site: Path) -> None:
     qt = prune_modules(site, MAC_PLUGINS)
     for name in ("libexec", "translations"):
         remove(qt / name)
+    for framework in qt.glob("lib/*.framework"):
+        fix_framework(framework)
     core = qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A" / "Resources"
     remove(core / "qtwebengine_devtools_resources.pak")
-    for path in (core / "qtwebengine_locales").iterdir():
+    for path in (core / "qtwebengine_locales").glob("*.pak"):
         if path.name != LOCALE:
             remove(path)
     prune_frameworks(site, qt)
     for headers in qt.glob("lib/*.framework/Versions/*/Headers"):
         remove(headers)
-    for headers in qt.glob("lib/*.framework/Headers"):
-        remove(headers)
+
+
+def fix_framework(framework: Path) -> None:
+    """A framework as the wheel ships it is flat: everything under Versions/A, with Resources and Helpers copied a second time at the top and no Versions/Current, no link to the library. codesign takes such a folder
+    for no bundle, and the system looks for the helper of the web engine through the standard links, so the copies go and the links are made: Versions/Current, the library, Resources and Helpers."""
+    current = framework / "Versions" / "A"
+    if not current.is_dir():
+        return
+    name = framework.name.removesuffix(".framework")
+    remove(framework / "Versions" / "Current")
+    (framework / "Versions" / "Current").symlink_to("A")
+    for entry in (name, "Resources", "Helpers", "Headers"):
+        remove(framework / entry)
+        if entry != "Headers" and (current / entry).exists():
+            (framework / entry).symlink_to(Path("Versions") / "Current" / entry)
 
 
 def prune_frameworks(site: Path, qt: Path) -> None:

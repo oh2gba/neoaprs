@@ -179,18 +179,20 @@ def mac_tree(tmp_path: Path) -> Path:
         (folder / "Headers").mkdir(parents=True)
         (folder / "Headers" / f"{name}.h").write_text("", encoding="utf-8")
         (folder / name).write_bytes(mach_o(*needs))
-        (folder.parent.parent / "Headers").symlink_to(Path("Versions") / "A" / "Headers")
-        (folder.parent.parent / name).symlink_to(Path("Versions") / "A" / name)
-    helper = qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A" / "Helpers" / "QtWebEngineProcess.app" / "Contents" / "MacOS"
-    helper.mkdir(parents=True)
-    (helper / "QtWebEngineProcess").write_bytes(mach_o("QtWebEngineCore.framework", "QtGui.framework"))
-    resources = qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A" / "Resources"
-    (resources / "qtwebengine_locales").mkdir(parents=True)
-    for locale in ("en-US", "de", "fi"):
-        (resources / "qtwebengine_locales" / f"{locale}.pak").write_bytes(b"x")
-    (resources / "qtwebengine_devtools_resources.pak").write_bytes(b"x")
-    (resources / "qtwebengine_resources.pak").write_bytes(b"x")
-    (resources / "icudtl.dat").write_bytes(b"x")
+        for copy in (folder / "Resources", folder.parent.parent / "Resources"):               # (the wheel is flat: Resources twice, no Versions/Current, no link to the library)
+            copy.mkdir()
+            (copy / "Info.plist").write_text("<plist/>", encoding="utf-8")
+    for top in (qt / "lib" / "QtWebEngineCore.framework", qt / "lib" / "QtWebEngineCore.framework" / "Versions" / "A"):
+        helper = top / "Helpers" / "QtWebEngineProcess.app" / "Contents" / "MacOS"
+        helper.mkdir(parents=True)
+        (helper / "QtWebEngineProcess").write_bytes(mach_o("QtWebEngineCore.framework", "QtGui.framework"))
+        resources = top / "Resources"
+        (resources / "qtwebengine_locales").mkdir(parents=True)
+        for locale in ("en-US", "de", "fi"):
+            (resources / "qtwebengine_locales" / f"{locale}.pak").write_bytes(b"x")
+        (resources / "qtwebengine_devtools_resources.pak").write_bytes(b"x")
+        (resources / "qtwebengine_resources.pak").write_bytes(b"x")
+        (resources / "icudtl.dat").write_bytes(b"x")
     for module, needs in {"QtCore": ("QtCore.framework", "libpyside6.abi3.6.12.dylib", "libshiboken6.abi3.6.12.dylib"), "QtGui": ("QtGui.framework",), "QtWidgets": ("QtWidgets.framework",), "QtNetwork": ("QtNetwork.framework",),
                           "QtWebEngineCore": ("QtWebEngineCore.framework",), "QtWebEngineWidgets": ("QtWebEngineWidgets.framework",), "QtWebChannel": ("QtWebChannel.framework",), "QtPrintSupport": ("QtPrintSupport.framework",),
                           "QtSql": ("QtSql.framework",), "QtQml": ("QtQml.framework", "libpyside6qml.abi3.6.12.dylib"), "QtDesigner": ("QtDesigner.framework",)}.items():
@@ -243,7 +245,14 @@ def test_the_macos_pruning_keeps_the_web_engine_its_helper_and_what_they_name_an
     assert sorted(p.name for p in (core / "Resources" / "qtwebengine_locales").iterdir()) == ["en-US.pak"]
     assert not (core / "Resources" / "qtwebengine_devtools_resources.pak").exists() and (core / "Resources" / "qtwebengine_resources.pak").is_file() and (core / "Resources" / "icudtl.dat").is_file()
     assert not (core / "Headers").exists() and not (qt / "lib" / "QtCore.framework" / "Headers").exists() and not (qt / "lib" / "QtCore.framework" / "Versions" / "A" / "Headers").exists()
-    assert (qt / "lib" / "QtCore.framework" / "QtCore").is_symlink()
+    for framework in (qt / "lib").glob("*.framework"):
+        name = framework.name.removesuffix(".framework")
+        assert (framework / "Versions" / "Current").is_symlink() and (framework / "Versions" / "Current").resolve() == (framework / "Versions" / "A").resolve(), framework
+        assert (framework / name).is_symlink() and (framework / name).resolve() == (framework / "Versions" / "A" / name).resolve(), "the library is reached by the standard link"
+        assert (framework / "Resources").is_symlink() and (framework / "Resources" / "Info.plist").is_file(), "the top-level copy of Resources gave way to the link"
+    assert (qt / "lib" / "QtWebEngineCore.framework" / "Helpers").is_symlink() and (qt / "lib" / "QtWebEngineCore.framework" / "Helpers" / "QtWebEngineProcess.app" / "Contents" / "MacOS" / "QtWebEngineProcess").is_file()
+    assert not (qt / "lib" / "QtCore.framework" / "Helpers").exists(), "no link to a Helpers that is not there"
+    assert sorted(p.name for p in (qt / "lib" / "QtWebEngineCore.framework" / "Resources" / "qtwebengine_locales").iterdir()) == ["en-US.pak"], "through the link, the pruned one"
     plugins = {f"{p.parent.name}/{p.name}" for p in (qt / "plugins").rglob("*.dylib")}
     assert plugins == {"platforms/libqcocoa.dylib", "platforms/libqoffscreen.dylib", "imageformats/libqjpeg.dylib", "styles/libqmacstyle.dylib", "tls/libqsecuretransportbackend.dylib", "iconengines/libqsvgicon.dylib", "networkinformation/libqapplenetworkinformation.dylib"}
     for gone in ("qml", "metatypes", "libexec", "translations", "plugins/sqldrivers", "plugins/qmltooling", "plugins/designer", "plugins/generic"):
@@ -297,7 +306,10 @@ def test_the_build_lays_the_bundle_out_as_the_launcher_and_the_one_rule_expect()
     assert 'tar -xzf "$mercury" -C "$res/tools" --exclude=\'mercury/dev\'' in script and "mercury/$needed" in script
     assert script.index("launcher.c") < script.index("prune.py --macos"), "the launcher is linked before the headers go"
     assert script.index("compileall") < script.index("codesign --force --sign -") < script.index("codesign --verify --deep --strict") < script.index("hdiutil create"), "bytecode first, then every file is signed and sealed, then the image"
-    assert "codesign --force --deep --sign -" in script and '"$res" -name \'*.framework\'' in script
+    assert "codesign --force --deep" not in script and '"$res" -name \'*.framework\'' in script and "--entitlements" in script, "each piece signed once by name, the helper with its entitlements; the verification is deep"
+    assert "find -L" not in script and "-exec test -e {} \\;" in script, "BSD find refuses -delete under -L"
+    smoke = SMOKE.read_text(encoding="utf-8")
+    assert "\\|" not in smoke and "grep -E -qv" in smoke, "BSD grep has no \\| in a basic expression"
     assert "Info.plist.in" in script and "@VERSION@" in script and "@BUILD@" in script and "make_icns.py" in script and "*.lproj" in script
     assert 'ln -s /Applications "$stage/Applications"' in script and "-format UDZO" in script
 
