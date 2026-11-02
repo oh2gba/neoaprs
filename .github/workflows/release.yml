@@ -486,7 +486,7 @@ jobs:
     needs: [verify, wheel]
     if: ${{ !failure() && !cancelled() }}
     runs-on: macos-latest
-    timeout-minutes: 60                       # (the Qt wheels, the Mercury build with Xcode's clang, codesign of the bundle and hdiutil: about twice the Windows job's, which has 45)
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
