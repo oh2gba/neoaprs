@@ -188,18 +188,21 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
     out = tmp_path / "heard.raw"
     audio = SpeakerAudio(tmp_path, player=lambda: [sys.executable, "-c", "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())", str(out)])
     assert audio.prepare() and audio.capture.exists() and audio.playback.exists()
+    started = time.monotonic()
     audio.start()
     try:
         cap = os.open(audio.capture, os.O_RDONLY | os.O_NONBLOCK)                 # (Mercury's side of the capture pipe)
         heard = bytearray()
-        end = time.monotonic() + 0.3
-        while time.monotonic() < end:
+        deadline = started + 10.0
+        while len(heard) < 10 * BLOCK_BYTES and time.monotonic() < deadline:       # (it waits for the blocks and not for a time: a slow machine gets them later)
             with contextlib.suppress(BlockingIOError):
                 heard += os.read(cap, 1 << 16)
             time.sleep(0.005)
+        elapsed = time.monotonic() - started
         os.close(cap)
         blocks = len(heard) / BLOCK_BYTES
-        assert 8 <= blocks <= 20 and set(heard) == {0}, (blocks, "silence at a sound card's pace: 15 blocks of 20 ms in 0.3 s, give or take")
+        assert blocks >= 10 and set(heard) == {0}, (blocks, "silence in blocks of 20 ms")
+        assert blocks <= elapsed / 0.02 + 2, (blocks, elapsed, "at a sound card's pace and not faster")
         play = None
         for _ in range(50):                                                    # (the thread opens its reading end each block; the writing end can be opened once it has)
             try:

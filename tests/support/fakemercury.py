@@ -128,12 +128,16 @@ class FakeMercury(FakeRadio):
 
     def __init__(self, air: Air) -> None:
         super().__init__()
-        while not _free(self.port + CONTROL_OFFSET):                     # (the control port must be free too: another radio of the tests may have the KISS port's neighbour)
+        self._control_sock: socket.socket | None = None                     # the control port, held from here to the server that serves it: no other radio of the tests can take it between
+        while self._control_sock is None:
             assert self._sock is not None
-            self._sock.close()
-            self._sock = self._listening(0)
-            self.port = self._sock.getsockname()[1]
-            self.url = f"socket://127.0.0.1:{self.port}"
+            try:
+                self._control_sock = self._listening(self.port + CONTROL_OFFSET)
+            except (OSError, OverflowError):                              # (another radio of the tests has the KISS port's neighbour, or it is past the last port: a KISS port again)
+                self._sock.close()
+                self._sock = self._listening(0)
+                self.port = self._sock.getsockname()[1]
+                self.url = f"socket://127.0.0.1:{self.port}"
         self.air = air
         self.control_port = self.port + CONTROL_OFFSET
         self.keyed = False
@@ -149,7 +153,10 @@ class FakeMercury(FakeRadio):
     async def start(self) -> None:
         await super().start()
         if self._control_server is None:
-            self._control_server = await asyncio.start_server(self._control, "127.0.0.1", self.control_port)
+            if self._control_sock is None:
+                self._control_sock = self._listening(self.control_port)
+            self._control_server = await asyncio.start_server(self._control, sock=self._control_sock)
+            self._control_sock = None                                      # (the server has it now)
 
     async def aclose(self) -> None:
         for writer in list(self._control_clients):
@@ -159,6 +166,9 @@ class FakeMercury(FakeRadio):
             self._control_server.close()
             await self._control_server.wait_closed()
             self._control_server = None
+        if self._control_sock is not None:                                 # made but never served
+            self._control_sock.close()
+            self._control_sock = None
         await super().aclose()
 
     def heard_bytes(self, data: bytes) -> None:
@@ -223,15 +233,6 @@ def tune_answer(line: str) -> bytes:
     except ValueError:
         return b"WRONG\r"
     return b"OK\rPTT ON\r" if -60.0 <= level <= 0.0 else b"WRONG\r"
-
-
-def _free(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        try:
-            probe.bind(("127.0.0.1", port))
-        except OSError:
-            return False
-    return True
 
 
 # ---- the program that stands in for the binary

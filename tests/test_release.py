@@ -192,6 +192,36 @@ def test_no_workflow_step_name_breaks_the_yaml() -> None:
     assert not bad, "quote these names:\n" + "\n".join(bad)
 
 
+def workflow_jobs() -> dict[str, str]:
+    """Every job of every workflow, as `file:job` and its text (the workflows are read as text: no YAML parser is a dependency)."""
+    jobs = {}
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        parts = re.split(r"^  ([\w-]+):$", path.read_text(encoding="utf-8").split("\njobs:\n", 1)[1], flags=re.M)
+        jobs.update({f"{path.name}:{name}": text for name, text in zip(parts[1::2], parts[2::2], strict=True)})
+    return jobs
+
+
+def test_every_job_of_every_workflow_ends_by_itself_in_far_less_than_the_six_hour_default() -> None:
+    jobs = workflow_jobs()
+    assert len(jobs) >= 14, sorted(jobs)
+    limits = {name: re.search(r"^    timeout-minutes: (\d+)$", text, re.M) for name, text in jobs.items()}
+    assert not [name for name, found in limits.items() if found is None], "a job without timeout-minutes can hang for six hours"
+    assert all(1 <= int(found.group(1)) <= 60 for found in limits.values() if found), {name: found.group(1) for name, found in limits.items() if found}
+
+
+def test_a_step_that_pipes_its_output_runs_in_bash_so_that_the_failure_of_the_first_command_is_the_steps() -> None:
+    """GitHub runs a step with no `shell:` as `bash -e`, without pipefail: `cmd | tee log` then has the status of tee. An explicit bash is `bash -eo pipefail`."""
+    piped = []
+    for name, text in workflow_jobs().items():
+        job_shell = re.search(r"^    defaults:\n      run:\n        shell: bash$", text, re.M) is not None
+        for step in text.split("\n      - ")[1:]:
+            step_shell = re.sub(r"<<'(\w+)'\n.*?^\s*\1$", "", step, flags=re.S | re.M)          # (a script given to another program, a container's sh, has its own shell)
+            if re.search(r"\| tee\b", step_shell) and not job_shell and not re.search(r"^\s+shell: bash\b", step, re.M):
+                piped.append(f"{name}: {step.splitlines()[0]}")
+    assert not piped, "these steps pipe into tee without pipefail:\n" + "\n".join(piped)
+    assert re.search(r"- name: The simulation\n\s+shell: bash\b[^\n]*\n\s+run: uv run scripts/mercury-sim .*\| tee mercury-sim.log", (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")), "a failing simulation fails the job"
+
+
 def test_the_wheel_and_the_sdist_are_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written() -> None:
     assert "from neoaprs.updateasset import wheel_version" in WORKFLOW
     assert WORKFLOW.count("wheel_version=\"$(python3 -c") == 2, "the wheel job and the assembling of the release each ask for the name once"

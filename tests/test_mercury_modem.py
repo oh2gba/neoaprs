@@ -3,9 +3,9 @@ fake air: the program found, given free ports and the configuration, started, re
 the control port's `PTT ON/OFF`, `BUSY ON/OFF` and `SN` as the hold the Tnc asks about and the words of the status line; and the Tnc on a Mercury station: the frame cap as the last guard, the hold while a frame is on the
 air, the modem's problem as the radio's."""
 import asyncio
+import itertools
 import logging
 import os
-import random
 import signal
 import socket
 import sys
@@ -38,11 +38,18 @@ def rig() -> Rigs:
     return Rigs()
 
 
+WORKER_SPAN = 1000                      # the ports of a pytest-xdist worker: its own thousand from 20000 up, all below the ephemeral ranges (Linux from 32768, Windows from 49152), so that nothing the system hands out lies in them
+WORKERS = 12                            # (scripts/check runs at most twelve; more wrap round to a worker that is not likely to run beside them)
+_tests_run = itertools.count()
+
+
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     """The modem asks for free ports from Mercury's defaults up; here each test asks from a base of its own, so that two tests running side by side (pytest-xdist) do not both find 8100 free between the probe and
-    the bind (one of them then started a program that could not listen)."""
-    base = random.randrange(20000, 60000, 500)
+    the bind (one of them then started a program that could not listen). A worker has a range of its own and its tests, which run one after the other, take its two halves in turn: no two workers share a port, and a
+    test does not start where the one before it may still hold a port."""
+    worker = int("".join(c for c in os.environ.get("PYTEST_XDIST_WORKER", "") if c.isdigit()) or 0) % WORKERS
+    base = 20000 + WORKER_SPAN * worker + WORKER_SPAN // 2 * (next(_tests_run) % 2)
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
 
 

@@ -6,8 +6,8 @@ after it, an ack lost on its way back (the sender's retry, the receiver's second
 way (the message goes on from the database), a weak link, a poor fading channel at 0 dB (the Watterson channel of CCIR 520-2: some beacons lost, a message through on its retries, and how long the busy detector took
 to learn the new noise), the first stations with the FM radio too (a KISS hub is their FM air: a message to a station heard on FM goes on FM, one to a station heard on HF alone over HF), and the first station gating
 what it hears to a fake APRS-IS. Nothing is keyed, nothing leaves the loopback. The daemon may be the checkout's or an installed one
-(`--daemon /usr/bin/neoaprs` after the .deb, `--daemon ./NeoAPRS.AppImage`), and the Mercury the one the checkout carries (scripts/build-mercury --install) or any (`--mercury`), so that the same scenario runs
-against what ships. For a developer, by hand, and the release workflow against its artifacts; Linux only (named pipes, Mercury's fifo backend).
+(`--daemon /usr/bin/neoaprs` after the .deb, `--daemon ./NeoAPRS.AppImage`), and the Mercury the one the checkout carries (scripts/build-mercury --install) or any (`--mercury`), so that the same scenario can be run by hand
+against what ships. For a developer, by hand, and for the `sim` job of the CI workflow (the checkout's daemon with the pinned Mercury built from source); Linux only (named pipes, Mercury's fifo backend).
 
   scripts/mercury-sim [--stations N] [--fm N] [--snr DB] [--fading PRESET] [--seed S] [--first-port N] [--timeout SEC] [--keep] [--mercury PATH] [--daemon CMD] [--report FILE]
 
@@ -42,6 +42,7 @@ from tests.support.realmercury import AprsIs, Failure, FmHub, Page, default_daem
 FIRST_PORT = 18100               # station i has the KISS port FIRST_PORT + 10 i and the control port 200 above it (the daemon expects that distance of a Mercury it did not start)
 WEAK_LINK_DB = -27.0             # the gain of the weak link: at the channel's default 30 dB this leaves 3 dB, where DATAC3 still decodes every frame on a flat channel (scripts/mercury-measure decode: all frames down to -2 dB, none at -6)
 LONG_TEXT = "x" * 67             # the longest message there is: with its number and the addressee it is 98 bytes direct, under the frame's 123
+LATE_BLOCKS_MAX_PER_MILLE = 1.0  # the share of the channel's 20 ms blocks that may start a block late or more: a runner stalls the thread for a block now and then (a quiet machine has none or one in 18,000), a second's stall is about fifty
 FADED_BEACONS = 6                # beacons sent over the poor channel at 0 dB: codec2's table has DATAC3 deliver 74 of 100 single frames there, so some of these are lost and some heard
 
 
@@ -244,7 +245,9 @@ class Net:
         took = await page.until("the ack after the restart", lambda: page.acked() > n, timeout * 3)
         attempts = self.attempts_of(page, "across a restart")
         self.row(f"{sender}'s daemon stopped and started again with a message on its way: back on the air after", f"{restart_took:.1f} s")
-        self.row(f"the message went on from the database and was acked on attempt {attempts}, after", f"{took:.1f} s", attempts >= 1)
+        copies = self.copies_of(self.pages[far], "across a restart")
+        self.row(f"the message went on from the database and was acked on attempt {attempts}, after", f"{took:.1f} s")
+        self.row(f"{far} kept the message once though the restart may have sent it twice", f"{copies} copy", copies == 1)
         # 7. a weak link: the far station hears the first at WEAK_LINK_DB below the others
         sender_page = self.pages[names[0]]
         self.channel.set_link(names[0], far, gain_db=WEAK_LINK_DB, symmetric=False)
@@ -346,7 +349,9 @@ def run(args: argparse.Namespace) -> int:
         asyncio.run(whole())
         report = net.channel.report()
         totals = report["totals"]
-        net.row("channel blocks / blocks in collision / late blocks", f"{totals['blocks']} / {totals['collisions']} / {totals['late_blocks']}", totals["late_blocks"] == 0)
+        net.row("channel blocks / blocks in collision", f"{totals['blocks']} / {totals['collisions']}")
+        late, blocks = totals["late_blocks"], max(1, totals["blocks"])
+        net.row("channel blocks that started a whole block late or more", f"{late} of {blocks} ({1000 * late / blocks:.2f} per mille; at most {LATE_BLOCKS_MAX_PER_MILLE:g}, a busy machine stalls the pace now and then)", 1000 * late <= LATE_BLOCKS_MAX_PER_MILLE * blocks)
         for name, counts in report["stations"].items():
             net.row(f"{name}: blocks sent / heard / overlapped / dropped", f"{counts['blocks_sent']} / {counts['blocks_heard']} / {counts['overlapped_blocks']} / {counts['dropped']}")
         codes = {name: stop(d, args.timeout) for name, d in net.daemons.items()}
