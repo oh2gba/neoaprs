@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 LITTER = re.compile(r"^[^/]+\.sqlite\.tmp(-journal)?$")      # the temporary file of a copy, and the journal SQLite keeps beside it while it is written
+PREMIGRATION = re.compile(r"^premigrate-v\d+-to-v\d+-\d{8}-\d{6}(-\d+)?\.sqlite$")        # the copy taken before a migration (migrations.premigration_backup)
 LITTER_AGE_SEC = 300                                          # a copy that is being written changes its file all the time: what has been still this long is dead
 
 
@@ -23,6 +24,25 @@ def sweep(folder: Path, now: float) -> list[str]:
         path = folder / name
         try:
             if LITTER.match(name) and path.is_file() and not path.is_symlink() and now - path.stat().st_mtime > LITTER_AGE_SEC:
+                path.unlink()
+                removed.append(name)
+        except OSError:
+            continue
+    return removed
+
+
+def drop_older_copies(folder: Path, keep: str) -> list[str]:
+    """Removes the copies taken before earlier migrations, all but the file named `keep` (the one just made whole): the folder holds the latest. Nothing else in the folder is looked at,
+    so a copy somebody made by hand stays. Returns the names removed; a file that cannot be removed is left."""
+    removed: list[str] = []
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return removed
+    for name in sorted(names):
+        path = folder / name
+        try:
+            if name != keep and PREMIGRATION.match(name) and path.is_file() and not path.is_symlink():
                 path.unlink()
                 removed.append(name)
         except OSError:

@@ -11,6 +11,7 @@ from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, Config
+from .message import MessagingError
 from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .radios import hf_is_mercury
 from .db import Db
@@ -78,7 +79,7 @@ class Controller(Services):
         await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
-        await self.keyring.load()                                       # (the stations' keys, and our own when encrypted messages are allowed: before messaging opens what comes in)
+        await self._load_keys()                                         # (the stations' keys, and our own when encrypted messages are allowed: before messaging opens what comes in)
         self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
         await self.aloha.start()
         await self.messaging.start()
@@ -89,6 +90,13 @@ class Controller(Services):
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._recount_minutely(), "recount")
         self.tasks.spawn(self._flush_stations(), "station-flush")
+
+    async def _load_keys(self) -> None:
+        """The keyring's keys; a key file that cannot be made (a data folder that cannot be written) is told in the log and the daemon goes on without our key, the page showing encrypted messages off."""
+        try:
+            await self.keyring.load()
+        except MessagingError as e:
+            log.error("encrypted messages are off: %s", e)
 
     async def stop(self) -> None:
         self.running = False
@@ -138,12 +146,12 @@ class Controller(Services):
         await self.hf.stop()
         await self.mercury.stop()
         if self.config.hf_enabled:
-            await self.mercury.start(self.config, self.hf_port_override, speaker=not hf_is_mercury(self.config))       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs; for the Dummy HF radio the program is the speaker)
+            try:
+                await self.mercury.start(self.config, self.hf_port_override, speaker=not hf_is_mercury(self.config))       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs; for the Dummy HF radio the program is the speaker)
+            except Exception:
+                log.exception("the Mercury modem could not be started")        # (the radios are started all the same: the FM radio does not wait on the modem, the HF radio keeps trying its port)
         self._configure_tnc()
-        if self.config.fm_enabled:
-            await self.tnc.start()
-        if self.config.hf_enabled:
-            await self.hf.start()
+        await asyncio.gather(*(radio.start() for on, radio in ((self.config.fm_enabled, self.tnc), (self.config.hf_enabled, self.hf)) if on))       # (together: the FM radio searching for its port, which has no limit, does not keep the HF radio from starting)
         if self.running:
             await self._hf_beacon_as_set()
 
@@ -212,6 +220,7 @@ class Controller(Services):
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
+        self.hf_beacon.settings_changed()
         self.igate.settings_changed()
         if self._radio_settings(config) != before:
             self.start_tnc()

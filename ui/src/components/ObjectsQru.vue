@@ -44,7 +44,7 @@ const refusal = ref(""); // (why the daemon refused the last request, until the 
 const look = computed(() => qruLook(asked.value, servers.value, refusal.value, now.value));
 /** Why a request that waits `seconds` may not go, or undefined when it may (RX only, the path, its wait). */
 const heldBy = (seconds: number): string | undefined =>
-  receiveOnly.value ? t("pill.rx_send") : problem.value !== "" ? problem.value : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
+  receiveOnly.value ? t("pill.rx_send") : routable.value && problem.value !== "" ? problem.value : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined;
 const why = computed(() => heldBy(wait.value));
 /** Why a group's button is off, or undefined when it may be pressed (RX only, the path, or its own wait). */
 const groupWhy = (word: string): string | undefined => heldBy(waitFor(word));
@@ -59,7 +59,9 @@ watch(
 
 /** The request as the command carries it: the text, and the path and RF only only when the fold says other than the usual (an empty path and RF only ticked: the path of messages to QRU with RFONLY). */
 function command(text: string): Command {
-  return request.sent.value === null && rfOnly.value ? { cmd: "qru_ask", text } : { cmd: "qru_ask", text, path: request.sent.value, rf_only: rfOnly.value };
+  return !routable.value || (request.sent.value === null && rfOnly.value)
+    ? { cmd: "qru_ask", text }
+    : { cmd: "qru_ask", text, path: request.sent.value, rf_only: rfOnly.value };
 }
 
 /** Sends the request for the word (INFO or a group) with the distance of the field, unless that request is held (RX only, the path, or its own wait: a group may go ten seconds after INFO, whose minute is not its own). */

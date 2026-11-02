@@ -11,6 +11,7 @@ _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
 _PART_SEPARATORS = re.compile(r"[.\-+]")
 _ARM_MACHINES = ("aarch64", "arm64", "armv7l", "armv6l", "armv8l")        # a Raspberry Pi
 _DEB_ARCHITECTURES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}          # `platform.machine()` to the name of the .deb that runs on it
+_MAC_ARCHITECTURES = {"arm64": "arm64", "aarch64": "arm64"}                                             # `platform.machine()` to the name in the macOS app's .dmg, which is built for Apple silicon alone
 
 
 @dataclass(frozen=True)
@@ -70,25 +71,33 @@ def deb_architecture(machine: str) -> str:
     return _DEB_ARCHITECTURES.get(machine.lower(), "")
 
 
-InstallKind = Literal["windows-installer", "appimage", "deb", "uv-tool", "pip", "source"]
+def mac_architecture(machine: str) -> str:
+    """The architecture in the name of the macOS app's .dmg for this Mac (`platform.machine()`): `arm64` for Apple silicon, empty for a Mac the release has no app for."""
+    return _MAC_ARCHITECTURES.get(machine.lower(), "")
+
+
+InstallKind = Literal["windows-installer", "appimage", "macos-app", "deb", "uv-tool", "pip", "source"]
 
 
 @dataclass(frozen=True)
 class InstallInfo:
-    """How this copy was installed. `appimage` is the file it runs from (kind `appimage` only, else empty); `arch` is the architecture of the package (kind `deb` only: `amd64` or `arm64`, else empty); `service` says whether a service (the systemd unit, the launchd agent, the Windows Run key) starts it."""
+    """How this copy was installed. `appimage` is the file it runs from (kind `appimage` only, else empty); `arch` is the architecture of the file it was installed from (kind `deb`: `amd64` or `arm64`; kind `macos-app`: `arm64`; else empty, and empty for a machine the release has no file for); `service` says whether a service (the systemd unit, the launchd agent, the Windows Run key) starts it."""
     kind: InstallKind
     appimage: str = ""
     service: bool = False
     arch: str = ""
 
 
-def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool) -> InstallKind:
-    """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, the Python of /opt/neoaprs is the .deb's, a package imported from a clone of
-    the repository is a checkout, a package in the environment `uv tool` made is an install of the wheel (which releases before 0.16 offered), anything else a plain pip (or `uv pip`) environment."""
+def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, app_bundle: bool = False) -> InstallKind:
+    """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, a Python inside `NeoAPRS.app` is the macOS app's, the Python of
+    /opt/neoaprs is the .deb's, a package imported from a clone of the repository is a checkout, a package in the environment `uv tool` made is an install of the wheel (which releases before 0.16 offered), anything else
+    a plain pip (or `uv pip`) environment."""
     if frozen:
         return "windows-installer"
     if appimage:
         return "appimage"
+    if app_bundle:
+        return "macos-app"
     if deb:
         return "deb"
     if checkout:

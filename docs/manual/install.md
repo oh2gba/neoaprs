@@ -6,9 +6,10 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 |---|---|
 | Windows | `NeoAPRS-Setup-<version>.exe` ([Windows](#windows)) |
 | Linux with a desktop | `NeoAPRS-<version>-x86_64.AppImage` ([AppImage](#linux-appimage)) |
+| Mac with Apple silicon | `NeoAPRS-<version>-arm64.dmg` ([macOS](#macos)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
 
-These three are the supported ways: each carries its own Python and the Mercury HF modem. A Mac has no supported way until there is a macOS app. The release page also has the source tarball, for packagers.
+These four are the supported ways: each carries its own Python and the Mercury HF modem. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 
@@ -50,9 +51,22 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 - **The window.** The web engine's sandbox needs user namespaces. Where the system refuses them (the AppArmor of Ubuntu 24.04) the AppImage starts the engine without it, which is safe because the window shows only NeoAPRS's own page.
 - **The map tool.** The `pmtiles` program that cuts the map is fetched into the `bin/` folder of the data folder the first time the map is made ([page.md](page.md#the-base-map)).
 
+## macOS
+
+`NeoAPRS-<version>-arm64.dmg` is the app for a Mac with Apple silicon (an M1 or newer) on macOS 14 or newer, with Python, NeoAPRS, the desktop app's web engine and the Mercury HF modem inside. Open the file and drag **NeoAPRS** to **Applications**. Nothing else is installed.
+
+The app is not signed by Apple, so the first start takes a right-click on **NeoAPRS** in Applications and **Open**. macOS 15 and newer then say the app could not be verified: **Open Anyway** is under System Settings, Privacy & Security, once. After that it opens like any app.
+
+- **Data** is `~/Library/Application Support/NeoAPRS`. A newer app in the place of the old one finds its settings, messages and map, and the app can be moved to the Bin without touching them.
+- **The command line.** `/Applications/NeoAPRS.app/Contents/MacOS/NeoAPRS doctor` runs the `neoaprs` command (`--version`, `open`, `stop`, `service install`, `map` ...); with no arguments it is the desktop app.
+- **The HF radio's sound card.** The first time the HF radio is switched on, macOS asks whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the HF radio hears nothing.
+- **Start at login.** `/Applications/NeoAPRS.app/Contents/MacOS/NeoAPRS service install` writes a launchd agent that starts the daemon at login ([Start at login](#start-at-login)). The tray menu has no *Start at sign-in* item on a Mac.
+- **The radio's port** is a `/dev/cu.*` device. The page lists the ports of the computer to pick from ([radio.md](radio.md)).
+- **The map tool.** The `pmtiles` program that cuts the map is fetched into the `bin/` folder of the data folder the first time the map is made ([page.md](page.md#the-base-map)).
+
 ## Raspberry Pi, Debian, Ubuntu (.deb)
 
-`neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported.
+`neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported. The 32-bit Raspberry Pi OS is not supported: there is no package for it, and the AppImage is for x86_64 only.
 
 NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed). It uses nothing of the system's Python and does not include the desktop app.
 
@@ -107,6 +121,7 @@ The window shows the steps for this copy, each file as a button and each command
 |---|---|
 | Windows installer | download `NeoAPRS-Setup-<version>.exe` and run it; it ends the running app and daemon and replaces the program; **Open NeoAPRS now** on its last page starts the app again |
 | AppImage | download `NeoAPRS-<version>-x86_64.AppImage`, make it executable (in its file properties, or `chmod +x`), quit NeoAPRS and start the new file instead of the old one, then delete the old file. If a service starts the AppImage (the service names the old file), run `./NeoAPRS-<version>-x86_64.AppImage service install` once in the folder of the new file |
+| macOS app | download `NeoAPRS-<version>-arm64.dmg`, quit NeoAPRS, open the file and drag NeoAPRS to Applications in the place of the old one, then start it from Applications again. If a launchd agent runs the daemon, restart it (the window shows the command) |
 | .deb (Raspberry Pi, Debian, Ubuntu) | download the package for your computer (`neoaprs_<version>_arm64.deb` on a Raspberry Pi, `_amd64.deb` on a PC; the window picks the right one) and run `sudo apt install ./neoaprs_<version>_arm64.deb` in the folder you downloaded it to. It replaces `/opt/neoaprs` and restarts a running service; if the service still runs the old version, `systemctl --user restart neoaprs` |
 | the install line or the wheel of an older release | releases before 0.16 offered an install line and a wheel; a copy installed that way is sent to the release page: install the AppImage or the .deb (or the Windows installer), which find the data folder as it is, and remove the old copy (`uv tool uninstall neoaprs`, or `pip uninstall neoaprs`) |
 | a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |

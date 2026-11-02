@@ -30,11 +30,13 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations } = useDaemonContext();
+const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations } = useDaemonContext();
 /** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
 const routable = computed(() => hasPaths(config.value?.values ?? {}, stations.value.get(props.selected) ?? null));
 /** Whether the messages to the station go over the HF radio (no path, no RF only: the header says it in Route's place with a tag). */
 const overHf = computed(() => radioFor(stations.value.get(props.selected) ?? null, config.value?.values ?? {}) === "hf");
+/** Whether the link of the radio the messages to the station take is up. */
+const connected = computed(() => connectedOn(radioFor(stations.value.get(props.selected) ?? null, config.value?.values ?? {})));
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);

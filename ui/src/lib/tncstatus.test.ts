@@ -150,6 +150,9 @@ describe("the HF radio's line", () => {
     expect(down("no_port", "no free port for Mercury: [Errno 98]")).toBe("Not running: no free port");
     expect(down("not_started", "Mercury could not be started: [Errno 2]")).toBe("Mercury could not be started");
     expect(down("firewall")).toBe("Not run: the Windows Firewall rule of the installer is missing");
+    expect(down("sound_card", "the sound card could not be opened: choose another one in the Sound card field")).toBe(
+      "Sound card could not be opened: choose another",
+    );
     expect(down("")).toBe("Not connected");
   });
 

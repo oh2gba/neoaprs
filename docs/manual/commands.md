@@ -10,15 +10,17 @@ NeoAPRS is a Python package with one command, `neoaprs`. `neoaprsw` is the same 
 |---|---|
 | `--data DIR` | the data folder |
 | `--port PATH` | the radio's port for this run only. The setting `serial/port` is not changed or stored; a replay's address, for instance. The kinds of port are in [radio.md](radio.md#the-port) |
+| `--hf-port URL` | the HF radio's modem for this run only, for a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-hf-modem) for the HF radio |
 | `--web-port N` | the page's port for this run only; 0 takes a free one |
 | `--debug` | logs more |
+| `--encryption` | allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key. Without it there is no Key menu, no padlock and nothing locked is sent. The amateur regulations of most countries forbid hiding the meaning of a transmission, so start the daemon this way only where that is allowed |
 | `--version` | says the version |
 
 ## The tools
 
 | command | what it does |
 |---|---|
-| `neoaprs [run] [--data DIR] [--port PATH] [--web-port N] [--debug] [--version]` | the daemon, until it is told to stop (Ctrl+C, SIGTERM) |
+| `neoaprs [run] [--data DIR] [--port PATH] [--hf-port URL] [--web-port N] [--debug] [--encryption] [--version]` | the daemon, until it is told to stop (Ctrl+C, SIGTERM) |
 | `neoaprs service install\|remove\|status\|logs` | start NeoAPRS at login, the way the system does it ([install.md](install.md#start-at-login)); `--linger` on Linux, `-n N` for `logs` |
 | `neoaprs map [--radius KM] [--maxzoom Z] [--source SRC] [--lat DEG --lon DEG] [--dry-run]` | makes the base map as the page's Download button does ([page.md](page.md#the-base-map)): the map of `map/radius_km` round the station down to `map/maxzoom` into `basemap.pmtiles` (the world map ships with NeoAPRS). It fetches the `pmtiles` tool when it is missing. The flags go over the settings, and `--dry-run` says the size and changes nothing |
 | `neoaprs db list\|get KEY\|set KEY VALUE\|stations\|packets -n N` | looks at and changes the database: the settings (`set` is checked like the daemon checks it), the stations the daemon knows, the latest packets. The daemon may be running |

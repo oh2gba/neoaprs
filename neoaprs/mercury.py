@@ -4,7 +4,7 @@ started and watched by mercuryhelper.py and mercurycontrol.py, and the Tnc reach
 
 Mercury's broadcast port is KISS over TCP: unconnected datagrams, one modem frame each, no ack, heard by every station that runs the same mode on the same frequency (Mercury 1.9.21, `docs/TNC.md`). The mode
 is fixed in the program and is not a setting, because a station on another mode hears nothing and nothing on the air says which mode a station is on: DATAC3, the narrowest of Mercury's modes that carries a whole
-APRS packet. A frame is always its full size on the air, 3.9 s with the preamble, and carries 126 bytes, of which Mercury takes 3 for a header and a length; a KISS payload longer than the 123 that are left is
+APRS packet. A frame is always its full size on the air, 3.8 s from PTT ON to PTT OFF (FRAME_SEC), and carries 126 bytes, of which Mercury takes 3 for a header and a length; a KISS payload longer than the 123 that are left is
 cut off by Mercury without a word to the client, so the daemon refuses or shortens such a packet before it goes (`overflow`). Nothing listens before it transmits (there is no carrier sense on the broadcast
 plane), so two stations that key at the same moment lose both frames: Mercury's channel-busy detector is switched on in the configuration the daemon writes, and its `BUSY ON` holds our frames (mercurymodem.py)."""
 import re
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from .coded import CodedError
 
 # The one Mercury NeoAPRS ships: every release carries this version, built from this source (scripts/build-mercury, Linux) or taken from this signed release file (packaging/windows/bundle_mercury.py), so that what
-# the suite and the simulators ran against is what the operator has. A new Mercury is a change of these four lines, tried by the suite, never something that happens on the operator's computer.
+# the suite and the simulators ran against is what the operator has. A new Mercury is a change of these constants (docs/MAINTAINING.md, "Moving the Mercury pin"), tried by the suite, never something that happens on the operator's computer.
 VERSION = "1.9.21"
 SOURCE_COMMIT = "edca701ba2e432aecd7d4e217ec8fa717ed23aa3"           # the commit the tag v1.9.21 points at
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
@@ -65,7 +65,8 @@ def tune_command(level_dbfs: float) -> str:
 
 # The Dummy HF radio (neoaprs/dummyhfscene.py) makes up what is heard and sends nothing on the air; what we send is played through the computer's own speakers as Mercury's real audio, so that the operator hears
 # what the modem sounds like: the bundled Mercury is started keying nothing (`-P none`) on its `fifo` audio backend, two named pipes the daemon paces and plays (neoaprs/mercuryspeaker.py says how and why), and
-# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on its default devices and is not heard.
+# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on WASAPI's default recording and playback
+# devices instead (`command(..., audio=())`): the recording device paces it and is heard by nobody, the playback device is the speakers.
 
 
 def speaker_audio(capture_fifo: str, playback_fifo: str) -> list[str]:
@@ -216,6 +217,16 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     if _RADIO_CARD.search(card_name or "") and len(usb) == 1:
         return Keying("rts", usb[0].device)
     return Keying("vox")
+
+
+# ---- what the program prints
+
+_AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\] .*audio->(?:open|init)\(\)")       # Mercury 1.9.21's audioio.c when the sound card cannot be opened: `[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument`, `Error in audio->init(): ...`
+
+
+def audio_open_error(line: str) -> bool:
+    """Whether a line Mercury printed says its sound card could not be opened for playback or capture (the program runs on all the same, deaf and mute: the daemon ends it and says so)."""
+    return _AUDIO_OPEN_ERROR.search(line) is not None
 
 
 # ---- the control port (CR-terminated lines, as VARA's)

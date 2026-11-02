@@ -314,7 +314,7 @@ the change it makes in a topic, or by `pong`, `status` or `error`. All the state
 ```
 page                                     daemon
   |  <-------------------------------------  hello {protocol, version, install, topics}
-  |  <-------------------------------------  state {topic, rev, value}          (one for each topic: stations, packets, tnc, config, station_prefs, messages, bulletins)
+  |  <-------------------------------------  state {topic, rev, value}          (one for each topic, all of them listed under Topics below)
   |  <-------------------------------------  status {version, started_at, packets, stations, call, lat, lon, ..., cpu_percent, rss_mb, uptime_sec}   (every 10 s too)
   |  <-------------------------------------  patch {topic, rev, ops}            (as it changes, on a tick of 100 ms)
   |  -- set_config {values} ------------->
@@ -351,8 +351,8 @@ holds more than 4 MiB it has not read is sent no patches and is sent the topic w
 ## Following the state of the daemon
 
 The state of the daemon that a page shows and that changes is held in named *topics* (`neoaprs/web/hub.py`; what changes each is in the table of `neoaprs/web/topics.py`). The value of each topic is in *Topics*
-below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `config`), which changes by `replace`, and a **table of items** by
-key (`stations` and `station_prefs` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`), which changes by `set` and `del` of one item.
+below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`), which changes by `replace`, and a **table of items** by
+key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
 
 ### `subscribe` and `unsubscribe`
 

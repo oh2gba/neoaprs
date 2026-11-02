@@ -5,7 +5,8 @@
     appimage            the new file is made executable and renamed over the file this runs from, the old one kept beside it as `<file>.old` (a hard link, else a copy) until the new version has started; then the
                         daemon ends and starts the file again with the arguments it had (neoaprs/selfreplace.py, after the daemon has let go of everything; the process stays the same, so a service manager sees no end)
 
-Anything else gets no installer and the page shows the steps instead. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
+Anything else gets no installer and the page shows the steps instead. The macOS app (`macos-app`) is among them for now: its .dmg is named (neoaprs/updateasset.py) and offered as a download, but swapping the running
+app bundle under a daemon that imports its modules lazily from it, and restarting the app through launchd, has not been tried on a Mac, so the page says to quit, drag the new app over the old one and start it again. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
 deleted instead of installed. `NEOAPRS_UPDATE_FROM` (the release folder of a fake server on the loopback) is used instead of GitHub only together with a simulated kind, or with `NEOAPRS_UPDATE_TEST=1`, the switch of the
 end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used."""
 import logging

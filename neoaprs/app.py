@@ -99,7 +99,7 @@ class Services:
         self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the FM radio, where the network has digipeaters; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
-        self.igate.made_up = lambda: self.tnc.is_dummy                       # (a Dummy radio makes up its traffic: neither it nor our position goes to APRS-IS)
+        self.igate.made_up = lambda: any(radio.is_dummy for radio in self.radios.on)       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
         self.web: Frontend | None = None                                # the page's server, made by the controller from the factory the process gave it, once the settings are read
         self.db: Db | None = None                                       # its thread, once the controller has opened it
@@ -112,7 +112,7 @@ class Services:
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
         self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet on the FM radio, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
-        self.hf_beacon = Beacon(self.hf, lambda: self.config, clock, memory=self.store, gps=self.gps, memory_key=HF_BEACON_MEMORY)       # the same on the HF radio, by the HF rules (its own interval from the floor of 15 minutes, the random pause, no SmartBeaconing); it sends nothing while hf/enabled is off (its radio is stopped)
+        self.hf_beacon = Beacon(self.hf, lambda: self.config, clock, memory=self.store, gps=self.gps, memory_key=HF_BEACON_MEMORY)       # the same on the HF radio, by the HF rules (the one beacon interval, raised to the floor of 30 minutes while the HF radio is on, the random pause, no SmartBeaconing); it sends nothing while hf/enabled is off (its radio is stopped)
         self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 

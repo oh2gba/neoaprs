@@ -61,6 +61,7 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
   no_port: "settings.tnc.hf.no_port",
   not_started: "settings.tnc.hf.not_started",
   firewall: "settings.tnc.hf.firewall",
+  sound_card: "settings.tnc.hf.sound_card",
 };
 
 /** The HF radio's line while its line is not open: the modem's reason when the program is not running, "Connecting…" while the program starts or runs and the line is between two attempts, else "Not connected". Never the daemon's English problem. */

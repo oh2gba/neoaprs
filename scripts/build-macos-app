@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Builds NeoAPRS-<version>-arm64.dmg, the macOS download: a disk image with NeoAPRS.app, which holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine), Mercury and the icon, and
+# a link to Applications to drag it to. The app is for Apple silicon (python-build-standalone has no universal CPython) and macOS 14 or newer (the floor of the Qt wheels; MIN_OS below, which scripts/build-mercury says too).
+#
+#   scripts/build-macos-app (--mercury TARBALL | --no-mercury) [--wheel FILE] [--out DIR]
+#
+# Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes on a Mac (mercury-VERSION-macos-arm64.tar.gz): its folder mercury/ goes to Contents/Resources/tools/mercury
+# (the simulators of its dev/ folder are left out). A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the file of a developer who has no Mercury to hand). The file is made in
+# DIR (default dist-macos/). The CPython is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), pinned by version and SHA-256 below (the digest GitHub shows for the file; the pin is the trust, not the server).
+#
+# The bundle: Contents/MacOS/NeoAPRS is the launcher of packaging/macos/launcher.c (Python embedded, `-m neoaprs` with the arguments, `app` with none, as the AppImage's AppRun); Contents/Resources is the Python's prefix
+# (bin/, lib/, and tools/ with Mercury, where neoaprs/bundled.py looks: `<sys.prefix>/tools`); Contents/Resources/NeoAPRS.icns is the icon, made from the Windows one (packaging/macos/make_icns.py); Info.plist from
+# packaging/macos/Info.plist.in with the lproj folders of the microphone sentence beside it. packaging/appimage/prune.py --macos takes out what the app does not run, every module's bytecode is compiled in advance (nothing is
+# written into the bundle later, whose signature seals it), and everything is signed ad hoc (`codesign --sign -`: every Mach-O file, the frameworks, the web engine's helper app, then the bundle), which is what Apple silicon
+# asks of code it runs; there is no Apple developer account, so the first open is a right-click and Open (docs/manual/install.md, "macOS"). Needs uv, curl, the command line tools (cc, codesign, hdiutil, plutil, ditto) and
+# a Mac with Apple silicon; the work folder is build/macos/. How it behaves and what it holds: docs/manual/install.md, "macOS", and docs/development.md, "The macOS app". scripts/smoke-macos-app tries the file.
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+PYTHON_URL="https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-aarch64-apple-darwin-install_only_stripped.tar.gz"
+PYTHON_SHA256="8dc60610a82f1e73be7faf964383e02520f95f6e39592a5c37c3809f5a7b798e"
+MIN_OS="14.0"
+
+wheel=""
+mercury=""
+no_mercury=0
+out="$ROOT/dist-macos"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-macos-app: --wheel needs a wheel file" >&2; exit 2; } ;;
+        --mercury) shift; mercury="${1:-}"; [ -f "$mercury" ] || { echo "build-macos-app: --mercury needs the tarball that scripts/build-mercury --tar makes" >&2; exit 2; } ;;
+        --no-mercury) no_mercury=1 ;;
+        --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-macos-app: --out needs a folder" >&2; exit 2; } ;;
+        *) echo "build-macos-app: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+[ -n "$mercury" ] || [ "$no_mercury" = 1 ] || { echo "build-macos-app: give --mercury TARBALL (a release carries Mercury) or --no-mercury" >&2; exit 2; }
+[ -z "$mercury" ] || [ "$no_mercury" = 0 ] || { echo "build-macos-app: --mercury and --no-mercury exclude each other" >&2; exit 2; }
+case "$(basename "${mercury:-mercury-0-macos-arm64.tar.gz}")" in mercury-*-macos-arm64.tar.gz) ;; *) echo "build-macos-app: $mercury is not a Mercury tarball for macOS on Apple silicon (mercury-VERSION-macos-arm64.tar.gz)" >&2; exit 2 ;; esac
+[ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] || { echo "build-macos-app: this builds on macOS with Apple silicon only" >&2; exit 1; }
+for tool in uv curl cc codesign hdiutil plutil ditto; do command -v "$tool" >/dev/null || { echo "build-macos-app: $tool is not installed" >&2; exit 1; }; done
+
+cache="${NEOAPRS_BUILD_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/neoaprs-build}"
+mkdir -p "$cache"
+
+# fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
+fetch() {
+    local file="$cache/$(basename "${1//%2B/+}")"
+    if [ ! -f "$file" ] || [ "$(shasum -a 256 "$file" | cut -d' ' -f1)" != "$2" ]; then
+        curl -fsSL --retry 3 -o "$file.part" "$1"
+        [ "$(shasum -a 256 "$file.part" | cut -d' ' -f1)" = "$2" ] || { rm -f "$file.part"; echo "build-macos-app: $1 is not the file with SHA-256 $2" >&2; exit 1; }
+        mv "$file.part" "$file"
+    fi
+    echo "$file"
+}
+
+if [ -z "$wheel" ]; then
+    rm -rf "$ROOT/dist-wheel"
+    uv build --wheel --out-dir "$ROOT/dist-wheel"
+    wheel="$(ls "$ROOT"/dist-wheel/neoaprs-*.whl)"
+fi
+version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/__init__.py")"
+python_tar="$(fetch "$PYTHON_URL" "$PYTHON_SHA256")"
+
+work="$ROOT/build/macos"
+app="$work/NeoAPRS.app"
+contents="$app/Contents"
+res="$contents/Resources"
+rm -rf "$work"
+mkdir -p "$contents/MacOS" "$out"
+
+# CPython: the archive holds one folder, python/, laid out as a prefix (bin, lib, include); it is the bundle's Contents/Resources
+tar -xzf "$python_tar" -C "$work"
+mv "$work/python" "$res"
+python="$res/bin/python3.13"
+"$python" --version
+wheel_version="$("$python" -I -c 'import sys; sys.path.insert(0, sys.argv[2]); from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version" "$ROOT")"      # 1.0.0-rc1 is 1.0.0rc1 in the wheel's name
+case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build-macos-app: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
+
+# The locked dependencies of the extra `app` for macOS, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (the launcher runs `python -m neoaprs`)
+(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o "$work/requirements.txt")
+uv pip install --python "$python" --break-system-packages --no-config -r "$work/requirements.txt"
+uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
+find "$res/bin" -type f ! -name 'python3*' -delete
+find -L "$res/bin" -type l -delete
+
+# Mercury, the HF modem: the program and its licence, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
+if [ -n "$mercury" ]; then
+    mkdir -p "$res/tools"
+    tar -xzf "$mercury" -C "$res/tools" --exclude='mercury/dev'
+    for needed in mercury LICENSE; do [ -e "$res/tools/mercury/$needed" ] || { echo "build-macos-app: $mercury has no mercury/$needed" >&2; exit 1; }; done
+    [ -x "$res/tools/mercury/mercury" ] && [ ! -e "$res/tools/mercury/dev" ]
+fi
+
+# The launcher, linked to the Python's own libpython (found through @executable_path at run time), before the headers go with the pruning
+export MACOSX_DEPLOYMENT_TARGET="$MIN_OS"
+cc -O2 -Wall -mmacosx-version-min="$MIN_OS" -o "$contents/MacOS/NeoAPRS" "$ROOT/packaging/macos/launcher.c" -I"$res/include/python3.13" -L"$res/lib" -lpython3.13 -Wl,-rpath,@executable_path/../Resources/lib
+
+# Size: what the app does not run is taken out
+"$python" -I "$ROOT/packaging/appimage/prune.py" --macos "$res"
+
+# Info.plist (the version as written, and without a suffix for CFBundleVersion), PkgInfo, the icon, the microphone sentence in the languages of the page
+sed -e "s/@VERSION@/$version/g" -e "s/@BUILD@/${version%%-*}/g" -e "s/@MIN_OS@/$MIN_OS/g" "$ROOT/packaging/macos/Info.plist.in" > "$contents/Info.plist"
+plutil -lint "$contents/Info.plist"
+printf 'APPL????' > "$contents/PkgInfo"
+"$python" -I "$ROOT/packaging/macos/make_icns.py" "$ROOT/neoaprs/desktop/icon.ico" "$res/NeoAPRS.icns"
+cp -R "$ROOT"/packaging/macos/lproj/*.lproj "$res/"
+
+# bytecode of the bundle's packages, made now because nothing may be written into the signed bundle later (unchecked: the bundle never changes)
+"$python" -I -m compileall -q --invalidation-mode unchecked-hash "$res/lib/python3.13" >/dev/null
+
+# Ad-hoc signatures: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury), then the frameworks and the web engine's helper app as bundles, then the app itself
+"$python" -I - "$app" <<'PY' | tr '\n' '\0' | xargs -0 -n 1 -P 8 codesign --force --sign - --timestamp=none
+import pathlib
+import sys
+MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}          # Mach-O 64, 32, and a universal file
+for path in pathlib.Path(sys.argv[1]).rglob("*"):
+    if path.is_file() and not path.is_symlink():
+        with path.open("rb") as f:
+            if f.read(4) in MAGIC:
+                print(path)
+PY
+find "$res" -name '*.framework' -type d -print0 | xargs -0 -n 1 codesign --force --sign - --timestamp=none
+find "$res" -name '*.app' -type d -print0 | xargs -0 -n 1 codesign --force --deep --sign - --timestamp=none
+codesign --force --deep --sign - --timestamp=none "$app"
+codesign --verify --deep --strict --verbose=2 "$app"
+"$contents/MacOS/NeoAPRS" --version
+
+# The disk image: the app and a link to Applications, compressed; hdiutil on a busy machine sometimes fails with "Resource busy" and is simply tried again
+stage="$work/dmg"
+mkdir -p "$stage"
+ditto "$app" "$stage/NeoAPRS.app"
+ln -s /Applications "$stage/Applications"
+target="$out/NeoAPRS-$version-arm64.dmg"
+rm -f "$target"
+for attempt in 1 2 3; do
+    if hdiutil create -volname "NeoAPRS $version" -srcfolder "$stage" -ov -format UDZO -imagekey zlib-level=9 "$target" > /dev/null; then break; fi
+    [ "$attempt" != 3 ] || { echo "build-macos-app: hdiutil create failed three times" >&2; exit 1; }
+    sleep 5
+done
+hdiutil verify "$target" > /dev/null
+echo "build-macos-app: $target ($(du -h "$target" | cut -f1); the app is $(du -sh "$app" | cut -f1); Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"

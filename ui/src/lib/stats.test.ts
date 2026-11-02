@@ -82,6 +82,7 @@ const input = (extra = {}) => ({
   packets: packets(),
   status: status({ packets: 1234, started_at: ago(3 * 3600 + 100) }),
   tnc: tncState(),
+  hf: null,
   igate: igateState({ enabled: true, gated: 42 }),
   map: mapState({ aloha_km: 37.4 }),
   aging: AGING,
@@ -142,8 +143,23 @@ describe("the statistics of the map", () => {
     ]);
   });
 
+  it("adds up the radios that are on, and counts the HF radio alone when the FM radio is off", () => {
+    const fm = tncState();
+    fm.stats = { ...fm.stats, frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 };
+    const hf = tncState();
+    hf.stats = { ...hf.stats, frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 };
+    expect(lines(mapStats(input({ tnc: fm, hf })), "stats.section.radio")).toEqual([
+      "stats.running=3 h",
+      "stats.frames=120, 3 unreadable",
+      "stats.bytes=2.0 kB · 1.0 kB",
+      "stats.digipeated=3",
+      "stats.gated=42",
+    ]);
+    expect(lines(mapStats(input({ tnc: null, hf })), "stats.section.radio").slice(0, 2)).toEqual(["stats.running=3 h", "stats.frames=20, 3 unreadable"]);
+  });
+
   it("leaves out a line with nothing to say, and a section with no line", () => {
-    const sections = mapStats({ stations: new Map(), packets: new Map(), status: null, tnc: null, igate: null, map: null, aging: AGING, now: NOW });
+    const sections = mapStats({ stations: new Map(), packets: new Map(), status: null, tnc: null, hf: null, igate: null, map: null, aging: AGING, now: NOW });
     expect(sections.map((s) => s.title)).toEqual(["stats.section.stations", "stats.section.packets"]);
     expect(lines(sections, "stats.section.packets")).toEqual(["stats.packets_hour=0"]);
     expect(lines(sections, "stats.section.stations")).toEqual([

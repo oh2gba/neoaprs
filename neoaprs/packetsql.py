@@ -78,8 +78,9 @@ def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, spa
 
 
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
-    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route), the oldest first."""
-    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
+    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route; not those of the HF radio: every frame there is direct, the
+    routes are those of the FM radio's digipeaters), the oldest first."""
+    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} AND radio != 'hf' ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 
 def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
@@ -140,12 +141,11 @@ def count_packets(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT COUNT(*) FROM packet").fetchone()[0])
 
 
-def prune_packets_before(db: sqlite3.Connection, stamp: str, internet_stamp: str | None = None) -> int:
-    """Deletes the packets heard before `stamp`, and those from the internet (`via` is) heard before `internet_stamp` when one is given; how many."""
-    gone = db.execute("DELETE FROM packet WHERE heard_at < ?", (stamp,)).rowcount
-    if internet_stamp is not None:
-        gone += db.execute("DELETE FROM packet WHERE heard_at < ? AND via = 'is'", (internet_stamp,)).rowcount
-    return gone
+def prune_packets_slice(db: sqlite3.Connection, stamp: str, rows: int, internet_only: bool = False) -> int:
+    """Deletes the oldest `rows` packets heard before `stamp` (fewer when there are fewer), those from the internet (`via` is) alone with `internet_only`; how many. By the index of the times, so that a slice reads
+    only what it deletes."""
+    where = "heard_at < ? AND via = 'is'" if internet_only else "heard_at < ?"
+    return db.execute(f"DELETE FROM packet WHERE id IN (SELECT id FROM packet WHERE {where} ORDER BY heard_at LIMIT ?)", (stamp, rows)).rowcount
 
 
 def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:

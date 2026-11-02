@@ -12,6 +12,9 @@ from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, r
 @pytest.mark.parametrize(("kind", "arch", "name"), [
     ("windows-installer", "", "NeoAPRS-Setup-0.7.0.exe"),
     ("appimage", "", "NeoAPRS-0.7.0-x86_64.AppImage"),
+    ("macos-app", "arm64", "NeoAPRS-0.7.0-arm64.dmg"),
+    ("macos-app", "", None),                             # (an Intel Mac: the release has no app for it)
+    ("macos-app", "x86_64", None),
     ("deb", "amd64", "neoaprs_0.7.0_amd64.deb"),
     ("deb", "arm64", "neoaprs_0.7.0_arm64.deb"),
     ("deb", "", None),                                   # (a machine the release has no package for)
@@ -36,6 +39,7 @@ def test_the_sdist_is_named_by_the_pep_440_form_of_the_version_and_the_other_fil
     assert wheel_version(version) == wheel == str(Version(version)), "the name the build (packaging) gives the sdist and the wheel"
     assert asset_name("pip", version) is None and asset_name("uv-tool", version) is None, "no file of a release updates an install of the wheel"
     assert asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage" and asset_name("deb", version, "arm64") == f"neoaprs_{version}_arm64.deb"
+    assert asset_name("macos-app", version, "arm64") == f"NeoAPRS-{version}-arm64.dmg"
     assert asset_url(version, f"neoaprs-{wheel}.tar.gz") == f"{RELEASES}/v{version}/neoaprs-{wheel}.tar.gz", "the tag keeps the version as written"
 
 

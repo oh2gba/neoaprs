@@ -60,6 +60,39 @@ describe("the conversation header", () => {
   });
 });
 
+describe("Send follows the link of the radio the message takes", () => {
+  // both radios ticked, the FM TNC unplugged, the HF modem up
+  const hfUpOnly = (radio: "fm" | "hf") => radio === "hf";
+  const world = (connectedOn: (radio: "fm" | "hf") => boolean) =>
+    fakeDaemon({ config: configValues(BOTH), connectedOn, stations: shallowRef(new Map([heardOnHf, heardOnFm].map((row) => [row.call, row]))) });
+  const sendOf = (wrapper: ReturnType<typeof mount>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
+
+  it("keeps Send to an FM station off with the TNC not connected, and leaves it on to an HF station", async () => {
+    for (const [call, off] of [
+      ["OH2FM", true],
+      ["OH2NEW", true],
+      ["OH2HF", false],
+    ] as const) {
+      const wrapper = mount(ConversationView, {
+        props: { selected: call, narrow: false, thread: [] },
+        global: withDaemon(world(hfUpOnly)),
+        attachTo: document.body,
+      });
+      await wrapper.find("textarea, input[type='text']").setValue("hello");
+      expect([call, sendOf(wrapper).element.disabled]).toEqual([call, off]);
+    }
+  });
+
+  it("keeps Check email and Send of an email off, since the gateway is reached over FM", async () => {
+    const wrapper = mount(EmailPane, { props: { thread: [], addresses: [] }, global: withDaemon(world(hfUpOnly)), attachTo: document.body });
+    const check = wrapper.findAll("button").find((b) => b.text() === "Check email");
+    expect([check?.element.disabled, check?.attributes("title")]).toEqual([true, "The TNC is not connected"]);
+    await wrapper.find("#mail-to").setValue("a@example.org");
+    await wrapper.find("#mail-text").setValue("hello");
+    expect(sendOf(wrapper).element.disabled).toBe(true);
+  });
+});
+
 describe("the chain of a message sent over HF", () => {
   const attempt = (radio: "" | "fm" | "hf") => ({ sent_at: "2026-10-22T12:00:00Z", hops: [], internet: null, acked: true, radio });
 

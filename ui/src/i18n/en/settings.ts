@@ -148,6 +148,9 @@ export const settings = {
   "settings.keying.test": "Test",
   "settings.tune": "Tune",
   "settings.tune_stop": "Stop",
+  "settings.tune.label": "Tuning tone",
+  "settings.tune.tip_label": "About the tuning tone",
+  "settings.tune.tip1": "Keys the radio and sends a steady tone for ten seconds, to tune the antenna, set the audio level or find the radio's sound card.",
   "settings.last_port.label": "Last port found",
 
   "settings.network.name": "Network access",
@@ -350,6 +353,7 @@ export const settings = {
   "settings.tnc.hf.no_port": "Not running: no free port",
   "settings.tnc.hf.not_started": "Mercury could not be started",
   "settings.tnc.hf.firewall": "Not run: the Windows Firewall rule of the installer is missing",
+  "settings.tnc.hf.sound_card": "Sound card could not be opened: choose another",
   "settings.tnc.counts": {
     one: "{n} packet heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",
     other: "{n} packets heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",

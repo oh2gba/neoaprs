@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NeoAPRS: an APRS client for Windows, Linux and the Raspberry Pi</title>
-<meta name="description" content="An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.">
+<title>NeoAPRS: an APRS client for Windows, macOS, Linux and the Raspberry Pi</title>
+<meta name="description" content="An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -16,7 +16,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NeoAPRS">
 <meta property="og:title" content="NeoAPRS: an APRS client">
-<meta property="og:description" content="A map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.">
+<meta property="og:description" content="A map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.">
 <meta property="og:url" content="https://oh2gba.github.io/neoaprs/">
 <meta property="og:image" content="https://oh2gba.github.io/neoaprs/shots/og.png">
 <meta property="og:image:width" content="1200">
@@ -46,7 +46,7 @@
 <div class="hero" id="top">
   <div class="wrap">
     <h1>Neo<span>APRS</span></h1>
-    <p class="lead">An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, Linux, Raspberry Pi.</p>
+    <p class="lead">An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.</p>
     <div class="actions">
       <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
@@ -55,6 +55,10 @@
       <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
         <span class="label">Linux AppImage<small>Download NeoAPRS .AppImage</small></span>
+      </a>
+      <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
+        <span class="label">macOS app<small>Download NeoAPRS .dmg (Apple silicon)</small></span>
       </a>
       <a class="btn" href="https://github.com/oh2gba/neoaprs">
         <span class="label">GitHub<small>source, issues, releases</small></span>
@@ -141,8 +145,15 @@
         </div>
       </div>
       <div class="card step">
+        <h3>macOS</h3>
+        <p>Open the disk image and drag NeoAPRS to Applications. The first time, right-click it and choose Open: the app is not signed by Apple. Apple silicon, macOS 14 or newer.</p>
+        <div class="run">
+          <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">macOS app</a>
+        </div>
+      </div>
+      <div class="card step">
         <h3>Debian, Ubuntu, Raspberry Pi</h3>
-        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python and the Mercury HF modem, like the installer and the AppImage.</p>
+        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python and the Mercury HF modem, like the installer, the AppImage and the macOS app.</p>
         <div class="run">
           <div class="cmd">
             <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>

@@ -3,9 +3,9 @@ fake air: the program found, given free ports and the configuration, started, re
 the control port's `PTT ON/OFF`, `BUSY ON/OFF` and `SN` as the hold the Tnc asks about and the words of the status line; and the Tnc on a Mercury station: the frame cap as the last guard, the hold while a frame is on the
 air, the modem's problem as the radio's."""
 import asyncio
+import itertools
 import logging
 import os
-import random
 import signal
 import socket
 import sys
@@ -20,7 +20,7 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
-from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, TRANSMITTING, Mercury
+from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
@@ -38,11 +38,18 @@ def rig() -> Rigs:
     return Rigs()
 
 
+WORKER_SPAN = 1000                      # the ports of a pytest-xdist worker: its own thousand from 20000 up, all below the ephemeral ranges (Linux from 32768, Windows from 49152), so that nothing the system hands out lies in them
+WORKERS = 12                            # (scripts/check runs at most twelve; more wrap round to a worker that is not likely to run beside them)
+_tests_run = itertools.count()
+
+
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     """The modem asks for free ports from Mercury's defaults up; here each test asks from a base of its own, so that two tests running side by side (pytest-xdist) do not both find 8100 free between the probe and
-    the bind (one of them then started a program that could not listen)."""
-    base = random.randrange(20000, 60000, 500)
+    the bind (one of them then started a program that could not listen). A worker has a range of its own and its tests, which run one after the other, take its two halves in turn: no two workers share a port, and a
+    test does not start where the one before it may still hold a port."""
+    worker = int("".join(c for c in os.environ.get("PYTEST_XDIST_WORKER", "") if c.isdigit()) or 0) % WORKERS
+    base = 20000 + WORKER_SPAN * worker + WORKER_SPAN // 2 * (next(_tests_run) % 2)
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
 
 
@@ -255,7 +262,12 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
     await until(lambda: m.state == "running", 5.0)
     first_pid, first_port = m.pid, m.broadcast_port
     await m.stop()
-    assert not _alive(first_pid) and not await connects(first_port)
+    assert not _alive(first_pid)
+    for _ in range(20):                                                    # (the system may take a moment to let go of a dead process's sockets)
+        if not await connects(first_port):
+            break
+        await asyncio.sleep(0.1)
+    assert not await connects(first_port), "nothing listens on the dead program's port: it and whatever it started are gone"
     await m.start(HF)
     await until(lambda: m.state == "running", 5.0)
     assert m.pid != first_pid and m.starts == 2
@@ -352,7 +364,7 @@ async def test_the_tnc_tells_the_modems_problem_when_its_line_cannot_be_opened(t
     await tnc.start()
     try:
         await until(lambda: tnc.state is Source.State.WAITING)
-        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"{tnc.port}, waiting"
+        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"Mercury DATAC3: {NOT_INSTALLED}, 0 packets", "the socket the modem is reached on is nowhere in the words of the status"
     finally:
         await tnc.stop()
         await m.stop()
@@ -390,14 +402,14 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
     monkeypatch.setattr(mercurymodem, "free_ports", none)
     m = modem(tmp_path)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0           # (the ports are chosen last, after the configuration is written: that file may be there)
+    assert m.state == "waiting" and m.problem == "no free port for Mercury; the log says which were tried" and m.starts == 0           # (the ports are chosen last, after the configuration is written: that file may be there)
     await stopped(m)
 
 
 async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
     m = modem(tmp_path / "gone")                    # (no such folder: the configuration cannot be written there)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written to ") and "gone" in m.problem and m.starts == 0
+    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
 
 
@@ -413,6 +425,30 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
     await m.stop()
     assert not _alive(pid) and m.state == "stopped"
 
+
+
+async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_problem_of_the_modem_and_the_radio_until_a_start_succeeds(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play] error in audio->open()`, and the status said "running"."""
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []
+    await m.start(HF)
+    tnc = Tnc(f"socket://127.0.0.1:{m.broadcast_port}", profile=MERCURY, check_sec=0.0, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
+    tnc.modem = m
+    await tnc.start()
+    try:
+        first = m.pid
+        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED, 5.0)              # (the fake prints the error once its ports listen: whether the control line connected first is the machine's business)
+        await until(lambda: not _alive(first), 5.0)
+        assert m.problem == SOUND_CARD_FAILED and m.hold() == "" and "could not open its sound card" in caplog.text
+        if m.state == "waiting":                                                                                       # (the quick back-off may have begun the next start already: the words of the wait are checked while it lasts)
+            assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
+        await until(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED, 5.0)              # (the line went with the program: the radio is not connected, and says why)
+        assert not tnc.usable
+        await until(lambda: m.starts >= 2, 5.0)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
+        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2, 5.0)
+    finally:
+        await tnc.stop()
+        await stopped(m)
 
 
 # ---- the ports across a relaunch (the HF Tnc waits on the port it was given; a program started again must be where the dead one was), and where the program listens

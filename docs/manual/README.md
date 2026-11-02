@@ -12,13 +12,13 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 
 | file | what is in it |
 |---|---|
-| [`install.md`](install.md) | installing on Windows, Linux (AppImage, .deb), the desktop app, starting at login, updating |
+| [`install.md`](install.md) | installing on Windows, macOS, Linux (AppImage, .deb), the desktop app, starting at login, updating |
 | [`start.md`](start.md) | the first start, the setup guide, the data folder, how settings apply, trying it without a radio |
 | [`page.md`](page.md) | the page: the tabs, the Stations table and its menu, [the Nearby tab](page.md#nearby), the Packets tab, the Settings tab, the map (the range circle, Follow my position), the station cards you can move, the header, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
-| [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio |
+| [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio, the HF radio |
 | [`beacon.md`](beacon.md) | the My station tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
-| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, deleting |
+| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, stations heard on HF, encrypted messages, deleting |
 | [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |

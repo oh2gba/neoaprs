@@ -149,8 +149,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.rts": "RTS su {port}",
   "settings.keying.dtr": "DTR su {port}",
   "settings.keying.test": "Prova",
-  "settings.tune": "Accordo",
+  "settings.tune": "Accordatura",
   "settings.tune_stop": "Stop",
+  "settings.tune.label": "Tono di accordatura",
+  "settings.tune.tip_label": "Informazioni sul tono di accordatura",
+  "settings.tune.tip1":
+    "Mette la radio in trasmissione con un tono continuo di dieci secondi, per accordare l’antenna, regolare l’audio o trovare la scheda audio.",
   "settings.last_port.label": "Ultima porta trovata",
 
   "settings.network.name": "Accesso dalla rete",
@@ -330,7 +334,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.dummy": "Radio finta: traffico inventato, niente va in onda",
   "settings.tnc.transmitting": "In trasmissione…",
   "settings.tnc.busy": "Canale occupato, in attesa",
-  "settings.tnc.tuning": "Accordo in corso…",
+  "settings.tnc.tuning": "Accordatura in corso…",
   "settings.tnc.keyed": "In trasmissione",
   "settings.tnc.listening": "In ascolto",
   "settings.tnc.snr": "SNR {db} dB",
@@ -355,6 +359,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.hf.no_port": "Non in esecuzione: nessuna porta libera",
   "settings.tnc.hf.not_started": "Impossibile avviare Mercury",
   "settings.tnc.hf.firewall": "Non avviato: manca la regola del Firewall di Windows dell’installer",
+  "settings.tnc.hf.sound_card": "Impossibile aprire la scheda audio: sceglierne un’altra",
   "settings.tnc.counts": {
     one: "{n} pacchetto ricevuto, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
     other: "{n} pacchetti ricevuti, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",

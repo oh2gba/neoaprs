@@ -513,13 +513,13 @@ export interface IgateState {
 
 /** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
 export interface InstallInfo {
-  /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) */
-  kind: "windows-installer" | "appimage" | "deb" | "uv-tool" | "pip" | "source";
+  /** `windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) */
+  kind: "windows-installer" | "appimage" | "macos-app" | "deb" | "uv-tool" | "pip" | "source";
   /** the AppImage file this runs from; empty for the other kinds */
   appimage: string;
   /** whether a service starts it: the systemd unit, the launchd agent or the Windows Run key */
   service: boolean;
-  /** the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package */
+  /** the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for */
   arch: string;
 }
 
@@ -682,8 +682,8 @@ export interface ModemState {
   state: "stopped" | "starting" | "running" | "waiting";
   /** why the modem is not running (not installed, stopped); empty while it runs */
   problem: string;
-  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall rule of the installer is missing; empty unless the state is `waiting` */
-  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "firewall";
+  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall rule of the installer is missing; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting` */
+  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "firewall" | "sound_card";
   /** the modem's mode, the same for every station: `DATAC3` */
   mode: string;
   /** the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on */

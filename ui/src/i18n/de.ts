@@ -1256,6 +1256,10 @@ export const de: Catalogue = {
   "settings.keying.test": "Test",
   "settings.tune": "Abstimmen",
   "settings.tune_stop": "Stopp",
+  "settings.tune.label": "Abstimmton",
+  "settings.tune.tip_label": "Über den Abstimmton",
+  "settings.tune.tip1":
+    "Tastet das Funkgerät und sendet zehn Sekunden lang einen Dauerton zum Abstimmen der Antenne, Einstellen des Pegels oder Finden der Soundkarte.",
   "settings.last_port.label": "Zuletzt gefundener Port",
 
   "settings.network.name": "Netzwerkzugriff",
@@ -1462,6 +1466,7 @@ export const de: Catalogue = {
   "settings.tnc.hf.no_port": "Läuft nicht: kein freier Port",
   "settings.tnc.hf.not_started": "Mercury konnte nicht gestartet werden",
   "settings.tnc.hf.firewall": "Nicht gestartet: die Windows-Firewall-Regel des Installers fehlt",
+  "settings.tnc.hf.sound_card": "Soundkarte lässt sich nicht öffnen: eine andere wählen",
   "settings.tnc.counts": {
     one: "{n} Paket gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",
     other: "{n} Pakete gehört, {bytes_in} ein, {bytes_out} aus, {digipeated} weitergeleitet",
@@ -1784,6 +1789,9 @@ export const de: Catalogue = {
   "help.update.deb.download_here": "Das Paket für deinen Rechner von der Release-Seite herunterladen",
   "help.update.deb.install": "Im Ordner installieren, in den du es geladen hast (es fragt nach deinem Passwort)",
   "help.update.deb.service": "Der Dienst startet von selbst neu. Zeigt er noch die alte Version:",
+  "help.update.macos.download": "Die neue App herunterladen",
+  "help.update.macos.replace": "NeoAPRS beenden, den Download öffnen und NeoAPRS anstelle der alten App in den Ordner Programme ziehen",
+  "help.update.macos.start": "NeoAPRS wieder aus dem Ordner Programme starten",
   "help.update.source.pull": "Im Ordner des Klons",
   "help.update.source.sync": "Die Umgebung auf den neuesten Stand bringen",
   "help.update.release_page": "Die neue Version von der Release-Seite holen",

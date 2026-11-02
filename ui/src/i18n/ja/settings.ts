@@ -151,6 +151,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "テスト",
   "settings.tune": "チューン",
   "settings.tune_stop": "停止",
+  "settings.tune.label": "チューン音",
+  "settings.tune.tip_label": "チューン音について",
+  "settings.tune.tip1": "無線機を送信状態にして10秒間連続音を送ります。アンテナの調整、音声レベルの設定、サウンドカードの確認に使えます。",
   "settings.last_port.label": "最後に検出したポート",
 
   "settings.network.name": "ネットワークアクセス",
@@ -349,6 +352,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.no_port": "停止中: 空きポートがありません",
   "settings.tnc.hf.not_started": "Mercuryを起動できませんでした",
   "settings.tnc.hf.firewall": "未起動: インストーラーのWindowsファイアウォール規則がありません",
+  "settings.tnc.hf.sound_card": "サウンドカードを開けません: 別のものを選んでください",
   "settings.tnc.counts": {
     other: "受信{n}パケット、入力 {bytes_in}、出力 {bytes_out}、中継 {digipeated}",
   },

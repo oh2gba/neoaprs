@@ -31,8 +31,8 @@ class Rig(ServiceRig):
         self.stats = TncStats()
         self.digi = Digipeater(self.tnc, lambda: self.config, self.clock, self.stats)
 
-    def hear(self, f: ax25.Frame, direction: str = "in") -> Packet:
-        packet = packet_of(direction, ax25.encode(f), f, self.clock())     # type: ignore[arg-type]
+    def hear(self, f: ax25.Frame, direction: str = "in", radio: str = "fm") -> Packet:
+        packet = packet_of(direction, ax25.encode(f), f, self.clock(), radio=radio)     # type: ignore[arg-type]
         self.digi.on_packet(packet)
         return packet
 
@@ -116,6 +116,14 @@ def test_a_packet_that_came_from_the_internet_is_not_repeated() -> None:
     rig.hear(frame("TCPIP*,WIDE1-1", info=b">a"))
     rig.hear(frame("WIDE1-1,TCPXX*", info=b">b"))
     assert rig.tnc.sent == []
+
+
+def test_a_packet_heard_on_the_hf_radio_is_not_repeated_on_the_fm_radio() -> None:
+    rig = Rig()
+    rig.hear(frame("WIDE1-1"), radio="hf")
+    assert rig.tnc.sent == []
+    rig.hear(frame("WIDE1-1", info=b">again"))
+    assert len(rig.tnc.sent) == 1, "the same on FM is repeated"
 
 
 def test_a_third_party_packet_an_igate_puts_on_the_air_is_repeated_the_tcpip_inside_it_does_not_count() -> None:

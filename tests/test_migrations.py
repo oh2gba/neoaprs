@@ -188,16 +188,52 @@ def test_a_later_migration_runs_once_on_the_data_that_is_there_after_a_copy_of_t
     assert len(list((tmp_path / "backup").glob("premigrate-*.sqlite"))) == 1
 
 
-def test_a_second_copy_in_the_same_second_gets_a_number(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_copy_in_the_same_second_as_one_that_is_there_gets_a_number_and_the_older_one_goes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / DB_NAME
     clock = FixedClock()
     opened(path, clock).close()
     (tmp_path / "backup").mkdir()
     first = f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-120000"
-    (tmp_path / "backup" / f"{first}.sqlite").write_bytes(b"an earlier copy, which nothing removes")
+    (tmp_path / "backup" / f"{first}.sqlite").write_bytes(b"an earlier copy")
     with_steps(monkeypatch, v_next)
     opened(path, clock).close()
-    assert sorted(p.name for p in (tmp_path / "backup").iterdir()) == [f"{first}-2.sqlite", f"{first}.sqlite"]
+    assert sorted(p.name for p in (tmp_path / "backup").iterdir()) == [f"{first}-2.sqlite"], "the new copy is whole and the earlier one is gone"
+
+
+def test_only_the_latest_premigration_copy_is_kept_and_a_copy_somebody_made_stays(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / DB_NAME
+    clock = FixedClock()
+    opened(path, clock).close()
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    for name in ("premigrate-v3-to-v4-20260101-000000.sqlite", "premigrate-v24-to-v25-20260601-000000.sqlite", "mine.sqlite", "premigrate-notes.txt"):
+        (folder / name).write_bytes(b"x")
+    with_steps(monkeypatch, v_next)
+    opened(path, clock).close()
+    assert sorted(p.name for p in folder.iterdir()) == ["mine.sqlite", "premigrate-notes.txt", f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-120000.sqlite"]
+
+
+@pytest.mark.expects_errors
+def test_a_copy_that_cannot_be_made_leaves_the_earlier_one_and_a_disk_without_room_stops_the_migration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / DB_NAME
+    opened(path).close()
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    earlier = folder / "premigrate-v3-to-v4-20260101-000000.sqlite"
+    earlier.write_bytes(b"the only copy there is")
+    with_steps(monkeypatch, v_next)
+    size = path.stat().st_size
+    monkeypatch.setattr("neoaprs.migrations.shutil.disk_usage", lambda _: types.SimpleNamespace(free=size))
+    ok, why = try_open(path, FixedClock())
+    assert not ok and "has 0 MB free" in why and "needs 8 MB" in why and "free at least 8 MB" in why and "nothing was changed" in why, why
+    assert earlier.read_bytes() == b"the only copy there is" and [p.name for p in folder.iterdir()] == [earlier.name]
+    db = raw(path)
+    assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION, "and the file is as it was"
+    db.close()
+    monkeypatch.setattr("neoaprs.migrations.shutil.disk_usage", lambda _: types.SimpleNamespace(free=10**12))
+    ok, why = try_open(path, FixedClock())
+    assert ok, why
+    assert [p.name for p in folder.iterdir()] == [f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-120000.sqlite"]
 
 
 @pytest.mark.expects_errors

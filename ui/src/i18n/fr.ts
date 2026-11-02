@@ -1245,6 +1245,10 @@ export const fr: Catalogue = {
   "settings.keying.test": "Test",
   "settings.tune": "Accord",
   "settings.tune_stop": "Stop",
+  "settings.tune.label": "Tonalité de réglage",
+  "settings.tune.tip_label": "À propos de la tonalité de réglage",
+  "settings.tune.tip1":
+    "Met la radio en émission et envoie une tonalité continue pendant dix secondes, pour régler l'antenne, le niveau audio ou trouver la carte son.",
   "settings.last_port.label": "Dernier port trouvé",
 
   "settings.network.name": "Accès réseau",
@@ -1450,6 +1454,7 @@ export const fr: Catalogue = {
   "settings.tnc.hf.no_port": "À l'arrêt : aucun port libre",
   "settings.tnc.hf.not_started": "Mercury n'a pas pu être lancé",
   "settings.tnc.hf.firewall": "Non lancé : la règle du pare-feu Windows de l'installateur est absente",
+  "settings.tnc.hf.sound_card": "Carte son impossible à ouvrir : choisissez-en une autre",
   "settings.tnc.counts": {
     one: "{n} paquet entendu, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",
     other: "{n} paquets entendus, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",
@@ -1774,6 +1779,9 @@ export const fr: Catalogue = {
   "help.update.deb.download_here": "Télécharger le paquet de votre ordinateur depuis la page de la version",
   "help.update.deb.install": "L'installer depuis le dossier où vous l'avez téléchargé (votre mot de passe est demandé)",
   "help.update.deb.service": "Le service redémarre de lui-même. S'il affiche encore l'ancienne version :",
+  "help.update.macos.download": "Télécharger la nouvelle application",
+  "help.update.macos.replace": "Quitter NeoAPRS, ouvrir le téléchargement et faire glisser NeoAPRS dans Applications à la place de l'ancienne",
+  "help.update.macos.start": "Relancer NeoAPRS depuis Applications",
   "help.update.source.pull": "Dans le dossier du clone",
   "help.update.source.sync": "Mettre l'environnement à jour",
   "help.update.release_page": "Obtenir la nouvelle version sur la page de la version",

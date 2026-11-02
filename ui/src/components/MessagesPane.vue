@@ -12,6 +12,7 @@ import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { MESSAGES_WIDE } from "@/lib/layout";
+import { radioFor } from "@/lib/radiosides";
 import type { Conversation } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -42,7 +43,10 @@ const emit = defineEmits<{
   deleteOverheard: [from: string, to: string];
   "update:showOverheard": [show: boolean];
 }>();
-const { connected, now } = useDaemonContext();
+const { connectedOn, now, stations, config } = useDaemonContext();
+
+/** Whether the link of the radio each recipient of the group is messaged on is up. */
+const groupConnected = computed(() => (props.group ?? []).every((call) => connectedOn(radioFor(stations.value.get(call) ?? null, config.value?.values ?? {}))));
 
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
@@ -99,7 +103,7 @@ function sent(send: () => void): void {
       v-model:text="groupDraft"
       :calls="group"
       :narrow="!wide"
-      :connected="connected"
+      :connected="groupConnected"
       @update="emit('update:group', $event)"
       @close="emit('update:group', null)"
       @send="(to, text) => sent(() => emit('send', to, text, false))"

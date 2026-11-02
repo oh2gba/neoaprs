@@ -47,7 +47,8 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
         assert m.test == "tune" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, tuning"
         await until(lambda: station.tuned == ["TUNE -15"] and m.keyed)
         await until(lambda: m.test == "", 2.0)
-        assert station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed and m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
+        await until(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)                  # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a slow runner)
+        assert m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
     finally:
         await m.stop()
         await air.aclose()
@@ -118,6 +119,12 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
         await page.send(cmd)
         error = await page.expect("error")
         assert error["code"] == "transmit.off"
+    assert station.tuned[4:] == []
+    await e.ctl.change_config(lambda c: replace(c, station_transmit=True, station_call=""))
+    for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):
+        await page.send(cmd)
+        error = await page.expect("error")
+        assert error["code"] == "other" and "call" in error["text"], "no call to send under: no tone either"
     assert station.tuned[4:] == []
     await e.stop()
     await asyncio.sleep(0)

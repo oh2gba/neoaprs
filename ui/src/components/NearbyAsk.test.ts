@@ -176,4 +176,15 @@ describe("Ask around in the Nearby tab", () => {
     expect(lines(wrapper)[0]?.classes()).not.toContain("warn");
     expect(lines(wrapper)[0]?.text()).toMatch(/^Asked who is around/);
   });
+
+  it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
+    localStorage.setItem("NeoAPRS.ask.path", "not a path!");
+    const { wrapper, daemon } = make({ config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }) });
+    expect(fold(wrapper).exists()).toBe(false);
+    expect(ask(wrapper).attributes("disabled")).toBeUndefined();
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
+    const withFm = make();
+    expect(ask(withFm.wrapper).attributes("disabled")).toBeDefined();
+  });
 });

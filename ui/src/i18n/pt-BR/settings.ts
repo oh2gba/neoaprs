@@ -151,6 +151,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testar",
   "settings.tune": "Sintonizar",
   "settings.tune_stop": "Parar",
+  "settings.tune.label": "Tom de sintonia",
+  "settings.tune.tip_label": "Sobre o tom de sintonia",
+  "settings.tune.tip1": "Aciona o rádio e envia um tom contínuo por dez segundos, para sintonizar a antena, ajustar o nível de áudio ou achar a placa de som.",
   "settings.last_port.label": "Última porta encontrada",
 
   "settings.network.name": "Acesso pela rede",
@@ -356,6 +359,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.no_port": "Não está em execução: nenhuma porta livre",
   "settings.tnc.hf.not_started": "Não foi possível iniciar o Mercury",
   "settings.tnc.hf.firewall": "Não iniciado: falta a regra do Firewall do Windows do instalador",
+  "settings.tnc.hf.sound_card": "Não foi possível abrir a placa de som: escolha outra",
   "settings.tnc.counts": {
     one: "{n} pacote recebido, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",
     other: "{n} pacotes recebidos, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",

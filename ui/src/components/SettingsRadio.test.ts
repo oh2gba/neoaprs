@@ -339,12 +339,11 @@ describe("the HF radio's type, Tune and the keying test", () => {
     expect(field?.querySelector(".info-text svg")?.getAttribute("data-picture")).toBe("dummy");
   });
 
-  it("has Tune in a row of its own under the fields, as big as Find my radio, and Test beside the Keying field; a press asks the daemon", async () => {
+  it("has Tune in an action row of its own under the fields, as big as Find my radio, and Test beside the Keying field; a press asks the daemon", async () => {
     const { group, send } = make({ hf: running() }, on);
-    expect(tune(group).element.closest(".radiofind")).not.toBeNull();
+    expect(tune(group).element.closest(".field.action-row")?.querySelector("label")?.textContent).toBe("Tuning tone");
     expect(tune(group).text()).toBe("TuneStop");
     expect(tune(group).find(".twowords").exists()).toBe(true);
-    expect(tune(group).attributes("aria-pressed")).toBe("false");
     expect(keyTest(group).element.closest(".field")?.querySelector("#set-mercury-keying")).not.toBeNull();
     expect(keyTest(group).text()).toBe("Test");
     expect(hf(group).find("p").exists()).toBe(false);
@@ -356,7 +355,6 @@ describe("the HF radio's type, Tune and the keying test", () => {
 
   it("reads Stop while the tone is on, stops it at a second press, and the status line says Tuning… or Keyed; Test waits meanwhile", async () => {
     const { group, send, daemon } = make({ hf: running("tune") }, on);
-    expect(tune(group).attributes("aria-pressed")).toBe("true");
     expect(tune(group).find(".twowords-off").text()).toBe("Tune");
     expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
     expect(keyTest(group).element.disabled).toBe(true);
@@ -366,6 +364,21 @@ describe("the HF radio's type, Tune and the keying test", () => {
     expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Keyed · Last packet 30 s ago");
     expect(tune(group).element.disabled).toBe(true);
     expect(keyTest(group).element.disabled).toBe(true);
+  });
+
+  it("has no aria-pressed on Tune: the label that swaps to Stop says it", () => {
+    for (const test of ["", "tune"] as const) expect(tune(make({ hf: running(test) }, on).group).attributes("aria-pressed"), test).toBeUndefined();
+  });
+
+  it("has both off while a frame keys the radio or the channel is heard busy, as the daemon would refuse them; Stop of a tone on stays", () => {
+    for (const held of [{ keyed: true }, { busy: true }]) {
+      const { group } = make({ hf: hfState({ modem: { ...hfState().modem!, ...held } }) }, on);
+      expect(tune(group).element.disabled, JSON.stringify(held)).toBe(true);
+      expect(keyTest(group).element.disabled, JSON.stringify(held)).toBe(true);
+    }
+    const tone = make({ hf: hfState({ modem: { ...hfState().modem!, test: "tune", keyed: true } }) }, on);
+    expect(tune(tone.group).element.disabled).toBe(false);
+    expect(tune(tone.group).find(".twowords-off").text()).toBe("Tune");
   });
 
   it("has both off while RX only is ticked, with the title that says so, and while the modem is not running", () => {

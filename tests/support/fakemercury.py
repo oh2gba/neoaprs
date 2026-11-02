@@ -128,12 +128,16 @@ class FakeMercury(FakeRadio):
 
     def __init__(self, air: Air) -> None:
         super().__init__()
-        while not _free(self.port + CONTROL_OFFSET):                     # (the control port must be free too: another radio of the tests may have the KISS port's neighbour)
+        self._control_sock: socket.socket | None = None                     # the control port, held from here to the server that serves it: no other radio of the tests can take it between
+        while self._control_sock is None:
             assert self._sock is not None
-            self._sock.close()
-            self._sock = self._listening(0)
-            self.port = self._sock.getsockname()[1]
-            self.url = f"socket://127.0.0.1:{self.port}"
+            try:
+                self._control_sock = self._listening(self.port + CONTROL_OFFSET)
+            except (OSError, OverflowError):                              # (another radio of the tests has the KISS port's neighbour, or it is past the last port: a KISS port again)
+                self._sock.close()
+                self._sock = self._listening(0)
+                self.port = self._sock.getsockname()[1]
+                self.url = f"socket://127.0.0.1:{self.port}"
         self.air = air
         self.control_port = self.port + CONTROL_OFFSET
         self.keyed = False
@@ -149,7 +153,10 @@ class FakeMercury(FakeRadio):
     async def start(self) -> None:
         await super().start()
         if self._control_server is None:
-            self._control_server = await asyncio.start_server(self._control, "127.0.0.1", self.control_port)
+            if self._control_sock is None:
+                self._control_sock = self._listening(self.control_port)
+            self._control_server = await asyncio.start_server(self._control, sock=self._control_sock)
+            self._control_sock = None                                      # (the server has it now)
 
     async def aclose(self) -> None:
         for writer in list(self._control_clients):
@@ -159,6 +166,9 @@ class FakeMercury(FakeRadio):
             self._control_server.close()
             await self._control_server.wait_closed()
             self._control_server = None
+        if self._control_sock is not None:                                 # made but never served
+            self._control_sock.close()
+            self._control_sock = None
         await super().aclose()
 
     def heard_bytes(self, data: bytes) -> None:
@@ -225,25 +235,22 @@ def tune_answer(line: str) -> bytes:
     return b"OK\rPTT ON\r" if -60.0 <= level <= 0.0 else b"WRONG\r"
 
 
-def _free(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        try:
-            probe.bind(("127.0.0.1", port))
-        except OSError:
-            return False
-    return True
-
-
 # ---- the program that stands in for the binary
 
 ROOT = Path(__file__).resolve().parents[2]
 BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
 
 
-def program(die_after_sec: float | None = None) -> list[str]:
-    """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself."""
+AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"       # what Mercury 1.9.21 printed on a station whose sound card it could not open (it ran on all the same)
+
+
+def program(die_after_sec: float | None = None, audio_error: bool = False) -> list[str]:
+    """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself;
+    with `audio_error` it prints, once its ports listen, the line Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')"]
-    return command if die_after_sec is None else [*command, "--die-after", str(die_after_sec)]
+    if die_after_sec is not None:
+        command += ["--die-after", str(die_after_sec)]
+    return [*command, "--audio-error"] if audio_error else command
 
 
 def _arguments(argv: list[str]) -> dict[str, str]:
@@ -258,7 +265,7 @@ def _arguments(argv: list[str]) -> dict[str, str]:
     return out
 
 
-async def _serve(broadcast_port: int, control_port: int, die_after: float | None) -> int:
+async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False) -> int:
     """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until SIGTERM, or dies after `die_after` seconds."""
     loop = asyncio.get_running_loop()
     stop = asyncio.Event()
@@ -291,6 +298,9 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
     control_server = await asyncio.start_server(control, "127.0.0.1", control_port)
     print(f"[INF] [engine] Initialising TCP interfaces (arq={control_port}, bc={broadcast_port})", flush=True)
     print("[INF] [engine] Mercury engine initialised", flush=True)
+    if audio_error:
+        await asyncio.sleep(0.3)                                         # (the control port is up and the daemon has connected: the error comes while the modem says "running", as it did on the station)
+        print(AUDIO_ERROR_LINE, flush=True)
     try:
         await asyncio.wait_for(stop.wait(), die_after)
     except TimeoutError:
@@ -315,7 +325,7 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
     if sys.platform == "win32":                                          # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate() does)
         die_after = die_after if die_after is not None else 3600.0
     started = time.monotonic()
-    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after))
+    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args))
     out(f"ran {time.monotonic() - started:.1f} s")
     return code
 

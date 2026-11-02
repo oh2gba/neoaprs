@@ -14,7 +14,7 @@ the change it makes in a topic, or by `pong`, `status` or `error`. All the state
 ```
 page                                     daemon
   |  <-------------------------------------  hello {protocol, version, install, topics}
-  |  <-------------------------------------  state {topic, rev, value}          (one for each topic: stations, packets, tnc, config, station_prefs, messages, bulletins)
+  |  <-------------------------------------  state {topic, rev, value}          (one for each topic, all of them listed under Topics below)
   |  <-------------------------------------  status {version, started_at, packets, stations, call, lat, lon, ..., cpu_percent, rss_mb, uptime_sec}   (every 10 s too)
   |  <-------------------------------------  patch {topic, rev, ops}            (as it changes, on a tick of 100 ms)
   |  -- set_config {values} ------------->
@@ -51,8 +51,8 @@ holds more than 4 MiB it has not read is sent no patches and is sent the topic w
 ## Following the state of the daemon
 
 The state of the daemon that a page shows and that changes is held in named *topics* (`neoaprs/web/hub.py`; what changes each is in the table of `neoaprs/web/topics.py`). The value of each topic is in *Topics*
-below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `config`), which changes by `replace`, and a **table of items** by
-key (`stations` and `station_prefs` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`), which changes by `set` and `del` of one item.
+below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`), which changes by `replace`, and a **table of items** by
+key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
 
 ### `subscribe` and `unsubscribe`
 
@@ -1326,10 +1326,10 @@ How this copy of the daemon was installed, which is what the steps of an update 
 
 | field | type | | description |
 |---|---|---|---|
-| `kind` | "windows-installer" \| "appimage" \| "deb" \| "uv-tool" \| "pip" \| "source" |  | `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) |
+| `kind` | "windows-installer" \| "appimage" \| "macos-app" \| "deb" \| "uv-tool" \| "pip" \| "source" |  | `windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) |
 | `appimage` | string |  | the AppImage file this runs from; empty for the other kinds |
 | `service` | boolean |  | whether a service starts it: the systemd unit, the launchd agent or the Windows Run key |
-| `arch` | string |  | the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package |
+| `arch` | string |  | the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for |
 
 ### LocatorValues
 
@@ -1400,7 +1400,7 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 |---|---|---|---|
 | `state` | "stopped" \| "starting" \| "running" \| "waiting" |  | `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why |
 | `problem` | string |  | why the modem is not running (not installed, stopped); empty while it runs |
-| `reason` | "" \| "not_installed" \| "stopped" \| "network" \| "no_port" \| "not_started" \| "firewall" |  | why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall rule of the installer is missing; empty unless the state is `waiting` |
+| `reason` | "" \| "not_installed" \| "stopped" \| "network" \| "no_port" \| "not_started" \| "firewall" \| "sound_card" |  | why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall rule of the installer is missing; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting` |
 | `mode` | string |  | the modem's mode, the same for every station: `DATAC3` |
 | `keyed` | boolean |  | the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on |
 | `busy` | boolean |  | the modem's busy detector hears a signal on the channel: our frames wait |

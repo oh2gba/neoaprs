@@ -1,5 +1,6 @@
 """The packet log and the station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py) on a real database thread: what goes in comes out equal, the order, the care, and the rows the
 tables refuse."""
+import asyncio
 import json
 import logging
 import sqlite3
@@ -307,6 +308,14 @@ def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherw
         packet_of(packet_row(plain)._replace(via="tcp"))
 
 
+async def test_the_deliveries_leave_out_what_the_hf_radio_heard(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
+    log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio="hf"))
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None)]
+
+
 async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
     store = await store_at(tmp_path / DB_NAME)
     log = PacketLog(store.db, FixedClock())
@@ -334,6 +343,30 @@ async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None
     [first, second] = sorted(await log.stations(), key=lambda s: s.call)
     assert first == station
     assert (second.heard_rf, second.heard_rf_gated, second.heard_is, second.last_rf_at, second.last_rf_gated_at, second.last_is_at, second.position_via) == (0, 0, 0, None, None, None, None)
+
+
+async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_between_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    for minutes in range(7):
+        log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
+    log.append(made(POSITION, T0))
+    assert await log.count() == 8
+    pruning = asyncio.create_task(log.prune(30))
+    await asyncio.sleep(0)                                  # the first slice is queued
+    assert await log.count() == 5, "the read waited for one slice of three, not for the whole delete"
+    assert await pruning == 7 and await log.count() == 1
+
+
+async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    for minutes in range(6):
+        log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
+    assert await log.prune(30) == 6 and await log.count() == 0
+    assert await PacketLog(None, FixedClock()).prune(30) == 0
 
 
 # ---- what a Raspberry Pi's card is written: the station rows once per station per flush, the internet's packets kept a shorter time

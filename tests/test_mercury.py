@@ -11,6 +11,7 @@ import pytest
 
 from neoaprs import ax25, mercury
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.configlegacy import with_legacy
 from neoaprs.message import MessagingError
 from neoaprs.radiorules import FM, HF
 from neoaprs.services.beacon import Beacon, BeaconError
@@ -146,6 +147,13 @@ def test_the_settings_keep_the_sound_card_and_the_keying_and_refuse_a_keying_tha
     assert hf.hf_enabled and hf.fm_enabled and hf.serial_port == "/dev/ttyUSB0", "the HF radio is a tickbox beside the FM radio, whatever the FM radio's port"
     with pytest.raises(ValueError, match="not a TNC profile"):
         Config.checked(DEFAULTS, {"tnc/profile": "mercury"})
+
+
+def test_a_stored_mercury_type_of_the_one_radio_becomes_the_hf_radio_and_the_fm_radio_has_the_default_type() -> None:
+    rows = with_legacy({"tnc/profile": "mercury", "station/call": "OH2GBA"})
+    config = Config.from_data(rows)
+    assert config.hf_enabled and not config.fm_enabled and config.tnc_profile == DEFAULTS.tnc_profile and "tnc/profile" not in rows
+    assert with_legacy({"tnc/profile": "mercury", "fm/enabled": "true"})["tnc/profile"] == "mercury", "left alone when a tickbox has a row of its own"
 
 
 def test_the_command_line_names_the_configuration_the_mode_the_ports_the_sound_card_and_the_keying() -> None:
@@ -336,3 +344,11 @@ async def test_an_ack_that_waited_longer_than_a_minute_is_dropped_because_the_se
     tnc.held = ""
     await rig.pass_time(1)
     assert rig.lines() == [] and rig.m.acks.waiting == [] and "is dropped: the sender sends again" in caplog.text
+
+
+def test_the_lines_that_say_the_sound_card_could_not_be_opened_are_known_and_the_others_are_not() -> None:
+    assert mercury.audio_open_error("22:16:22.912 [+0.003s] [ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument")
+    assert mercury.audio_open_error("[ERR] [audio-cap] error in audio->open(): -1: No such device")
+    assert mercury.audio_open_error("[ERR] [audio-play] Error in audio->init(): PulseAudio is not in this build")
+    for line in ("[WRN] [modem-rx] decoder ring full (mode=12): dropped 100 samples so far", "[INF] [audio-play] opened plughw:1,0", "[ERR] [tcp-ctl] Control recv returned 0 (err=0), closing", "[ERR] [audio-play] Failed to allocate playback buffers"):
+        assert not mercury.audio_open_error(line), line

@@ -6,7 +6,12 @@ daemon is the sound card's clock: a thread (`SpeakerAudio`) writes a block of si
 pipe, which it hands to the system's own player, `pw-play` (PipeWire), `paplay` (PulseAudio) or `aplay` (ALSA), whichever is there: those know the desktop's sound output, which the bundled ALSA library alone
 does not. The frames to play come in on Mercury's broadcast port as KISS (`SpeakerLine`), as they would from the Tnc.
 
-Nothing of it is a must: no player, no pipes (Windows has none), a Mercury that is not there, are each a line in the log, and the Dummy HF radio makes its traffic all the same."""
+Windows has no named pipes, and Mercury's fifo and null backends are one sound system for both directions with no Windows pipe in them (its audioio.c opens the path with open() and nothing else), so there the
+speaker runs Mercury on its own defaults, WASAPI's default recording device and default playback device: the recording device is the sound card's clock in place of the thread here, and what it hears
+goes nowhere (the dummy's Tnc is not connected to this Mercury, and the daemon reads its broadcast port only to drop what comes); Mercury itself plays on the default output, so no player is needed. A
+Windows machine with no recording device has Mercury's capture fail, which the log says, and the dummy runs without the sound.
+
+Nothing of it is a must: no player, no pipes, a Mercury that is not there, are each a line in the log, and the Dummy HF radio makes its traffic all the same."""
 import asyncio
 import contextlib
 import logging
@@ -62,7 +67,7 @@ class SpeakerAudio:
 
     @property
     def possible(self) -> bool:
-        """Whether this system has named pipes (POSIX); without them Mercury runs on its default devices and nothing of this is started."""
+        """Whether this system has named pipes (POSIX); without them (Windows) Mercury runs on its default recording and playback devices and nothing of this is started."""
         return hasattr(os, "mkfifo")
 
     def prepare(self) -> bool:
@@ -80,16 +85,22 @@ class SpeakerAudio:
         return True
 
     def start(self) -> None:
+        """The thread of the clock; one that runs from before (Mercury ended and came back without a stop) is ended first, so that two never write into the same pipe."""
+        self._end_thread()
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="mercury-speaker-audio", daemon=True)
         self._thread.start()
 
-    def stop(self) -> None:
+    def _end_thread(self) -> None:
         self._stop.set()
         thread, self._thread = self._thread, None
         if thread is not None:
             thread.join(2.0)
+
+    def stop(self) -> None:
+        self._end_thread()
         self._end_player()
+        self.player_said = False                                # (the next run starts its player again)
         for path in (self.capture, self.playback):
             with contextlib.suppress(OSError):
                 path.unlink()

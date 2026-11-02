@@ -94,10 +94,10 @@ def _describe(tnc: "Tnc") -> str:
         return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
     if tnc.searching:
         return f"listening on {', '.join(tnc.searching)} for the radio"
+    if (modem := tnc._modem()) is not None:
+        return f"{modem.describe()}, {tnc.stats.packets} packets"                 # (never the socket the modem is reached on: the page shows this line, the log has the ports)
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    if (modem := tnc._modem()) is not None:
-        return f"{modem.describe()}, {tnc.stats.packets} packets"
     mode = "KISS" if tnc._reader.kiss_seen else ("entering KISS" if tnc._reader.entered else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
@@ -216,7 +216,7 @@ class Tnc(TimedSource):
         self.backoff.connected()
         self._set_state(Source.State.SILENT if silent else Source.State.CONNECTED)
         if not reopen:
-            self._note(f"opened {path}{_speed(path, self.baud)}")
+            self._note("opened the line to the modem" if self._modem() is not None else f"opened {path}{_speed(path, self.baud)}")       # (the Terminal is on the page: the modem's socket stays in the log)
         log.log(logging.DEBUG if reopen else logging.INFO, "tnc: opened %s%s", path, _speed(path, self.baud))
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
             self._reader.enter_kiss(port, "the search found the TNC in command mode")

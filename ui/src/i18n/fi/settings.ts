@@ -150,6 +150,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testaa",
   "settings.tune": "Viritä",
   "settings.tune_stop": "Pysäytä",
+  "settings.tune.label": "Viritysääni",
+  "settings.tune.tip_label": "Tietoa viritysäänestä",
+  "settings.tune.tip1":
+    "Avainnetaan radio ja lähetetään tasainen ääni kymmenen sekuntia, antennin virittämiseen, äänitason säätöön tai radion äänikortin löytämiseen.",
   "settings.last_port.label": "Viimeksi löytynyt portti",
 
   "settings.network.name": "Verkkoyhteys",
@@ -354,6 +358,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.hf.no_port": "Ei käynnissä: vapaata porttia ei ole",
   "settings.tnc.hf.not_started": "Mercuryn käynnistys ei onnistunut",
   "settings.tnc.hf.firewall": "Ei käynnistetty: asennusohjelman Windowsin palomuurisääntö puuttuu",
+  "settings.tnc.hf.sound_card": "Äänikorttia ei voitu avata: valitse toinen",
   "settings.tnc.counts": {
     one: "{n} paketti kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",
     other: "{n} pakettia kuultu, {bytes_in} sisään, {bytes_out} ulos, {digipeated} toistettu",

@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, choose_keying, choose_sound_card, keying_of, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -253,11 +253,25 @@ def end_stale(pid_file: Path) -> bool:
 
 # ---- the process
 
+def _end_tree(process: subprocess.Popen[str]) -> None:
+    """Windows: the process and every child of it ended (`taskkill /T /F`, the system's own tool: there is no tree in the Win32 API), then the process waited for; the process alone when taskkill is not there."""
+    try:
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=STOP_WAIT_SEC, check=False, creationflags=HIDDEN_WINDOW)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.debug("taskkill could not end the Mercury tree: %s", e)
+    try:
+        process.wait(STOP_WAIT_SEC)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
 class Program:
     """One run of Mercury: started, read, and told when it ends."""
 
-    def __init__(self, on_ended: Callable[[int | None, list[str]], None]) -> None:
+    def __init__(self, on_ended: Callable[[int | None, list[str]], None], on_audio_error: Callable[[str], None] | None = None) -> None:
         self._on_ended = on_ended
+        self._on_audio_error = on_audio_error                    # told, on the loop, the line that says the sound card could not be opened (the program runs on without it)
         self._process: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
@@ -293,6 +307,8 @@ class Program:
             if line:
                 self.last_lines.append(line)
                 self._tell(line)
+                if self._on_audio_error is not None and self._process is process and audio_open_error(line):
+                    loop.call_soon_threadsafe(self._on_audio_error, line)
         code = process.wait()
         if self._process is process:
             loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))
@@ -311,23 +327,27 @@ class Program:
 
     def stop(self) -> None:
         """Ends the program: asked to end, asked again after STOP_WAIT_SEC, killed after another STOP_WAIT_SEC. The second request is Mercury's own way to drop the transmitter at once (a kill leaves a radio keyed whose
-        keying is a GPIO pin or a serial line; on Windows both requests are the same hard end). The pid file is removed once the program has ended: a clean stop leaves nothing for the next start to look at. Waited for
-        in the calling thread (a few milliseconds for a Mercury that ends as asked)."""
+        keying is a GPIO pin or a serial line). On Windows there is no request, only the hard end, and it ends the process with its children (`taskkill /T`): a program started through a launcher (a venv's python.exe,
+        which the tests' fake runs under, starts the interpreter as its child) would otherwise leave the child, and its sockets, alive; mercury.exe has no children and loses nothing. The pid file is removed once the
+        program has ended: a clean stop leaves nothing for the next start to look at. Waited for in the calling thread (a few milliseconds for a Mercury that ends as asked)."""
         process, self._process = self._process, None
         pid_file, self._pid_file = self._pid_file, None
         try:
             if process is None or process.poll() is not None:
                 return
-            process.terminate()
-            try:
-                process.wait(STOP_WAIT_SEC)
-            except subprocess.TimeoutExpired:
+            if sys.platform == "win32":
+                _end_tree(process)
+            else:
                 process.terminate()
                 try:
                     process.wait(STOP_WAIT_SEC)
                 except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                    process.terminate()
+                    try:
+                        process.wait(STOP_WAIT_SEC)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
             log.info("Mercury stopped (exit %s)", process.returncode)
         finally:
             if pid_file is not None and process is not None:

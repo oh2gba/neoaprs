@@ -31,7 +31,7 @@ def with_radios(rows: Mapping[str, str]) -> Mapping[str, str]:
     the default. Only when neither tickbox has a row of its own."""
     if rows.get("tnc/profile", "").strip() != "mercury" or "hf/enabled" in rows or "fm/enabled" in rows:
         return rows
-    return {**rows, "tnc/profile": "kenwood-tnc2", "hf/enabled": "true", "fm/enabled": "false"}
+    return {**{key: value for key, value in rows.items() if key != "tnc/profile"}, "hf/enabled": "true", "fm/enabled": "false"}
 
 
 def with_legacy(rows: Mapping[str, str]) -> Mapping[str, str]:
