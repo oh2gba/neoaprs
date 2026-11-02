@@ -37,7 +37,12 @@ export interface ObjectDraft {
   qru: string;
   /** Send only when a station asks for it. */
   onRequest: boolean;
+  /** The radio it goes out on while both radios are on: `fm`, `hf` or `both` (with one radio on it goes on that one, whatever is kept). */
+  radio: ObjectRadio;
 }
+
+export type ObjectRadio = "fm" | "hf" | "both";
+export const OBJECT_RADIOS: readonly ObjectRadio[] = ["fm", "hf", "both"];
 
 type DraftProblems = Partial<Record<keyof ObjectDraft, string>>;
 
@@ -55,6 +60,7 @@ export function emptyDraft(): ObjectDraft {
     path: "",
     qru: "",
     onRequest: false,
+    radio: "fm",
   };
 }
 
@@ -72,6 +78,7 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
     path: row.path ?? "",
     qru: row.qru_group,
     onRequest: row.on_request,
+    radio: row.radio,
   };
 }
 
@@ -185,6 +192,7 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
     path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
     qru_group: draft.qru.trim().toUpperCase(),
     on_request: draft.onRequest,
+    radio: draft.radio,
   };
 }
 
@@ -203,7 +211,8 @@ export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
     near(row.speed_kmh, command.speed_kmh) &&
     row.path === command.path &&
     row.qru_group === command.qru_group &&
-    row.on_request === command.on_request
+    row.on_request === command.on_request &&
+    row.radio === (command.radio ?? "fm")
   );
 }
 
@@ -223,6 +232,7 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     path: row.path,
     qru_group: row.qru_group,
     on_request: row.on_request,
+    radio: row.radio,
   };
 }
 

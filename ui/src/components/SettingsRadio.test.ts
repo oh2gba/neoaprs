@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises as flush, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { shallowRef } from "vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
@@ -142,13 +142,13 @@ describe("the Radio group of the Settings tab", () => {
     expect(fold(group).find(".statetext").text()).toBe("connected");
     await tell(daemon, { hf: hfState() });
     expect(hfFold(group).find(".statetext").text()).toBe("connected");
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Last packet 30 s ago");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Listening · Last packet 30 s ago");
     const modem = hfState().modem;
     if (modem === null) throw new Error("no modem");
     await tell(daemon, { hf: hfState({ modem: { ...modem, keyed: true } }) });
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Transmitting…");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Transmitting… · Last packet 30 s ago");
     await tell(daemon, { hf: hfState({ modem: { ...modem, busy: true } }) });
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Channel busy, waiting");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
     expect(hfFold(group).find(".tnclines").text()).toContain("NeoAPRS: opened");
   });
 
@@ -313,5 +313,95 @@ describe("the HF radio's box in the Radio group", () => {
     await tell(daemon, { config: configValues({ ...on, "mercury/sound_card": "plughw:1,0" }) }); // (the daemon's answer: the form sends one change at a time)
     await group.find<HTMLSelectElement>("#set-mercury-keying").setValue("rts:/dev/ttyUSB0");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/keying": "rts:/dev/ttyUSB0" } });
+  });
+});
+
+describe("the HF radio's type, Tune and the keying test", () => {
+  const on = { "hf/enabled": "true", "mercury/keying": "vox" };
+  const running = (test: "" | "tune" | "key" = "") => hfState({ modem: { ...hfState().modem!, test } });
+  const tune = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#hf-tune");
+  const keyTest = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#hf-key-test");
+
+  it("has the Radio type as the first field of the HF box, the Mercury modem first and the Dummy HF radio last, with the dummy picture on its (i)", async () => {
+    const { group } = make({ hf: running() }, on);
+    const type = hfFold(group).find<HTMLSelectElement>("#set-hf-profile");
+    expect(
+      hfFold(group)
+        .findAll("select, input")
+        .map((e) => e.attributes("id"))[0],
+    ).toBe("set-hf-profile");
+    expect([...type.element.options].map((o) => o.value)).toEqual(["mercury", "dummy-hf"]);
+    expect(type.element.value).toBe("mercury");
+    const field = type.element.closest(".field");
+    expect(field?.querySelector("label")?.textContent).toBe("Radio type");
+    hfFold(group).find("#set-hf-profile").element.closest(".field")!.querySelector<HTMLElement>(".info-toggle")!.click();
+    await flush();
+    expect(field?.querySelector(".info-text svg")?.getAttribute("data-picture")).toBe("dummy");
+  });
+
+  it("has Tune in a row of its own under the fields, as big as Find my radio, and Test beside the Keying field; a press asks the daemon", async () => {
+    const { group, send } = make({ hf: running() }, on);
+    expect(tune(group).element.closest(".radiofind")).not.toBeNull();
+    expect(tune(group).text()).toBe("TuneStop");
+    expect(tune(group).find(".twowords").exists()).toBe(true);
+    expect(tune(group).attributes("aria-pressed")).toBe("false");
+    expect(keyTest(group).element.closest(".field")?.querySelector("#set-mercury-keying")).not.toBeNull();
+    expect(keyTest(group).text()).toBe("Test");
+    expect(hf(group).find("p").exists()).toBe(false);
+    await tune(group).trigger("click");
+    expect(send).toHaveBeenLastCalledWith({ cmd: "hf_tune", on: true });
+    await keyTest(group).trigger("click");
+    expect(send).toHaveBeenLastCalledWith({ cmd: "hf_key_test" });
+  });
+
+  it("reads Stop while the tone is on, stops it at a second press, and the status line says Tuning… or Keyed; Test waits meanwhile", async () => {
+    const { group, send, daemon } = make({ hf: running("tune") }, on);
+    expect(tune(group).attributes("aria-pressed")).toBe("true");
+    expect(tune(group).find(".twowords-off").text()).toBe("Tune");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
+    expect(keyTest(group).element.disabled).toBe(true);
+    await tune(group).trigger("click");
+    expect(send).toHaveBeenLastCalledWith({ cmd: "hf_tune", on: false });
+    await tell(daemon, { hf: running("key") });
+    expect(hfFold(group).find(".tncstatus").text()).toBe("DATAC3 · Keyed · Last packet 30 s ago");
+    expect(tune(group).element.disabled).toBe(true);
+    expect(keyTest(group).element.disabled).toBe(true);
+  });
+
+  it("has both off while RX only is ticked, with the title that says so, and while the modem is not running", () => {
+    const rx = make({ hf: running() }, { ...on, "station/transmit": "false" });
+    expect(tune(rx.group).element.disabled).toBe(true);
+    expect(keyTest(rx.group).element.disabled).toBe(true);
+    expect(tune(rx.group).attributes("title")).toBe("RX only: nothing is sent");
+    expect(keyTest(rx.group).attributes("title")).toBe("RX only: nothing is sent");
+    const waiting = make(
+      { hf: hfState({ state: "waiting", problem: "Mercury stopped", modem: { ...hfState().modem!, state: "waiting", problem: "Mercury stopped" } }) },
+      on,
+    );
+    expect(tune(waiting.group).element.disabled).toBe(true);
+    expect(keyTest(waiting.group).element.disabled).toBe(true);
+    expect(tune(waiting.group).attributes("title")).toBeUndefined();
+  });
+
+  it("is, with the Dummy HF radio chosen, the type alone: no sound card, no keying, no Tune, and the muted Dummy pill with its line", () => {
+    const { group } = make({ hf: hfState({ dummy: true, modem: null }) }, { ...on, "hf/profile": "dummy-hf" });
+    expect(
+      hfFold(group)
+        .findAll("select, input")
+        .map((e) => e.attributes("id")),
+    ).toEqual(["set-hf-profile"]);
+    expect(tune(group).exists()).toBe(false);
+    expect(keyTest(group).exists()).toBe(false);
+    expect(hfFold(group).find(".statetext").text()).toBe("Dummy");
+    expect(hfFold(group).find(".statetext").classes()).toContain("tnc-dummy");
+    expect(hfFold(group).find(".tncstatus").text()).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+  });
+
+  it("has nothing of the HF radio's socket in the status line: Connecting… while it connects, the modem's words while it runs", () => {
+    const connecting = make({ hf: hfState({ state: "connecting", path: "socket://127.0.0.1:8100" }) }, on);
+    expect(hfFold(connecting.group).find(".tncstatus").text()).toBe("Connecting…");
+    const heard = make({ hf: hfState({ modem: { ...hfState().modem!, snr: 3.4 } }) }, on);
+    expect(hfFold(heard.group).find(".tncstatus").text()).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
+    expect(hf(heard.group).text()).not.toContain("127.0.0.1");
   });
 });

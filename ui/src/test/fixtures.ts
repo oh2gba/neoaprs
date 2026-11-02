@@ -341,6 +341,7 @@ export function hfState(extra: Partial<TncState> = {}): TncState {
       mode: "DATAC3",
       keyed: false,
       busy: false,
+      test: "",
       snr: null,
       frames_keyed: 0,
       max_frame: 123,
@@ -434,6 +435,7 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
   const values: Record<string, string> = {
     "fm/enabled": "true",
     "hf/enabled": "false",
+    "hf/profile": "mercury",
     "tnc/profile": "kenwood-tnc2",
     "serial/port": "",
     "serial/baud": "9600",

@@ -108,6 +108,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.profile.tip1": "NeoAPRS が無線機やモデム(その TNC)とどう通信するかを決めます。お使いのものに合う行を選んでください。",
   "settings.profile.tip2":
     "ほとんどの TNC は「KISS TNC」、Direwolf やサウンドカードは「KISS over TCP」です。無線機がなければ「ダミー」。docs/RADIOS.md を見てください。",
+  "settings.hf_profile.tip1": "SSB無線機とサウンドカードで使うMercuryモデム、または作り物の遠方局を相手にするダミーHF無線機。",
+  "settings.hf_profile.tip2": "ダミーは何も送信せず、自分のフレームをスピーカーで鳴らすので、モデムの音を確かめられます。",
 
   "settings.port.name": "TNCポート",
   "settings.port.label": "ポート",
@@ -146,6 +148,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.cm108": "CM108サウンドチップ",
   "settings.keying.rts": "{port}のRTS",
   "settings.keying.dtr": "{port}のDTR",
+  "settings.keying.test": "テスト",
+  "settings.tune": "チューン",
+  "settings.tune_stop": "停止",
   "settings.last_port.label": "最後に検出したポート",
 
   "settings.network.name": "ネットワークアクセス",
@@ -319,6 +324,11 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.dummy": "ダミー無線機：作り物のトラフィック、電波は出ません",
   "settings.tnc.transmitting": "送信中…",
   "settings.tnc.busy": "チャネル使用中、待機",
+  "settings.tnc.tuning": "チューン中…",
+  "settings.tnc.keyed": "送信状態",
+  "settings.tnc.listening": "受信待機",
+  "settings.tnc.snr": "SNR {db} dB",
+  "settings.tnc.dummy_hf": "ダミーHF無線機：作り物の遠方局、自分のフレームはスピーカーへ、電波は出ません",
   "settings.tnc.no_packet": "パケットはまだありません",
   "settings.tnc.last_packet": "最終パケットは{span}前",
   "settings.digi.on": "オン",

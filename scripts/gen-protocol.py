@@ -49,7 +49,7 @@ from neoaprs.ownobject import COMMENT_MAX, COMMENT_MAX_MOTION, COURSE_MAX, ITEM_
 from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
-from neoaprs.tncprofile import PROFILES  # noqa: E402
+from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
 from neoaprs.updateasset import wheel_version  # noqa: E402
 from neoaprs.versions import compare_versions  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
@@ -200,8 +200,11 @@ def _number(name: str, value: float, daemon: str) -> str:
 def _profiles() -> str:
     """The TNC profiles the settings form offers, with what the form needs of each: how it is reached, its speed, and whether it can be asked if it is there."""
     rows = [{"key": p.key, "name": p.name, "transport": p.transport, "baud": p.baud, "probe": p.can_probe} for p in PROFILES]
+    hf = [{"key": p.key, "name": p.name, "transport": p.transport} for p in HF_PROFILES]
     return ("/** The TNC profiles, in the order the settings form offers them (PROFILES of neoaprs/tncprofile.py): how each is reached (`serial` or `tcp`), its speed and whether the daemon can ask it if it is there. */\n"
-            f"export const TNC_PROFILES = {_literal(rows)} as const;\n")
+            f"export const TNC_PROFILES = {_literal(rows)} as const;\n"
+            "/** The HF radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy HF radio (`dummy`). */\n"
+            f"export const HF_PROFILES = {_literal(hf)} as const;\n")
 
 
 def _symbol_names() -> str:

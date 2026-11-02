@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-48 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+50 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -173,6 +173,21 @@ put it into KISS; nothing is sent to the air. Told to the page that asked with `
 ### `find_radio_cancel`
 
 Ends the search of `find_radio`; the page that asked is told `cancelled`. An `error` (`radio.not_running`) when none is running.
+
+### `hf_tune`
+
+Tune: with `on`, keys the HF radio through the keying in use and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early.
+For tuning the antenna, setting the audio level and finding which sound device is the radio. The topic `hf` says `test: "tune"` meanwhile and our frames wait. Answered with an `error` while RX only is ticked
+(`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`).
+
+| field | type | | description |
+|---|---|---|---|
+| `on` | boolean |  | true starts the tone, false stops it |
+
+### `hf_key_test`
+
+The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says
+`test: "key"` meanwhile. The same refusals as `hf_tune`.
 
 ### `set_config`
 
@@ -1386,8 +1401,9 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 | `state` | "stopped" \| "starting" \| "running" \| "waiting" |  | `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why |
 | `problem` | string |  | why the modem is not running (not installed, stopped); empty while it runs |
 | `mode` | string |  | the modem's mode, the same for every station: `DATAC3` |
-| `keyed` | boolean |  | the modem keys the radio now: a frame is on the air (about four seconds) |
+| `keyed` | boolean |  | the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on |
 | `busy` | boolean |  | the modem's busy detector hears a signal on the channel: our frames wait |
+| `test` | "" \| "tune" \| "key" |  | `tune` while the tune tone is on (`hf_tune`), `key` during the keying test (`hf_key_test`); empty otherwise. Our frames wait while either is on |
 | `snr` | number \| null |  | the signal-to-noise ratio of the latest frame decoded, in dB; null before one |
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |

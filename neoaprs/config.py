@@ -13,12 +13,12 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
+from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .radiorules import HF_BEACON_MIN_MIN, RadioRules
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
-from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
+from .tncprofile import DEFAULT as DEFAULT_PROFILE, HF_DEFAULT as DEFAULT_HF_PROFILE, Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
 log = logging.getLogger("neoaprs.config")
@@ -107,6 +107,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
     Setting("hf_enabled", "hf/enabled", boolean),                           # true: the HF radio (the Mercury modem the daemon starts, with mercury/*) is there beside the FM one, or alone (neoaprs/radios.py)
+    Setting("hf_profile", "hf/profile", hf_profile),                        # what the HF radio is: the Mercury modem (mercury), or the Dummy HF radio (dummy-hf) that makes up distant stations and keys nothing
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
     Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
@@ -172,6 +173,7 @@ class Config:
     tcp_host: str = "127.0.0.1"
     tcp_port: int = 8001
     hf_enabled: bool = False
+    hf_profile: str = DEFAULT_HF_PROFILE.key
     mercury_sound_card: str = ""
     mercury_keying: str = ""
     serial_last_port: str = ""

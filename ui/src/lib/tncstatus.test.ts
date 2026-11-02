@@ -3,7 +3,7 @@ import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
 import { lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
-import { NOW, ago, tncState } from "@/test/fixtures";
+import { NOW, ago, hfState, tncState } from "@/test/fixtures";
 
 const searching = () =>
   tncState({
@@ -45,15 +45,16 @@ describe("tncStatus", () => {
       mode: "DATAC3",
       keyed: false,
       busy: false,
+      test: "" as const,
       snr: null,
       frames_keyed: 0,
       max_frame: 123,
       sound_card: "",
       keying: "vox",
     };
-    expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("Transmitting…");
-    expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("Channel busy, waiting");
-    expect(tncStatus(tncState({ modem }), NOW)).toBe("Last packet 30 s ago");
+    expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("DATAC3 · Transmitting… · Last packet 30 s ago");
+    expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
+    expect(tncStatus(tncState({ modem }), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
     expect(tncStatus(tncState({ modem: { ...modem, keyed: true }, state: "waiting", problem: "the Mercury program is not installed" }), NOW)).toBe(
       "Not connected: the Mercury program is not installed",
     );
@@ -117,5 +118,34 @@ describe("the Dummy radio", () => {
       expect(pillText(dummy), locale.code).not.toBe("");
       if (locale.code !== "en") expect(line, locale.code).not.toBe(english);
     }
+  });
+});
+
+describe("the HF radio's line", () => {
+  const modem = { ...hfState().modem! };
+  const hf = (extra: Partial<typeof modem> = {}, more: Parameters<typeof hfState>[0] = {}) => hfState({ modem: { ...modem, ...extra }, ...more });
+
+  it("says the mode, what the modem does, the SNR once a frame was decoded, and the last packet, with nothing of the socket", () => {
+    expect(tncStatus(hf(), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
+    expect(tncStatus(hf({ snr: 3.4 }), NOW)).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
+    expect(tncStatus(hf({ keyed: true, snr: -2.5 }), NOW)).toBe("DATAC3 · Transmitting… · SNR -2 dB · Last packet 30 s ago");
+    expect(tncStatus(hf({ busy: true }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
+    expect(tncStatus(hf({ test: "tune", keyed: true }), NOW)).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
+    expect(tncStatus(hf({ test: "key", keyed: true }), NOW)).toBe("DATAC3 · Keyed · Last packet 30 s ago");
+    expect(tncStatus(hf({}, { stats: { ...hfState().stats, last_packet: null } }), NOW)).toBe("DATAC3 · Listening · No packet yet");
+  });
+
+  it("never shows the address the modem is reached on: Connecting… while the line opens, the modem's problem when it is not running", () => {
+    expect(tncStatus(hf({}, { state: "connecting", path: "socket://127.0.0.1:8100" }), NOW)).toBe("Connecting…");
+    expect(tncStatus(hf({}, { state: "waiting", problem: "Mercury stopped (exit 1); the log says why" }), NOW)).toBe(
+      "Not connected: Mercury stopped (exit 1); the log says why",
+    );
+  });
+
+  it("says of the Dummy HF radio what it is, in the muted pill", () => {
+    const dummy = hfState({ dummy: true, modem: null });
+    expect(pillText(dummy)).toBe("Dummy");
+    expect(pillClass(dummy)).toBe("tnc-dummy");
+    expect(tncStatus(dummy, NOW)).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
   });
 });

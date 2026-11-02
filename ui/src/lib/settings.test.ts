@@ -18,6 +18,7 @@ describe("groupKeys", () => {
       "tcp/host",
       "tcp/port",
       "hf/enabled",
+      "hf/profile",
       "mercury/sound_card",
       "mercury/keying",
       "serial/last_port",

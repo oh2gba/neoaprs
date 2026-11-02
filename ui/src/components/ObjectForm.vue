@@ -3,9 +3,12 @@
 // and the main button reads Save; with none selected it adds a new one and the button reads Add; Cancel (and Esc, also with the cursor in a field) leaves the selection and clears the form completely (no place, the default symbol, nothing else); Add stays off, saying so in its title, until there is a place. The fields: the name (that of an object that is being changed stays; a new one is always an object, an item of ours that is being changed stays an item), the symbol (the picture and its name, a click opens the picker, as in the My station tab), the position (the row Location of the My station tab, components/LocationField.vue: **Choose on map**, a click on the map, or the
 // coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either; Up and Down step either by one, with Shift by ten), and behind a second closed fold, Advanced, as in the My station tab: the path the object goes by (the placeholder is the beacon's; the path builder's button beside it, PathBuilder), its category (a choice of the standard groups of local info by their plain names, or Other... with a code of our own; the value is the code that goes on the air, and a station that asks for the group is sent the object) and, once there is a category, whether it is sent only when asked; Advanced
 // is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the My station tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
+// While both radios are on, the first row of Advanced is the Radio the object goes out on (FM, HF, FM and HF; the daemon keeps it with the object), and the Path row is greyed, in its place, while that is HF alone (HF has no path); with one radio on the row is not there and the object goes on that radio.
+import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
+import { fmOn, hfOn } from "@/lib/radiosides";
 import { rxOnlyReason } from "@/lib/compose";
-import { computed, ref, useId, watch } from "vue";
+import { computed, inject, ref, useId, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -18,7 +21,7 @@ import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
 import { placeOfText } from "@/lib/locator";
 import { CATEGORY_CODES, categoryMessage, isStandardCategory } from "@/lib/qrucategories";
-import { commentLimit, draftProblems, draftReady, NAME_MAX, steppedCourse, steppedSpeed } from "@/lib/ownobjects";
+import { commentLimit, draftProblems, draftReady, NAME_MAX, OBJECT_RADIOS, steppedCourse, steppedSpeed, type ObjectRadio } from "@/lib/ownobjects";
 import { LIMITS } from "@/protocol/lists";
 
 const props = defineProps<{ form: OwnObjectsView; fallbackPath: string }>();
@@ -27,13 +30,19 @@ const qruMax = LIMITS.object.qruGroupMax;
 const draft = props.form.draft; // (the form's own state, kept as one object for as long as the page lives)
 const problems = computed(() => draftProblems(draft));
 const rxOnly = useReceiveOnly();
+const context = inject(DAEMON_KEY, null); // (a form mounted without the page's context, a test, has one radio)
+/** The Radio row is there while both radios are on: the one place the choice means anything. */
+const twoRadios = computed(() => {
+  const values = context?.config.value?.values ?? {};
+  return context !== null && fmOn(values) && hfOn(values);
+});
 const ready = computed(() => draftReady(draft));
 /** The place the draft has in words (the text beside the button); null while it is no place. */
 const place = computed(() => placeOfText(draft.lat, draft.lon));
 /** The fold Moving (course and speed) is open while the draft has either: an object being changed that moves, or a value typed. */
 const moving = computed(() => draft.course.trim() !== "" || draft.speed.trim() !== "");
-/** The fold Advanced (path, category, sent only when asked) is open while the draft has any of them. */
-const advanced = computed(() => draft.path.trim() !== "" || draft.qru.trim() !== "" || draft.onRequest);
+/** The fold Advanced (the radio, the path, the category, sent only when asked) is open while the draft has any of them. */
+const advanced = computed(() => draft.path.trim() !== "" || draft.qru.trim() !== "" || draft.onRequest || (twoRadios.value && draft.radio !== "fm"));
 /** The choice of the Category that stands for "Other...": a word of our own, which has its field. */
 const OTHER = "other";
 const own = ref(false); // ("Other..." chosen and no word typed yet)
@@ -144,7 +153,18 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
       </div>
     </DisclosureBox>
     <DisclosureBox :key="`${form.editing ?? ''}-advanced`" class="settings-fold" :title="t('settings.fold.advanced')" :open="advanced">
-      <div class="field" :class="{ invalid: problems.path }" :title="problems.path">
+      <div v-if="twoRadios" class="field">
+        <label :for="`${id}-radio`">{{ t("objects.field.radio") }}</label>
+        <div class="field-control">
+          <select :id="`${id}-radio`" class="input" :value="draft.radio" @change="draft.radio = ($event.target as HTMLSelectElement).value as ObjectRadio">
+            <option v-for="radio in OBJECT_RADIOS" :key="radio" :value="radio">{{ t(`objects.radio.${radio}`) }}</option>
+          </select>
+          <InfoTip :label="about('objects.field.radio')"
+            ><span class="info-line">{{ t("objects.tip.radio") }}</span></InfoTip
+          >
+        </div>
+      </div>
+      <div class="field" :class="{ invalid: problems.path, disabled: twoRadios && draft.radio === 'hf' }" :title="problems.path">
         <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
         <div class="field-control">
           <input
@@ -153,6 +173,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             class="input mono"
             type="text"
             :placeholder="fallbackPath || t('route.default')"
+            :disabled="twoRadios && draft.radio === 'hf'"
             autocomplete="off"
             spellcheck="false"
           />

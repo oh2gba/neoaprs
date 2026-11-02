@@ -7,7 +7,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, ownObject } from "@/test/fixtures";
+import { ago, configValues, ownObject } from "@/test/fixtures";
 import { cssRule } from "@/test/css";
 
 function pane(rows: OwnObjectRow[] = []) {
@@ -73,6 +73,33 @@ describe("ObjectsPane", () => {
     expect(items[0]?.find(".bulletin-head").text()).not.toContain("Category");
     expect(cssRule(".own-tags")).toMatch(/padding:/);
     expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
+  });
+
+  it("tags, while both radios are on, an object on HF with HF and one on both with FM and HF, beside its category, and an FM object with nothing; with one radio on nobody has one", () => {
+    const list = [
+      ownObject("FAR", { radio: "hf", qru_group: "FOOD", created_at: ago(900) }),
+      ownObject("WIDE", { radio: "both", created_at: ago(600) }),
+      ownObject("NEAR", { created_at: ago(300) }),
+    ];
+    const table = new Map(list.map((r) => [r.name, r]));
+    const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+    const tagsOf = (values: Record<string, string>) => {
+      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ config: configValues(values) })) });
+      return wrapper.findAll(".ownobject").map((i) => i.findAll(".own-tags .tag").map((tag) => [tag.text(), tag.attributes("title")]));
+    };
+    expect(tagsOf({ "hf/enabled": "true" })).toEqual([
+      [
+        ["Food", "Category: Food (FOOD)"],
+        ["HF", "Sent on the HF radio"],
+      ],
+      [
+        ["FM", "Sent on both radios"],
+        ["HF", "Sent on both radios"],
+      ],
+      [],
+    ]);
+    expect(tagsOf({})).toEqual([[["Food", "Category: Food (FOOD)"]], [], []]);
+    expect(tagsOf({ "fm/enabled": "false", "hf/enabled": "true" })).toEqual([[["Food", "Category: Food (FOOD)"]], [], []]);
   });
 
   it("has a symbol for each, from its table and code", () => {

@@ -92,7 +92,7 @@ async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel
     assert not a.ctl.hf_beacon.send_now() and a.ctl.hf_beacon.problem == "the radio is transmitting"
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)         # type: ignore[union-attr]
     assert w.air.collisions == 0 and len(w.air.delivered) == 3
-    assert a.hf.describe().startswith("Mercury DATAC3 at 127.0.0.1:") and "listening" in a.hf.describe()
+    assert a.hf.describe().startswith("Mercury DATAC3, listening")
 
 
 async def test_a_station_that_gates_puts_what_it_hears_over_mercury_on_aprs_is_and_nothing_comes_back(tmp_path: Path) -> None:

@@ -27,7 +27,9 @@ from typing import Protocol
 
 from . import ax25, kiss, serialprobe
 from .clock import Clock, utcnow
+from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
+from .dummyscene import Scene
 from .interlock import Interlock
 from .mercury import too_long
 from .packet import Packet
@@ -55,11 +57,13 @@ ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (t
 
 class Modem(Protocol):
     """What the Tnc asks of the modem program behind its line when the profile is a modem's (the Mercury HF modem, mercurymodem.py, set by app.py): why the line cannot be opened (the program is not there, it stopped),
-    why no frame is to go now (the modem is transmitting a frame, the channel is busy) and its words for the radio's status line."""
+    why no frame is to go now (the modem is transmitting a frame, the channel is busy) and its words for the radio's status line; and, when the profile is the Dummy HF radio's, that it plays the frames the Tnc
+    writes through the computer's speakers (`play`)."""
     @property
     def problem(self) -> str: ...
     def hold(self) -> str: ...
     def describe(self) -> str: ...
+    def play(self, data: bytes) -> None: ...
 
 
 def _speed(path: str, baud: int) -> str:
@@ -68,8 +72,12 @@ def _speed(path: str, baud: int) -> str:
 
 
 async def open_port(tnc: "Tnc", path: str) -> TncPort | DummyPort:
-    """The line at `path`, open: the Dummy radio's, or a serial port (a socket) of the Tnc's speed. Raises SerialError."""
-    port = DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock) if tnc.is_dummy else TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
+    """The line at `path`, open: the Dummy radio's (the HF scene with the modem as its speaker for the HF radio's Dummy, the Dummy radio's own scene otherwise), or a serial port (a socket) of the Tnc's speed. Raises SerialError."""
+    if tnc.is_dummy:
+        hf = tnc.rules.kind == "hf"
+        port: TncPort | DummyPort = DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, scene_of=HfScene if hf else Scene, speaker=tnc.modem if hf else None)
+    else:
+        port = TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
     await port.open()
     return port
 
@@ -81,7 +89,7 @@ def _printable(text: str) -> str:
 def _describe(tnc: "Tnc") -> str:
     """The Tnc in a few words, for the radio's status line."""
     if tnc.is_dummy:
-        return f"dummy radio, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
+        return f"dummy {'HF ' if tnc.rules.kind == 'hf' else ''}radio, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
     if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
         return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
     if tnc.searching:

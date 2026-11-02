@@ -50,6 +50,7 @@ describe("useOwnObjects", () => {
       path: "",
       qru: "",
       onRequest: false,
+      radio: "fm",
     });
     expect(view.pin).toBeNull();
   });
@@ -168,6 +169,7 @@ describe("useOwnObjects", () => {
         path: null,
         qru_group: "",
         on_request: false,
+        radio: "fm",
       },
     ]);
     expect(view.dirty).toBe(true);
@@ -279,6 +281,7 @@ describe("useOwnObjects", () => {
         path: "WIDE2-1",
         qru_group: "",
         on_request: false,
+        radio: "fm",
       },
     ]);
     view.move("NOBODY", 1, 2);

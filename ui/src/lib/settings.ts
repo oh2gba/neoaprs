@@ -24,7 +24,7 @@ import {
   type Choice,
 } from "@/lib/settingchoices";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
-import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
+import { CONFIG_KEYS, HF_PROFILES, LIMITS, TNC_PROFILES } from "@/protocol/lists";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice" | "password" | "call";
 
@@ -163,6 +163,13 @@ const SPECS: Record<string, FieldSpec> = {
     choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
     tipLabel: "settings.profile.tip_label",
     tip: ["settings.profile.tip1", "settings.profile.tip2"],
+    picture: "dummy",
+  },
+  "hf/profile": {
+    label: "settings.profile.label",
+    kind: "choice",
+    choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: p.name })),
+    tip: ["settings.hf_profile.tip1", "settings.hf_profile.tip2"],
     picture: "dummy",
   },
   "serial/port": {
@@ -355,7 +362,12 @@ interface Group {
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/", "mercury/"], also: ["station/transmit", "fm/enabled", "hf/enabled"] },
+  {
+    id: "serial",
+    title: "settings.group.tnc",
+    prefixes: ["tnc/", "serial/", "tcp/", "mercury/"],
+    also: ["station/transmit", "fm/enabled", "hf/enabled", "hf/profile"],
+  },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },

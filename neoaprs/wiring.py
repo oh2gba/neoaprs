@@ -21,7 +21,7 @@ from .serialprobe import search_pattern
 from .source import Source
 from .stationbook import DETAILS_SEEN, ROUTES_SEEN
 from .tnc import Tnc
-from .tncprofile import MERCURY, Profile, names_tcp, tcp_url
+from .tncprofile import Profile, hf_profile_of, names_tcp, tcp_url
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
@@ -58,8 +58,12 @@ def tnc_settings(config: Config, port_override: str = "", pattern_override: str 
 
 def hf_settings(config: Config, port_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
     """What the HF radio's Tnc is started with: the Mercury profile, reached on `modem_port` (the broadcast port the modem part chose for the program it starts), or at the `socket://` address given for this run
-    (`--hf-port`: a Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches."""
-    return TncSettings(port_override or tcp_url(MERCURY_HOST, modem_port), 9600, MERCURY, False, (), "", (config.mercury_sound_card, config.mercury_keying))
+    (`--hf-port`: a Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches. The Dummy HF radio (hf/profile) opens
+    nothing, as the FM radio's Dummy does."""
+    profile = hf_profile_of(config.hf_profile)
+    if profile.transport == "dummy":
+        return TncSettings(DUMMY_PATH, 9600, profile, False, (), "")
+    return TncSettings(port_override or tcp_url(MERCURY_HOST, modem_port), 9600, profile, False, (), "", (config.mercury_sound_card, config.mercury_keying))
 
 
 def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:

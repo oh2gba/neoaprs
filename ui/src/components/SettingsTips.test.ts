@@ -97,6 +97,7 @@ describe("the pictures in the notes of the Settings fields", () => {
     ["igate/enabled", "internet"],
     ["station/transmit", "transmit"],
     ["tnc/profile", "dummy"],
+    ["hf/profile", "dummy"],
     ["gps/source", "position"],
     ["mercury/sound_card", "mercury"],
     ["mercury/keying", "mercury"],

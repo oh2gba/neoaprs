@@ -56,6 +56,11 @@ class Scene:
     def where(self, east_km: float, north_km: float) -> tuple[float, float]:
         return around(self.centre, east_km, north_km)
 
+    @property
+    def description(self) -> str:
+        """For the log: where the traffic is made."""
+        return f"traffic round {self.centre[0]:.4f}, {self.centre[1]:.4f}"
+
     # ---- what is on the air
     def due(self, now: datetime) -> list[ax25.Frame]:
         """The frames that have come due by `now`, in the order of the air."""

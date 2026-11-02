@@ -36,6 +36,7 @@ describe("emptyDraft and draftOf", () => {
       path: "",
       qru: "",
       onRequest: false,
+      radio: "fm",
     });
     expect(objectCommand(emptyDraft())).toBeNull();
   });
@@ -62,6 +63,7 @@ describe("emptyDraft and draftOf", () => {
       path: "WIDE2-1",
       qru: "",
       onRequest: false,
+      radio: "fm",
     });
     expect(draftOf(ownObject("AID", { kind: "item" }))).toMatchObject({ kind: "item", course: "", speed: "", path: "" });
   });
@@ -149,6 +151,7 @@ describe("objectCommand", () => {
       path: "WIDE2-1",
       qru_group: "",
       on_request: false,
+      radio: "fm",
     });
   });
 
@@ -184,6 +187,7 @@ describe("moveCommand", () => {
       path: "WIDE2-1",
       qru_group: "",
       on_request: false,
+      radio: "fm",
     });
   });
 

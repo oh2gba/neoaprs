@@ -12,6 +12,7 @@ from .app import Frontend, Services
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, Config
 from .policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
+from .radios import hf_is_mercury
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
@@ -134,7 +135,7 @@ class Controller(Services):
         await self.hf.stop()
         await self.mercury.stop()
         if self.config.hf_enabled:
-            await self.mercury.start(self.config, self.hf_port_override)       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs)
+            await self.mercury.start(self.config, self.hf_port_override, speaker=not hf_is_mercury(self.config))       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs; for the Dummy HF radio the program is the speaker)
         self._configure_tnc()
         if self.config.fm_enabled:
             await self.tnc.start()

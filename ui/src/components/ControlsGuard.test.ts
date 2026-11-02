@@ -47,14 +47,14 @@ function surfaces() {
 }
 
 describe("the controls of the Settings tab, the My station tab and the Objects form", () => {
-  it("have no dropdown that is an on/off: a dropdown offers a real choice of three values or more, or is a list of what is found (a port, a path)", () => {
+  it("have no dropdown that is an on/off: a dropdown offers a real choice of three values or more, or is a list of what is found or of kinds (a port, a path, a radio type)", () => {
     for (const root of surfaces()) {
       for (const { id, values } of dropdowns(root)) {
         expect(
           values.every((v) => ON_OFF.test(v)),
           `${id}: ${values.join(" / ")} is an on/off: make it a tickbox`,
         ).toBe(false);
-        expect(values.length === 2 && !/port|path|language|kind|card|keying/i.test(id), `${id}: two choices are a tickbox`).toBe(false);
+        expect(values.length === 2 && !/port|path|language|kind|card|keying|profile/i.test(id), `${id}: two choices are a tickbox`).toBe(false); // (a radio type is a list of kinds that grows: the HF radio's has two today)
       }
     }
   });

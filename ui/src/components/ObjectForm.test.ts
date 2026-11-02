@@ -5,7 +5,8 @@ import ObjectForm from "@/components/ObjectForm.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
-import { ownObject } from "@/test/fixtures";
+import { fakeDaemon, withDaemon } from "@/test/context";
+import { configValues, ownObject } from "@/test/fixtures";
 
 /** The form with a place picked (60.17, 24.94), unless `placed` is false: a new object has none to start with. */
 function form(rows: OwnObjectRow[] = [], placed = true) {
@@ -309,6 +310,7 @@ describe("ObjectForm", () => {
         path: "WIDE2-1",
         qru_group: "",
         on_request: false,
+        radio: "fm",
       },
     ]);
   });
@@ -523,5 +525,65 @@ describe("ObjectForm", () => {
     await speed.trigger("keydown", { key: "ArrowUp", shiftKey: true });
     await speed.trigger("keydown", { key: "ArrowDown" });
     expect(view.draft.speed).toBe("9");
+  });
+});
+
+describe("the radio of an object", () => {
+  const withRadios = (values: Record<string, string>, rows: OwnObjectRow[] = []) => {
+    const table = new Map(rows.map((r) => [r.name, r]));
+    const sent: Command[] = [];
+    const view = useOwnObjects(table, (command) => (sent.push(command), true), { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+    view.place(60.17, 24.94);
+    const wrapper = mount(ObjectForm, {
+      props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" },
+      global: withDaemon(fakeDaemon({ config: configValues(values) })),
+    });
+    const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
+    return { wrapper, view, sent, field };
+  };
+  const BOTH = { "hf/enabled": "true" };
+
+  it("is the first row of Advanced while both radios are on: FM, HF, FM and HF, FM first, with an (i); and is not there with one radio on", () => {
+    const { wrapper, field } = withRadios(BOTH);
+    const radio = field("Radio");
+    expect(radio?.find("select").exists()).toBe(true);
+    expect([...radio!.find<HTMLSelectElement>("select").element.options].map((o) => o.text)).toEqual(["FM", "HF", "FM and HF"]);
+    expect(radio!.find<HTMLSelectElement>("select").element.value).toBe("fm");
+    expect(radio!.find(".info-toggle").exists()).toBe(true);
+    const fold = wrapper.findAll("details").find((d) => d.find("summary").text() === "Advanced");
+    expect(fold?.findAll(".field").map((f) => f.find("label").text())).toEqual(["Radio", "Path", "Category"]);
+    for (const values of [{}, { "fm/enabled": "false", "hf/enabled": "true" }] as Record<string, string>[])
+      expect(withRadios(values).field("Radio"), JSON.stringify(values)).toBeUndefined();
+  });
+
+  it("greys the Path row, in its place with its value kept, while the radio is HF alone, and sends the radio with the object", async () => {
+    const { wrapper, field, sent, view } = withRadios(BOTH);
+    await wrapper
+      .findAll(".field")
+      .find((f) => f.find("label").text() === "Name")
+      ?.find("input")
+      .setValue("MARK");
+    await field("Path")?.find("input").setValue("WIDE1-1");
+    await field("Radio")?.find("select").setValue("hf");
+    expect(field("Path")?.classes()).toContain("disabled");
+    expect(field("Path")?.find<HTMLInputElement>("input").element.disabled).toBe(true);
+    expect(field("Path")?.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
+    expect(field("Path")?.element.previousElementSibling).toBe(field("Radio")?.element);
+    await field("Radio")?.find("select").setValue("both");
+    expect(field("Path")?.classes()).not.toContain("disabled");
+    await wrapper.find("form").trigger("submit");
+    expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radio: "both", path: "WIDE1-1" });
+    expect(view.draft.radio).toBe("both");
+  });
+
+  it("opens Advanced for an object being changed whose radio is not FM alone, and has its radio in the choice", async () => {
+    const { wrapper, field, view } = withRadios(BOTH, [ownObject("FAR", { radio: "hf" }), ownObject("NEAR")]);
+    view.edit("FAR");
+    await wrapper.vm.$nextTick();
+    expect(field("Radio")?.find<HTMLSelectElement>("select").element.value).toBe("hf");
+    expect(wrapper.findAll("details").find((d) => d.find("summary").text() === "Advanced")?.element.open).toBe(true);
+    view.edit("NEAR");
+    await wrapper.vm.$nextTick();
+    expect(field("Radio")?.find<HTMLSelectElement>("select").element.value).toBe("fm");
   });
 });

@@ -53,6 +53,7 @@ export const CONFIG_KEYS = [
   "tcp/host",
   "tcp/port",
   "hf/enabled",
+  "hf/profile",
   "mercury/sound_card",
   "mercury/keying",
   "serial/last_port",
@@ -108,6 +109,11 @@ export const TNC_PROFILES = [
   {"key": "kiss", "name": "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75\u2026)", "transport": "serial", "baud": 9600, "probe": false},
   {"key": "kiss-tcp", "name": "KISS over TCP (Direwolf, soundmodem)", "transport": "tcp", "baud": null, "probe": false},
   {"key": "dummy", "name": "Dummy (no radio, made-up traffic)", "transport": "dummy", "baud": null, "probe": false},
+] as const;
+/** The HF radio's types (HF_PROFILES of neoaprs/tncprofile.py, the setting hf/profile): the Mercury modem (`modem`) and the Dummy HF radio (`dummy`). */
+export const HF_PROFILES = [
+  {"key": "mercury", "name": "Mercury HF modem (sound card, SSB radio)", "transport": "modem"},
+  {"key": "dummy-hf", "name": "Dummy HF radio (no radio, made-up distant stations)", "transport": "dummy"},
 ] as const;
 
 /** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */

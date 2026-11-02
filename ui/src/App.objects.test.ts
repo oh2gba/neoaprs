@@ -84,6 +84,7 @@ describe("App: the Objects tab", () => {
           path: null,
           qru_group: "",
           on_request: false,
+          radio: "fm",
         },
       ]);
       expect(field(wrapper, "Name")?.element.value).toBe("MARK");
@@ -236,6 +237,7 @@ describe("App: the Objects tab", () => {
           path: null,
           qru_group: "",
           on_request: false,
+          radio: "fm",
         },
       ]);
     });

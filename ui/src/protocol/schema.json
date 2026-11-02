@@ -1824,6 +1824,41 @@
       "title": "HelloMessage",
       "type": "object"
     },
+    "HfKeyTest": {
+      "additionalProperties": false,
+      "description": "The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says\n`test: \"key\"` meanwhile. The same refusals as `hf_tune`.",
+      "properties": {
+        "cmd": {
+          "const": "hf_key_test",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "HfKeyTestCommand",
+      "type": "object"
+    },
+    "HfTune": {
+      "additionalProperties": false,
+      "description": "Tune: with `on`, keys the HF radio through the keying in use and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early.\nFor tuning the antenna, setting the audio level and finding which sound device is the radio. The topic `hf` says `test: \"tune\"` meanwhile and our frames wait. Answered with an `error` while RX only is ticked\n(`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`).",
+      "properties": {
+        "cmd": {
+          "const": "hf_tune",
+          "type": "string"
+        },
+        "on": {
+          "description": "true starts the tone, false stops it",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cmd",
+        "on"
+      ],
+      "title": "HfTuneCommand",
+      "type": "object"
+    },
     "HopRow": {
       "additionalProperties": false,
       "description": "One digipeater of the path an attempt went by, and whether a copy of our own message was heard back with that hop used.",
@@ -2608,12 +2643,21 @@
           "type": "string"
         },
         "keyed": {
-          "description": "the modem keys the radio now: a frame is on the air (about four seconds)",
+          "description": "the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on",
           "type": "boolean"
         },
         "busy": {
           "description": "the modem's busy detector hears a signal on the channel: our frames wait",
           "type": "boolean"
+        },
+        "test": {
+          "description": "`tune` while the tune tone is on (`hf_tune`), `key` during the keying test (`hf_key_test`); empty otherwise. Our frames wait while either is on",
+          "enum": [
+            "",
+            "tune",
+            "key"
+          ],
+          "type": "string"
         },
         "snr": {
           "anyOf": [
@@ -2651,6 +2695,7 @@
         "mode",
         "keyed",
         "busy",
+        "test",
         "snr",
         "frames_keyed",
         "max_frame",
@@ -6748,6 +6793,8 @@
           "forget_station": "#/$defs/ForgetStation",
           "forget_station_key": "#/$defs/ForgetStationKey",
           "general_query": "#/$defs/GeneralQuery",
+          "hf_key_test": "#/$defs/HfKeyTest",
+          "hf_tune": "#/$defs/HfTune",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
           "map_estimate": "#/$defs/MapEstimate",
@@ -6819,6 +6866,12 @@
         },
         {
           "$ref": "#/$defs/FindRadioCancel"
+        },
+        {
+          "$ref": "#/$defs/HfTune"
+        },
+        {
+          "$ref": "#/$defs/HfKeyTest"
         },
         {
           "$ref": "#/$defs/SetConfig"

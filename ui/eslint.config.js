@@ -78,8 +78,8 @@ export default tseslint.config(
   },
 
   {
-    // a language's catalogue is one file of data with every id of en.ts (docs/development.md, Translations): it is not split by size
-    files: ["src/i18n/de.ts", "src/i18n/fr.ts"],
+    // a language's catalogue is one file of data with every id of en.ts (docs/development.md, Translations), or one file per area of the page: neither is split by size
+    files: ["src/i18n/de.ts", "src/i18n/fr.ts", "src/i18n/*/*.ts"],
     rules: { "max-lines": "off" },
   },
 

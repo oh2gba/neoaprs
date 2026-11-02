@@ -83,9 +83,17 @@ MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem"
 DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (), None, False, False,
                 "Nothing goes on the air and nothing is opened: the traffic is made up by the program, around the station's position.")
 
-PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)       # the FM radio's types; MERCURY is the HF radio's one profile (neoaprs/radios.py) and no choice here
+# The Dummy HF radio (neoaprs/dummyhfscene.py): the HF radio's Dummy, with the rules of HF. A handful of distant fixed stations beacon every half hour to an hour, one answers a message; nothing goes on the air
+# and nothing is keyed, and what we send is played through the computer's speakers as Mercury's real audio (mercurymodem.py), so that the HF side can be tried with no radio and no other station on the air.
+DUMMY_HF = Profile("dummy-hf", "Dummy HF radio (no radio, made-up distant stations)", "dummy", None, (), None, False, False,
+                   "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", rules=HF)
+
+PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)       # the FM radio's types (tnc/profile); the HF radio's are HF_PROFILES (hf/profile)
+HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)                                                 # the HF radio's types (neoaprs/radios.py): the Mercury modem, and its Dummy last, as the FM radio's is
 BY_KEY = {p.key: p for p in PROFILES}
+HF_BY_KEY = {p.key: p for p in HF_PROFILES}
 DEFAULT = KISS                              # a fresh install: no text is ever sent to a device that was not named
+HF_DEFAULT = MERCURY
 
 
 def profile_of(key: str) -> Profile:
@@ -94,6 +102,14 @@ def profile_of(key: str) -> Profile:
         return BY_KEY[key.strip()]
     except KeyError:
         raise CodedError(f"{key!r} is not a TNC profile (the profiles are {', '.join(BY_KEY)})", "setting.not_profile", value=key) from None
+
+
+def hf_profile_of(key: str) -> Profile:
+    """The HF radio's profile with this key (hf/profile): the Mercury modem or the Dummy HF radio."""
+    try:
+        return HF_BY_KEY[key.strip()]
+    except KeyError:
+        raise CodedError(f"{key!r} is not a type of the HF radio (the types are {', '.join(HF_BY_KEY)})", "setting.not_hf_profile", value=key) from None
 
 
 def names_tcp(path: str) -> bool:

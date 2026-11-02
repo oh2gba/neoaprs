@@ -18,12 +18,14 @@ from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.pref import Alert
+from neoaprs.radios import hf_is_mercury
 from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bluetooth_ports, with_links
 
 from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from . import historyhandlers  # noqa: F401  (the commands answered from the logs: importing it registers them)
+from . import hfhandlers  # noqa: F401  (Tune and the keying test of the HF radio: importing it registers them)
 from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
@@ -105,7 +107,7 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if ctx.ctl.config.hf_enabled else []        # (the Mercury program is run for its list: only while it is the radio type)
+    cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if hf_is_mercury(ctx.ctl.config) else []        # (the Mercury program is run for its list: only while it is the HF radio)
     ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports],
                    "sound_cards": [{"id": c.id, "name": c.name, "default": c.default} for c in cards]})
 

@@ -18,7 +18,7 @@ RESET = {"map/maxzoom": "14", "map/source": "https://example.org/world.pmtiles",
 REMOVED = ["messages/attempts", "log/keep_days", "update/check", "tnc/check_sec", "tnc/watchdog_min", "map/hide_after_min", "beacon/destination", "beacon/compressed", "beacon/dao"]
 KEPT = {"station/call": "OH2GBA", "station/transmit": "false", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "\\", "station/symbol_code": ">", "station/comment": "odd comment",
         "station/status": "hello", "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB7", "serial/baud": "19200", "serial/last_port": "/dev/ttyUSB7", "tcp/host": "10.0.0.5", "tcp/port": "8100",
-        "fm/enabled": "false", "hf/enabled": "true", "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3",
+        "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3",
         "beacon/interval_min": "45", "beacon/path": "WIDE2-2", "beacon/power_w": "25", "beacon/antenna_height_m": "12", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE",
         "web/network": "true", "web/key": "k7m2-x9pq-4hrt", "web/https": "true", "web/port": "7777", "web/allowed_hosts": "radio.lan,shack",
         "messages/alert": "false", "messages/alert_command": "echo hi", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "status/interval_min": "60", "status/template": "{freq}",

@@ -1,9 +1,10 @@
-"""The radio on the wire: the topic `tnc` (one value, told whole at most four times a second) and the command to open the line again. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""The radio on the wire: the topics `tnc` and `hf` (one value each, told whole at most four times a second), and the commands of the HF radio's Tune and keying test. Models like the rest of the protocol, listed in
+`neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Model
+from .wirebase import Iso, _Command, _Model
 
 
 class TncStats(_Model):
@@ -34,8 +35,9 @@ class ModemState(_Model):
     state: Literal["stopped", "starting", "running", "waiting"] = Field(description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why")
     problem: str = Field(description="why the modem is not running (not installed, stopped); empty while it runs")
     mode: str = Field(description="the modem's mode, the same for every station: `DATAC3`")
-    keyed: bool = Field(description="the modem keys the radio now: a frame is on the air (about four seconds)")
+    keyed: bool = Field(description="the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on")
     busy: bool = Field(description="the modem's busy detector hears a signal on the channel: our frames wait")
+    test: Literal["", "tune", "key"] = Field(description="`tune` while the tune tone is on (`hf_tune`), `key` during the keying test (`hf_key_test`); empty otherwise. Our frames wait while either is on")
     snr: float | None = Field(description="the signal-to-noise ratio of the latest frame decoded, in dB; null before one")
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
     max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
@@ -71,3 +73,17 @@ class TncState(_Model):
         description="what the watchdog did last: `check` (the radio asked whether it is there, after a quiet period), `probe` (the same, while the radio is silent) or `reopen` (the port closed and opened again); empty if it has done nothing since the daemon started")
     last_watchdog_at: Iso | None = Field(description="when the watchdog did that; null if it has done nothing since the daemon started")
     lines: list[TncLine] = Field(max_length=100, description="the latest 100 lines of what the TNC saw and did, oldest first")
+
+
+class HfTune(_Command):
+    """Tune: with `on`, keys the HF radio through the keying in use and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early.
+    For tuning the antenna, setting the audio level and finding which sound device is the radio. The topic `hf` says `test: "tune"` meanwhile and our frames wait. Answered with an `error` while RX only is ticked
+    (`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`)."""
+    cmd: Literal["hf_tune"]
+    on: bool = Field(description="true starts the tone, false stops it")
+
+
+class HfKeyTest(_Command):
+    """The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says
+    `test: "key"` meanwhile. The same refusals as `hf_tune`."""
+    cmd: Literal["hf_key_test"]

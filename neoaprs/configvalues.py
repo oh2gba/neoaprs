@@ -8,7 +8,7 @@ from .configtypes import text_of
 from .mercury import keying_of
 from .message import path_choice
 from .route import DIRECT_ONLY
-from .tncprofile import profile_of
+from .tncprofile import hf_profile_of, profile_of
 
 MAX_SERIAL_PATTERN = 500
 MAX_MAP_SOURCE = 500                 # the longest map/source
@@ -77,6 +77,11 @@ def map_source(text: str) -> str:
 def tnc_profile(text: str) -> str:
     """The key of a TNC profile (tncprofile.py), written the way the setting keeps it."""
     return profile_of(text).key
+
+
+def hf_profile(text: str) -> str:
+    """The key of a type of the HF radio (tncprofile.py: HF_PROFILES), written the way the setting keeps it."""
+    return hf_profile_of(text).key
 
 
 def mercury_keying(text: str) -> str:

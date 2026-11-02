@@ -160,11 +160,11 @@ async def test_the_modem_writes_its_configuration_starts_the_program_on_free_por
         assert "busy_detect = true" in ini and "line = rts" in ini and (tmp_path / PID_FILE).read_text() == str(m.pid)
         await until(lambda: m.state == "running", 5.0)
         assert await connects(m.broadcast_port) and m.control_port == m.broadcast_port + CONTROL_OFFSET
-        assert m.describe().startswith(f"Mercury DATAC3 at 127.0.0.1:{m.broadcast_port}, listening") and m.hold() == "" and m.problem == ""
+        assert m.describe() == "Mercury DATAC3, listening" and m.hold() == "" and m.problem == "", "the ports are the log's, not the status line's"
     finally:
         pid = m.pid
         await stopped(m)
-    assert not _alive(pid) and m.describe() == f"Mercury DATAC3 at 127.0.0.1:{m.broadcast_port}, stopped"
+    assert not _alive(pid) and m.describe() == "Mercury DATAC3, stopped"
 
 
 async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_after_the_back_off(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -310,7 +310,7 @@ async def test_the_tnc_holds_its_frames_while_the_modem_transmits_or_hears_a_bus
     import time
     m.keyed, m._keyed_at = True, time.monotonic()
     assert not r.tnc.usable and r.tnc.why_unusable() == TRANSMITTING and not r.tnc.send_frame(ui_frame())
-    assert r.tnc.describe().startswith("Mercury DATAC3 at 127.0.0.1:") and "transmitting" in r.tnc.describe()
+    assert r.tnc.describe().startswith("Mercury DATAC3, transmitting")
     m.keyed = False
     m.busy, m._busy_at = True, time.monotonic()
     assert r.tnc.why_unusable() == CHANNEL_BUSY and not r.tnc.send_frame(ui_frame())

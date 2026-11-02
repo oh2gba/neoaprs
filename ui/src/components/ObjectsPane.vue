@@ -19,11 +19,14 @@ import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { stateText } from "@/lib/ownobjects";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
+import { fmOn, hfOn } from "@/lib/radiosides";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
-const { fallbackPath, now } = useDaemonContext();
+const { fallbackPath, now, config } = useDaemonContext();
+/** The radio tags of a row are there while both radios are on: an object on HF has HF, one on both FM and HF; an FM object, the default, is unmarked, so the list is today's for most rows. */
+const twoRadios = computed(() => fmOn(config.value?.values ?? {}) && hfOn(config.value?.values ?? {}));
 const sure = useSure<string>(); // (the name of a row)
 /** The copy menu of a row: the name of the object. */
 const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));
@@ -100,6 +103,16 @@ watch(
               <TagMark v-if="row.qru_group" tone="neutral" class="own-category" :title="t('objects.in_group', { group: groupName(row.qru_group) })">{{
                 categoryLabel(row.qru_group)
               }}</TagMark>
+              <TagMark v-if="twoRadios && row.radio === 'both'" tone="neutral" class="own-radio" :title="t('objects.radio_title.both')">{{
+                t("objects.radio.fm")
+              }}</TagMark>
+              <TagMark
+                v-if="twoRadios && row.radio !== 'fm'"
+                tone="neutral"
+                class="own-radio"
+                :title="t(row.radio === 'both' ? 'objects.radio_title.both' : 'objects.radio_title.hf')"
+                >{{ t("objects.radio.hf") }}</TagMark
+              >
             </div>
           </li>
         </ul>

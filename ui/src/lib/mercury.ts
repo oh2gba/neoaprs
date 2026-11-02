@@ -2,10 +2,14 @@
 // as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how the setting `mercury/keying` is written.
 import { t } from "@/i18n";
 import type { Choice } from "@/lib/settingchoices";
-import { LIMITS } from "@/protocol/lists";
+import { HF_PROFILES, LIMITS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const LINES = ["rts", "dtr"] as const;
+
+/** Whether the HF radio is the Mercury modem in these settings (`hf/profile`; Mercury unless they say the Dummy HF radio): the sound card, the keying, Tune and the keying test are the modem's. */
+export const hfIsMercury = (values: Readonly<Record<string, string>>): boolean =>
+  HF_PROFILES.find((p) => p.key === (values["hf/profile"] ?? ""))?.transport !== "dummy";
 
 /** The sound cards as a ports message: the id is the device, the system's name its description. */
 export function soundCardPorts(ports: PortsMessage | null): PortsMessage | null {

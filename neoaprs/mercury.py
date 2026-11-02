@@ -42,6 +42,35 @@ FREQUENCIES: tuple[tuple[int, str], ...] = ((30, "10.1462"), (40, "7.0541"), (20
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")           # how the radio is keyed: by itself (VOX, or the radio's own data mode), a CM108 sound chip's GPIO pin (an AIOC, some dongles), or the RTS or DTR line of a serial port (a DigiRig, a home-made interface)
 PTT_WITH_DEVICE = ("rts", "dtr")                     # the kinds that name a serial port after a colon: `rts:/dev/ttyUSB0`, `dtr:COM3`
 
+# Tune and the keying test go through Mercury's own TUNE command on its control port (Mercury 1.9.21, mercury(1): `TUNE -dB` keys the transmitter through the keying it was started with and holds a steady tone at
+# that level in dBFS, `TUNE OFF` unkeys; Mercury unkeys by itself after 60 s whatever the host does), so that the same keying and the same sound card as the frames use are what is tried, and nothing of ours touches
+# the serial port or the sound card that Mercury holds. The tone is Mercury's: 1000 Hz, the frequency VARA's TUNE sends too (the control port takes no other), inside the 1200 to 1800 Hz the modes occupy, so an
+# antenna tuner matches where the signal will be. Its level is Mercury's own default for TUNE, the example the manual gives, and is set at the sound card as the frames' level is, so the radio's ALC at the tone is
+# what it will be on a frame. Ten seconds is long enough for an automatic tuner to find its match (most settle in a few seconds) and for the audio level to be read off a meter, and well under Mercury's deadline.
+# The keying test is the same command for one second (what Mercury's own `-Q` keys for) at the quietest level TUNE takes, 60 dB under full scale: TUNE wants a level, "none" is not one of its choices, and a tone
+# 45 dB under the tune tone moves no meter and is not heard on a monitor, so the operator sees the radio go to transmit and come back with nothing on the air to speak of.
+TUNE_TONE_HZ = 1000
+TUNE_LEVEL_DBFS = -15.0
+TUNE_SEC = 10.0
+KEY_TEST_LEVEL_DBFS = -60.0
+KEY_TEST_SEC = 1.0
+TUNE_OFF = "TUNE OFF"
+
+
+def tune_command(level_dbfs: float) -> str:
+    """The control port's line that keys the radio with the tone at this level (dBFS, -60 to 0): `TUNE -15`."""
+    return f"TUNE {level_dbfs:g}"
+
+
+# The Dummy HF radio (neoaprs/dummyhfscene.py) makes up what is heard and sends nothing on the air; what we send is played through the computer's own speakers as Mercury's real audio, so that the operator hears
+# what the modem sounds like: the bundled Mercury is started keying nothing (`-P none`) on its `fifo` audio backend, two named pipes the daemon paces and plays (neoaprs/mercuryspeaker.py says how and why), and
+# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on its default devices and is not heard.
+
+
+def speaker_audio(capture_fifo: str, playback_fifo: str) -> list[str]:
+    """Mercury's flags for the fifo backend: it hears `capture_fifo` and transmits into `playback_fifo`."""
+    return ["-x", "fifo", "-i", capture_fifo, "-o", playback_fifo]
+
 
 @dataclass(frozen=True)
 class Keying:
@@ -81,11 +110,12 @@ def ports_from(broadcast_port: int) -> tuple[int, int]:
 
 # ---- the program
 
-def command(program: Sequence[str], config_file: str, sound_card: str, keying: Keying, broadcast_port: int = BROADCAST_PORT, control_port: int = CONTROL_PORT) -> list[str]:
+def command(program: Sequence[str], config_file: str, sound_card: str, keying: Keying, broadcast_port: int = BROADCAST_PORT, control_port: int = CONTROL_PORT, audio: Sequence[str] = ()) -> list[str]:
     """The command line that starts Mercury for NeoAPRS: the program (its path; or an interpreter and a module that stands in for it), the configuration file the daemon wrote, the mode, the sound card for capture and
-    playback (empty: the system's default device), the keying, and the two ports. The command line wins over the file, so what matters is said here."""
-    argv = [*program, "-C", config_file, "-m", str(MODE_INDEX), "-b", str(broadcast_port), "-p", str(control_port)]
-    if sound_card:
+    playback (empty: the system's default device; `audio` names another backend instead, the Dummy HF radio's speaker's), the keying, and the two ports. The command line wins over the file, so what matters is
+    said here."""
+    argv = [*program, "-C", config_file, "-m", str(MODE_INDEX), "-b", str(broadcast_port), "-p", str(control_port), *audio]
+    if sound_card and not audio:
         argv += ["-i", sound_card, "-o", sound_card]
     if keying.kind == "vox":
         argv += ["-P", "none"]

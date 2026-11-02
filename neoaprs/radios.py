@@ -15,8 +15,14 @@ from .radiorules import RadioRules
 from .source import Source
 from .stationbook import StationBook
 from .tnc import Tnc
+from .tncprofile import hf_profile_of
 
 KINDS = ("fm", "hf")                     # the slots, in the order a choice falls to them
+
+
+def hf_is_mercury(config: Config) -> bool:
+    """Whether the HF radio, if it is on, is the Mercury modem (the program is started for it, the sound cards are listed, Tune is offered); false while it is off or the Dummy HF radio."""
+    return config.hf_enabled and hf_profile_of(config.hf_profile).transport == "modem"
 
 
 class Radios:

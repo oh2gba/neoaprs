@@ -17,7 +17,10 @@ Mercury 1.9.21 does on the air (what the bench of two real Mercury instances ove
 
 A `FakeMercury` is a `FakeRadio` (tests/support/fakeradio.py) with the air behind it, so an `Env` takes it as its radio. Run as a program (`python -m tests.support.fakemercury -b PORT -p PORT ...`) it stands in for the
 `mercury` binary itself, for the tests of the daemon starting, watching and stopping the program: it takes Mercury's flags, listens on the two ports, echoes nothing, prints a Mercury-like line or two, lists made-up sound
-cards for `-z`, and ends on SIGTERM; `--die-after SECONDS` in its command (or `FAKE_MERCURY_DIE_AFTER` in its environment) makes it die by itself, as a crashed Mercury would."""
+cards for `-z`, and ends on SIGTERM; `--die-after SECONDS` in its command (or `FAKE_MERCURY_DIE_AFTER` in its environment) makes it die by itself, as a crashed Mercury would. What a client writes to its KISS port
+is kept in `fake-mercury-broadcast.bin` in its working directory (the daemon's data folder), so that a test of the Dummy HF radio's speaker can see the frames handed to it.
+
+Both answer Mercury's `TUNE` command on the control port as Mercury 1.9.21 does: `TUNE -15` is `OK` and `PTT ON`, `TUNE OFF` is `OK` and `PTT OFF` (`tuned` keeps the lines a station was given)."""
 import asyncio
 import os
 import signal
@@ -141,6 +144,7 @@ class FakeMercury(FakeRadio):
         self._control_clients: list[asyncio.StreamWriter] = []
         self.control_connections = 0
         self.alive_sec: float | None = None                                # how often IAMALIVE is said; None: never
+        self.tuned: list[str] = []                                         # the TUNE commands a client wrote, as they came
 
     async def start(self) -> None:
         await super().start()
@@ -180,6 +184,10 @@ class FakeMercury(FakeRadio):
                     data = await reader.read(1024)
                 if not data:
                     break
+                for line in data.decode("ascii", "replace").split("\r"):
+                    if line.startswith("TUNE"):
+                        self.tuned.append(line)
+                        writer.write(tune_answer(line))
         except (OSError, asyncio.CancelledError):
             pass
         finally:
@@ -203,6 +211,20 @@ class FakeMercury(FakeRadio):
         self._control_clients.clear()
 
 
+def tune_answer(line: str) -> bytes:
+    """What Mercury 1.9.21 writes back for a TUNE line: OK and the PTT it switched, or WRONG for a line it does not take."""
+    words = line.split()
+    if len(words) != 2:
+        return b"WRONG\r"
+    if words[1].upper() == "OFF":
+        return b"OK\rPTT OFF\r"
+    try:
+        level = float(words[1])
+    except ValueError:
+        return b"WRONG\r"
+    return b"OK\rPTT ON\r" if -60.0 <= level <= 0.0 else b"WRONG\r"
+
+
 def _free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         try:
@@ -215,6 +237,7 @@ def _free(port: int) -> bool:
 # ---- the program that stands in for the binary
 
 ROOT = Path(__file__).resolve().parents[2]
+BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
 
 
 def program(die_after_sec: float | None = None) -> list[str]:
@@ -248,11 +271,23 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
             pass
         writer.close()
 
+    async def keep(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        print("[INF] [tcp-bcast] Broadcast client connected", flush=True)
+        while data := await reader.read(4096):
+            with open(BROADCAST_FILE, "ab") as f:
+                f.write(data)
+        writer.close()
+
     async def control(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         writer.write(b"IAMALIVE\r")
-        await swallow(reader, writer)
+        while data := await reader.read(4096):
+            for line in data.decode("ascii", "replace").split("\r"):
+                if line.startswith("TUNE"):
+                    print(f"[INF] [tcp-ctl] Command received: {line}", flush=True)
+                    writer.write(tune_answer(line))
+        writer.close()
 
-    kiss_server = await asyncio.start_server(swallow, "127.0.0.1", broadcast_port)
+    kiss_server = await asyncio.start_server(keep, "127.0.0.1", broadcast_port)
     control_server = await asyncio.start_server(control, "127.0.0.1", control_port)
     print(f"[INF] [engine] Initialising TCP interfaces (arq={control_port}, bc={broadcast_port})", flush=True)
     print("[INF] [engine] Mercury engine initialised", flush=True)
