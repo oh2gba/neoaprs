@@ -1256,6 +1256,10 @@ export const de: Catalogue = {
   "settings.keying.test": "Test",
   "settings.tune": "Abstimmen",
   "settings.tune_stop": "Stopp",
+  "settings.tune.label": "Abstimmton",
+  "settings.tune.tip_label": "Über den Abstimmton",
+  "settings.tune.tip1":
+    "Tastet das Funkgerät und sendet zehn Sekunden lang einen Dauerton zum Abstimmen der Antenne, Einstellen des Pegels oder Finden der Soundkarte.",
   "settings.last_port.label": "Zuletzt gefundener Port",
 
   "settings.network.name": "Netzwerkzugriff",

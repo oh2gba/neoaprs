@@ -10,6 +10,7 @@ import TrendChart from "@/components/TrendChart.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useFreeDrag } from "@/composables/useFreeDrag";
 import { t } from "@/i18n";
+import { fmOn, hfOn } from "@/lib/radiosides";
 import { HISTORY_HOURS, historyPoints, mapStats } from "@/lib/stats";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -19,12 +20,14 @@ const page = useDaemonContext();
 const root = ref<HTMLElement | null>(null);
 const drag = useFreeDrag(root, "statsplace", () => props.movable);
 
+const values = computed(() => page.config.value?.values ?? {});
 const sections = computed(() =>
   mapStats({
     stations: page.stations.value,
     packets: props.packets,
     status: page.status.value,
-    tnc: page.tnc.value,
+    tnc: fmOn(values.value) ? page.tnc.value : null,
+    hf: hfOn(values.value) ? page.hf.value : null,
     igate: page.igate.value,
     map: page.map.value,
     aging: page.aging.value,

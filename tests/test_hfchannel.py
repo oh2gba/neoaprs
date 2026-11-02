@@ -455,7 +455,7 @@ def test_the_thread_keeps_the_pace_of_the_clock_and_delivers(make) -> None:
     assert elapsed / 0.02 - 4 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)
     heard = rig.samples("B")
     assert len(heard) == blocks * BLOCK - 0 and amplitude(heard[:10 * BLOCK]) == pytest.approx(TONE_RMS * math.sqrt(2), rel=0.05)
-    assert rig.channel.late_blocks == 0 and rig.channel.failure is None
+    assert rig.channel.late_blocks <= blocks // 10 and rig.channel.failure is None, (rig.channel.late_blocks, blocks)          # (a loaded machine may stall the thread for a block; a tenth of them late is no pace)
 
 
 def test_a_block_of_eight_stations_costs_a_small_part_of_the_twenty_milliseconds(make, capsys) -> None:

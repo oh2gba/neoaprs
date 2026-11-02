@@ -36,6 +36,14 @@ AppImage and the packages from) in PEP 440, `neoaprs-0.10.0rc1.tar.gz`, which `w
 version is `0.10.0~rc1`, so that it sorts before `0.10.0` for apt, while its file name has the version as written. The installer and the AppImage are also attached as `NeoAPRS-Setup.exe`
 and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
 
+## What the update trusts
+
+Update now (`neoaprs/updatefetch.py`, `neoaprs/services/selfinstall.py`) trusts GitHub over TLS: it downloads the file of exactly the announced version from the release page of the project (the host
+is checked again at every redirect, the size is capped) and compares its SHA-256 with `SHA256SUMS` of the same release. That list is not signed, so whoever can replace a release's files can replace
+the list too; the check finds a damaged or cut download, not a release that was tampered with at the source. The workflow makes build attestations that the daemon does not check, and the Windows
+installer is not code-signed. A signature over `SHA256SUMS` under a key built into the program would close this; until then the trust is the account that publishes the releases, and the account's
+protection (two-factor sign-in, no token with write access to releases outside the workflow) is the control.
+
 ## A build for testing
 
 Every file of a release can be built on GitHub without releasing anything: start the release workflow by hand on `master` or any branch (Actions, release, *Run workflow*, choose the branch; or
@@ -44,6 +52,17 @@ tarball and `SHA256SUMS` (and the wheel they are built from, which is not a file
 release, no tag and nothing on the version page come of it. About twenty minutes. The files are the artifacts of the run, kept for a few days: `gh run list --workflow release.yml` names the run,
 `gh run download RUN_ID -n release-files` fetches the folder with every file and the notes (`-n windows-installer`, `-n appimage`, `-n deb-amd64`, `-n deb-arm64` or `-n dist` for one of them), and the
 Actions page of the run lists them under *Artifacts*. A tag started by hand (`--ref v<version>`) is not a build for testing but the tag's release run again.
+
+## Moving the Mercury pin
+
+The Mercury that every release carries is the seven constants at the head of `neoaprs/mercury.py`: `VERSION`, `SOURCE_COMMIT`, `SOURCE_URL`, `SOURCE_SHA256`, `WINDOWS_URL`, `WINDOWS_SHA256` and `WINDOWS_SIZE`. The two addresses are made from the others, so five are typed. A new Mercury is a change of them in one commit, with these steps:
+
+1. `VERSION` is Rhizomatica's tag, `SOURCE_COMMIT` the commit that tag points at, `SOURCE_SHA256` the SHA-256 of the archive at `SOURCE_URL`. `WINDOWS_SHA256` and `WINDOWS_SIZE` are those of the zip that Rhizomatica's release of that tag has for Windows (the name `WINDOWS_URL` makes).
+2. Look for the old version and the old commit in the whole tree (`grep -rn`) and change what names them: `packaging/deb/copyright` (the source address), `docs/RADIOS.md`, the profile's description and comments in `neoaprs/tncprofile.py` and `neoaprs/mercury.py`, the fake in `tests/support/fakemercury.py` and the file names of the tarballs in `tests/test_mercury_build.py`, `tests/test_deb.py`, `tests/test_appimage.py` and `tests/test_release.py`.
+3. `scripts/build-mercury --install` builds the new source into the venv and stops when the archive is not the one with the SHA-256 given. If it fails to link, `packaging/mercury/pulse_stub.c` no longer covers what Mercury asks of PulseAudio. Every flag that `command()` of `neoaprs/mercury.py` starts the program with has to be in the new `mercury -h`.
+4. Run the suite, then the real thing: `scripts/mercury-bench` and `scripts/check --stage sim`.
+5. Measure again what [`docs/mercury.md`](mercury.md) quotes (`scripts/mercury-measure`: the time of a frame, the delivery time, the level of the audio, the size of the beacon pause) and move the constants of `neoaprs/mercury.py` and `neoaprs/radiorules.py` and the table of the document when a figure has moved.
+6. The Windows zip is checked against the two constants by `packaging/windows/bundle_mercury.py`, which a build for testing (above) runs, together with the Linux build for both architectures.
 
 ## A release
 

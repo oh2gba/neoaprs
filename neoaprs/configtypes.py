@@ -1,5 +1,6 @@
 """The types a setting can have (config.py has the table of the settings): each is a function from the text of a value to the value, raising ValueError with the reason, and `over_the_air_problem`, the rule for text that goes
 on the air."""
+import re
 from collections.abc import Callable
 from urllib.parse import urlsplit
 
@@ -158,9 +159,9 @@ SECRET_WORDS = ("key", "secret", "password", "token")
 
 
 def is_secret(key: str) -> bool:
-    """Is the setting one whose value is a secret (the access key `web/key`, and any key whose name has key, secret, password or token in it)? The log and the support bundle show such a value as `redacted` does."""
-    name = key.lower()
-    return any(word in name for word in SECRET_WORDS)
+    """Is the setting one whose value is a secret (the access key `web/key`, and any key whose name has key, secret, password or token in it as a word of its own: `mercury/keying` is not one)? The log and the
+    support bundle show such a value as `redacted` does."""
+    return any(word in SECRET_WORDS for word in re.split(r"[^a-z0-9]+", key.lower()))
 
 
 def redacted(key: str, value: str) -> str:

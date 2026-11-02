@@ -11,6 +11,7 @@ import type { StationKeys } from "@/composables/useStationKeys";
 import type { StationPrefs } from "@/composables/useStationPrefs";
 import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
+import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type {
   AlertResultMessage,
@@ -86,8 +87,10 @@ export interface DaemonContext {
   packets: ReadonlyMap<string, PacketRow>;
   /** where the stations were over the span the map's replay asked for (`position_history`); null until one came */
   positionHistory: Read<PositionHistoryMessage | null>;
-  /** the radio link is up */
+  /** a radio link is up (either one: what a message to every radio, the beacon, asks) */
   connected: Read<boolean>;
+  /** the link of one radio is up: what a message asks that goes over the radio it takes (lib/radiosides.ts `radioFor`) */
+  connectedOn: (radio: RadioKind) => boolean;
   /** transmitting is switched off (station/transmit false): RX only */
   receiveOnly: Read<boolean>;
   /** the clock the ages are held against */

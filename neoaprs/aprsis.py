@@ -214,7 +214,10 @@ class AprsIs(Source):
         return reader, writer
 
     async def _line(self, reader: asyncio.StreamReader, hung_up: str) -> bytes:
-        line = await reader.readline()
+        try:
+            line = await reader.readline()
+        except ValueError:                                     # (a line longer than the reader takes, in the greeting or the answer to the login as well as among the packets)
+            raise ConnectionError("the server sent a line that is too long") from None
         self.stats.bytes_in += len(line)
         if not line.endswith(b"\n"):                           # (end of stream, or a line that was cut by the end of it)
             raise ConnectionError(hung_up)
@@ -274,8 +277,6 @@ class AprsIs(Source):
                     line = await self._line(reader, "the server hung up")
             except TimeoutError:
                 raise ConnectionError(f"nothing from the server for {self.lost_sec:g} s") from None
-            except ValueError:                                 # (a line longer than the reader takes)
-                raise ConnectionError("the server sent a line that is too long") from None
             self.last_byte_at = self.now()
             self._take(line.rstrip(b"\r\n"))
 

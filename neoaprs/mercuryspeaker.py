@@ -85,16 +85,22 @@ class SpeakerAudio:
         return True
 
     def start(self) -> None:
+        """The thread of the clock; one that runs from before (Mercury ended and came back without a stop) is ended first, so that two never write into the same pipe."""
+        self._end_thread()
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="mercury-speaker-audio", daemon=True)
         self._thread.start()
 
-    def stop(self) -> None:
+    def _end_thread(self) -> None:
         self._stop.set()
         thread, self._thread = self._thread, None
         if thread is not None:
             thread.join(2.0)
+
+    def stop(self) -> None:
+        self._end_thread()
         self._end_player()
+        self.player_said = False                                # (the next run starts its player again)
         for path in (self.capture, self.playback):
             with contextlib.suppress(OSError):
                 path.unlink()

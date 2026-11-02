@@ -6,6 +6,7 @@ import contextlib
 import logging
 import os
 import sys
+import threading
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -194,18 +195,21 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
     out = tmp_path / "heard.raw"
     audio = SpeakerAudio(tmp_path, player=lambda: [sys.executable, "-c", "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())", str(out)])
     assert audio.prepare() and audio.capture.exists() and audio.playback.exists()
+    started = time.monotonic()
     audio.start()
     try:
         cap = os.open(audio.capture, os.O_RDONLY | os.O_NONBLOCK)                 # (Mercury's side of the capture pipe)
         heard = bytearray()
-        end = time.monotonic() + 0.3
-        while time.monotonic() < end:
+        deadline = started + 10.0
+        while len(heard) < 10 * BLOCK_BYTES and time.monotonic() < deadline:       # (it waits for the blocks and not for a time: a slow machine gets them later)
             with contextlib.suppress(BlockingIOError):
                 heard += os.read(cap, 1 << 16)
             time.sleep(0.005)
+        elapsed = time.monotonic() - started
         os.close(cap)
         blocks = len(heard) / BLOCK_BYTES
-        assert 8 <= blocks <= 20 and set(heard) == {0}, (blocks, "silence at a sound card's pace: 15 blocks of 20 ms in 0.3 s, give or take")
+        assert blocks >= 10 and set(heard) == {0}, (blocks, "silence in blocks of 20 ms")
+        assert blocks <= elapsed / 0.02 + 2, (blocks, elapsed, "at a sound card's pace and not faster")
         play = None
         for _ in range(50):                                                    # (the thread opens its reading end each block; the writing end can be opened once it has)
             try:
@@ -249,3 +253,62 @@ def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(
     finally:
         audio.stop()
     assert audio.bytes_played == 0 and caplog.text.count("no player for the Dummy HF radio's audio") == 1
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
+def test_the_speakers_audio_plays_again_after_a_stop_and_never_runs_two_clocks(tmp_path: Path) -> None:
+    out = tmp_path / "heard.raw"
+    audio = SpeakerAudio(tmp_path, player=lambda: [sys.executable, "-c", "import sys; open(sys.argv[1], 'wb').write(sys.stdin.buffer.read())", str(out)])
+
+    def hand_over(data: bytes) -> None:
+        play = None
+        for _ in range(100):
+            try:
+                play = os.open(audio.playback, os.O_WRONLY | os.O_NONBLOCK)
+                break
+            except OSError:
+                time.sleep(0.02)
+        assert play is not None
+        os.write(play, data)
+        os.close(play)
+        deadline = time.monotonic() + 3.0
+        while audio.bytes_played < len(data) and time.monotonic() < deadline:
+            time.sleep(0.02)
+
+    def clocks() -> int:
+        return len([t for t in threading.enumerate() if t.name == "mercury-speaker-audio"])
+
+    assert audio.prepare()
+    audio.start()
+    audio.start()                                                           # (Mercury came back without a stop in between)
+    try:
+        assert clocks() == 1
+        hand_over(b"\x01\x02\x03\x04" * 100)
+        assert audio.bytes_played == 400 and audio.player_said
+    finally:
+        audio.stop()
+    assert clocks() == 0 and not audio.player_said
+    audio.bytes_played = 0
+    assert audio.prepare()
+    audio.start()
+    try:
+        hand_over(b"\x05\x06\x07\x08" * 100)
+        assert audio.bytes_played == 400, "the radio's second run is heard as the first was"
+    finally:
+        audio.stop()
+    assert out.read_bytes() == b"\x05\x06\x07\x08" * 100
+
+
+async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_is_on_is_a_dummy_and_not_for_one_that_is_off(tmp_path: Path, fast: None) -> None:
+    dummy = Env(tmp_path / "dummy", radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"})
+    dummy.ctl.mercury._finder = lambda: None
+    await dummy.start()
+    assert dummy.ctl.igate.made_up(), "the Dummy HF radio, with the FM radio off"
+    await dummy.stop()
+    air = fakemercury.Air(frame_sec=0.2)
+    await air.start()
+    real = Env(tmp_path / "real", radio=False, hf=air.station(), settings={"tnc/profile": "dummy"})       # (a leftover Dummy profile of the FM radio, which is off)
+    await real.start()
+    assert not real.ctl.igate.made_up(), "the real HF radio alone"
+    await real.stop()
+    await air.aclose()

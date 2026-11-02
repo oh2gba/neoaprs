@@ -65,11 +65,11 @@ class Api:
         cpu_percent, rss_mb = self.meter.sample()
         return {"type": "status", "version": VERSION, "started_at": iso(self.started_at), "packets": await self.ctl.packetlog.count(), "stations": len(self.ctl.stationbook),
                 "call": c.station_call, "lat": c.station_lat, "lon": c.station_lon,
-                "beacon_interval_min": c.beacon_interval_min, "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
+                "beacon_interval_min": c.beacon_interval_of(self.ctl.radios.rules), "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
                 "hf_beacon_last_sent": iso(self.ctl.hf_beacon.last_sent), "hf_beacon_next_due": iso(self.ctl.hf_beacon.next_due),
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
                 "update": None if self.ctl.updatecheck.latest is None else asdict(self.ctl.updatecheck.latest),
-                "message_key": self.ctl.keyring.fingerprint(),
+                "message_key": self.ctl.keyring.fingerprint() if self.ctl.keyring.enabled else "",        # (a key file left by an earlier run with --encryption is nothing while the flag is off)
                 "cpu_percent": cpu_percent, "rss_mb": rss_mb, "uptime_sec": int((self.ctl.clock() - self.started_at).total_seconds())}
 
     def _packet_sent(self) -> None:

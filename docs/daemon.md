@@ -265,6 +265,14 @@ groups are the board's. Every message is a row of the table `message`, so a rest
 - **Telemetry and queries** are recognised before anything is kept: a query, and the definition of a telemetry station's channels (`PARM.`, `UNIT.`, `EQNS.`, `BITS.`), are in the packet log only. A
   query that carries a message id (the specification gives it none; some radios number it) is acked, so that the radio does not retry it; the answer is the queries' as ever.
 
+**Encrypted messages** (`neoaprs/cipher.py` the pure code, `neoaprs/services/keyring.py` the keys, `neoaprs/services/messaging.py` seals, `neoaprs/services/inbox.py` opens). Sending is allowed only when the daemon was started with `--encryption` (`Keyring.allowed`): `send_message` with `locked` and `send_key` are refused with the code `lock.off`, and the `status` message's `message_key` is empty, which is how the page knows the feature is not there. What comes in is opened whenever the keys for it are here, flag or not.
+
+- **Our key** is the file `message.key` of the data folder: a 32-byte X25519 private key, mode 0600, written whole or not at all, made at the start when the flag is given (else the first time it is needed) and replaced by `message_key_new`. Its public half is announced only when the operator asks (`send_key`), as an ordinary message whose text is `!K` and 43 characters of base64, kept with `seal` `key`. The fingerprint (`message_key`) is the first 16 hex characters of the SHA-256 of the public key, in four groups.
+- **A station's key** is kept on first hearing in the table `station_key` (one row per call) and never replaced by a later one: a different key is kept as a message with `seal` `key_other` and not taken until `forget_station_key` removes the old one. The first key heard is trusted, because nothing on the air proves whose it is; the operators compare fingerprints.
+- **The lock.** The two keys give one shared key (X25519, then HKDF-SHA256). A locked message is `!E` and base64 of a 6-byte random nonce, the AES-256-GCM ciphertext and an 8-byte tag, with the two calls as the associated data, so that it does not open under other calls; its text is UTF-8, at most 34 bytes (`cipher.MAX_LOCKED`), one station at a time.
+- **In the message table.** A message of ours is sealed once, when it is written: `text` is what the operator wrote, `wire` what goes on the air, and every attempt sends the same bytes, so that the addressee's duplicate check sees one message. A message to us that opens is kept with the plain text, `wire` the air text and `seal` `open`; one that does not (no key from the sender yet, another key, damaged) is kept as it came with `seal` `shut` and is not tried again when the key comes later. A message to another station that is locked is overheard as `shut`.
+- **Not covered.** There is no replay protection: a locked message heard again after the duplicate window, or under another message number, is shown, alerted and acked again; nothing in it is a time. The nonce is random and the key is not rotated by itself. The words for operators are in [`docs/manual/messages.md`](manual/messages.md#encrypted-messages).
+
 **Alerts** (`neoaprs/services/alerts.py`). The shell line is run by `asyncio.create_subprocess_shell`. Its environment is made by `neoaprs/childenv.py`.
 `TIMEOUT_SEC` is 20 s (60 on Windows), `MAX_RUNNING` is 5, and a failure is told at WARNING once an hour (`TOLD_EVERY`). On Windows the line is a PowerShell
 script run from a thread as an encoded script, so nothing of it is quoted and the text is never in it; a step that fails ends it with status 1
@@ -417,7 +425,7 @@ value the report did not have. The graphs are inline SVG (`lib/chart.ts` is the 
 name; the sender inside a third-party packet), oldest first, with the rule the live track has: a point joins when the station moved more than 10 m or 5 minutes
 passed, the latest 50 are kept.
 
-**The tables** of the database: `settings`, `packet`, `station` (the cache), `message`, `message_attempt`, `message_hop`, `bulletin`, `own_object`,
+**The tables** of the database: `settings`, `packet`, `station` (the cache), `message`, `message_attempt`, `message_hop`, `station_key`, `bulletin`, `own_object`,
 `own_bulletin`, `weather` and `station_pref`. `station_pref` is operator data and not part of the station cache, so it survives a rebuilt cache. Everything is
 described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrationsteps1to11.py`, `neoaprs/migrationsteps12to21.py` and `neoaprs/migrationsteps22on.py`; how the database is written is in
 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md#the-database-actor).
@@ -426,7 +434,7 @@ described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrat
 deleted and the defaults count: `map/maxzoom`, `map/source`, `update/url`, `serial/pattern` and `serial/skip` (they stay settings, for `neoaprs db set`), with one INFO line in the log for each whose value was not
 the default (`map/maxzoom reset to the default: 14 → 12`). The rows of the keys that are no settings (`messages/attempts`, `log/keep_days`, `update/check`, `tnc/check_sec`, `tnc/watchdog_min`,
 `map/hide_after_min`, `beacon/destination`, `beacon/compressed`, `beacon/dao`) are deleted without a line. `web/port`, `web/allowed_hosts`, every setting on the page, the old rows `tnc/enter_kiss` and `web/bind` and the
-daemon's own state rows are not touched. Like every migration, it runs after a copy of the file is made in `backup/`, and a value set after it is kept.
+daemon's own state rows are not touched. Like every migration, it runs after a copy of the file is made in `backup/` (the copy of the migration before is removed once the new one is whole; with less free on the disk than the file's size and 8 MB the migration is refused, nothing changed), and a value set after it is kept.
 
 **The station timeouts** (migration 17, `neoaprs/migrationsteps12to21.py`). The field "Hide from map after" of the station card is gone and every station follows the one choice of the Stations tab (`map/station_hours`, 3 hours by default), so once, at the first start of this version, the own
 timeouts stored in `station_pref.hide_after_min` are cleared, with one INFO line in the log for each station (`OH2RDG: the own timeout of 45 minutes removed, the time on the map of the Stations tab counts`); a row that held nothing else is deleted, and
@@ -437,6 +445,10 @@ alert, and a row may now say only an alert. The setting `messages/alert_command`
 new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log; a command of the operator's own is not touched.
 
 **The ids of the messages** (migration 23, `neoaprs/migrationsteps22on.py`). `message.id` is AUTOINCREMENT: a message never gets the id of one that was deleted, so the page's marks of what it has shown cannot swallow a new message. Every message is kept with its id; the next id is above the highest in `message`, `message_attempt` and `message_hop`.
+
+**Encrypted messages** (migration 24, `neoaprs/migrationsteps22on.py`). The table `station_key` (`call`, `pubkey` as 43 characters of base64, `heard_at`), and the columns `message.seal` (`''` plain, `key`, `key_other`, `open`, `shut`) and `message.wire`. A message kept so far is plain.
+
+**Two radios** (migration 25, `neoaprs/migrationsteps22on.py`). `packet.radio` (`fm`, `hf`, or empty for a packet from the internet), the counts and times a station was heard on each radio (`station.heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at`), `message.radio` and `message_attempt.radio`, and `own_object.radio` (`fm`, `hf` or `both`). The packets of the air kept so far are marked `fm`, the one radio there was, and a station's FM count is the sum of its radio counts. Like every migration, it runs after a copy of the file is made in `backup/`; a NeoAPRS that does not know version 25 refuses the file and does not touch it.
 
 ## What the parser reads
 

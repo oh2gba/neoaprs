@@ -1,9 +1,19 @@
 """The commands of the HF radio's Tune and keying test (neoaprs/web/tncwire.py: `hf_tune`, `hf_key_test`), answered by the modem part (neoaprs/mercurymodem.py) through Mercury's own TUNE command. Registered with the
 dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there."""
 from neoaprs.coded import CodedError
+from neoaprs.config import can_transmit
 
 from .dispatch import Ctx, UserError, command
 from .tncwire import HfKeyTest, HfTune
+
+
+def _may_transmit(ctx: Ctx, name: str) -> None:
+    """The transmit interlock as every other transmission has it: receive only, and a call that may be sent under (a tone with no identification is a transmission too)."""
+    config = ctx.ctl.config
+    if not config.station_transmit:
+        raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
+    if reason := can_transmit(config):
+        raise UserError(f"{name}: {reason}")
 
 
 @command(HfTune)
@@ -12,8 +22,7 @@ async def hf_tune(ctx: Ctx, cmd: HfTune) -> None:
     if not cmd.on:
         await ctx.ctl.mercury.tune_stop()
         return
-    if not ctx.ctl.config.station_transmit:
-        raise UserError("hf_tune: RX only: nothing is sent", "transmit.off")
+    _may_transmit(ctx, "hf_tune")
     try:
         await ctx.ctl.mercury.tune()
     except CodedError as e:
@@ -23,8 +32,7 @@ async def hf_tune(ctx: Ctx, cmd: HfTune) -> None:
 @command(HfKeyTest)
 async def hf_key_test(ctx: Ctx, cmd: HfKeyTest) -> None:
     """Keys the radio for a second with next to no audio; the same refusals as `hf_tune`."""
-    if not ctx.ctl.config.station_transmit:
-        raise UserError("hf_key_test: RX only: nothing is sent", "transmit.off")
+    _may_transmit(ctx, "hf_key_test")
     try:
         await ctx.ctl.mercury.key_test()
     except CodedError as e:

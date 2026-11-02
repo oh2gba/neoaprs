@@ -151,6 +151,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.test": "Probar",
   "settings.tune": "Sintonizar",
   "settings.tune_stop": "Parar",
+  "settings.tune.label": "Tono de sintonía",
+  "settings.tune.tip_label": "Sobre el tono de sintonía",
+  "settings.tune.tip1":
+    "Pone la radio en transmisión con un tono continuo de diez segundos, para sintonizar la antena, ajustar el audio o hallar la tarjeta de sonido.",
   "settings.last_port.label": "Último puerto encontrado",
 
   "settings.network.name": "Acceso desde la red",

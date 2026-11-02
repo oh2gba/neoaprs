@@ -26,12 +26,13 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - your beacon: fixed, or following a GPS with SmartBeaconing for a car, a bicycle, a walker or a boat
 - objects and items of your own, on the map and on the air
 - an optional fill-in digipeater, and stations from the internet on the map
+- APRS over HF with the Mercury modem, a second radio beside the FM one or on its own, for an SSB radio with a sound card
 - a page for a phone, a tablet and a desktop, in English, German, Spanish, Finnish, French, Italian, Japanese and Brazilian Portuguese
 - alerts for a new message, and access from your home network with an access key
 
 ## Radios
 
-Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75, Mobilinkd, NinoTNC, TNC-Pi, Kantronics KPC-3+, Bluetooth radios such as the BTech UV-PRO, and any radio with a sound-card interface through Direwolf; a GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the setup of each and says which are tried on the air.
+Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75, Mobilinkd, NinoTNC, TNC-Pi, Kantronics KPC-3+, Bluetooth radios such as the BTech UV-PRO, and any radio with a sound-card interface through Direwolf; a GPS through gpsd or a serial port. [The radio guide](docs/RADIOS.md) has the setup of each and says which are tried on the air. For HF, an SSB radio with a USB sound card or an interface (a DigiRig, a SignaLink, the radio's own USB audio) and the Mercury modem that comes with NeoAPRS; only stations on the same modem and frequency hear each other, and the frequencies are proposals until they are confirmed on the air.
 
 ## Getting help
 

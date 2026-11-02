@@ -119,6 +119,12 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
         error = await page.expect("error")
         assert error["code"] == "transmit.off"
     assert station.tuned[4:] == []
+    await e.ctl.change_config(lambda c: replace(c, station_transmit=True, station_call=""))
+    for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):
+        await page.send(cmd)
+        error = await page.expect("error")
+        assert error["code"] == "other" and "call" in error["text"], "no call to send under: no tone either"
+    assert station.tuned[4:] == []
     await e.stop()
     await asyncio.sleep(0)
     await air.aclose()

@@ -52,7 +52,7 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 
 ## Raspberry Pi, Debian, Ubuntu (.deb)
 
-`neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported.
+`neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported. The 32-bit Raspberry Pi OS is not supported: there is no package for it, and the AppImage is for x86_64 only.
 
 NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed). It uses nothing of the system's Python and does not include the desktop app.
 

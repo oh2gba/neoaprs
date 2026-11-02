@@ -17,16 +17,16 @@ import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
+import { useTwoRadios } from "@/composables/useRadiosOn";
 import { stateText } from "@/lib/ownobjects";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
-import { fmOn, hfOn } from "@/lib/radiosides";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
-const { fallbackPath, now, config } = useDaemonContext();
+const { fallbackPath, now } = useDaemonContext();
 /** The radio tags of a row are there while both radios are on: an object on HF has HF, one on both FM and HF; an FM object, the default, is unmarked, so the list is today's for most rows. */
-const twoRadios = computed(() => fmOn(config.value?.values ?? {}) && hfOn(config.value?.values ?? {}));
+const twoRadios = useTwoRadios();
 const sure = useSure<string>(); // (the name of a row)
 /** The copy menu of a row: the name of the object. */
 const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));

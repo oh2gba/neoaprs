@@ -108,3 +108,9 @@ def test_round_trips() -> None:
 
 def test_an_ack_round_trips() -> None:
     assert parse_message(format_ack("OH2GBA-7", "12")) == Message("OH2GBA-7", "", ack_id="12")
+
+
+def test_a_message_id_with_a_line_end_after_it_is_no_id() -> None:
+    for wrong in ("01\n", "", "123456", "a b"):
+        with pytest.raises(MessageError, match="bad message id"):
+            format_message("WU2Z", "Testing", wrong)

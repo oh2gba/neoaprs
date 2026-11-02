@@ -143,6 +143,13 @@ def test_a_setting_that_has_a_secret_word_in_its_name_is_redacted_and_an_empty_o
     assert settings["other_rows"]["x/api_token"] == "(set, 12 characters)" and settings["other_rows"]["x/Password"] == "(set, 8 characters)"
 
 
+def test_the_word_key_in_the_name_of_a_setting_is_a_secret_only_as_a_word_of_its_own(tmp_path: Path) -> None:
+    data = fake_folder(tmp_path, settings={"mercury/keying": "rts:/dev/ttyUSB0", "web/key": "k7m2-x9pq-4hrt", "igate/password": "31415"})
+    settings = json.loads(made(tmp_path, data)[1]["settings.json"])
+    assert settings["values"]["mercury/keying"] == "rts:/dev/ttyUSB0", "how the radio is keyed is no secret"
+    assert settings["values"]["web/key"] == "(set, 14 characters)" and settings["values"]["igate/password"] == "(set, 5 characters)"
+
+
 def test_the_access_key_is_in_no_member_of_the_zip_whatever_put_it_there(tmp_path: Path) -> None:
     data = fake_folder(tmp_path)
     log = data / "neoaprs.log"

@@ -104,3 +104,31 @@ async def test_without_the_internet_the_packets_from_aprs_is_are_not_counted_nor
     assert await log.heard_by_hour(since, "OH7XYZ", internet=False) == {}
     assert [round(kmh) for _, kmh in await log.speeds("OH2RDG", since)] == [93]
     assert await log.speeds("OH2RDG", since, internet=False) == [], "the speed came over APRS-IS"
+
+
+async def test_the_count_of_all_stations_is_kept_for_a_minute_and_the_count_of_one_station_is_not(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    clock = FixedClock()
+    log = PacketLog(store.db, clock)
+    top = T0.replace(minute=0, second=0, microsecond=0)
+    since = top - timedelta(hours=23)
+    log.append(position(top + timedelta(minutes=1)))
+    assert await log.heard_by_hour(since) == {top: 1}
+    log.append(position(top + timedelta(minutes=2)))
+    assert await log.heard_by_hour(since) == {top: 1}, "a page that asks within the minute is given the count that was made"
+    assert await log.heard_by_hour(since, internet=False) == {top: 2}, "another question is another scan"
+    assert await log.heard_by_hour(since, "OH2RDG") == {top: 2}, "and one station's count (by its index) is always made again"
+    clock.advance(59)
+    assert await log.heard_by_hour(since) == {top: 1}
+    clock.advance(1)
+    assert await log.heard_by_hour(since) == {top: 2}, "after the minute it is counted again"
+
+
+async def test_forgetting_the_heard_packets_drops_the_kept_count(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    top = T0.replace(minute=0, second=0, microsecond=0)
+    log.append(position(top + timedelta(minutes=1)))
+    assert await log.heard_by_hour(top) == {top: 1}
+    await log.forget_heard("OH2GBA")
+    assert await log.heard_by_hour(top) == {}

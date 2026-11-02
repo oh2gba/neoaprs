@@ -123,7 +123,9 @@ def wire(parts: Services) -> None:
 
 def _log_packet(packet: Packet) -> None:
     """One line for each packet of the radio at INFO; the packets of the internet, many more of them, at DEBUG (`--debug`), so that they do not fill the log."""
-    packets_log.log(logging.DEBUG if packet.via == IS else logging.INFO, "%s%s -> %s", "sent " if packet.direction == "out" else "internet " if packet.via == IS else "", tnc2(packet), packet.summary)
+    level = logging.DEBUG if packet.via == IS else logging.INFO
+    if packets_log.isEnabledFor(level):                  # (the line of a packet of the internet is made only when the log asks for it: they are many)
+        packets_log.log(level, "%s%s -> %s", "sent " if packet.direction == "out" else "internet " if packet.via == IS else "", tnc2(packet), packet.summary)
 
 
 def _remember_port(parts: Services, state: Source.State) -> None:

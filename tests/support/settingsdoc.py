@@ -13,6 +13,7 @@ from neoaprs.decay import ANNOUNCEMENT, BULLETIN
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
 from neoaprs.policy import GPS_STALE_SEC, LOG_KEEP_DAYS, TNC_CHECK_SEC
+from neoaprs.radiorules import HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
@@ -30,7 +31,7 @@ def _numbers() -> dict[str, object]:
     """The `{name}` fields of the descriptions."""
     fields: dict[str, object] = {key.replace("/", "_"): f"{low} to {high}" for key, (low, high) in cfg.RANGES.items()}
     fields.update(
-        comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
+        comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, hf_beacon_min=HF_BEACON_MIN_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
         map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
         moving_presets="; ".join(
             f"`{name}` every {p.fast_sec:g} seconds from {p.fast_kmh:g} km/h, a turn of more than {p.turn_min_deg:g} degrees (at least {p.turn_min_sec:g} seconds after the last beacon)" for name, p in PRESETS.items()),
@@ -50,7 +51,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "station/symbol_code": ("My station tab, Station (the symbol)", "one printable character (`-` is a house, `>` a car)"),
     "station/comment": ("My station tab, Beacon", "the comment of your position: printable ASCII without `|` and `~`, at most {comment} characters, {comment_phg} when the PHG extension is sent. A save that breaks it is refused with the reason"),
     "station/status": ("My station tab, Status", "the text of a status of your own when the status source is the text: printable ASCII without `|` and `~`, at most {status} characters (the report always carries a time). Empty sends none ([beacon.md](beacon.md#the-status))"),
-    "beacon/interval_min": ("My station tab, Beacon", "minutes between your position packets: 0 is off, else {beacon_interval_min}. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below {beacon_min} is raised to {beacon_min}, with a line in the log (a stored 20 or 45 is shown as one more choice). The default is off so that an upgrade never starts to transmit"),
+    "beacon/interval_min": ("My station tab, Beacon", "minutes between your position packets: 0 is off, else {beacon_interval_min}. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below {beacon_min} is raised to {beacon_min}, with a line in the log (a stored 20 or 45 is shown as one more choice). While the HF radio is on, an interval below {hf_beacon_min} is raised to {hf_beacon_min} for both radios, with a line in the log: a frame on a shared HF channel is not sent often. The default is off so that an upgrade never starts to transmit"),
     "beacon/path": ("My station tab, Beacon, Advanced", "the digipeaters of your beacon: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-1` for any other. `DIRECT` is no digipeaters at all"),
     "beacon/power_w": ("My station tab, Beacon, Antenna", "the transmitter's power in watts ({beacon_power_w}) for the PHG extension of the beacon. Empty sends no PHG ([beacon.md](beacon.md#power-height-and-gain-phg))"),
     "beacon/antenna_height_m": ("My station tab, Beacon, Antenna", "the antenna's height above average terrain in metres ({beacon_antenna_height_m}), for PHG"),
@@ -67,7 +68,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "tcp/port": ("Settings tab, TNC", "the KISS port of that program ({tcp_port}): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100"),
     "hf/enabled": ("Settings tab, Radio (HF radio)", "`true`: the HF radio is there, the Mercury modem the daemon starts with the sound card and keying below, beside the FM radio or alone; `false`: no HF radio. Default `false`: nothing of HF is there, or changes, until it is ticked ([radio.md](radio.md#the-mercury-hf-modem))"),
     "hf/profile": ("Settings tab, Radio (HF radio, Radio type)", "what the HF radio is: `mercury`, Rhizomatica's Mercury modem on an SSB radio's sound card, or `dummy-hf`, the Dummy HF radio, which makes up a handful of distant fixed stations, keys nothing and plays your own frames through the computer's speakers as the modem's audio ([radio.md](radio.md#the-dummy-hf-radio)). Counts while `hf/enabled` is `true`"),
-    "mercury/sound_card": ("Settings tab, Radio (HF radio, Sound card)", "the HF radio's sound card, as the list offers it (what `mercury -z` prints as the id: `plughw:1,0` on Linux, the device's name on Windows). Empty is the daemon's own choice: the one USB sound card that is both playback and capture, else the system's default device; the page says beside the field which it chose. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem))"),
+    "mercury/sound_card": ("Settings tab, Radio (HF radio, Sound card)", "the HF radio's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). Empty is the daemon's own choice: the one USB sound card that is both playback and capture, else the system's default device; the page says beside the field which it chose. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem))"),
     "mercury/keying": ("Settings tab, Radio (HF radio, Keying)", "how the HF radio (the Mercury modem) keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). Empty is the daemon's own choice: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX; the page says beside the field which it chose. The other types ignore it"),
     "serial/last_port": (DAEMON_MEMORY, "the port the search found last time, tried first while `serial/port` is empty. Written by the daemon; the page shows it as `found: PORT` beside an automatic Port"),
     "serial/pattern": (DB_ONLY, "the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search, and **Find my radio** tries the same ports ([radio.md](radio.md#finding-the-radio))"),
@@ -140,11 +141,28 @@ def fixed() -> str:
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
         f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {BULLETIN.lasts // 3600} hours and an announcement for {ANNOUNCEMENT.lasts // 3600} hours.",
         f"The update check asks the version page every {updates} hours.",
+        f"While the HF radio is on, a beacon interval below {HF_BEACON_MIN_MIN} minutes is raised to {HF_BEACON_MIN_MIN}, for both radios. The HF beacon waits a random extra time of up to {HF_BEACON_JITTER_SEC} seconds after each interval, so that stations started together do not key up together.",
+        f"A frame on the HF radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
     ]
     return "\n".join(f"- {item}" for item in items) + "\n"
 
 
-MAKERS = {"settings": settings, "fixed": fixed}
+STATE_WORDS = {
+    cfg.BEACON_SENT: "when the FM radio's beacon last went out, so that a restart waits out the rest of the interval",
+    cfg.HF_BEACON_SENT: "the same for the HF radio's beacon",
+    cfg.STATUS_SENT: "when the status report last went out",
+    cfg.STATUS_TEXT: "the text of that status report, so that an unchanged status is not sent again",
+    cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
+    cfg.INSTALL_ID: "the random number of this installation that the update check sends",
+}
+
+
+def state() -> str:
+    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS` and the update check's number)."""
+    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID)) + "\n"
+
+
+MAKERS = {"settings": settings, "fixed": fixed, "state": state}
 
 
 def blocks_of(text: str) -> dict[str, str]:

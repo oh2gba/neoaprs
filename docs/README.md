@@ -11,9 +11,9 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/start.md` | the first start, the setup guide, the data folder, how settings apply, trying it without a radio, stopping |
 | `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
-| `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio |
+| `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio; the HF radio (the Mercury modem, its sound card and keying, Tune and Test) and the Dummy HF radio |
 | `docs/manual/beacon.md` | the My station tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
-| `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, deleting |
+| `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, a station heard on HF, encrypted messages, deleting |
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, the radius and the server, and advanced use as an iGate |
 | `docs/manual/email.md` | email through the APRS gateway |
 | `docs/manual/bulletins.md` | the message board and posting to it |
@@ -24,7 +24,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/settings.md` | every setting with its default, made from the code, and the values that are fixed |
 | `docs/manual/commands.md` | the `neoaprs` command line, `neoaprs doctor`, troubleshooting |
 | `docs/manual/support.md` | getting help: the support file that holds the logs and the facts for the developer, how to make it (the page, the Start menu, the tray, the command), what is in it and what is left out |
-| `docs/RADIOS.md` | which radios and TNCs work with NeoAPRS, and how to connect each (serial, USB, Bluetooth, Bluetooth LE, Direwolf and soundmodems), a GPS receiver for a moving station, Linux and Windows |
+| `docs/RADIOS.md` | which radios and TNCs work with NeoAPRS, and how to connect each (serial, USB, Bluetooth, Bluetooth LE, Direwolf and soundmodems), the Mercury HF modem for an SSB radio's sound card, a GPS receiver for a moving station, Linux and Windows |
 | `docs/development.md` | for developers: set up, the stages of `scripts/check`, CI, the wire and its generation, the page's source, the scripts, packaging and releases, the folder map |
 | `docs/daemon.md` | for developers: how the daemon behaves, with the names the code and the wire use |
 | `docs/mercury.md` | for developers: every number NeoAPRS fixes for the Mercury HF modem, where each comes from and what was measured |

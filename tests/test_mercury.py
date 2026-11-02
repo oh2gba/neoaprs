@@ -11,6 +11,7 @@ import pytest
 
 from neoaprs import ax25, mercury
 from neoaprs.config import DEFAULTS, Config
+from neoaprs.configlegacy import with_legacy
 from neoaprs.message import MessagingError
 from neoaprs.radiorules import FM, HF
 from neoaprs.services.beacon import Beacon, BeaconError
@@ -146,6 +147,13 @@ def test_the_settings_keep_the_sound_card_and_the_keying_and_refuse_a_keying_tha
     assert hf.hf_enabled and hf.fm_enabled and hf.serial_port == "/dev/ttyUSB0", "the HF radio is a tickbox beside the FM radio, whatever the FM radio's port"
     with pytest.raises(ValueError, match="not a TNC profile"):
         Config.checked(DEFAULTS, {"tnc/profile": "mercury"})
+
+
+def test_a_stored_mercury_type_of_the_one_radio_becomes_the_hf_radio_and_the_fm_radio_has_the_default_type() -> None:
+    rows = with_legacy({"tnc/profile": "mercury", "station/call": "OH2GBA"})
+    config = Config.from_data(rows)
+    assert config.hf_enabled and not config.fm_enabled and config.tnc_profile == DEFAULTS.tnc_profile and "tnc/profile" not in rows
+    assert with_legacy({"tnc/profile": "mercury", "fm/enabled": "true"})["tnc/profile"] == "mercury", "left alone when a tickbox has a row of its own"
 
 
 def test_the_command_line_names_the_configuration_the_mode_the_ports_the_sound_card_and_the_keying() -> None:

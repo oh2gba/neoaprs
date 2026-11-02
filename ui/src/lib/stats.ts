@@ -12,7 +12,7 @@ import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
 import type { Point } from "@/lib/chart";
-import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncState } from "@/protocol/protocol";
+import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncState, TncStats } from "@/protocol/protocol";
 
 interface StatLine {
   label: MessageId;
@@ -30,7 +30,10 @@ export interface StatsInput {
   stations: ReadonlyMap<string, StationRow>;
   packets: ReadonlyMap<string, PacketRow>;
   status: StatusMessage | null;
+  /** the FM radio's state; null while the FM radio is off */
   tnc: TncState | null;
+  /** the HF radio's state; null while the HF radio is off */
+  hf: TncState | null;
   igate: IgateState | null;
   /** the map's state: the ALOHA circle's radius is in it */
   map: MapState | null;
@@ -135,8 +138,18 @@ function packetLines(rows: readonly StationRow[], status: StatusMessage | null):
   ];
 }
 
-function radioLines(status: StatusMessage | null, tnc: TncState | null, igate: IgateState | null, now: number): StatLine[] {
-  const stats = tnc?.stats ?? null;
+/** What the radios that are on counted since the daemon started, added up. */
+type Totals = Pick<TncStats, "frames_in" | "rejected" | "bytes_in" | "bytes_out" | "digipeated">;
+
+function radioTotals(radios: readonly (TncState | null)[]): Totals | null {
+  const counted = radios.flatMap((radio) => (radio === null ? [] : [radio.stats]));
+  if (counted.length === 0) return null;
+  const sum = (field: keyof Totals): number => counted.reduce((n, one) => n + one[field], 0);
+  return { frames_in: sum("frames_in"), rejected: sum("rejected"), bytes_in: sum("bytes_in"), bytes_out: sum("bytes_out"), digipeated: sum("digipeated") };
+}
+
+function radioLines(status: StatusMessage | null, radios: readonly (TncState | null)[], igate: IgateState | null, now: number): StatLine[] {
+  const stats = radioTotals(radios);
   return [
     ...line("stats.running", status === null ? null : ageText(status.started_at, now)),
     ...line(
@@ -156,7 +169,7 @@ export function mapStats(input: StatsInput): StatSection[] {
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
     { title: "stats.section.reach", lines: reachLines(rows, input.map) },
     { title: "stats.section.packets", lines: [...packetLines(rows, input.status), ...latestLines(input.packets)] },
-    { title: "stats.section.radio", lines: radioLines(input.status, input.tnc, input.igate, input.now) },
+    { title: "stats.section.radio", lines: radioLines(input.status, [input.tnc, input.hf], input.igate, input.now) },
   ];
   return sections.filter((section) => section.lines.length > 0);
 }
