@@ -306,6 +306,10 @@ def test_the_build_lays_the_bundle_out_as_the_launcher_and_the_one_rule_expect()
     assert 'tar -xzf "$mercury" -C "$res/tools" --exclude=\'mercury/dev\'' in script and "mercury/$needed" in script
     assert script.index("launcher.c") < script.index("prune.py --macos"), "the launcher is linked before the headers go"
     assert script.index("compileall") < script.index("codesign --force --sign -") < script.index("codesign --verify --deep --strict") < script.index("hdiutil create"), "bytecode first, then every file is signed and sealed, then the image"
+    assert 'path.parent.name != "MacOS"' in script and "-P 8" not in script, "a bundle's main program is signed with its bundle, and the files one after the other"
+    needs = re.findall(r'^need "([^"]+)" "', script, re.M)
+    assert len(needs) >= 14 and script.index("need()") < script.index("codesign --force --sign -"), "every piece is checked, with its own words, before the signing starts"
+    assert all(path.startswith(("$contents/", "$res/")) for path in needs) and any("libpython3.13.dylib" in path for path in needs) and any("QtWebEngineProcess" in path for path in needs)
     assert "codesign --force --deep" not in script and '"$res" -name \'*.framework\'' in script and "--entitlements" in script, "each piece signed once by name, the helper with its entitlements; the verification is deep"
     assert "find -L" not in script and "-exec test -e {} \\;" in script, "BSD find refuses -delete under -L"
     smoke = SMOKE.read_text(encoding="utf-8")

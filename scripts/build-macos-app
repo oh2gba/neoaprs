@@ -111,14 +111,37 @@ cp -R "$ROOT"/packaging/macos/lproj/*.lproj "$res/"
 # bytecode of the bundle's packages, made now because nothing may be written into the signed bundle later (unchecked: the bundle never changes)
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$res/lib/python3.13" >/dev/null
 
-# Ad-hoc signatures, from the inside out, each piece once and by name: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury), then the web engine's helper app (with the entitlements Qt
-# ships for it, which its JIT needs), then the frameworks, whose seal records the helper inside, then the app itself; not --deep, which would sign the nested code again without those entitlements. The verification is deep.
-"$python" -I - "$app" <<'PY' | tr '\n' '\0' | xargs -0 -n 1 -P 8 codesign --force --sign - --timestamp=none
+# Every piece of the bundle, before the signing starts, so that a run on a Mac says what is missing in its own words rather than codesign's
+need() { [ -e "$1" ] || { echo "build-macos-app: $2 is missing: $1" >&2; exit 1; }; }
+need "$contents/MacOS/NeoAPRS" "the launcher (cc left no program)"
+[ -x "$contents/MacOS/NeoAPRS" ] || { echo "build-macos-app: the launcher is not executable: $contents/MacOS/NeoAPRS" >&2; exit 1; }
+need "$res/bin/python3.13" "the Python"
+need "$res/lib/libpython3.13.dylib" "the Python's library, which the launcher loads"
+need "$res/lib/python3.13/os.py" "the standard library"
+need "$res/lib/python3.13/site-packages/neoaprs/__init__.py" "the package"
+need "$res/lib/python3.13/site-packages/neoaprs/page/index.html" "the page"
+need "$res/lib/python3.13/site-packages/PySide6/QtWebEngineWidgets.abi3.so" "the web engine's module"
+need "$res/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/Current/QtWebEngineCore" "the web engine's framework, through its Versions/Current link"
+need "$res/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess" "the web engine's helper"
+need "$res/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqcocoa.dylib" "the Cocoa platform plugin"
+need "$res/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqoffscreen.dylib" "the offscreen platform plugin, which the smoke test runs on"
+need "$contents/Info.plist" "Info.plist"
+need "$contents/PkgInfo" "PkgInfo"
+need "$res/NeoAPRS.icns" "the icon"
+for lproj in "$ROOT"/packaging/macos/lproj/*.lproj; do need "$res/$(basename "$lproj")/InfoPlist.strings" "the microphone sentence in $(basename "$lproj" .lproj)"; done
+[ -z "$mercury" ] || need "$res/tools/mercury/mercury" "Mercury"
+[ ! -e "$res/include" ] && [ ! -e "$res/lib/python3.13/test" ] || { echo "build-macos-app: the pruning left the headers or the tests" >&2; exit 1; }
+
+# Ad-hoc signatures, from the inside out, each piece once and by name: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury) one after the other, then the web engine's helper app (with the
+# entitlements Qt ships for it, which its JIT needs), then the frameworks, whose seal records the helper inside, then the app itself; not --deep, which would sign the nested code again without those entitlements. The
+# verification is deep. A bundle's main program (Contents/MacOS/NeoAPRS, the helper's) is signed with its bundle and not by itself: codesign given such a path seals the whole bundle, which on the first Mac it did
+# while the other seven signings of the parallel pass were replacing files under it, and stopped with "No such file or directory".
+"$python" -I - "$app" <<'PY' | tr '\n' '\0' | xargs -0 -n 1 codesign --force --sign - --timestamp=none
 import pathlib
 import sys
 MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}          # Mach-O 64, 32, and a universal file
 for path in pathlib.Path(sys.argv[1]).rglob("*"):
-    if path.is_file() and not path.is_symlink():
+    if path.is_file() and not path.is_symlink() and path.parent.name != "MacOS":
         with path.open("rb") as f:
             if f.read(4) in MAGIC:
                 print(path)
