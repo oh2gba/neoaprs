@@ -295,8 +295,8 @@ free ports from a base of their own, so that two of them side by side do not bot
 ## Packaging and releases
 
 What a release holds, on <https://github.com/oh2gba/neoaprs/releases>: `NeoAPRS-Setup-<version>.exe` (the Windows installer),
-`NeoAPRS-<version>-x86_64.AppImage`, `neoaprs_<version>_arm64.deb` and `neoaprs_<version>_amd64.deb`, `neoaprs-<version>-py3-none-any.whl` and
-`neoaprs-<version>.tar.gz` (the wheel and the sdist), `install.sh` and `SHA256SUMS`, with build provenance attached to each file
+`NeoAPRS-<version>-x86_64.AppImage`, `neoaprs_<version>_arm64.deb` and `neoaprs_<version>_amd64.deb`, the installer and the AppImage again under fixed names,
+`neoaprs-<version>.tar.gz` (the sdist, unadvertised, for packagers) and `SHA256SUMS`, eight files, with build provenance attached to each file
 (`gh attestation verify FILE --repo oh2gba/neoaprs`). `.github/workflows/release.yml` makes all of it when a tag `v*` is pushed, and nothing is built by hand.
 The steps to take around it are in [`docs/MAINTAINING.md`](MAINTAINING.md#a-release); `scripts/release` takes them in one command.
 
@@ -312,9 +312,8 @@ of the app, the `mercury` job's build from the pinned source in `usr/tools/mercu
 | `appimage` | Linux (`ubuntu-22.04`: glibc 2.35, the oldest the Qt wheels run on) | `scripts/build-appimage --wheel` on the wheel of the `wheel` job and `--mercury` on the tarball of `mercury-amd64`; then `scripts/smoke-appimage` on the file, which also starts the Mercury inside |
 | `appimage-update` | Linux (`ubuntu-latest`) | [Update now end to end](#update-now-end-to-end) of the file of the `appimage` job, to a copy of it with only `VERSION` changed (`scripts/build-appimage --retag`): once mounted with FUSE, once with `--appimage-extract-and-run` |
 | `deb` | Linux, a runner for each architecture (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64) | `scripts/build-deb --arch ARCH --wheel` on the wheel of the `wheel` job and `--mercury` on the tarball of `mercury-ARCH`; then, on that runner, `sudo apt install ./neoaprs_<version>_<arch>.deb`, `neoaprs --version`, the kind the package detects (`deb`, with the right architecture), `scripts/smoke.py` against `/usr/bin/neoaprs` run by the package's own Python, `service install` with a `HOME` and a `systemctl` of the test's own (the unit must start `/opt/neoaprs/bin/python3`), an install over itself (the upgrade message) and `apt remove` (the files go, the data stays). The bundled `/opt/neoaprs/tools/mercury/mercury -V` must say the pinned version, and in a `debian:bookworm-slim` container that has no ALSA library the package is installed and `ldd` of Mercury finds no library missing and the bundled `libasound.so.2`, and `mercury -V` and `mercury -z` run with the package's own ALSA configuration |
-| `install-script` | Linux | `packaging/install.sh.in` with the version and the release's wheel address put in; `shellcheck`; `packaging/test-install.sh` runs it twice (the second is an update) in a fresh `HOME`, with no `uv` on the `PATH`, a `systemctl` that only writes down its calls, and the wheel just built served from the loopback through `NEOAPRS_WHEEL_URL`, and checks `neoaprs --version`, the unit and the calls |
-| `assemble` | Linux | after every job above (a failed update test stops the release here): the six artifacts of the release (by name: never the logs a failed update test left) in one folder, `SHA256SUMS`, and the release notes (`scripts/release-notes.py`: the section of `CHANGELOG.md` for the version) |
-| `release` | Linux, tags only | attests the files (`actions/attest-build-provenance`) and runs `gh release create v<version> --verify-tag --draft` with the notes and the ten files, then publishes the draft (`gh release edit --draft=false`), so that no half of a release is ever seen; a version with a dash (`1.0.0-rc1`) is marked a pre-release, which GitHub never makes `latest`. When the release of the tag is there already (an earlier run got this far), the files are written over (`gh release upload --clobber`) and the notes set again. The only job with `contents: write` |
+| `assemble` | Linux | after every job above (a failed update test stops the release here): the five artifacts of the release (by name: never the logs a failed update test left) in one folder, the wheel taken out (it is build material: the supported installs are the ones that carry Mercury), `SHA256SUMS`, and the release notes (`scripts/release-notes.py`: the section of `CHANGELOG.md` for the version) |
+| `release` | Linux, tags only | attests the files (`actions/attest-build-provenance`) and runs `gh release create v<version> --verify-tag --draft` with the notes and the eight files, then publishes the draft (`gh release edit --draft=false`), so that no half of a release is ever seen; a version with a dash (`1.0.0-rc1`) is marked a pre-release, which GitHub never makes `latest`. When the release of the tag is there already (an earlier run got this far), the files are written over (`gh release upload --clobber`) and the notes set again. The only job with `contents: write` |
 
 Started by hand on a branch (Actions, release, *Run workflow*, or `gh workflow run release.yml --ref BRANCH`) it is a build for testing: the same builds and checks on that
 branch, `verify` and `release` skipped, nothing published, and the files kept for a few days as the artifacts of the run (`gh run download RUN_ID`; the run is named "build for testing" in the list;
@@ -368,11 +367,6 @@ Inno Setup, `packaging/windows/neoaprs.iss`, per user with no administrator righ
 described for the user in [the manual](manual/install.md#windows). The uninstaller runs `neoaprs-app.exe --quit`, `neoaprs.exe stop` and
 `neoaprs.exe service remove`, and installing over an older version runs the first two before Setup looks for files in use (its `PrepareToInstall`), so that the user is not asked to close the app and the daemon and the daemon ends cleanly; the same runs again right before the files are replaced, as the safety net. The app is `neoaprs-app.exe` and not
 `NeoAPRS.exe`: Windows file names ignore case, and that would be `neoaprs.exe`, the console program.
-
-### The install script
-
-`packaging/install.sh.in` is the template of `install.sh`; the `install-script` job renders it with the version and the wheel's address and tests it.
-`NEOAPRS_WHEEL_URL` takes another wheel address, which is how the workflow tests it.
 
 ### Update now
 
@@ -506,7 +500,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `site/`: the project page.
 - `server/`: the version page that the update check asks, on the project's web host: `version.php`, `latest.php` (the latest release), `log/.htaccess` (the logs and the cache are not served),
   `deploy.sh` (uploads those files and nothing else) and `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id).
-- `packaging/`: what the release is made from besides the package: `install.sh.in` and its test `test-install.sh`, and `windows/`, `appimage/`, `deb/` and `mercury/` (the one C file of the Mercury build).
+- `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `deb/` and `mercury/` (the one C file of the Mercury build).
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
 - `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
 - `LICENSE`: the GNU General Public License, version 3 (`pyproject.toml` says `GPL-3.0-or-later`).

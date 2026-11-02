@@ -50,7 +50,6 @@ from neoaprs.aprsposition import uncompressed_position  # noqa: E402
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text  # noqa: E402
 from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: E402
 from neoaprs.tncprofile import PROFILES  # noqa: E402
-from neoaprs.updateasset import wheel_version  # noqa: E402
 from neoaprs.versions import compare_versions  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
@@ -526,7 +525,6 @@ ROUTE_ELEMENTS = ["WIDE1-1", "WIDE2-2", "WIDE", "WIDE1", "WIDE3-3", "WIDE12-1", 
 VERSION_PAIRS = [("0.10.0", "0.9.0"), ("0.9.0", "0.10.0"), ("1.0", "1.0.0"), ("1.0.0", "1.0"), ("1.0.0-rc1", "1.0.0"), ("1.0.0", "1.0.0-rc1"), ("1.0.0-rc1", "1.0.0-rc2"), ("1.0.0-RC1", "1.0.0-rc1"), ("1.0.0-rc.2", "1.0.0-rc.10"),
                  ("1.0.0-alpha", "1.0.0-beta"), ("1.0.0-beta", "1.0.0-alpha"), ("0.14.0", "0.14.0"), ("0.14.1", "0.14.0"), ("0.14.0", "0.14.0.1"), ("1.2.3.4", "1.2.3.5"), ("2", "1.9.9"), ("0.10.0-dev4", "0.10.0"),
                  (" 1.0.0 ", "1.0.0"), ("1.0.0+build5", "1.0.0"), ("1.0.0", "1.0.0+build5"), ("1.0.0-rc1", "1.0.0-c1"), ("01.0.0", "1.0.0"), ("1.0.0-9", "1.0.0-10"), ("1.0.0-a", "1.0.0-9")]
-WHEEL_VERSIONS = ["0.10.0", "0.10.0-rc1", "1.0.0-rc.2", "1.0.0-alpha", "1.0.0-beta.3", "1.0.0-dev4", "1.0.0-c1", "0.10.1-e2e"]
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
            {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},
@@ -657,7 +655,6 @@ def vectors() -> dict[str, list[dict[str, Any]]]:
         "phg": [{"power": p, "height": h, "gain": g, "direction": d, "text": phg_text(p, h, g, d)} for p, h, g, d in PHG_CASES],
         "positions": [{"lat": lat, "lon": lon, "table": "/", "code": "-", "text": uncompressed_position(lat, lon, "/", "-").decode("ascii")} for lat, lon in POSITIONS],
         "beacons": [_beacon_vector(changes) for changes in BEACONS],
-        "wheel_versions": [{"input": v, "wheel": wheel_version(v)} for v in WHEEL_VERSIONS],
     }
 
 

@@ -132,8 +132,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.download_here": "Lataa tietokoneellesi sopiva paketti julkaisusivulta",
   "help.update.deb.install": "Asenna se kansiosta, johon lataasit sen (se kysyy salasanaasi)",
   "help.update.deb.service": "Palvelu käynnistyy itse uudelleen. Jos se silti näyttää vanhan version:",
-  "help.update.uv.run": "Suorita tämä päätteessä: se asentaa uuden version",
-  "help.update.pip.run": "Suorita tämä ympäristössä, johon NeoAPRS on asennettu",
   "help.update.source.pull": "Kloonin kansiossa",
   "help.update.source.sync": "Päivitä ympäristö ajan tasalle",
   "help.update.release_page": "Hae uusi versio julkaisusivulta",

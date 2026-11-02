@@ -222,11 +222,9 @@ describe("UpdateDialog", () => {
     expect(deb.find("a[href$='neoaprs_0.4.0_arm64.deb']").exists()).toBe(true);
     expect(deb.findAll("code").map((c) => c.text())).toEqual(["sudo apt install ./neoaprs_0.4.0_arm64.deb", "systemctl --user restart neoaprs"]);
     deb.unmount();
-    expect(
-      dialog({ install: install("uv-tool", { service: true }) })
-        .wrapper.find("code")
-        .text(),
-    ).toContain("install.sh | sh");
+    const wheel = dialog({ install: install("uv-tool", { service: true }) }).wrapper;
+    expect(wheel.findAll("code")).toHaveLength(0);
+    expect(wheel.find("a[href$='/releases/tag/v0.4.0']").exists()).toBe(true);
     const clone = dialog({ install: install("source", { service: true }) }).wrapper;
     expect(clone.findAll("code").map((c) => c.text())).toEqual(["git pull", "uv sync", "systemctl --user restart neoaprs"]);
     expect(copyButtons(clone)).toHaveLength(3);

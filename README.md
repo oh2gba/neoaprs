@@ -14,7 +14,8 @@ NeoAPRS is a map, your messages and your beacon in one page. It runs as an app o
 - Windows: [NeoAPRS-Setup.exe](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe) (no administrator rights needed; SmartScreen may warn about an unsigned installer: **More info**, **Run anyway**)
 - Linux: [NeoAPRS-x86_64.AppImage](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage): make it executable and run it
 - Raspberry Pi, Debian, Ubuntu: the `.deb` of the [latest release](https://github.com/oh2gba/neoaprs/releases/latest): `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger`
-- Linux, macOS, Raspberry Pi: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`
+
+Each carries its own Python and the Mercury HF modem. A Mac has no supported install until there is a macOS app.
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? The radio type **Dummy** makes up traffic to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
 

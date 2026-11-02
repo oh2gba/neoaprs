@@ -41,7 +41,7 @@ def check_python() -> Finding:
     have = ".".join(str(n) for n in sys.version_info[:3])
     if sys.version_info[:2] >= MIN_PYTHON:
         return Finding("ok", f"Python {have} ({sys.executable})")
-    return Finding("fail", f"Python {have} is too old: NeoAPRS needs {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer", "install a newer Python (with uv: `uv tool install --python 3.13 neoaprs`)")
+    return Finding("fail", f"Python {have} is too old: NeoAPRS needs {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer", "install NeoAPRS from the AppImage or the .deb of the release, which bring their own Python")
 
 
 def check_data_folder(data: Path) -> Finding:

@@ -1,6 +1,5 @@
-# What a release is made of, built by GitHub: the wheel and the sdist, the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the Linux and macOS
-# install script, and SHA256SUMS. The Windows installer, the AppImage and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the others. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the packages installed with apt and the install script are each run against a fake TNC
-# or a fresh home), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
+# What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the source tarball (the sdist,
+# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the others. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
 # a dry run: the same builds and checks, the files kept as the artifacts of the run, and no release; run by hand on a tag (`gh workflow run release.yml --ref v<version>`) it publishes that tag's release again. A tag run that
 # failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
 # "A release"; what the jobs do: docs/development.md.
@@ -582,44 +581,9 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # install.sh, rendered for this version and tried against the wheel that was just built: a fresh home, no uv, a systemctl that only writes down its calls.
-  install-script:
-    needs: [verify, wheel]
-    if: ${{ !failure() && !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: dist
-      - name: Render install.sh
-        run: |
-          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
-          wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
-          url="https://github.com/oh2gba/neoaprs/releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl"
-          mkdir -p out
-          sed -e "s|@VERSION@|$version|g" -e "s|@WHEEL_URL@|$url|g" packaging/install.sh.in > out/install.sh
-          chmod +x out/install.sh
-          ! grep -n '@[A-Z_]*@' out/install.sh
-          grep -n '^WHEEL_URL=' out/install.sh
-      - name: shellcheck and sh -n
-        run: |
-          sh -n out/install.sh
-          shellcheck -s sh out/install.sh
-          shellcheck packaging/test-install.sh
-      - name: Run it twice in a fresh home (the second run is an update)
-        run: packaging/test-install.sh out/install.sh dist/neoaprs-*.whl
-      - uses: actions/upload-artifact@v7
-        with:
-          name: install-script
-          path: out/install.sh
-          if-no-files-found: error
-          overwrite: true
-
   # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
   assemble:
-    needs: [wheel, windows, appimage, appimage-update, deb, install-script]
+    needs: [wheel, windows, appimage, appimage-update, deb]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -627,7 +591,7 @@ jobs:
       # the files of the release and nothing else: not the logs a failed update test left in an earlier attempt of this run
       - uses: actions/download-artifact@v8
         with:
-          pattern: "{dist,windows-installer,appimage,deb-amd64,deb-arm64,install-script}"
+          pattern: "{dist,windows-installer,appimage,deb-amd64,deb-arm64}"
           path: release-files
           merge-multiple: true
       - name: SHA256SUMS and the notes
@@ -635,18 +599,19 @@ jobs:
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
           wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
           cd release-files
-          for f in "neoaprs-$wheel_version-py3-none-any.whl" "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb" install.sh; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          rm -f -- neoaprs-*.whl                                   # (the wheel built the AppImage and the packages; it is not a file of the release: the supported installs are the ones that carry Mercury)
+          for f in "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
           # the installer and the AppImage also under names without the version, so that the project page can link to
           # releases/latest/download/NAME and the download starts at once (the self-update asks for the versioned names)
           cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe
           cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage
-          [ "$(ls | wc -l)" = 9 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
+          [ "$(ls | wc -l)" = 7 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
           cd ..
           if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
           python3 scripts/release-notes.py $notes_for > notes.md
-          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`. Linux and macOS: `curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh`.\n' "$version" "$version" "$version" >> notes.md
+          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`.\n' "$version" "$version" "$version" >> notes.md
           head -c 600 notes.md
       - uses: actions/upload-artifact@v7
         with:
@@ -681,7 +646,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           prerelease=false
-          case "$version" in *-*) prerelease=true ;; esac          # 1.0.0-rc1 is a pre-release: never "latest", so install.sh and the version page do not offer it to everyone
+          case "$version" in *-*) prerelease=true ;; esac          # 1.0.0-rc1 is a pre-release: never "latest", so the project page's links and the version page do not offer it to everyone
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             echo "the release $GITHUB_REF_NAME is there already: its files and notes are written over"
             gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber files/release-files/*

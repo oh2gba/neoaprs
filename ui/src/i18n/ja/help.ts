@@ -129,8 +129,6 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.deb.download_here": "リリースページからお使いのコンピューター用のパッケージをダウンロード",
   "help.update.deb.install": "ダウンロードしたフォルダからインストールする(パスワードを聞かれます)",
   "help.update.deb.service": "サービスは自動で再起動します。まだ古いバージョンが表示される場合:",
-  "help.update.uv.run": "ターミナルでこれを実行します: 新しいバージョンがインストールされます",
-  "help.update.pip.run": "NeoAPRS がインストールされている環境でこれを実行します",
   "help.update.source.pull": "クローンのフォルダで",
   "help.update.source.sync": "環境を最新にする",
   "help.update.release_page": "リリースページから新しいバージョンを入手",

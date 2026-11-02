@@ -1963,7 +1963,7 @@
       "description": "How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py).",
       "properties": {
         "kind": {
-          "description": "`windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository)",
+          "description": "`windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository)",
           "enum": [
             "windows-installer",
             "appimage",

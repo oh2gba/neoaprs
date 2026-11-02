@@ -25,7 +25,7 @@ def release_version(version: str) -> bool:
 
 
 def wheel_version(version: str) -> str:
-    """The version as the wheel and the sdist are named, PEP 440 as the build makes it: `1.0.0-rc1` is `1.0.0rc1`, `1.0.0-dev2` is `1.0.0.dev2`; a plain version, and one that is no pre-release of those kinds, as it is."""
+    """The version as the sdist (and the wheel the build makes with it) is named, PEP 440 as the build makes it: `1.0.0-rc1` is `1.0.0rc1`, `1.0.0-dev2` is `1.0.0.dev2`; a plain version, and one that is no pre-release of those kinds, as it is."""
     found = _PRE_RELEASE.fullmatch(version)
     if found is None:
         return version
@@ -34,7 +34,8 @@ def wheel_version(version: str) -> str:
 
 
 def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
-    """The file of the release `version` that updates a copy installed as `kind` (`arch` is the .deb's architecture): None for a clone of the repository, a .deb of an architecture that has none, and a version that is not one."""
+    """The file of the release `version` that updates a copy installed as `kind` (`arch` is the .deb's architecture): None for a clone of the repository, a .deb of an architecture that has none, a version that is not one,
+    and an install made from the wheel (`uv-tool`, `pip`), which a release no longer carries: such a copy is updated by installing one of the release's files (the page says so)."""
     if not release_version(version):
         return None
     match kind:
@@ -44,8 +45,6 @@ def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
             return f"NeoAPRS-{version}-x86_64.AppImage"
         case "deb":
             return f"neoaprs_{version}_{arch}.deb" if arch in ("amd64", "arm64") else None
-        case "uv-tool" | "pip":
-            return f"neoaprs-{wheel_version(version)}-py3-none-any.whl"
         case _:
             return None
 

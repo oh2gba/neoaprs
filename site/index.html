@@ -142,25 +142,11 @@
       </div>
       <div class="card step">
         <h3>Debian, Ubuntu, Raspberry Pi</h3>
-        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python. Or the install script (Linux, macOS), which installs uv and NeoAPRS and starts a service.</p>
+        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python and the Mercury HF modem, like the installer and the AppImage.</p>
         <div class="run">
           <div class="cmd">
             <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
             <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
-          </div>
-          <div class="cmd">
-            <code id="install-line"><span class="prompt">$ </span>curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh</code>
-            <button class="copy" type="button" data-target="install-line" data-text="curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh" hidden>Copy</button>
-          </div>
-        </div>
-      </div>
-      <div class="card step">
-        <h3>pip, uv</h3>
-        <p>The wheel from the release, with Python 3.13 or newer.</p>
-        <div class="run">
-          <div class="cmd">
-            <code id="wheel-line"><span class="prompt">$ </span>uv tool install neoaprs-&lt;version&gt;-py3-none-any.whl</code>
-            <button class="copy" type="button" data-target="wheel-line" data-text="uv tool install neoaprs-&lt;version&gt;-py3-none-any.whl" hidden>Copy</button>
           </div>
         </div>
       </div>

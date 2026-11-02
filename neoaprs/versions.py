@@ -84,7 +84,7 @@ class InstallInfo:
 
 def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool) -> InstallKind:
     """The way this copy got here, from what the process can see: a frozen program is the Windows installer's, a run from an AppImage file is the AppImage, the Python of /opt/neoaprs is the .deb's, a package imported from a clone of
-    the repository is a checkout, a package in the environment `uv tool` made is the install script's, anything else a plain pip (or `uv pip`) environment."""
+    the repository is a checkout, a package in the environment `uv tool` made is an install of the wheel (which releases before 0.16 offered), anything else a plain pip (or `uv pip`) environment."""
     if frozen:
         return "windows-installer"
     if appimage:

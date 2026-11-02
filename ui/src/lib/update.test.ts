@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  appImageUrl,
-  debName,
-  debUrl,
-  installerUrl,
-  INSTALL_LINE,
-  problemText,
-  progressText,
-  releaseNotes,
-  updateHelp,
-  updateRunning,
-  wheelUrl,
-} from "@/lib/update";
+import { appImageUrl, debName, debUrl, installerUrl, problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
 const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
@@ -35,8 +23,6 @@ describe("the addresses", () => {
     expect(appImageUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-0.4.0-x86_64.AppImage");
     expect(debName("0.4.0", "arm64")).toBe("neoaprs_0.4.0_arm64.deb");
     expect(debUrl("0.4.0", "amd64")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_amd64.deb");
-    expect(wheelUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs-0.4.0-py3-none-any.whl");
-    expect(wheelUrl("0.10.0-rc1")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.10.0-rc1/neoaprs-0.10.0rc1-py3-none-any.whl");
   });
 });
 
@@ -85,18 +71,13 @@ describe("updateHelp", () => {
     expect(commands(steps)).toEqual(["sudo apt install ./neoaprs_0.4.0_*.deb"]);
   });
 
-  it("is the install line again for the uv tool, and a restart by hand without a service", () => {
-    expect(commands(updateHelp(install("uv-tool", { service: true }), "0.4.0"))).toEqual([INSTALL_LINE]);
-    expect(updateHelp(install("uv-tool", { service: true }), "0.4.0")).toHaveLength(1);
-    expect(updateHelp(install("uv-tool"), "0.4.0").at(-1)?.text).toBe("Quit NeoAPRS and start it again");
-    expect(INSTALL_LINE).toBe("curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh");
-  });
-
-  it("is pip with the release's wheel, then a restart of the service or of the program, for a plain environment", () => {
-    expect(commands(updateHelp(install("pip", { service: true }), "0.4.0"))).toEqual([`pip install -U ${wheelUrl("0.4.0")}`, "neoaprs service install"]);
-    const byHand = updateHelp(install("pip"), "0.4.0");
-    expect(commands(byHand)).toEqual([`pip install -U ${wheelUrl("0.4.0")}`]);
-    expect(byHand.at(-1)?.text).toBe("Quit NeoAPRS and start it again");
+  it("sends a copy installed from the wheel (uv tool, pip: what releases before 0.16 offered) to the release page, where the supported installs are", () => {
+    for (const kind of ["uv-tool", "pip"] as const) {
+      const steps = updateHelp(install(kind, { service: true }), "0.4.0");
+      expect(steps).toHaveLength(1);
+      expect(steps[0]?.link?.href).toBe(releaseNotes("0.4.0"));
+      expect(commands(steps)).toEqual([]);
+    }
   });
 
   it("is a pull, a sync and a restart for a clone", () => {

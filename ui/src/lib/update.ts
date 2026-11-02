@@ -1,11 +1,11 @@
 // What to do to update, for the way this copy was installed (the daemon says: `install` of its hello), in plain words. The steps are data, so that the dialog (components/UpdateDialog.vue, UpdateSteps.vue) only draws them: a line of words (made in
-// the language of the page when they are asked for), a command to copy, a file to download. Words of a developer's tools (git, uv, pip) are only in the steps of the kinds that are a developer's.
+// the language of the page when they are asked for), a command to copy, a file to download. Words of a developer's tools (git, uv) are only in the steps of a clone of the repository; a copy installed from the
+// wheel (`uv-tool`, `pip`: what releases before 0.16 offered) is sent to the release page, where the supported installs are, since no file of a release updates it.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
 const RELEASES = "https://github.com/oh2gba/neoaprs/releases";
-export const INSTALL_LINE = "curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh";
 
 export interface Step {
   text: string;
@@ -23,17 +23,6 @@ const appImageName = (version: string): string => `NeoAPRS-${version}-x86_64.App
 export const appImageUrl = (version: string): string => download(version, appImageName(version));
 export const debName = (version: string, arch: string): string => `neoaprs_${version}_${arch}.deb`;
 export const debUrl = (version: string, arch: string): string => download(version, debName(version, arch));
-const PRE_RELEASE = /^(\d+\.\d+\.\d+)-(alpha|a|beta|b|rc|c|preview|pre|dev)\.?(\d*)$/;
-const PEP440_TAG: Record<string, string> = { alpha: "a", a: "a", beta: "b", b: "b", rc: "rc", c: "rc", preview: "rc", pre: "rc" };
-/** The version as the wheel is named, PEP 440 as the build makes it: `1.0.0-rc1` is `1.0.0rc1` (neoaprs/updateasset.py, `wheel_version`). */
-export const wheelVersion = (version: string): string => {
-  const found = PRE_RELEASE.exec(version);
-  if (!found) return version;
-  const [, base, tag, number] = found;
-  return tag === "dev" ? `${base}.dev${number || 0}` : `${base}${PEP440_TAG[tag]}${number || 0}`;
-};
-export const wheelUrl = (version: string): string => download(version, `neoaprs-${wheelVersion(version)}-py3-none-any.whl`);
-
 /** The last part of a path of either kind. */
 function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
@@ -85,11 +74,6 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
       return appImageSteps(install, version);
     case "deb":
       return debSteps(install, version);
-    case "uv-tool":
-      // the install line updates the program and restarts its service; a NeoAPRS started by hand is started again by hand
-      return [{ text: t("help.update.uv.run"), command: INSTALL_LINE }, ...(install.service ? [] : [{ text: t("help.update.restart") }])];
-    case "pip":
-      return [{ text: t("help.update.pip.run"), command: `pip install -U ${wheelUrl(version)}` }, restart(install.service, "neoaprs service install")];
     case "source":
       return [
         { text: t("help.update.source.pull"), command: "git pull" },
@@ -97,6 +81,7 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
         restart(install.service, "systemctl --user restart neoaprs"),
       ];
     default:
+      // the kind is not known yet, or the copy was installed from the wheel, which a release no longer carries: the release page has the supported installs
       return [{ text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } }];
   }
 }

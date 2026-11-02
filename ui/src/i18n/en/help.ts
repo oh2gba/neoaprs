@@ -130,8 +130,6 @@ export const help = {
   "help.update.deb.download_here": "Download the package for your computer from the release page",
   "help.update.deb.install": "Install it from the folder you downloaded it to (it asks for your password)",
   "help.update.deb.service": "The service restarts by itself. If it still shows the old version:",
-  "help.update.uv.run": "Run this in a terminal: it installs the new version",
-  "help.update.pip.run": "Run this in the environment NeoAPRS is installed in",
   "help.update.source.pull": "In the folder of the clone",
   "help.update.source.sync": "Bring the environment up to date",
   "help.update.release_page": "Get the new version from the release page",

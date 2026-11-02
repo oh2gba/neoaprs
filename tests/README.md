@@ -315,8 +315,8 @@
   stand-ins for pywebview, pystray and Pillow in `sys.modules`. `test_desktop_qt.py`: the Qt shell headless with the real PySide6-WebEngine
   (`QT_QPA_PLATFORM=offscreen`; skipped when the extra `app` is not installed: `uv sync --frozen --extra app`): the window, its size, the stored page data, the
   links, the tray menu.
-* `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, `packaging/install.sh.in`
-  rendered and read by `sh -n` (and refusing a system that is not Linux or macOS), the workflow's pins by major version and its one `contents: write`, the
+* `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, the eight files the workflow
+  assembles (the wheel taken out), the workflow's pins by major version and its one `contents: write`, the
   installer script's promises (per user, the autostart task on by default, the uninstaller order), and the bundled pmtiles found before the PATH.
 * `test_appimage.py`: NeoAPRS in an AppImage: `$APPIMAGE` counts only for an interpreter inside `$APPDIR`; the systemd unit, the detached daemon of
   `neoaprs open` and the start at sign-in start the AppImage file and not the mount (a path with a space quoted); `AppRun` with and without arguments and
@@ -329,7 +329,7 @@
 
 ## Windows
 
-The suite runs on Windows in CI (`.github/workflows/ci.yml`; the Windows installer, the install script and the wheel are tried by
+The suite runs on Windows in CI (`.github/workflows/ci.yml`; the Windows installer, the AppImage and the packages are tried by
 `.github/workflows/release.yml`, not by the suite, `docs/development.md`, "Packaging and releases" and "Local and CI"). What is POSIX
 only carries `posix_only` (`support/ptyline.py`: a test, or `pytestmark = posix_only` for a file) and is skipped there: pseudo-terminals and device files
 (`test_serialport_pty.py`, `test_tnc_pty.py`), `/proc`, file modes, the shell scripts (`test_scripts.py` wrappers, `test_install.py`), the checks of the
