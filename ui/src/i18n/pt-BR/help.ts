@@ -29,6 +29,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.beaconoff": "Com o beacon desligado o relógio não envia nada, os beacons da linha do tempo estão vazios; apertar o botão ainda envia um.",
   "help.picture.internet": "As estações que o APRS-IS tem dentro do raio do mapa chegam da nuvem ao seu mapa, em um só sentido; nada volta.",
   "help.picture.channels": "Uma estação ouvida pelo rádio, com ondas, leva RF; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
+  "help.picture.mercury": "Sua estação e uma distante, muito afastadas; o sinal sobe e volta a descer entre elas: só uma estação com o mesmo modem o ouve.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",
   "help.picture.notifications": "Chega uma mensagem de uma estação, e este dispositivo toca um som, o alto-falante, e mostra um pop-up, o cartão.",
   "help.picture.encrypt":

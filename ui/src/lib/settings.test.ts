@@ -8,7 +8,17 @@ describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
-    expect(groups[0]?.keys).toEqual(["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"]);
+    expect(groups[0]?.keys).toEqual([
+      "station/transmit",
+      "tnc/profile",
+      "serial/port",
+      "serial/baud",
+      "tcp/host",
+      "tcp/port",
+      "mercury/sound_card",
+      "mercury/keying",
+      "serial/last_port",
+    ]);
     expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
     expect(groups[2]?.title).toBe("Digipeater");
@@ -285,7 +295,7 @@ describe("the map's fields", () => {
 });
 
 describe("shownFor in the TNC group", () => {
-  const keys = ["serial/port", "serial/baud", "serial/last_port", "tcp/host", "tcp/port"];
+  const keys = ["serial/port", "serial/baud", "serial/last_port", "tcp/host", "tcp/port", "mercury/sound_card", "mercury/keying"];
   const shown = (profile: string) => keys.filter((k) => shownFor(k, profile, true));
   it("shows the port and the speed for a serial TNC, and never the port found", () => {
     expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud"]);
@@ -294,11 +304,21 @@ describe("shownFor in the TNC group", () => {
   it("shows only the host and the port for KISS over TCP", () => {
     expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port"]);
   });
+  it("shows only the sound card and the keying for the Mercury HF modem, and nothing of them for the Dummy", () => {
+    expect(shown("mercury")).toEqual(["mercury/sound_card", "mercury/keying"]);
+    expect(shown("dummy")).toEqual([]);
+  });
 });
 
 describe("portOptions", () => {
   const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
-  const ports = (search = true) => ({ type: "ports" as const, search, find: true, ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")] });
+  const ports = (search = true) => ({
+    type: "ports" as const,
+    sound_cards: [],
+    search,
+    find: true,
+    ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")],
+  });
   it("offers automatic first, the listed ports, the port in force and the port found when unlisted, and Other last", () => {
     expect(portOptions(ports(), "/dev/brainbox_3", "/dev/by-id/x").map((c) => c.value)).toEqual([
       "",
@@ -316,6 +336,7 @@ describe("portOptions", () => {
   it("lists a paired Bluetooth device by its name, after the serial ports, and keeps a typed bt:// address with a channel", () => {
     const listed = {
       type: "ports" as const,
+      sound_cards: [],
       search: true,
       find: true,
       ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],

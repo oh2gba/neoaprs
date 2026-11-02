@@ -12,6 +12,8 @@ from typing import NamedTuple
 from .app import Services
 from .config import Config
 from .dummyline import DUMMY_PATH
+from .mercury import BROADCAST_PORT as MERCURY_PORT
+from .mercurymodem import HOST as MERCURY_HOST
 from .packet import IS, Packet
 from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
@@ -36,26 +38,31 @@ class TncSettings(NamedTuple):
     fallback_probe: bool        # when the port cannot be opened, listen to the ports for the radio
     skip: tuple[str, ...]       # ports the search never opens (serial/skip)
     pattern: str                # the globs of the ports the search listens to (serial/pattern)
+    modem: tuple[str, str] = ("", "")       # what a modem the daemon starts is given (the Mercury HF modem: the sound card and the keying); empty for every other profile
 
 
-def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
+def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
     """What the Tnc is started with. A port given for this run is the only one tried; otherwise the port of the settings, else the one the search found last time (and a port that cannot be
     opened is followed by the search). The search listens to the ports of `pattern_override` when the process was given one for this run, else of NEOAPRS_SERIAL_PATTERN when that is set, else of serial/pattern. A TCP profile connects to tcp/host and
-    tcp/port (or to the `tcp://` address in serial/port) and never searches."""
+    tcp/port (or to the `tcp://` address in serial/port) and never searches. The Mercury HF modem (a `modem` profile) is a program the daemon starts on this computer, reached on `modem_port` (the broadcast port the
+    modem part chose), or at the `tcp://` address in serial/port, which is then a Mercury that something else runs; its sound card and keying go with the profile, so that a change of them restarts the modem."""
     pattern = pattern_override or search_pattern(config.serial_pattern)
     profile, baud = config.profile, config.tnc_baud
+    modem = (config.mercury_sound_card, config.mercury_keying) if profile.transport == "modem" else ("", "")
     if port_override and profile.transport != "dummy":
-        return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern)
+        return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern, modem)
     if profile.transport == "dummy":
         return TncSettings(DUMMY_PATH, baud, profile, False, config.serial_skip_paths, pattern)       # (the Dummy radio opens nothing, and no port is chosen for it)
     if profile.transport == "tcp":
         return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(config.tcp_host, config.tcp_port), baud, profile, False, config.serial_skip_paths, pattern)
+    if profile.transport == "modem":
+        return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(MERCURY_HOST, modem_port), baud, profile, False, config.serial_skip_paths, pattern, modem)
     return TncSettings(config.serial_port or config.serial_last_port, baud, profile, True, config.serial_skip_paths, pattern)
 
 
 def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
     """For a Tnc that is stopped."""
-    tnc.port, tnc.baud, tnc.profile, tnc.fallback_probe, tnc.skip, tnc.pattern = settings
+    tnc.port, tnc.baud, tnc.profile, tnc.fallback_probe, tnc.skip, tnc.pattern = settings[:6]
 
 
 class AirOnly:

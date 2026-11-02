@@ -11,7 +11,7 @@ import pytest
 from neoaprs import ax25, kiss
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
-from neoaprs.tncprofile import BY_KEY, DEFAULT, DUMMY, KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, KISS_EXIT, KISS_TCP, PROFILES, Profile, names_tcp, profile_of, tcp_url
+from neoaprs.tncprofile import BY_KEY, DEFAULT, DUMMY, KANTRONICS, KENWOOD_D710, KENWOOD_TNC2, KISS, KISS_EXIT, KISS_TCP, MERCURY, PROFILES, Profile, names_tcp, profile_of, tcp_url
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import Ptys, heard, posix_only
@@ -28,11 +28,12 @@ def rig() -> Rigs:
 # ---- the table
 
 def test_the_table_has_the_profiles_the_page_offers_in_its_order_and_the_default_sends_no_text() -> None:
-    assert [p.key for p in PROFILES] == ["kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "dummy"]
+    assert [p.key for p in PROFILES] == ["kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "mercury", "dummy"]
     assert BY_KEY == {p.key: p for p in PROFILES} and len({p.name for p in PROFILES}) == len(PROFILES)
     assert DEFAULT is KISS and DEFAULT.enter == () and not DEFAULT.can_probe and not DEFAULT.detect_command_mode
-    assert [p.transport for p in PROFILES] == ["serial", "serial", "serial", "serial", "tcp", "dummy"]
-    assert KISS_TCP.baud is None and DUMMY.baud is None and all(p.baud == 9600 for p in PROFILES if p.transport == "serial")
+    assert [p.transport for p in PROFILES] == ["serial", "serial", "serial", "serial", "tcp", "modem", "dummy"]
+    assert KISS_TCP.baud is None and DUMMY.baud is None and MERCURY.baud is None and all(p.baud == 9600 for p in PROFILES if p.transport == "serial")
+    assert [p.max_frame for p in PROFILES] == [None, None, None, None, None, 123, None], "only the Mercury modem has a frame that cuts a packet"
 
 
 def test_the_kenwood_tnc2_profile_is_what_the_tnc_always_did() -> None:
@@ -66,7 +67,7 @@ def test_a_profile_that_contradicts_itself_is_refused() -> None:
 
 def test_a_key_names_its_profile_and_a_wrong_one_names_the_keys() -> None:
     assert profile_of("kenwood-d710") is KENWOOD_D710 and profile_of(" kiss ") is KISS
-    with pytest.raises(ValueError, match="kenwood-tnc2, kenwood-d710, kantronics, kiss, kiss-tcp"):
+    with pytest.raises(ValueError, match="kenwood-tnc2, kenwood-d710, kantronics, kiss, kiss-tcp, mercury, dummy"):
         profile_of("th-d7")
 
 

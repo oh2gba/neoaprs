@@ -28,13 +28,14 @@ class Host(Protocol):
 
 
 class Retries:
-    def __init__(self, host: Host, tnc: Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float]) -> None:
+    def __init__(self, host: Host, tnc: Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float], first: Callable[[], None] | None = None) -> None:
         self._host = host
         self._tnc = tnc
         self._config = config
         self._interlock = interlock
         self._clock = clock
         self._tick_sec = tick_sec                                # (what the owner says now: a test makes the ticker quick)
+        self._first = first                                      # what goes before the attempts at a tick where the radio takes frames: the acks that waited for it (services/acks.py)
         self._due: dict[int, datetime] = {}                     # the messages being sent, and when each needs attention
         self._down_since: datetime | None = None
         self._told_down = False
@@ -87,6 +88,8 @@ class Retries:
         if self._down_since is not None:
             self._move_on(now - self._down_since)
             self._down_since = None
+        if self._first is not None:
+            self._first()
         for number, due in list(self._due.items()):
             record = self._host.get(number)
             if record is None or now < due:

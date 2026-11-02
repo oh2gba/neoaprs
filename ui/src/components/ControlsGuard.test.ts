@@ -23,6 +23,7 @@ function surfaces() {
   const scenes: [Scope, Record<string, string>][] = [
     ["settings", { "igate/enabled": "true", "digi/enabled": "true", "web/network": "true", "messages/alert": "true" }],
     ["settings", { "tnc/profile": "network", "tcp/host": "192.168.1.5", "tcp/port": "8001" }],
+    ["settings", { "tnc/profile": "mercury" }],
     ["beacon", { "gps/source": "gpsd", "beacon/interval_min": "30" }],
     ["beacon", { "gps/source": "off", "beacon/interval_min": "0" }],
   ];
@@ -50,7 +51,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
           values.every((v) => ON_OFF.test(v)),
           `${id}: ${values.join(" / ")} is an on/off: make it a tickbox`,
         ).toBe(false);
-        expect(values.length === 2 && !/port|path|language|kind/i.test(id), `${id}: two choices are a tickbox`).toBe(false);
+        expect(values.length === 2 && !/port|path|language|kind|card|keying/i.test(id), `${id}: two choices are a tickbox`).toBe(false);
       }
     }
   });

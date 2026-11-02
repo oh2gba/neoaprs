@@ -5,7 +5,7 @@ A value that is wrong falls back to its default and is logged with its key (a ro
 about to write a value: it raises ValueError with the key in the text, or gives the text the way the program writes it."""
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
@@ -13,8 +13,9 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, passcode, symbol_code, symbol_table, tnc_profile
+from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
+from .mercury import BEACON_FLOOR_SEC as MERCURY_BEACON_FLOOR_SEC
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
@@ -105,6 +106,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
+    Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the system's default device
+    Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port)
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
     Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
@@ -165,6 +168,8 @@ class Config:
     serial_baud: int | None = None
     tcp_host: str = "127.0.0.1"
     tcp_port: int = 8001
+    mercury_sound_card: str = ""
+    mercury_keying: str = "vox"
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""
@@ -220,8 +225,11 @@ class Config:
 
     @property
     def smart(self) -> SmartSettings:
-        """The SmartBeaconing numbers of the preset that beacon/travel names."""
-        return PRESETS[self.beacon_travel]
+        """The SmartBeaconing numbers of the preset that beacon/travel names; over an HF modem, whose frame takes seconds of a shared channel, no oftener than one beacon in MERCURY_BEACON_FLOOR_SEC (the fast rate and the turn time are raised to it)."""
+        preset = PRESETS[self.beacon_travel]
+        if self.profile.transport != "modem":
+            return preset
+        return replace(preset, fast_sec=max(preset.fast_sec, MERCURY_BEACON_FLOOR_SEC), turn_min_sec=max(preset.turn_min_sec, MERCURY_BEACON_FLOOR_SEC))
 
     @property
     def station_position(self) -> tuple[float, float] | None:
@@ -241,8 +249,8 @@ class Config:
         return self.serial_baud or self.profile.baud or 9600
 
     def port_refusal(self, key: str = "tnc/profile") -> SettingError | None:
-        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, not to a serial device (a `tcp://` address in serial/port is fine)."""
-        if self.profile.transport == "tcp" and self.serial_port and not names_tcp(self.serial_port):
+        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, and a modem the daemon starts to that modem, not to a serial device (a `tcp://` address in serial/port is fine)."""
+        if self.profile.transport in ("tcp", "modem") and self.serial_port and not names_tcp(self.serial_port):
             return SettingError(key, "setting.profile_port", {"profile": self.profile.name, "port": self.serial_port},
                                 f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC")
         return None

@@ -32,6 +32,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Le stazioni che APRS-IS ha entro il raggio della mappa arrivano dalla nuvola alla tua mappa, in un solo senso; nulla torna indietro.",
   "help.picture.channels":
     "Una stazione sentita via radio, con le onde, porta RF; una arrivata dalla nuvola, APRS-IS, ha un contorno punteggiato e una sua etichetta.",
+  "help.picture.mercury":
+    "La tua stazione e una lontana, molto distanti; il segnale sale e ridiscende fra loro: solo una stazione con lo stesso modem lo sente.",
   "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":
     "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",

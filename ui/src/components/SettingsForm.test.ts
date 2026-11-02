@@ -22,6 +22,7 @@ afterEach(() => localStorage.clear());
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
+  sound_cards: [],
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a")],
@@ -60,6 +61,8 @@ describe("SettingsForm", () => {
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
       "tcp/port",
+      "mercury/sound_card", // (only for the Mercury HF modem)
+      "mercury/keying",
       "web/key",
       "web/https",
       "serial/last_port",
@@ -540,6 +543,7 @@ describe("SettingsForm", () => {
         "Kantronics KPC-3+",
         "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
         "KISS over TCP (Direwolf, soundmodem)",
+        "Mercury HF modem (sound card, SSB radio)",
         "Dummy (no radio, made-up traffic)",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");

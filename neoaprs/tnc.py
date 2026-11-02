@@ -23,11 +23,13 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime
+from typing import Protocol
 
 from . import ax25, kiss, serialprobe
 from .clock import Clock, utcnow
 from .dummyline import DUMMY_PATH, DummyPort
 from .interlock import Interlock
+from .mercury import too_long
 from .packet import Packet
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
@@ -48,6 +50,15 @@ log = logging.getLogger("neoaprs.tnc")
 
 COMMAND_MODE = "the TNC is in command mode (KISS ON is sent again)"
 ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (the Kenwood TNC-2's), for the tests
+
+
+class Modem(Protocol):
+    """What the Tnc asks of the modem program behind its line when the profile is a modem's (the Mercury HF modem, mercurymodem.py, set by app.py): why the line cannot be opened (the program is not there, it stopped),
+    why no frame is to go now (the modem is transmitting a frame, the channel is busy) and its words for the radio's status line."""
+    @property
+    def problem(self) -> str: ...
+    def hold(self) -> str: ...
+    def describe(self) -> str: ...
 
 
 def _speed(path: str, baud: int) -> str:
@@ -76,16 +87,20 @@ def _describe(tnc: "Tnc") -> str:
         return f"listening on {', '.join(tnc.searching)} for the radio"
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
+    if (modem := tnc._modem()) is not None:
+        return f"{modem.describe()}, {tnc.stats.packets} packets"
     mode = "KISS" if tnc._reader.kiss_seen else ("entering KISS" if tnc._reader.entered else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
 
 def _why_unusable(tnc: "Tnc") -> str:
-    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), else what the state says."""
+    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), the modem's hold (it is transmitting, the channel is busy), else what the state says."""
     if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
         return CHECKING
     if tnc.state is Source.State.CONNECTED and tnc._reader.command_mode_unanswered():
         return COMMAND_MODE
+    if tnc.state is Source.State.CONNECTED and (held := tnc._held()):
+        return held
     return unusable_because(tnc.state)
 
 
@@ -102,6 +117,7 @@ class Tnc(TimedSource):
         self.probe_nudge_sec, self.skip = probe_nudge_sec, skip          # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip)
         self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
+        self.modem: Modem | None = None                                  # the modem program behind the line of a `modem` profile (the Mercury HF modem, set by app.py): its hold, its words and its problem count while the profile is a modem's
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
         self.packet: Signal[[Packet]] = Signal("tnc.packet")             # every packet in and out
@@ -199,7 +215,23 @@ class Tnc(TimedSource):
 
     def _wait(self, problem: str) -> None:
         self.watchdog.probes = 0
+        if (modem := self._modem()) is not None:
+            problem = modem.problem or f"waiting for {modem.describe()}"     # (the line to a modem the daemon starts is refused because the modem is not running: why it is not, or that it is starting, is what the operator can do something with; the socket's words are not)
         self._waiting(problem, self.backoff.next_delay_sec(), self._connect)
+
+    def _modem(self) -> Modem | None:
+        """The modem program behind the line, while the profile is a modem's."""
+        return self.modem if self.profile.transport == "modem" else None
+
+    def _held(self) -> str:
+        """Why the modem wants no frame now ("" when it takes one): it is transmitting, or the channel is busy."""
+        modem = self._modem()
+        return modem.hold() if modem is not None else ""
+
+    @property
+    def max_frame(self) -> int | None:
+        """The longest AX.25 frame the radio carries whole, in bytes; None when only the AX.25 limit holds. A frame over it is refused (`send_frame` says so in the terminal), never cut off."""
+        return self.profile.max_frame
 
     def _on_lost(self, port: TncPort, reason: str) -> None:
         if port is not self._port:
@@ -246,7 +278,7 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until
+        return self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until and not self._held()
 
     describe, why_unusable = _describe, _why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)      # (what a test looks at)
@@ -308,6 +340,10 @@ class Tnc(TimedSource):
         port = self._port
         if not self.usable or port is None:
             self._note(f"not sent: {self.why_unusable()}")
+            return False
+        if self.max_frame is not None and (why := too_long(raw, self.max_frame)):
+            self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))        # (the modem would cut it off and say nothing; the parts that build frames shorten or refuse first, this is the last guard)
+            log.warning("tnc: a frame was not sent: %s", why)
             return False
         if not self._write(port, kiss.encode(raw)):
             return False

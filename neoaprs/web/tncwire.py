@@ -29,6 +29,18 @@ class TncLine(_Model):
     text: str = Field(description="what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time")
 
 
+class ModemState(_Model):
+    """The Mercury HF modem behind the line, while the radio type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal."""
+    state: Literal["stopped", "starting", "running", "waiting"] = Field(description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why")
+    problem: str = Field(description="why the modem is not running (not installed, stopped); empty while it runs")
+    mode: str = Field(description="the modem's mode, the same for every station: `DATAC3`")
+    keyed: bool = Field(description="the modem keys the radio now: a frame is on the air (about four seconds)")
+    busy: bool = Field(description="the modem's busy detector hears a signal on the channel: our frames wait")
+    snr: float | None = Field(description="the signal-to-noise ratio of the latest frame decoded, in dB; null before one")
+    frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
+    max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
+
+
 class TncState(_Model):
     """The TNC, the one feed of packets: its state and why it is not connected, the port, and the latest lines of what it saw and did. The value of the topic `tnc`."""
     state: Literal["stopped", "connecting", "connected", "waiting", "silent"] = Field(
@@ -38,6 +50,7 @@ class TncState(_Model):
     path: str = Field(description="the serial port in use; empty while none is open")
     baud: int
     dummy: bool = Field(description="the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then")
+    modem: ModemState | None = Field(description="the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type")
     describe: str = Field(description="one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
     searching: list[str] = Field(description="the ports the daemon is listening to while it looks for the radio; empty when it is not searching")
     silent_since: Iso | None = Field(description="while `state` is `silent`, when the latest byte came; null otherwise")

@@ -11,6 +11,7 @@ test builds its world with it; `stop_all` is called when a test is over and also
     await e.new_radio()                  # another fake radio (to switch the port to); `new_pty(name)` another pty
     Env(tmp_path, radio=False)           # no radio: the Tnc finds no port (a test that wants a device file calls `new_pty`)
     Env(tmp_path, radio="pty")           # the radio on a pseudo-terminal behind the path e.link (POSIX only; for the tests that are about a device file); e.master is its master descriptor
+    Env(tmp_path, radio=air.station())   # a radio made elsewhere: a station of the fake Mercury's air (tests/support/fakemercury.py, with the profile `mercury` in the settings)
     Env(tmp_path, operator=False)        # a fresh install: no call and no position (the default); every other Env has the operator's station in its settings, as an install that was set up has
     Env(tmp_path, web=True)              # the page's server too, on a free port (`e.port`): `page = await e.ws()` is a tab (tests/support/wsclient.py), `await e.fetch("/path")` an HTTP request
 
@@ -131,7 +132,7 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
 
 
 class Env:
-    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
+    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
         self.dir = tmp_path
         self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on with `check_sec`
         self.operator = operator
@@ -148,7 +149,10 @@ class Env:
         options: dict[str, Any] = {"pattern": str(self.ports / "probe_*"), "check_sec": 0.0, "settle_sec": 0.15, "probe_seconds": 0.3, "backoff": Backoff([0.05, 0.05])}
         self.tnc = Tnc(clock=self.now, **{**options, **tnc_options})
         check_sec = float({**options, **tnc_options}["check_sec"])
-        if radio == "pty":
+        if isinstance(radio, FakeRadio):                     # (a radio made elsewhere: a station of the fake Mercury's air, tests/support/fakemercury.py)
+            self.radio = radio
+            self.link = radio.url
+        elif radio == "pty":
             self.master, self.link = self.new_pty("radio")
         elif radio:
             self.radio = FakeRadio()

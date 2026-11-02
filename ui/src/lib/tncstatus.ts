@@ -32,11 +32,14 @@ function lastPacketText(tnc: TncState, nowMs: number): string {
   return last === null ? t("settings.tnc.no_packet") : t("settings.tnc.last_packet", { span: ageText(last, nowMs) });
 }
 
-/** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air. */
+/** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air;
+ * for the Mercury HF modem, while it keys the radio or its busy detector hears a signal, that it transmits or that the channel is busy. */
 export function tncStatus(tnc: TncState, nowMs: number): string {
   if (dummyShown(tnc)) return t("settings.tnc.dummy");
   if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
   if (searchedPorts(tnc) !== null) return t("settings.tnc.searching");
+  if (tnc.state === "connected" && tnc.modem?.keyed) return t("settings.tnc.transmitting");
+  if (tnc.state === "connected" && tnc.modem?.busy) return t("settings.tnc.busy");
   if (tnc.state === "connected") return lastPacketText(tnc, nowMs);
   if (tnc.state === "connecting") return tnc.path === "" ? t("settings.tnc.connecting") : t("settings.tnc.connecting_to", { path: tnc.path });
   const why = tnc.problem || tnc.last_error;

@@ -10,6 +10,7 @@ import { configValues, tncState } from "@/test/fixtures";
 
 const ports = (find = true): PortsMessage => ({
   type: "ports",
+  sound_cards: [],
   search: find,
   find,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
@@ -131,5 +132,46 @@ describe("the toast of Find my radio", () => {
     message.value = { type: "radio_search", state: "cancelled", port: "", baud: null, profile: "", number: 0, total: 0 };
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".toast").exists()).toBe(false);
+  });
+});
+
+describe("the Mercury HF modem in the Radio group", () => {
+  const cards = (): PortsMessage => ({
+    ...ports(),
+    sound_cards: [
+      { id: "plughw:1,0", name: "USB Audio CODEC", default: true },
+      { id: "plughw:0,0", name: "HDA Intel PCH", default: false },
+    ],
+  });
+
+  it("has the sound card and the keying as its two fields, and no port, speed, host or TCP port", () => {
+    const { group } = make({ ports: cards() }, { "tnc/profile": "mercury", "mercury/keying": "vox" });
+    for (const id of ["#set-mercury-sound_card", "#set-mercury-keying"]) expect(fold(group).find(id).exists(), id).toBe(true);
+    for (const id of ["#set-serial-port", "#set-serial-baud", "#set-tcp-host", "#set-tcp-port"]) expect(group.find(id).exists(), id).toBe(false);
+    const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
+    expect([...card.element.options].map((o) => o.text)).toEqual(["system default", "plughw:1,0 - USB Audio CODEC", "plughw:0,0 - HDA Intel PCH", "Other..."]);
+    expect(card.element.value).toBe("");
+    const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
+    expect([...keying.element.options].map((o) => o.value)).toEqual(["vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
+    expect(keying.element.value).toBe("vox");
+  });
+
+  it("is not there for the other types", () => {
+    for (const profile of ["kiss", "kiss-tcp", "dummy"]) {
+      const { group } = make({}, { "tnc/profile": profile });
+      expect(group.find("#set-mercury-sound_card").exists(), profile).toBe(false);
+      expect(group.find("#set-mercury-keying").exists(), profile).toBe(false);
+    }
+  });
+
+  it("sends the chosen card and keying as any choice, and asks for the lists again when the type becomes Mercury", async () => {
+    const { group, send, daemon } = make({ ports: cards() }, { "tnc/profile": "kiss" });
+    await tell(daemon, { config: configValues({ "tnc/profile": "mercury" }) });
+    expect(send).toHaveBeenCalledWith({ cmd: "list_ports" });
+    await group.find<HTMLSelectElement>("#set-mercury-sound_card").setValue("plughw:1,0");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/sound_card": "plughw:1,0" } });
+    await tell(daemon, { config: configValues({ "tnc/profile": "mercury", "mercury/sound_card": "plughw:1,0" }) }); // (the daemon's answer: the form sends one change at a time)
+    await group.find<HTMLSelectElement>("#set-mercury-keying").setValue("rts:/dev/ttyUSB0");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/keying": "rts:/dev/ttyUSB0" } });
   });
 });

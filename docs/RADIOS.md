@@ -18,6 +18,7 @@ How to connect your radio or TNC to NeoAPRS, on Linux or Windows. In the page, *
 | MFJ-1270B/1274/1278, TAPR TNC-2 clones | yes with notes | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | RS-232; depends on the firmware |
 | Kantronics KPC-3+ | yes | Kantronics KPC-3+ | RS-232 |
 | Direwolf or soundmodem with a sound card: Digirig, SignaLink, a radio's data port, a USB sound dongle | yes | KISS over TCP (Direwolf, soundmodem) | Direwolf or the soundmodem serves KISS on a TCP port |
+| An HF SSB radio with a sound card and the Mercury modem (Rhizomatica) | untested on the air, tested against the program | Mercury HF modem (sound card, SSB radio) | NeoAPRS starts Mercury itself; only stations with the same modem on the same frequency hear you ([Mercury HF modem](#mercury-hf-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
 | PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP; Bluetooth LE (`ble://`) is listed by the BLE KISS specification, untested |
 | LoRa APRS iGate and Tracker (CA2RXU firmware) | untested, follows the firmware's source | KISS over TCP (iGate) or KISS TNC over Bluetooth LE (Tracker) | the iGate serves KISS on TCP port 8001; the Tracker has Bluetooth LE with KISS ([LoRa APRS](#lora-aprs-ca2rxu-firmware)) |
@@ -147,6 +148,42 @@ KISSPORT 8001
 2. NeoAPRS: *KISS over TCP*, TCP host `127.0.0.1`, TCP port as in the soundmodem's setting. Reports say 8100 (unverified; the AGW port is 8000, do not use it). If NeoAPRS does not connect, check that the KISS port is on and the AGW port is not the same number.
 3. QtSoundModem works the same way.
 
+## Mercury HF modem
+
+NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](https://github.com/Rhizomatica/mercury) modem of Rhizomatica (GPL-3), a software modem for an SSB radio with a sound card: a sound-card interface (DigiRig, SignaLink, a CM108 dongle) or a radio's own USB audio (IC-7300, FT-710 and the like). Only stations that use the same modem, on the same frequency, can hear you. It is not the 300 baud HF APRS network, which is a different signal on a different frequency, and nobody had sent APRS over Mercury before NeoAPRS: the frequencies below are proposals until they are confirmed on the air, and a word to Rhizomatica's hermes-general list before a group settles on one is the courteous thing. **Status: tested against the Mercury program (1.9.21) on one computer, not yet with two radios on the air.**
+
+**Install Mercury.** It is a separate program and NeoAPRS does not download it. Debian 13: the package `mercury` from debian.hermes.radio (amd64, arm64); other Linux: `make` from the source (`libasound2-dev libpulse-dev libhamlib-dev pkg-config`); Windows: the release zip from GitHub, unpacked so that `mercury.exe` is on the PATH or in the `bin` folder of NeoAPRS's data folder. NeoAPRS finds `mercury` on the PATH or in that `bin` folder, starts it when the radio type is chosen and at every start, restarts it when it dies, and stops it with itself. Two NeoAPRS on one computer each start their own.
+
+**Set-up.** Choose the radio type **Mercury HF modem (sound card, SSB radio)**, pick the radio's **Sound card** from the list (what Mercury lists; *system default* is the device the system plays through) and say how the radio is keyed (**Keying**): by itself (VOX, or the radio's own data mode), by a CM108 sound chip, or by the RTS or DTR line of a serial port (a DigiRig keys on RTS of its serial port). Nothing else: the mode (DATAC3) is fixed so that every NeoAPRS station can hear every other. **Never choose the DigiRig's serial port as a serial TNC**: opening it keys the transmitter.
+
+**Where to find each other.** Tune the radio to one of these, upper sideband (USB). They are dial frequencies; the signal sits 1.2 to 1.8 kHz above them.
+
+| Band | Dial (USB) |
+|---|---|
+| 30 m | 10.1462 MHz |
+| 40 m | 7.0541 MHz |
+| 20 m | 14.1070 MHz |
+
+10.1476 MHz is the 300 baud HF APRS frequency, not this one.
+
+**The rules to keep**
+
+- **Stay in the right part of the band.** These frequencies follow the IARU Region 1 band plan. The signal is about 500 Hz wide: on 40 m and 20 m it belongs in the digital segments of 2700 Hz (7050-7060 kHz, 14101-14112 kHz); on 30 m the only digital part is 10130-10150 kHz, which is 500 Hz wide, so measure the signal's width on a spectrum display before settling on 30 m. Outside Region 1, use your own band plan.
+- **Your licence decides the rest.** Bands, power, bandwidth and conditions are national; read yours. 30 m is a secondary band in many countries.
+- **Listen first.** Mercury's busy detector holds NeoAPRS's frames while it hears a signal, but it is no substitute for a look at the waterfall before you start.
+- **Use little power.** The signal is continuous, like a carrier. Set the drive so the radio's ALC does not move, turn off speech processing and noise reduction, and run far below the radio's rated power.
+- **Your call sign.** Every packet carries it. Make sure the call in Settings is your own.
+- **Only to other amateurs.** NeoAPRS's iGate passes what your radio hears on to APRS-IS. Nothing from the internet is sent to the radio.
+
+**How it behaves**
+
+- A packet takes about 4 seconds on the air, and the radio carries 123 bytes of it. A message that would not fit is refused with the reason; a beacon's comment is cut to fit. Nothing is sent cut off.
+- Beacon every 15 to 30 minutes. A message and its acknowledgement take the channel for about 10 seconds; the acknowledgement comes back well inside the first wait of 32 seconds, so the retries are the usual ones. A moving station beacons no oftener than every 5 minutes.
+- Leave the path empty and the digipeater off. Repeating on HF only fills the channel, and a WIDE or GATE path would carry your packet to every VHF network that hears it; a path also costs bytes of the frame.
+- Distant stations are usually heard 1000 to 2000 km away and not nearby. An iGate that hears you puts you on aprs.fi.
+- The radio status says what Mercury does: listening, transmitting, channel busy, and the signal-to-noise ratio of the latest frame. When Mercury is not installed or has stopped, the status says so and the log has Mercury's own lines. Mercury's configuration is written by NeoAPRS at every start into `mercury.ini` in the data folder; the busy detector is switched on there.
+- Two Mercury instances on one computer over a loopback audio path carry NeoAPRS's packets between two daemons (`scripts/mercury-bench`, a developer's bench with no radio); that is how the program side was tried: a beacon crossed in 3.9 seconds, a message was acknowledged in 10.8 seconds, a 140-byte frame given to Mercury came out as 123 bytes, and two frames keyed at the same moment were both lost.
+
 ## Kantronics KPC-3+
 
 1. Connect RS-232 (the KPC-3XE has USB).
@@ -253,6 +290,7 @@ Then `sudo udevadm control --reload` and plug the device in again.
 - [Mobilinkd TNC4 guide](https://mobilinkd.s3.amazonaws.com/TNC4/MobilinkdTNC4.pdf), [TNC3 guide](https://mobilinkd.s3.amazonaws.com/TNC3/MobilinkdTNC3.pdf)
 - [NinoTNC wiki](https://wiki.oarc.uk/packet:ninotnc)
 - [Direwolf](https://github.com/wb2osz/direwolf), [Direwolf User Guide](https://packet-radio.net/wp-content/uploads/2018/10/Direwolf-User-Guide.pdf)
+- [Mercury (Rhizomatica)](https://github.com/Rhizomatica/mercury) with its TNC document (the broadcast port) and its MODES document (the modes and their frames), [IARU Region 1 HF band plan](https://www.irts.ie/dnloads/IARU-R1-Bandplan-HF-2020.pdf)
 - [Soundmodem ports (Digirig forum)](https://forum.digirig.net/t/soundmodem-and-pinpoint-aprs-with-digirig-will-not-tx-aprs-packets/2340), [QtSoundModem](https://wiki.oarc.uk/packet:qtsoundmodem)
 - [G7JJF TNC init strings](https://g7jjf.com/tncsetup.htm), [Kantronics KPC-3+ KISS](https://manualzz.com/doc/o/22vn6v/kantronics-kpc%E2%80%933-plus-user-manual-kiss-mode)
 - [Icom ID-5200A](https://www.icomjapan.com/lineup/products/ID-5200A/), [D-PRS](https://www.aprs-is.net/dprs.aspx)

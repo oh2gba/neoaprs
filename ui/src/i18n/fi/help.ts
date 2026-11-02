@@ -30,6 +30,8 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.internet": "Asemat, jotka APRS-IS:llä on kartan säteen sisällä, tulevat pilvestä kartallesi vain yhteen suuntaan; mitään ei lähde takaisin.",
   "help.picture.channels":
     "Radiolla, radioaalloilla, kuultu asema on merkitty RF; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
+  "help.picture.mercury":
+    "Oma asemasi ja kaukainen asema, kauas toisistaan; signaali nousee ylös ja tulee alas niiden välissä: vain samaa modeemia käyttävä asema kuulee sen.",
   "help.picture.dummy": "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
   "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ponnahdusilmoituksen, kortin.",
   "help.picture.encrypt":

@@ -160,7 +160,8 @@ settings and the maps stay, and so do the packets we sent. Answered by the stati
 
 ### `list_ports`
 
-Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
+Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.
+A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.
 
 ### `find_radio`
 
@@ -599,6 +600,7 @@ The answer to `list_ports`.
 | `ports` | PortRow[] |  | the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices |
 | `search` | boolean |  | whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list |
 | `find` | boolean |  | whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS |
+| `sound_cards` | SoundCardRow[] |  | the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise |
 
 ### `state`
 
@@ -1041,6 +1043,7 @@ The TNC, the one feed of packets: its state and why it is not connected, the por
 | `path` | string |  | the serial port in use; empty while none is open |
 | `baud` | integer |  |  |
 | `dummy` | boolean |  | the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then |
+| `modem` | ModemState \| null |  | the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type |
 | `describe` | string |  | one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
 | `searching` | string[] |  | the ports the daemon is listening to while it looks for the radio; empty when it is not searching |
 | `silent_since` | time \| null |  | while `state` is `silent`, when the latest byte came; null otherwise |
@@ -1362,6 +1365,21 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | `later` | boolean |  | the detailed map was begun without being asked for (a place was set, or the setup guide said the map is wanted) and could not be fetched yet, most likely for want of a connection; it is tried again at the next start. False once a job runs or a detailed map is there |
 | `aloha_km` | number \| null |  | the radius of the ALOHA circle round our position, in km to a tenth: the distance within which the stations heard on RF would fill the 1200 baud channel (WB4APR's method, worked out again every minute); null without a position and while the stations heard do not fill the channel (>= 0) |
 
+### ModemState
+
+The Mercury HF modem behind the line, while the radio type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal.
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "stopped" \| "starting" \| "running" \| "waiting" |  | `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why |
+| `problem` | string |  | why the modem is not running (not installed, stopped); empty while it runs |
+| `mode` | string |  | the modem's mode, the same for every station: `DATAC3` |
+| `keyed` | boolean |  | the modem keys the radio now: a frame is on the air (about four seconds) |
+| `busy` | boolean |  | the modem's busy detector hears a signal on the channel: our frames wait |
+| `snr` | number \| null |  | the signal-to-noise ratio of the latest frame decoded, in dB; null before one |
+| `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
+| `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |
+
 ### NoteSection
 
 One version's section of the changelog.
@@ -1506,6 +1524,16 @@ One route a packet of a station came by, which the map draws (a line, or none fo
 | `at` | time |  | when the packet was heard |
 | `lat` | number \| null |  | where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now |
 | `lon` | number \| null |  |  |
+
+### SoundCardRow
+
+A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  | the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows |
+| `name` | string |  | what the system calls it, such as `USB Audio CODEC` |
+| `default` | boolean |  | whether it is the system's default device, which the empty setting means |
 
 ### StationKey
 

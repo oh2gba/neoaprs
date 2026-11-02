@@ -73,6 +73,17 @@ The type **Dummy (no radio, made-up traffic)**, the last in the list of **Radio 
 - Every call is made up on the prefix Q (`Q1ABC`, `Q2DIG-2`, `Q3WX`), which the ITU gives to no country, so none of them is anybody's.
 - Nothing of it is meant for the internet.
 
+## The Mercury HF modem
+
+The type **Mercury HF modem (sound card, SSB radio)** is APRS over HF with the Mercury modem, a separate program that NeoAPRS starts and stops itself. How to install it and the rules of the air are in [`docs/RADIOS.md`](../RADIOS.md#mercury-hf-modem). The type has two settings of its own, behind the arrow of the Radio group, and no port, speed or host.
+
+- **Sound card** is the radio's: the list is what Mercury finds, with *system default* first; **Refresh** reads it again, and *Other...* takes an id typed. Empty is the system's default device.
+- **Keying** is how the radio is switched to transmit: by itself (VOX, or its data mode), by a CM108 sound chip, or by the RTS or DTR line of one of the serial ports the system lists.
+- The mode and the frequencies are not settings: every NeoAPRS station is on the same mode, and the frequencies are in the radios guide.
+- The radio status says what the modem does: *Transmitting…* while a frame is on the air, *Channel busy, waiting* while the modem hears a signal, else the last packet as for any radio. When Mercury is not installed or has stopped, the status says so.
+- A message longer than the modem's frame carries is refused with the reason and how much to shorten it; a beacon's comment is cut to fit, with a line in the log. A moving station beacons no oftener than every 5 minutes.
+- In the setup guide the type needs nothing more; the sound card and the keying keep their defaults until you set them in the Settings tab.
+
 ## The TNC type
 
 The setting `tnc/profile` says what kind of TNC the radio is. It decides what, if anything, is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached. A fresh install is `kiss`, which is sent nothing but KISS frames. A device that needs nothing is sent nothing.
@@ -81,6 +92,7 @@ The setting `tnc/profile` says what kind of TNC the radio is. It decides what, i
 |---|---|---|---|---|
 | `kiss` (default) | Mobilinkd TNC3 and TNC4 (USB or Bluetooth serial), NinoTNC (set the speed to 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
 | `kiss-tcp` | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100): a program that serves KISS over TCP | nothing | nothing | no |
+| `mercury` | the Mercury HF modem, which NeoAPRS starts itself and reaches as KISS over TCP on this computer ([above](#the-mercury-hf-modem)) | nothing | nothing | no |
 | `kenwood-tnc2` | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | `kenwood-d710` | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |
 | `kantronics` | Kantronics KPC-3+, KPC-3, KAM | `\rINTFACE KISS\rRESET\r` (3 s) | `C0 FF C0` | yes |

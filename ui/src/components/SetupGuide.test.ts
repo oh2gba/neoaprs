@@ -16,6 +16,7 @@ const fresh = (extra: Record<string, string> = {}) =>
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
+  sound_cards: [],
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],

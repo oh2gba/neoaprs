@@ -16,8 +16,16 @@ class PortRow(_Model):
     pid: int | None = Field(description="the USB product id of an adapter; null for a port that is not USB")
 
 
+class SoundCardRow(_Model):
+    """A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type."""
+    id: str = Field(description="the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows")
+    name: str = Field(description="what the system calls it, such as `USB Audio CODEC`")
+    default: bool = Field(description="whether it is the system's default device, which the empty setting means")
+
+
 class ListPorts(_Command):
-    """Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed."""
+    """Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.
+    A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed."""
     cmd: Literal["list_ports"]
 
 
@@ -27,6 +35,7 @@ class PortsMsg(_Message):
     ports: list[PortRow] = Field(description="the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices")
     search: bool = Field(description="whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list")
     find: bool = Field(description="whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS")
+    sound_cards: list[SoundCardRow] = Field(description="the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise")
 
 
 class FindRadio(_Command):

@@ -509,7 +509,7 @@ export interface InstallInfo {
   arch: string;
 }
 
-/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
+/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. */
 export interface ListPortsCommand {
   cmd: "list_ports";
 }
@@ -658,6 +658,26 @@ export interface MessageRow {
   route: string;
   /** what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came */
   seal: "" | "key" | "key_other" | "open" | "shut";
+}
+
+/** The Mercury HF modem behind the line, while the radio type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal. */
+export interface ModemState {
+  /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why */
+  state: "stopped" | "starting" | "running" | "waiting";
+  /** why the modem is not running (not installed, stopped); empty while it runs */
+  problem: string;
+  /** the modem's mode, the same for every station: `DATAC3` */
+  mode: string;
+  /** the modem keys the radio now: a frame is on the air (about four seconds) */
+  keyed: boolean;
+  /** the modem's busy detector hears a signal on the channel: our frames wait */
+  busy: boolean;
+  /** the signal-to-noise ratio of the latest frame decoded, in dB; null before one */
+  snr: number | null;
+  /** how many times the radio was keyed since the modem started */
+  frames_keyed: number;
+  /** the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut */
+  max_frame: number;
 }
 
 /** Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next `status`. Answered by that `status`, or by an `error` when the key could not be kept. */
@@ -878,6 +898,8 @@ export interface PortsMessage {
   search: boolean;
   /** whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS */
   find: boolean;
+  /** the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise */
+  sound_cards: SoundCardRow[];
 }
 
 /** A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres. */
@@ -1117,6 +1139,16 @@ export interface SetStationRfOnlyCommand {
   cmd: "set_station_rf_only";
   call: string;
   on: boolean;
+}
+
+/** A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type. */
+export interface SoundCardRow {
+  /** the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows */
+  id: string;
+  /** what the system calls it, such as `USB Audio CODEC` */
+  name: string;
+  /** whether it is the system's default device, which the empty setting means */
+  default: boolean;
 }
 
 /** Asks for the speeds a station reported in its positions in the last `hours` hours. Answered with a `speed_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a station that reported no speed is answered with no points. */
@@ -1440,6 +1472,8 @@ export interface TncState {
   baud: number;
   /** the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then */
   dummy: boolean;
+  /** the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type */
+  modem: ModemState | null;
   /** one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
   describe: string;
   /** the ports the daemon is listening to while it looks for the radio; empty when it is not searching */

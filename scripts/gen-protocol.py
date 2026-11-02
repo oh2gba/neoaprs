@@ -19,6 +19,7 @@ import json
 import re
 import sys
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,7 @@ import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
+from neoaprs import mercury  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
@@ -250,6 +252,7 @@ def limits() -> dict[str, Any]:
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
+        "mercury": {"mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "beaconFloorSec": mercury.BEACON_FLOOR_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 
 
@@ -629,7 +632,7 @@ def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
     values = {**BEACON_BASE, **changes}
     try:
         config = Config.checked(DEFAULTS, values)
-        text: str | None = Beacon(object(), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio)
+        text: str | None = Beacon(SimpleNamespace(max_frame=None), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio, only its limit, which is none)
     except (ValueError, BeaconError):
         text = None
     return {"values": values, "text": text}

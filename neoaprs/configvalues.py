@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from .coded import CodedError
 from .configstatus import hostport
 from .configtypes import text_of
+from .mercury import keying_of
 from .message import path_choice
 from .route import DIRECT_ONLY
 from .tncprofile import profile_of
@@ -76,6 +77,11 @@ def map_source(text: str) -> str:
 def tnc_profile(text: str) -> str:
     """The key of a TNC profile (tncprofile.py), written the way the setting keeps it."""
     return profile_of(text).key
+
+
+def mercury_keying(text: str) -> str:
+    """How the Mercury modem keys the radio (mercury.py): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`, written the way the setting keeps it."""
+    return keying_of(text).text
 
 
 def aprsis_server(text: str) -> str:

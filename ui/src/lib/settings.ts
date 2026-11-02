@@ -10,6 +10,8 @@ import { ANTENNA, beaconOff } from "@/lib/beaconoff";
 import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
+import { GROUP_ORDER, rank } from "@/lib/settingsorder";
+import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
   directionChoices,
@@ -164,6 +166,20 @@ const SPECS: Record<string, FieldSpec> = {
   },
   "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
   "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
+  "mercury/sound_card": {
+    label: "settings.sound_card.label",
+    tipLabel: "settings.sound_card.tip_label",
+    tip: ["settings.sound_card.tip1", "settings.sound_card.tip2"],
+    picture: "mercury",
+  },
+  "mercury/keying": {
+    label: "settings.keying.label",
+    kind: "choice",
+    choices: () => keyingChoices(null),
+    tipLabel: "settings.keying.tip_label",
+    tip: ["settings.keying.tip1", "settings.keying.tip2"],
+    picture: "mercury",
+  },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
   "web/network": {
     name: "settings.network.name",
@@ -324,7 +340,7 @@ interface Group {
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/"], also: ["station/transmit"] },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/", "mercury/"], also: ["station/transmit"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
@@ -340,37 +356,6 @@ const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
   settings: ["serial", "igate", "digi", "web", "notifications", "map"],
 };
-
-/** The order of the TNC group on the page: the RX only tickbox, the type of TNC, the port and its speed, or the host and port of a TCP one. */
-const TNC_ORDER = ["station/transmit", "tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port", "serial/last_port"];
-
-/** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
-const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
-/** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
-const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
-/** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
-const STATION_ORDER = [
-  "station/call",
-  "gps/source",
-  "gps/host",
-  "gps/device",
-  "gps/baud",
-  "station/lat",
-  "station/lon",
-  "station/symbol_table",
-  "station/symbol_code",
-];
-const GROUP_ORDER: Record<string, readonly string[]> = {
-  station: STATION_ORDER,
-  serial: TNC_ORDER,
-  status: STATUS_ORDER,
-  beacon: BEACON_ORDER,
-};
-
-function rank(order: readonly string[], key: string): number {
-  const at = order.indexOf(key);
-  return at < 0 ? order.length : at;
-}
 
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, the APRS-IS server and the passcode of the Internet switch (igate/server, whose default is the round-robin name of the volunteer servers, and igate/password, which only a person who gates for the radio sets), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself
  * (the defaults suit nearly everyone, and the daemon moves to a free port and says which in the log), and the map's detail (12, streets), source (the latest daily build). The map download uses the stored values, so a custom source or detail still works. */
@@ -424,6 +409,7 @@ export function shownFor(key: string, profileKey: string | undefined, network = 
   const profile = profileOf(profileKey);
   if (!profile) return true;
   if (key.startsWith("tcp/")) return profile.transport === "tcp";
+  if (key.startsWith("mercury/")) return profile.transport === "modem";
   if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
   return true;
 }

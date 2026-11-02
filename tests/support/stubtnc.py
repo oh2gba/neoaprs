@@ -13,12 +13,13 @@ from neoaprs.source import Source, unusable_because
 
 
 class StubTnc:
-    def __init__(self, state: Source.State = Source.State.CONNECTED) -> None:
+    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
         self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
         self.takes = True
         self.asked = 0
+        self.max_frame = max_frame                  # the longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit alone
 
     @property
     def usable(self) -> bool:

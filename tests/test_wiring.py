@@ -11,7 +11,7 @@ from neoaprs import ax25, kiss
 from neoaprs.config import DEFAULTS
 from neoaprs.packet import Position
 from neoaprs.source import Source
-from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP
+from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
 from neoaprs.wiring import tnc_settings
 from tests.support.env import Env, idle_for, until
 
@@ -222,10 +222,10 @@ async def test_a_port_given_for_this_run_is_used_alone_and_never_stored(tmp_path
 
 
 def test_the_settings_become_the_tncs(search_pattern_from_settings: None) -> None:
-    assert tnc_settings(DEFAULTS) == ("", 9600, KISS, True, (), "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*")
+    assert tnc_settings(DEFAULTS) == ("", 9600, KISS, True, (), "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", ("", ""))
     assert tnc_settings(replace(DEFAULTS, serial_last_port="/dev/brainbox_3")).port == "/dev/brainbox_3"
-    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2")) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, (), DEFAULTS.serial_pattern)
-    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), "/dev/pts/4") == ("/dev/pts/4", 9600, KISS, False, (), DEFAULTS.serial_pattern)
+    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2")) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, (), DEFAULTS.serial_pattern, ("", ""))
+    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), "/dev/pts/4") == ("/dev/pts/4", 9600, KISS, False, (), DEFAULTS.serial_pattern, ("", ""))
     assert tnc_settings(replace(DEFAULTS, serial_skip="/dev/brainbox_2, /dev/ttyUSB5")).skip == ("/dev/brainbox_2", "/dev/ttyUSB5")
     assert tnc_settings(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/dev/brainbox_*"
     assert tnc_settings(DEFAULTS, pattern_override="/tmp/probe_*").pattern == "/tmp/probe_*"
@@ -233,13 +233,23 @@ def test_the_settings_become_the_tncs(search_pattern_from_settings: None) -> Non
 
 def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches(search_pattern_from_settings: None) -> None:
     tcp = replace(DEFAULTS, tnc_profile="kiss-tcp")
-    assert tnc_settings(tcp) == ("socket://127.0.0.1:8001", 9600, KISS_TCP, False, (), DEFAULTS.serial_pattern)
+    assert tnc_settings(tcp) == ("socket://127.0.0.1:8001", 9600, KISS_TCP, False, (), DEFAULTS.serial_pattern, ("", ""))
     assert tnc_settings(replace(tcp, tcp_host="pi.local", tcp_port=8100, serial_last_port="/dev/ttyUSB0")).port == "socket://pi.local:8100"
     assert tnc_settings(replace(tcp, tcp_host="::1")).port == "socket://[::1]:8001"
     assert tnc_settings(replace(tcp, serial_port="tcp://10.0.0.5:8100")).port == "tcp://10.0.0.5:8100", "an address in serial/port is the one used"
     assert tnc_settings(replace(tcp, serial_port="/dev/ttyUSB0")).port == "socket://127.0.0.1:8001", "(a serial device is refused when saved; a row edited by hand is not followed)"
     assert replace(DEFAULTS, tnc_profile="kenwood-tnc2", serial_port="socket://localhost:7000").profile.transport == "serial"
     assert tnc_settings(replace(DEFAULTS, tnc_profile="kenwood-tnc2", serial_port="socket://localhost:7000")).port == "socket://localhost:7000", "a serial profile on a socket works"
+
+
+def test_the_mercury_modem_is_reached_on_the_port_the_modem_part_chose_and_its_two_settings_go_with_it(search_pattern_from_settings: None) -> None:
+    hf = replace(DEFAULTS, tnc_profile="mercury", mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0")
+    assert tnc_settings(hf) == ("socket://127.0.0.1:8100", 9600, MERCURY, False, (), DEFAULTS.serial_pattern, ("plughw:1,0", "rts:/dev/ttyUSB0"))
+    assert tnc_settings(hf, modem_port=8101).port == "socket://127.0.0.1:8101", "the modem part chose other ports because the defaults were taken"
+    assert tnc_settings(hf, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a port given for this run is a Mercury something else runs"
+    assert tnc_settings(replace(hf, serial_port="tcp://10.0.0.5:8100")).port == "tcp://10.0.0.5:8100", "so is an address in serial/port"
+    assert tnc_settings(replace(hf, mercury_keying="vox")) != tnc_settings(hf), "a change of the keying restarts the modem and the Tnc with it"
+    assert tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp", mercury_keying="rts:/dev/ttyUSB0")).modem == ("", ""), "the two settings count for the Mercury type only"
 
 
 async def test_the_start_takes_the_time_the_clock_says(tmp_path: Path) -> None:

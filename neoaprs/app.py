@@ -16,6 +16,7 @@ from .config import DEFAULTS, Config
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
+from .mercurymodem import Mercury
 from .messagelog import MessageLog
 from .ownlog import OwnLog
 from .packet import IS, Packet
@@ -79,6 +80,8 @@ class Services:
         self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the radio; its port and speed are set from the config when it is started
         self.tnc.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
         self.tnc.interlock = Interlock(lambda: self.config)            # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
+        self.mercury = Mercury(data_dir, clock)                        # the Mercury HF modem: the program the daemon starts with the Tnc when the radio type is Mercury, its control port, and the hold while it transmits or the channel is busy
+        self.tnc.modem = self.mercury
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate

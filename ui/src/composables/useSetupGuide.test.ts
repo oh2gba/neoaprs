@@ -9,6 +9,7 @@ const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
+  sound_cards: [],
   search: true,
   find: true,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],

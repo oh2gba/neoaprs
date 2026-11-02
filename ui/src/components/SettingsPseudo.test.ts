@@ -79,6 +79,7 @@ function untranslated(root: Element): string[] {
 const https: HttpsState = { on: true, port: 7304, fingerprint: "AB:CD:EF", problem: "" };
 const ports: PortsMessage = {
   type: "ports",
+  sound_cards: [],
   search: true,
   find: true,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R", hwid: "n/a", vid: null, pid: null }],

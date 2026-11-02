@@ -7,31 +7,33 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .coded import CodedError
+from .mercury import MAX_PAYLOAD as MERCURY_MAX_FRAME
 
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
 Step = tuple[bytes, float]
-Transport = Literal["serial", "tcp", "dummy"]
+Transport = Literal["serial", "tcp", "dummy", "modem"]
 
 
 @dataclass(frozen=True)
 class Profile:
     key: str                                   # the value of tnc/profile
     name: str                                  # what the page calls it
-    transport: Transport                       # "tcp": the TNC is a program or a bridge reached by host and port; "serial": a serial port (which may itself be a socket:// URL); "dummy": no line at all, the made-up traffic of the Dummy radio
+    transport: Transport                       # "tcp": the TNC is a program or a bridge reached by host and port; "serial": a serial port (which may itself be a socket:// URL); "dummy": no line at all, the made-up traffic of the Dummy radio; "modem": a modem program the daemon starts itself and reaches over TCP on this computer (Mercury)
     baud: int | None                           # the speed the serial line is opened at unless serial/baud says otherwise; None: not a serial line
     enter: tuple[Step, ...]                    # what is written to switch the TNC to KISS; empty: nothing is, the device is in KISS already
     exit_kiss: bytes | None                    # what takes the TNC out of KISS (the first thing the keep-alive's check sends); None: nothing
     can_probe: bool                            # whether the TNC may be asked if it is there: the keep-alive's check, a carriage return after silence and the silent state; False: nothing is ever sent but KISS frames
     detect_command_mode: bool                  # whether text from the TNC ("cmd:", heard packets as TNC2 lines) means command mode, which `enter` leaves
     note: str                                  # what is uncertain about the profile, for the manual
+    max_frame: int | None = None               # the longest AX.25 frame the radio carries whole, in bytes; None: the AX.25 limit alone (a modem with a fixed frame cuts a longer one off, so the daemon refuses or shortens it first)
 
     def __post_init__(self) -> None:
         if self.can_probe and (not self.enter or self.exit_kiss is None):
             raise ValueError(f"{self.key}: a profile that can be probed has to say how to enter and leave KISS")
         if self.detect_command_mode and not self.enter:
             raise ValueError(f"{self.key}: command mode cannot be left without an entry")
-        if self.transport in ("tcp", "dummy") and (self.enter or self.can_probe):
+        if self.transport in ("tcp", "dummy", "modem") and (self.enter or self.can_probe):
             raise ValueError(f"{self.key}: a {self.transport} profile sends nothing but KISS frames")
 
     @property
@@ -65,12 +67,18 @@ KENWOOD_D710 = Profile("kenwood-d710", "Kenwood TM-D710 / TH-D72", "serial", 960
 KANTRONICS = Profile("kantronics", "Kantronics KPC-3+", "serial", 9600, ((b"\rINTFACE KISS\rRESET\r", 3.0),), KISS_EXIT, True, True,
                      "The host speed has been reported to change after RESET on some units.")
 
+# Rhizomatica's Mercury HF modem (neoaprs/mercury.py): a program the daemon starts and stops itself, with the radio's sound card and the way the radio is keyed as its two settings, reached on its broadcast port, which is
+# KISS over TCP (Mercury 1.9.21, docs/TNC.md). Its frame carries 123 bytes of a packet and a longer one is cut off by Mercury without a word, so the daemon refuses or shortens it first. Only stations with the same
+# modem on the same frequency hear each other; the mode is fixed in the program so that every NeoAPRS station is on it.
+MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem", None, (), None, False, False,
+                  "Mercury 1.9.21 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", max_frame=MERCURY_MAX_FRAME)
+
 # The Dummy radio (neoaprs/dummyline.py): no radio, no port, no speed; the daemon makes the traffic itself and swallows what it sends. It is last in the list: it is for trying NeoAPRS out, and a person looking
 # for their radio should find the real ones first.
 DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (), None, False, False,
                 "Nothing goes on the air and nothing is opened: the traffic is made up by the program, around the station's position.")
 
-PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)
+PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, MERCURY, DUMMY)
 BY_KEY = {p.key: p for p in PROFILES}
 DEFAULT = KISS                              # a fresh install: no text is ever sent to a device that was not named
 

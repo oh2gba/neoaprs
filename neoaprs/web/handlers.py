@@ -105,7 +105,9 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports]})
+    cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if ctx.ctl.config.profile.transport == "modem" else []        # (the Mercury program is run for its list: only while it is the radio type)
+    ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports],
+                   "sound_cards": [{"id": c.id, "name": c.name, "default": c.default} for c in cards]})
 
 
 @command(FindRadio)

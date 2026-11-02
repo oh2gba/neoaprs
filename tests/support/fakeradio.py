@@ -77,6 +77,10 @@ class FakeRadio:
         out, self._heard = bytes(self._heard), bytearray()
         return out
 
+    def heard_bytes(self, data: bytes) -> None:
+        """What a client wrote: kept for `said` (a radio that is more than a tap, the fake Mercury, does more with it)."""
+        self._heard.extend(data)
+
     def put_back(self, data: bytes) -> None:
         """Bytes read with `said` that the test has not looked at yet: the next `said` returns them first."""
         self._heard[:0] = data
@@ -151,7 +155,7 @@ class _Tap(asyncio.Protocol):
             self._radio._unsent.clear()
 
     def data_received(self, data: bytes) -> None:
-        self._radio._heard.extend(data)
+        self._radio.heard_bytes(data)
 
     def connection_lost(self, exc: Exception | None) -> None:
         if self._transport in self._radio._clients:

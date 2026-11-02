@@ -15,6 +15,8 @@ from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
+from neoaprs.mercury import MAX_PAYLOAD, MODE
+from neoaprs.mercurymodem import Mercury
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownobject import OwnObject
@@ -40,7 +42,7 @@ from .prefwire import StationAlertMsg, StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
-from .tncwire import TncState, TncStats
+from .tncwire import ModemState, TncState, TncStats
 from .wirebase import HISTORY_MAX_HOURS
 
 LINES_MAX = 100                     # lines of the TNC told to a page
@@ -156,7 +158,15 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:
     lines = [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]
-    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines)
+    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc))
+
+
+def modem_state(tnc: Tnc) -> dict[str, Any] | None:
+    """The Mercury HF modem behind the Tnc's line, while the radio type is a modem's; None otherwise."""
+    modem = tnc.modem
+    if modem is None or tnc.profile.transport != "modem" or not isinstance(modem, Mercury):
+        return None
+    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

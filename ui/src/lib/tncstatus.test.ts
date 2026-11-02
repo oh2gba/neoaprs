@@ -38,6 +38,16 @@ describe("tncStatus", () => {
     expect(tncStatus(tncState({ state: "stopped" }), NOW)).toBe("Not connected");
   });
 
+  it("says that the Mercury HF modem transmits, or that the channel is busy, while it does; else the last packet as for any radio", () => {
+    const modem = { state: "running" as const, problem: "", mode: "DATAC3", keyed: false, busy: false, snr: null, frames_keyed: 0, max_frame: 123 };
+    expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("Transmitting…");
+    expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("Channel busy, waiting");
+    expect(tncStatus(tncState({ modem }), NOW)).toBe("Last packet 30 s ago");
+    expect(tncStatus(tncState({ modem: { ...modem, keyed: true }, state: "waiting", problem: "the Mercury program is not installed" }), NOW)).toBe(
+      "Not connected: the Mercury program is not installed",
+    );
+  });
+
   it("says what it is connecting to", () => {
     expect(tncStatus(tncState({ state: "connecting" }), NOW)).toBe("Connecting to /dev/brainbox_3…");
     expect(tncStatus(tncState({ state: "connecting", path: "" }), NOW)).toBe("Connecting…");

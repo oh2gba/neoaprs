@@ -144,7 +144,7 @@ class Topics:
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
             (ctl.stationbook.cleared, self._stations_cleared),
-            (ctl.tnc.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
+            (ctl.tnc.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed), (ctl.mercury.changed, self._tnc_changed),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),

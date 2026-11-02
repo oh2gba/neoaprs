@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the radio's status line, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP), the Find my radio button
+// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the radio's status line, and behind its arrow the fields of the radio (the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP, or the sound card and the keying of the Mercury HF modem), the Find my radio button
 // and the terminal (RadioStatus). The fold is open when the radio is not connected. The fields are worked as in the form: a typed one is sent when it is left or Enter is pressed, a choice at once (the form's `settings` and `form`). Find my radio
-// (FindRadioRow.vue) asks the daemon to try the ports and puts what it finds in the settings (composables/useFindRadio.ts).
-import { computed } from "vue";
+// (FindRadioRow.vue) asks the daemon to try the ports and puts what it finds in the settings (composables/useFindRadio.ts). The sound card is a list of what the daemon found, as the port is (SettingsPort), and the keying a choice made of the ports the
+// daemon lists (lib/mercury.ts); both lists are asked for again when the type becomes Mercury, since the daemon lists the sound cards only then.
+import { computed, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -10,24 +11,36 @@ import SettingsPort from "@/components/SettingsPort.vue";
 import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
-import { FIELDS, RX_ONLY_KEY, storedFor, valueFor } from "@/lib/settings";
-import { speedFallback } from "@/lib/tncprofile";
+import { t } from "@/i18n";
+import { keyingChoices, soundCardPorts } from "@/lib/mercury";
+import { FIELDS, RX_ONLY_KEY, storedFor, valueFor, type FieldInfo } from "@/lib/settings";
+import { profileOf, speedFallback } from "@/lib/tncprofile";
 
 const props = defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
 const { config, send, ports, tnc, now } = useDaemonContext();
 
 /** The switch that is the first row of the group, above the status line: transmitting at all. */
 const TRANSMIT_KEY = RX_ONLY_KEY;
+const SOUND_CARD_KEY = "mercury/sound_card";
+const KEYING_KEY = "mercury/keying";
 const info = (key: string) => FIELDS[key] ?? { label: key };
 const profile = computed(() => props.settings.draft["tnc/profile"]);
+const modem = computed(() => profileOf(profile.value)?.transport === "modem");
 /** The fold is open while the radio is not connected: that is when the fields are wanted. */
 const unconnected = computed(() => tnc.value !== null && tnc.value.state !== "connected");
 const fallback = (key: string) => (key === "serial/baud" ? speedFallback(profile.value, props.defaults[key] ?? "") : (props.defaults[key] ?? ""));
+const soundCards = computed(() => soundCardPorts(ports.value));
+const keyingInfo = computed<FieldInfo>(() => ({
+  ...info(KEYING_KEY),
+  kind: "choice",
+  choices: keyingChoices(ports.value, props.settings.draft[KEYING_KEY] ?? ""),
+}));
 /** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
 function typed(key: string, text: string): void {
   const kind = info(key).kind;
   if (kind !== "bool" && kind !== "choice") props.settings.edit(key, text);
 }
+watch(modem, (wanted) => wanted && send({ cmd: "list_ports" }));
 </script>
 
 <template>
@@ -60,10 +73,27 @@ function typed(key: string, text: string): void {
         @cancel="settings.cancel(key)"
         @refresh="send({ cmd: 'list_ports' })"
       />
+      <SettingsPort
+        v-else-if="key === SOUND_CARD_KEY"
+        :id="fieldId(key)"
+        :info="info(key)"
+        :model-value="settings.draft[key] ?? ''"
+        found=""
+        :first="t('settings.sound_card.default')"
+        :typed-label="t('settings.sound_card.id_label')"
+        :ports="soundCards"
+        :error="settings.errors[key] ?? ''"
+        :changed="form.changed(key)"
+        @update:model-value="settings.edit(key, $event)"
+        @choose="form.choose({ [key]: $event })"
+        @commit="form.finish(key, $event)"
+        @cancel="settings.cancel(key)"
+        @refresh="send({ cmd: 'list_ports' })"
+      />
       <SettingsField
         v-else
         :id="fieldId(key)"
-        :info="info(key)"
+        :info="key === KEYING_KEY ? keyingInfo : info(key)"
         :model-value="settings.draft[key] ?? ''"
         :fallback="fallback(key)"
         :error="settings.errors[key] ?? ''"

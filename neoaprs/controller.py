@@ -129,12 +129,15 @@ class Controller(Services):
         if previous is not None:
             await cancel_all([previous])
         await self.tnc.stop()
+        await self.mercury.stop()
+        if self.config.profile.transport == "modem":
+            await self.mercury.start(self.config, self.port_override)       # (the modem first: it chooses the ports the Tnc then connects to; a port given for this run is a Mercury something else runs)
         self._configure_tnc()
         await self.tnc.start()
 
     def _configure_tnc(self) -> None:
         """The Tnc, which is stopped, takes the settings as they are now."""
-        wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
+        wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override, self.mercury.broadcast_port))
         self.tnc.set_check(self.check_sec)
 
     async def hold_tnc(self) -> None:
@@ -149,6 +152,7 @@ class Controller(Services):
         if task is not None:
             await cancel_all([task])
         await self.tnc.stop()
+        await self.mercury.stop()
 
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
@@ -167,13 +171,13 @@ class Controller(Services):
         if not await self.store.put_settings({key: text for key, text in config.to_data().items() if key in stored}):        # (only what this save changes: a key written by `neoaprs db set` in the meantime stays)
             return False
         self._implied = set()
-        before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override)
+        before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override, self.mercury.broadcast_port)
         previous, self.config = self.config, config
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
         self.igate.settings_changed()
-        if wiring.tnc_settings(config, self.port_override, self.pattern_override) != before:
+        if wiring.tnc_settings(config, self.port_override, self.pattern_override, self.mercury.broadcast_port) != before:
             self.start_tnc()
         self.config_changed.emit(config)
         self.mapauto.settings_changed(previous)

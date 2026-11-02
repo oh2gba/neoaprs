@@ -60,6 +60,7 @@ from neoaprs.tasks import TaskSet
 log = logging.getLogger("neoaprs.messaging")
 
 TICK_SEC = 1.0
+REPLY_ACK_ROOM = 2                              # the bytes a later attempt may add to a message's frame: the two characters of a reply-ack number (`{MM}AA`), which a radio with a fixed frame must have room for
 
 
 def _in_line(record: MessageRecord) -> bool:
@@ -99,8 +100,8 @@ class Messaging:
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
-        self.retries = Retries(self, tnc, config, interlock, clock, lambda: self.tick_sec)         # when each message being sent needs attention, and the ticker (services/retries.py)
-        self.acks = Acks(tnc, interlock, self._frame)                                  # the ids we give and the acks we send (services/acks.py)
+        self.acks = Acks(tnc, interlock, self._frame, clock)                           # the ids we give and the acks we send, or hold for a radio that is held (services/acks.py)
+        self.retries = Retries(self, tnc, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
@@ -202,7 +203,7 @@ class Messaging:
         """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
         if self._tnc.state is Source.State.SILENT:
             raise MessagingError(self._tnc.why_unusable())
-        self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to)          # (the settings make a frame, and the text one)
+        self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM)          # (the settings make a frame, and the text one that the radio carries)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
         if record is None:
@@ -295,15 +296,20 @@ class Messaging:
             raise MessagingError(f"there is no message {number} that we sent")
         return record
 
-    def _frame(self, info: bytes, to: str, attempt: int | None = None) -> ax25.Frame:
-        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given)."""
+    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0) -> ax25.Frame:
+        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given). A frame longer than
+        the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number), is refused with the code `message.too_long_for_radio`: a message is never cut."""
         c = self._config()
         try:
-            return our_frame(c, self._paths(to, attempt), info)
+            frame = our_frame(c, self._paths(to, attempt), info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:
             raise MessagingError(f"the settings make no frame: {e}") from None
+        limit = self._tnc.max_frame
+        if limit is not None and (length := len(ax25.encode(frame)) + room) > limit:
+            raise MessagingError(f"the message is {length} bytes on the air, the radio carries {limit}: shorten it by {length - limit} characters", "message.too_long_for_radio", length=length, max=limit, cut=length - limit)
+        return frame
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
         """Transmits the message once, when the radio can and it does not wait for another to the same station (`queued`); the message as it is after that."""

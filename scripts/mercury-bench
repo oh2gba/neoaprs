@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""The bench of APRS over the Mercury HF modem with no radio: two real Mercury instances cross-wired through named pipes (its `fifo` audio backend: what one plays the other hears), two NeoAPRS daemons on data folders of their
+own, each with the Mercury radio type and attached to its own Mercury, and the exchange between them driven through the pages' sockets: a beacon of A heard by B, a message from A acked by B with the time it took, and a message
+too long for the frame refused by the daemon with its reason. Nothing is keyed, nothing leaves the loopback. For a developer, by hand; Mercury has to be installed (`mercury` on the PATH, or `--mercury PATH`).
+
+  scripts/mercury-bench                 run it: a table of what happened and the times, exit 0 when every step passed
+  scripts/mercury-bench --keep          keep the folders (the daemons' logs, Mercury's output) and say where they are
+
+Linux only (named pipes). Mercury's fifo backend delivers a frame's samples as fast as the pipe takes them while the sender holds its PTT for the frame's time, so a straight pipe lets the far side decode and answer while the near
+side still transmits (half duplex: the answer is lost). The bench pipes the audio through a pacer of its own: 8000 samples of 32 bits a second, silence between the frames, as a sound card would, so that a frame is decoded when it ends
+and the answer comes when the sender listens again."""
+import argparse
+import asyncio
+import json
+import os
+import random
+import re
+import shutil
+import signal
+import struct
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+A_PORTS, B_PORTS = (18100, 18300), (18110, 18310)       # (broadcast, control) of each Mercury: the control port 200 above the KISS port, as the daemon expects of a Mercury it did not start
+LONG_TEXT = "x" * 67
+
+
+class Failure(Exception):
+    pass
+
+
+def say(text: str) -> None:
+    print(f"bench: {text}", flush=True)
+
+
+def fifo(folder: Path, name: str) -> str:
+    path = folder / name
+    os.mkfifo(path)
+    return str(path)
+
+
+SAMPLE_BYTES = 4                 # s32le
+RATE = 8000                      # samples a second
+TICK_SEC = 0.01
+TICK_BYTES = int(RATE * TICK_SEC) * SAMPLE_BYTES
+
+
+def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: str, ports: tuple[int, int]) -> subprocess.Popen[bytes]:
+    out = (folder / f"mercury-{name}.log").open("wb")
+    ini = folder / f"mercury-{name}.ini"
+    ini.write_text("[channel]\nbusy_detect = true\n[store]\nenabled = false\n", encoding="utf-8")        # (what NeoAPRS writes for a Mercury it starts itself)
+    argv = [binary, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(ports[0]), "-p", str(ports[1]), "-P", "none", "-v"]
+    return subprocess.Popen(argv, cwd=str(folder), stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+
+
+NOISE = 1 << 20                  # the amplitude of the noise under the signal, about -66 dBFS: a receiver is never silent, and Mercury's busy detector takes its noise floor from what it hears (on digital silence the floor is nothing and every frame reads BUSY for a minute)
+
+
+def noise(count: int) -> bytes:
+    """`count` samples of noise, s32le."""
+    return struct.pack(f"<{count}i", *(random.randint(-NOISE, NOISE) for _ in range(count)))
+
+
+class Pacer(threading.Thread):
+    """The air between the two: what one Mercury plays into its pipe is read as it comes and written into the other's capture pipe at the sound card's pace, 8000 samples a second, with a receiver's noise when nothing is played."""
+
+    def __init__(self, played: str, captured: str) -> None:
+        super().__init__(name=f"pacer {Path(played).name}", daemon=True)
+        self.played, self.captured = played, captured
+        self.stopping = threading.Event()
+        self.bytes_carried = 0
+
+    def run(self) -> None:
+        source = os.open(self.played, os.O_RDONLY | os.O_NONBLOCK)                 # (opened without waiting for the player, which opens its side when it starts)
+        sink = os.open(self.captured, os.O_WRONLY)                                  # (waits for the capturing Mercury to open its side)
+        pending = b""
+        next_tick = time.monotonic()
+        try:
+            while not self.stopping.is_set():
+                try:
+                    chunk = os.read(source, 1 << 16)
+                except BlockingIOError:
+                    chunk = b""
+                pending += chunk
+                out, pending = pending[:TICK_BYTES], pending[TICK_BYTES:]
+                os.write(sink, out + noise((TICK_BYTES - len(out)) // SAMPLE_BYTES))
+                self.bytes_carried += len(out)
+                next_tick += TICK_SEC
+                time.sleep(max(0.0, next_tick - time.monotonic()))
+        except OSError:
+            pass
+        finally:
+            os.close(source)
+            os.close(sink)
+
+
+def write_settings(data: Path, rows: dict[str, str]) -> None:
+    for key, value in rows.items():
+        subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "set", key, value], check=True, capture_output=True, env=daemon_env())
+
+
+def daemon_env() -> dict[str, str]:
+    env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
+    env["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-bench-no-such-port*"          # the daemon has its radio (--port) and opens no serial port of the machine
+    env["NEOAPRS_UPDATE_CHECK"] = "0"
+    return env
+
+
+def start_daemon(data: Path, ports: tuple[int, int]) -> subprocess.Popen[bytes]:
+    out = (data.parent / f"{data.name}.out").open("wb")
+    return subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), "--port", f"socket://127.0.0.1:{ports[0]}", "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=daemon_env())
+
+
+def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -> str:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if daemon.poll() is not None:
+            raise Failure(f"the daemon on {data.name} ended with exit code {daemon.returncode} before its page was up")
+        try:
+            found = re.search(r"web page at (http://127\.0\.0\.1:\d+/)", (data / "neoaprs.log").read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            found = None
+        if found:
+            return found.group(1)
+        time.sleep(0.1)
+    raise Failure(f"no 'web page at' line in the log of {data.name} within {seconds:g} s")
+
+
+class Page:
+    """A page's socket on a daemon: the topics as the page holds them, the errors, and the commands."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.topics: dict[str, Any] = {}
+        self.errors: list[dict[str, Any]] = []
+        self._connection: Any = None
+
+    async def open(self, base: str) -> None:
+        from tornado.websocket import websocket_connect
+        self._connection = await websocket_connect("ws://" + base.removeprefix("http://") + "ws", connect_timeout=15)
+
+    async def send(self, command: dict[str, Any]) -> None:
+        await self._connection.write_message(json.dumps(command))
+
+    async def until(self, what: str, condition: Any, seconds: float) -> float:
+        """Reads the socket until the condition holds; the seconds it took."""
+        started = asyncio.get_running_loop().time()
+        deadline = started + seconds
+        while not condition():
+            left = deadline - asyncio.get_running_loop().time()
+            if left <= 0:
+                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (tnc {json.dumps(self.topics.get('tnc', {}).get('state'))}, modem {json.dumps((self.topics.get('tnc') or {}).get('modem'))})")
+            try:
+                raw = await asyncio.wait_for(self._connection.read_message(), left)
+            except TimeoutError:
+                continue
+            if raw is None:
+                raise Failure(f"{self.name}: the daemon closed the socket")
+            self._apply(json.loads(raw))
+        return asyncio.get_running_loop().time() - started
+
+    def _apply(self, message: dict[str, Any]) -> None:
+        kind = message.get("type")
+        if kind == "state":
+            self.topics[message["topic"]] = message["value"]
+        elif kind == "patch":
+            value = self.topics.setdefault(message["topic"], {})
+            for op in message["ops"]:
+                if op["op"] == "replace":
+                    self.topics[message["topic"]] = value = op["value"]
+                elif op["op"] == "set":
+                    value[op["key"]] = op["value"]
+                else:
+                    value.pop(op["key"], None)
+        elif kind == "error":
+            self.errors.append(message)
+
+    def modem(self) -> dict[str, Any]:
+        return (self.topics.get("tnc") or {}).get("modem") or {}
+
+    def ready(self) -> bool:
+        return (self.topics.get("tnc") or {}).get("state") == "connected" and self.modem().get("state") == "running"
+
+    def close(self) -> None:
+        if self._connection is not None:
+            self._connection.close()
+
+
+async def exchange(a: Page, b: Page, seconds: float) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+    took = await a.until("the radio connected and Mercury's control port heard", a.ready, seconds)
+    await b.until("the radio connected and Mercury's control port heard", b.ready, seconds)
+    rows.append(("both daemons connected to their Mercury, control ports heard", f"{took:.1f} s"))
+    await a.send({"cmd": "beacon_now"})
+    took = await b.until("A's beacon", lambda: any(s.get("call") == "OH2A" for s in (b.topics.get("stations") or {}).values()), seconds)
+    rows.append(("A's beacon heard by B (one frame on the air)", f"{took:.1f} s"))
+    await a.send({"cmd": "send_message", "to": "OH2B", "text": "Moi Pekka, kuuluuko?"})
+    took = await a.until("the ack of A's message", lambda: any(m.get("direction") == "out" and m.get("state") == "acked" for m in (a.topics.get("messages") or {}).values()), seconds)
+    rows.append(("A's message acked by B (a frame each way)", f"{took:.1f} s"))
+    await b.until("B's modem counting its frame", lambda: int(b.modem().get("frames_keyed") or 0) >= 1, 5.0)        # (B's topics are read only while something of B is waited for)
+    await a.send({"cmd": "send_message", "to": "OH2B", "text": LONG_TEXT})
+    await a.until("the refusal of the long message", lambda: any(e.get("code") == "message.too_long_for_radio" for e in a.errors), seconds)
+    refusal = next(e for e in a.errors if e.get("code") == "message.too_long_for_radio")
+    rows.append(("a message too long for the frame refused by the daemon", f"{refusal['params']['length']} bytes, the radio carries {refusal['params']['max']}"))
+    rows.append(("frames A keyed / B keyed", f"{a.modem().get('frames_keyed')} / {b.modem().get('frames_keyed')}"))
+    rows.append(("SNR B heard A with / A heard B with", f"{b.modem().get('snr')} / {a.modem().get('snr')} dB"))
+    return rows
+
+
+def stop(process: subprocess.Popen[bytes], seconds: float) -> int | None:
+    if process.poll() is None:
+        process.send_signal(signal.SIGTERM)
+        try:
+            return process.wait(seconds)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            return process.wait()
+    return process.returncode
+
+
+def run(args: argparse.Namespace) -> int:
+    binary = args.mercury or shutil.which("mercury")
+    if not binary:
+        raise Failure("mercury is not installed (not on the PATH): install it, or give --mercury PATH")
+    folder = Path(tempfile.mkdtemp(prefix="mercury-bench-"))
+    a_out, a_in, b_out, b_in = (fifo(folder, name) for name in ("a-out", "a-in", "b-out", "b-in"))
+    processes: list[tuple[str, subprocess.Popen[bytes]]] = []
+    pacers = [Pacer(a_out, b_in), Pacer(b_out, a_in)]
+    pages = [Page("A"), Page("B")]
+    try:
+        processes.append(("Mercury A", start_mercury(binary, folder, "a", a_in, a_out, A_PORTS)))
+        processes.append(("Mercury B", start_mercury(binary, folder, "b", b_in, b_out, B_PORTS)))
+        for pacer in pacers:
+            pacer.start()
+        say(f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second")
+        data_a, data_b = folder / "a", folder / "b"
+        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "mercury", "beacon/path": "WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1"})       # (a path, so that a 67-character message is over the frame)
+        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "tnc/profile": "mercury", "beacon/path": "DIRECT"})
+        daemons = [start_daemon(data_a, A_PORTS), start_daemon(data_b, B_PORTS)]
+        processes += [("daemon A", daemons[0]), ("daemon B", daemons[1])]
+        bases = [wait_for_page(daemons[0], data_a, args.timeout), wait_for_page(daemons[1], data_b, args.timeout)]
+        say(f"two daemons up: {bases[0]} (OH2A) and {bases[1]} (OH2B)")
+
+        async def drive() -> list[tuple[str, str]]:
+            for page, base in zip(pages, bases, strict=True):
+                await page.open(base)
+            try:
+                return await exchange(pages[0], pages[1], args.timeout)
+            finally:
+                for page in pages:
+                    page.close()
+
+        rows = asyncio.run(drive())
+        width = max(len(what) for what, _ in rows)
+        print()
+        for what, result in rows:
+            print(f"  {what.ljust(width)}  {result}")
+        print()
+        codes = [stop(daemon, args.timeout) for daemon in daemons]
+        if codes != [0, 0]:
+            raise Failure(f"the daemons ended with exit codes {codes}, not 0")
+        say("both daemons ended with exit code 0")
+        return 0
+    finally:
+        for _, process in reversed(processes):
+            stop(process, 5.0)
+        for pacer in pacers:
+            pacer.stopping.set()
+        if args.keep:
+            say(f"kept {folder}: the daemons' data folders a/ and b/ (neoaprs.log in each) and mercury-a.log, mercury-b.log")
+        else:
+            shutil.rmtree(folder, ignore_errors=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="two Mercury instances over named pipes and two NeoAPRS daemons on them: a beacon, a message and its ack, a refusal")
+    parser.add_argument("--mercury", metavar="PATH", help="the Mercury program (default: mercury on the PATH)")
+    parser.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long each wait may take; default %(default)s")
+    parser.add_argument("--keep", action="store_true", help="keep the folders of the run and say where they are")
+    args = parser.parse_args()
+    if sys.platform == "win32":
+        print("bench: named pipes of this kind are Linux's; run it there", file=sys.stderr)
+        return 2
+    try:
+        return run(args)
+    except Failure as e:
+        print(f"bench: FAILED: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -84,6 +84,10 @@ export const KEY_OF: Record<string, FieldName> = {
 const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
 /** The Dummy radio: no radio, so no port, no speed and no host to ask for. */
 export const isDummy = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "dummy";
+/** A modem the daemon starts itself (the Mercury HF modem): nothing to ask for here, its sound card and keying are in the Settings tab with their defaults. */
+export const isModem = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "modem";
+/** Whether the guide has no port, speed or host to ask for the type. */
+export const noLine = (f: SetupFields): boolean => isDummy(f) || isModem(f);
 /** The step with the radio. */
 export const RADIO_STEP = STEP_OF.profile;
 
@@ -93,7 +97,7 @@ const CHECKS: ((f: SetupFields) => Problems)[] = [
   (f) => ({ lat: problemOf("station/lat", f.lat, true), lon: problemOf("station/lon", f.lon, true) }),
   (f) => ({ symbol: symbolProblem(f.symbol) }),
   (f) => {
-    if (isDummy(f)) return {};
+    if (noLine(f)) return {};
     return isTcp(f)
       ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
       : { baud: problemOf("serial/baud", f.baud, true) };
@@ -116,7 +120,7 @@ export function stepOk(step: number, f: SetupFields, search: boolean | null): bo
       return f.symbol.length === 2;
     case 3:
       return (
-        profileOf(f.profile) !== undefined && (isDummy(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
+        profileOf(f.profile) !== undefined && (noLine(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
       );
     default:
       return true;
@@ -181,6 +185,8 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     wanted["tcp/host"] = f.host.trim();
     wanted["tcp/port"] = f.tcpPort.trim();
     wanted["serial/port"] = portForProfile(f.profile, values["serial/port"] ?? "");
+  } else if (isModem(f)) {
+    wanted["serial/port"] = portForProfile(f.profile, values["serial/port"] ?? ""); // (a serial device does not go with the modem, which the daemon starts itself; its two settings keep their defaults)
   } else if (!isDummy(f)) {
     // (the Dummy radio has no port, no speed and no address: what the settings hold stays, for the day a real radio is chosen)
     wanted["serial/port"] = f.port;

@@ -29,7 +29,7 @@ from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, fixed_prefix, our_frame
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
 from neoaprs.signal import Signal
@@ -99,6 +99,7 @@ class Beacon:
         self._no_fix_told = False
         self._skip_told = False
         self._refused = 0                                       # how many times in a row the Tnc refused the due beacon
+        self._cut_told: bytes | None = None                     # the information field as it last went out cut to the radio's frame, so that the cut is said once in the log
         self._retry_at: datetime | None = None                  # when the refused beacon is tried again
         self._tasks = TaskSet(log, "beacon")
 
@@ -179,16 +180,21 @@ class Beacon:
         return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"))
 
     def _frame_of(self, info: bytes) -> ax25.Frame:
-        """Our frame with this information field: from `station/call` to the tocall by way of `beacon/path`."""
+        """Our frame with this information field: from `station/call` to the tocall by way of `beacon/path`; its comment cut to what a radio with a fixed frame carries (said once in the log), the report itself never."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
         if len(info) > ax25.MAX_INFO:
             raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            return our_frame(c, c.beacon_path_calls, info)
+            frame = our_frame(c, c.beacon_path_calls, info)
+            fitted = fit_frame(frame, self._tnc.max_frame)
         except FRAME_ERRORS as e:
             raise BeaconError(str(e)) from None
+        if fitted is not frame and self._cut_told != fitted.info:
+            self._cut_told = fitted.info
+            log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), self._tnc.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
+        return fitted
 
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:

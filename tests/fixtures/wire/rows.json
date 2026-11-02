@@ -43,6 +43,8 @@
     "map/radius_km": "150",
     "map/source": "",
     "map/station_hours": "3",
+    "mercury/keying": "vox",
+    "mercury/sound_card": "",
     "messages/alert": "true",
     "serial/baud": "",
     "serial/last_port": "",
@@ -98,6 +100,8 @@
     "map/radius_km": "150",
     "map/source": "",
     "map/station_hours": "3",
+    "mercury/keying": "vox",
+    "mercury/sound_card": "",
     "messages/alert": "true",
     "serial/baud": "",
     "serial/last_port": "",
@@ -148,6 +152,8 @@
     "map/radius_km": "150",
     "map/source": "",
     "map/station_hours": "3",
+    "mercury/keying": "vox",
+    "mercury/sound_card": "",
     "messages/alert": "true",
     "serial/baud": "",
     "serial/last_port": "",
@@ -205,6 +211,8 @@
     "map/radius_km": "150",
     "map/source": "",
     "map/station_hours": "3",
+    "mercury/keying": "vox",
+    "mercury/sound_card": "",
     "messages/alert": "true",
     "serial/baud": "",
     "serial/last_port": "",
@@ -4097,6 +4105,7 @@
    "last_watchdog_action": "",
    "last_watchdog_at": null,
    "lines": [],
+   "modem": null,
    "path": "",
    "problem": "",
    "searching": [],
@@ -4135,6 +4144,7 @@
      "text": "OH2XYZ>APRS:>hello  ->  status hello"
     }
    ],
+   "modem": null,
    "path": "",
    "problem": "",
    "searching": [],
@@ -4173,6 +4183,7 @@
      "text": "OH2XYZ>APRS:>hello  ->  status hello"
     }
    ],
+   "modem": null,
    "path": "",
    "problem": "",
    "searching": [
@@ -4205,6 +4216,7 @@
    "last_watchdog_action": "",
    "last_watchdog_at": null,
    "lines": [],
+   "modem": null,
    "path": "the dummy radio",
    "problem": "",
    "searching": [],

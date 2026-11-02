@@ -142,6 +142,7 @@ describe("App: the first-run guide", () => {
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(2); // when the socket opened, and when the guide came to its radio
     socket.say({
       type: "ports",
+      sound_cards: [],
       search: true,
       find: true,
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],

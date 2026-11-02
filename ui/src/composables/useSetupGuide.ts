@@ -65,7 +65,7 @@ export function useSetupGuide(
   }
 
   watch(
-    () => onRadio.value && !answers.tcp.value && !answers.dummy.value, // (only a serial TNC has a port to pick)
+    () => onRadio.value && !answers.tcp.value && !answers.dummy.value && !answers.modem.value, // (only a serial TNC has a port to pick)
     (wanted) => wanted && refreshPorts(),
   );
 

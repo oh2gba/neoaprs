@@ -51,6 +51,8 @@ export const CONFIG_KEYS = [
   "serial/baud",
   "tcp/host",
   "tcp/port",
+  "mercury/sound_card",
+  "mercury/keying",
   "serial/last_port",
   "serial/pattern",
   "serial/skip",
@@ -102,6 +104,7 @@ export const TNC_PROFILES = [
   {"key": "kantronics", "name": "Kantronics KPC-3+", "transport": "serial", "baud": 9600, "probe": true},
   {"key": "kiss", "name": "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75\u2026)", "transport": "serial", "baud": 9600, "probe": false},
   {"key": "kiss-tcp", "name": "KISS over TCP (Direwolf, soundmodem)", "transport": "tcp", "baud": null, "probe": false},
+  {"key": "mercury", "name": "Mercury HF modem (sound card, SSB radio)", "transport": "modem", "baud": null, "probe": false},
   {"key": "dummy", "name": "Dummy (no radio, made-up traffic)", "transport": "dummy", "baud": null, "probe": false},
 ] as const;
 
@@ -342,6 +345,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
+  mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.9, beaconFloorSec: 300, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

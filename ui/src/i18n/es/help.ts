@@ -30,6 +30,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.picture.internet": "Las estaciones que APRS-IS tiene dentro del radio del mapa llegan de la nube a tu mapa, en un solo sentido; nada vuelve.",
   "help.picture.channels":
     "Una estación oída por radio, con ondas, lleva RF; una que llegó de la nube, APRS-IS, tiene un contorno punteado y su propia etiqueta.",
+  "help.picture.mercury": "Tu estación y otra lejana, muy separadas; la señal sube y vuelve a bajar entre ellas: solo una estación con el mismo módem la oye.",
   "help.picture.dummy": "Estaciones inventadas en un marco discontinuo responden a tu estación, y lo que esta envía no sale: las ondas están tachadas.",
   "help.picture.notifications": "Llega un mensaje de una estación y este dispositivo reproduce un sonido, el altavoz, y muestra una notificación, la tarjeta.",
   "help.picture.encrypt":

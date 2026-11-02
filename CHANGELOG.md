@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **New:** APRS over HF with Rhizomatica's Mercury modem. The radio type **Mercury HF modem** in Settings → Radio starts the Mercury program (installed separately) with the radio's sound card and the way the radio is keyed, the two settings it has; the mode and the frequencies are fixed in the program so that every NeoAPRS station hears every other. A packet longer than the modem's frame is refused with the reason (a message) or has its comment cut (a beacon), never cut off on the air; our frames wait while a frame is on the air or the channel is busy. Only stations with the same modem on the same frequency hear each other; nobody has run APRS over Mercury before, so the frequencies are proposals until confirmed on the air ([`docs/RADIOS.md`](docs/RADIOS.md#mercury-hf-modem)).
+
 ## 0.15.0
 
 The page in Finnish, and a map download that is kept when it is done.

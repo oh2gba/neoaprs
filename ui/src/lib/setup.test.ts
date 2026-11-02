@@ -154,6 +154,7 @@ describe("the radio step", () => {
     const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
     const list = {
       type: "ports" as const,
+      sound_cards: [],
       search: true,
       find: true,
       ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a"), row("COM1", "COM1")],

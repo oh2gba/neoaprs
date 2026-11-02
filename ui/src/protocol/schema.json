@@ -1988,7 +1988,7 @@
     },
     "ListPorts": {
       "additionalProperties": false,
-      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
+      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.\nA KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed.",
       "properties": {
         "cmd": {
           "const": "list_ports",
@@ -2563,6 +2563,71 @@
         "seal"
       ],
       "title": "MessageRow",
+      "type": "object"
+    },
+    "ModemState": {
+      "additionalProperties": false,
+      "description": "The Mercury HF modem behind the line, while the radio type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal.",
+      "properties": {
+        "state": {
+          "description": "`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why",
+          "enum": [
+            "stopped",
+            "starting",
+            "running",
+            "waiting"
+          ],
+          "type": "string"
+        },
+        "problem": {
+          "description": "why the modem is not running (not installed, stopped); empty while it runs",
+          "type": "string"
+        },
+        "mode": {
+          "description": "the modem's mode, the same for every station: `DATAC3`",
+          "type": "string"
+        },
+        "keyed": {
+          "description": "the modem keys the radio now: a frame is on the air (about four seconds)",
+          "type": "boolean"
+        },
+        "busy": {
+          "description": "the modem's busy detector hears a signal on the channel: our frames wait",
+          "type": "boolean"
+        },
+        "snr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the signal-to-noise ratio of the latest frame decoded, in dB; null before one"
+        },
+        "frames_keyed": {
+          "description": "how many times the radio was keyed since the modem started",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_frame": {
+          "description": "the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "state",
+        "problem",
+        "mode",
+        "keyed",
+        "busy",
+        "snr",
+        "frames_keyed",
+        "max_frame"
+      ],
+      "title": "ModemState",
       "type": "object"
     },
     "NewMessageKey": {
@@ -3443,13 +3508,21 @@
         "find": {
           "description": "whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS",
           "type": "boolean"
+        },
+        "sound_cards": {
+          "description": "the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise",
+          "items": {
+            "$ref": "#/$defs/SoundCardRow"
+          },
+          "type": "array"
         }
       },
       "required": [
         "type",
         "ports",
         "search",
-        "find"
+        "find",
+        "sound_cards"
       ],
       "title": "PortsMessage",
       "type": "object"
@@ -4379,6 +4452,31 @@
         "on"
       ],
       "title": "SetStationRfOnlyCommand",
+      "type": "object"
+    },
+    "SoundCardRow": {
+      "additionalProperties": false,
+      "description": "A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type.",
+      "properties": {
+        "id": {
+          "description": "the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows",
+          "type": "string"
+        },
+        "name": {
+          "description": "what the system calls it, such as `USB Audio CODEC`",
+          "type": "string"
+        },
+        "default": {
+          "type": "boolean",
+          "description": "whether it is the system's default device, which the empty setting means"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "default"
+      ],
+      "title": "SoundCardRow",
       "type": "object"
     },
     "SpeedSeries": {
@@ -5675,6 +5773,17 @@
           "description": "the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then",
           "type": "boolean"
         },
+        "modem": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModemState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type"
+        },
         "describe": {
           "description": "one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
           "type": "string"
@@ -5741,6 +5850,7 @@
         "path",
         "baud",
         "dummy",
+        "modem",
         "describe",
         "searching",
         "silent_since",
