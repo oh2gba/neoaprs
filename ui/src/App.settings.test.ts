@@ -149,7 +149,7 @@ describe("App: the Settings tab", () => {
     await wrapper.find("#pane-settings .updateline button.btn").trigger("click");
     const panel = wrapper.find(".updatedialog");
     expect(panel.find("h2").text()).toBe("NeoAPRS 0.4.0 is available");
-    expect(panel.find("code").text()).toContain("install.sh | sh");
+    expect(panel.find("a[href$='/releases/tag/v0.4.0']").exists()).toBe(true); // (a copy installed from the wheel is sent to the release page)
     socket.say(status());
     await flushPromises();
     expect(wrapper.find(".updatedialog").exists()).toBe(false);

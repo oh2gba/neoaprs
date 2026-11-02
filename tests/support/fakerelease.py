@@ -8,7 +8,7 @@ from neoaprs.updatedownload import Allowed, Cancelled, DownloadError, Progress
 
 NAME = "NeoAPRS-0.7.0-x86_64.AppImage"
 BODY = b"the new AppImage" * 1000
-SUMS = f"{hashlib.sha256(b'x').hexdigest()}  install.sh\n{hashlib.sha256(BODY).hexdigest()}  {NAME}\n".encode()
+SUMS = f"{hashlib.sha256(b'x').hexdigest()}  SHA256SUMS-of-another-file.deb\n{hashlib.sha256(BODY).hexdigest()}  {NAME}\n".encode()
 
 
 class FakeInstaller:

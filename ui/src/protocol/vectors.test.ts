@@ -6,7 +6,6 @@ import { canPost, postCommand, textOk, type PostDraft } from "@/lib/bulletins";
 import { isAlias, isMarker } from "@/lib/chain";
 import { parsePath, validCall, validName } from "@/lib/calls";
 import { compareVersions } from "@/lib/releasenotes";
-import { wheelVersion } from "@/lib/update";
 import { callOk, problemOf } from "@/lib/fieldcheck";
 import { draftProblems, emptyDraft, nameProblem, objectCommand, qruProblem } from "@/lib/ownobjects";
 import vectors from "@/protocol/vectors.json";
@@ -77,9 +76,5 @@ describe("the vectors of the daemon", () => {
 
   it("say which of two versions is the newer", () => {
     for (const { a, b, order } of vectors.compare_versions) expect(compareVersions(a, b), JSON.stringify([a, b])).toBe(order);
-  });
-
-  it("say how a version is written in the name of the wheel", () => {
-    for (const { input, wheel } of vectors.wheel_versions) expect(wheelVersion(input), JSON.stringify(input)).toBe(wheel);
   });
 });

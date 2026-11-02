@@ -14,7 +14,6 @@ import pytest
 
 from neoaprs import pmtilestool
 from tests.conftest import ROOT
-from tests.support.ptyline import posix_only
 
 NOTES = ROOT / "scripts" / "release-notes.py"
 WORKFLOW = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
@@ -60,30 +59,6 @@ def test_the_real_changelog_has_notes_for_its_newest_section_that_is_not_an_empt
     assert done.returncode == 0 and done.stdout.strip(), done.stderr
 
 
-@posix_only      # (sh, sed)
-def test_the_install_script_renders_without_a_placeholder_and_is_valid_sh(tmp_path: Path) -> None:
-    template = (ROOT / "packaging" / "install.sh.in").read_text(encoding="utf-8")
-    assert template.startswith("#!/bin/sh\n") and "set -eu" in template
-    rendered = tmp_path / "install.sh"
-    url = "https://github.com/oh2gba/neoaprs/releases/download/v9.8.7/neoaprs-9.8.7-py3-none-any.whl"
-    done = subprocess.run(["sed", "-e", "s|@VERSION@|9.8.7|g", "-e", f"s|@WHEEL_URL@|{url}|g", str(ROOT / "packaging" / "install.sh.in")], capture_output=True, text=True, check=True)
-    rendered.write_text(done.stdout, encoding="utf-8")
-    assert not re.search(r"@[A-Z_]+@", done.stdout) and f'WHEEL_URL="${{NEOAPRS_WHEEL_URL:-{url}}}"' in done.stdout and 'VERSION="9.8.7"' in done.stdout
-    assert subprocess.run(["sh", "-n", str(rendered)]).returncode == 0
-    for needed in ("astral.sh/uv/install.sh", "tool install --force --python 3.13", "service install", "usermod -aG", "doctor"):
-        assert needed in done.stdout
-
-
-@posix_only      # (sh)
-def test_the_install_script_refuses_a_system_that_is_neither_linux_nor_macos(tmp_path: Path) -> None:
-    fake = tmp_path / "bin"
-    fake.mkdir()
-    (fake / "uname").write_text("#!/bin/sh\necho MINGW64_NT\n", encoding="utf-8")
-    (fake / "uname").chmod(0o755)
-    done = subprocess.run(["sh", str(ROOT / "packaging" / "install.sh.in")], env={"PATH": f"{fake}:/usr/bin:/bin", "HOME": str(tmp_path)}, capture_output=True, text=True, timeout=30)
-    assert done.returncode == 1 and "NeoAPRS-Setup" in done.stderr
-
-
 def test_every_action_of_the_workflow_is_pinned_by_major_version_and_only_the_release_job_writes() -> None:
     uses = re.findall(r"^\s+- uses: (\S+)$", WORKFLOW, re.M)
     assert uses and all(re.fullmatch(r"[\w./-]+@v\d+", u) for u in uses), uses
@@ -100,10 +75,10 @@ def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
     """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until every file is on it, a run on a tag
     whose release exists writes over its files, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
     uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@v\d+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
-    assert len(uploads) == 9 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
+    assert len(uploads) == 8 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
-    assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "deb-amd64", "deb-arm64", "install-script"}, "the release's six artifacts and no other"
+    assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "deb-amd64", "deb-arm64"}, "the release's five artifacts and no other"
     release_job = WORKFLOW.split("\n  release:\n", 1)[1]
     assert "--draft " in release_job and "--draft=false" in release_job, "a draft until every file is on it"
     assert "gh release view" in release_job and "--clobber" in release_job, "a release that is there is written over, not refused"
@@ -202,7 +177,7 @@ def test_the_release_has_the_installer_and_the_appimage_under_fixed_names_too() 
     assemble = WORKFLOW.split("name: SHA256SUMS and the notes", 1)[1].split("uses: actions/upload-artifact", 1)[0]
     assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble
     assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
-    assert '[ "$(ls | wc -l)" = 9 ]' in assemble
+    assert '[ "$(ls | wc -l)" = 7 ]' in assemble, "the five versioned files and the two fixed names, before SHA256SUMS"
 
 
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
@@ -219,12 +194,14 @@ def test_no_workflow_step_name_breaks_the_yaml() -> None:
 
 def test_the_wheel_and_the_sdist_are_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written() -> None:
     assert "from neoaprs.updateasset import wheel_version" in WORKFLOW
-    assert WORKFLOW.count("wheel_version=\"$(python3 -c") == 3, "the wheel job, the install script and the assembling of the release each ask for the name once"
+    assert WORKFLOW.count("wheel_version=\"$(python3 -c") == 2, "the wheel job and the assembling of the release each ask for the name once"
     assert 'neoaprs-$version-py3-none-any.whl' not in WORKFLOW and 'neoaprs-$version.tar.gz' not in WORKFLOW, "the raw version is not the wheel's"
     wheel_job = WORKFLOW.split("\n  wheel:\n", 1)[1].split("\n  windows:\n", 1)[0]
     assert 'dist/neoaprs-$wheel_version-py3-none-any.whl' in wheel_job and 'dist/neoaprs-$wheel_version.tar.gz' in wheel_job
-    assert 'releases/download/v$version/neoaprs-$wheel_version-py3-none-any.whl' in WORKFLOW, "the tag has the version as written, the file the PEP 440 form"
-    assert '"neoaprs-$wheel_version-py3-none-any.whl" "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb"' in WORKFLOW
+    assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
+    assert "rm -f -- neoaprs-*.whl" in assemble and "install.sh" not in assemble, "the wheel and the install script are not files of the release: the supported installs carry Mercury"
+    assert '"neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"' in assemble, "the five versioned files; with the two fixed names and SHA256SUMS, eight"
+    assert '[ "$(ls | wc -l)" = 7 ]' in assemble
 
 
 def job(name: str) -> str:

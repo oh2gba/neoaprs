@@ -4,7 +4,7 @@
 
 - **Windows with the installer:** open **NeoAPRS** in the Start menu. The [desktop app](desktop.md) opens a window and starts the daemon.
 - **Linux AppImage:** run the file with no arguments.
-- **A service** (the .deb, the install line or `neoaprs service install`): it is already running. `neoaprs open` opens the page in your browser, starting NeoAPRS first if it is not running.
+- **A service** (the .deb with `neoaprs service install`): it is already running. `neoaprs open` opens the page in your browser, starting NeoAPRS first if it is not running.
 - **By hand:** `neoaprs` runs the daemon until you press Ctrl+C. Open <http://127.0.0.1:7303/>.
 
 If the port says *permission denied* on Linux, add yourself to the group that owns serial devices: `sudo usermod -aG dialout $USER` (`uucp` on Arch), then log out and in. `neoaprs doctor` says what else keeps the radio from working ([commands.md](commands.md#neoaprs-doctor)).

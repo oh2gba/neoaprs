@@ -513,7 +513,7 @@ export interface IgateState {
 
 /** How this copy of the daemon was installed, which is what the steps of an update depend on (neoaprs/versions.py, neoaprs/cli/installkind.py). */
 export interface InstallInfo {
-  /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (the install script, or `uv tool install`), `pip` (a plain environment) or `source` (a clone of the repository) */
+  /** `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) */
   kind: "windows-installer" | "appimage" | "deb" | "uv-tool" | "pip" | "source";
   /** the AppImage file this runs from; empty for the other kinds */
   appimage: string;

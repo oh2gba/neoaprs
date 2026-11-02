@@ -4,7 +4,7 @@
 
 The window is not a second program. It is the same page that the daemon serves, in the system's own web engine, so anything the page does in a browser it does here.
 
-It needs the extra `app`: `uv tool install "neoaprs[app]"` or `pip install "neoaprs[app]"`. The Windows installer and the AppImage have it inside.
+The Windows installer and the AppImage have it inside; the .deb, made for a machine without a screen, does not. A clone of the repository needs the extra `app` (`uv sync --extra app`).
 
 ## Attach or start
 

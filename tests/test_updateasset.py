@@ -16,8 +16,8 @@ from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, r
     ("deb", "arm64", "neoaprs_0.7.0_arm64.deb"),
     ("deb", "", None),                                   # (a machine the release has no package for)
     ("deb", "armhf", None),
-    ("uv-tool", "", "neoaprs-0.7.0-py3-none-any.whl"),
-    ("pip", "", "neoaprs-0.7.0-py3-none-any.whl"),
+    ("uv-tool", "", None),                               # (an install of the wheel, which a release no longer carries: the page sends it to the release page)
+    ("pip", "", None),
     ("source", "", None),
 ])
 def test_the_file_of_the_release_for_each_kind_and_architecture(kind: str, arch: str, name: str | None) -> None:
@@ -32,11 +32,11 @@ def test_the_file_of_the_release_for_each_kind_and_architecture(kind: str, arch:
     ("1.0.0-beta.2", "1.0.0b2"),
     ("1.0.0-dev3", "1.0.0.dev3"),
 ])
-def test_the_wheel_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(version: str, wheel: str) -> None:
-    assert wheel_version(version) == wheel == str(Version(version)), "the name the build (packaging) gives"
-    assert asset_name("pip", version) == asset_name("uv-tool", version) == f"neoaprs-{wheel}-py3-none-any.whl"
+def test_the_sdist_is_named_by_the_pep_440_form_of_the_version_and_the_other_files_by_the_version_as_written(version: str, wheel: str) -> None:
+    assert wheel_version(version) == wheel == str(Version(version)), "the name the build (packaging) gives the sdist and the wheel"
+    assert asset_name("pip", version) is None and asset_name("uv-tool", version) is None, "no file of a release updates an install of the wheel"
     assert asset_name("appimage", version) == f"NeoAPRS-{version}-x86_64.AppImage" and asset_name("deb", version, "arm64") == f"neoaprs_{version}_arm64.deb"
-    assert asset_url(version, asset_name("pip", version) or "") == f"{RELEASES}/v{version}/neoaprs-{wheel}-py3-none-any.whl", "the tag keeps the version as written"
+    assert asset_url(version, f"neoaprs-{wheel}.tar.gz") == f"{RELEASES}/v{version}/neoaprs-{wheel}.tar.gz", "the tag keeps the version as written"
 
 
 def test_a_suffix_that_is_not_a_pre_release_of_pep_440_is_left_as_it_is() -> None:

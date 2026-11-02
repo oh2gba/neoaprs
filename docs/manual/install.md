@@ -7,8 +7,8 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 | Windows | `NeoAPRS-Setup-<version>.exe` ([Windows](#windows)) |
 | Linux with a desktop | `NeoAPRS-<version>-x86_64.AppImage` ([AppImage](#linux-appimage)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
-| Linux, macOS, Raspberry Pi | the install line ([install line](#install-line-linux-and-macos)) |
-| any system with Python 3.13 | the wheel, with `uv` or `pip` ([wheel](#the-wheel-with-uv-or-pip)) |
+
+These three are the supported ways: each carries its own Python and the Mercury HF modem. A Mac has no supported way until there is a macOS app. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 
@@ -67,30 +67,6 @@ neoaprs doctor                                      # what is wrong with this co
 - **Upgrading.** `sudo apt install ./neoaprs_<new>.deb` replaces the files and restarts the NeoAPRS service of each logged-in user who has one running. Where that cannot be done it says that a running NeoAPRS keeps the old version until you run `systemctl --user restart neoaprs`.
 - **Removing.** `sudo apt remove neoaprs` takes the program, the link and the documents away and leaves your data and the unit in your home, which can no longer start. Run `neoaprs service remove` before removing the package, or afterwards `systemctl --user disable --now neoaprs && rm ~/.config/systemd/user/neoaprs.service`.
 
-## Install line (Linux and macOS)
-
-```bash
-curl -LsSf https://github.com/oh2gba/neoaprs/releases/latest/download/install.sh | sh
-```
-
-The script needs no root. It installs [uv](https://docs.astral.sh/uv/) with Astral's installer if there is none, then NeoAPRS with Python 3.13 from the release's wheel. It then runs `neoaprs service install` (a systemd user unit on Linux, a launchd agent on macOS) and restarts the service if this was an update.
-
-If you are not in the group that owns serial devices (`dialout`, `uucp` on Arch) it prints the `usermod` line. It ends by printing the address of the page and running `neoaprs doctor`. Run the line again to update.
-
-## The wheel with uv or pip
-
-Needs Python 3.13 (`uv` fetches one if the system has none).
-
-```bash
-uv tool install neoaprs-<version>-py3-none-any.whl      # or: pip install neoaprs-<version>-py3-none-any.whl
-neoaprs doctor                                          # what is wrong with this computer, if anything
-neoaprs                                                 # the daemon; open http://127.0.0.1:7303/
-neoaprs service install                                 # start it at login from now on
-neoaprs open                                            # the page in your browser, starting NeoAPRS first if it is not running
-```
-
-The command `neoaprsw` is the same without a console window. The [desktop app](desktop.md) needs the extra `app`: `uv tool install "neoaprs[app]"` or `pip install "neoaprs[app]"`. To run from a clone of the repository see [`docs/development.md`](../development.md).
-
 ## Start at login
 
 `neoaprs service install` sets NeoAPRS up to start when you log in and keeps it running, the way each system does it. It runs the same Python and the data folder given with `--data` (else the default).
@@ -132,8 +108,7 @@ The window shows the steps for this copy, each file as a button and each command
 | Windows installer | download `NeoAPRS-Setup-<version>.exe` and run it; it ends the running app and daemon and replaces the program; **Open NeoAPRS now** on its last page starts the app again |
 | AppImage | download `NeoAPRS-<version>-x86_64.AppImage`, make it executable (in its file properties, or `chmod +x`), quit NeoAPRS and start the new file instead of the old one, then delete the old file. If a service starts the AppImage (the service names the old file), run `./NeoAPRS-<version>-x86_64.AppImage service install` once in the folder of the new file |
 | .deb (Raspberry Pi, Debian, Ubuntu) | download the package for your computer (`neoaprs_<version>_arm64.deb` on a Raspberry Pi, `_amd64.deb` on a PC; the window picks the right one) and run `sudo apt install ./neoaprs_<version>_arm64.deb` in the folder you downloaded it to. It replaces `/opt/neoaprs` and restarts a running service; if the service still runs the old version, `systemctl --user restart neoaprs` |
-| install line | run the line again in a terminal; it installs the new version and restarts the service |
-| pip | `pip install -U` the release's wheel (the window has the whole command) in the environment NeoAPRS is installed in, then `neoaprs service install` restarts a service, else quit NeoAPRS and start it again |
+| the install line or the wheel of an older release | releases before 0.16 offered an install line and a wheel; a copy installed that way is sent to the release page: install the AppImage or the .deb (or the Windows installer), which find the data folder as it is, and remove the old copy (`uv tool uninstall neoaprs`, or `pip uninstall neoaprs`) |
 | a clone of the repository | `git pull`, `uv sync`, then `systemctl --user restart neoaprs` for a service, else quit and start it again |
 
 **Open pages follow by themselves.** NeoAPRS serves the page it started with, so a page and the NeoAPRS it talks to always go together, and a page left open when NeoAPRS is updated or restarted loads the new one by itself, once, in a browser tab and in the desktop app's window alike. It does so for the next update too. If a page still does not go with NeoAPRS after that (an old copy that the browser kept), it says "This page and NeoAPRS do not match" with a **Reload** button: reload it, and if the message stays, restart NeoAPRS.

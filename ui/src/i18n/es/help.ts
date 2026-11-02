@@ -133,8 +133,6 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.deb.download_here": "Descargar el paquete para tu equipo desde la página de la versión",
   "help.update.deb.install": "Instalarlo desde la carpeta donde lo descargaste (pide tu contraseña)",
   "help.update.deb.service": "El servicio se reinicia solo. Si aún muestra la versión vieja:",
-  "help.update.uv.run": "Ejecuta esto en una terminal: instala la versión nueva",
-  "help.update.pip.run": "Ejecuta esto en el entorno donde está instalado NeoAPRS",
   "help.update.source.pull": "En la carpeta del clon",
   "help.update.source.sync": "Poner el entorno al día",
   "help.update.release_page": "Obtener la versión nueva en la página de la versión",

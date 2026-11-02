@@ -1768,8 +1768,6 @@ export const fr: Catalogue = {
   "help.update.deb.download_here": "Télécharger le paquet de votre ordinateur depuis la page de la version",
   "help.update.deb.install": "L'installer depuis le dossier où vous l'avez téléchargé (votre mot de passe est demandé)",
   "help.update.deb.service": "Le service redémarre de lui-même. S'il affiche encore l'ancienne version :",
-  "help.update.uv.run": "Exécutez ceci dans un terminal : cela installe la nouvelle version",
-  "help.update.pip.run": "Exécutez ceci dans l'environnement où NeoAPRS est installé",
   "help.update.source.pull": "Dans le dossier du clone",
   "help.update.source.sync": "Mettre l'environnement à jour",
   "help.update.release_page": "Obtenir la nouvelle version sur la page de la version",

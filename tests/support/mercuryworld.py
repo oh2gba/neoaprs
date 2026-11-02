@@ -96,6 +96,13 @@ class World:
         for e in self.stations.values():
             e.now.advance(seconds)       # type: ignore[attr-defined]
 
+    async def settled(self, call: str, timeout_sec: float = 15.0) -> None:
+        """Until the station's HF radio is free and its retry ticker has seen it so. A wait of the retry schedule that runs while the radio is held is moved on by the time it was held (services/retries.py:
+        on the air our own frame holds it for 3.8 s), and the ticker learns of the hold's end only at its next tick, so a test that moves the clock before that would have the whole jump counted as time
+        the radio was held, and its retry would fall due a clock jump later than the schedule says. The budget is for a slow machine; it is settled in a tick here."""
+        e = self.stations[call]
+        await until(lambda: e.hf.usable and e.ctl.messaging.retries._down_since is None, timeout_sec)
+
     def __getitem__(self, call: str) -> Env:
         return self.stations[call]
 
