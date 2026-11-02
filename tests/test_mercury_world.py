@@ -3,6 +3,7 @@ on a channel nobody listens to before keying. A beacon of one station is heard b
 schedule is long enough for that; two stations that key at the same moment lose both frames and the message goes through on its retry; our frames wait while a frame is on the air or the channel is busy, and one of
 ours never follows another before the first has left; a station that gates to APRS-IS puts what it hears on the internet and the Mercury traffic is `rf`; a packet too long for the frame is refused and told, never cut."""
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -147,6 +148,17 @@ async def test_the_hf_beacon_goes_out_at_the_one_interval_with_the_random_pause(
     assert len(w.air.delivered) == 1, "the interval has passed but the pause has not"
     w.pass_time(30)
     await w.until(lambda: len(w.air.delivered) == 2, 5.0)
+
+
+async def test_a_changed_beacon_interval_is_planned_by_the_hf_beacon_at_once_and_not_at_the_next_start(tmp_path: Path) -> None:
+    w = World(tmp_path, frame_sec=0.1)
+    a = await w.add("OH2A", **{"beacon/interval_min": "0"})
+    await w.start()
+    assert a.ctl.hf_beacon.next_due is None, "Off"
+    await a.ctl.change_config(lambda c: replace(c, beacon_interval_min=60))
+    assert a.ctl.hf_beacon.next_due is not None and a.ctl.hf_beacon.interval_min == 60
+    await a.ctl.change_config(lambda c: replace(c, beacon_interval_min=0))
+    assert a.ctl.hf_beacon.next_due is None, "Off again"
 
 
 async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_message_is_kept_once(tmp_path: Path) -> None:
