@@ -7,6 +7,10 @@ locked) and kept across runs; `renew` makes a new one in its place (the stations
 A station's key is taken on first hearing (`take`): the first key a station announces is kept, in the table `station_key` of the message log's database, and shown with its fingerprint; a later
 announcement of the same key is nothing new; one of a different key is not taken (the message is kept as `key_other`, so that the operator sees it) until the key that is kept is forgotten (`forget`:
 the operator's, when the station is known to have a new key). A key is kept whether or not encrypted messages are switched on: hearing a key costs nothing and the setting is about what we send.
+This is trust on first use, and the trust is in the call as the air carries it, which anyone can write into a frame: a station that announces a key under another's call before the owner does holds that call's
+key here until the operator forgets it, and the locked messages to that call open for it and not for the owner; the fingerprint beside each key is what the two operators compare on voice (or by any other way
+they trust) before they rely on a key, and the one defence there is (neoaprs/cipher.py says the rest of what the scheme does not do). A key that is different from the one kept is never taken by itself for the
+same reason: the first announcement may have been the owner's.
 `changed` tells (call) when a station's key is set or forgotten, `own_changed` when our own key is new.
 
 The flag --encryption of the daemon (`allowed`, `enabled`) governs sending: a locked message or a key goes out only when the daemon was started with it, and the page shows the feature only then. Amateur

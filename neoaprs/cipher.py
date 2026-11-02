@@ -7,7 +7,16 @@ UTF-8 (a locked message may say ä and ö, which a plain message cannot) of at m
 A random nonce needs no counter and nothing kept between runs; six bytes repeat, by the birthday bound, after some sixteen million messages between one pair.
 
 `open_sealed` gives the text or None: a text that does not open (another key, a tampered or truncated packet, another pair of calls) is nobody's business but the log's. The fingerprint of a key
-(`fingerprint`) is 16 hex characters in four groups, the start of SHA-256 of the public key, for two operators to compare on voice. Nothing here does I/O: the random bytes come from `secrets`."""
+(`fingerprint`) is 16 hex characters in four groups, the start of SHA-256 of the public key, for two operators to compare on voice. Nothing here does I/O: the random bytes come from `secrets`.
+
+What this protects against, and what it does not (the threat model, so that nobody takes it for more than it is). It keeps the text of a message from anyone who records the channel: a listener without the pair's
+key reads base64 and nothing else, and cannot change a message without the tag failing. It does not hide that a message was sent, by whom, to whom, when or how long it is (the calls and the length are in the
+clear, as APRS wants them), and it does not prove who sent it beyond "someone with this pair's key". It has no replay protection: a captured `!E` sent again (with another `{id}`, or after the 30 minutes of the
+duplicate check) is shown, alerted and acked again, because the associated data binds the calls only; a radio channel's rate of attempts makes this a nuisance and not a break. The key pair is static and never
+rotated by itself (`renew` is the operator's), so the random nonce is the one thing that keeps two messages apart: six bytes give a one-in-two chance of a repeat only after some sixteen million messages between
+one pair, which no APRS pair sends; the 64-bit tag is short of the 128 GCM gives by default, enough for a channel where an attacker gets a few tries a minute, not for one where he gets millions. The first key a
+station announces is trusted at once (TOFU, services/keyring.py): whoever first sends `!K` under a call is that call's key until the operator forgets it, so a station that spoofs a call before its owner announces
+gets the locked messages meant for the owner, which is why the fingerprint is there to be compared on voice. A sealed message that arrives before its sender's key stays shut (nothing is kept to open it later)."""
 import base64
 import binascii
 import hashlib

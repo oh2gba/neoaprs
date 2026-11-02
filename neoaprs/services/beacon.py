@@ -110,18 +110,19 @@ class Beacon:
         self._tasks = TaskSet(log, "beacon")
 
     # ---- the frame
-    def frame(self) -> ax25.Frame:
-        """The frame of our beacon for the settings as they are now (a mobile station's: for the GPS fix as it is now). Raises BeaconError when they do not make one (a call that is not a call, a comment too long),
-        and NoFix, a BeaconError, for a mobile station with no fresh fix."""
-        return self._build()[0]
+    def frame(self, radio: Radio | None = None) -> ax25.Frame:
+        """The frame of our beacon for the settings as they are now (a mobile station's: for the GPS fix as it is now), for `radio` (this beacon's by default: an answer to a station asks for the radio the question
+        came on, whose path rules and frame cap the frame then has). Raises BeaconError when they do not make one (a call that is not a call, a comment too long), and NoFix, a BeaconError, for a mobile station with no
+        fresh fix."""
+        return self._build(radio)[0]
 
-    def _build(self) -> tuple[ax25.Frame, Fix | None]:
+    def _build(self, radio: Radio | None = None) -> tuple[ax25.Frame, Fix | None]:
         """The frame and the fix it was made from (None for a station that stays where it is)."""
         c = self._config()
         if reason := can_transmit(c):
             raise BeaconError(reason)
         info, fix = self._position(c)
-        return self._frame_of(info), fix
+        return self._frame_of(info, radio), fix
 
     def position_info(self) -> bytes:
         """The information field of the position packet for the settings as they are now, for a receive-only iGate that puts our position on APRS-IS (services/igate.py): the same bytes the radio would carry, but nothing is transmitted, so the
@@ -174,37 +175,39 @@ class Beacon:
             return b""
         return phg_text(c.beacon_power_w, c.beacon_antenna_height_m, c.beacon_antenna_gain_db, c.beacon_antenna_direction).encode("ascii")
 
-    def status_frame(self, text: str) -> ax25.Frame | None:
-        """The frame of a status report with this text: `>`, the time as day, hour and minute in UTC with a `z` (`211200z`), then the text; by the beacon's destination and path. None for an empty
-        text. Raises BeaconError when the settings make no frame."""
+    def status_frame(self, text: str, radio: Radio | None = None) -> ax25.Frame | None:
+        """The frame of a status report with this text: `>`, the time as day, hour and minute in UTC with a `z` (`211200z`), then the text; by the beacon's destination and path, for `radio` (this beacon's by
+        default: the status service names the radio it sends on, an answer the radio the question came on). None for an empty text. Raises BeaconError when the settings make no frame."""
         if not text:
             return None
         if problem := over_the_air_problem(text):
             raise BeaconError(f"the status: {problem}")
         if len(text) > MAX_STATUS:
             raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time")
-        return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"))
+        return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"), radio)
 
-    def _frame_of(self, info: bytes) -> ax25.Frame:
-        """Our frame with this information field: from `station/call` to the tocall by way of `beacon/path`; its comment cut to what a radio with a fixed frame carries (said once in the log), the report itself never."""
+    def _frame_of(self, info: bytes, radio: Radio | None = None) -> ax25.Frame:
+        """Our frame with this information field for the radio it goes on (this beacon's by default): from `station/call` to the tocall by way of `beacon/path` where the radio has paths; its comment cut to what a
+        radio with a fixed frame carries (said once in the log), the report itself never."""
         c = self._config()
+        tnc = radio or self._tnc
         if reason := can_transmit(c):
             raise BeaconError(reason)
         if len(info) > ax25.MAX_INFO:
             raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            frame = our_frame(c, radio_path(self._tnc, c.beacon_path_calls), info)
-            fitted = fit_frame(frame, self._tnc.max_frame)
+            frame = our_frame(c, radio_path(tnc, c.beacon_path_calls), info)
+            fitted = fit_frame(frame, tnc.max_frame)
         except FRAME_ERRORS as e:
             raise BeaconError(str(e)) from None
         if fitted is not frame and self._cut_told != fitted.info:
             self._cut_told = fitted.info
-            log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), self._tnc.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
+            log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), tnc.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
         return fitted
 
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
-        """Sends the beacon through the Tnc and notes when and why; the interval counts from now (a mobile station's SmartBeaconing from this beacon). False (and `problem` says why) when the Tnc is not connected or
+        """Sends the beacon through the Tnc and notes when and why; the next beacon counts from now: an interval and the radio's pause on, or, for a moving station on a radio with SmartBeaconing (FM), SmartBeaconing from this beacon; a moving station on HF has the interval, for it sends its fix by time only. False (and `problem` says why) when the Tnc is not connected or
         the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
@@ -223,9 +226,10 @@ class Beacon:
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
         self.sent.emit(frame)
         self._remembered.put({self._memory_key: stamp(self.last_sent)})
-        if fix is not None:
-            self.mobile.sent(fix, self.last_sent, reason)
-        self._plan_after_send(fix)
+        smart = fix if self._mobile(self._config()) else None             # (a moving station on HF sends the fix but is planned as a fixed one: the interval and the pause)
+        if smart is not None:
+            self.mobile.sent(smart, self.last_sent, reason)
+        self._plan_after_send(smart)
         return True
 
     def _failed(self, problem: str, warn: bool = False) -> bool:
@@ -342,7 +346,7 @@ class Beacon:
         if self._refused < ATTEMPTS:
             self._retry_at = now + timedelta(seconds=self.retry_sec)
             return
-        mobile = self._config().mobile
+        mobile = self._mobile(self._config())
         log.warning("the beacon was refused %d times (%s): %s", self._refused, self.problem, f"tried again in {MOBILE_GIVE_UP_SEC:g} s" if mobile else "skipped (the next one is an interval on, none is made up)")
         self._refused = 0
         if mobile:

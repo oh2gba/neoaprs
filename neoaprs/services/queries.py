@@ -80,8 +80,8 @@ _NOT_ANSWERED = (QUERY_TEXT["wx"],)                                             
 
 
 class Frames(Protocol):
-    """What the queries need of the beacon: the frame of our position."""
-    def frame(self) -> ax25.Frame: ...
+    """What the queries need of the beacon: the frame of our position, built for the radio the answer goes on."""
+    def frame(self, radio: Radio | None = None) -> ax25.Frame: ...
 
 
 class Stations(Protocol):
@@ -203,14 +203,14 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 
 class Queries:
-    def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
+    def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[Radio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None) -> None:
         self._config = config
         self._tnc = tnc
         self._answers = Answers(tnc, config, paths, spacing_sec)
         self._beacon = beacon
-        self._status = status                                   # the frame of the status as last sent (RigStatus.status_frame); None while none has been sent
+        self._status = status                                   # the frame of the status as last sent, for the radio the answer goes on (RigStatus.status_frame); None while none has been sent
         self._book = book
         self.clock = clock
         self._delay = delay                                     # how long the answer to the general query waits
@@ -256,19 +256,20 @@ class Queries:
             if self._starts_heard(packet, key, argument):
                 self._answers.tasks.spawn(self._heard_answer(packet, key, argument), "query-heard")
             return
+        radio = radio_for(self._tnc, packet)                       # (the radio the question came on: the answer goes on it and is built for it)
         try:
-            frames = [frame for frame in self._answer(packet, query) if frame is not None]
-            self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED, radio=radio_for(self._tnc, packet))
+            frames = [frame for frame in self._answer(packet, query, radio) if frame is not None]
+            self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED, radio=radio)
         except (BeaconError, ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, asker, e)
 
-    def _answer(self, packet: Packet, query: str) -> Sequence[ax25.Frame | None]:
-        """The frames that answer the query (a None for a status not yet sent); BeaconError when the settings make no frame."""
+    def _answer(self, packet: Packet, query: str, radio: Radio) -> Sequence[ax25.Frame | None]:
+        """The frames that answer the query, built for the radio the answer goes on (a None for a status not yet sent); BeaconError when the settings make no frame."""
         asker = packet.sender
         if query == "position":
-            return [self._beacon.frame()]
+            return [self._beacon.frame(radio)]
         if query == "status":
-            return [self._status()]
+            return [self._status(radio)]
         if query == "directs":
             return [self._answers.message(asker, text) for text in directs_messages(self._directs(packet.heard_at))]
         if query == "objects":
@@ -348,7 +349,7 @@ class Queries:
                     return
                 self._send_frames(asker, [self._capabilities], radio)
             else:
-                self._send_frames(asker, [self._beacon.frame, self._status], radio)
+                self._send_frames(asker, [lambda: self._beacon.frame(radio), lambda: self._status(radio)], radio)
         except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
             log.warning("the general query of %s was not answered: %s", asker, e)
 

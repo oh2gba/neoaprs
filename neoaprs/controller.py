@@ -1,6 +1,6 @@
 """The program without a window: the database, the settings, the radio and the station book. The Controller is the composition root's object (docs/ARCHITECTURE.md): the parts are made in
 neoaprs/app.py (`Services`) and connected in neoaprs/wiring.py, and this class brings them up and takes them down. The page and the tests call a part as `ctl.<part>.<method>`; the Controller has
-the order of the start (the message board, the GPS and the beacon, our objects and bulletins, the status and messaging, then the Tnc, whose packets those take, and the page; the stop takes the page and the Tnc first, then the parts, one failing to stop not keeping the others from it), the Tnc's restart when its settings change, and the daily care of the database.
+the order of the start (the message board, the GPS and the beacon, our objects and bulletins, the status and messaging, then the Tnc, whose packets those take, and the page; the stop takes the page and the Tnc first, then the parts, one failing to stop not keeping the others from it), the Tnc's restart when its settings change, and the care of the database: the daily prune, and the station rows written every half minute (packetlog.py says why) and at the stop.
 """
 import asyncio
 import logging
@@ -11,11 +11,12 @@ from . import wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, Config
-from .policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
+from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .radios import hf_is_mercury
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
+from .packetlog import STATION_FLUSH_SEC
 from .store import DB_NAME, Store
 from .tasks import cancel_all, every
 from .tnc import Tnc
@@ -87,6 +88,7 @@ class Controller(Services):
         await self.updatecheck.start()
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._recount_minutely(), "recount")
+        self.tasks.spawn(self._flush_stations(), "station-flush")
 
     async def stop(self) -> None:
         self.running = False
@@ -97,6 +99,7 @@ class Controller(Services):
                 except Exception:
                     log.exception("%s could not be stopped", name)        # (the parts after it are stopped all the same)
         finally:
+            self.packetlog.flush_stations()                     # (the station rows that changed since the last flush, before the thread closes)
             if self.db is not None:
                 await self.db.close()                           # what was asked of the database thread is done, then its connection is closed
 
@@ -220,9 +223,10 @@ class Controller(Services):
 
     # ---- the care of the database
     async def prune(self) -> tuple[int, list[str]]:
-        """Removes the packets and the stations not heard for 7 days (and the weather observations that old); how many packets, and which stations. The messages and the bulletins stay: the operator deletes those."""
+        """Removes the packets and the stations not heard for 7 days (and the weather observations that old), and the packets from the internet older than INTERNET_KEEP_DAYS; how many packets, and which stations.
+        The messages and the bulletins stay: the operator deletes those."""
         keep = LOG_KEEP_DAYS
-        packets = await self.packetlog.prune(keep)
+        packets = await self.packetlog.prune(keep, INTERNET_KEEP_DAYS)
         self.messaging.forget_heard(keep)
         await self.weatherlog.prune(keep)
         stations = self.stationbook.prune(self.clock() - days(keep))
@@ -246,3 +250,6 @@ class Controller(Services):
 
     async def _recount_minutely(self) -> None:
         await every(RECOUNT_EVERY_SEC, self.stationbook.recount, "the recount of the station book")
+
+    async def _flush_stations(self) -> None:
+        await every(STATION_FLUSH_SEC, self.packetlog.flush_stations, "the writing of the station rows")

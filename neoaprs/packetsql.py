@@ -140,9 +140,12 @@ def count_packets(db: sqlite3.Connection) -> int:
     return int(db.execute("SELECT COUNT(*) FROM packet").fetchone()[0])
 
 
-def prune_packets_before(db: sqlite3.Connection, stamp: str) -> int:
-    """Deletes the packets heard before `stamp`; how many."""
-    return db.execute("DELETE FROM packet WHERE heard_at < ?", (stamp,)).rowcount
+def prune_packets_before(db: sqlite3.Connection, stamp: str, internet_stamp: str | None = None) -> int:
+    """Deletes the packets heard before `stamp`, and those from the internet (`via` is) heard before `internet_stamp` when one is given; how many."""
+    gone = db.execute("DELETE FROM packet WHERE heard_at < ?", (stamp,)).rowcount
+    if internet_stamp is not None:
+        gone += db.execute("DELETE FROM packet WHERE heard_at < ? AND via = 'is'", (internet_stamp,)).rowcount
+    return gone
 
 
 def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:

@@ -189,6 +189,10 @@ class Page:
         """The HF radio connected to its Mercury and the control port heard."""
         return (self.topics.get("hf") or {}).get("state") == "connected" and self.modem().get("state") == "running"
 
+    def fm_connected(self) -> bool:
+        """The FM radio (the TNC of the topic `tnc`) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
+        return (self.topics.get("tnc") or {}).get("state") == "connected"
+
     def stations(self) -> dict[str, Any]:
         return self.topics.get("stations") or {}
 
@@ -254,8 +258,16 @@ class FmHub:
         self._count = 0
 
     async def start(self) -> None:
-        self._server = await asyncio.start_server(self._client, "127.0.0.1", 0)
+        """Listens on the hub's port (a free one the first time; after `hang_up` the same one again, which is where the radios' daemons come back to)."""
+        self._server = await asyncio.start_server(self._client, "127.0.0.1", self.port)
         self.port = self._server.sockets[0].getsockname()[1]
+
+    def hang_up(self) -> None:
+        """The FM air goes away as a radio unplugged or out of power does: the hub stops listening and closes every connection, so that each FM radio of the simulation loses its line and goes on trying; `start` brings it back."""
+        self.close()
+        self._server = None
+        for writer in list(self._writers.values()):
+            writer.close()
 
     async def _client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         self._count += 1

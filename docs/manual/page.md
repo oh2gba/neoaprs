@@ -162,7 +162,7 @@ While Settings → Internet stations is off the replay has nothing from APRS-IS,
 
 The cross or Esc closes it, and the map is live again as it was. The station cards and the statistics card stand above the bar while it is open.
 
-The daemon keeps packets for 7 days, so a span that reaches back further than the oldest packet it has (a daemon that started two days ago, asked for a week) simply begins at that packet: the slider starts there.
+The daemon keeps packets for 7 days (those from the internet for 2), so a span that reaches back further than the oldest packet it has (a daemon that started two days ago, asked for a week) simply begins at that packet: the slider starts there.
 
 The longer the span, the fewer positions are sent: up to a day a position closer than 10 m or 30 s to the one before is left out; up to three days, 200 m or 2 minutes; a week, 300 m or 5 minutes, which is a few hundred KB for a busy APRS-IS feed. Where a station still was just before it moved off is always kept, and so is its last position. At most the latest million position packets are read: on a feed busier than that (a week of more than about twice a busy one) the replay begins at the first of them.
 

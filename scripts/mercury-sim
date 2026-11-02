@@ -4,7 +4,7 @@ a keyed station hears nothing, two keyed at once collide), a NeoAPRS daemon on e
 every station's beacon heard by every other, the longest message around the ring acked by each, two stations keyed at the same moment losing both frames and a message between them going through
 after it, an ack lost on its way back (the sender's retry, the receiver's second ack, the message kept once), a station whose Mercury dies and comes back, a daemon stopped and started again with a message on its
 way (the message goes on from the database), a weak link, a poor fading channel at 0 dB (the Watterson channel of CCIR 520-2: some beacons lost, a message through on its retries, and how long the busy detector took
-to learn the new noise), the first stations with the FM radio too (a KISS hub is their FM air: a message to a station heard on FM goes on FM, one to a station heard on HF alone over HF), and the first station gating
+to learn the new noise), the first stations with the FM radio too (a KISS hub is their FM air: a message to a station heard on FM goes on FM, one to a station heard on HF alone over HF, and that one still going over HF while the FM radio is away), and the first station gating
 what it hears to a fake APRS-IS. Nothing is keyed, nothing leaves the loopback. The daemon may be the checkout's or an installed one
 (`--daemon /usr/bin/neoaprs` after the .deb, `--daemon ./NeoAPRS.AppImage`), and the Mercury the one the checkout carries (scripts/build-mercury --install) or any (`--mercury`), so that the same scenario runs
 against what ships. For a developer, by hand, and the release workflow against its artifacts; Linux only (named pipes, Mercury's fifo backend).
@@ -157,6 +157,28 @@ class Net:
                 raise Failure(f"{page.name}: {command['cmd']} was refused for {seconds:g} s: {json.dumps(page.errors[-1])}")
             await asyncio.sleep(4.0)
 
+    async def fm_radio_away(self, hub: FmHub) -> None:
+        """With both radios on and the FM radio away (a TNC unplugged, out of power or out of range at night), a message to a station heard on HF alone must still go: what holds a frame is the radio of the frame,
+        not the FM radio. The hub stops listening and drops every line; the first station's message goes over HF without waiting for the FM radio's back-off; the hub listens again and the radios come back."""
+        timeout = self.args.timeout
+        page, far, text = self.pages[self.names[0]], self.names[-1], "while the FM radio is away"
+        await page.until(f"{page.name}'s FM radio connected", page.fm_connected, timeout)
+        hub.hang_up()
+        gone = await page.until(f"{page.name}'s daemon noticing its FM radio is gone", lambda: not page.fm_connected(), timeout)
+        self.row(f"the FM air gone: {page.name}'s daemon says its FM radio is not connected after", f"{gone:.1f} s")
+        n = page.acked()
+        await self.when_free(page)
+        await page.send({"cmd": "send_message", "to": far, "text": text})
+        try:
+            took = await page.until(f"the ack of the message to {far} with the FM radio away", lambda: page.acked() > n, timeout * 2)
+            attempts = self.attempts_of(page, text)
+            self.row(f"a message to {far}, heard on HF alone, sent while the FM radio is away: went over HF and was acked on attempt {attempts} after", f"{took:.1f} s (the FM radio's absence must not hold it)", attempts <= 2)
+        except Failure as e:
+            self.row(f"a message to {far}, heard on HF alone, sent while the FM radio is away: not acked within", f"{timeout * 2:.0f} s after {self.attempts_of(page, text)} attempts ({e})", False)
+        await hub.start()
+        back = await page.until(f"{page.name}'s FM radio back on the hub", page.fm_connected, timeout * 2)
+        self.row(f"the FM air back: {page.name}'s FM radio connected again after", f"{back:.1f} s")
+
     async def drive(self, bases: dict[str, str], aprsis: AprsIs, hub: FmHub) -> None:
         timeout = self.args.timeout
         names = self.names
@@ -302,7 +324,9 @@ class Net:
             await fm_a.send({"cmd": "send_message", "to": hf_only, "text": "far from you over HF"})
             took = await fm_a.until("the ack over HF", lambda: fm_a.acked() > n + 1, timeout * 2)
             self.row(f"a message to {hf_only}, heard on HF alone, went over HF (nothing of it on the FM air) and was acked after", f"{took:.1f} s (the pace keeps 10 s between two attempts of ours, on either radio)", not hub.heard(b"far from you over HF"))
-        # 10. the iGate: the first station gated the others' beacons
+            # 10. the FM radio silent while HF talks: the first station loses its FM radio, and a message to the station heard on HF alone must still go
+            await self.fm_radio_away(hub)
+        # 11. the iGate: the first station gated the others' beacons
         gated = {line.split(">", 1)[0] for line in aprsis.packets}
         others = set(names[1:])
         self.row(f"the iGate on {names[0]} gated the beacons of", f"{len(gated & others)} of {len(others)} stations", others <= gated)

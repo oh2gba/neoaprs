@@ -1,5 +1,5 @@
 """The ids and acks of messaging: the message id a message of ours is given (the next after the latest, never one that a message still being sent has) and the ack we send for a message to us, `ackMM`, or the
-number as it came for a message with a reply-ack number (`ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`). An ack is not kept for later when the interlock is shut: the sender sends again. An ack the radio cannot take
+number as it came for a message with a reply-ack number (`ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`). An ack goes back on the radio the message came on and is built for it (no path and the frame cap over HF, whatever radio the station is otherwise reached on). An ack is not kept for later when the interlock is shut: the sender sends again. An ack the radio cannot take
 at the moment, though it is connected (a frame of ours is on the air, the channel is busy, the TNC settles: the Mercury HF modem decodes a frame while the sender's tail is still on the air, and its busy detector holds
 us for a second or two after it), waits and goes when the radio takes frames again (`flush`, from the ticker of the retries), for at most ACK_HOLD_MAX_SEC; after that the sender has sent again anyway."""
 import logging
@@ -30,10 +30,10 @@ class Waiting:
 
 
 class Acks:
-    def __init__(self, tnc: Radio, interlock: Interlock, frame: Callable[[bytes, str], ax25.Frame], clock: Clock = utcnow) -> None:
+    def __init__(self, tnc: Radio, interlock: Interlock, frame: Callable[[bytes, str, Radio], ax25.Frame], clock: Clock = utcnow) -> None:
         self._tnc = tnc
         self._interlock = interlock
-        self._frame = frame                                     # our frame for an information field to a station (Messaging._frame)
+        self._frame = frame                                     # our frame for an information field to a station on a radio (Messaging._frame): built for the radio the ack goes on, its path rules and its frame cap
         self._clock = clock
         self._last_id: str | None = None                        # the id the latest message of ours was given; the next is the one after
         self.waiting: list[Waiting] = []                        # the acks the radio could not take at the moment, oldest first
@@ -77,7 +77,7 @@ class Acks:
     def _transmit(self, to: str, msg_id: str, reply_ack: str | None, radio: Radio, quiet: bool = False) -> bool:
         """Sends the ack on the radio; False when the TNC would not take it (said in the log unless `quiet`: an ack that waits is told once, when it starts waiting). An ack that cannot be made is told and counts as done."""
         try:
-            sent = radio.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to))
+            sent = radio.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to, radio))
         except (MessageError, MessagingError) as e:
             log.warning("no ack for message %s from %s: %s", msg_id, to, e)
             return True

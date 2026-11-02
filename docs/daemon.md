@@ -316,7 +316,7 @@ station, under the call as written, in the row `{path, rf_only, alert}` of the t
 direct, the alert null where none is set; an entry with no path, `rf_only` false and no alert is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
 and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
 `path_for`. `set_station_rf_only` for `EMAIL-2` is an `error`. A station has no timeout of its own: every station leaves the map as many hours after its last position as the setting `map/station_hours` says (1, 3, 6, 12 or 24, 3 by default; the page does that, the daily prune keeps
-packets and stations 7 days). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
+packets and stations 7 days, packets from the internet 2: `policy.INTERNET_KEEP_DAYS`, they being the bulk of the file). Migration 17 cleared the timeouts that earlier versions stored (the column `station_pref.hide_after_min` is always null and not read).
 
 **The station book** (`neoaprs/stationbook.py`) counts, for each station, how many packets came direct and by each route, from the packets since the start and
 the latest 2000 that the database kept. The row of the topic `stations` has `last_route`, `heard_direct`, `heard_via` (`[station heard, packets]`, the most

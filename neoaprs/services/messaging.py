@@ -42,10 +42,10 @@ from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import EMAIL_GATEWAY, MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
-from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, RadioSet, our_call, our_frame, radio_for, radio_path, radio_to
+from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, message_radio, our_call, our_frame, radio_for, radio_path
 from neoaprs.services.acks import Acks
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
@@ -100,7 +100,7 @@ class Messaging:
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
-        self.acks = Acks(tnc, interlock, self._frame, clock)                           # the ids we give and the acks we send, or hold for a radio that is held (services/acks.py)
+        self.acks = Acks(tnc, interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)      # the ids we give and the acks we send (built for the radio they go back on), or hold for a radio that is held (services/acks.py)
         self.retries = Retries(self, tnc, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
@@ -201,7 +201,7 @@ class Messaging:
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
-        radio = self._radio_for(to)
+        radio = message_radio(self._tnc, to)
         if radio.state is Source.State.SILENT:
             raise MessagingError(radio.why_unusable())
         self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM)          # (the settings make a frame, and the text one that the radio carries)
@@ -297,21 +297,19 @@ class Messaging:
             raise MessagingError(f"there is no message {number} that we sent")
         return record
 
-    def _radio_for(self, to: str) -> Radio:
-        """The radio a message to the station goes out on: the station's (neoaprs/radios.py); the FM radio for the email gateway, which is a station of the internet reached through the iGates of the VHF
-        network and never over HF, so a mail is refused while the FM radio is off (the code `message.email_fm_off`)."""
-        if to == EMAIL_GATEWAY and isinstance(self._tnc, RadioSet):
-            fm = self._tnc.of("fm")
-            if fm is None:
-                raise MessagingError("email goes out over the FM radio, which is off", "message.email_fm_off")
-            return fm
-        return radio_to(self._tnc, to)
+    def radio_of(self, record: MessageRecord) -> Radio | None:
+        """The radio the message goes out on (services/retries.py gates each attempt by it); None while it has none (the email gateway with the FM radio off)."""
+        try:
+            return message_radio(self._tnc, record.to_call)
+        except MessagingError:
+            return None
 
-    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0) -> ax25.Frame:
-        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given). A frame longer than
-        the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number), is refused with the code `message.too_long_for_radio`: a message is never cut."""
+    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0, radio: Radio | None = None) -> ax25.Frame:
+        """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given), for `radio` (the
+        one an ack goes back on; the station's radio when none is named): its path rules and its frame cap. A frame longer than the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number),
+        is refused with the code `message.too_long_for_radio`: a message is never cut."""
         c = self._config()
-        radio = self._radio_for(to)                                # (the station's radio: FM unless it was heard on HF alone; its path rules and its frame cap)
+        radio = radio or message_radio(self._tnc, to)                       # (the station's radio: FM unless it was heard on HF alone)
         try:
             frame = our_frame(c, radio_path(radio, self._paths(to, attempt)), info)
         except MessagingError:
@@ -325,12 +323,12 @@ class Messaging:
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
         """Transmits the message once, when the radio can and it does not wait for another to the same station (`queued`); the message as it is after that."""
-        if self.queued(record) or not self.retries.radio_up() or self.pace.too_soon():
+        if self.queued(record) or not self.retries.radio_up(record) or self.pace.too_soon():
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
             frame = self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
-            radio = self._radio_for(record.to_call)
+            radio = message_radio(self._tnc, record.to_call)
             sent = radio.send_frame(frame)
         except MessagingError as e:
             if self._refused.get(record.id) != str(e):

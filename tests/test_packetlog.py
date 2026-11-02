@@ -334,3 +334,43 @@ async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None
     [first, second] = sorted(await log.stations(), key=lambda s: s.call)
     assert first == station
     assert (second.heard_rf, second.heard_rf_gated, second.heard_is, second.last_rf_at, second.last_rf_gated_at, second.last_is_at, second.position_via) == (0, 0, 0, None, None, None, None)
+
+
+# ---- what a Raspberry Pi's card is written: the station rows once per station per flush, the internet's packets kept a shorter time
+
+async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as_it_is_then_and_a_read_sees_it(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    station = Station("OH2AAA", first_heard=T0, last_heard=T0, packets=1)
+    for n in range(2, 12):
+        station.packets = n
+        assert log.save_station(station)
+    assert log.save_station(Station("OH2BBB", first_heard=T0, last_heard=T0))
+    assert log.flush_stations() == 2, "eleven saves of two stations: two rows written"
+    assert log.flush_stations() == 0
+    station.packets = 12
+    log.save_station(station)
+    assert {s.call: s.packets for s in await log.stations()} == {"OH2AAA": 12, "OH2BBB": 0}, "a read writes what changed first and sees the station as it is now"
+    log.save_station(Station("OH2CCC", first_heard=T0, last_heard=T0))
+    assert log.delete_station("OH2CCC") and log.flush_stations() == 0, "a station deleted before the flush is not written"
+    assert sorted(s.call for s in await log.stations()) == ["OH2AAA", "OH2BBB"]
+
+
+async def test_forgetting_the_heard_stations_forgets_the_ones_not_yet_written_too(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    log = PacketLog(store.db, FixedClock())
+    log.save_station(Station("OH2GBA", first_heard=T0, last_heard=T0, is_me=True))
+    log.save_station(Station("OH2AAA", first_heard=T0, last_heard=T0))
+    assert await log.forget_heard("OH2GBA") == 0
+    assert [s.call for s in await log.stations()] == ["OH2GBA"], "ours stays, the other does not come back with the next flush"
+
+
+async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_path: Path) -> None:
+    store = await store_at(tmp_path / DB_NAME)
+    clock = FixedClock()
+    log = PacketLog(store.db, clock)
+    for days_ago, via in ((1, "rf"), (3, "rf"), (1, "is"), (3, "is"), (9, "rf"), (9, "is")):
+        log.append(replace(made(POSITION), heard_at=clock() - timedelta(days=days_ago), via=via))
+    assert await log.prune(7, 2) == 3, "the two older than 7 days, and the internet's older than 2"
+    assert sorted((clock() - p.heard_at).days for p in await log.recent()) == [1, 1, 3] and [p.via for p in await log.recent() if (clock() - p.heard_at).days == 3] == ["rf"]
+    assert await log.prune(7) == 0, "without an internet keep nothing more goes"

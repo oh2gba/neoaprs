@@ -24,6 +24,21 @@ TICK = 0.1                            # seconds between two flushes: what change
 BEHIND = MAX_WRITE_BUFFER // 8        # a socket that holds this much of what the page has not read is behind
 
 
+TOLD_LIMIT = 200                      # how many failures the hub remembers having told: a bug that breaks every item is not to grow the set for ever
+
+
+def _report(told: set[str], what: str, exc: Exception) -> None:
+    """Logs a failure in what the pages are sent, from inside the `except` that caught it: the first time with the traceback, after that in a line, because the same odd packet can break the same
+    builder again at every change and the log is not to fill with the same traceback. (The change that failed is dropped, so the hub does not retry it by itself; this is only about the log.)"""
+    if what in told:
+        log.warning("%s (again): %r", what, exc)
+        return
+    if len(told) >= TOLD_LIMIT:
+        told.clear()
+    told.add(what)
+    log.exception(what)
+
+
 class Link(Protocol):
     """What the hub needs of a page: a way to write a text frame, and how much the socket holds that the page has not read. It is the key of the page in the hub, so it is hashable."""
     def send_text(self, text: str) -> None: ...
@@ -49,6 +64,7 @@ class Topic:
         self.last = float("-inf")         # when the latest patch was made
         self._whole = False
         self._keys: dict[str, None] = {}  # in the order they changed
+        self._told: set[str] = set()      # the keys whose item could not be built, as far as the log has been told
 
     def touch(self, key: str | None = None) -> None:
         """The topic changed: all of it (a `replace`), or the item of the key."""
@@ -63,14 +79,19 @@ class Topic:
         return self._whole or bool(self._keys)
 
     def take(self) -> list[dict[str, Any]]:
-        """The ops for what changed since the last patch, and the revision moves on."""
+        """The ops for what changed since the last patch, and the revision moves on. An item that cannot be built (a view that fails on one odd packet) is left out of the patch and is not asked for again
+        until it changes again: one bad item must not hold back the others, nor be tried at every tick for ever. A whole value that cannot be built raises (the hub drops the change)."""
         ops: list[dict[str, Any]]
         if self._whole or self.item is None:
             ops = [{"op": "replace", "value": self.build()}]
         else:
             ops = []
             for key in self._keys:
-                value = self.item(key)
+                try:
+                    value = self.item(key)
+                except Exception as exc:
+                    _report(self._told, f"the item {key} of {self.name} could not be built", exc)
+                    continue
                 ops.append({"op": "del", "key": key} if value is None else {"op": "set", "key": key, "value": value})
         self._whole = False
         self._keys.clear()
@@ -93,6 +114,7 @@ class StateHub:
         self.topics: dict[str, Topic] = {}
         self._peers: dict[Link, Peer] = {}
         self._timer: asyncio.TimerHandle | None = None
+        self._told: set[str] = set()                              # the topics that could not be told, as far as the log has been told
 
     def add(self, topic: Topic) -> Topic:
         if topic.name in self.topics:
@@ -165,25 +187,37 @@ class StateHub:
 
     def flush(self) -> float | None:
         """Tells the pages what changed since the last flush: for each topic that is due one patch (one text for all the pages) to every page that follows it. A page that is behind is not sent
-        it. Returns when to flush again, None when nothing is waiting."""
+        it. Returns when to flush again, None when nothing is waiting. A topic that fails is dropped from this flush (its change is forgotten, the pages are sent the whole of it when they ask) and the
+        topics after it are told all the same: one view that breaks on one odd packet must not silence the pages for good."""
         now = self.clock()
         wait: float | None = None
         behind: dict[Peer, bool] = {}
         for topic in self.topics.values():
-            if not topic.pending:
+            try:
+                due = self._flush_topic(topic, now, behind)
+            except Exception as exc:
+                _report(self._told, f"the topic {topic.name} could not be told to the pages", exc)
+                topic.discard()
                 continue
-            if not self.following(topic.name):
-                topic.discard()                                          # (a daemon with no page open builds nothing)
-                continue
-            due = topic.last + topic.interval - now
-            if due > 0:
+            if due is not None:
                 wait = due if wait is None else min(wait, due)
-                continue
-            topic.last = now
-            self._tell(topic, topic.take(), behind)
         if self._catch_up(behind):
             wait = TICK if wait is None else min(wait, TICK)
         return wait
+
+    def _flush_topic(self, topic: Topic, now: float, behind: dict[Peer, bool]) -> float | None:
+        """Tells the pages what changed in one topic when it is due; returns how long it has to wait for that, None when it was told or had nothing to tell."""
+        if not topic.pending:
+            return None
+        if not self.following(topic.name):
+            topic.discard()                                              # (a daemon with no page open builds nothing)
+            return None
+        due = topic.last + topic.interval - now
+        if due > 0:
+            return due
+        topic.last = now
+        self._tell(topic, topic.take(), behind)
+        return None
 
     def _tell(self, topic: Topic, ops: list[dict[str, Any]], behind: dict[Peer, bool]) -> None:
         text = encode({"type": "patch", "topic": topic.name, "rev": topic.rev, "ops": ops})
