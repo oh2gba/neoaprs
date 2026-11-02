@@ -172,7 +172,9 @@ def test_the_sound_card_chosen_is_the_one_usb_card_that_records_and_plays_else_t
     assert mercury.choose_sound_card(CARDS) == "plughw:1,0", "an IC-7300's codec beside the computer's own card"
     assert mercury.choose_sound_card([CARDS[0], CARDS[2]]) == "", "no radio card: the system's default device, as Mercury takes it"
     assert mercury.choose_sound_card([]) == ""
-    assert mercury.choose_sound_card([CARDS[0], mercury.SoundCard("plughw:1,0", "USB PnP Sound Device", True, True, False), mercury.SoundCard("plughw:3,0", "USB Audio Device", True, True, False)]) == "", "two USB cards: nobody can tell, the operator picks"
+    assert mercury.choose_sound_card([CARDS[0], mercury.SoundCard("plughw:1,0", "USB PnP Sound Device", True, True, False), mercury.SoundCard("plughw:3,0", "USB Audio Device", True, True, False)]) == "", "two USB dongles: nobody can tell, the operator picks"
+    assert mercury.choose_sound_card([mercury.SoundCard("plughw:0,0", "USB AUDIO  CODEC USB Audio", True, True, False), mercury.SoundCard("plughw:3,0", "USB Audio Device USB Audio", True, True, False),
+                                      mercury.SoundCard("plughw:2,0", "HD-Audio Generic ALCS1200A Analog", True, True, False)]) == "plughw:0,0", "a radio's codec beside a headset dongle (John's desk): the codec"
     assert mercury.choose_sound_card([CARDS[0], mercury.SoundCard("plughw:1,0", "Something Else", True, True, False)]) == "plughw:1,0", "the one card besides the default that does both"
     assert mercury.choose_sound_card([mercury.SoundCard("plughw:1,0", "USB Audio CODEC", True, True, True)]) == "", "a radio's card that is the default already is Mercury's default too"
 

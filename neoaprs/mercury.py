@@ -189,11 +189,19 @@ _RADIO_SERIAL_VID = {0x10C4, 0x0403, 0x067B, 0x1A86}                 # Silicon L
 _USB_CHIP_VID = {0x0D8C}                                              # C-Media: a CM108 or CM119 sound chip, whose GPIO keys the radio on a DigiRig Lite, an AIOC and the dongles
 
 
+_RADIO_CODEC = re.compile(r"codec|pcm290|texas|digirig|radio", re.IGNORECASE)                             # the names a radio's built-in USB sound chip gives itself (the PCM2903 of an IC-7300, an FT-991 or an FT-710 is "USB Audio CODEC"), as against a dongle's generic "USB Audio Device"
+
+
 def choose_sound_card(cards: Sequence[SoundCard]) -> str:
     """The sound card the radio is likely on, as its id, or "" for the system's default device: the one card that is both playback and capture and names itself as a USB codec or a radio's, else the one card besides
-    the system's default that is both, else nothing chosen. A computer with one radio has one such card; with none, Mercury's own default is the system's, which is right for a radio that is the only sound device."""
+    the system's default that is both, else nothing chosen. Two USB cards that both could be a radio's (John's desk, 2 Nov 2026: the IC-7300's "USB AUDIO CODEC" beside a C-Media "USB Audio Device" headset dongle)
+    are told apart by the name a radio's own codec chip gives itself; two of the same kind are nobody's to tell. A computer with one radio has one such card; with none, Mercury's own default is the system's, which
+    is right for a radio that is the only sound device."""
     both = [c for c in cards if c.playback and c.capture]
     radios = [c for c in both if _RADIO_CARD.search(c.name) and not c.default]
+    if len(radios) > 1:
+        codecs = [c for c in radios if _RADIO_CODEC.search(c.name)]
+        radios = codecs if len(codecs) == 1 else radios
     if len(radios) == 1:
         return radios[0].id
     others = [c for c in both if not c.default]
