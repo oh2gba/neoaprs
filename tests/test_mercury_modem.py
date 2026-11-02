@@ -390,7 +390,7 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
     monkeypatch.setattr(mercurymodem, "free_ports", none)
     m = modem(tmp_path)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
+    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0           # (the ports are chosen last, after the configuration is written: that file may be there)
     await stopped(m)
 
 
@@ -526,3 +526,94 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
         assert m.describe() == f"Mercury DATAC3: {mercurymodem.OPEN_TO_NETWORK}"
     finally:
         await stopped(m)
+
+
+# ---- the rest of the review's list for the modem part: a launch that fails and is tried again, the ports left alone, the speaker without pipes, the order of a launch, the firewall on Windows
+
+async def test_a_launch_that_fails_for_a_reason_that_may_pass_is_tried_again_after_the_back_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+    real = mercurymodem.free_ports
+
+    def once_none() -> tuple[int, int]:
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError("no free pair of ports from 8100 to 8150")
+        return real()
+    monkeypatch.setattr(mercurymodem, "free_ports", once_none)
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        assert m.state == "waiting" and m.reason == "no_port" and m.starts == 0
+        await until(lambda: m.running, 5.0)
+        assert m.starts == 1 and len(calls) == 2, "the second try, after the back-off, had its pair"
+    finally:
+        await stopped(m)
+
+
+async def test_the_fm_radios_the_gpss_and_the_skipped_ports_are_never_chosen_to_key_the_radio(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60), SerialPort("/dev/ttyUSB1", 0x10C4, 0xEA60)]
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying="", serial_port="/dev/ttyUSB0"))
+    try:
+        await until(lambda: m.running, 5.0)
+        assert m.keying == Keying("rts", "/dev/ttyUSB1"), "the FM radio's port is not the one"
+    finally:
+        await m.stop()
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying="", gps_device="/dev/ttyUSB1", serial_skip="/dev/ttyUSB0"))
+    try:
+        await until(lambda: m.running, 5.0)
+        assert m.keying == Keying("vox"), "the GPS's port and a skipped port leave no serial port: VOX"
+    finally:
+        await stopped(m)
+
+
+async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_the_ports_are_chosen_last(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    order: list[str] = []
+    real_free, real_stale, real_cards = mercurymodem.free_ports, mercurymodem.end_stale, mercuryhelper.list_sound_cards
+    monkeypatch.setattr(mercurymodem, "free_ports", lambda: (order.append("ports"), real_free())[1])
+    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file: (order.append("stale"), real_stale(pid_file))[1])
+    monkeypatch.setattr(mercuryhelper, "list_sound_cards", lambda command, timeout_sec=15.0: (order.append("cards"), real_cards(command, timeout_sec))[1])
+    m = modem(tmp_path)
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
+    try:
+        await until(lambda: m.running, 5.0)
+        assert order == ["stale", "cards", "ports"], "a program left behind holds the ports: ended first; the pair chosen after the seconds mercury -z takes, so that nobody takes it meanwhile"
+    finally:
+        await stopped(m)
+
+
+async def test_without_named_pipes_the_speaker_of_the_dummy_hf_radio_is_not_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """A Mercury started on the system's default devices for real would play DATAC3 out of the speakers' output and open the microphone, which "nothing goes on the air" does not allow (a VOX radio on the default output would key)."""
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    monkeypatch.setattr(mercurymodem.SpeakerAudio, "prepare", lambda self: False)
+    m = modem(tmp_path)
+    await m.start(HF, speaker=True)
+    assert m.state == "stopped" and m.starts == 0 and "no named pipes" in caplog.text
+    await stopped(m)
+
+
+async def test_the_shipped_binary_is_not_started_while_the_firewall_does_not_shield_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mercurymodem, "loopback_only", lambda program: f"the Windows Firewall rule 'NeoAPRS Mercury' of the installer is missing ({program.name})")
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "mercury.exe")], backoff=QUICK)
+    await m.start(HF)
+    assert m.state == "waiting" and m.reason == "firewall" and "NeoAPRS Mercury" in m.problem and m.starts == 0
+    await asyncio.sleep(0.3)
+    assert m.starts == 0, "not tried again by itself: the rule does not appear by itself"
+    await stopped(m)
+    m = modem(tmp_path)                                                    # (the fake program is an interpreter and a module, not the shipped binary: not asked)
+    await m.start(HF)
+    try:
+        await until(lambda: m.running, 5.0)
+    finally:
+        await stopped(m)
+
+
+def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_hundredth_time(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG, "neoaprs.mercury.program")
+    program = mercuryhelper.Program(lambda code, lines: None)
+    for _ in range(250):
+        program._tell("[WRN] [audio] snd_pcm_readi: Input/output error")
+    program._tell("[INF] [engine] Mercury engine initialised")
+    said = [r for r in caplog.records if r.name == "neoaprs.mercury.program"]
+    assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 4, "the 1st, the 10th, the 100th and the 200th"
+    assert "(the 200th time)" in said[3].getMessage() and said[-1].levelno == logging.DEBUG

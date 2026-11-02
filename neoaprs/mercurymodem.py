@@ -7,9 +7,9 @@ the services' pace (10 s between two of ours) counts from a frame that has reall
 BUSY_HOLD_MAX_SEC, because the detector takes a step in the noise for a signal for a minute or two and traffic must not be stranded by it. A hold is a reason the Tnc gives (`why_unusable`): the beacon, the
 messages, the acks and the answers wait, as they wait for a radio that is silent, and go when it is over.
 
-Tune and the keying test (`tune`, `tune_stop`, `key_test`) are Mercury's own TUNE command on the control port (mercury.py says what and why): the radio is keyed through the keying the modem runs with and the
-tone goes through its sound card, for TUNE_SEC or until the operator presses again, or for the second of the keying test; the hold is on meanwhile, so no frame of ours goes under the tone. Mercury unkeys by
-itself after a minute whatever happens to us.
+Tune and the keying test (`tune`, `tune_stop`, `key_test`) are Mercury's own TUNE command on the control port, the half of this part that mercurytune.py holds (`Mercury` inherits it): the radio is keyed through
+the keying the modem runs with and the tone goes through its sound card, for TUNE_SEC or until the operator presses again, or for the second of the keying test; the hold is on meanwhile, so no frame of ours goes under
+the tone. Mercury unkeys by itself after a minute whatever happens to us.
 
 The ports are chosen once for a start and kept for the program started again in the place of one that died (the HF Tnc is told its port when the radios start, and waits on it with its back-off: it finds the modem
 where it left it); only when something else took the pair meanwhile is another chosen, and the owner is told (`ports_changed`) to point the Tnc at it. A program of ours that listens on an address that is not the
@@ -27,16 +27,17 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .clock import Clock, utcnow
-from .coded import CodedError
 from .config import Config
-from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, MODE, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, speaker_audio, tune_command
+from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, TUNE_OFF, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, speaker_audio
 from .mercurycontrol import ControlLine
+from .mercurytune import Tuning
+from .mercuryfirewall import loopback_only
 from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, find, foreign_listeners, free_ports, list_sound_cards
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
 from .serialprobe import available_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
-from .tasks import TaskSet, cancel_all
+from .tasks import TaskSet
 
 log = logging.getLogger("neoaprs.mercury")
 
@@ -44,12 +45,12 @@ HOST = "127.0.0.1"
 INI_FILE = "mercury.ini"
 PID_FILE = "mercury.pid"
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
-NOT_RUNNING = "the HF radio is not running"
 OPEN_TO_NETWORK = "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
 TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 STATES = ("stopped", "starting", "running", "waiting")
+REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "firewall")     # why the state is `waiting`, for the page to say in its own words (`problem` is the English of the log)
 TESTS = ("", "tune", "key")                  # what the control port was asked for and not yet told to stop: nothing, the tune tone, the keying test
 
 
@@ -65,7 +66,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury:
+class Mercury(Tuning):
     def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None) -> None:
         self.data_dir = data_dir
         self.clock = clock
@@ -76,7 +77,7 @@ class Mercury:
         self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
         self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
         self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem
-        self.problem = ""                                            # why it is not running; empty while it is
+        self.problem, self.reason = "", ""                           # why it is not running, in English for the log; empty while it is. And the same as a code of REASONS, for the page's words (only `waiting` has one)
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
         self.attached = ""                                           # the address of a Mercury that something else runs; empty for one of ours
         self.speaker = False                                         # started as the speaker of the Dummy HF radio: nothing keyed, the frames of the dummy line played
@@ -138,39 +139,44 @@ class Mercury:
         self._set("stopped", "")
 
     async def _launch(self) -> None:
-        """One start of the program: found, given free ports and the configuration written for these settings, a Mercury of ours left behind ended first."""
+        """One start of the program: found (and, on Windows, shielded by the firewall rule), a Mercury of ours left behind ended, the sound card and the keying chosen, the configuration written, the ports chosen
+        last and the program started. A failure that may pass is tried again after the back-off; one that cannot (no program, no shield, a speaker without pipes) is said and left."""
         config = self._config
         assert config is not None
         program = self._finder()
         if program is None:
-            self._set("waiting", NOT_INSTALLED)
+            self._set("waiting", NOT_INSTALLED, "not_installed")
             return
-        try:
-            self._choose_ports()
-        except OSError as e:
-            self._set("waiting", f"no free port for Mercury: {e}")
+        if len(program) == 1 and (why := await asyncio.to_thread(loopback_only, Path(program[0]))):        # (the shipped binary on Windows: the installer's firewall rule must be in force; "" elsewhere)
+            self._set("waiting", why, "firewall")
             return
+        ini, pid_file = self.data_dir / INI_FILE, self.data_dir / PID_FILE
+        await asyncio.to_thread(end_stale, pid_file)                   # (first: a program of ours left behind holds the sound card and the ports)
         audio: list[str] = []
         if self.speaker:
             self.sound_card, self.keying = "", Keying("vox")           # (the speaker keys nothing and plays through the system's own player; the choosers are for a radio)
-            if await asyncio.to_thread(self._audio.prepare):
-                audio = speaker_audio(str(self._audio.capture), str(self._audio.playback))
+            if not await asyncio.to_thread(self._audio.prepare):
+                log.info("the Dummy HF radio's speaker is not started: this system has no named pipes for Mercury's audio, and the modem on the default sound devices would be heard, or hear, for real")
+                self._set("stopped", "")
+                return
+            audio = speaker_audio(str(self._audio.capture), str(self._audio.playback))
         else:
-            self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports)
+            leave = tuple(p for p in (config.serial_port, config.serial_last_port, config.gps_device, *config.serial_skip_paths) if p)        # (the FM radio's, the GPS's and the skipped ports key no radio)
+            self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports, leave)
         keying = self.keying
-        ini, pid_file = self.data_dir / INI_FILE, self.data_dir / PID_FILE
         try:
             ini.write_text(ini_text(keying), encoding="utf-8")
         except OSError as e:
-            self._set("waiting", f"Mercury's configuration could not be written to {ini}: {os_error_text(e)}")
-            return
-        await asyncio.to_thread(end_stale, pid_file)
+            return self._failed(f"Mercury's configuration could not be written to {ini}: {os_error_text(e)}", "not_started")
+        try:
+            self._choose_ports()                                       # (last: nothing of the above, which takes seconds, is to find the pair taken meanwhile)
+        except OSError as e:
+            return self._failed(f"no free port for Mercury: {e}", "no_port")
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
         try:
             self._program.start(argv, self.data_dir, pid_file)
         except OSError as e:
-            self._set("waiting", f"Mercury could not be started: {os_error_text(e)}")
-            return
+            return self._failed(f"Mercury could not be started: {os_error_text(e)}", "not_started")
         self.starts += 1
         self._set("starting", "")
         self._start_control()
@@ -179,6 +185,11 @@ class Mercury:
             self._tasks.spawn(self._speaker.run(lambda: generation == self._generation), "mercury-speaker")
             if audio:
                 self._audio.start()
+
+    def _failed(self, problem: str, reason: str) -> None:
+        """A launch that failed for a reason that may pass (no free port, the data folder briefly unwritable, the program not started): said, and tried again after the back-off, as a program that ended is."""
+        self._set("waiting", problem, reason)
+        self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation), "mercury-restart")
 
     def _choose_ports(self) -> None:
         """The pair of ports of this start (mercuryhelper.HeldPorts: kept for a program started again in the place of one that died, so that the HF Tnc finds the modem where it left it); when something else took
@@ -199,7 +210,7 @@ class Mercury:
         self._speaker.close()
         self.keyed = self.busy = False
         self.test = ""
-        self._set("waiting", f"Mercury stopped (exit {code}); the log says why")
+        self._set("waiting", f"Mercury stopped (exit {code}); the log says why", "stopped")
         self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation), "mercury-restart")
 
     async def _relaunch_after(self, delay_sec: float, generation: int) -> None:
@@ -237,7 +248,7 @@ class Mercury:
             await control.stop()
         await asyncio.to_thread(self._program.stop)
         self.keyed = self.busy = False
-        self._set("waiting", OPEN_TO_NETWORK)
+        self._set("waiting", OPEN_TO_NETWORK, "network")
 
     def _event(self, event: ControlEvent) -> None:
         now = time.monotonic()
@@ -256,61 +267,6 @@ class Mercury:
 
     def _write(self, line: str) -> bool:
         return self._control is not None and self._control.write(line)
-
-    # ---- Tune and the keying test
-    def _refusal(self) -> str:
-        """Why the tone cannot start now: the modem is not running, or a frame is on the air or the channel is busy; "" when it can."""
-        if not self.running or self.speaker:
-            return NOT_RUNNING
-        if self.test:
-            return ""
-        return self.hold()
-
-    async def _begin(self, test: str, level_dbfs: float, seconds: float) -> None:
-        if why := self._refusal():
-            if why == NOT_RUNNING:
-                raise CodedError("the HF radio is not running", "hf.not_running")
-            raise CodedError(f"the radio is not free: {why}", "hf.held", reason=why)
-        await self._cancel_test()
-        if not self._write(tune_command(level_dbfs)):
-            raise CodedError("the HF radio is not running", "hf.not_running")
-        self.test = test
-        log.info("Mercury: %s for %g s (%g dBFS, keyed by %s)", "the tune tone" if test == "tune" else "the keying test", seconds, level_dbfs, self.keying.text)
-        self._test_task = self._tasks.spawn(self._end_after(seconds, self._generation), "mercury-test")
-        self.changed.emit()
-
-    async def tune(self) -> None:
-        """Keys the radio with the tune tone through the sound card and the keying in use, for TUNE_SEC or until `tune_stop`. CodedError when the modem is not running (`hf.not_running`) or the radio is not free (`hf.held`)."""
-        await self._begin("tune", TUNE_LEVEL_DBFS, TUNE_SEC)
-
-    async def key_test(self) -> None:
-        """Keys the radio for KEY_TEST_SEC with next to no audio, so that the operator sees it go to transmit and come back. The same refusals as `tune`."""
-        await self._begin("key", KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC)
-
-    async def tune_stop(self) -> None:
-        """Ends the tone or the test early; nothing when none is on."""
-        if not self.test:
-            return
-        await self._cancel_test()
-        self._end()
-
-    async def _cancel_test(self) -> None:
-        task, self._test_task = self._test_task, None
-        if task is not None and task is not asyncio.current_task():
-            await cancel_all([task])
-
-    def _end(self) -> None:
-        self._write(TUNE_OFF)
-        if self.test:
-            log.info("Mercury: %s ended", "the tune tone" if self.test == "tune" else "the keying test")
-        self.test = ""
-        self.changed.emit()
-
-    async def _end_after(self, seconds: float, generation: int) -> None:
-        await asyncio.sleep(seconds)
-        self._test_task = None
-        if generation == self._generation:
-            self._end()
 
     # ---- the speaker of the Dummy HF radio
     def play(self, data: bytes) -> None:
@@ -360,8 +316,8 @@ class Mercury:
         program = self._finder()
         return [] if program is None else list_sound_cards(program)
 
-    def _set(self, state: str, problem: str) -> None:
-        if (state, problem) != (self.state, self.problem):
-            self.state, self.problem = state, problem
+    def _set(self, state: str, problem: str, reason: str = "") -> None:
+        if (state, problem, reason) != (self.state, self.problem, self.reason):
+            self.state, self.problem, self.reason = state, problem, reason
             log.log(logging.WARNING if problem else logging.INFO, "Mercury: %s%s", state, f": {problem}" if problem else "")
         self.changed.emit()

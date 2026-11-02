@@ -146,8 +146,12 @@ class Keyring:
         return None if peer is None or self._private is None else cipher.shared_key(self._private, peer)
 
     async def take(self, call: str, key: bytes, at: datetime) -> Seal:
-        """A station announced a key: kept when it had none (`key`), nothing new when it is the one kept, not taken when another is kept (`key_other`; the operator forgets the old one first)."""
+        """A station announced a key: kept when it had none (`key`), nothing new when it is the one kept, not taken when another is kept (`key_other`; the operator forgets the old one first). A key no shared key can
+        be made with (all zeros, a low-order point) is never kept: the message stays a plain text (""), and the log says so. Raises MessagingError for a call that is none (the inbox asks only for a sender that is one)."""
         station = _station(call)
+        if not cipher.is_usable_key(key):
+            log.warning("%s announced a key no shared key can be made with (%s): not taken", station, cipher.fingerprint(key))
+            return ""
         kept = self._peers.get(station)
         if kept is not None:
             if kept[0] == key:

@@ -3,6 +3,7 @@ import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
 import { lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import type { ModemState } from "@/protocol/protocol";
 import { NOW, ago, hfState, tncState } from "@/test/fixtures";
 
 const searching = () =>
@@ -42,6 +43,7 @@ describe("tncStatus", () => {
     const modem = {
       state: "running" as const,
       problem: "",
+      reason: "" as const,
       mode: "DATAC3",
       keyed: false,
       busy: false,
@@ -135,11 +137,39 @@ describe("the HF radio's line", () => {
     expect(tncStatus(hf({}, { stats: { ...hfState().stats, last_packet: null } }), NOW)).toBe("DATAC3 · Listening · No packet yet");
   });
 
-  it("never shows the address the modem is reached on: Connecting… while the line opens, the modem's problem when it is not running", () => {
+  it("never shows the address the modem is reached on: Connecting… while the line opens", () => {
     expect(tncStatus(hf({}, { state: "connecting", path: "socket://127.0.0.1:8100" }), NOW)).toBe("Connecting…");
-    expect(tncStatus(hf({}, { state: "waiting", problem: "Mercury stopped (exit 1); the log says why" }), NOW)).toBe(
-      "Not connected: Mercury stopped (exit 1); the log says why",
-    );
+  });
+
+  it("says why the program does not run in the page's words by the daemon's code, never in the daemon's English", () => {
+    const down = (reason: ModemState["reason"], problem = "Mercury stopped (exit 1); the log says why") =>
+      tncStatus(hf({ state: "waiting", problem, reason }, { state: "waiting", problem }), NOW);
+    expect(down("not_installed", "the Mercury program is not in this installation of NeoAPRS (...)")).toBe("This installation carries no Mercury");
+    expect(down("stopped")).toBe("Not running");
+    expect(down("network")).toBe("Not run: Mercury would be open to the network");
+    expect(down("no_port", "no free port for Mercury: [Errno 98]")).toBe("Not running: no free port");
+    expect(down("not_started", "Mercury could not be started: [Errno 2]")).toBe("Mercury could not be started");
+    expect(down("firewall")).toBe("Not run: the Windows Firewall rule of the installer is missing");
+    expect(down("")).toBe("Not connected");
+  });
+
+  it("says Connecting… while the program starts or runs and the line is between two attempts, and never the problem of the line", () => {
+    expect(tncStatus(hf({ state: "starting" }, { state: "waiting", problem: "no KISS frames" }), NOW)).toBe("Connecting…");
+    expect(tncStatus(hf({ state: "running" }, { state: "waiting", last_error: "refused" }), NOW)).toBe("Connecting…");
+    expect(tncStatus(hf({ state: "stopped" }, { state: "stopped", problem: "x" }), NOW)).toBe("Not connected");
+  });
+
+  it("says the reason in every language of the page, in that language", () => {
+    const english = tncStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
+    try {
+      for (const locale of LOCALES) {
+        setLocale(locale.code);
+        const line = tncStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
+        if (locale.code !== "en") expect(line, locale.code).not.toBe(english);
+      }
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("says of the Dummy HF radio what it is, in the muted pill", () => {

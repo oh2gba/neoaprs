@@ -137,3 +137,11 @@ async def test_a_call_that_is_none_is_refused(rig: Rig) -> None:
         await rig.ring.take("", PEER, rig.clock())
     with pytest.raises(MessagingError):
         rig.ring.peer_key("not a call!")
+
+
+async def test_a_key_no_shared_key_can_be_made_with_is_never_kept(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+    """All zeros (and the few low-order points) give the library nothing to derive a key from: kept, such a key would fail every message to and from the station."""
+    assert not cipher.is_usable_key(bytes(32)) and not cipher.is_usable_key(b"\x01" + bytes(31)) and cipher.is_usable_key(PEER) and not cipher.is_usable_key(PEER[:31])
+    assert await rig.ring.take("OH2PEER", bytes(32), rig.clock()) == "" and rig.ring.shared_with("OH2PEER") is None and rig.changed == []
+    assert "no shared key can be made with" in caplog.text
+    assert await rig.ring.take("OH2PEER", PEER, rig.clock()) == "key", "a good key after a bad one is taken as the first"

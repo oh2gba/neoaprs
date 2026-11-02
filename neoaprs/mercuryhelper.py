@@ -34,6 +34,7 @@ PORT_TRIES = 50                      # how many pairs of ports are tried from th
 LIST_TIMEOUT_SEC = 15.0              # `mercury -z` opens the sound system; a stuck one is given this long
 STOP_WAIT_SEC = 5.0                  # how long a terminated Mercury is given to end before it is killed
 LAST_LINES = 8                       # how many of the program's last lines are kept for the problem text
+SAID_MAX = 1000                      # distinct warnings of the program counted at once; the count starts over beyond that
 
 Command = list[str]                  # how the program is run: its path, or an interpreter and a module that stands in for it (the tests' fake)
 HIDDEN_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)         # Windows: the program gets no console window of its own; 0 elsewhere
@@ -108,15 +109,16 @@ class HeldPorts:
         return taken
 
 
-def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]]) -> tuple[str, Keying]:
+def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]], leave: Sequence[str] = ()) -> tuple[str, Keying]:
     """The sound card and the keying the modem runs with: the settings (`mercury/sound_card`, `mercury/keying`) where they are set, else the daemon's own choice from the sound cards Mercury lists and the serial ports the
-    system lists (`ports`; mercury.py says how and why). Runs the program and reads the system's lists: for a thread."""
+    system lists (`ports`; mercury.py says how and why), the ports in `leave` left out of the choice (the FM radio's, the GPS receiver's, the skipped ones: the one USB serial port the choice keys the radio on must not be
+    one that another part of the station holds, or Mercury toggles its RTS at every frame). Runs the program and reads the system's lists: for a thread."""
     cards = list_sound_cards(program) if not sound_card or not keying else []
     card = sound_card or choose_sound_card(cards)
     if keying:
         return card, keying_of(keying)
     name = next((c.name for c in cards if c.id == card), "") if card else next((c.name for c in cards if c.default and c.capture), "")
-    found = ports()
+    found = [p for p in ports() if p.device not in leave]
     chosen = choose_keying(name, found)
     log.info("Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)", chosen.text, name or "the system's default", ", ".join(p.device for p in found) or "none")
     return card, chosen
@@ -259,6 +261,7 @@ class Program:
         self._process: subprocess.Popen[str] | None = None
         self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
+        self._said: dict[str, int] = {}                     # how many times each distinct warning of the program has come (a stuck sound device says the same line a thousand times a second)
 
     @property
     def running(self) -> bool:
@@ -289,10 +292,22 @@ class Program:
             line = raw.rstrip()
             if line:
                 self.last_lines.append(line)
-                mercury_log.log(logging.INFO if "[WRN]" in line or "[ERR]" in line else logging.DEBUG, "%s", line)
+                self._tell(line)
         code = process.wait()
         if self._process is process:
             loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))
+
+    def _tell(self, line: str) -> None:
+        """One line of the program into the log: its warnings and errors at INFO the first, the tenth and every hundredth time the same line comes (a stuck sound device repeats one warning every millisecond, which
+        would rotate the log in minutes and bury the day's lines; the count is said with the line), everything else at DEBUG."""
+        if "[WRN]" not in line and "[ERR]" not in line:
+            mercury_log.debug("%s", line)
+            return
+        if len(self._said) >= SAID_MAX:
+            self._said.clear()
+        count = self._said[line] = self._said.get(line, 0) + 1
+        if count in (1, 10) or count % 100 == 0:
+            mercury_log.info("%s%s", line, f" (the {count}th time)" if count > 1 else "")
 
     def stop(self) -> None:
         """Ends the program: asked to end, asked again after STOP_WAIT_SEC, killed after another STOP_WAIT_SEC. The second request is Mercury's own way to drop the transmitter at once (a kill leaves a radio keyed whose

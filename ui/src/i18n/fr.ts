@@ -1444,6 +1444,12 @@ export const fr: Catalogue = {
   "settings.tnc.connecting_to": "Connexion à {path}…",
   "settings.tnc.not_connected": "Non connecté",
   "settings.tnc.not_connected_why": "Non connecté : {why}",
+  "settings.tnc.hf.not_installed": "Cette installation ne contient pas Mercury",
+  "settings.tnc.hf.stopped": "À l'arrêt",
+  "settings.tnc.hf.network": "Non lancé : Mercury serait ouvert au réseau",
+  "settings.tnc.hf.no_port": "À l'arrêt : aucun port libre",
+  "settings.tnc.hf.not_started": "Mercury n'a pas pu être lancé",
+  "settings.tnc.hf.firewall": "Non lancé : la règle du pare-feu Windows de l'installateur est absente",
   "settings.tnc.counts": {
     one: "{n} paquet entendu, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",
     other: "{n} paquets entendus, {bytes_in} reçus, {bytes_out} émis, {digipeated} relayés",

@@ -344,6 +344,12 @@ export const settings = {
   "settings.tnc.connecting_to": "Connecting to {path}…",
   "settings.tnc.not_connected": "Not connected",
   "settings.tnc.not_connected_why": "Not connected: {why}",
+  "settings.tnc.hf.not_installed": "This installation carries no Mercury",
+  "settings.tnc.hf.stopped": "Not running",
+  "settings.tnc.hf.network": "Not run: Mercury would be open to the network",
+  "settings.tnc.hf.no_port": "Not running: no free port",
+  "settings.tnc.hf.not_started": "Mercury could not be started",
+  "settings.tnc.hf.firewall": "Not run: the Windows Firewall rule of the installer is missing",
   "settings.tnc.counts": {
     one: "{n} packet heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",
     other: "{n} packets heard, {bytes_in} in, {bytes_out} out, {digipeated} digipeated",

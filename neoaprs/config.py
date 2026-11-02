@@ -15,7 +15,7 @@ from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
-from .radiorules import HF_BEACON_MIN_MIN, RadioRules
+from .radiorules import HF
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, HF_DEFAULT as DEFAULT_HF_PROFILE, Profile, names_tcp, profile_of
@@ -235,11 +235,12 @@ class Config:
         """The SmartBeaconing numbers of the preset that beacon/travel names."""
         return PRESETS[self.beacon_travel]
 
-    def beacon_interval_of(self, rules: RadioRules) -> int:
-        """The beacon interval of a radio of this kind, in minutes (0: off): the one setting `beacon/interval_min`, raised to the HF floor (HF_BEACON_MIN_MIN) while the HF radio is on, for both radios: one timer
-        for one station, and not very often while a shared HF channel is one of its radios (the beacon says so in the log when it raises it)."""
+    def beacon_interval(self) -> int:
+        """The beacon interval in force, in minutes (0: off), the same for both radios: the one setting `beacon/interval_min`, raised to the HF radio's floor (`radiorules.HF.beacon_min_min`, 30 minutes) while the HF
+        radio is on: one timer for one station, and not very often while a shared HF channel is one of its radios (the beacon says so in the log when it raises the interval; John's rule). The FM radio's floor is the
+        setting's own minimum (MIN_BEACON_INTERVAL_MIN), which the setting holds by itself, so no radio asks for its own: the interval is the station's, not a radio's."""
         interval = self.beacon_interval_min
-        return max(interval, HF_BEACON_MIN_MIN) if interval and self.hf_enabled else interval
+        return max(interval, HF.beacon_min_min) if interval and self.hf_enabled else interval
 
     def radio_refusal(self) -> SettingError | None:
         """Why the two tickboxes do not go together, or None when they do: a station has at least one radio (the page greys the last one that is on, so this is for the shell)."""

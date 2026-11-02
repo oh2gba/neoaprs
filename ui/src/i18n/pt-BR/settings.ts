@@ -350,6 +350,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.tnc.connecting_to": "Conectando a {path}…",
   "settings.tnc.not_connected": "Não conectado",
   "settings.tnc.not_connected_why": "Não conectado: {why}",
+  "settings.tnc.hf.not_installed": "Esta instalação não inclui o Mercury",
+  "settings.tnc.hf.stopped": "Não está em execução",
+  "settings.tnc.hf.network": "Não iniciado: o Mercury ficaria aberto à rede",
+  "settings.tnc.hf.no_port": "Não está em execução: nenhuma porta livre",
+  "settings.tnc.hf.not_started": "Não foi possível iniciar o Mercury",
+  "settings.tnc.hf.firewall": "Não iniciado: falta a regra do Firewall do Windows do instalador",
   "settings.tnc.counts": {
     one: "{n} pacote recebido, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",
     other: "{n} pacotes recebidos, {bytes_in} entrada, {bytes_out} saída, {digipeated} repetidos",

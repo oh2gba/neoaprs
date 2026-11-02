@@ -4,7 +4,7 @@ from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, RANGES, SETTINGS, Config
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RANGES, SETTINGS, Config
 from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
 from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
@@ -414,3 +414,13 @@ def test_a_gps_source_without_what_it_reads_is_a_valid_setting() -> None:
 
 def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_them() -> None:
     assert list(KEYS[-5:]) == ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel"]
+
+
+def test_the_beacon_interval_is_the_stations_not_a_radios_raised_to_the_hf_floor_while_the_hf_radio_is_on() -> None:
+    """One interval for both radios: the HF rules' floor of 30 minutes while the HF radio is on; the FM radio's floor is the setting's own minimum, so an FM-only station keeps what it set; Off stays Off."""
+    from neoaprs.radiorules import FM, HF
+    both = replace(DEFAULTS, beacon_interval_min=20, hf_enabled=True)
+    assert both.beacon_interval() == HF.beacon_min_min == 30 and FM.beacon_min_min == MIN_BEACON_INTERVAL_MIN
+    assert replace(both, beacon_interval_min=45).beacon_interval() == 45 and replace(both, beacon_interval_min=0).beacon_interval() == 0
+    assert replace(DEFAULTS, beacon_interval_min=20).beacon_interval() == 20 and replace(DEFAULTS, beacon_interval_min=25).beacon_interval() == 25
+    assert replace(DEFAULTS, beacon_interval_min=20, fm_enabled=False, hf_enabled=True).beacon_interval() == 30

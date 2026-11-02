@@ -4,7 +4,7 @@ Each station has one X25519 key pair. Its public key is announced as a message w
 Two stations share one key: X25519 of one's private and the other's public key, through HKDF-SHA256 (`shared_key`). A message is `!E` and base64 of a 6-byte random nonce, the ciphertext and an 8-byte tag,
 AES-256-GCM (`seal`); the sender's and the addressee's calls are bound in as associated data, so that a recording sent again under another call, or to another station, does not open. The text inside is
 UTF-8 (a locked message may say ä and ö, which a plain message cannot) of at most MAX_LOCKED bytes: 67 characters of message text less the marker leave 65 for base64, which holds 48 bytes (49 would need 66), less the nonce and the tag.
-A random nonce needs no counter and nothing kept between runs; six bytes repeat, by the birthday bound, after some sixteen million messages between one pair.
+A random nonce needs no counter and nothing kept between runs; six bytes have a one-in-two chance of a repeat (the birthday bound) after some sixteen million messages between one pair, which no pair sends.
 
 `open_sealed` gives the text or None: a text that does not open (another key, a tampered or truncated packet, another pair of calls) is nobody's business but the log's. The fingerprint of a key
 (`fingerprint`) is 16 hex characters in four groups, the start of SHA-256 of the public key, for two operators to compare on voice. Nothing here does I/O: the random bytes come from `secrets`.
@@ -75,9 +75,21 @@ def fingerprint(public: bytes) -> str:
 
 
 def shared_key(private: bytes, peer_public: bytes) -> bytes:
-    """The 32-byte key two stations share: X25519 of our private and their public key, through HKDF-SHA256. The same from either side."""
+    """The 32-byte key two stations share: X25519 of our private and their public key, through HKDF-SHA256. The same from either side. Raises ValueError for a public key no key is shared with (`is_usable_key`)."""
     secret = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(peer_public))
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=_INFO).derive(secret)
+
+
+def is_usable_key(public: bytes) -> bool:
+    """Whether a shared key can be made with this public key: 32 bytes that are a point of the curve with which the exchange gives a secret. All zeros, and the few low-order points, give none (the library refuses
+    the exchange), so a station that announces such a key is announcing nothing, and keeping it would fail every message to and from it."""
+    if len(public) != KEY_LEN:
+        return False
+    try:
+        X25519PrivateKey.generate().exchange(X25519PublicKey.from_public_bytes(public))
+    except ValueError:
+        return False
+    return True
 
 
 # ---- the key announcement

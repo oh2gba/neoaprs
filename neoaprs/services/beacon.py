@@ -6,7 +6,7 @@ set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`
 A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
-The interval is the one setting `beacon/interval_min` for both radios (`Config.beacon_interval_of`: raised to 30 minutes while the HF radio is on), whose HF rules also add a random pause after each interval and leave a moving station fixed: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
+The interval is the one setting `beacon/interval_min` for both radios (`Config.beacon_interval`: raised to 30 minutes while the HF radio is on), whose HF rules also add a random pause after each interval and leave a moving station fixed: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
 The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -260,7 +260,7 @@ class Beacon:
 
     @property
     def interval_min(self) -> int:
-        return self._config().beacon_interval_of(self._tnc.rules)
+        return self._config().beacon_interval()
 
     def _mobile(self, c: Config) -> bool:
         """Whether the beacon follows the GPS: a moving station on a radio that has SmartBeaconing (FM); on HF the station is fixed whatever the GPS source says."""

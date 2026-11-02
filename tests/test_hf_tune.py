@@ -7,11 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import mercurymodem
 from neoaprs.coded import CodedError
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, TUNE_TONE_HZ, tune_command
-from neoaprs.mercurymodem import NOT_RUNNING, TRANSMITTING, Mercury
+from neoaprs.mercurymodem import TRANSMITTING, Mercury
+from neoaprs import mercurytune
+from neoaprs.mercurytune import NOT_RUNNING
 from neoaprs.source import Backoff
 from tests.support.env import Env, until
 from tests.support.fakemercury import Air, FakeMercury
@@ -37,7 +38,7 @@ async def running(tmp_path: Path, air: Air) -> tuple[Mercury, FakeMercury]:
 
 
 async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_itself(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercurymodem, "TUNE_SEC", 0.3)
+    monkeypatch.setattr(mercurytune, "TUNE_SEC", 0.3)
     air = Air(frame_sec=0.2)
     m, station = await running(tmp_path, air)
     try:
@@ -53,7 +54,7 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
 
 
 async def test_a_second_press_stops_the_tone_early_and_the_keying_test_is_one_quiet_second(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercurymodem, "KEY_TEST_SEC", 0.2)
+    monkeypatch.setattr(mercurytune, "KEY_TEST_SEC", 0.2)
     air = Air(frame_sec=0.2)
     m, station = await running(tmp_path, air)
     try:
@@ -96,7 +97,7 @@ async def test_the_tone_is_refused_while_the_modem_is_not_running_or_the_radio_i
 
 
 async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_rx_only_is_ticked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercurymodem, "TUNE_SEC", 0.3)
+    monkeypatch.setattr(mercurytune, "TUNE_SEC", 0.3)
     air = Air(frame_sec=0.2)
     station = air.station()
     e = Env(tmp_path, radio=station, web=True)

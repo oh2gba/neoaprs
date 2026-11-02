@@ -349,6 +349,12 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.tnc.connecting_to": "Connessione a {path}…",
   "settings.tnc.not_connected": "Non connesso",
   "settings.tnc.not_connected_why": "Non connesso: {why}",
+  "settings.tnc.hf.not_installed": "Questa installazione non include Mercury",
+  "settings.tnc.hf.stopped": "Non in esecuzione",
+  "settings.tnc.hf.network": "Non avviato: Mercury sarebbe aperto alla rete",
+  "settings.tnc.hf.no_port": "Non in esecuzione: nessuna porta libera",
+  "settings.tnc.hf.not_started": "Impossibile avviare Mercury",
+  "settings.tnc.hf.firewall": "Non avviato: manca la regola del Firewall di Windows dell’installer",
   "settings.tnc.counts": {
     one: "{n} pacchetto ricevuto, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
     other: "{n} pacchetti ricevuti, {bytes_in} rx, {bytes_out} tx, {digipeated} ripetuti",
