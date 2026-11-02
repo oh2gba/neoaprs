@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux and lays it out as the folder `mercury/` that NeoAPRS ships: the program (RUNPATH `$ORIGIN/lib`, stripped), the one library it needs beyond glibc, the ALSA
-configuration, Mercury's licence and the source offer, and, for the simulators only, the HF channel simulator.
+"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux or macOS and lays it out as the folder `mercury/` that NeoAPRS ships: the program (on Linux with RUNPATH `$ORIGIN/lib`, stripped, the one library it
+needs beyond glibc and the ALSA configuration beside it; on macOS linked to the system's CoreAudio alone), Mercury's licence and the source offer, and, for the simulators only, the HF channel simulator.
 
   scripts/build-mercury [--out DIR] [--tar] [--install] [--source FILE]
 
   --out DIR      the folder DIR/mercury/ is made there (default build/mercury/dist/)
-  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz, with mercury/ as its top folder: what the AppImage, the .deb and the release workflow take (their --mercury argument)
+  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz (DIR/mercury-<version>-macos-arm64.tar.gz on a Mac), with mercury/ as its top folder: what the AppImage, the .deb, the macOS app and the release
+                 workflow take (their --mercury argument)
   --install      the folder is copied to <sys.prefix>/tools/mercury of the virtual environment this script runs in, where the daemon run from a checkout looks for it (neoaprs/bundled.py); the default when neither --out
                  nor --tar is given. Run it as `.venv/bin/python scripts/build-mercury`
   --source FILE  the source archive at hand instead of the download; it has to be the pinned one all the same
@@ -14,8 +15,9 @@ The version, the commit, the URL and the SHA-256 of the source are the pins at t
 checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
 a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
 ALSA device), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does (`-V`, `-z`) and prints what it says.
-Needs gcc, make and libasound2-dev (with libasound2-data for the ALSA configuration) and a Linux machine; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
-the floor of the AppImage and the .deb. How it is used: docs/development.md, "Scripts"."""
+Needs gcc, make and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
+the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
+machine it runs on; Rhizomatica's own universal build is not taken because it asks for macOS 26. How it is used: docs/development.md, "Scripts"."""
 import argparse
 import datetime
 import hashlib
@@ -68,20 +70,25 @@ ENV_DROPPED = ("CFLAGS", "CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")            # 
 
 NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libpthread\.|librt\.|libdl\.|libasound\.so)")
 NEEDED_NEVER = ("libpulse", "libhamlib", "libhidapi", "libssl", "libcrypto")
+MACOS = sys.platform == "darwin"
+MACOS_MIN = "14.0"                                       # the oldest macOS the app runs on (the Qt wheels ask for 14): the deployment target of the build
+MACOS_NEEDED_OK = ("/System/Library/Frameworks/", "/usr/lib/libSystem.")           # what a self-contained program of a Mac may load: the system's frameworks and its C library
 
 
 class BuildError(Exception):
     pass
 
 
-def machine_name(machine: str | None = None) -> str:
-    """The architecture as the tarball names it: x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it."""
+def machine_name(machine: str | None = None, system: str = sys.platform) -> str:
+    """The architecture as the tarball names it: on Linux x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it; on a Mac arm64 or x86_64, Apple's words."""
     name = (machine or platform.machine()).lower()
+    if system == "darwin":
+        return {"aarch64": "arm64", "amd64": "x86_64"}.get(name, name)
     return {"amd64": "x86_64", "arm64": "aarch64"}.get(name, name)
 
 
-def tarball_name(machine: str | None = None) -> str:
-    return f"mercury-{VERSION}-linux-{machine_name(machine)}.tar.gz"
+def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
+    return f"mercury-{VERSION}-{'macos' if system == 'darwin' else 'linux'}-{machine_name(machine, system)}.tar.gz"
 
 
 def cache_dir() -> Path:
@@ -145,13 +152,16 @@ def run(command: list[str]) -> str:
 
 
 def build(tree: Path) -> None:
-    """The stub over the PulseAudio backend, then make, with the flags above."""
-    if not STUB.is_file():
-        raise BuildError(f"{STUB} is missing")
-    shutil.copyfile(STUB, tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c")
-    command = ["make", f"-j{os.cpu_count() or 1}", *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}",
-               f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
+    """On Linux the stub over the PulseAudio backend, then make, with the flags above; on a Mac make alone, the Makefile's own Darwin branch linking CoreAudio, for MACOS_MIN and newer."""
+    command = ["make", f"-j{os.cpu_count() or 1}", *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}"]
     env = {key: value for key, value in os.environ.items() if key not in ENV_DROPPED}
+    if MACOS:
+        env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_MIN
+    else:
+        if not STUB.is_file():
+            raise BuildError(f"{STUB} is missing")
+        shutil.copyfile(STUB, tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c")
+        command += [f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
     print("+ " + " ".join(command), flush=True)
     done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if done.returncode != 0:
@@ -172,6 +182,16 @@ def libraries(program: Path) -> dict[str, str]:
             continue
         found[name] = "" if rest.startswith("not found") else rest.split(" (")[0]
     return found
+
+
+def check_links_mac(program: Path) -> str:
+    """The otool -L output of the staged program, after the checks: only the system's frameworks and its C library, so that the program needs nothing installed; nothing of hamlib, hidapi or OpenSSL."""
+    text = run(["otool", "-L", str(program)])
+    for line in text.splitlines()[1:]:
+        name = line.strip().split(" (")[0]
+        if any(never in name for never in NEEDED_NEVER) or not name.startswith(MACOS_NEEDED_OK):
+            raise BuildError(f"{program.name} loads {name}, which is not the system's:\n{text}")
+    return text
 
 
 def check_links(program: Path, folder: Path) -> str:
@@ -205,36 +225,41 @@ def glibc_needed(path: Path) -> str:
 
 
 def stage(tree: Path, out: Path, started: float) -> Path:
-    """The folder OUT/mercury/ from the built TREE and the build machine's libasound and ALSA configuration."""
-    asound = libraries(tree / "mercury").get("libasound.so.2", "")
-    if not asound:
-        raise BuildError("the built program does not link libasound.so.2")
-    if not (ALSA_DATA / "alsa.conf").is_file():
-        raise BuildError(f"{ALSA_DATA}/alsa.conf is missing (libasound2-data)")
+    """The folder OUT/mercury/ from the built TREE and, on Linux, the build machine's libasound and ALSA configuration (a Mac's program loads the system's CoreAudio and travels alone; it is not stripped, since
+    strip would break the signature the linker gave it)."""
     folder = out / "mercury"
     shutil.rmtree(folder, ignore_errors=True)
-    (folder / "lib").mkdir(parents=True)
-    (folder / "dev").mkdir()
+    (folder / "dev").mkdir(parents=True)
     shutil.copyfile(tree / "mercury", folder / "mercury")
-    run(["strip", str(folder / "mercury")])
     (folder / "mercury").chmod(0o755)
-    shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")           # the file the soname's symlink points at, under the soname
-    (folder / "lib" / "libasound.so.2").chmod(0o644)
-    shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
+    if MACOS:
+        sound = "The program loads the system's CoreAudio and CoreFoundation frameworks and nothing else; it is built for macOS " + MACOS_MIN + " and newer.\n"
+    else:
+        asound = libraries(tree / "mercury").get("libasound.so.2", "")
+        if not asound:
+            raise BuildError("the built program does not link libasound.so.2")
+        if not (ALSA_DATA / "alsa.conf").is_file():
+            raise BuildError(f"{ALSA_DATA}/alsa.conf is missing (libasound2-data)")
+        (folder / "lib").mkdir()
+        run(["strip", str(folder / "mercury")])
+        shutil.copyfile(Path(asound).resolve(), folder / "lib" / "libasound.so.2")           # the file the soname's symlink points at, under the soname
+        (folder / "lib" / "libasound.so.2").chmod(0o644)
+        shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
+        sound = ("Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
+                 "lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n")
     shutil.copyfile(tree / "LICENSE", folder / "LICENSE")
     if (tree / "LICENSE-freedv").is_file():
         shutil.copyfile(tree / "LICENSE-freedv", folder / "LICENSE-freedv")
     shutil.copyfile(tree / "utils" / "watterson_test", folder / "dev" / "watterson_test")
     (folder / "dev" / "watterson_test").chmod(0o755)
-    flags = " ".join((*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"FFAUDIO_LINKFLAGS={LINK_FLAGS}"))
+    flags = " ".join((*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), *(() if MACOS else (f"FFAUDIO_LINKFLAGS={LINK_FLAGS}",))))
     (folder / "SOURCE.txt").write_text(
         f"Mercury {VERSION}, Rhizomatica's HF modem (GPL-3.0-or-later, see LICENSE), built by NeoAPRS (scripts/build-mercury).\n"
         f"Source: {SOURCE_URL}\n"
         f"Commit: {SOURCE_COMMIT} (the tag v{VERSION})\n"
         f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
         f"Built: make {flags}\n"
-        f"Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
-        f"lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n"
+        f"{sound}"
         f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
         f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
     print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
@@ -272,21 +297,25 @@ def install(folder: Path) -> Path:
 
 
 def check(folder: Path) -> None:
-    """The program as the daemon starts it: from its folder, with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with none."""
+    """The program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with
+    none on Linux (on a Mac what it says is printed: a build machine without a sound device is no place to hold CoreAudio to an exit code)."""
     env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
-    env["ALSA_CONFIG_PATH"] = str(folder / "share" / "alsa" / "alsa.conf")
     program = str(folder / "mercury")
     print(f"check: {folder}")
-    print(f"  {runpath(folder / 'mercury')}")
-    print(f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}")
-    print("  " + check_links(folder / "mercury", folder).replace("\n", "\n  ").rstrip())
+    if MACOS:
+        print("  " + check_links_mac(folder / "mercury").replace("\n", "\n  ").rstrip())
+    else:
+        env["ALSA_CONFIG_PATH"] = str(folder / "share" / "alsa" / "alsa.conf")
+        print(f"  {runpath(folder / 'mercury')}")
+        print(f"  newest glibc needed: mercury {glibc_needed(folder / 'mercury')}, libasound.so.2 {glibc_needed(folder / 'lib' / 'libasound.so.2')}")
+        print("  " + check_links(folder / "mercury", folder).replace("\n", "\n  ").rstrip())
     shown = subprocess.run([program, "-V"], env=env, check=False, text=True, capture_output=True, timeout=60)
     print(f"  $ mercury -V (exit {shown.returncode})\n    " + (shown.stdout + shown.stderr).strip().replace("\n", "\n    "))
     if shown.returncode != 0 or VERSION not in shown.stdout + shown.stderr:
         raise BuildError(f"mercury -V does not say {VERSION}")
     cards = subprocess.run([program, "-z"], env=env, check=False, text=True, capture_output=True, timeout=60)
     print(f"  $ mercury -z (exit {cards.returncode})\n    " + (cards.stdout + cards.stderr).strip().replace("\n", "\n    "))
-    if cards.returncode != 0:
+    if cards.returncode != 0 and not MACOS:
         raise BuildError("mercury -z does not exit 0")
 
 
@@ -295,16 +324,16 @@ def megabytes(size: int) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux and lays it out as the folder mercury/ that NeoAPRS ships.")
+    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux or macOS and lays it out as the folder mercury/ that NeoAPRS ships.")
     parser.add_argument("--out", type=Path, help="the folder in which mercury/ is made (default build/mercury/dist)")
     parser.add_argument("--tar", action="store_true", help=f"also make {tarball_name()} in it")
     parser.add_argument("--install", action="store_true", help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)")
     parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
     args = parser.parse_args(argv)
-    if sys.platform != "linux":
-        print("build-mercury: this builds for Linux only", file=sys.stderr)
+    if sys.platform not in ("linux", "darwin"):
+        print("build-mercury: this builds for Linux and macOS only", file=sys.stderr)
         return 1
-    for tool in ("gcc", "make", "ldd", "readelf", "strip"):
+    for tool in ("cc", "make", "otool") if MACOS else ("gcc", "make", "ldd", "readelf", "strip"):
         if shutil.which(tool) is None:
             print(f"build-mercury: {tool} is not installed", file=sys.stderr)
             return 1

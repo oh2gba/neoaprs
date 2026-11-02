@@ -165,6 +165,7 @@ def test_each_kind_gets_its_installer_on_its_own_system_and_the_others_none(tmp_
     assert installer_for(InstallInfo("appimage", ""), tmp_path, restart, {}, platform="linux") is None
     for kind in ("deb", "uv-tool", "pip", "source"):
         assert installer_for(InstallInfo(kind, arch="amd64"), tmp_path, restart, {}, platform="linux") is None       # type: ignore[arg-type]
+    assert installer_for(InstallInfo("macos-app", arch="arm64"), tmp_path, restart, {}, platform="darwin") is None, "the macOS app shows the steps: nothing swaps the bundle under a running daemon yet"
 
 
 def test_a_simulated_kind_is_rehearsed_the_file_deleted_and_nothing_installed(tmp_path: Path) -> None:
@@ -227,6 +228,7 @@ def test_the_test_switch_does_not_turn_a_simulated_kind_into_a_real_install(tmp_
     ("deb arm64 service", InstallInfo("deb", "", True, "arm64")),
     ("appimage /home/ham/NeoAPRS-0.6.7-x86_64.AppImage", InstallInfo("appimage", "/home/ham/NeoAPRS-0.6.7-x86_64.AppImage", False, "")),
     ("windows-installer", InstallInfo("windows-installer")),
+    ("macos-app", InstallInfo("macos-app", "", False, "arm64")),
     ("source service", InstallInfo("source", "", True, "")),
     ("", None),
     ("flatpak", None),

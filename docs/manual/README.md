@@ -12,7 +12,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 
 | file | what is in it |
 |---|---|
-| [`install.md`](install.md) | installing on Windows, Linux (AppImage, .deb), the desktop app, starting at login, updating |
+| [`install.md`](install.md) | installing on Windows, macOS, Linux (AppImage, .deb), the desktop app, starting at login, updating |
 | [`start.md`](start.md) | the first start, the setup guide, the data folder, how settings apply, trying it without a radio |
 | [`page.md`](page.md) | the page: the tabs, the Stations table and its menu, [the Nearby tab](page.md#nearby), the Packets tab, the Settings tab, the map (the range circle, Follow my position), the station cards you can move, the header, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |

@@ -23,6 +23,8 @@ const appImageName = (version: string): string => `NeoAPRS-${version}-x86_64.App
 export const appImageUrl = (version: string): string => download(version, appImageName(version));
 export const debName = (version: string, arch: string): string => `neoaprs_${version}_${arch}.deb`;
 export const debUrl = (version: string, arch: string): string => download(version, debName(version, arch));
+const dmgName = (version: string): string => `NeoAPRS-${version}-arm64.dmg`;
+export const dmgUrl = (version: string): string => download(version, dmgName(version));
 /** The last part of a path of either kind. */
 function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
@@ -65,6 +67,19 @@ function debSteps(install: InstallInfo, version: string): Step[] {
   ];
 }
 
+function macSteps(install: InstallInfo, version: string): Step[] {
+  // the app is built for Apple silicon; a Mac of another kind is sent to the release page, which says so
+  return [
+    install.arch === "arm64"
+      ? { text: t("help.update.macos.download"), link: { href: dmgUrl(version), label: dmgName(version) } }
+      : { text: t("help.update.release_page"), link: { href: releaseNotes(version), label: `NeoAPRS ${version}` } },
+    { text: t("help.update.macos.replace") },
+    install.service
+      ? { text: t("help.update.restart_service"), command: "launchctl kickstart -k gui/$UID/eu.oh2gba.neoaprs" }
+      : { text: t("help.update.macos.start") },
+  ];
+}
+
 /** The steps to the version `version` for a copy installed as `install`; null while the daemon has not said how (then the release page is all there is). */
 export function updateHelp(install: InstallInfo | null, version: string): Step[] {
   switch (install?.kind) {
@@ -72,6 +87,8 @@ export function updateHelp(install: InstallInfo | null, version: string): Step[]
       return windowsSteps(version);
     case "appimage":
       return appImageSteps(install, version);
+    case "macos-app":
+      return macSteps(install, version);
     case "deb":
       return debSteps(install, version);
     case "source":

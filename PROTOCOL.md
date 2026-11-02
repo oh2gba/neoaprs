@@ -1326,10 +1326,10 @@ How this copy of the daemon was installed, which is what the steps of an update 
 
 | field | type | | description |
 |---|---|---|---|
-| `kind` | "windows-installer" \| "appimage" \| "deb" \| "uv-tool" \| "pip" \| "source" |  | `windows-installer` (the frozen program of the installer), `appimage`, `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) |
+| `kind` | "windows-installer" \| "appimage" \| "macos-app" \| "deb" \| "uv-tool" \| "pip" \| "source" |  | `windows-installer` (the frozen program of the installer), `appimage`, `macos-app` (the Python inside NeoAPRS.app), `deb` (the Debian package, in /opt/neoaprs), `uv-tool` (`uv tool install` of the wheel, which releases before 0.16 offered), `pip` (a plain environment with the wheel) or `source` (a clone of the repository) |
 | `appimage` | string |  | the AppImage file this runs from; empty for the other kinds |
 | `service` | boolean |  | whether a service starts it: the systemd unit, the launchd agent or the Windows Run key |
-| `arch` | string |  | the architecture of the package it was installed from, `amd64` or `arm64`; empty for the other kinds, and for a machine that has no package |
+| `arch` | string |  | the architecture of the file it was installed from: `amd64` or `arm64` for a .deb, `arm64` for the macOS app; empty for the other kinds, and for a machine the release has no file for |
 
 ### LocatorValues
 
