@@ -568,9 +568,11 @@ describe("the radio of an object", () => {
     expect(field("Path")?.classes()).toContain("disabled");
     expect(field("Path")?.find<HTMLInputElement>("input").element.disabled).toBe(true);
     expect(field("Path")?.find<HTMLInputElement>("input").element.value).toBe("WIDE1-1");
+    expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(true);
     expect(field("Path")?.element.previousElementSibling).toBe(field("Radio")?.element);
     await field("Radio")?.find("select").setValue("both");
     expect(field("Path")?.classes()).not.toContain("disabled");
+    expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(false);
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radio: "both", path: "WIDE1-1" });
     expect(view.draft.radio).toBe("both");

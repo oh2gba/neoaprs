@@ -83,4 +83,14 @@ describe("the path of a request for local info", () => {
     expect((pathField(wrapper).element as HTMLInputElement).value).toBe("OH2RDK-7,OH2RCH-2");
     expect(fold(wrapper).attributes("open")).toBeDefined();
   });
+
+  it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
+    localStorage.setItem("NeoAPRS.qru.path", "not a path!");
+    const { wrapper, daemon } = make({ config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }) });
+    expect(fold(wrapper).exists()).toBe(false);
+    expect(ask(wrapper).attributes("disabled")).toBeUndefined();
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon)).toEqual([{ cmd: "qru_ask", text: "INFO 150" }]);
+    expect(ask(make().wrapper).attributes("disabled")).toBeDefined();
+  });
 });

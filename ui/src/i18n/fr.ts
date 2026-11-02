@@ -1245,6 +1245,10 @@ export const fr: Catalogue = {
   "settings.keying.test": "Test",
   "settings.tune": "Accord",
   "settings.tune_stop": "Stop",
+  "settings.tune.label": "Tonalité de réglage",
+  "settings.tune.tip_label": "À propos de la tonalité de réglage",
+  "settings.tune.tip1":
+    "Met la radio en émission et envoie une tonalité continue pendant dix secondes, pour régler l'antenne, le niveau audio ou trouver la carte son.",
   "settings.last_port.label": "Dernier port trouvé",
 
   "settings.network.name": "Accès réseau",

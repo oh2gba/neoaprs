@@ -151,6 +151,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "テスト",
   "settings.tune": "チューン",
   "settings.tune_stop": "停止",
+  "settings.tune.label": "チューン音",
+  "settings.tune.tip_label": "チューン音について",
+  "settings.tune.tip1": "無線機を送信状態にして10秒間連続音を送ります。アンテナの調整、音声レベルの設定、サウンドカードの確認に使えます。",
   "settings.last_port.label": "最後に検出したポート",
 
   "settings.network.name": "ネットワークアクセス",

@@ -148,6 +148,9 @@ export const settings = {
   "settings.keying.test": "Test",
   "settings.tune": "Tune",
   "settings.tune_stop": "Stop",
+  "settings.tune.label": "Tuning tone",
+  "settings.tune.tip_label": "About the tuning tone",
+  "settings.tune.tip1": "Keys the radio and sends a steady tone for ten seconds, to tune the antenna, set the audio level or find the radio's sound card.",
   "settings.last_port.label": "Last port found",
 
   "settings.network.name": "Network access",

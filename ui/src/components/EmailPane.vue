@@ -16,7 +16,7 @@ import type { MessageRow } from "@/protocol/protocol";
 const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; addresses: readonly string[]; freshAfter?: number }>(), {
   freshAfter: Number.MAX_SAFE_INTEGER,
 });
-const { connected, heardDirect } = useDaemonContext();
+const { connectedOn, heardDirect } = useDaemonContext();
 const emit = defineEmits<{
   send: [to: string, text: string];
   forget: [name: string];
@@ -26,6 +26,8 @@ const emit = defineEmits<{
   delete: [id: number];
 }>();
 
+/** The gateway is reached over the FM radio alone, so it is that radio's link that counts. */
+const connected = computed(() => connectedOn("fm"));
 const checking = computed(() => checkingMail(props.thread));
 const fmOff = useFmOff();
 const away = computed(() => (fmOff.value ? t("email.fm_off") : !connected.value ? tncNotConnected() : checking.value ? t("email.checking") : undefined));

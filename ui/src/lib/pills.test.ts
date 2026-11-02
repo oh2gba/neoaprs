@@ -110,7 +110,7 @@ describe("the radio marks with the HF radio", () => {
 
   it("is the one Radio mark too for a station with the HF radio alone, in the state of the HF radio and leading to its box", () => {
     const hfDown = radios({ tnc: tncState({ state: "stopped" }), hf: hfState({ state: "waiting", problem: "Mercury is not in this installation" }) }, HF_ONLY);
-    expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio: not connected", "warn", "set-mercury-sound_card"]]);
+    expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio: not connected", "warn", "set-hf-profile"]]);
     expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual(["Mercury is not in this installation. Settings → Radio"]);
     expect(radios({ hf: hfState() }, HF_ONLY).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
   });
@@ -119,7 +119,7 @@ describe("the radio marks with the HF radio", () => {
     const two = radios({ hf: hfState() }, BOTH);
     expect(two.map((p) => [p.id, said(p), String(p.tone), p.target, p.focus])).toEqual([
       ["fm", "FM radio", "ok", "settings", "set-tnc-profile"],
-      ["hf", "HF radio", "ok", "settings", "set-mercury-sound_card"],
+      ["hf", "HF radio", "ok", "settings", "set-hf-profile"],
     ]);
     expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM radio connected. Settings → Radio", "HF radio connected. Settings → Radio"]);
     const fmDown = radios({ tnc: tncState({ state: "waiting", problem: "no radio found" }), hf: hfState() }, BOTH);

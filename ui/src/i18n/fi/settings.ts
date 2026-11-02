@@ -150,6 +150,10 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testaa",
   "settings.tune": "Viritä",
   "settings.tune_stop": "Pysäytä",
+  "settings.tune.label": "Viritysääni",
+  "settings.tune.tip_label": "Tietoa viritysäänestä",
+  "settings.tune.tip1":
+    "Avainnetaan radio ja lähetetään tasainen ääni kymmenen sekuntia, antennin virittämiseen, äänitason säätöön tai radion äänikortin löytämiseen.",
   "settings.last_port.label": "Viimeksi löytynyt portti",
 
   "settings.network.name": "Verkkoyhteys",

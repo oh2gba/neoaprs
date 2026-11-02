@@ -151,6 +151,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testar",
   "settings.tune": "Sintonizar",
   "settings.tune_stop": "Parar",
+  "settings.tune.label": "Tom de sintonia",
+  "settings.tune.tip_label": "Sobre o tom de sintonia",
+  "settings.tune.tip1": "Aciona o rádio e envia um tom contínuo por dez segundos, para sintonizar a antena, ajustar o nível de áudio ou achar a placa de som.",
   "settings.last_port.label": "Última porta encontrada",
 
   "settings.network.name": "Acesso pela rede",

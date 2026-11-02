@@ -33,10 +33,13 @@ import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
-import { hfOn } from "@/lib/radiosides";
+import { hfOn, type RadioKind } from "@/lib/radiosides";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
-import type { ConfigValues } from "@/protocol/protocol";
+import type { ConfigValues, TncState } from "@/protocol/protocol";
+
+/** Whether the link of a radio (the topic `tnc`, or `hf`) is up. */
+const linked = (radio: TncState | null): boolean => radio?.state === "connected";
 
 /** The guide opens once, when the daemon says it has no call (the page's first word of a fresh install): not again when the settings are told again, nor when the call is set. */
 function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupGuide): void {
@@ -89,7 +92,8 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
       const text = values["beacon/path"] ?? "";
       return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
     }),
-    connected: computed(() => tnc.value?.state === "connected" || daemon.hf.value?.state === "connected"), // (either radio: the one that is off is stopped)
+    connected: computed(() => linked(tnc.value) || linked(daemon.hf.value)), // (either radio: the one that is off is stopped)
+    connectedOn: (radio: RadioKind) => linked(radio === "fm" ? tnc.value : daemon.hf.value),
   };
 }
 

@@ -11,7 +11,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
-import { hfOn } from "@/lib/radiosides";
+import { hfOn, type RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
@@ -33,6 +33,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const ports = part(over.ports, null);
   const map = part(over.map, null);
   const status = part(over.status, null);
+  const connected = part(over.connected, true);
   const sender = (over.send as typeof send | undefined) ?? send;
   const settings = over.settings ?? useSettings(config, lastError, sender);
   const context = {
@@ -67,7 +68,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     stationTrafficByCall: part(over.stationTrafficByCall, new Map()),
     packets: over.packets ?? shallowReactive(new Map<string, PacketRow>()),
     positionHistory: part(over.positionHistory, null),
-    connected: part(over.connected, true),
+    connected,
+    connectedOn: over.connectedOn ?? ((_radio: RadioKind) => connected.value),
     receiveOnly: over.receiveOnly === undefined ? computed(() => config.value?.values["station/transmit"] === "false") : part(over.receiveOnly, false),
     now: part(over.now, NOW),
     dark: part(over.dark, false),

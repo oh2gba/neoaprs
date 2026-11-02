@@ -78,9 +78,9 @@ function radioPills(link: Link, values: Readonly<Record<string, string>>): Heade
   const fm = fmOn(values);
   const hf = hfOn(values);
   if (fm && hf) {
-    return [radioPill(link, link.tnc, "fm", "set-tnc-profile", "pill.fm_radio"), radioPill(link, link.hf, "hf", "set-mercury-sound_card", "pill.hf_radio")];
+    return [radioPill(link, link.tnc, "fm", "set-tnc-profile", "pill.fm_radio"), radioPill(link, link.hf, "hf", "set-hf-profile", "pill.hf_radio")];
   }
-  return [fm || !hf ? radioPill(link, link.tnc, "radio", "set-tnc-profile", null) : radioPill(link, link.hf, "radio", "set-mercury-sound_card", null)];
+  return [fm || !hf ? radioPill(link, link.tnc, "radio", "set-tnc-profile", null) : radioPill(link, link.hf, "radio", "set-hf-profile", null)];
 }
 
 /** The Update mark, while a newer version is known. */

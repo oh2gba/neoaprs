@@ -25,7 +25,13 @@ const refusal = ref(""); // (why the daemon refused the last Ask, until the next
 
 const wait = computed(() => generalWait(general.value, kind.value, now.value));
 const why = computed(() =>
-  receiveOnly.value ? t("pill.rx_send") : problem.value !== "" ? problem.value : wait.value > 0 ? t("nearby.ask_wait", { seconds: wait.value }) : undefined,
+  receiveOnly.value
+    ? t("pill.rx_send")
+    : routable.value && problem.value !== ""
+      ? problem.value
+      : wait.value > 0
+        ? t("nearby.ask_wait", { seconds: wait.value })
+        : undefined,
 );
 const lines = computed(() => askLines(general.value, refusal.value, now.value));
 
@@ -40,7 +46,7 @@ watch(
 function ask(): void {
   if (why.value !== undefined) return;
   refusal.value = "";
-  send({ cmd: "general_query", kind: kind.value, path: request.sent.value, rf_only: rfOnly.value });
+  send({ cmd: "general_query", kind: kind.value, path: routable.value ? request.sent.value : null, rf_only: rfOnly.value });
 }
 </script>
 

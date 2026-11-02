@@ -4,11 +4,10 @@
 // coordinates or a locator typed behind the place), the comment (the characters it has left are the counter beside the buttons), the course and speed (behind a closed fold, Moving, which is open for an object that has either; Up and Down step either by one, with Shift by ten), and behind a second closed fold, Advanced, as in the My station tab: the path the object goes by (the placeholder is the beacon's; the path builder's button beside it, PathBuilder), its category (a choice of the standard groups of local info by their plain names, or Other... with a code of our own; the value is the code that goes on the air, and a station that asks for the group is sent the object) and, once there is a category, whether it is sent only when asked; Advanced
 // is open for an object being changed that has a path, a group or the tick. Every field of ours has its (i) after it, as the settings have (InfoTip); the symbol and the place are the controls of the My station tab, which have none. A field with something wrong is red and says what under it. Save is on when there is a name, a place and a symbol and nothing is wrong; the daemon checks it all again.
 // While both radios are on, the first row of Advanced is the Radio the object goes out on (FM, HF, FM and HF; the daemon keeps it with the object), and the Path row is greyed, in its place, while that is HF alone (HF has no path); with one radio on the row is not there and the object goes on that radio.
-import { DAEMON_KEY } from "@/composables/useDaemonContext";
+import { useTwoRadios } from "@/composables/useRadiosOn";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
-import { fmOn, hfOn } from "@/lib/radiosides";
 import { rxOnlyReason } from "@/lib/compose";
-import { computed, inject, ref, useId, watch } from "vue";
+import { computed, ref, useId, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -30,12 +29,10 @@ const qruMax = LIMITS.object.qruGroupMax;
 const draft = props.form.draft; // (the form's own state, kept as one object for as long as the page lives)
 const problems = computed(() => draftProblems(draft));
 const rxOnly = useReceiveOnly();
-const context = inject(DAEMON_KEY, null); // (a form mounted without the page's context, a test, has one radio)
-/** The Radio row is there while both radios are on: the one place the choice means anything. */
-const twoRadios = computed(() => {
-  const values = context?.config.value?.values ?? {};
-  return context !== null && fmOn(values) && hfOn(values);
-});
+/** The Radio row is there while both radios are on: the one place the choice means anything (a form mounted without the page's context, a test, has one radio). */
+const twoRadios = useTwoRadios();
+/** The object goes over HF alone: it has no path. */
+const hfOnly = computed(() => twoRadios.value && draft.radio === "hf");
 const ready = computed(() => draftReady(draft));
 /** The place the draft has in words (the text beside the button); null while it is no place. */
 const place = computed(() => placeOfText(draft.lat, draft.lon));
@@ -164,7 +161,7 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
           >
         </div>
       </div>
-      <div class="field" :class="{ invalid: problems.path, disabled: twoRadios && draft.radio === 'hf' }" :title="problems.path">
+      <div class="field" :class="{ invalid: problems.path, disabled: hfOnly }" :title="problems.path">
         <label :for="`${id}-path`">{{ t("objects.field.path") }}</label>
         <div class="field-control">
           <input
@@ -173,11 +170,11 @@ const left = computed(() => commentLimit(draft) - draft.comment.trim().length);
             class="input mono"
             type="text"
             :placeholder="fallbackPath || t('route.default')"
-            :disabled="twoRadios && draft.radio === 'hf'"
+            :disabled="hfOnly"
             autocomplete="off"
             spellcheck="false"
           />
-          <PathBuilder :value="draft.path" :usual="fallbackPath" @use="draft.path = $event" />
+          <PathBuilder :value="draft.path" :usual="fallbackPath" :disabled="hfOnly" @use="draft.path = $event" />
           <InfoTip :label="about('objects.field.path')"
             ><span class="info-line">{{ t("objects.tip.path") }}</span></InfoTip
           >
