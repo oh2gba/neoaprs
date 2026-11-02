@@ -40,7 +40,7 @@ from neoaprs import cipher
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError, normal_name
-from neoaprs.message import ACK_SETTLES, MessageRecord, Seal, addressed_to, is_query, is_telemetry_definition, same_call
+from neoaprs.message import ACK_SETTLES, MessageRecord, MessagingError, Seal, addressed_to, is_query, is_telemetry_definition, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
@@ -72,6 +72,15 @@ class Host(Protocol):
     def put(self, record: MessageRecord) -> None: ...
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None: ...
     def echoed(self, packet: Packet, message: Message) -> None: ...
+
+
+def shared_with(keyring: Keyring, call: str) -> bytes | None:
+    """The key shared with a station, None when there is none to use: no key, a sender that is no call, or a key the exchange cannot use (all zero bytes, a point of low order). A locked message to or from
+    such a station is shut, and the station sends its key again once the old is forgotten."""
+    try:
+        return keyring.shared_with(call)
+    except (MessagingError, ValueError):
+        return None
 
 
 class Inbox:
@@ -145,7 +154,7 @@ class Inbox:
             return text, "key", None
         if not cipher.is_locked(text):
             return text, "", None
-        shared = None if self._keyring is None else self._keyring.shared_with(packet.sender)
+        shared = None if self._keyring is None else shared_with(self._keyring, packet.sender)
         opened = None if shared is None else cipher.open_sealed(shared, _station(packet.sender), self._config().station_call, text)
         if opened is None:
             log.info("an encrypted message from %s does not open here (%s)", packet.sender, "no key" if shared is None else "another key, or damaged")

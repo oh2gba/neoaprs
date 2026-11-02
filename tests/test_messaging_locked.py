@@ -200,3 +200,24 @@ async def test_the_messages_come_back_with_what_they_are_after_a_restart(rig: Ri
     await again.pass_time(32)
     assert again.tnc.sent[-1].info.startswith(f":OH2RDG-7 :{sent.wire}".encode()), "the attempt after the restart sends the same bytes"
     await again.m.stop()
+
+
+# ---- a key or a sender that cannot be used
+async def test_a_key_that_cannot_make_a_shared_key_leaves_a_locked_message_from_that_station_shut_and_acked_and_a_locked_message_to_it_refused(rig: Rig) -> None:
+    assert await rig.ring.take("OH2RDG-7", bytes(32), rig.clock()) == "key"             # (a key of 32 zero bytes: X25519 with it is no exchange)
+    rig.m.on_packet(rig.heard("OH2RDG-7", "OH2GBA", rig.peer_seals("Hello"), "51"))
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG-7 :ack51"]
+    await rig.settled()
+    [record] = rig.m.records()
+    assert record.seal == "shut" and record.state == "received"
+    with pytest.raises(MessagingError) as refused:
+        await rig.m.send("OH2RDG-7", "Hello", locked=True)
+    assert refused.value.code == "lock.no_key" and len(rig.tnc.sent) == 1
+
+
+async def test_a_locked_message_from_a_source_that_is_no_call_is_kept_shut_and_acked(rig: Rig) -> None:
+    rig.ring.ensure_own()
+    rig.m.on_packet(rig.heard("A!B", "OH2GBA", rig.peer_seals("Hello", "A!B"), "52"))
+    await rig.settled()
+    [record] = rig.m.records()
+    assert record.seal == "shut" and record.state == "received" and rig.tnc.lines()[-1].endswith(":ack52")

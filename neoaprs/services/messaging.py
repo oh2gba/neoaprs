@@ -49,7 +49,7 @@ from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, RadioSet,
 from neoaprs.services.acks import Acks
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
-from neoaprs.services.inbox import Inbox
+from neoaprs.services.inbox import Inbox, shared_with
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.retries import Retries
@@ -191,7 +191,7 @@ class Messaging:
         if self.keyring is None:
             raise MessagingError("this daemon has no keys")
         self.keyring.refuse_unless_on()
-        shared = self.keyring.shared_with(to)
+        shared = shared_with(self.keyring, to)
         if shared is None:
             raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
         try:
