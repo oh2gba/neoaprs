@@ -5,6 +5,7 @@ air, the modem's problem as the radio's."""
 import asyncio
 import logging
 import os
+import random
 import signal
 import socket
 import sys
@@ -18,7 +19,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs import mercuryhelper, mercurymodem
-from neoaprs.mercuryhelper import end_stale, environment, find, free_ports, list_sound_cards
+from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
@@ -37,6 +38,14 @@ def rig() -> Rigs:
     return Rigs()
 
 
+@pytest.fixture(autouse=True)
+def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The modem asks for free ports from Mercury's defaults up; here each test asks from a base of its own, so that two tests running side by side (pytest-xdist) do not both find 8100 free between the probe and
+    the bind (one of them then started a program that could not listen)."""
+    base = random.randrange(20000, 60000, 500)
+    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+
+
 def modem(tmp_path: Path, program: bool = True) -> Mercury:
     m = Mercury(tmp_path, finder=(fakemercury.program if program else lambda: None), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
     m.ports = lambda: []                                                  # (never the operator's serial ports)
@@ -49,8 +58,21 @@ async def stopped(m: Mercury) -> None:
 
 
 def _alive(pid: int | None) -> bool:
+    """Whether the process is still running. On Windows os.kill(pid, 0) is TerminateProcess, and a handle to a process that has ended still opens, so the exit code is asked instead."""
     if pid is None:
         return False
+    if sys.platform == "win32":
+        import ctypes
+        kernel32 = ctypes.windll.kernel32                          # type: ignore[attr-defined]
+        handle = kernel32.OpenProcess(0x1000, False, pid)             # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+            return code.value == 259                                  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except OSError:
@@ -82,7 +104,8 @@ def test_the_program_is_the_shipped_one_in_the_tools_folder_and_nothing_else(tmp
     shipped = tmp_path / "tools" / "mercury" / name
     shipped.parent.mkdir(parents=True)
     shipped.write_text("#!/bin/sh\n")
-    assert find(tmp_path / "tools") is None, "a file that cannot be run is no program"
+    if sys.platform != "win32":                                        # (Windows has no executable bit: a .exe can always be run)
+        assert find(tmp_path / "tools") is None, "a file that cannot be run is no program"
     shipped.chmod(0o755)
     assert find(tmp_path / "tools") == [str(shipped)]
     monkeypatch.setattr(sys, "frozen", False, raising=False)

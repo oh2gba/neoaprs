@@ -36,11 +36,12 @@ def section(text: str, heading: str) -> str:
 def test_every_stage_of_scripts_check_is_in_the_table_of_the_development_guide() -> None:
     script = (ROOT / "scripts" / "check").read_text(encoding="utf-8")
     stages = re.search(r"^STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]
+    extra = re.search(r"^EXTRA_STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]  (the stages that run only by name: after the default ones in the table)
     assert len(stages) >= 5
-    missing = [name for name in stages if f"| `{name}` |" not in DEVELOPMENT]
+    missing = [name for name in stages + extra if f"| `{name}` |" not in DEVELOPMENT]
     assert not missing, f"scripts/check has stages that docs/development.md does not describe: {missing}"
     rows = re.findall(r"^\| `([\w-]+)` \| [^|]*\|$", section(DEVELOPMENT, "### The stages of scripts/check"), re.M)
-    assert rows == stages, "the table of stages is the stages of scripts/check, in order"
+    assert rows == stages + extra, "the table of stages is the stages of scripts/check, in order, the ones that run only by name last"
 
 
 def test_every_top_level_folder_and_file_is_in_the_map_of_the_repository() -> None:

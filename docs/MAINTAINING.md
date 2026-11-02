@@ -34,6 +34,15 @@ update panel), `install.sh` (always under `releases/latest/download/`), the whee
 `neoaprs-0.10.0rc1.tar.gz`, which `wheel_version` of `neoaprs/updateasset.py` (and `wheelVersion` of `ui/src/lib/update.ts`) gives, and the workflow asks it for the name. The .deb's own version is `0.10.0~rc1`, so that it sorts before
 `0.10.0` for apt, while its file name has the version as written. The installer and the AppImage are also attached as `NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
 
+## A build for testing
+
+Every file of a release can be built on GitHub without releasing anything: start the release workflow by hand on `master` or any branch (Actions, release, *Run workflow*, choose the branch; or
+`gh workflow run release.yml --ref master`). The run is named "build for testing" in the list of runs. It builds the wheel and the sdist, the Windows installer, the AppImage, the two .deb packages with
+Mercury inside, `install.sh` and `SHA256SUMS`, and runs every smoke and update test on them, exactly as a tag's run does; what it skips is the `verify` job (the tag's checks) and the `release` job, so no
+release, no tag and nothing on the version page come of it. About twenty minutes. The files are the artifacts of the run, kept for a few days: `gh run list --workflow release.yml` names the run,
+`gh run download RUN_ID -n release-files` fetches the folder with every file and the notes (`-n windows-installer`, `-n appimage`, `-n deb-amd64`, `-n deb-arm64` or `-n dist` for one of them), and the
+Actions page of the run lists them under *Artifacts*. A tag started by hand (`--ref v<version>`) is not a build for testing but the tag's release run again.
+
 ## A release
 
 **Before the notes:** a control that was taken off the page since the last release has a migration that reset its stored value to the default, or a control on the page still. Never leave a user with a state the page cannot change (`CONVENTIONS.md`, "Removing a control from the page"; `tests/test_settings_reachable.py` holds the list of what the page leaves out).
@@ -52,7 +61,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 2. **version**, **changelog**: `VERSION` in `neoaprs/__init__.py` (the one place it is written), and `## Unreleased` renamed to `## <version>` (the notes of the release are that section) with a fresh empty one above.
 3. **page**: only when `ui/` changed since the last tag, the page is built and must be what is committed. A version bump changes nothing in `neoaprs/page/` (the page has no version in it, `ui/` is what it is built from),
    so the release commit holds no page; a committed page that is not what `ui/` builds stops the release, with the tree as it was: run `scripts/build-page`, commit `neoaprs/page/`, run the command again.
-4. **check**: `scripts/check`.
+4. **check**: `scripts/check`. The simulation of the HF net (`scripts/check --stage sim`, about six minutes) is not in it; the CI job `sim` runs it on every push to master, so a green CI run of the release commit covers it.
 5. **commit** `<version>: the changelog section and the version`, **push** `master`.
 6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test.
 7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.

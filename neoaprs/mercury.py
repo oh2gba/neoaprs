@@ -23,17 +23,18 @@ WINDOWS_URL = f"https://github.com/Rhizomatica/mercury/releases/download/v{VERSI
 WINDOWS_SHA256 = "85163f2c2db65e03cbbeaac0b32c6a0cacf930616923c1a18d4d17730b74b806"
 WINDOWS_SIZE = 16_065_263
 
-MODE = "DATAC3"                        # the one mode, for every station (Mercury's `-m 1`)
+# Every number here is justified in docs/mercury.md (where it comes from, and what was measured with scripts/mercury-measure on 2 November 2026 against Mercury 1.9.21 on the simulated channel).
+MODE = "DATAC3"                        # the one mode, for every station (Mercury's `-m 1`, its default): the narrowest of its modes that carries a whole APRS packet (docs/MODES.md of Mercury: 9 carriers, 562 Hz)
 MODE_INDEX = 1
-FRAME_BYTES = 126                      # what a DATAC3 modem frame carries
-HEADER_BYTES = 3                       # Mercury's header and length in front of a KISS payload
-MAX_PAYLOAD = FRAME_BYTES - HEADER_BYTES       # the longest AX.25 frame that goes whole: 123 bytes
-FRAME_SEC = 3.9                        # a frame on the air, preamble included, whatever the payload's length
-DELIVERY_SEC = 4.5                     # from the frame handed to Mercury to the packet at the far station: the frame, the decode and the 100 ms polls of its threads
-BROADCAST_PORT = 8100                  # Mercury's defaults: the KISS port, and the control port 200 below it
+FRAME_BYTES = 126                      # what a DATAC3 modem frame carries (Mercury's bcast_modes.h: 128 bytes with the CRC)
+HEADER_BYTES = 3                       # Mercury's header and length in front of a KISS payload (modem/framer.h HEADER_SIZE 1, plus a two-byte length; its log says "Padding broadcast frame from 109 to 126 bytes" for a 106-byte payload)
+MAX_PAYLOAD = FRAME_BYTES - HEADER_BYTES       # the longest AX.25 frame that goes whole: 123 bytes (a 140-byte frame came out of the far Mercury as 123, scripts/mercury-bench)
+FRAME_SEC = 3.8                        # a frame on the air, PTT ON to PTT OFF, whatever the payload's length: measured 3.80 s over six frames (the audio is 3.41 s, 27280 samples; Mercury's modem.c adds 10 ms of TX delay, 100 ms of silence, 110 ms of preamble and postamble, 200 ms of tail and 100 ms more: 3.82 s by the code)
+DELIVERY_SEC = 3.8                     # from the frame handed to Mercury to the packet at the far station: measured 3.68 s on average and 3.78 s at the slowest (0.14 s to PTT ON, and the far side decodes 0.26 s before PTT OFF: the postamble and the tail are still on the air)
+BROADCAST_PORT = 8100                  # Mercury's defaults (its docs/TNC.md): the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
-CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports
-BUSY_HOLD_MAX_SEC = 60.0               # a BUSY that lasts longer than this holds nothing any more: the detector reads a step in the noise as a signal for a minute or two, and traffic must not be stranded by it
+CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports; of a Mercury something else runs it is an assumption of ours (Mercury's -b and -p are independent), true of one started with its defaults
+BUSY_HOLD_MAX_SEC = 60.0               # a BUSY that lasts longer than this holds nothing any more: the detector's noise floor rises slowly (Mercury's channel_busy.c says a wideband signal reads BUSY for 60 to 95 s and a step in the noise for 100 to 145 s), and traffic must not be stranded by it; in the simulation a step of 30 dB held the radio 56 s
 
 # Where the stations meet: dial frequencies, upper sideband, inside the IARU Region 1 digimode segments and in a gap between the known neighbours (the frequencies are proposals until confirmed on the air).
 # Mercury is centred on 1500 Hz of audio, so the signal sits 1.2 to 1.8 kHz above the dial. 10.1476 MHz, the 300 baud HF APRS dial, is not one of these.

@@ -18,17 +18,20 @@ MAX_FILE = 64_000_000           # the biggest file taken out of the zip (the big
 
 def download(url: str, target: Path, sha256: str, size: int) -> None:
     """The file at `url` written to `target`; SystemExit, and nothing kept, when it is longer than `size` or its digest is not `sha256`."""
-    digest, done = hashlib.sha256(), 0
+    digest, done, too_long = hashlib.sha256(), 0, False
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:
         while chunk := response.read(1 << 16):
             done += len(chunk)
             if done > size:
-                target.unlink()
-                raise SystemExit(f"bundle_mercury: what {url} sends is longer than the pinned {size} bytes, and was thrown away")
+                too_long = True                                                     # (the file is deleted once it is closed: Windows refuses to delete an open one)
+                break
             digest.update(chunk)
             out.write(chunk)
-        if done < int(response.headers.get("Content-Length") or 0):                 # (a body that stops short is read to its end without a word)
+        if not too_long and done < int(response.headers.get("Content-Length") or 0):                 # (a body that stops short is read to its end without a word)
             raise http.client.IncompleteRead(b"")
+    if too_long:
+        target.unlink()
+        raise SystemExit(f"bundle_mercury: what {url} sends is longer than the pinned {size} bytes, and was thrown away")
     if digest.hexdigest() != sha256:
         target.unlink()
         raise SystemExit(f"bundle_mercury: {url} has the SHA-256 {digest.hexdigest()}, not the pinned {sha256}; nothing was kept")

@@ -29,7 +29,7 @@ HF_CONFIG: Config = replace(ON_AIR, hf_enabled=True, fm_enabled=False, beacon_pa
 
 def test_the_one_mode_is_datac3_and_its_frame_carries_123_bytes_of_a_packet_in_under_four_seconds() -> None:
     assert (mercury.MODE, mercury.MODE_INDEX, mercury.FRAME_BYTES, mercury.HEADER_BYTES, mercury.MAX_PAYLOAD) == ("DATAC3", 1, 126, 3, 123)
-    assert 3.5 < mercury.FRAME_SEC < 4.5 and mercury.DELIVERY_SEC > mercury.FRAME_SEC
+    assert 3.5 < mercury.FRAME_SEC < 4.5 and mercury.DELIVERY_SEC >= 3.78, "the slowest delivery scripts/mercury-measure frame saw"
     assert MERCURY.max_frame == 123 and MERCURY.transport == "modem" and MERCURY.enter == () and not MERCURY.can_probe
     assert MERCURY not in PROFILES and all(p.rules.kind == "fm" for p in PROFILES) and MERCURY.rules.kind == "hf", "the Mercury profile is the HF radio's, never a type of the FM radio (neoaprs/radios.py)"
     with pytest.raises(ValueError):

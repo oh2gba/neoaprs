@@ -353,7 +353,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
-  mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.9, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
+  mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

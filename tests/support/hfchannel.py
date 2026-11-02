@@ -33,11 +33,10 @@ NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)                # (POSIX; the Window
 RATE = 8000                                                 # samples a second: Mercury's sound card rate
 SAMPLE_BYTES = 4                                            # s32le
 FULL_SCALE = 32768                                          # int16
-# The level that SNR is counted against. Mercury's OFDM modes (DATAC3) peak at about half of full scale (assumed: the sound card of a real station is driven so that the radio's ALC has room above it) and a multicarrier signal
-# has a crest factor (peak over RMS) of about 10 dB (assumed: 9 to 11 dB is usual for OFDM), so a transmission at gain 0 dB has this RMS, 5200 of 32768.
-NOMINAL_PEAK = 0.5 * FULL_SCALE
-CREST_DB = 10.0
-REFERENCE_RMS = NOMINAL_PEAK / 10 ** (CREST_DB / 20)
+# The level that SNR is counted against: the RMS of a DATAC3 frame as Mercury 1.9.21 plays it on its fifo backend, measured with `scripts/mercury-measure frame` (2 November 2026: RMS 7276 of 32768, -13.1 dBFS, peak 15739,
+# -6.4 dBFS, a crest factor of 6.7 dB, the same for every payload since the frame is always its full size). A transmission at gain 0 dB has this RMS, so the SNR of the channel is codec2's: the signal's own power against the
+# noise in 3 kHz, which is how the delivered-frames table of Mercury's docs/MODES.md counts it.
+REFERENCE_RMS = 7276.0
 SNR_BANDWIDTH = 3000.0                                      # Hz: the noise that counts is the noise in a voice channel, SNR in 3 kHz as the HF modes are specified; white noise at 8000 samples a second spreads over 4 kHz
 TAIL_BLOCKS = 2                                             # blocks that a partial block waits for the rest of it before it is padded with zeros and played: the end of a frame is not a multiple of a block
 READ_SIZE = 1 << 17
@@ -79,6 +78,136 @@ class Link:
 
 
 FLAT = Link()
+
+
+# ---- fading: the Watterson HF channel of one link
+
+# The test channels of CCIR 520-2 (the mid-latitude ones of ITU-R F.1487): two paths of equal power, each multiplied by a complex Gaussian process with a Gaussian Doppler spectrum, the second path delayed. Each is
+# (the delay of the second path in ms, the Doppler spread in Hz: twice the spectrum's standard deviation, as F.1487 defines it). Mercury's own simulator (common/watterson.c in its source, the presets ccir-good, ccir-moderate,
+# ccir-poor and ccir-flutter) has the same four with the same numbers, and codec2's `ch`, the simulator behind the delivered-frames table of Mercury's docs/MODES.md, calls the poor one "MPP" (multipath poor, 1 Hz and
+# 2 ms) and the moderate one "MPM". "poor" is the channel to show a mode's limits on: a fade of 10 dB or more about once in two seconds.
+PRESETS: dict[str, tuple[float, float]] = {"good": (0.5, 0.1), "moderate": (1.0, 0.5), "poor": (2.0, 1.0), "flutter": (0.5, 10.0)}
+HILBERT_TAPS = 47                  # a Hamming-windowed Hilbert transformer of this many taps turns the real signal into its analytic one: flat within 0.1 dB from 500 to 3500 Hz, which holds the modes (DATAC3 sits at 1219 to 1781 Hz), and 23 multiplications a sample; codec2 and Mercury use 257 taps, which pure Python cannot afford a block at a time
+TAP_RATE_FACTOR = 64               # the tap process is drawn at this many times the Doppler spread and interpolated linearly in between (Mercury's gaussian_interp_ratio: the process has no energy above three standard deviations, 1.5 times the spread)
+FIR_FLOOR = 1e-4                   # the Gaussian impulse response of the tap filter is cut where it has fallen to this (Mercury's gaussian_tap_setup)
+
+
+def hilbert_taps(count: int = HILBERT_TAPS) -> list[tuple[int, float]]:
+    """The non-zero taps of the Hilbert transformer as (m, h[m]) about its centre: h[m] = 2 / (pi m) for odd m, under a Hamming window (an odd `count`)."""
+    half = count // 2
+    taps = []
+    for m in range(-half, half + 1):
+        if m % 2:
+            window = 0.54 + 0.46 * math.cos(math.pi * m / half)
+            taps.append((m, window * 2 / (math.pi * m)))
+    return taps
+
+
+class _Tap:
+    """One path's gain g(t): unit-variance complex white noise at a low rate through a Gaussian FIR (the impulse response exp(-4 pi^2 sigma^2 t^2), so that the power spectrum is Gaussian with the standard deviation sigma),
+    scaled to E|g|^2 = 1 and interpolated linearly up to the sample rate, exactly as Mercury's watterson.c does it; a spread of 0 is a steady path (g = 1)."""
+
+    def __init__(self, doppler_hz: float, rate: int, rng: random.Random) -> None:
+        self._rng = rng
+        self.ratio = 1
+        self.fir: list[float] = []
+        self._history: list[complex] = []
+        self._index = 0
+        self._phase = 0
+        self.previous = self.following = 1 + 0j
+        if doppler_hz <= 0:
+            return
+        sigma = doppler_hz / 2
+        self.ratio = max(1, int(rate / (TAP_RATE_FACTOR * doppler_hz)))
+        low_rate = rate / self.ratio
+        half = max(2, math.ceil(math.sqrt(math.log(1 / FIR_FLOOR)) / (2 * math.pi * sigma) * low_rate))
+        self.fir = [math.exp(-4 * math.pi ** 2 * sigma ** 2 * ((k - half) / low_rate) ** 2) for k in range(2 * half + 1)]
+        scale = 1 / math.sqrt(2 * sum(h * h for h in self.fir))
+        self.fir = [h * scale for h in self.fir]
+        self._history = [self._draw() for _ in self.fir]                    # (prefilled, so the process starts in its steady state)
+        self.previous, self.following = self._next(), self._next()
+
+    def _draw(self) -> complex:
+        return complex(self._rng.gauss(0.0, 1.0), self._rng.gauss(0.0, 1.0))
+
+    def _next(self) -> complex:
+        """The next sample of the process at the low rate: one more draw into the history, the FIR over it."""
+        self._history[self._index] = self._draw()
+        self._index = (self._index + 1) % len(self.fir)
+        history = self._history
+        index = self._index
+        total = 0j
+        for h in self.fir:
+            total += h * history[index]
+            index += 1
+            if index == len(history):
+                index = 0
+        return total
+
+    def gains(self, count: int) -> list[complex]:
+        """The next `count` values of g(t) at the sample rate."""
+        if not self.fir:
+            return [1 + 0j] * count
+        out = []
+        ratio, phase, previous, following = self.ratio, self._phase, self.previous, self.following
+        for _ in range(count):
+            out.append(previous + (phase / ratio) * (following - previous))
+            phase += 1
+            if phase == ratio:
+                phase = 0
+                previous, following = following, self._next()
+        self._phase, self.previous, self.following = phase, previous, following
+        return out
+
+
+class Fading:
+    """The Watterson HF channel (ITU-R F.1487) on one link, a `Shaper`: the real signal is made analytic (the Hilbert transformer above), each path's copy of it is delayed and multiplied by its own gain process, the paths are
+    summed and the real part is the signal the receiver hears, with the same average power as what was sent (the paths' powers sum to 1). `Fading("poor")` is a CCIR 520-2 preset; `Fading(delay_ms=2.0, doppler_hz=1.0)`
+    any two-path channel; `paths=1` a single path (no echo). The same seed gives the same channel; every link needs an instance of its own (the delay line and the gain processes are state), which `Channel.set_fading`
+    hands out. The output lags the input by HILBERT_TAPS // 2 samples (the transformer's delay, 2.9 ms), which the pace of a frame does not notice."""
+
+    def __init__(self, preset: str | None = None, delay_ms: float = 2.0, doppler_hz: float = 1.0, seed: int = 0, rate: int = RATE, paths: int = 2) -> None:
+        if preset is not None:
+            if preset not in PRESETS:
+                raise ValueError(f"no fading preset {preset!r}: {', '.join(PRESETS)}")
+            delay_ms, doppler_hz = PRESETS[preset]
+        if paths not in (1, 2):
+            raise ValueError("a path or two")
+        self.preset, self.delay_ms, self.doppler_hz, self.seed = preset, delay_ms, doppler_hz, seed
+        rng = random.Random(seed)
+        self.delay = math.ceil(delay_ms * rate / 1000) if paths == 2 else 0          # (rounded up to a whole sample, as Mercury does)
+        self.taps = hilbert_taps()
+        self.half = HILBERT_TAPS // 2
+        self._paths: list[tuple[int, float, _Tap]] = [(0, 1 / math.sqrt(paths), _Tap(doppler_hz, rate, rng))]      # (delay in samples, gain, the gain process)
+        if paths == 2:
+            self._paths.append((self.delay, 1 / math.sqrt(2), _Tap(doppler_hz, rate, rng)))
+        self._input: list[float] = [0.0] * (2 * self.half)                    # the last 2 * half input samples: what the transformer needs of the past
+        self._zi: list[float] = [0.0] * self.delay                             # the last `delay` analytic samples, for the delayed path
+        self._zq: list[float] = [0.0] * self.delay
+
+    def describe(self) -> str:
+        return f"{self.preset or 'fading'}: {len(self._paths)} path(s), {self.delay_ms:g} ms, {self.doppler_hz:g} Hz, seed {self.seed}"
+
+    def __call__(self, samples: array[int]) -> array[int]:
+        count = len(samples)
+        half = self.half
+        history = self._input + list(samples)
+        # the analytic signal at the block's positions, `half` samples late: in-phase the sample itself, quadrature the transformer over the samples round it
+        zi = history[half:half + count]
+        zq = [0.0] * count
+        for m, h in self.taps:
+            zq = [q + h * x for q, x in zip(zq, history[half - m:half - m + count])]
+        self._input = history[-2 * half:]
+        delay = self.delay
+        all_i, all_q = self._zi + zi, self._zq + zq
+        out = [0.0] * count
+        for path_delay, gain, tap in self._paths:
+            gains = tap.gains(count)
+            start = delay - path_delay
+            out = [y + gain * (g.real * i - g.imag * q) for y, g, i, q in zip(out, gains, all_i[start:start + count], all_q[start:start + count])]
+        if delay:
+            self._zi, self._zq = all_i[-delay:], all_q[-delay:]
+        return array("h", [32767 if v > 32767 else -32768 if v < -32768 else round(v) for v in out])
 
 
 @dataclass(eq=False)
@@ -160,6 +289,19 @@ class Channel:
                 self.links[(source, target)] = Link(gain_db, delay, shaper)
             for source in {a, b}:
                 self._max_delay[source] = max((link.delay for (s, _), link in self.links.items() if s == source), default=0)
+
+    def set_fading(self, preset: str | None, seed: int = 0, **fading: float) -> None:
+        """Every link between the stations on the channel now (each direction on its own) goes through a Watterson channel of this preset (`Fading`; None: flat again), with its own random seed derived from `seed`; a link's
+        gain and delay are kept. Stations added later are flat until this is called again."""
+        with self._lock:
+            names = list(self.stations)
+            for n, source in enumerate(names):
+                for k, target in enumerate(names):
+                    if source == target:
+                        continue
+                    link = self.links.get((source, target), FLAT)
+                    shaper = None if preset is None and not fading else Fading(preset, seed=seed * 1000 + n * len(names) + k, **fading)        # type: ignore[arg-type]
+                    self.links[(source, target)] = Link(link.gain_db, link.delay, shaper)
 
     # ---- the thread ----
 

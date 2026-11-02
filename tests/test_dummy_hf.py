@@ -96,7 +96,7 @@ def test_the_nearest_station_acks_a_message_a_frame_each_way_later_and_answers_o
     acks = [(t, f) for t, f in heard if parse_message(f.info[1:]).ack_id == "7"]
     texts = [(t, f) for t, f in heard if parse_message(f.info[1:]).text == HELLO]
     assert len(acks) == 1 and len(texts) == 1 and str(acks[0][1].source) == talker.call and str(texts[0][1].source) == talker.call
-    assert acks[0][0] == int(ACK_AFTER_SEC) == int(2 * DELIVERY_SEC) and texts[0][0] > acks[0][0], "the ack a frame's time each way later, the text after it"
+    assert abs(acks[0][0] - ACK_AFTER_SEC) < 1 and ACK_AFTER_SEC == 2 * DELIVERY_SEC and texts[0][0] > acks[0][0], "the ack a frame's time each way later, the text after it"
     assert all(str(f.source) != ME for _, f in heard), "no digipeater on HF: nothing of ours comes back"
     scene.react(from_us(b":" + talker.call.ljust(9).encode() + b":Hello{7"), START + timedelta(seconds=300))       # (a retry: acked again, not answered again)
     again = [f for t, f in play(scene, 400, step=1) if t > 300]

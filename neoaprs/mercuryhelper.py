@@ -91,18 +91,38 @@ def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) ->
 # ---- a Mercury left behind
 
 def _is_mercury(pid: int) -> bool:
-    """Whether the process of this id is a Mercury (Linux: "mercury" is in its command line, the program's or the module that stands in for it; elsewhere, that it exists)."""
+    """Whether the process of this id is a Mercury (Linux: "mercury" is in its command line, the program's or the module that stands in for it; elsewhere, that it is running). On Windows the question is
+    asked of the process's exit code: os.kill(pid, 0) there is TerminateProcess, which would end whatever process has the id before anything is known of it."""
     cmdline = Path(f"/proc/{pid}/cmdline")
     if cmdline.exists():
         try:
             return NAME in cmdline.read_bytes().decode("utf-8", "replace").lower()
         except OSError:
             return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
+    if sys.platform == "win32":
+        return _running_windows(pid)
+    else:                                                           # (a system with neither /proc nor Windows: nothing is known of the process, and nothing is ended)
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
         return False
-    return sys.platform == "win32"
+
+
+def _running_windows(pid: int) -> bool:
+    """Whether the Windows process of this id is still running (STILL_ACTIVE as its exit code); a process that ended but whose handle someone still holds is not."""
+    import ctypes
+    kernel32 = ctypes.windll.kernel32                              # type: ignore[attr-defined, unused-ignore]
+    handle = kernel32.OpenProcess(0x1000, False, pid)              # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        code = ctypes.c_ulong()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return False
+        return code.value == 259                                   # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def end_stale(pid_file: Path) -> bool:
