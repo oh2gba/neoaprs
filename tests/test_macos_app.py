@@ -373,6 +373,7 @@ def test_the_smoke_test_opens_the_image_checks_the_signature_and_runs_the_bundle
     assert "--no-mercury) with_mercury=0" in smoke and "tools/mercury" in smoke and "codesign --verify --deep --strict" in smoke and "hdiutil attach" in smoke
     assert 'export HOME="$work/home"' in smoke, "the data folder of a Mac is under the home: the test's own"
     assert "eu.oh2gba.neoaprs.plist" in smoke and "ProgramArguments.0" in smoke and "QT_QPA_PLATFORM=offscreen" in smoke
+    assert '[ "$program" -ef "$inner" ]' in smoke, "the agent's program is compared as a file: a Mac spells its temporary folder /var/... and its real path /private/var/..."
     assert '("macos-app", "arm64")' in smoke
 
 

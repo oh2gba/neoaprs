@@ -130,7 +130,9 @@ chmod +x "$work/fake-bin/launchctl"
 PATH="$work/fake-bin:$PATH" "$run" service install --data "$work/service-data" > "$work/service.out" 2>&1 || { cat "$work/service.out"; fail "service install failed"; }
 agent="$HOME/Library/LaunchAgents/eu.oh2gba.neoaprs.plist"
 [ -f "$agent" ] || fail "no agent was written at $agent"
-plutil -extract ProgramArguments.0 raw -o - "$agent" | grep -qxF "$inner" || { plutil -p "$agent" >&2; fail "the agent does not run $inner"; }
+program="$(plutil -extract ProgramArguments.0 raw -o - "$agent")"
+# (the same file, not the same spelling: the daemon writes the real path, /private/var/..., of a temporary folder a Mac names /var/...)
+[ "$program" -ef "$inner" ] || { plutil -p "$agent" >&2; fail "the agent does not run $inner but $program"; }
 
 say "the desktop app (no arguments, offscreen) starts its daemon and the window, and ends at --quit"
 app_data="$work/app-data"
