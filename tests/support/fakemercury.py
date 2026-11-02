@@ -240,10 +240,16 @@ ROOT = Path(__file__).resolve().parents[2]
 BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
 
 
-def program(die_after_sec: float | None = None) -> list[str]:
-    """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself."""
+AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"       # what Mercury 1.9.21 printed on a station whose sound card it could not open (it ran on all the same)
+
+
+def program(die_after_sec: float | None = None, audio_error: bool = False) -> list[str]:
+    """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself;
+    with `audio_error` it prints, once its ports listen, the line Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')"]
-    return command if die_after_sec is None else [*command, "--die-after", str(die_after_sec)]
+    if die_after_sec is not None:
+        command += ["--die-after", str(die_after_sec)]
+    return [*command, "--audio-error"] if audio_error else command
 
 
 def _arguments(argv: list[str]) -> dict[str, str]:
@@ -258,7 +264,7 @@ def _arguments(argv: list[str]) -> dict[str, str]:
     return out
 
 
-async def _serve(broadcast_port: int, control_port: int, die_after: float | None) -> int:
+async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False) -> int:
     """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until SIGTERM, or dies after `die_after` seconds."""
     loop = asyncio.get_running_loop()
     stop = asyncio.Event()
@@ -291,6 +297,9 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
     control_server = await asyncio.start_server(control, "127.0.0.1", control_port)
     print(f"[INF] [engine] Initialising TCP interfaces (arq={control_port}, bc={broadcast_port})", flush=True)
     print("[INF] [engine] Mercury engine initialised", flush=True)
+    if audio_error:
+        await asyncio.sleep(0.3)                                         # (the control port is up and the daemon has connected: the error comes while the modem says "running", as it did on the station)
+        print(AUDIO_ERROR_LINE, flush=True)
     try:
         await asyncio.wait_for(stop.wait(), die_after)
     except TimeoutError:
@@ -315,7 +324,7 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
     if sys.platform == "win32":                                          # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate() does)
         die_after = die_after if die_after is not None else 3600.0
     started = time.monotonic()
-    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after))
+    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args))
     out(f"ran {time.monotonic() - started:.1f} s")
     return code
 

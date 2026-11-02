@@ -20,7 +20,7 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
-from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, TRANSMITTING, Mercury
+from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
@@ -352,7 +352,7 @@ async def test_the_tnc_tells_the_modems_problem_when_its_line_cannot_be_opened(t
     await tnc.start()
     try:
         await until(lambda: tnc.state is Source.State.WAITING)
-        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"{tnc.port}, waiting"
+        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"Mercury DATAC3: {NOT_INSTALLED}, 0 packets", "the socket the modem is reached on is nowhere in the words of the status"
     finally:
         await tnc.stop()
         await m.stop()
@@ -390,14 +390,14 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
     monkeypatch.setattr(mercurymodem, "free_ports", none)
     m = modem(tmp_path)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
+    assert m.state == "waiting" and m.problem == "no free port for Mercury; the log says which were tried" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
     await stopped(m)
 
 
 async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
     m = modem(tmp_path / "gone")                    # (no such folder: the configuration cannot be written there)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written to ") and "gone" in m.problem and m.starts == 0
+    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
 
 
@@ -413,3 +413,27 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
     await m.stop()
     assert not _alive(pid) and m.state == "stopped"
 
+
+
+async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_problem_of_the_modem_and_the_radio_until_a_start_succeeds(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play] error in audio->open()`, and the status said "running"."""
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []
+    await m.start(HF)
+    tnc = Tnc(f"socket://127.0.0.1:{m.broadcast_port}", profile=MERCURY, check_sec=0.0, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
+    tnc.modem = m
+    await tnc.start()
+    try:
+        await until(lambda: m.state == "running", 5.0)
+        await until(lambda: tnc.state is Source.State.CONNECTED)
+        first = m.pid
+        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED, 5.0)
+        await until(lambda: not _alive(first), 5.0)
+        assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}" and m.hold() == "" and "could not open its sound card" in caplog.text
+        await until(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED, 5.0)              # (the line went with the program: the radio is not connected, and says why)
+        assert not tnc.usable
+        await until(lambda: m.starts >= 2, 5.0)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
+        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2, 5.0)
+    finally:
+        await tnc.stop()
+        await stopped(m)

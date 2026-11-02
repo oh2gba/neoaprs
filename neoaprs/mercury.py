@@ -65,7 +65,8 @@ def tune_command(level_dbfs: float) -> str:
 
 # The Dummy HF radio (neoaprs/dummyhfscene.py) makes up what is heard and sends nothing on the air; what we send is played through the computer's own speakers as Mercury's real audio, so that the operator hears
 # what the modem sounds like: the bundled Mercury is started keying nothing (`-P none`) on its `fifo` audio backend, two named pipes the daemon paces and plays (neoaprs/mercuryspeaker.py says how and why), and
-# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on its default devices and is not heard.
+# the frames the Tnc writes to the dummy line are handed to its broadcast port as they would be to the modem's. Where there are no named pipes (Windows) it runs on WASAPI's default recording and playback
+# devices instead (`command(..., audio=())`): the recording device paces it and is heard by nobody, the playback device is the speakers.
 
 
 def speaker_audio(capture_fifo: str, playback_fifo: str) -> list[str]:
@@ -216,6 +217,16 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     if _RADIO_CARD.search(card_name or "") and len(usb) == 1:
         return Keying("rts", usb[0].device)
     return Keying("vox")
+
+
+# ---- what the program prints
+
+_AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\] .*audio->(?:open|init)\(\)")       # Mercury 1.9.21's audioio.c when the sound card cannot be opened: `[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument`, `Error in audio->init(): ...`
+
+
+def audio_open_error(line: str) -> bool:
+    """Whether a line Mercury printed says its sound card could not be opened for playback or capture (the program runs on all the same, deaf and mute: the daemon ends it and says so)."""
+    return _AUDIO_OPEN_ERROR.search(line) is not None
 
 
 # ---- the control port (CR-terminated lines, as VARA's)
