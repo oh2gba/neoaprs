@@ -84,7 +84,7 @@ case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build
 uv pip install --python "$python" --break-system-packages --no-config -r "$work/requirements.txt"
 uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
 find "$res/bin" -type f ! -name 'python3*' -delete
-find -L "$res/bin" -type l -delete
+find "$res/bin" -type l ! -exec test -e {} \; -delete                     # (the links to what went; BSD find refuses -delete under -L)
 
 # Mercury, the HF modem: the program and its licence, where neoaprs/bundled.py looks (<sys.prefix>/tools/mercury); its dev/ folder of simulators is not shipped
 if [ -n "$mercury" ]; then
@@ -98,7 +98,7 @@ fi
 export MACOSX_DEPLOYMENT_TARGET="$MIN_OS"
 cc -O2 -Wall -mmacosx-version-min="$MIN_OS" -o "$contents/MacOS/NeoAPRS" "$ROOT/packaging/macos/launcher.c" -I"$res/include/python3.13" -L"$res/lib" -lpython3.13 -Wl,-rpath,@executable_path/../Resources/lib
 
-# Size: what the app does not run is taken out
+# Size: what the app does not run is taken out, and Qt's frameworks, which the wheels ship flat (no Versions/Current, their Resources copied twice), are made the bundles codesign and the system expect
 "$python" -I "$ROOT/packaging/appimage/prune.py" --macos "$res"
 
 # Info.plist (the version as written, and without a suffix for CFBundleVersion), PkgInfo, the icon, the microphone sentence in the languages of the page
@@ -111,7 +111,8 @@ cp -R "$ROOT"/packaging/macos/lproj/*.lproj "$res/"
 # bytecode of the bundle's packages, made now because nothing may be written into the signed bundle later (unchecked: the bundle never changes)
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$res/lib/python3.13" >/dev/null
 
-# Ad-hoc signatures: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury), then the frameworks and the web engine's helper app as bundles, then the app itself
+# Ad-hoc signatures, from the inside out, each piece once and by name: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury), then the web engine's helper app (with the entitlements Qt
+# ships for it, which its JIT needs), then the frameworks, whose seal records the helper inside, then the app itself; not --deep, which would sign the nested code again without those entitlements. The verification is deep.
 "$python" -I - "$app" <<'PY' | tr '\n' '\0' | xargs -0 -n 1 -P 8 codesign --force --sign - --timestamp=none
 import pathlib
 import sys
@@ -122,9 +123,12 @@ for path in pathlib.Path(sys.argv[1]).rglob("*"):
             if f.read(4) in MAGIC:
                 print(path)
 PY
-find "$res" -name '*.framework' -type d -print0 | xargs -0 -n 1 codesign --force --sign - --timestamp=none
-find "$res" -name '*.app' -type d -print0 | xargs -0 -n 1 codesign --force --deep --sign - --timestamp=none
-codesign --force --deep --sign - --timestamp=none "$app"
+find "$res" -name '*.app' -type d -print0 | while IFS= read -r -d '' nested; do
+    entitlements="$(find "$nested/Contents/Resources" -name '*.entitlements' -type f 2>/dev/null | head -n 1)"
+    codesign --force --sign - --timestamp=none ${entitlements:+--entitlements "$entitlements"} "$nested"
+done
+find "$res" -name '*.framework' -type d ! -path '*.framework/*' -print0 | xargs -0 -n 1 codesign --force --sign - --timestamp=none
+codesign --force --sign - --timestamp=none "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 "$contents/MacOS/NeoAPRS" --version
 

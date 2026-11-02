@@ -79,7 +79,7 @@ if [ "$with_mercury" = 1 ]; then
     [ -x "$folder/mercury" ] && [ -f "$folder/LICENSE" ] || fail "the app has no Mercury in Contents/Resources/tools/mercury"
     [ ! -e "$folder/dev" ] || fail "the simulators of Mercury's dev/ folder are in the app"
     wanted="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$ROOT/neoaprs/mercury.py")"
-    otool -L "$folder/mercury" | tail -n +2 | grep -qv '/System/Library/Frameworks/\|/usr/lib/libSystem\.' && fail "Mercury loads a library that is not the system's: $(otool -L "$folder/mercury" | tail -n +2 | tr -s '\t ' ' ')"
+    otool -L "$folder/mercury" | tail -n +2 | grep -E -qv '/System/Library/Frameworks/|/usr/lib/libSystem\.' && fail "Mercury loads a library that is not the system's: $(otool -L "$folder/mercury" | tail -n +2 | tr -s '\t ' ' ')"
     said="$("$folder/mercury" -V 2>&1 || true)"
     echo "$said" | grep -qF "$wanted" || fail "mercury -V says '$said', not the pinned $wanted"
 fi
