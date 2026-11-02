@@ -34,6 +34,7 @@ from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
 from neoaprs import mercury  # noqa: E402
+from neoaprs.radiorules import FM, HF  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
@@ -239,7 +240,7 @@ def limits() -> dict[str, Any]:
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS},
-        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN},
+        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF.beacon_min_min, "hfBeaconDefaultMin": HF.beacon_default_min},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
@@ -252,7 +253,7 @@ def limits() -> dict[str, Any]:
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
-        "mercury": {"mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "beaconFloorSec": mercury.BEACON_FLOOR_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
+        "mercury": {"mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 
 
@@ -632,7 +633,7 @@ def _beacon_vector(changes: dict[str, str]) -> dict[str, Any]:
     values = {**BEACON_BASE, **changes}
     try:
         config = Config.checked(DEFAULTS, values)
-        text: str | None = Beacon(SimpleNamespace(max_frame=None), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio, only its limit, which is none)
+        text: str | None = Beacon(SimpleNamespace(max_frame=None, rules=FM), lambda: config).frame().tnc2()                 # type: ignore[arg-type]  (the frame needs no radio, only its rules, the FM radio's)
     except (ValueError, BeaconError):
         text = None
     return {"values": values, "text": text}

@@ -12,7 +12,7 @@ import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { keyingChoices, soundCardPorts } from "@/lib/mercury";
+import { keyingChoices, keyingLabel, soundCardPorts } from "@/lib/mercury";
 import { FIELDS, RX_ONLY_KEY, storedFor, valueFor, type FieldInfo } from "@/lib/settings";
 import { profileOf, speedFallback } from "@/lib/tncprofile";
 
@@ -33,8 +33,11 @@ const soundCards = computed(() => soundCardPorts(ports.value));
 const keyingInfo = computed<FieldInfo>(() => ({
   ...info(KEYING_KEY),
   kind: "choice",
-  choices: keyingChoices(ports.value, props.settings.draft[KEYING_KEY] ?? ""),
+  choices: [{ value: "", label: t("settings.port.auto") }, ...keyingChoices(ports.value, props.settings.draft[KEYING_KEY] ?? "")],
 }));
+/** What the daemon runs the modem with while a setting is empty: its own choice, said beside the field as the port found is. */
+const chosenCard = computed(() => tnc.value?.modem?.sound_card ?? "");
+const chosenKeying = computed(() => (tnc.value?.modem ? keyingLabel(tnc.value.modem.keying) : ""));
 /** A typed field follows the typing; a choice is made by `choose` (it also says the text it has, which is not typing). */
 function typed(key: string, text: string): void {
   const kind = info(key).kind;
@@ -78,8 +81,8 @@ watch(modem, (wanted) => wanted && send({ cmd: "list_ports" }));
         :id="fieldId(key)"
         :info="info(key)"
         :model-value="settings.draft[key] ?? ''"
-        found=""
-        :first="t('settings.sound_card.default')"
+        :found="chosenCard"
+        :first="t('settings.port.auto')"
         :typed-label="t('settings.sound_card.id_label')"
         :ports="soundCards"
         :error="settings.errors[key] ?? ''"
@@ -103,7 +106,11 @@ watch(modem, (wanted) => wanted && send({ cmd: "list_ports" }));
         @choose="form.choose({ [key]: $event })"
         @commit="form.finish(key, $event)"
         @cancel="settings.cancel(key)"
-      />
+      >
+        <template v-if="key === KEYING_KEY && (settings.draft[key] ?? '') === '' && chosenKeying !== ''" #after>
+          <span class="muted port-found">{{ t("settings.port.found", { port: chosenKeying }) }}</span>
+        </template>
+      </SettingsField>
     </template>
     <FindRadioRow id="find-radio" />
   </RadioStatus>

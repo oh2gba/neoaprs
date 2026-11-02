@@ -18,7 +18,7 @@ const TNC_ORDER = [
 /** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
 const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
 /** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
-const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
+const BEACON_ORDER = ["beacon/interval_min", "hf/beacon_interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
 /** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
 const STATION_ORDER = [
   "station/call",

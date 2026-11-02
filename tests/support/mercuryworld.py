@@ -29,7 +29,7 @@ class World:
 
     async def add(self, call: str, lat: float = HELSINKI[0], lon: float = HELSINKI[1], **settings: str) -> Env:
         """A station with this call at this place, on the air, not yet started."""
-        rows = {"station/call": call, "station/lat": str(lat), "station/lon": str(lon), "tnc/profile": "mercury", "beacon/path": "DIRECT", **settings}
+        rows = {"station/call": call, "station/lat": str(lat), "station/lon": str(lon), "tnc/profile": "mercury", "hf/beacon_interval_min": "0", **settings}        # (no timed beacon unless a test asks for one: it would key in the middle of what the test watches)
         e = Env(self.dir / call.replace("-", "_"), radio=self.air.station(), settings=rows)
         e.ctl.messaging.tick_sec = TICK_SEC
         e.ctl.messaging.pace.spacing_sec = 0.0

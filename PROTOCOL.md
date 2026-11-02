@@ -1044,6 +1044,7 @@ The TNC, the one feed of packets: its state and why it is not connected, the por
 | `baud` | integer |  |  |
 | `dummy` | boolean |  | the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then |
 | `modem` | ModemState \| null |  | the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type |
+| `rules` | RadioRulesState |  | what the kind of the radio in use allows: the page shows only the controls that apply |
 | `describe` | string |  | one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
 | `searching` | string[] |  | the ports the daemon is listening to while it looks for the radio; empty when it is not searching |
 | `silent_since` | time \| null |  | while `state` is `silent`, when the latest byte came; null otherwise |
@@ -1379,6 +1380,8 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 | `snr` | number \| null |  | the signal-to-noise ratio of the latest frame decoded, in dB; null before one |
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |
+| `sound_card` | string |  | the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device |
+| `keying` | string |  | how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` |
 
 ### NoteSection
 
@@ -1501,6 +1504,18 @@ The servers that answered a request for local info, and the last request. What i
 |---|---|---|---|
 | `asked` | QruAsked \| null |  | the last request sent from here; null before one, and an hour after it |
 | `servers` | QruServer[] |  | the servers that answered in the last hour, by call |
+
+### RadioRulesState
+
+What the kind of the radio in use allows (neoaprs/radiorules.py): the page shows the path, the digipeater and the moving-station controls only where they apply.
+
+| field | type | | description |
+|---|---|---|---|
+| `kind` | "fm" \| "hf" |  | `fm` is the local radio (the KISS TNC), `hf` the Mercury HF modem |
+| `paths` | boolean |  | whether a frame of ours carries digipeaters; false: every frame goes direct whatever `beacon/path` and the stations' paths say, and the path controls are not shown |
+| `digipeat` | boolean |  | whether the fill-in digipeater can repeat what this radio hears; false: the Digipeater group is not shown and nothing is repeated |
+| `smart_beacon` | boolean |  | whether a moving station's SmartBeaconing and the GPS apply; false: the timed beacon of a fixed station only, and the GPS source is not shown |
+| `beacon_min_min` | integer |  | the shortest beacon interval the radio takes, in minutes (>= 1) |
 
 ### ReachValues
 

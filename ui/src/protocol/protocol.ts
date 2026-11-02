@@ -678,6 +678,10 @@ export interface ModemState {
   frames_keyed: number;
   /** the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut */
   max_frame: number;
+  /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
+  sound_card: string;
+  /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
+  keying: string;
 }
 
 /** Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next `status`. Answered by that `status`, or by an `error` when the key could not be kept. */
@@ -1016,6 +1020,20 @@ export interface QueryStationCommand {
   kind: "position" | "status" | "heard" | "trace" | "weather" | "custom";
   /** the query of `custom`, as the operator wrote it: after the spaces at its ends are taken off it begins with `?` and has something after it, is printable ASCII without `|`, `~` or `{` and at most 67 characters, the text of a message; it is sent upper-cased. Absent or null for the other kinds */
   text?: string | null;
+}
+
+/** What the kind of the radio in use allows (neoaprs/radiorules.py): the page shows the path, the digipeater and the moving-station controls only where they apply. */
+export interface RadioRulesState {
+  /** `fm` is the local radio (the KISS TNC), `hf` the Mercury HF modem */
+  kind: "fm" | "hf";
+  /** whether a frame of ours carries digipeaters; false: every frame goes direct whatever `beacon/path` and the stations' paths say, and the path controls are not shown */
+  paths: boolean;
+  /** whether the fill-in digipeater can repeat what this radio hears; false: the Digipeater group is not shown and nothing is repeated */
+  digipeat: boolean;
+  /** whether a moving station's SmartBeaconing and the GPS apply; false: the timed beacon of a fixed station only, and the GPS source is not shown */
+  smart_beacon: boolean;
+  /** the shortest beacon interval the radio takes, in minutes */
+  beacon_min_min: number;
 }
 
 /** How `find_radio` goes, to the page that asked. */
@@ -1474,6 +1492,8 @@ export interface TncState {
   dummy: boolean;
   /** the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type */
   modem: ModemState | null;
+  /** what the kind of the radio in use allows: the page shows only the controls that apply */
+  rules: RadioRulesState;
   /** one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
   describe: string;
   /** the ports the daemon is listening to while it looks for the radio; empty when it is not searching */

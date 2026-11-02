@@ -2615,6 +2615,14 @@
           "description": "the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut",
           "minimum": 1,
           "type": "integer"
+        },
+        "sound_card": {
+          "description": "the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device",
+          "type": "string"
+        },
+        "keying": {
+          "description": "how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`",
+          "type": "string"
         }
       },
       "required": [
@@ -2625,7 +2633,9 @@
         "busy",
         "snr",
         "frames_keyed",
-        "max_frame"
+        "max_frame",
+        "sound_card",
+        "keying"
       ],
       "title": "ModemState",
       "type": "object"
@@ -4026,6 +4036,46 @@
         "kind"
       ],
       "title": "QueryStationCommand",
+      "type": "object"
+    },
+    "RadioRulesState": {
+      "additionalProperties": false,
+      "description": "What the kind of the radio in use allows (neoaprs/radiorules.py): the page shows the path, the digipeater and the moving-station controls only where they apply.",
+      "properties": {
+        "kind": {
+          "description": "`fm` is the local radio (the KISS TNC), `hf` the Mercury HF modem",
+          "enum": [
+            "fm",
+            "hf"
+          ],
+          "type": "string"
+        },
+        "paths": {
+          "description": "whether a frame of ours carries digipeaters; false: every frame goes direct whatever `beacon/path` and the stations' paths say, and the path controls are not shown",
+          "type": "boolean"
+        },
+        "digipeat": {
+          "description": "whether the fill-in digipeater can repeat what this radio hears; false: the Digipeater group is not shown and nothing is repeated",
+          "type": "boolean"
+        },
+        "smart_beacon": {
+          "description": "whether a moving station's SmartBeaconing and the GPS apply; false: the timed beacon of a fixed station only, and the GPS source is not shown",
+          "type": "boolean"
+        },
+        "beacon_min_min": {
+          "description": "the shortest beacon interval the radio takes, in minutes",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "paths",
+        "digipeat",
+        "smart_beacon",
+        "beacon_min_min"
+      ],
+      "title": "RadioRulesState",
       "type": "object"
     },
     "RadioSearchMsg": {
@@ -5784,6 +5834,10 @@
           ],
           "description": "the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type"
         },
+        "rules": {
+          "$ref": "#/$defs/RadioRulesState",
+          "description": "what the kind of the radio in use allows: the page shows only the controls that apply"
+        },
         "describe": {
           "description": "one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
           "type": "string"
@@ -5851,6 +5905,7 @@
         "baud",
         "dummy",
         "modem",
+        "rules",
         "describe",
         "searching",
         "silent_since",

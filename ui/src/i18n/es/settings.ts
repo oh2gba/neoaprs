@@ -123,8 +123,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.sound_card.label": "Tarjeta de sonido",
   "settings.sound_card.tip_label": "Sobre la tarjeta de sonido",
   "settings.sound_card.tip1": "La tarjeta de sonido por la que pasa el audio de la radio: un códec USB, un DigiRig o el audio USB de la propia radio.",
-  "settings.sound_card.tip2": "Predeterminada del sistema es el dispositivo por el que reproduce el sistema. Actualizar vuelve a leer la lista.",
-  "settings.sound_card.default": "predeterminada del sistema",
+  "settings.sound_card.tip2": "Buscar automáticamente elige la única tarjeta de sonido USB que graba y reproduce; Actualizar vuelve a leer la lista.",
   "settings.sound_card.id_label": "Id de la tarjeta de sonido",
   "settings.keying.label": "Conmutación",
   "settings.keying.tip_label": "Sobre la conmutación",
@@ -256,6 +255,9 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip2": "30 minutos van bien para una estación que no se mueve.",
   "settings.beacon_interval.tip_moving":
     "Activada: SmartBeaconing envía la posición GPS, más a menudo cuanto más rápido vas y en cada giro. Desactivada: sin baliza automática.",
+  "settings.hf_beacon.tip1":
+    "Cada cuánto sale tu posición por la radio de HF: no más de una vez cada {min} min. Apagada: sin baliza automática; Baliza ahora sigue enviando.",
+  "settings.hf_beacon.tip2": "Una hora va bien en HF: una trama ocupa 4 segundos de un canal que comparten todas las estaciones.",
   "settings.path.name": "Ruta de la baliza",
   "settings.path.label": "Ruta",
   "settings.path.recommended": "Recomendada ({path})",

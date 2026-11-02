@@ -1,5 +1,5 @@
 """What the services that send share: `Radio` (what they need of the Tnc), `ConfigSource` (how they read the settings), `transmit_refusal` and `our_call` (why nothing may be sent, and the call we may send under), `our_frame` (our frame
-to the tocall) and `fit_frame` (the frame shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123 bytes)."""
+to the tocall), `radio_path` (the path a frame goes by on the radio: none on HF) and `fit_frame` (the frame shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123 bytes)."""
 import re
 from collections.abc import Callable
 from dataclasses import replace
@@ -10,6 +10,7 @@ from neoaprs.callsign import CallsignError
 from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
 from neoaprs.message import MessagingError
+from neoaprs.radiorules import RadioRules
 from neoaprs.source import Source
 
 ConfigSource = Callable[[], Config]
@@ -27,6 +28,8 @@ class Radio(Protocol):
     def usable(self) -> bool: ...
     @property
     def max_frame(self) -> int | None: ...
+    @property
+    def rules(self) -> RadioRules: ...
     def why_unusable(self) -> str: ...
     def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool: ...
 
@@ -34,6 +37,11 @@ class Radio(Protocol):
 def our_frame(config: Config, path: tuple[str, ...], info: bytes) -> ax25.Frame:
     """Our frame with this information field: from `station/call` to the tocall by way of `path`. Raises one of FRAME_ERRORS, each caller says it in its own error."""
     return ax25.Frame(ax25.Address.parse(TOCALL), ax25.Address.parse(config.station_call), tuple(ax25.Address.parse(call) for call in path), info=info)
+
+
+def radio_path(radio: Radio, path: tuple[str, ...]) -> tuple[str, ...]:
+    """The digipeaters a frame of ours goes by on this radio: the path given where the network has digipeaters (FM), none where every frame is direct (HF: the settings and the stations' own paths are kept for the day the operator is back on VHF, and a path would only cost bytes of the frame)."""
+    return path if radio.rules.paths else ()
 
 
 def fixed_prefix(info: bytes) -> int:

@@ -136,8 +136,8 @@ class RigStatus:
                 (log.warning if state == "off" else log.info)("%s", words)
 
     def _offer(self, key: Key, text: str, interval_min: int) -> None:
-        if not self._config().beacon_on:
-            return                                                   # (Off is no automatic status; Status now still sends)
+        if self._config().beacon_interval_of(self._tnc.rules) == 0:
+            return                                                   # (the radio's beacon Off is no automatic status; Status now still sends)
         now = self.clock()
         if self._unchanged(key, text) or (self.last_sent_at is not None and now - self.last_sent_at < timedelta(minutes=interval_min)):
             return

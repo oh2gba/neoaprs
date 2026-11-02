@@ -293,6 +293,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
     baud: 9600,
     dummy: false,
     modem: null,
+    rules: { kind: "fm", paths: true, digipeat: true, smart_beacon: true, beacon_min_min: 20 },
     describe: "/dev/brainbox_3 at 9600, KISS",
     searching: [],
     silent_since: null,

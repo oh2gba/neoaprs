@@ -39,7 +39,18 @@ describe("tncStatus", () => {
   });
 
   it("says that the Mercury HF modem transmits, or that the channel is busy, while it does; else the last packet as for any radio", () => {
-    const modem = { state: "running" as const, problem: "", mode: "DATAC3", keyed: false, busy: false, snr: null, frames_keyed: 0, max_frame: 123 };
+    const modem = {
+      state: "running" as const,
+      problem: "",
+      mode: "DATAC3",
+      keyed: false,
+      busy: false,
+      snr: null,
+      frames_keyed: 0,
+      max_frame: 123,
+      sound_card: "",
+      keying: "vox",
+    };
     expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("Transmitting…");
     expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("Channel busy, waiting");
     expect(tncStatus(tncState({ modem }), NOW)).toBe("Last packet 30 s ago");

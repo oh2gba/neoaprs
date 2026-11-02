@@ -11,7 +11,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, our_frame, radio_path
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.source import Source
 
@@ -53,7 +53,7 @@ class Sender:
     def frame(self, info: bytes, path: tuple[str, ...] | None) -> ax25.Frame:
         """Our frame with this information field by this path (None: `beacon/path`), its comment cut to what a radio with a fixed frame carries (said in the log). Raises SendError."""
         c = self._config()
-        calls = c.beacon_path_calls if path is None else path
+        calls = radio_path(self._tnc, c.beacon_path_calls if path is None else path)
         if len(info) > ax25.MAX_INFO:
             raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:

@@ -39,6 +39,17 @@ class ModemState(_Model):
     snr: float | None = Field(description="the signal-to-noise ratio of the latest frame decoded, in dB; null before one")
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
     max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
+    sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
+    keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
+
+
+class RadioRulesState(_Model):
+    """What the kind of the radio in use allows (neoaprs/radiorules.py): the page shows the path, the digipeater and the moving-station controls only where they apply."""
+    kind: Literal["fm", "hf"] = Field(description="`fm` is the local radio (the KISS TNC), `hf` the Mercury HF modem")
+    paths: bool = Field(description="whether a frame of ours carries digipeaters; false: every frame goes direct whatever `beacon/path` and the stations' paths say, and the path controls are not shown")
+    digipeat: bool = Field(description="whether the fill-in digipeater can repeat what this radio hears; false: the Digipeater group is not shown and nothing is repeated")
+    smart_beacon: bool = Field(description="whether a moving station's SmartBeaconing and the GPS apply; false: the timed beacon of a fixed station only, and the GPS source is not shown")
+    beacon_min_min: int = Field(ge=1, description="the shortest beacon interval the radio takes, in minutes")
 
 
 class TncState(_Model):
@@ -51,6 +62,7 @@ class TncState(_Model):
     baud: int
     dummy: bool = Field(description="the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then")
     modem: ModemState | None = Field(description="the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type")
+    rules: RadioRulesState = Field(description="what the kind of the radio in use allows: the page shows only the controls that apply")
     describe: str = Field(description="one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
     searching: list[str] = Field(description="the ports the daemon is listening to while it looks for the radio; empty when it is not searching")
     silent_since: Iso | None = Field(description="while `state` is `silent`, when the latest byte came; null otherwise")

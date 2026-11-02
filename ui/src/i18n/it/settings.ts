@@ -123,8 +123,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.sound_card.label": "Scheda audio",
   "settings.sound_card.tip_label": "Informazioni sulla scheda audio",
   "settings.sound_card.tip1": "La scheda audio da cui passa l’audio della radio: un codec USB, un DigiRig o l’audio USB della radio stessa.",
-  "settings.sound_card.tip2": "Predefinita di sistema è il dispositivo da cui il sistema riproduce. Aggiorna rilegge l’elenco.",
-  "settings.sound_card.default": "predefinita di sistema",
+  "settings.sound_card.tip2": "Trova automaticamente sceglie l’unica scheda audio USB che registra e riproduce; Aggiorna rilegge l’elenco.",
   "settings.sound_card.id_label": "Id della scheda audio",
   "settings.keying.label": "Commutazione",
   "settings.keying.tip_label": "Informazioni sulla commutazione",
@@ -257,6 +256,8 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip2": "30 minuti vanno bene per una stazione che resta ferma.",
   "settings.beacon_interval.tip_moving":
     "On: SmartBeaconing invia la posizione GPS, più spesso quanto più vai veloce e a ogni curva. Off: nessun beacon automatico.",
+  "settings.hf_beacon.tip1": "Ogni quanto esce la tua posizione in HF, al massimo ogni {min} min. Spenta: nessun beacon automatico; Beacon ora invia comunque.",
+  "settings.hf_beacon.tip2": "Un’ora va bene in HF: un frame occupa 4 secondi di un canale che tutte le stazioni condividono.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
   "settings.path.recommended": "Consigliato ({path})",

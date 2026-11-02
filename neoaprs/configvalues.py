@@ -80,8 +80,8 @@ def tnc_profile(text: str) -> str:
 
 
 def mercury_keying(text: str) -> str:
-    """How the Mercury modem keys the radio (mercury.py): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`, written the way the setting keeps it."""
-    return keying_of(text).text
+    """How the Mercury modem keys the radio (mercury.py): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`, written the way the setting keeps it; empty for the daemon's own choice from what it finds."""
+    return keying_of(text).text if text.strip() else ""
 
 
 def aprsis_server(text: str) -> str:

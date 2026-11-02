@@ -9,17 +9,19 @@
     tnc.raw                                 # the bytes it took with a frame (send_frame's `raw`: the digipeater's), as they were given
 """
 from neoaprs import ax25
+from neoaprs.radiorules import FM, HF, RadioRules
 from neoaprs.source import Source, unusable_because
 
 
 class StubTnc:
-    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None) -> None:
+    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rules: RadioRules | None = None) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
         self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
         self.takes = True
         self.asked = 0
         self.max_frame = max_frame                  # the longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit alone
+        self.rules = rules if rules is not None else HF if max_frame is not None else FM         # the rules of the kind of radio: the HF radio's when it has a frame cap, else the FM radio's; a test may give others (a frame cap with paths)
 
     @property
     def usable(self) -> bool:

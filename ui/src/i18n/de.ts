@@ -1198,8 +1198,7 @@ export const de: Catalogue = {
   "settings.sound_card.label": "Soundkarte",
   "settings.sound_card.tip_label": "Über die Soundkarte",
   "settings.sound_card.tip1": "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein DigiRig oder der USB-Ton des Funkgeräts selbst.",
-  "settings.sound_card.tip2": "Systemstandard ist das Gerät, über das das System wiedergibt. Aktualisieren liest die Liste neu.",
-  "settings.sound_card.default": "Systemstandard",
+  "settings.sound_card.tip2": "Automatisch finden wählt die eine USB-Soundkarte, die aufnimmt und wiedergibt; Aktualisieren liest die Liste neu.",
   "settings.sound_card.id_label": "Soundkarten-Id",
   "settings.keying.label": "Tastung",
   "settings.keying.tip_label": "Über die Tastung",
@@ -1334,6 +1333,9 @@ export const de: Catalogue = {
   "settings.beacon_interval.tip2": "30 Minuten passen für eine Station, die an ihrem Platz bleibt.",
   "settings.beacon_interval.tip_moving":
     "An: SmartBeaconing sendet die GPS-Position, öfter je schneller du fährst und bei jeder Kurve. Aus: keine automatische Bake.",
+  "settings.hf_beacon.tip1":
+    "Wie oft deine Position über das KW-Funkgerät gesendet wird: höchstens alle {min} min. Aus: keine automatische Bake; Bake jetzt sendet trotzdem.",
+  "settings.hf_beacon.tip2": "Eine Stunde passt zu KW: ein Rahmen belegt 4 Sekunden eines Kanals, den alle Stationen teilen.",
   "settings.path.name": "Bakenpfad",
   "settings.path.label": "Pfad",
   "settings.path.recommended": "Empfohlen ({path})",

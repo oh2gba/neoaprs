@@ -33,7 +33,9 @@ const emit = defineEmits<{
   copy: [call: string];
   forget: [call: string];
 }>();
-const { prefs, heardPaths, fallbackPath, home } = useDaemonContext();
+const { prefs, heardPaths, fallbackPath, home, tnc } = useDaemonContext();
+/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them there is no route to set. */
+const routable = computed(() => tnc.value?.rules.paths ?? true);
 const rxOnly = useReceiveOnly();
 
 const items = computed(() => panelItems(props.row));
@@ -112,7 +114,7 @@ function onEsc(event: KeyboardEvent): void {
           <StationTraffic :call="row.call" />
         </fieldset>
         <div v-if="canMessage(row) || canAlert(row)" class="stationpanel-settings">
-          <fieldset v-if="canMessage(row)">
+          <fieldset v-if="canMessage(row) && routable">
             <legend>{{ t("route.button") }}</legend>
             <StationPrefs
               :call="row.call"

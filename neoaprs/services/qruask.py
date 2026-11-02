@@ -25,7 +25,7 @@ from neoaprs.coded import CodedError
 from neoaprs.message import MessagingError, addressed_to, request_path, same_call
 from neoaprs.packet import ItemReport, Message, ObjectReport, Packet
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame, radio_path
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 
@@ -72,7 +72,7 @@ class QruAsk:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another request for local info: wait {seconds} s", "qru.too_soon", seconds=seconds)
         try:
-            calls = request_path(path, () if path and path.strip() else self._paths(ADDRESSEE), rf_only)
+            calls = radio_path(self._tnc, request_path(path, () if path and path.strip() else self._paths(ADDRESSEE), rf_only))
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:

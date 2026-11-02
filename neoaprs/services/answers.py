@@ -14,7 +14,7 @@ from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
-from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_path
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.tasks import TaskSet
 
@@ -95,7 +95,7 @@ class Answers:
             return False
         try:
             calls = self._paths(asker)
-            calls = rf_only_path(calls) if rf_only else calls
+            calls = radio_path(self._tnc, rf_only_path(calls) if rf_only else calls)
             if len(calls) > ax25.MAX_PATH:
                 raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")
             path = tuple(ax25.Address.parse(call) for call in calls)

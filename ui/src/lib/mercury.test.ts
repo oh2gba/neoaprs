@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyingChoices, soundCardPorts } from "@/lib/mercury";
+import { keyingChoices, keyingLabel, soundCardPorts } from "@/lib/mercury";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
@@ -48,5 +48,15 @@ describe("the sound cards as a list like the ports", () => {
     ]);
     expect(cards?.search).toBe(false);
     expect(soundCardPorts(null)).toBeNull();
+  });
+});
+
+describe("the words for a keying", () => {
+  it("say the kind and its port, or the text itself for one the page has no words for", () => {
+    expect(keyingLabel("vox")).toBe("The radio keys itself (VOX)");
+    expect(keyingLabel("cm108")).toBe("CM108 sound chip");
+    expect(keyingLabel("rts:/dev/ttyUSB0")).toBe("RTS on /dev/ttyUSB0");
+    expect(keyingLabel("dtr:COM3")).toBe("DTR on COM3");
+    expect(keyingLabel("hamlib:/dev/ttyUSB0")).toBe("hamlib:/dev/ttyUSB0");
   });
 });

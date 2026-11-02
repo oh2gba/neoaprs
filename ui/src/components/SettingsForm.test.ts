@@ -6,7 +6,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapFile, mapState, status, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, status, tncState, toastOf } from "@/test/fixtures";
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
@@ -57,7 +57,7 @@ describe("SettingsForm", () => {
       "Help",
       "About",
     ]);
-    const beacons = ["beacon/", "station/", "status/", "gps/"]; // (the My station tab's)
+    const beacons = ["beacon/", "station/", "status/", "gps/", "hf/"]; // (the My station tab's)
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
       "tcp/port",
@@ -1546,5 +1546,37 @@ describe("the group Encrypted messages", () => {
     await wrapper.find("fieldset.encrypt .info-toggle").trigger("click");
     expect(wrapper.find("fieldset.encrypt .info-text svg").attributes("data-picture")).toBe("encrypt");
     expect(wrapper.findAll("fieldset.encrypt .info-line")).toHaveLength(2);
+  });
+});
+
+describe("the rules of the radio in use", () => {
+  const hf = { kind: "hf" as const, paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 };
+  const onHf = (extra: Record<string, string>, scope: Scope) => make(extra, scope, { tnc: tncState({ rules: hf }) });
+
+  it("takes the Digipeater group off the Settings tab on an HF radio, and changes nothing else there", () => {
+    const legends = (w: ReturnType<typeof make>["wrapper"]) => w.findAll("fieldset legend").map((l) => l.text());
+    const fm = legends(make().wrapper);
+    expect(fm).toContain("Digipeater");
+    expect(legends(onHf({}, "settings").wrapper)).toEqual(fm.filter((l) => l !== "Digipeater"));
+  });
+
+  it("gives the My station tab the HF beacon's interval in place of the usual one, with Off and 15 minutes to 3 hours, and no path fold, no GPS and no Travelling", () => {
+    const { wrapper } = onHf({ "gps/source": "gpsd", "hf/beacon_interval_min": "60" }, "beacon");
+    const select = wrapper.find<HTMLSelectElement>("#set-hf-beacon_interval_min");
+    expect(select.exists()).toBe(true);
+    expect([...select.element.options].map((o) => o.text)).toEqual(["Off", "Every 15 min", "Every 30 min", "Every 60 min", "Every 3 hours"]);
+    expect(select.element.value).toBe("60");
+    for (const id of ["#set-beacon-interval_min", "#set-gps-source", "#set-gps-host", "#set-beacon-travel", "#set-beacon-path"])
+      expect(wrapper.find(id).exists(), id).toBe(false);
+    expect(wrapper.text()).not.toContain("Advanced");
+  });
+
+  it("sends the HF interval as a choice, and keeps the usual beacon, the GPS and the path on the FM radio as before", async () => {
+    const { wrapper, send } = onHf({ "hf/beacon_interval_min": "60" }, "beacon");
+    await wrapper.find<HTMLSelectElement>("#set-hf-beacon_interval_min").setValue("15");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "hf/beacon_interval_min": "15" } });
+    const fm = make({ "gps/source": "gpsd" }, "beacon").wrapper;
+    expect(fm.find("#set-hf-beacon_interval_min").exists()).toBe(false);
+    for (const id of ["#set-beacon-interval_min", "#set-gps-source", "#set-beacon-travel"]) expect(fm.find(id).exists(), id).toBe(true);
   });
 });

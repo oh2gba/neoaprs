@@ -19,6 +19,15 @@ export function soundCardPorts(ports: PortsMessage | null): PortsMessage | null 
   };
 }
 
+/** The words for a keying as the setting (or the daemon's choice) writes it: "RTS on /dev/ttyUSB0", "The radio keys itself (VOX)"; the text itself for one the page has no words for. */
+export function keyingLabel(value: string): string {
+  const [kind, device] = value.split(":", 2);
+  if (kind === "vox") return t("settings.keying.vox");
+  if (kind === "cm108") return t("settings.keying.cm108");
+  if ((kind === "rts" || kind === "dtr") && device) return t(`settings.keying.${kind}`, { port: device });
+  return value;
+}
+
 /** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with). The value in force stays offered when its port is not listed. */
 export function keyingChoices(ports: PortsMessage | null, current = ""): Choice[] {
   const kinds = LIMITS.mercury.pttKinds;

@@ -12,9 +12,12 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, kiss
-from neoaprs.config import DEFAULTS, Config, replace
-from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard
+from neoaprs import ax25, kiss, mercuryfetch
+from dataclasses import replace
+
+from neoaprs.config import DEFAULTS, Config
+from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
+from neoaprs.mercuryfetch import BY_HAND, MercuryFetchError, program_path
 from neoaprs.mercuryhelper import end_stale, find, free_ports, list_sound_cards
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff, Source
@@ -29,13 +32,23 @@ HF: Config = replace(DEFAULTS, tnc_profile="mercury", mercury_keying="rts:/dev/t
 QUICK = Backoff([0.1, 0.1])
 
 
+@pytest.fixture(autouse=True)
+def nothing_is_downloaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A Mercury that is not found is not fetched from the internet by a test: the fetch says what it says on a Mac. (tests/test_mercury_fetch.py has the fetch.)"""
+    def refuse(data_dir: Path) -> list[str]:
+        raise MercuryFetchError(BY_HAND)
+    monkeypatch.setattr(mercuryfetch, "fetch", refuse)
+
+
 @pytest.fixture
 def rig() -> Rigs:
     return Rigs()
 
 
 def modem(tmp_path: Path, program: bool = True) -> Mercury:
-    return Mercury(tmp_path, finder=(fakemercury.program if program else lambda: None), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=(fakemercury.program if program else lambda: None), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []                                                  # (never the operator's serial ports)
+    return m
 
 
 async def stopped(m: Mercury) -> None:
@@ -72,8 +85,8 @@ def test_the_program_is_found_bundled_then_on_the_path_then_in_the_data_folders_
     on_path.write_text("#!/bin/sh\n")
     on_path.chmod(0o755)
     assert find(tmp_path, search_path=str(on_path.parent), bundled=tmp_path / "nobundle") == [str(on_path)]
-    mine = tmp_path / "bin" / name
-    mine.parent.mkdir()
+    mine = program_path(tmp_path / "bin", sys.platform == "win32")
+    mine.parent.mkdir(parents=True)
     mine.write_text("#!/bin/sh\n")
     mine.chmod(0o755)
     assert find(tmp_path, search_path=str(tmp_path / "nowhere"), bundled=tmp_path / "nobundle") == [str(mine)]
@@ -103,6 +116,31 @@ def test_the_sound_cards_come_from_the_program_and_a_program_that_cannot_run_lis
 
 
 # ---- the program's life
+
+async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings_are_empty_and_takes_them_when_set(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)]
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
+    try:
+        await until(lambda: m.state == "running", 5.0)
+        assert (m.sound_card, m.keying) == ("", Keying("rts", "/dev/ttyUSB0")), "the fake program lists a USB Audio CODEC that is the system's default (a computer whose only card is the radio's): Mercury's default device is right, and the one CP2102 port keys it"
+        assert "line = rts" in (tmp_path / INI_FILE).read_text()
+    finally:
+        await m.stop()
+    m.ports = lambda: []
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
+    try:
+        await until(lambda: m.state == "running", 5.0)
+        assert (m.sound_card, m.keying) == ("", Keying("vox")), "no serial port: VOX"
+    finally:
+        await m.stop()
+    await m.start(HF)
+    try:
+        await until(lambda: m.state == "running", 5.0)
+        assert (m.sound_card, m.keying) == ("plughw:1,0", Keying("rts", "/dev/ttyUSB0")), "the settings as they are"
+    finally:
+        await stopped(m)
+
 
 async def test_the_modem_writes_its_configuration_starts_the_program_on_free_ports_and_hears_its_control_port(tmp_path: Path) -> None:
     m = modem(tmp_path)

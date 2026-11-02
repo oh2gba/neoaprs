@@ -45,7 +45,7 @@ from neoaprs.interlock import Interlock
 from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, RETRYABLE, UNCONFIRMED_MAX, MessageRecord, MessagingError, Seal, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame, radio_path
 from neoaprs.services.acks import Acks
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
@@ -301,7 +301,7 @@ class Messaging:
         the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number), is refused with the code `message.too_long_for_radio`: a message is never cut."""
         c = self._config()
         try:
-            frame = our_frame(c, self._paths(to, attempt), info)
+            frame = our_frame(c, radio_path(self._tnc, self._paths(to, attempt)), info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:

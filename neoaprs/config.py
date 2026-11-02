@@ -5,7 +5,7 @@ A value that is wrong falls back to its default and is logged with its key (a ro
 about to write a value: it raises ValueError with the key in the text, or gives the text the way the program writes it."""
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
@@ -15,7 +15,7 @@ from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
-from .mercury import BEACON_FLOOR_SEC as MERCURY_BEACON_FLOOR_SEC
+from .radiorules import HF_BEACON_DEFAULT_MIN, HF_BEACON_MIN_MIN, RadioRules
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
@@ -51,6 +51,7 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "beacon/antenna_height_m": (0, 9999),
     "beacon/antenna_gain_db": (0, 9),
     "beacon/interval_min": (MIN_BEACON_INTERVAL_MIN, 1440),
+    "hf/beacon_interval_min": (HF_BEACON_MIN_MIN, 1440),
     "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
@@ -106,8 +107,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
-    Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the system's default device
-    Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port)
+    Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
+    Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
     Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
@@ -129,6 +130,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: the beacon is off, for a moving station too (any other value is On there, and unused)
+    Setting("hf_beacon_interval_min", "hf/beacon_interval_min", int_or_off(*RANGES["hf/beacon_interval_min"]), HF_BEACON_MIN_MIN),   # the beacon over the HF radio (Mercury): 0 is off, else at least 15 minutes, 60 by default; the VHF beacon's own setting is not touched
     Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
@@ -169,7 +171,7 @@ class Config:
     tcp_host: str = "127.0.0.1"
     tcp_port: int = 8001
     mercury_sound_card: str = ""
-    mercury_keying: str = "vox"
+    mercury_keying: str = ""
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""
@@ -191,6 +193,7 @@ class Config:
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
+    hf_beacon_interval_min: int = HF_BEACON_DEFAULT_MIN
     beacon_path: str = ""
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
@@ -225,11 +228,12 @@ class Config:
 
     @property
     def smart(self) -> SmartSettings:
-        """The SmartBeaconing numbers of the preset that beacon/travel names; over an HF modem, whose frame takes seconds of a shared channel, no oftener than one beacon in MERCURY_BEACON_FLOOR_SEC (the fast rate and the turn time are raised to it)."""
-        preset = PRESETS[self.beacon_travel]
-        if self.profile.transport != "modem":
-            return preset
-        return replace(preset, fast_sec=max(preset.fast_sec, MERCURY_BEACON_FLOOR_SEC), turn_min_sec=max(preset.turn_min_sec, MERCURY_BEACON_FLOOR_SEC))
+        """The SmartBeaconing numbers of the preset that beacon/travel names."""
+        return PRESETS[self.beacon_travel]
+
+    def beacon_interval_of(self, rules: RadioRules) -> int:
+        """The beacon interval of a radio of this kind, in minutes (0: off): the HF radio has its own (`hf/beacon_interval_min`), every other radio `beacon/interval_min`."""
+        return self.hf_beacon_interval_min if rules.kind == "hf" else self.beacon_interval_min
 
     @property
     def station_position(self) -> tuple[float, float] | None:

@@ -28,7 +28,9 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys } = useDaemonContext();
+const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys, tnc } = useDaemonContext();
+/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them there is no route to set. */
+const routable = computed(() => tnc.value?.rules.paths ?? true);
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
@@ -55,7 +57,7 @@ onMounted(() => {
         <template v-else>{{ selected }}</template>
       </h3>
       <RouteMenu
-        v-if="!heard"
+        v-if="!heard && routable"
         :key="selected"
         :call="selected"
         :paths="paths"

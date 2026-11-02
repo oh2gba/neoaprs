@@ -23,7 +23,6 @@ DELIVERY_SEC = 4.5                     # from the frame handed to Mercury to the
 BROADCAST_PORT = 8100                  # Mercury's defaults: the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
 CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports
-BEACON_FLOOR_SEC = 300                 # a moving station beacons no oftener than this over HF (SmartBeaconing's fast rate and turn time are raised to it): on HF the custom is 10 to 30 minutes between reports
 BUSY_HOLD_MAX_SEC = 60.0               # a BUSY that lasts longer than this holds nothing any more: the detector reads a step in the noise as a signal for a minute or two, and traffic must not be stranded by it
 
 # Where the stations meet: dial frequencies, upper sideband, inside the IARU Region 1 digimode segments and in a gap between the known neighbours (the frequencies are proposals until confirmed on the air).
@@ -46,7 +45,7 @@ class Keying:
 
 
 def keying_of(text: str) -> Keying:
-    """The keying the setting names: `vox`, `cm108`, `rts:PORT` or `dtr:PORT`. CodedError for anything else (the code `setting.not_keying`)."""
+    """The keying the setting names: `vox`, `cm108`, `rts:PORT` or `dtr:PORT`. CodedError for anything else (the code `setting.not_keying`); the empty setting, which means the daemon's own choice, is not one."""
     value = text.strip()
     kind, _, device = value.partition(":")
     kind, device = kind.strip().lower(), device.strip()
@@ -134,6 +133,40 @@ def parse_sound_cards(text: str) -> list[SoundCard]:
         default = m.group("default") is not None or "(system route)" in name or "(system default)" in name
         cards[ident] = SoundCard(ident, before.name or name, before.playback or section == "playback", before.capture or section == "capture", before.default or default)
     return list(cards.values())
+
+
+@dataclass(frozen=True)
+class SerialPort:
+    """A serial port as the daemon lists it, the little the choice of a keying line needs."""
+    device: str
+    vid: int | None = None
+    pid: int | None = None
+
+
+_RADIO_CARD = re.compile(r"usb|codec|pnp|digirig|radio|c-media|cm108|texas|pcm290", re.IGNORECASE)      # what a radio's sound card calls itself: a USB codec (the IC-7300's PCM2903 "USB Audio CODEC", a DigiRig's or a dongle's C-Media "USB PnP Sound Device"); the computer's own card is "HDA Intel" or the like
+_RADIO_SERIAL_VID = {0x10C4, 0x0403, 0x067B, 0x1A86}                 # Silicon Labs CP210x (a DigiRig, an IC-7300, an FT-710), FTDI, Prolific and WCH adapters: what a radio's or an interface's serial port is
+_USB_CHIP_VID = {0x0D8C}                                              # C-Media: a CM108 or CM119 sound chip, whose GPIO keys the radio on a DigiRig Lite, an AIOC and the dongles
+
+
+def choose_sound_card(cards: Sequence[SoundCard]) -> str:
+    """The sound card the radio is likely on, as its id, or "" for the system's default device: the one card that is both playback and capture and names itself as a USB codec or a radio's, else the one card besides
+    the system's default that is both, else nothing chosen. A computer with one radio has one such card; with none, Mercury's own default is the system's, which is right for a radio that is the only sound device."""
+    both = [c for c in cards if c.playback and c.capture]
+    radios = [c for c in both if _RADIO_CARD.search(c.name) and not c.default]
+    if len(radios) == 1:
+        return radios[0].id
+    others = [c for c in both if not c.default]
+    return others[0].id if len(others) == 1 and not radios else ""
+
+
+def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
+    """How the radio is likely keyed: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one (a DigiRig keys on RTS of its CP2102; an IC-7300 or an FT-710 with its USB cable keys on
+    RTS when the radio's USB SEND is RTS, which the manuals say to set for digital modes), else VOX, which every radio has and which a SignaLink does by itself. A CM108-class chip could be keyed on its GPIO, but not
+    every dongle wires the pin, so the serial line wins where there is one."""
+    usb = [p for p in ports if p.vid is not None and p.vid in _RADIO_SERIAL_VID and not p.device.lower().startswith(("bt://", "ble://"))]
+    if _RADIO_CARD.search(card_name or "") and len(usb) == 1:
+        return Keying("rts", usb[0].device)
+    return Keying("vox")
 
 
 # ---- the control port (CR-terminated lines, as VARA's)

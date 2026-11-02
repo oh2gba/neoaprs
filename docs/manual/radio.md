@@ -77,12 +77,14 @@ The type **Dummy (no radio, made-up traffic)**, the last in the list of **Radio 
 
 The type **Mercury HF modem (sound card, SSB radio)** is APRS over HF with the Mercury modem, a separate program that NeoAPRS starts and stops itself. How to install it and the rules of the air are in [`docs/RADIOS.md`](../RADIOS.md#mercury-hf-modem). The type has two settings of its own, behind the arrow of the Radio group, and no port, speed or host.
 
-- **Sound card** is the radio's: the list is what Mercury finds, with *system default* first; **Refresh** reads it again, and *Other...* takes an id typed. Empty is the system's default device.
-- **Keying** is how the radio is switched to transmit: by itself (VOX, or its data mode), by a CM108 sound chip, or by the RTS or DTR line of one of the serial ports the system lists.
+- **Sound card** is the radio's. *Find automatically*, the first choice, lets NeoAPRS pick it (the one USB sound card that records and plays, else the system's default device) and says beside the field which it chose; the list is what Mercury finds, **Refresh** reads it again, and *Other...* takes an id typed.
+- **Keying** is how the radio is switched to transmit. *Find automatically* picks RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX, and says so beside the field; or choose VOX, a CM108 sound chip, or the RTS or DTR line of one of the serial ports the system lists.
 - The mode and the frequencies are not settings: every NeoAPRS station is on the same mode, and the frequencies are in the radios guide.
-- The radio status says what the modem does: *Transmitting…* while a frame is on the air, *Channel busy, waiting* while the modem hears a signal, else the last packet as for any radio. When Mercury is not installed or has stopped, the status says so.
-- A message longer than the modem's frame carries is refused with the reason and how much to shorten it; a beacon's comment is cut to fit, with a line in the log. A moving station beacons no oftener than every 5 minutes.
-- In the setup guide the type needs nothing more; the sound card and the keying keep their defaults until you set them in the Settings tab.
+- The beacon over HF has an interval of its own in the My station tab (Off, or every 15, 30 or 60 minutes or every 3 hours; an hour by default), shown in place of the usual one while the HF radio is the radio. It is the timed beacon of a fixed station: the GPS and Travelling do not apply over HF.
+- Every frame goes direct: there are no digipeaters on HF, so no path is sent, the path and RF only controls of the beacon, a conversation, Ask around and Local info are not shown, and the Digipeater group is not there. The path settings are kept for VHF.
+- The radio status says what the modem does: *Transmitting…* while a frame is on the air, *Channel busy, waiting* while the modem hears a signal, else the last packet as for any radio. When Mercury is being fetched or has stopped, the status says so.
+- A beacon's comment is cut to the modem's frame when it would not fit, with a line in the log; the longest message always fits.
+- In the setup guide the type needs nothing more.
 
 ## The TNC type
 

@@ -14,7 +14,9 @@ import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
 import { GENERAL_KINDS, askLines, generalWait, queryOf } from "@/lib/askaround";
 
-const { general, receiveOnly, send, lastError, now, fallbackPath } = useDaemonContext();
+const { general, receiveOnly, send, lastError, now, fallbackPath, tnc } = useDaemonContext();
+/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them the request has no path or RF only to set. */
+const routable = computed(() => tnc.value?.rules.paths ?? true);
 const kind = usePersisted("ask.kind", GENERAL_KINDS[0] ?? "aprs", GENERAL_KINDS);
 const request = useRequestPath("ask");
 const { path, rfOnly, problem } = request;
@@ -57,7 +59,7 @@ function ask(): void {
         {{ t("nearby.ask_button") }}
       </button>
     </div>
-    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :usual="fallbackPath" :problem="problem" />
+    <RequestPath v-if="routable" v-model:path="path" v-model:rf-only="rfOnly" :usual="fallbackPath" :problem="problem" />
     <p class="ask-line" :class="lines.refused ? 'warn' : 'muted'" :title="lines.title || undefined">{{ lines.line }}</p>
     <p class="ask-line muted" :title="lines.countTitle || undefined">{{ lines.count }}</p>
   </fieldset>

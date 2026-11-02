@@ -74,6 +74,7 @@ export const CONFIG_KEYS = [
   "web/port",
   "web/allowed_hosts",
   "beacon/interval_min",
+  "hf/beacon_interval_min",
   "beacon/path",
   "messages/alert",
   "messages/alert_command",
@@ -319,6 +320,7 @@ export const LIMITS = {
     "beacon/antenna_height_m": { min: 0, max: 9999 },
     "beacon/antenna_gain_db": { min: 0, max: 9 },
     "beacon/interval_min": { min: 20, max: 1440 },
+    "hf/beacon_interval_min": { min: 15, max: 1440 },
     "status/interval_min": { min: 15, max: 1440 },
     "map/radius_km": { min: 10, max: 1000 },
     "map/maxzoom": { min: 6, max: 15 },
@@ -328,7 +330,7 @@ export const LIMITS = {
   },
   comment: { max: 43, maxWithPhg: 36 },
   status: { max: 55 },
-  interval: { beaconMinMin: 20, statusMinMin: 15 },
+  interval: { beaconMinMin: 20, statusMinMin: 15, hfBeaconMinMin: 15, hfBeaconDefaultMin: 60 },
   message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2", lockedMax: 34 },
   call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },
   path: { maxCalls: 8, direct: "DIRECT", rfOnly: "RFONLY", textMax: 256, recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
@@ -345,7 +347,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
-  mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.9, beaconFloorSec: 300, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
+  mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.9, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

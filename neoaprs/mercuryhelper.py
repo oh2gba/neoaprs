@@ -1,6 +1,7 @@
 """The Mercury program as a child of the daemon: where it is, the ports it is given, how it is started and watched, how it is stopped, and the list of its sound cards.
 
-Mercury is one program, found bundled in the `bin/` folder next to a frozen program (the Windows app), on the PATH (the Debian package puts it in /usr/bin) or in the `bin/` folder of the data folder; it is not fetched.
+Mercury is one program, found bundled in the `bin/` folder next to a frozen program (the Windows app), on the PATH (the Debian package puts it in /usr/bin) or in the `bin/` folder of the data folder, where
+mercuryfetch.py puts the release it fetches when there is none of these.
 It is started with `subprocess.Popen` and read by a thread, as the serial line is: the daemon's loop may be the one Tornado forces on Windows, which cannot start subprocesses of its own, and what the program prints goes
 to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner (mercurymodem.py) can start it again. Two
 NeoAPRS on one computer, or a Mercury that something else runs, must not fight over the ports: `free_ports` finds the first pair (the broadcast port and the control port 200 above it) that is free, from the defaults
@@ -20,6 +21,7 @@ from pathlib import Path
 
 from .childenv import child_environment
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard, parse_sound_cards
+from .mercuryfetch import program_path
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -44,7 +46,7 @@ def bundled_dir() -> Path | None:
 
 
 def find(data_dir: Path, search_path: str | None = None, bundled: Path | None = None) -> Command | None:
-    """The Mercury program bundled with a frozen program, else on the PATH (or in `search_path`), else in the `bin/` folder of the data folder; None when there is none."""
+    """The Mercury program bundled with a frozen program, else on the PATH (or in `search_path`), else in the `bin/` folder of the data folder (on Windows the folder of the fetched release, with the DLLs beside the exe); None when there is none."""
     name = program_file()
     bundled = bundled if bundled is not None else bundled_dir()
     if bundled is not None and (bundled / name).is_file():
@@ -52,7 +54,7 @@ def find(data_dir: Path, search_path: str | None = None, bundled: Path | None = 
     on_path = shutil.which(name, path=search_path)
     if on_path:
         return [on_path]
-    mine = data_dir / "bin" / name
+    mine = program_path(data_dir / "bin", name.endswith(".exe"))
     return [str(mine)] if mine.is_file() and os.access(mine, os.X_OK) else None
 
 

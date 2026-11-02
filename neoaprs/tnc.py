@@ -31,6 +31,7 @@ from .dummyline import DUMMY_PATH, DummyPort
 from .interlock import Interlock
 from .mercury import too_long
 from .packet import Packet
+from .radiorules import RadioRules
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
 from .serialport import SerialError, is_socket
@@ -227,6 +228,11 @@ class Tnc(TimedSource):
         """Why the modem wants no frame now ("" when it takes one): it is transmitting, or the channel is busy."""
         modem = self._modem()
         return modem.hold() if modem is not None else ""
+
+    @property
+    def rules(self) -> RadioRules:
+        """What the kind of radio allows and does (radiorules.py), the profile's."""
+        return self.profile.rules
 
     @property
     def max_frame(self) -> int | None:

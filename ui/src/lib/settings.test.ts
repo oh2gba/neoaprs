@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, shownFor, storedFor, valueFor } from "@/lib/settings";
+import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, storedFor, valueFor } from "@/lib/settings";
+import { shownByRules, shownFor } from "@/lib/settingsradio";
 import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
+import type { RadioRulesState } from "@/protocol/protocol";
 
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
@@ -43,6 +45,7 @@ describe("groupKeys", () => {
     ]);
     expect(groups[1]?.keys).toEqual([
       "beacon/interval_min",
+      "hf/beacon_interval_min",
       "beacon/travel",
       "station/comment",
       "beacon/power_w",
@@ -307,6 +310,32 @@ describe("shownFor in the TNC group", () => {
   it("shows only the sound card and the keying for the Mercury HF modem, and nothing of them for the Dummy", () => {
     expect(shown("mercury")).toEqual(["mercury/sound_card", "mercury/keying"]);
     expect(shown("dummy")).toEqual([]);
+  });
+});
+
+describe("shownByRules", () => {
+  const fm = { kind: "fm" as const, paths: true, digipeat: true, smart_beacon: true, beacon_min_min: 20 };
+  const hf = { kind: "hf" as const, paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 };
+  const keys = [
+    "beacon/interval_min",
+    "hf/beacon_interval_min",
+    "beacon/path",
+    "digi/enabled",
+    "gps/source",
+    "gps/host",
+    "gps/device",
+    "gps/baud",
+    "beacon/travel",
+    "station/comment",
+    "tnc/profile",
+  ];
+  const shown = (rules: RadioRulesState | null) => keys.filter((k) => shownByRules(k, rules));
+  it("leaves out the HF beacon's interval and nothing else before the daemon has said its rules, and on the FM radio", () => {
+    expect(shown(null)).toEqual(keys.filter((k) => k !== "hf/beacon_interval_min"));
+    expect(shown(fm)).toEqual(keys.filter((k) => k !== "hf/beacon_interval_min"));
+  });
+  it("leaves out the path, the digipeater, the moving station's keys and the usual beacon interval on the HF radio, where the HF interval is the beacon's", () => {
+    expect(shown(hf)).toEqual(["hf/beacon_interval_min", "station/comment", "tnc/profile"]);
   });
 });
 

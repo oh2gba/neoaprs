@@ -27,6 +27,15 @@ export const beaconChoices = (): readonly Choice[] => [
   { value: "180", label: t("settings.every_hours", { n: 3 }) },
 ];
 
+/** The HF beacon's choices (the Mercury HF modem): off, or every 15, 30 or 60 minutes or every 3 hours (15 is the least the daemon takes over HF, 60 its default). */
+export const hfBeaconChoices = (): readonly Choice[] => [
+  { value: "0", label: t("settings.beacon_interval.off") },
+  { value: "15", label: every(15) },
+  { value: "30", label: every(30) },
+  { value: "60", label: every(60) },
+  { value: "180", label: t("settings.every_hours", { n: 3 }) },
+];
+
 /** How long a station stays on the map: 1 h, 3 h, 6 h, 12 h or 24 h (the Stations tab offers them). */
 export const stationHoursChoices = (): readonly Choice[] =>
   STATION_HOURS.map((hours) => ({ value: String(hours), label: t("station.table.hours", { n: hours }) }));

@@ -16,6 +16,8 @@ A first transmission on the air is not tried by NeoAPRS's tests, which never ope
 
 The **Beacon** choice is the one control that switches the beacon on and off. A fixed station chooses **Off**, **Every 30 min**, **Every 60 min** or **Every 3 hours**; a moving station (a GPS is chosen) chooses **Off** or **On (SmartBeaconing)**. The setting is `beacon/interval_min`, where 0 is off for both kinds of station. The default is off, so an upgrade never starts to transmit, and the setup guide gives a new station a beacon every 30 minutes.
 
+With the Mercury HF modem as the radio the choice is the HF beacon's instead (`hf/beacon_interval_min`: **Off**, **Every 15 min**, **Every 30 min**, **Every 60 min** or **Every 3 hours**, an hour by default), the beacon of a fixed station whatever the Position says, and the VHF setting is kept ([the Mercury HF modem](radio.md#the-mercury-hf-modem)).
+
 While the beacon is **Off**:
 
 * **No automatic beacon goes out.** There is no timer and no SmartBeaconing. **Beacon now** still sends, and so does **Send status now**, each with its usual second press: Off is no automatic beacon, not a lock.

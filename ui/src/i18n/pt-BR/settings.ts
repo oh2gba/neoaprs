@@ -124,8 +124,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.sound_card.label": "Placa de som",
   "settings.sound_card.tip_label": "Sobre a placa de som",
   "settings.sound_card.tip1": "A placa de som por onde passa o áudio do rádio: um codec USB, um DigiRig ou o áudio USB do próprio rádio.",
-  "settings.sound_card.tip2": "Padrão do sistema é o dispositivo pelo qual o sistema reproduz. Atualizar lê a lista de novo.",
-  "settings.sound_card.default": "padrão do sistema",
+  "settings.sound_card.tip2": "Encontrar automaticamente escolhe a única placa de som USB que grava e reproduz; Atualizar lê a lista de novo.",
   "settings.sound_card.id_label": "Id da placa de som",
   "settings.keying.label": "Chaveamento",
   "settings.keying.tip_label": "Sobre o chaveamento",
@@ -258,6 +257,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip2": "30 minutos servem para uma estação que fica parada.",
   "settings.beacon_interval.tip_moving":
     "Ligado: o SmartBeaconing envia a posição GPS, mais vezes quanto mais rápido você vai e em cada curva. Desligado: sem beacon automático.",
+  "settings.hf_beacon.tip1":
+    "Com que frequência sua posição sai pelo rádio de HF: no máximo a cada {min} min. Desligado: sem beacon automático; Beacon agora ainda envia.",
+  "settings.hf_beacon.tip2": "Uma hora cai bem em HF: um quadro ocupa 4 segundos de um canal que todas as estações compartilham.",
   "settings.path.name": "Caminho do beacon",
   "settings.path.label": "Caminho",
   "settings.path.recommended": "Recomendado ({path})",

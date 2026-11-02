@@ -6,7 +6,7 @@ set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`
 A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
-The beacon is off while `beacon/interval_min` is 0 (`Config.beacon_on`), for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
+The interval is the radio's (`Config.beacon_interval_of`: `beacon/interval_min` on the FM radio, `hf/beacon_interval_min` over the HF modem, whose rules also add a random pause after each interval and leave a moving station fixed: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
 The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -16,6 +16,8 @@ off at night), is not skipped: `next_due` stays where it was, in the past (told 
 is settling after KISS ON is not usable either, and the beacon waits for it quietly. A frame the Tnc refuses (the write failed) is tried again `retry_sec` later, `ATTEMPTS` times in all; then the interval counts as skipped, and the next is the first interval boundary after now.
 """
 import logging
+from collections.abc import Callable
+import random
 import math
 import re
 from datetime import datetime, timedelta
@@ -29,7 +31,7 @@ from neoaprs.configstatus import MAX_STATUS
 from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, fixed_prefix, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, fixed_prefix, our_frame, radio_path
 from neoaprs.services.memory import Memory, Remembered, stamp
 from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
 from neoaprs.signal import Signal
@@ -95,6 +97,7 @@ class Beacon:
         self._planned_min = 0                                   # the interval next_due was planned for
         self._planned_mobile = False                            # whether it was planned for a mobile station
         self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page
+        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)       # the random pause of an HF beacon, in seconds, drawn up to `most` (a test gives its own)
         self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")  # the frame of every beacon that went out on the radio (the iGate puts a moving station's position on APRS-IS with it)
         self._no_fix_told = False
         self._skip_told = False
@@ -130,7 +133,7 @@ class Beacon:
 
     def _position(self, c: Config) -> tuple[bytes, Fix | None]:
         """The information field of the position packet and the fix it was made from (None for a station that stays where it is)."""
-        if c.mobile:
+        if self._mobile(c):
             return self._mobile_info(c)
         if problem := c.comment_problem():
             raise BeaconError(problem)
@@ -187,7 +190,7 @@ class Beacon:
         if len(info) > ax25.MAX_INFO:
             raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
-            frame = our_frame(c, c.beacon_path_calls, info)
+            frame = our_frame(c, radio_path(self._tnc, c.beacon_path_calls), info)
             fitted = fit_frame(frame, self._tnc.max_frame)
         except FRAME_ERRORS as e:
             raise BeaconError(str(e)) from None
@@ -245,25 +248,34 @@ class Beacon:
 
     def settings_changed(self) -> None:
         """The settings were saved: a changed interval, or a switch between a fixed and a mobile station, is planned from now on, at once; 0 (Off) stops the timer of a fixed one and SmartBeaconing of a mobile one. Any other change leaves the time of the next beacon alone."""
-        if self._started is not None and (self.interval_min != self._planned_min or self._config().mobile != self._planned_mobile):
+        if self._started is not None and (self.interval_min != self._planned_min or self._mobile(self._config()) != self._planned_mobile):
             self._plan(self.interval_min)
 
     @property
     def interval_min(self) -> int:
-        return self._config().beacon_interval_min
+        return self._config().beacon_interval_of(self._tnc.rules)
+
+    def _mobile(self, c: Config) -> bool:
+        """Whether the beacon follows the GPS: a moving station on a radio that has SmartBeaconing (FM); on HF the station is fixed whatever the GPS source says."""
+        return c.mobile and self._tnc.rules.smart_beacon
+
+    def _pause(self) -> timedelta:
+        """The random pause after an interval, where the radio has one (HF, radiorules.py says why); none elsewhere."""
+        most = self._tnc.rules.beacon_jitter_sec
+        return timedelta(seconds=self.jitter(most)) if most > 0 else timedelta()
 
     def _plan(self, interval_min: int) -> None:
         """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
         `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick."""
-        mobile = self._config().mobile
+        mobile = self._mobile(self._config())
         self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
         if self._started is None or interval_min == 0 or mobile:
             self.next_due = None
         elif self.last_sent is not None:
-            self.next_due = self.last_sent + timedelta(minutes=interval_min)
+            self.next_due = self.last_sent + timedelta(minutes=interval_min) + self._pause()
         elif self._earlier is not None and self._earlier + timedelta(minutes=interval_min) > self._started:
-            self.next_due = self._earlier + timedelta(minutes=interval_min)
+            self.next_due = self._earlier + timedelta(minutes=interval_min) + self._pause()
         else:
             self.next_due = self._started + timedelta(seconds=self.first_delay_sec)
 
@@ -271,16 +283,16 @@ class Beacon:
         if fix is not None:
             self.next_due = self.mobile.check(self._config().smart, fix, self.clock()).next_due
         elif self._started is not None and self._planned_min:
-            self.next_due = self.clock() + timedelta(minutes=self._planned_min)
+            self.next_due = self.clock() + timedelta(minutes=self._planned_min) + self._pause()
 
     async def _run(self) -> None:
         await every(self.tick_sec, self._tick, "the beacon ticker")
 
     def _due_reason(self, now: datetime) -> str | None:
         """Why a beacon is due now (`interval`, or for a mobile station what SmartBeaconing says), None when none is."""
-        if not self._config().beacon_on:
+        if self.interval_min == 0:
             return None
-        if self._config().mobile:
+        if self._mobile(self._config()):
             return self._mobile_reason(now)
         return "interval" if self.next_due is not None and now >= self.next_due else None
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The bench of APRS over the Mercury HF modem with no radio: two real Mercury instances cross-wired through named pipes (its `fifo` audio backend: what one plays the other hears), two NeoAPRS daemons on data folders of their
-own, each with the Mercury radio type and attached to its own Mercury, and the exchange between them driven through the pages' sockets: a beacon of A heard by B, a message from A acked by B with the time it took, and a message
-too long for the frame refused by the daemon with its reason. Nothing is keyed, nothing leaves the loopback. For a developer, by hand; Mercury has to be installed (`mercury` on the PATH, or `--mercury PATH`).
+own, each with the Mercury radio type and attached to its own Mercury, and the exchange between them driven through the pages' sockets: a beacon of A heard by B (direct, whatever A's path setting says), a message from A
+acked by B with the time it took, and the longest message there is acked too (over HF every message fits the frame). Nothing is keyed, nothing leaves the loopback. For a developer, by hand; Mercury has to be installed (`mercury` on the PATH, or `--mercury PATH`).
 
   scripts/mercury-bench                 run it: a table of what happened and the times, exit 0 when every step passed
   scripts/mercury-bench --keep          keep the folders (the daemons' logs, Mercury's output) and say where they are
@@ -207,9 +207,8 @@ async def exchange(a: Page, b: Page, seconds: float) -> list[tuple[str, str]]:
     rows.append(("A's message acked by B (a frame each way)", f"{took:.1f} s"))
     await b.until("B's modem counting its frame", lambda: int(b.modem().get("frames_keyed") or 0) >= 1, 5.0)        # (B's topics are read only while something of B is waited for)
     await a.send({"cmd": "send_message", "to": "OH2B", "text": LONG_TEXT})
-    await a.until("the refusal of the long message", lambda: any(e.get("code") == "message.too_long_for_radio" for e in a.errors), seconds)
-    refusal = next(e for e in a.errors if e.get("code") == "message.too_long_for_radio")
-    rows.append(("a message too long for the frame refused by the daemon", f"{refusal['params']['length']} bytes, the radio carries {refusal['params']['max']}"))
+    took = await a.until("the ack of the longest message", lambda: sum(1 for m in (a.topics.get("messages") or {}).values() if m.get("direction") == "out" and m.get("state") == "acked") == 2, seconds)
+    rows.append(("the longest message (67 characters) acked: direct, it fits the frame", f"{took:.1f} s"))
     rows.append(("frames A keyed / B keyed", f"{a.modem().get('frames_keyed')} / {b.modem().get('frames_keyed')}"))
     rows.append(("SNR B heard A with / A heard B with", f"{b.modem().get('snr')} / {a.modem().get('snr')} dB"))
     return rows
@@ -242,8 +241,8 @@ def run(args: argparse.Namespace) -> int:
             pacer.start()
         say(f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second")
         data_a, data_b = folder / "a", folder / "b"
-        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "mercury", "beacon/path": "WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1"})       # (a path, so that a 67-character message is over the frame)
-        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "tnc/profile": "mercury", "beacon/path": "DIRECT"})
+        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "mercury", "hf/beacon_interval_min": "0", "beacon/path": "WIDE1-1,WIDE2-1"})       # (a path setting, to see it ignored over HF; no timed beacon: the bench sends its own)
+        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "tnc/profile": "mercury", "hf/beacon_interval_min": "0"})
         daemons = [start_daemon(data_a, A_PORTS), start_daemon(data_b, B_PORTS)]
         processes += [("daemon A", daemons[0]), ("daemon B", daemons[1])]
         bases = [wait_for_page(daemons[0], data_a, args.timeout), wait_for_page(daemons[1], data_b, args.timeout)]

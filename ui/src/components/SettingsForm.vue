@@ -39,7 +39,8 @@ import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
-import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, shownFor, storedFor, valueFor, type Scope } from "@/lib/settings";
+import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
+import { shownByRules, shownFor } from "@/lib/settingsradio";
 import { statusSource } from "@/lib/status";
 import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
@@ -99,8 +100,11 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       shownFor(key, profile.value, network.value) &&
+      shownByRules(key, tnc.value?.rules ?? null) &&
       shownByValues(key, draft),
   );
+/** The groups with something to show: a group whose every key the radio's rules leave out (the Digipeater group on an HF radio) is not drawn. */
+const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || shown(group.keys).length > 0));
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
 function editSymbol(text: string): void {
@@ -145,7 +149,7 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <fieldset v-for="group in groups" :key="group.id">
+    <fieldset v-for="group in drawn" :key="group.id">
       <legend>{{ group.title }}</legend>
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>

@@ -149,11 +149,44 @@ describe("the Mercury HF modem in the Radio group", () => {
     for (const id of ["#set-mercury-sound_card", "#set-mercury-keying"]) expect(fold(group).find(id).exists(), id).toBe(true);
     for (const id of ["#set-serial-port", "#set-serial-baud", "#set-tcp-host", "#set-tcp-port"]) expect(group.find(id).exists(), id).toBe(false);
     const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
-    expect([...card.element.options].map((o) => o.text)).toEqual(["system default", "plughw:1,0 - USB Audio CODEC", "plughw:0,0 - HDA Intel PCH", "Other..."]);
+    expect([...card.element.options].map((o) => o.text)).toEqual([
+      "find automatically",
+      "plughw:1,0 - USB Audio CODEC",
+      "plughw:0,0 - HDA Intel PCH",
+      "Other...",
+    ]);
     expect(card.element.value).toBe("");
     const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
-    expect([...keying.element.options].map((o) => o.value)).toEqual(["vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
+    expect([...keying.element.options].map((o) => o.value)).toEqual(["", "vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
     expect(keying.element.value).toBe("vox");
+  });
+
+  it("offers find automatically first for both, and says beside each what the daemon chose while the setting is empty", () => {
+    const modem = {
+      state: "running" as const,
+      problem: "",
+      mode: "DATAC3",
+      keyed: false,
+      busy: false,
+      snr: null,
+      frames_keyed: 0,
+      max_frame: 123,
+      sound_card: "plughw:1,0",
+      keying: "rts:/dev/ttyUSB0",
+    };
+    const { group } = make({ ports: cards(), tnc: tncState({ modem }) }, { "tnc/profile": "mercury", "mercury/sound_card": "", "mercury/keying": "" });
+    const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
+    expect([...card.element.options].map((o) => o.text)[0]).toBe("find automatically");
+    expect(card.element.value).toBe("");
+    const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
+    expect([...keying.element.options].map((o) => o.text)[0]).toBe("find automatically");
+    expect(keying.element.value).toBe("");
+    expect(group.findAll(".port-found").map((e) => e.text())).toEqual(["found: plughw:1,0", "found: RTS on /dev/ttyUSB0"]);
+    const chosen = make(
+      { ports: cards(), tnc: tncState({ modem }) },
+      { "tnc/profile": "mercury", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" },
+    );
+    expect(chosen.group.findAll(".port-found")).toHaveLength(0);
   });
 
   it("is not there for the other types", () => {

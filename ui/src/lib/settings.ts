@@ -14,6 +14,7 @@ import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
+  hfBeaconChoices,
   directionChoices,
   every,
   MOVING_BEACON_ON,
@@ -24,7 +25,6 @@ import {
   type Choice,
 } from "@/lib/settingchoices";
 import { STATUS_CHOICES, statusShown, statusSource } from "@/lib/status";
-import { profileOf } from "@/lib/tncprofile";
 import { CONFIG_KEYS, LIMITS, TNC_PROFILES } from "@/protocol/lists";
 
 type FieldKind = "text" | "bool" | "readonly" | "choice" | "password" | "call";
@@ -255,6 +255,14 @@ const SPECS: Record<string, FieldSpec> = {
     label: "settings.status_template.label",
     tip: [["settings.status_template.tip1", { max: LIMITS.status.max }], "settings.status_template.tip2"],
   },
+  "hf/beacon_interval_min": {
+    name: "settings.beacon_interval.name",
+    label: "settings.beacon_interval.label",
+    kind: "choice",
+    choices: hfBeaconChoices,
+    other: (value) => every(value),
+    tip: [["settings.hf_beacon.tip1", { min: LIMITS.interval.hfBeaconMinMin }], "settings.hf_beacon.tip2"],
+  },
   "beacon/interval_min": {
     name: "settings.beacon_interval.name",
     label: "settings.beacon_interval.label",
@@ -346,7 +354,7 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
   { id: "map", title: "settings.group.map", prefixes: ["map/"] },
   { id: "digi", title: "settings.group.digi", prefixes: ["digi/"] },
-  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment"] },
+  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment", "hf/beacon_interval_min"] },
   { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 
@@ -398,21 +406,6 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
 
 /** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
 export const reasonOf: (error: Failure) => string = errorReason;
-
-const SERIAL_ONLY = ["serial/port", "serial/baud"];
-
-/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one; the access key while the daemon lets the network in (`network`) and has made one.
- * The port the search found last is no field: the port's own control says it. */
-export function shownFor(key: string, profileKey: string | undefined, network = true): boolean {
-  if (key === "web/key" || key === "web/https") return network;
-  if (key === "serial/last_port") return false;
-  const profile = profileOf(profileKey);
-  if (!profile) return true;
-  if (key.startsWith("tcp/")) return profile.transport === "tcp";
-  if (key.startsWith("mercury/")) return profile.transport === "modem";
-  if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
-  return true;
-}
 
 /** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own. */
 export function fieldFor(key: string, values: Readonly<Record<string, string>>): FieldInfo {

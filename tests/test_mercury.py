@@ -1,7 +1,10 @@
 """What NeoAPRS knows of the Mercury HF modem without running it (neoaprs/mercury.py, the profile, the settings): the one mode and its frame, the frame cap on what the daemon sends (the beacon's comment cut, a message refused with
 a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor."""
 import logging
+import random
 from dataclasses import replace
+from datetime import timedelta
+from itertools import combinations
 from pathlib import Path
 
 import pytest
@@ -9,6 +12,7 @@ import pytest
 from neoaprs import ax25, mercury
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.message import MessagingError
+from neoaprs.radiorules import FM, HF
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.common import fit_frame, fixed_prefix, our_frame
 from neoaprs.services.sender import SendError, Sender
@@ -18,7 +22,7 @@ from tests.support.env import ON_AIR
 from tests.support.stubtnc import StubTnc
 from tests.test_messaging import started_rig
 
-HF: Config = replace(ON_AIR, tnc_profile="mercury", beacon_path="DIRECT")
+HF_CONFIG: Config = replace(ON_AIR, tnc_profile="mercury", beacon_path="DIRECT")
 
 
 # ---- the mode and the frame
@@ -48,7 +52,7 @@ def test_the_overflow_is_what_the_modem_would_cut_off() -> None:
 # ---- the frame cap on what we send
 
 def frame_of(info: bytes, path: tuple[str, ...] = ()) -> ax25.Frame:
-    return our_frame(HF, path, info)
+    return our_frame(HF_CONFIG, path, info)
 
 
 def test_the_fixed_part_of_a_report_is_never_cut_the_comment_is() -> None:
@@ -76,8 +80,8 @@ def test_a_frame_that_fits_or_has_no_limit_is_left_as_it_is_and_a_long_comment_i
 
 
 def test_the_beacon_cuts_its_comment_to_the_radios_frame_and_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
-    tnc = StubTnc(max_frame=123)
-    long = replace(HF, station_comment="A comment as long as the settings allow, 43", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1,WIDE5-1,WIDE6-1,WIDE7-1")
+    tnc = StubTnc(max_frame=123, rules=replace(HF, paths=True))         # (a radio with a frame cap that carries paths: over HF itself no path goes, and a beacon with its 43-character comment is 86 bytes at most, under the cap)
+    long = replace(HF_CONFIG, station_comment="A comment as long as the settings allow, 43", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1,WIDE5-1,WIDE6-1,WIDE7-1")
     beacon = Beacon(tnc, lambda: long, FixedClock())
     frame = beacon.frame()
     assert len(ax25.encode(frame)) == 123 and frame.info == b"=6010.20N/02456.40E-A comment as long as the settings allo"
@@ -88,7 +92,7 @@ def test_the_beacon_cuts_its_comment_to_the_radios_frame_and_says_so_once(caplog
 
 
 def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> None:
-    sender = Sender(StubTnc(max_frame=123), lambda: HF, FixedClock())
+    sender = Sender(StubTnc(max_frame=123), lambda: HF_CONFIG, FixedClock())
     info = b";LEADER   *092345z6012.00N/02456.00E>090/020 " + b"c" * 70
     frame = sender.frame(info, ())
     assert len(ax25.encode(frame)) == 123 and frame.info.startswith(info[:44])
@@ -97,7 +101,7 @@ def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> 
 
 
 async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and_a_message_that_fits_goes(tmp_path: Path) -> None:
-    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123), tnc_profile="mercury", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rules=replace(HF, paths=True)), tnc_profile="mercury", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
     sent = await rig.m.send("OH2RDG", "Hello Pekka")
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:
@@ -130,11 +134,12 @@ def test_the_keying_is_read_from_the_setting_and_written_back_the_same() -> None
 
 
 def test_the_settings_keep_the_sound_card_and_the_keying_and_refuse_a_keying_that_is_none() -> None:
-    assert DEFAULTS.mercury_sound_card == "" and DEFAULTS.mercury_keying == "vox"
+    assert DEFAULTS.mercury_sound_card == "" and DEFAULTS.mercury_keying == "", "empty: the daemon chooses"
+    assert Config.check("mercury/keying", "  ") == "" and Config.check("mercury/keying", "vox") == "vox"
     assert Config.check("mercury/keying", " rts:/dev/ttyUSB0 ") == "rts:/dev/ttyUSB0" and Config.check("mercury/sound_card", " plughw:1,0 ") == "plughw:1,0"
     with pytest.raises(ValueError, match="mercury/keying.*not a way of keying"):
         Config.check("mercury/keying", "ptt")
-    assert Config.from_data({"mercury/keying": "nonsense"}).mercury_keying == "vox", "a row edited by hand falls back to the default"
+    assert Config.from_data({"mercury/keying": "nonsense"}).mercury_keying == "", "a row edited by hand falls back to the default: the daemon's choice"
     with pytest.raises(ValueError, match="not to the serial port /dev/ttyUSB0"):
         Config.checked(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), {"tnc/profile": "mercury"})
     assert Config.checked(DEFAULTS, {"tnc/profile": "mercury", "serial/port": "tcp://127.0.0.1:8100"}).profile is MERCURY, "a Mercury something else runs"
@@ -152,6 +157,32 @@ def test_the_configuration_switches_the_busy_detector_on_names_the_line_and_keep
     text = mercury.ini_text(mercury.Keying("dtr", "COM3"))
     assert "[channel]\nbusy_detect = true" in text and "[store]\nenabled = false" in text and "line = dtr" in text and "keepalive_s = 10" in text
     assert "line = rts" in mercury.ini_text(mercury.Keying("vox")) and "line = rts" in mercury.ini_text(mercury.Keying("rts", "/dev/ttyUSB0"))
+
+
+# ---- the daemon's own choice of the sound card and the keying
+
+CARDS = [mercury.SoundCard("plughw:0,0", "HDA Intel PCH", True, True, True), mercury.SoundCard("plughw:1,0", "USB Audio CODEC", True, True, False), mercury.SoundCard("plughw:2,0", "HDMI", True, False, False)]
+PORTS = [mercury.SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60), mercury.SerialPort("/dev/ttyS0", None, None), mercury.SerialPort("bt://AA:BB:CC:DD:EE:01", None, None)]
+
+
+def test_the_sound_card_chosen_is_the_one_usb_card_that_records_and_plays_else_the_systems_default() -> None:
+    assert mercury.choose_sound_card(CARDS) == "plughw:1,0", "an IC-7300's codec beside the computer's own card"
+    assert mercury.choose_sound_card([CARDS[0], CARDS[2]]) == "", "no radio card: the system's default device, as Mercury takes it"
+    assert mercury.choose_sound_card([]) == ""
+    assert mercury.choose_sound_card([CARDS[0], mercury.SoundCard("plughw:1,0", "USB PnP Sound Device", True, True, False), mercury.SoundCard("plughw:3,0", "USB Audio Device", True, True, False)]) == "", "two USB cards: nobody can tell, the operator picks"
+    assert mercury.choose_sound_card([CARDS[0], mercury.SoundCard("plughw:1,0", "Something Else", True, True, False)]) == "plughw:1,0", "the one card besides the default that does both"
+    assert mercury.choose_sound_card([mercury.SoundCard("plughw:1,0", "USB Audio CODEC", True, True, True)]) == "", "a radio's card that is the default already is Mercury's default too"
+
+
+def test_the_keying_chosen_is_rts_of_the_one_usb_serial_port_with_a_usb_sound_card_else_vox() -> None:
+    assert mercury.choose_keying("USB Audio CODEC", PORTS) == mercury.Keying("rts", "/dev/ttyUSB0"), "an IC-7300 or a DigiRig: a CP2102 beside the codec"
+    assert mercury.choose_keying("USB Audio CODEC", []) == mercury.Keying("vox"), "no serial port: the radio keys itself"
+    assert mercury.choose_keying("HDA Intel PCH", PORTS) == mercury.Keying("vox"), "the computer's own card: no line is the radio's"
+    assert mercury.choose_keying("", PORTS) == mercury.Keying("vox")
+    two = [*PORTS, mercury.SerialPort("/dev/ttyUSB1", 0x0403, 0x6001)]
+    assert mercury.choose_keying("USB PnP Sound Device", two) == mercury.Keying("vox"), "two USB serial ports: nobody can tell which keys the radio"
+    assert mercury.choose_keying("USB PnP Sound Device", [mercury.SerialPort("COM3", 0x10C4, 0xEA60)]) == mercury.Keying("rts", "COM3")
+    assert mercury.choose_keying("USB PnP Sound Device", [mercury.SerialPort("/dev/ttyUSB0", 0x303A, 0x1001)]) == mercury.Keying("vox"), "a development board's port is not a radio's"
 
 
 # ---- what the program prints
@@ -179,13 +210,74 @@ def test_the_lines_of_the_control_port_are_read_as_mercury_writes_them() -> None
     assert mercury.split_control_lines(buffer) == ["SN 3.0"] and not buffer
 
 
-# ---- the moving station
+# ---- the rules of the HF radio: no path, no digipeater, no moving station, the beacon's own interval
 
-def test_a_moving_station_over_mercury_beacons_no_oftener_than_every_five_minutes_and_the_other_radios_as_before() -> None:
-    hf = replace(HF, gps_source="gpsd", beacon_travel="car")
-    assert hf.smart.fast_sec == 300.0 and hf.smart.turn_min_sec == 300.0 and hf.smart.slow_sec == 1800.0 and hf.smart.fast_kmh == 100.0
-    assert replace(hf, tnc_profile="kiss").smart.fast_sec == 60.0 and replace(hf, beacon_travel="foot").smart.fast_sec == 300.0
-    assert mercury.BEACON_FLOOR_SEC == 300
+def test_over_mercury_every_frame_goes_direct_whatever_the_path_settings_say_and_the_settings_are_kept() -> None:
+    hf = replace(HF_CONFIG, beacon_path="WIDE1-1,WIDE2-1")
+    tnc = StubTnc(max_frame=123)
+    beacon = Beacon(tnc, lambda: hf, FixedClock())
+    assert beacon.frame().path == () and hf.beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "the frame is direct, the setting untouched"
+    sender = Sender(tnc, lambda: hf, FixedClock())
+    assert sender.frame(b">status", ("WIDE1-1",)).path == () and sender.frame(b">status", None).path == ()
+    assert Beacon(StubTnc(), lambda: hf, FixedClock()).frame().path_text == "WIDE1-1,WIDE2-1", "the FM radio carries it"
+
+
+async def test_over_mercury_a_message_and_its_ack_go_direct_even_to_a_station_with_a_path_of_its_own(tmp_path: Path) -> None:
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123), tnc_profile="mercury", beacon_path="WIDE1-1,WIDE2-1")
+    await rig.prefs.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
+    record = await rig.m.send("OH2RDG", "x" * 67)
+    assert record.attempts == 1 and rig.lines() == ["OH2GBA>APZNEO::OH2RDG   :" + "x" * 67 + "{01}"], "the longest message fits the frame with room for a reply-ack number, and goes direct"
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
+    await rig.settled()
+    assert rig.lines()[-1] == "OH2GBA>APZNEO::OH2RDG   :ack12"
+    assert [a.path for a in rig.m.delivery.attempts_of(record.id)] == [()], "the chain of the message shows direct only"
+
+
+def test_over_mercury_a_moving_station_is_a_fixed_one_and_the_beacon_has_the_hf_interval_with_a_random_pause() -> None:
+    moving = replace(HF_CONFIG, gps_source="gpsd", beacon_travel="car", hf_beacon_interval_min=15)
+    clock = FixedClock()
+    beacon = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
+    assert beacon.interval_min == 15 and moving.beacon_interval_min == 0, "the HF radio has its own interval; the VHF beacon stays off"
+    assert beacon.frame().info.startswith(b"=6010.20N/02456.40E-"), "the home position, not the GPS: no SmartBeaconing over HF"
+    assert Beacon(StubTnc(), lambda: moving, clock).interval_min == 0
+    paused = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
+    paused.jitter = lambda most: most / 2
+    paused.last_sent, paused._started = clock(), clock()
+    paused._plan(15)
+    assert paused.next_due == clock() + timedelta(minutes=15) + timedelta(seconds=150), "the interval, then the pause"
+    unpaused = Beacon(StubTnc(), lambda: replace(moving, gps_source="off", beacon_interval_min=20), clock)
+    unpaused.jitter = lambda most: 999.0
+    unpaused.last_sent, unpaused._started = clock(), clock()
+    unpaused._plan(20)
+    assert unpaused.next_due == clock() + timedelta(minutes=20), "the FM radio has no pause"
+    assert HF.beacon_min_min == 15 and HF.beacon_default_min == 60 and HF.beacon_jitter_sec == 300 and not HF.smart_beacon and not HF.paths and not HF.digipeat
+    assert FM.paths and FM.digipeat and FM.smart_beacon and FM.beacon_jitter_sec == 0 and FM.max_frame is None
+
+
+def test_the_hf_beacon_interval_is_a_setting_of_its_own_with_a_floor_of_15_minutes() -> None:
+    assert DEFAULTS.hf_beacon_interval_min == 60 and DEFAULTS.beacon_interval_min == 0
+    assert Config.check("hf/beacon_interval_min", "0") == "0" and Config.check("hf/beacon_interval_min", "15") == "15" and Config.check("hf/beacon_interval_min", "180") == "180"
+    with pytest.raises(ValueError, match="off_or_range|not 0"):
+        Config.check("hf/beacon_interval_min", "10")
+    assert Config.from_data({"hf/beacon_interval_min": "5"}).hf_beacon_interval_min == 15, "a stored value under the floor is raised to it"
+    assert replace(DEFAULTS, tnc_profile="mercury", hf_beacon_interval_min=30).beacon_interval_of(HF) == 30 and replace(DEFAULTS, beacon_interval_min=30).beacon_interval_of(FM) == 30
+
+
+def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_simulated_hour() -> None:
+    """Five fixed stations on the same hour and the same clock: without the pause they key up together every time; with it, two overlap in about a round in four, which the next round and the retry of a message absorb."""
+    rng = random.Random(7)
+    frame_sec = mercury.FRAME_SEC
+    rounds = 2000
+    together = sum(1 for _ in range(rounds) if any(abs(a - b) < frame_sec for a, b in combinations([0.0] * 5, 2)))
+    assert together == rounds, "with no pause all five key together at the hour"
+    overlapping = 0
+    for _ in range(rounds):
+        starts = [rng.uniform(0, HF.beacon_jitter_sec) for _ in range(5)]
+        overlapping += any(abs(a - b) < frame_sec for a, b in combinations(starts, 2))
+    assert 0.15 < overlapping / rounds < 0.35, overlapping / rounds
+    pairs = sum(1 for _ in range(rounds) if abs(rng.uniform(0, HF.beacon_jitter_sec) - rng.uniform(0, HF.beacon_jitter_sec)) < frame_sec)
+    assert pairs / rounds < 0.05, "two stations on one interval overlap in a few rounds of a hundred"
+
 
 
 # ---- the ack of a message heard while the radio is held

@@ -19,7 +19,7 @@ from neoaprs.coded import CodedError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.message import QUERY_TEXT, MessagingError, request_path, same_call
 from neoaprs.packet import RF_GATED, Packet
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame, radio_path
 from neoaprs.signal import Signal
 from neoaprs.station import Station
 
@@ -86,7 +86,7 @@ class GeneralAsk:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another {query}: wait {seconds} s", "general.too_soon", query=query, seconds=seconds)
         try:
-            calls = request_path(path, config.beacon_path_calls, rf_only)
+            calls = radio_path(self._tnc, request_path(path, config.beacon_path_calls, rf_only))
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:

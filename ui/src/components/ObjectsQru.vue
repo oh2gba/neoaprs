@@ -20,7 +20,9 @@ import { stationRowId } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
 import type { Command } from "@/protocol/protocol";
 
-const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
+const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath, tnc } = useDaemonContext();
+/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them the request has no path or RF only to set. */
+const routable = computed(() => tnc.value?.rules.paths ?? true);
 const request = useRequestPath("qru");
 const { path, rfOnly, problem } = request;
 /** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */
@@ -109,7 +111,7 @@ function inStations(names: readonly string[]): void {
       />
       <InfoTip :label="t('settings.about', { label: t('objects.qru_km_label') })">{{ t("objects.qru_km_tip") }}</InfoTip>
     </div>
-    <RequestPath v-model:path="path" v-model:rf-only="rfOnly" :usual="usual" :problem="problem" />
+    <RequestPath v-if="routable" v-model:path="path" v-model:rf-only="rfOnly" :usual="usual" :problem="problem" />
     <StatusFold v-if="look" class="qrustatus" :state="look.state" :tone="look.tone" :line="look.line">
       <template v-if="asked" #default>
         <p class="igatefold">{{ t("objects.qru_request", { text: asked.text }) }}</p>

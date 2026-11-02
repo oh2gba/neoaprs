@@ -160,6 +160,7 @@ class Env:
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
         self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map)
+        self.ctl.mercury.ports = lambda: []                   # (the Mercury modem's choice of a keying line never reads the operator's serial ports in a test)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
         self.server = WebServer(ctl, replace(config, web_port=0))         # a free port: the tests run side by side

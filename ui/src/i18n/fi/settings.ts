@@ -124,8 +124,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.sound_card.label": "Äänikortti",
   "settings.sound_card.tip_label": "Tietoa äänikortista",
   "settings.sound_card.tip1": "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, DigiRig tai radion oma USB-ääni.",
-  "settings.sound_card.tip2": "Järjestelmän oletus on laite, jonka kautta järjestelmä toistaa. Päivitä lukee luettelon uudelleen.",
-  "settings.sound_card.default": "järjestelmän oletus",
+  "settings.sound_card.tip2": "Etsi automaattisesti valitsee sen yhden USB-äänikortin, joka sekä äänittää että toistaa; Päivitä lukee luettelon uudelleen.",
   "settings.sound_card.id_label": "Äänikortin tunnus",
   "settings.keying.label": "Avainnus",
   "settings.keying.tip_label": "Tietoa avainnuksesta",
@@ -257,6 +256,9 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip2": "30 minuuttia sopii asemalle, joka pysyy paikallaan.",
   "settings.beacon_interval.tip_moving":
     "Päällä: SmartBeaconing lähettää GPS-sijainnin, sitä useammin mitä nopeammin kuljet ja joka käänteessä. Pois: ei automaattista majakkaa.",
+  "settings.hf_beacon.tip1":
+    "Kuinka usein sijaintisi lähtee HF-radiolla: enintään {min} minuutin välein. Pois: ei automaattista majakkaa; Majakka nyt lähettää silti.",
+  "settings.hf_beacon.tip2": "Tunti sopii HF:lle: yksi kehys vie 4 sekuntia kanavasta, jonka kaikki asemat jakavat.",
   "settings.path.name": "Majakan polku",
   "settings.path.label": "Polku",
   "settings.path.recommended": "Suositus ({path})",

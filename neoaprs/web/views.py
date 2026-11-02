@@ -42,7 +42,7 @@ from .prefwire import StationAlertMsg, StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
-from .tncwire import ModemState, TncState, TncStats
+from .tncwire import ModemState, RadioRulesState, TncState, TncStats
 from .wirebase import HISTORY_MAX_HOURS
 
 LINES_MAX = 100                     # lines of the TNC told to a page
@@ -158,7 +158,7 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:
     lines = [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]
-    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc))
+    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc), rules=RadioRulesState.row(tnc.rules))
 
 
 def modem_state(tnc: Tnc) -> dict[str, Any] | None:
@@ -166,7 +166,7 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
     modem = tnc.modem
     if modem is None or tnc.profile.transport != "modem" or not isinstance(modem, Mercury):
         return None
-    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD)
+    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, keying=modem.keying.text)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

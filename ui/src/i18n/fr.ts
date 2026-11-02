@@ -1187,8 +1187,7 @@ export const fr: Catalogue = {
   "settings.sound_card.label": "Carte son",
   "settings.sound_card.tip_label": "À propos de la carte son",
   "settings.sound_card.tip1": "La carte son par laquelle passe l'audio de la radio : un codec USB, un DigiRig ou l'audio USB de la radio elle-même.",
-  "settings.sound_card.tip2": "Par défaut du système : le périphérique par lequel le système joue le son. Actualiser relit la liste.",
-  "settings.sound_card.default": "par défaut du système",
+  "settings.sound_card.tip2": "Trouver automatiquement choisit la seule carte son USB qui enregistre et joue ; Actualiser relit la liste.",
   "settings.sound_card.id_label": "Id de la carte son",
   "settings.keying.label": "Commutation",
   "settings.keying.tip_label": "À propos de la commutation",
@@ -1322,6 +1321,9 @@ export const fr: Catalogue = {
   "settings.beacon_interval.tip2": "30 minutes conviennent à une station qui reste en place.",
   "settings.beacon_interval.tip_moving":
     "Activé : SmartBeaconing envoie la position GPS, plus souvent quand vous allez vite et à chaque virage. Désactivé : pas de balise automatique.",
+  "settings.hf_beacon.tip1":
+    "Rythme de votre position en HF, au plus toutes les {min} min. Arrêt : pas de balise automatique ; Balise maintenant émet quand même.",
+  "settings.hf_beacon.tip2": "Une heure convient en HF : une trame occupe 4 secondes d'un canal que toutes les stations partagent.",
   "settings.path.name": "Chemin de la balise",
   "settings.path.label": "Chemin",
   "settings.path.recommended": "Recommandé ({path})",
