@@ -21,7 +21,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard, audio_open_error, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -151,8 +151,9 @@ def end_stale(pid_file: Path) -> bool:
 class Program:
     """One run of Mercury: started, read, and told when it ends."""
 
-    def __init__(self, on_ended: Callable[[int | None, list[str]], None]) -> None:
+    def __init__(self, on_ended: Callable[[int | None, list[str]], None], on_audio_error: Callable[[str], None] | None = None) -> None:
         self._on_ended = on_ended
+        self._on_audio_error = on_audio_error                    # told, on the loop, the line that says the sound card could not be opened (the program runs on without it)
         self._process: subprocess.Popen[str] | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
 
@@ -185,6 +186,8 @@ class Program:
             if line:
                 self.last_lines.append(line)
                 mercury_log.log(logging.INFO if "[WRN]" in line or "[ERR]" in line else logging.DEBUG, "%s", line)
+                if self._on_audio_error is not None and self._process is process and audio_open_error(line):
+                    loop.call_soon_threadsafe(self._on_audio_error, line)
         code = process.wait()
         if self._process is process:
             loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))

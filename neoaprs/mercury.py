@@ -211,6 +211,16 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     return Keying("vox")
 
 
+# ---- what the program prints
+
+_AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\] .*audio->(?:open|init)\(\)")       # Mercury 1.9.21's audioio.c when the sound card cannot be opened: `[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument`, `Error in audio->init(): ...`
+
+
+def audio_open_error(line: str) -> bool:
+    """Whether a line Mercury printed says its sound card could not be opened for playback or capture (the program runs on all the same, deaf and mute: the daemon ends it and says so)."""
+    return _AUDIO_OPEN_ERROR.search(line) is not None
+
+
 # ---- the control port (CR-terminated lines, as VARA's)
 
 @dataclass(frozen=True)

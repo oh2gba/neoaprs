@@ -334,3 +334,11 @@ async def test_an_ack_that_waited_longer_than_a_minute_is_dropped_because_the_se
     tnc.held = ""
     await rig.pass_time(1)
     assert rig.lines() == [] and rig.m.acks.waiting == [] and "is dropped: the sender sends again" in caplog.text
+
+
+def test_the_lines_that_say_the_sound_card_could_not_be_opened_are_known_and_the_others_are_not() -> None:
+    assert mercury.audio_open_error("22:16:22.912 [+0.003s] [ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument")
+    assert mercury.audio_open_error("[ERR] [audio-cap] error in audio->open(): -1: No such device")
+    assert mercury.audio_open_error("[ERR] [audio-play] Error in audio->init(): PulseAudio is not in this build")
+    for line in ("[WRN] [modem-rx] decoder ring full (mode=12): dropped 100 samples so far", "[INF] [audio-play] opened plughw:1,0", "[ERR] [tcp-ctl] Control recv returned 0 (err=0), closing", "[ERR] [audio-play] Failed to allocate playback buffers"):
+        assert not mercury.audio_open_error(line), line
