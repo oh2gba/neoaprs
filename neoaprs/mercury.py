@@ -4,7 +4,7 @@ started and watched by mercuryhelper.py and mercurycontrol.py, and the Tnc reach
 
 Mercury's broadcast port is KISS over TCP: unconnected datagrams, one modem frame each, no ack, heard by every station that runs the same mode on the same frequency (Mercury 1.9.21, `docs/TNC.md`). The mode
 is fixed in the program and is not a setting, because a station on another mode hears nothing and nothing on the air says which mode a station is on: DATAC3, the narrowest of Mercury's modes that carries a whole
-APRS packet. A frame is always its full size on the air, 3.9 s with the preamble, and carries 126 bytes, of which Mercury takes 3 for a header and a length; a KISS payload longer than the 123 that are left is
+APRS packet. A frame is always its full size on the air, 3.8 s from PTT ON to PTT OFF (FRAME_SEC), and carries 126 bytes, of which Mercury takes 3 for a header and a length; a KISS payload longer than the 123 that are left is
 cut off by Mercury without a word to the client, so the daemon refuses or shortens such a packet before it goes (`overflow`). Nothing listens before it transmits (there is no carrier sense on the broadcast
 plane), so two stations that key at the same moment lose both frames: Mercury's channel-busy detector is switched on in the configuration the daemon writes, and its `BUSY ON` holds our frames (mercurymodem.py)."""
 import re
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from .coded import CodedError
 
 # The one Mercury NeoAPRS ships: every release carries this version, built from this source (scripts/build-mercury, Linux) or taken from this signed release file (packaging/windows/bundle_mercury.py), so that what
-# the suite and the simulators ran against is what the operator has. A new Mercury is a change of these four lines, tried by the suite, never something that happens on the operator's computer.
+# the suite and the simulators ran against is what the operator has. A new Mercury is a change of these constants (docs/MAINTAINING.md, "Moving the Mercury pin"), tried by the suite, never something that happens on the operator's computer.
 VERSION = "1.9.21"
 SOURCE_COMMIT = "edca701ba2e432aecd7d4e217ec8fa717ed23aa3"           # the commit the tag v1.9.21 points at
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"

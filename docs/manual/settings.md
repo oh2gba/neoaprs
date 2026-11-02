@@ -26,7 +26,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `station/symbol_code` | `-` | My station tab, Station (the symbol) | one printable character (`-` is a house, `>` a car) |
 | `station/comment` | `NeoAPRS` | My station tab, Beacon | the comment of your position: printable ASCII without `\|` and `~`, at most 43 characters, 36 when the PHG extension is sent. A save that breaks it is refused with the reason |
 | `station/status` | empty | My station tab, Status | the text of a status of your own when the status source is the text: printable ASCII without `\|` and `~`, at most 55 characters (the report always carries a time). Empty sends none ([beacon.md](beacon.md#the-status)) |
-| `beacon/interval_min` | `0` | My station tab, Beacon | minutes between your position packets: 0 is off, else 20 to 1440. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below 20 is raised to 20, with a line in the log (a stored 20 or 45 is shown as one more choice). The default is off so that an upgrade never starts to transmit |
+| `beacon/interval_min` | `0` | My station tab, Beacon | minutes between your position packets: 0 is off, else 20 to 1440. 0 switches the beacon off ([beacon.md](beacon.md#beacon-off)): no beacon and no status report, while messages, answers, objects, bulletins and the digipeater go on. The page offers Off and every 30 min, 60 min and 3 hours; a moving station (a GPS is chosen) is offered Off and On (SmartBeaconing), where any value but 0 is On and the value is not used, and On stores 30. A stored value below 20 is raised to 20, with a line in the log (a stored 20 or 45 is shown as one more choice). While the HF radio is on, an interval below 30 is raised to 30 for both radios, with a line in the log: a frame on a shared HF channel is not sent often. The default is off so that an upgrade never starts to transmit |
 | `beacon/path` | empty | My station tab, Beacon, Advanced | the digipeaters of your beacon: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-1` for any other. `DIRECT` is no digipeaters at all |
 | `beacon/power_w` | empty | My station tab, Beacon, Antenna | the transmitter's power in watts (0 to 9999) for the PHG extension of the beacon. Empty sends no PHG ([beacon.md](beacon.md#power-height-and-gain-phg)) |
 | `beacon/antenna_height_m` | `0` | My station tab, Beacon, Antenna | the antenna's height above average terrain in metres (0 to 9999), for PHG |
@@ -43,7 +43,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `tcp/port` | `8001` | Settings tab, TNC | the KISS port of that program (1 to 65535): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100 |
 | `hf/enabled` | `false` | Settings tab, Radio (HF radio) | `true`: the HF radio is there, the Mercury modem the daemon starts with the sound card and keying below, beside the FM radio or alone; `false`: no HF radio. Default `false`: nothing of HF is there, or changes, until it is ticked ([radio.md](radio.md#the-mercury-hf-modem)) |
 | `hf/profile` | `mercury` | Settings tab, Radio (HF radio, Radio type) | what the HF radio is: `mercury`, Rhizomatica's Mercury modem on an SSB radio's sound card, or `dummy-hf`, the Dummy HF radio, which makes up a handful of distant fixed stations, keys nothing and plays your own frames through the computer's speakers as the modem's audio ([radio.md](radio.md#the-dummy-hf-radio)). Counts while `hf/enabled` is `true` |
-| `mercury/sound_card` | empty | Settings tab, Radio (HF radio, Sound card) | the HF radio's sound card, as the list offers it (what `mercury -z` prints as the id: `plughw:1,0` on Linux, the device's name on Windows). Empty is the daemon's own choice: the one USB sound card that is both playback and capture, else the system's default device; the page says beside the field which it chose. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem)) |
+| `mercury/sound_card` | empty | Settings tab, Radio (HF radio, Sound card) | the HF radio's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). Empty is the daemon's own choice: the one USB sound card that is both playback and capture, else the system's default device; the page says beside the field which it chose. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem)) |
 | `mercury/keying` | empty | Settings tab, Radio (HF radio, Keying) | how the HF radio (the Mercury modem) keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). Empty is the daemon's own choice: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX; the page says beside the field which it chose. The other types ignore it |
 | `serial/last_port` | empty | the daemon's own memory | the port the search found last time, tried first while `serial/port` is empty. Written by the daemon; the page shows it as `found: PORT` beside an automatic Port |
 | `serial/pattern` | `/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*` | `neoaprs db set` only | the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search, and **Find my radio** tries the same ports ([radio.md](radio.md#finding-the-radio)) |
@@ -85,11 +85,22 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 - A GPS fix older than 120 seconds is not used: a moving station sends no beacon on it, and never the home position instead.
 - At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 4 hours and an announcement for 72 hours.
 - The update check asks the version page every 24 hours.
+- While the HF radio is on, a beacon interval below 30 minutes is raised to 30, for both radios. The HF beacon waits a random extra time of up to 300 seconds after each interval, so that stations started together do not key up together.
+- A frame on the HF radio is at most 123 bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.
 <!-- /doc-settings -->
 
 ## State the daemon keeps
 
-These rows are written by the daemon so that a restart goes on where it stopped. They are not settings and are not listed above: `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text`.
+These rows are written by the daemon so that a restart goes on where it stopped. They are not settings and are not listed above:
+
+<!-- doc-settings:state -->
+- `beacon/last_sent_at`: when the FM radio's beacon last went out, so that a restart waits out the rest of the interval.
+- `status/last_sent_at`: when the status report last went out.
+- `status/last_text`: the text of that status report, so that an unchanged status is not sent again.
+- `map/auto`: whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`).
+- `hf/beacon_last_sent_at`: the same for the HF radio's beacon.
+- `update/install_id`: the random number of this installation that the update check sends.
+<!-- /doc-settings -->
 
 ## Rows that mean another setting
 

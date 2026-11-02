@@ -3,7 +3,7 @@
 #
 #   scripts/check                 every stage, in order, stopping at the first failure
 #   scripts/check --stage NAME    one stage only (see STAGES below)
-#   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about five minutes, Linux only, and the Mercury built once with
+#   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about six minutes, Linux only, and the Mercury built once with
 #                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
 #   scripts/check --list          the stage names
 #

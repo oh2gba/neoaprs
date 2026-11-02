@@ -112,7 +112,7 @@ class Services:
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
         self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet on the FM radio, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
-        self.hf_beacon = Beacon(self.hf, lambda: self.config, clock, memory=self.store, gps=self.gps, memory_key=HF_BEACON_MEMORY)       # the same on the HF radio, by the HF rules (its own interval from the floor of 15 minutes, the random pause, no SmartBeaconing); it sends nothing while hf/enabled is off (its radio is stopped)
+        self.hf_beacon = Beacon(self.hf, lambda: self.config, clock, memory=self.store, gps=self.gps, memory_key=HF_BEACON_MEMORY)       # the same on the HF radio, by the HF rules (the one beacon interval, raised to the floor of 30 minutes while the HF radio is on, the random pause, no SmartBeaconing); it sends nothing while hf/enabled is off (its radio is stopped)
         self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 

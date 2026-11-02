@@ -202,11 +202,30 @@ A path of 8 digipeaters has no room for it. A message to the station is then ref
 
 With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-mercury-hf-modem)), each conversation has one radio, chosen when the message goes: the FM radio, unless the station was heard on the HF radio alone or the FM radio is off, and then the HF radio. A station heard on both radios is messaged over FM, and its header is as above. A station never heard goes on the radio that is on, FM before HF.
 
-- **The header** of a conversation that goes over HF has the small tag **HF** where Route would be. Its hover text says "Messages to this station go over the HF radio: direct, no path". The Key menu and the padlock are there as ever.
+- **The header** of a conversation that goes over HF has the small tag **HF** where Route would be. Its hover text says "Messages to this station go over the HF radio: direct, no path". When [encrypted messages](#encrypted-messages) are on, the Key menu and the padlock are there as for any station.
 - **No path.** Every frame on HF is direct, so a station's own path and **RF only** are not used for it, and are kept for the day it is messaged over FM. The station panel of the Stations tab has no Route for it either.
 - **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is.
 - **Email** (`EMAIL-2`) goes out over the FM radio only, because it needs an iGate to put it on the internet and HF has none. While the FM radio is off, Send of the Email tab is off with the title "Email goes out over the FM radio, which is off".
 - The length is the same: every message of 67 characters fits an HF frame.
+
+## Encrypted messages
+
+A message can be locked so that only one station can read it. This is off unless the daemon is started with `--encryption` ([commands.md](commands.md#the-daemon)): the amateur regulations of most countries forbid hiding the meaning of a transmission, so it is there for the circumstances that allow it, and for nothing else. Without the flag there is no Key menu, no padlock and no **Encrypted messages** group in Settings, and nothing locked is sent. A locked message that arrives is still read when its key is here.
+
+How it goes:
+
+1. Each station has a key of its own, made the first time it is needed and kept in the data folder (`message.key`, private to your user). **Key** in the header of a conversation opens a box where **Send my key** sends yours to the station as an ordinary message. Nothing is sent by itself, and the station has to send you its key the same way.
+2. The key a station sends is kept at once and shown in that box with its fingerprint, 16 characters in four groups, and when it was heard. Your own fingerprint is in Settings → Encrypted messages.
+3. Compare the fingerprints with the other operator by voice, or some other way than the air. The same on both sides means the key is the station's. A key announcement is only a message from a call, and anyone can send one in another station's name.
+4. When both keys are here a padlock stands before Send. Pressed, the message is locked: it is at most 34 bytes (the counter counts bytes), it may have letters such as ä and ö, and it goes to one station at a time. A locked message has a padlock beside its time.
+
+What it does not protect:
+
+- **The first key heard is trusted.** If someone sends a key in a station's name before the real one arrives, your locked messages to that call are for them until you press **Forget key** (twice, in the Key menu). The next key the station sends is then taken. A different key sent while one is kept is not taken; the thread shows "A different key: not taken".
+- **A locked message that is recorded and sent again** is shown as new, and acked, when it comes with another message number or more than half an hour later. Nothing in it says when it was written.
+- **A locked message that arrives before the sender's key stays shut.** It reads "Encrypted; no key to read it here" and is not opened when the key comes later: ask the sender to send it again.
+- **The lock covers the text only.** The calls, the time and the length of every message are on the air for anyone to see.
+- **A new key of yours** (Settings → Encrypted messages) is not known to the stations that have the old one. Each of them must forget your key and be sent the new one.
 
 ## How a packet reached us
 

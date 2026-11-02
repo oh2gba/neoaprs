@@ -4,14 +4,14 @@
                                                    internet is hidden (nothing is deleted): a station known only from APRS-IS is not in it, one heard both ways has its radio side only (Station.radio_view), and a change of the setting tells it whole
     packets    the latest 200 packets by id         changed by Tnc.packet and by the packets of APRS-IS (Services.internet_packet); the window is kept here (neoaprs/web/packetwindow.py; the daemon's database is the log, this is what a page opens
                                                    with), and shows the latest 200 that were not from the internet while `igate/enabled` is off
-    tnc        the radio                             changed by Tnc.changed and Tnc.state_changed; at most four times a second
+    tnc        the FM radio                          changed by Tnc.changed and Tnc.state_changed; at most four times a second
+    hf         the HF radio                          changed by the HF radio's Tnc (.changed and .state_changed) and by the modem part (Mercury.changed); at most four times a second
     config     the settings                          changed by Controller.config_changed, which every save emits
     messages   every message by id                   changed by Messaging.changed (a new or changed message) and .removed (one that was deleted)
     bulletins  the message board by sender/slot    changed by Bulletins.changed (a new or heard again) and .removed (one that is deleted)
     own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
-    station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
     station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
     map        the base map: files, estimate, the job, and the radius of the ALOHA circle   changed by MapFetch.changed and Aloha.changed, and by every save of the settings (the area follows our position); at most four times a second
     update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
