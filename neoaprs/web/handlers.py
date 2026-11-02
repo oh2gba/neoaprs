@@ -180,6 +180,7 @@ async def forget_station_key(ctx: Ctx, cmd: ForgetStationKey) -> None:
 async def message_key_new(ctx: Ctx, cmd: NewMessageKey) -> None:
     """The new key's fingerprint goes to the page that asked with the status it is answered with."""
     with refused(cmd.cmd):
+        ctx.ctl.keyring.refuse_unless_on()
         ctx.ctl.keyring.renew()
     ctx.conn.send(await ctx.status())
 
