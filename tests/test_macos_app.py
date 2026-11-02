@@ -261,6 +261,36 @@ def test_the_macos_pruning_keeps_the_web_engine_its_helper_and_what_they_name_an
     assert (shiboken / "Shiboken.abi3.so").is_file() and (shiboken / "libshiboken6.abi3.6.12.dylib").is_file() and not (shiboken / "include").exists()
 
 
+# ---- what is signed by itself
+
+def test_the_sign_list_is_every_mach_o_file_but_the_programs_of_bundles(tmp_path: Path) -> None:
+    module = load(PACKAGING / "sign_list.py", "sign_list")
+    app = tmp_path / "NeoAPRS.app"
+    res = app / "Contents" / "Resources"
+    files = {
+        "Contents/MacOS/NeoAPRS": True, "Contents/Resources/bin/python3.13": True, "Contents/Resources/lib/libpython3.13.dylib": True, "Contents/Resources/lib/python3.13/lib-dynload/_ssl.cpython-313-darwin.so": True,
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/QtCore.abi3.so": True, "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqcocoa.dylib": True,
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/lib/QtCore.framework/Versions/A/QtCore": True,
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/A/QtWebEngineCore": True,
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess": True,
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/lib/QtWebEngineCore.framework/Versions/A/Resources/icudtl.dat": False, "Contents/Resources/tools/mercury/mercury": True,
+        "Contents/Resources/lib/python3.13/os.py": False, "Contents/Info.plist": False,
+    }
+    for name, is_mach_o in files.items():
+        path = app / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((b"\xcf\xfa\xed\xfe" if is_mach_o else b"text") + b"\0" * 8)
+    (res / "lib" / "python3.13" / "site-packages" / "PySide6" / "Qt" / "lib" / "QtCore.framework" / "QtCore").symlink_to(Path("Versions") / "A" / "QtCore")
+    (res / "tools" / "mercury" / "mercury").write_bytes(b"\xca\xfe\xba\xbe" + b"\0" * 8)                     # (a universal file)
+    listed = [str(p.relative_to(app)) for p in module.sign_list(app)]
+    assert listed == sorted([
+        "Contents/Resources/bin/python3.13", "Contents/Resources/lib/libpython3.13.dylib", "Contents/Resources/lib/python3.13/lib-dynload/_ssl.cpython-313-darwin.so",
+        "Contents/Resources/lib/python3.13/site-packages/PySide6/QtCore.abi3.so", "Contents/Resources/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqcocoa.dylib", "Contents/Resources/tools/mercury/mercury",
+    ]), "not the launcher, not the helper's program, not a framework's library (each is signed with its bundle), not a link, not a file that is no Mach-O"
+    done = subprocess.run([sys.executable, "-I", str(PACKAGING / "sign_list.py"), str(app)], capture_output=True, text=True, timeout=30)
+    assert done.returncode == 0 and done.stdout.splitlines() == [str(app / p) for p in listed]
+
+
 # ---- the build and smoke scripts, the bundle's files
 
 def build(*args: str) -> subprocess.CompletedProcess[str]:
@@ -306,7 +336,7 @@ def test_the_build_lays_the_bundle_out_as_the_launcher_and_the_one_rule_expect()
     assert 'tar -xzf "$mercury" -C "$res/tools" --exclude=\'mercury/dev\'' in script and "mercury/$needed" in script
     assert script.index("launcher.c") < script.index("prune.py --macos"), "the launcher is linked before the headers go"
     assert script.index("compileall") < script.index("codesign --force --sign -") < script.index("codesign --verify --deep --strict") < script.index("hdiutil create"), "bytecode first, then every file is signed and sealed, then the image"
-    assert 'path.parent.name != "MacOS"' in script and "-P 8" not in script, "a bundle's main program is signed with its bundle, and the files one after the other"
+    assert 'sign_list.py" "$app" | tr' in script and "-P 8" not in script, "the files that are nobody's program, one after the other"
     needs = re.findall(r'^need "([^"]+)" "', script, re.M)
     assert len(needs) >= 14 and script.index("need()") < script.index("codesign --force --sign -"), "every piece is checked, with its own words, before the signing starts"
     assert all(path.startswith(("$contents/", "$res/")) for path in needs) and any("libpython3.13.dylib" in path for path in needs) and any("QtWebEngineProcess" in path for path in needs)

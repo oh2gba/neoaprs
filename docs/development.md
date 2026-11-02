@@ -363,8 +363,9 @@ signature seals the bundle). `packaging/appimage/prune.py --macos` takes out wha
 inside its framework), and makes the frameworks the bundles codesign and the system expect: the wheels ship them flat, with everything under `Versions/A`, `Resources` and `Helpers` copied a second time
 at the top and neither `Versions/Current` nor the link to the library, so the copies go and the links are made. `Info.plist` comes from `packaging/macos/Info.plist.in` (the identifier `eu.oh2gba.neoaprs`, the launchd agent's label; macOS 14 as the floor, the Qt wheels'), the icon from the Windows one's PNG
 frames (`packaging/macos/make_icns.py`, no tool of a Mac needed), and the microphone sentence macOS shows when the HF radio's sound card is first opened is in `packaging/macos/lproj/` in the eight languages of the page.
-Every Mach-O file, every framework, the web engine's helper app and then the bundle are signed ad hoc (`codesign --sign -`), which Apple silicon requires of code it runs and which is all there is without an Apple
-developer account: the first open is a right-click and Open ([the manual](manual/install.md#macos)). `hdiutil` makes the disk image with the app and a link to Applications. The app is for Apple silicon alone, because
+The Mach-O files that are nobody's program (`packaging/macos/sign_list.py`: not the launcher, the helper's program or a framework's library, which codesign would take for their bundles), then the web
+engine's helper app with the entitlements Qt ships for it, then the frameworks and then the bundle are signed ad hoc (`codesign --sign -`), from the inside out, which Apple silicon requires of code it runs and which is all
+there is without an Apple developer account: the first open is a right-click and Open ([the manual](manual/install.md#macos)). `hdiutil` makes the disk image with the app and a link to Applications. The app is for Apple silicon alone, because
 python-build-standalone has no universal CPython; its file is `NeoAPRS-<version>-arm64.dmg`, named like the AppImage. `scripts/smoke-macos-app` tries the image. The install kind is `macos-app`, told by the Python's prefix
 being `Resources` of a bundle with its `Info.plist` (`neoaprs/cli/installkind.py`); the update window names the Mac's file and the steps, and the daemon does not replace the bundle itself yet
 (`neoaprs/services/selfinstall.py` says why). `tests/test_macos_app.py` builds and runs the launcher on Linux against the venv's Python, prunes a made-up tree, makes the icon and reads the scripts' promises.
@@ -522,7 +523,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `site/`: the project page.
 - `server/`: the version page that the update check asks, on the project's web host: `version.php`, `latest.php` (the latest release), `log/.htaccess` (the logs and the cache are not served),
   `deploy.sh` (uploads those files and nothing else) and `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id).
-- `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker and the microphone sentence in eight languages), `deb/` and `mercury/` (the one C file of the Mercury build).
+- `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker, the list of what is signed by itself and the microphone sentence in eight languages), `deb/` and `mercury/` (the one C file of the Mercury build).
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
 - `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
 - `LICENSE`: the GNU General Public License, version 3 (`pyproject.toml` says `GPL-3.0-or-later`).

@@ -132,20 +132,12 @@ for lproj in "$ROOT"/packaging/macos/lproj/*.lproj; do need "$res/$(basename "$l
 [ -z "$mercury" ] || need "$res/tools/mercury/mercury" "Mercury"
 [ ! -e "$res/include" ] && [ ! -e "$res/lib/python3.13/test" ] || { echo "build-macos-app: the pruning left the headers or the tests" >&2; exit 1; }
 
-# Ad-hoc signatures, from the inside out, each piece once and by name: every Mach-O file (the Python, its modules, Qt's frameworks and plugins, Mercury) one after the other, then the web engine's helper app (with the
-# entitlements Qt ships for it, which its JIT needs), then the frameworks, whose seal records the helper inside, then the app itself; not --deep, which would sign the nested code again without those entitlements. The
-# verification is deep. A bundle's main program (Contents/MacOS/NeoAPRS, the helper's) is signed with its bundle and not by itself: codesign given such a path seals the whole bundle, which on the first Mac it did
-# while the other seven signings of the parallel pass were replacing files under it, and stopped with "No such file or directory".
-"$python" -I - "$app" <<'PY' | tr '\n' '\0' | xargs -0 -n 1 codesign --force --sign - --timestamp=none
-import pathlib
-import sys
-MAGIC = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}          # Mach-O 64, 32, and a universal file
-for path in pathlib.Path(sys.argv[1]).rglob("*"):
-    if path.is_file() and not path.is_symlink() and path.parent.name != "MacOS":
-        with path.open("rb") as f:
-            if f.read(4) in MAGIC:
-                print(path)
-PY
+# Ad-hoc signatures, from the inside out, each piece once and by name: the Mach-O files that are nobody's program (the Python, its modules, Qt's plugins, Mercury: packaging/macos/sign_list.py) one after the other, then
+# the web engine's helper app (with the entitlements Qt ships for it, which its JIT needs), then the frameworks, whose seal records their library and the helper inside, then the app itself; not --deep, which would sign
+# the nested code again without those entitlements. The verification is deep. A bundle's program (the launcher, the helper's, a framework's library) is signed with its bundle and never by itself: codesign given such a
+# path seals the whole bundle there and then, which on the first Mac it did while the parallel pass was replacing files under it ("No such file or directory") and on the third for a framework whose helper was not
+# signed yet ("code object is not signed at all").
+"$python" -I "$ROOT/packaging/macos/sign_list.py" "$app" | tr '\n' '\0' | xargs -0 -n 1 codesign --force --sign - --timestamp=none
 find "$res" -name '*.app' -type d -print0 | while IFS= read -r -d '' nested; do
     entitlements="$(find "$nested/Contents/Resources" -name '*.entitlements' -type f 2>/dev/null | head -n 1)"
     codesign --force --sign - --timestamp=none ${entitlements:+--entitlements "$entitlements"} "$nested"
