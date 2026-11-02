@@ -429,7 +429,9 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         first = m.pid
         await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED, 5.0)
         await until(lambda: not _alive(first), 5.0)
-        assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}" and m.hold() == "" and "could not open its sound card" in caplog.text
+        assert m.problem == SOUND_CARD_FAILED and m.hold() == "" and "could not open its sound card" in caplog.text
+        if m.state == "waiting":                                                                                       # (the quick back-off may have begun the next start already: the words of the wait are checked while it lasts)
+            assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
         await until(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED, 5.0)              # (the line went with the program: the radio is not connected, and says why)
         assert not tnc.usable
         await until(lambda: m.starts >= 2, 5.0)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
