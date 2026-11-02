@@ -26,6 +26,7 @@ import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
 import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
 import { useStationAlerts } from "@/composables/useStationAlerts";
+import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
 import { useWhatsNew } from "@/composables/useWhatsNew";
@@ -56,6 +57,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
   const { config, status, tnc, lastError, send } = daemon;
   const settings = useSettings(config, lastError, send);
   const prefs = useStationPrefs(daemon.stationPrefs, send);
+  const keys = useStationKeys(daemon.stationKeys, status, send);
   const heard = useHeardIndex(daemon.stations, config);
   const now = useNow();
   const app = inApp();
@@ -63,6 +65,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     ...heard,
     settings,
     prefs,
+    keys,
     now,
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),

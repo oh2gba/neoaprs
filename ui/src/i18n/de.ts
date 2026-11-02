@@ -106,6 +106,10 @@ export const de: Catalogue = {
   "error.call.shape": "Rufzeichen „{value}“ besteht nicht aus 1 bis 6 Zeichen A-Z und 0-9 mit einer optionalen „-SSID“",
   "error.call.ssid": "Rufzeichen „{value}“ hat eine SSID über {max}",
   "error.general.too_soon": "zu früh für eine weitere Abfrage {query}: {seconds} s warten",
+  "error.lock.off": "verschlüsselte Nachrichten sind nicht erlaubt: NeoAPRS wurde ohne --encryption gestartet",
+  "error.lock.no_key": "kein Schlüssel von {call}: Er muss zuerst seinen Schlüssel senden",
+  "error.lock.too_long": "der Text hat {length} Bytes, in eine verschlüsselte Nachricht passen höchstens {max}",
+  "error.lock.unprintable": "der Text ist leer oder enthält ein Zeichen, das eine Nachricht nicht tragen kann",
   "error.failed": "Das hat nicht geklappt; noch einmal versuchen. Bleibt es so, die Logs senden (Einstellungen → Hilfe).",
   "error.map.no_job": "es läuft kein Kartenauftrag",
   "error.update.unsupported": "diese Kopie von NeoAPRS kann sich nicht selbst aktualisieren; die Seite zeigt die Schritte",
@@ -261,6 +265,21 @@ export const de: Catalogue = {
   "messages.mark.failed": "fehlgeschlagen",
   "messages.mark.no_ack_expected": "gesendet, keine Quittung erwartet",
   "messages.mark.cancelled": "abgebrochen",
+  "lock.button": "Schlüssel",
+  "lock.button_title": "Der Schlüssel von {call}, für verschlüsselte Nachrichten",
+  "lock.none": "{call} hat seinen Schlüssel nicht gesendet",
+  "lock.heard": "gehört {date}",
+  "lock.send_key": "Meinen Schlüssel senden",
+  "lock.forget": "Schlüssel vergessen",
+  "lock.forget_sure": "sicher?",
+  "lock.toggle_off": "Verschlüsseln",
+  "lock.toggle_on": "Verschlüsselt: drücken, um unverschlüsselt zu senden",
+  "lock.mark": "Verschlüsselt",
+  "lock.shut": "Verschlüsselt; hier kein Schlüssel zum Lesen",
+  "lock.key_mark": "Ein Schlüssel",
+  "lock.key_out": "Dein Schlüssel",
+  "lock.key_in": "Sein Schlüssel",
+  "lock.key_other": "Ein anderer Schlüssel: nicht übernommen",
 
   "chain.you": "du",
   "chain.internet": "Internet",
@@ -1074,6 +1093,7 @@ export const de: Catalogue = {
   "settings.group.tnc": "Funkgerät",
   "settings.group.web": "Webseite",
   "settings.group.notifications": "Benachrichtigungen",
+  "settings.group.encrypt": "Verschlüsselte Nachrichten",
   "settings.group.map": "Karte",
   "settings.group.digi": "Digipeater",
   "settings.group.igate": "Internet-Stationen",
@@ -1243,6 +1263,12 @@ export const de: Catalogue = {
   "settings.alerts.tip_label": "Über die Alarme",
   "settings.alerts.tip1": "Der Alarm dieses Computers: Er führt für jede neue Nachricht den Befehl aus, standardmäßig ein Ton und eine Benachrichtigung.",
   "settings.alerts.tip2": "Die nächste Gruppe ist dieser Browser. Nimm eines von beiden, oder beide, um doppelt gewarnt zu werden.",
+  "settings.encrypt.tip_label": "Über verschlüsselte Nachrichten",
+  "settings.encrypt.tip1":
+    "Eine Nachricht an eine Station, deren Schlüssel du hast, lässt sich verschließen: Nur diese liest sie. Nichts wird von selbst verschlüsselt.",
+  "settings.encrypt.tip2":
+    "Vorschriften verbieten, den Inhalt zu verbergen: nur für Umstände, die es erlauben, und nur wenn NeoAPRS mit --encryption gestartet wurde.",
+  "settings.encrypt.key_label": "Dein Schlüssel",
 
   "settings.browser.heading": "In diesem Browser",
   "settings.browser.mode": "Alarm",
@@ -1573,6 +1599,8 @@ export const de: Catalogue = {
   "help.picture.dummy":
     "Erfundene Stationen im gestrichelten Rahmen antworten deiner Station, und was sie sendet, geht nicht hinaus: Die Wellen sind durchgestrichen.",
   "help.picture.notifications": "Eine Nachricht einer Station kommt an, und dieses Gerät spielt einen Ton, der Lautsprecher, und zeigt ein Pop-up, die Karte.",
+  "help.picture.encrypt":
+    "Zwei Stationen geben sich ihre Schlüssel. Dann liest die Station mit dem Schlüssel unsere verschlossene Nachricht, während eine dritte Station, die sie hört, nur das Schloss sieht.",
   "help.picture.qru":
     "Deine Station fragt nach Ortsinfo, und eine Server-Station antwortet mit Objekten, einem Relais und einem Termin, die auf deiner Karte erscheinen.",
   "help.not_copied": "Nicht kopiert",

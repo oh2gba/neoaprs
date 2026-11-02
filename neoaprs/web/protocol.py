@@ -30,7 +30,7 @@ from .historywire import PacketHistory, PacketHistoryMsg, SpeedSeries, SpeedSeri
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
-from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, MessageRow, OverheardDelete, QueryStation, SendMessage
+from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow, StationTraffic, StationTrafficMsg
 from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
@@ -46,7 +46,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -65,6 +65,7 @@ class TopicValues(_Model):
     station_prefs: dict[str, StationPref] = Field(description="what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. "
                                                    "`set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it")
     messages: dict[str, MessageRow] = Field(description="every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own")
+    station_keys: dict[str, StationKey] = Field(description="the public key each station announced for encrypted messages, by call: the fingerprint and when it was heard. A key heard is a `set`, `forget_station_key` a `del`")
     bulletins: dict[str, BulletinRow] = Field(description="the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del`")
     own_objects: dict[str, OwnObjectRow] = Field(description="the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations`")
     own_bulletins: dict[str, OwnBulletinRow] = Field(description="the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`)")
@@ -79,7 +80,7 @@ class TopicValues(_Model):
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))
 TOPIC_VALUES = {name: TypeAdapter(annotation) for name, annotation in get_type_hints(TopicValues).items()}
 """A validator for the value of each topic, by the topic's name: the outgoing check looks at `state` and `patch` with it (neoaprs/web/outbound.py)."""
-TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref), "own_objects": TypeAdapter(OwnObjectRow), "own_bulletins": TypeAdapter(OwnBulletinRow)}
+TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref), "station_keys": TypeAdapter(StationKey), "own_objects": TypeAdapter(OwnObjectRow), "own_bulletins": TypeAdapter(OwnBulletinRow)}
 """A validator for one item of a table topic: the outgoing check looks at the `set` ops with it."""
 
 

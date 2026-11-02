@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text,
+// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only; "Key" for the station's key while encrypted messages are on, KeyMenu), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text,
 // "12 left" and Send, no To: the conversation is the station) fixed at the bottom. An overheard pair has no Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when
 // another conversation is picked (a `key`), and on a narrow page it takes the focus when it appears, so that Esc goes back. The header is not text to select; a right-click on the call offers to copy it (CopyMenu).
 import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
+import KeyMenu from "@/components/KeyMenu.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
 import { t } from "@/i18n";
@@ -22,16 +23,19 @@ const props = defineProps<{
 const text = defineModel<string>("text", { default: "" });
 const emit = defineEmits<{
   back: [];
-  send: [to: string, text: string];
+  send: [to: string, text: string, locked: boolean];
   retry: [id: number];
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connected, heardDirect, heardPaths, fallbackPath, prefs } = useDaemonContext();
+const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys } = useDaemonContext();
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
 const heard = computed(() => isOverheard(props.selected));
+/** The station's key, for the Key menu; and whether a message to it can be locked. */
+const theirs = computed(() => keys.of(replyTo(props.selected)));
+const lockable = computed(() => keys.canLock(replyTo(props.selected)));
 /** The copy menu of the title: the call, or the two calls of an overheard pair. */
 const copy = useCopyMenu(() => (overheardPair(props.selected) ?? [props.selected]).map((text) => ({ kind: "call" as const, text })));
 
@@ -62,6 +66,14 @@ onMounted(() => {
         @clear-path="prefs.clearPath"
         @set-rf-only="prefs.setRfOnly"
       />
+      <KeyMenu
+        v-if="!heard && keys.on.value"
+        :key="`key-${selected}`"
+        :call="replyTo(selected)"
+        :theirs="theirs"
+        @send-key="keys.sendKey"
+        @forget="keys.forget"
+      />
     </header>
     <ConversationThread
       :thread="thread"
@@ -71,7 +83,14 @@ onMounted(() => {
       @cancel="emit('cancel', $event)"
       @delete="emit('delete', $event)"
     />
-    <MessageCompose v-if="!heard" v-model:text="text" :to="[replyTo(selected)]" :connected="connected" @send="(to, body) => emit('send', to, body)" />
+    <MessageCompose
+      v-if="!heard"
+      v-model:text="text"
+      :to="[replyTo(selected)]"
+      :connected="connected"
+      :lockable="lockable"
+      @send="(to, body, locked) => emit('send', to, body, locked)"
+    />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </section>
 </template>

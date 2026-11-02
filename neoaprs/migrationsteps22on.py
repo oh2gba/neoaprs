@@ -69,3 +69,17 @@ def _v23(db: sqlite3.Connection) -> None:
     db.execute("DELETE FROM sqlite_sequence WHERE name = 'message'")
     if top:
         db.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('message', ?)", (top,))
+
+
+def _v24(db: sqlite3.Connection) -> None:
+    """Encrypted messages (neoaprs/cipher.py). `station_key` holds the public key each station announced: one row per call, the key as 43 characters of base64 and when it was heard. A message has `seal`, what it
+    is: '' plain (every message there is), 'key' an announcement of the sender's key, 'key_other' an announcement that differs from the key kept for the station and was not taken, 'open' encrypted and read,
+    'shut' encrypted and not readable here; and `wire`, the text as it went on the air for an encrypted message of ours (the ciphertext; the text is what was written), null for every other."""
+    form = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'"
+    db.execute(f"""CREATE TABLE station_key (
+        call TEXT NOT NULL PRIMARY KEY CONSTRAINT station_key_call_present CHECK (call <> ''),
+        pubkey TEXT NOT NULL CONSTRAINT station_key_pubkey_form CHECK (length(pubkey) = 43 AND pubkey NOT GLOB '*[^A-Za-z0-9+/]*'),
+        heard_at TEXT NOT NULL CONSTRAINT station_key_heard_form CHECK (heard_at GLOB {form})
+    ) STRICT""")
+    db.execute("ALTER TABLE message ADD COLUMN seal TEXT NOT NULL DEFAULT '' CONSTRAINT message_seal CHECK (seal IN ('', 'key', 'key_other', 'open', 'shut'))")
+    db.execute("ALTER TABLE message ADD COLUMN wire TEXT")

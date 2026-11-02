@@ -19,6 +19,7 @@ export const settings = {
   "settings.group.tnc": "Radio",
   "settings.group.web": "Web page",
   "settings.group.notifications": "Notifications",
+  "settings.group.encrypt": "Encrypted messages",
   "settings.group.map": "Map",
   "settings.group.digi": "Digipeater",
   "settings.group.igate": "Internet stations",
@@ -188,6 +189,12 @@ export const settings = {
   "settings.alerts.tip_label": "About the alerts",
   "settings.alerts.tip1": "The alert of this computer: it runs the Command for each new message, by default a sound and a notification.",
   "settings.alerts.tip2": "The next group is this browser. Use one of the two, or both to be told twice.",
+
+  "settings.encrypt.tip_label": "About encrypted messages",
+  "settings.encrypt.tip1": "A message to a station whose key you have can be locked: only that station reads it. Nothing is encrypted or sent by itself.",
+  "settings.encrypt.tip2":
+    "Amateur regulations forbid hiding what is said: for the circumstances that allow it, and only when NeoAPRS is started with --encryption.",
+  "settings.encrypt.key_label": "Your key",
 
   "settings.browser.heading": "In this browser",
   "settings.browser.mode": "Alert",

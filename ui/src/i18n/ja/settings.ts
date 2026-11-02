@@ -21,6 +21,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.tnc": "無線機",
   "settings.group.web": "Webページ",
   "settings.group.notifications": "通知",
+  "settings.group.encrypt": "暗号化メッセージ",
   "settings.group.map": "地図",
   "settings.group.digi": "デジピーター",
   "settings.group.igate": "インターネットの局",
@@ -187,6 +188,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.tip_label": "アラートについて",
   "settings.alerts.tip1": "このコンピューター自身のアラートです。新着メッセージごとにコマンドを実行します(既定は音と通知)。",
   "settings.alerts.tip2": "次のグループはこのブラウザーです。どちらか一方で十分で、両方なら2回知らせます。",
+
+  "settings.encrypt.tip_label": "暗号化メッセージについて",
+  "settings.encrypt.tip1": "鍵を持っている局宛てのメッセージは暗号化でき、その局だけが読めます。自動で暗号化や送信はされません。",
+  "settings.encrypt.tip2":
+    "アマチュア無線の規則では通信内容の秘匿は禁じられています。状況が許す場合に限り、--encryption 付きで起動した NeoAPRS だけが使えます。",
+  "settings.encrypt.key_label": "あなたの鍵",
 
   "settings.browser.heading": "このブラウザ",
   "settings.browser.mode": "アラート",

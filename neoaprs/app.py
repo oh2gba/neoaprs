@@ -30,6 +30,7 @@ from .services.digipeater import Digipeater
 from .services.generalask import GeneralAsk
 from .services.gps import Gps
 from .services.igate import Igate
+from .services.keyring import Keyring
 from .services.mapauto import MapAuto
 from .services.mapfetch import MapFetch
 from .services.messaging import Messaging
@@ -66,8 +67,9 @@ class Frontend(Protocol):
 
 
 class Services:
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False) -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False) -> None:
         self.data_dir = data_dir
+        self.encryption = encryption                                    # the daemon was started with --encryption: encrypted messages may be sent (services/keyring.py)
         self.clock = clock
         self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
         self.config_lock = asyncio.Lock()                               # held while the settings are stored and put in force (Controller.save_config, change_config): a change is made of the settings as they are then
@@ -107,6 +109,7 @@ class Services:
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
         self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
+        self.keyring = Keyring(self.data_dir, self.messagelog, clock, allowed=self.encryption)      # the keys of encrypted messages: ours in the data folder, the stations' with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database
         self.bulletins = Bulletins(self.bulletinlog, clock)             # bulletins, announcements and group messages, one for each sender and slot; they stay until deleted; started by the controller before the Tnc
@@ -121,7 +124,7 @@ class Services:
         self.qru = Qru(self.tnc, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
         self.qruask = QruAsk(self.tnc, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
         self.generalask = GeneralAsk(self.tnc, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging, heard=self.packetlog, igate=self.igate)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 

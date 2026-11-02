@@ -285,9 +285,8 @@ const ALERT = ["messages/alert", "messages/alert_command"];
 export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
 
 /** Whether a setting that depends on a switch is shown: the alert's command (and its Test button) only while the alert is on; an alert the values do not mention is the daemon's default, on. */
-function shownBySwitch(key: string, values: Readonly<Record<string, string>>): boolean {
-  return key !== "messages/alert_command" || values["messages/alert"] !== "false";
-}
+const shownBySwitch = (key: string, values: Readonly<Record<string, string>>): boolean =>
+  key !== "messages/alert_command" || values["messages/alert"] !== "false";
 
 /** The legend of the box that starts at a key inside its group (components/SettingsBox.vue): the daemon's own alert, which runs on the computer NeoAPRS runs on, whichever device shows the page. */
 export const SUBGROUPS: Record<

@@ -30,7 +30,7 @@ from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
 from .pageerrors import one_line
-from .messagewire import AlertTest, ConversationDelete, MessageCancel, MessageDelete, MessageRetry, OverheardDelete, QueryStation, SendMessage
+from .messagewire import AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage
 from .qruwire import AskQru
 from .generalwire import GeneralQuery
 from .portwire import FindRadio, FindRadioCancel, ListPorts
@@ -153,7 +153,27 @@ async def status_now(ctx: Ctx, cmd: StatusNow) -> None:
 @command(SendMessage)
 async def send_message(ctx: Ctx, cmd: SendMessage) -> None:
     with refused(cmd.cmd):
-        await ctx.ctl.messaging.send(cmd.to, cmd.text)
+        await ctx.ctl.messaging.send(cmd.to, cmd.text, locked=cmd.locked)
+
+
+@command(SendKey)
+async def send_key(ctx: Ctx, cmd: SendKey) -> None:
+    with refused(cmd.cmd):
+        await ctx.ctl.messaging.send_key(cmd.to)
+
+
+@command(ForgetStationKey)
+async def forget_station_key(ctx: Ctx, cmd: ForgetStationKey) -> None:
+    with refused(cmd.cmd):
+        await ctx.ctl.keyring.forget(cmd.call)
+
+
+@command(NewMessageKey)
+async def message_key_new(ctx: Ctx, cmd: NewMessageKey) -> None:
+    """The new key's fingerprint goes to the page that asked with the status it is answered with."""
+    with refused(cmd.cmd):
+        ctx.ctl.keyring.renew()
+    ctx.conn.send(await ctx.status())
 
 
 @command(QueryStation)

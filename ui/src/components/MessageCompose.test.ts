@@ -26,7 +26,7 @@ describe("MessageCompose", () => {
     const { wrapper, text } = compose();
     await text.setValue("Moi Pekka");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi Pekka"]]);
+    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi Pekka", false]]);
     expect(wrapper.emitted("sendMany")).toBeUndefined();
     expect(text.element.value).toBe("");
   });
@@ -89,5 +89,41 @@ describe("MessageCompose to several stations", () => {
     await text.setValue("Hi");
     await wrapper.setProps({ to: [] });
     expect(send.attributes("disabled")).toBeDefined();
+  });
+});
+
+describe("the padlock of an encrypted message", () => {
+  it("is not there unless the station can be written to that way, and then stands before Send, not pressed", () => {
+    expect(compose().wrapper.find(".compose-lock").exists()).toBe(false);
+    const { wrapper } = compose({ lockable: true });
+    const lock = wrapper.find(".compose-lock");
+    expect(lock.attributes("aria-pressed")).toBe("false");
+    expect(lock.attributes("aria-label")).toBe("Encrypt");
+    expect([...wrapper.find(".composebar-foot").element.children].map((c) => c.tagName)).toEqual(["SPAN", "BUTTON", "BUTTON"]);
+    expect(wrapper.find(".compose-left").text()).toBe("67 left");
+  });
+
+  it("pressed, counts the 34 bytes an encrypted message holds, lets the text say ä and ö, and sends the message locked", async () => {
+    const { wrapper, text, send } = compose({ lockable: true });
+    await wrapper.find(".compose-lock").trigger("click");
+    expect(wrapper.find(".compose-lock").attributes("aria-pressed")).toBe("true");
+    expect(wrapper.find(".compose-left").text()).toBe("34 left");
+    await text.setValue("Moi, täällä ok");
+    expect(wrapper.find(".compose-left").text()).toBe("17 left"); // (three ä of two bytes each)
+    expect(send.element.disabled).toBe(false);
+    await wrapper.find("form").trigger("submit");
+    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi, täällä ok", true]]);
+    await text.setValue("ä".repeat(18));
+    expect(wrapper.find(".compose-left").text()).toBe("2 over");
+    expect(send.element.disabled).toBe(true);
+  });
+
+  it("lets go when the station can no longer be written to that way", async () => {
+    const { wrapper } = compose({ lockable: true });
+    await wrapper.find(".compose-lock").trigger("click");
+    await wrapper.setProps({ lockable: false });
+    expect(wrapper.find(".compose-lock").exists()).toBe(false);
+    await wrapper.setProps({ lockable: true });
+    expect(wrapper.find(".compose-lock").attributes("aria-pressed")).toBe("false");
   });
 });

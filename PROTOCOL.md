@@ -104,7 +104,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-45 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+48 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -205,6 +205,30 @@ When the TNC is not connected the message is kept and its first attempt waits fo
 |---|---|---|---|
 | `to` | string |  | (max 64 chars, min 1 chars) |
 | `text` | string |  | (max 512 chars) |
+| `locked` | boolean | optional | true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`) (default `false`) |
+
+### `send_key`
+
+Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our
+locked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is.
+
+| field | type | | description |
+|---|---|---|---|
+| `to` | string |  | (max 64 chars, min 1 chars) |
+
+### `forget_station_key`
+
+Takes a station's key away (the topic `station_keys`): the first key a station announces is kept, and a later announcement of a different key is not taken until the old one is forgotten. Answered by the `del` of the
+station's entry, or by an `error` (`lock.no_key` when there is none).
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | (max 64 chars, min 1 chars) |
+
+### `message_key_new`
+
+Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next
+`status`. Answered by that `status`, or by an `error` when the key could not be kept.
 
 ### `query`
 
@@ -543,6 +567,7 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `rss_mb` | number \| null |  | the daemon's resident memory in megabytes, to a tenth; null where the system does not say |
 | `uptime_sec` | integer |  | seconds since the daemon started, by its clock |
 | `update` | UpdateInfo \| null |  | the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered |
+| `message_key` | string |  | the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there |
 
 ### `pong`
 
@@ -721,6 +746,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
 | `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. `set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
+| `station_keys` | { [key: string]: StationKey } | the public key each station announced for encrypted messages, by call: the fingerprint and when it was heard. A key heard is a `set`, `forget_station_key` a `del` |
 | `bulletins` | { [key: string]: BulletinRow } | the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` |
 | `own_objects` | { [key: string]: OwnObjectRow } | the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` |
 | `own_bulletins` | { [key: string]: OwnBulletinRow } | the bulletins, announcements and group bulletins of ours by slot (`BLN1`): `bulletin_post` posts one (a `set` of its row, each time it is sent too), `bulletin_unpost` deletes one (a `del`) |
@@ -843,6 +869,7 @@ of a message that came in, `to_call` of one we sent.
 | `acked_at` | time \| null |  | when the acknowledgement was heard |
 | `attempts_detail` | AttemptRow[] |  | for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in |
 | `route` | string |  | how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept |
+| `seal` | "" \| "key" \| "key_other" \| "open" \| "shut" |  | what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came |
 
 ### DecodedPosition
 
@@ -1479,6 +1506,16 @@ One route a packet of a station came by, which the map draws (a line, or none fo
 | `at` | time |  | when the packet was heard |
 | `lat` | number \| null |  | where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now |
 | `lon` | number \| null |  |  |
+
+### StationKey
+
+The public key a station announced, kept on first hearing. The entries are the values of the topic `station_keys`, keyed by call; a station that has not announced a key has no entry. A key heard from a station is a
+`set`, `forget_station_key` a `del`.
+
+| field | type | | description |
+|---|---|---|---|
+| `fingerprint` | string |  | 16 hex characters in four groups (`A1B2 C3D4 E5F6 0718`), the start of SHA-256 of the key, for the two operators to compare on voice |
+| `heard_at` | time |  | when the key was heard |
 
 ### StationPref
 

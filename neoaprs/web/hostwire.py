@@ -63,6 +63,7 @@ class Status(_Message):
     rss_mb: float | None = Field(description="the daemon's resident memory in megabytes, to a tenth; null where the system does not say")
     uptime_sec: int = Field(description="seconds since the daemon started, by its clock")
     update: UpdateInfo | None = Field(description="the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered")
+    message_key: str = Field(description="the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there")
 
 
 class CheckUpdate(_Command):

@@ -15,7 +15,6 @@ import type {
   PacketRow,
   QruState,
   StationAlertMessage,
-  StationPref,
   StationRow,
   StatusMessage,
   TncState,
@@ -23,6 +22,7 @@ import type {
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
+import { useStationTables } from "@/composables/useStationTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
@@ -90,8 +90,8 @@ export function useDaemon(url: () => string = socketUrl) {
   const messages = shallowReactive(new Map<string, MessageRow>());
   const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
   const bulletins = shallowReactive(new Map<string, BulletinRow>());
-  const stationPrefs = shallowReactive(new Map<string, StationPref>());
   const own = useOwnTables();
+  const station = useStationTables();
   const answers = useAnswers();
   const whole = useWholeTopics();
   const status = shallowRef<StatusMessage | null>(null);
@@ -116,20 +116,18 @@ export function useDaemon(url: () => string = socketUrl) {
     replacePackets: (rows) => fill(packets, rows),
     replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
     replaceBulletins: (rows) => fill(bulletins, rows),
-    replaceStationPrefs: (rows) => fill(stationPrefs, rows),
     ...own.handlers,
+    ...station.handlers,
     ...answers.handlers,
     ...whole.handlers,
     setStation: (key, row) => void stations.set(key, row),
     setPacket: (key, row) => void packets.set(key, row),
     setMessage: (key, row) => void messages.set(key, row),
     setBulletin: (key, row) => void bulletins.set(key, row),
-    setStationPref: (call, pref) => void stationPrefs.set(call, pref),
     delStation: (key) => void stations.delete(key),
     delPacket: (key) => void packets.delete(key),
     delMessage: (key) => void messages.delete(key),
     delBulletin: (key) => void bulletins.delete(key),
-    delStationPref: (call) => void stationPrefs.delete(call),
   };
   // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
   const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
@@ -153,7 +151,8 @@ export function useDaemon(url: () => string = socketUrl) {
     messages,
     messagesLoaded,
     bulletins,
-    stationPrefs,
+    stationPrefs: station.stationPrefs,
+    stationKeys: station.stationKeys,
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
     ...whole.refs,

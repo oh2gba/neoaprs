@@ -30,8 +30,8 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False) -> None:
-        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map)
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False) -> None:
+        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map, encryption)
         self._web_factory = web
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
@@ -74,6 +74,7 @@ class Controller(Services):
         await self.ownbulletins.start()
         await self.rigstatus.start()
         await self.prefbook.load()
+        await self.keyring.load()                                       # (the stations' keys, and our own when encrypted messages are allowed: before messaging opens what comes in)
         self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
         await self.aloha.start()
         await self.messaging.start()

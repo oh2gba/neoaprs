@@ -100,7 +100,15 @@ def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
         (MessageRecord(3, T0, "out", ME, "EMAIL-2", "me@example.org hi", "14", "sending", 1, T0, None, 2, ""), (a3,)),
         (MessageRecord(4, T0, "in", "OH2XYZ", ME, "Hi back", "7", "received", 0, None, None, 4, "via OH2RCH-2"), ()),
         (MessageRecord(5, T0, "in", "OH2AAA", "OH2BBB", "overheard text", None, "overheard", 0, None, None, 4, "direct"), ()),
+        (MessageRecord(6, T0, "out", ME, "OH2XYZ", "Moi, täällä ok", "15", "acked", 1, T0, T0 + timedelta(seconds=40), 4, "", "open", "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4"), (a3,)),
+        (MessageRecord(7, T0, "in", "OH2XYZ", ME, "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4", "8", "received", 0, None, None, 4, "direct", "shut"), ()),
+        (MessageRecord(8, T0, "in", "OH2XYZ", ME, "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", "9", "received", 0, None, None, 4, "direct", "key"), ()),
     ]
+
+
+def keys() -> list[tuple[str, datetime]]:
+    """The entries of the topic `station_keys`: a fingerprint and when the key was heard."""
+    return [("A1B2 C3D4 E5F6 0718", T0)]
 
 
 def bulletins() -> list[BulletinRecord]:
@@ -232,6 +240,7 @@ def rows(views: Any) -> dict[str, Any]:
         "own_objects": {o.name: views.own_object_row(o, at) for o, at in own_objects()},
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
         "station_prefs": [views.pref_row(p) for p in prefs()],
+        "station_keys": [views.key_row(fingerprint, at) for fingerprint, at in keys()],
         "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy())],
         "gps": gps_rows(views),
         "igate": igate_rows(views),

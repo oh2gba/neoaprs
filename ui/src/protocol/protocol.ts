@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
 
@@ -348,6 +348,12 @@ export interface ForgetStationCommand {
   call: string;
 }
 
+/** Takes a station's key away (the topic `station_keys`): the first key a station announces is kept, and a later announcement of a different key is not taken until the old one is forgotten. Answered by the `del` of the station's entry, or by an `error` (`lock.no_key` when there is none). */
+export interface ForgetStationKeyCommand {
+  cmd: "forget_station_key";
+  call: string;
+}
+
 /** A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say. */
 export interface FrequencyValues {
   /** the transmit frequency, MHz */
@@ -650,6 +656,13 @@ export interface MessageRow {
   attempts_detail: AttemptRow[];
   /** how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept */
   route: string;
+  /** what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came */
+  seal: "" | "key" | "key_other" | "open" | "shut";
+}
+
+/** Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next `status`. Answered by that `status`, or by an `error` when the key could not be kept. */
+export interface NewMessageKeyCommand {
+  cmd: "message_key_new";
 }
 
 /** One version's section of the changelog. */
@@ -1053,11 +1066,19 @@ export interface RouteMarkValues {
   lon: number | null;
 }
 
+/** Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our locked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is. */
+export interface SendKeyCommand {
+  cmd: "send_key";
+  to: string;
+}
+
 /** Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at once with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`. When the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused. */
 export interface SendMessageCommand {
   cmd: "send_message";
   to: string;
   text: string;
+  /** true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`) */
+  locked?: boolean;
 }
 
 /** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. */
@@ -1140,6 +1161,14 @@ export interface StationAlertMessage {
   at: string;
   /** for `within`, how far the station is, km with one decimal; else null */
   km: number | null;
+}
+
+/** The public key a station announced, kept on first hearing. The entries are the values of the topic `station_keys`, keyed by call; a station that has not announced a key has no entry. A key heard from a station is a `set`, `forget_station_key` a `del`. */
+export interface StationKey {
+  /** 16 hex characters in four groups (`A1B2 C3D4 E5F6 0718`), the start of SHA-256 of the key, for the two operators to compare on voice */
+  fingerprint: string;
+  /** when the key was heard */
+  heard_at: string;
 }
 
 /** What the operator has set for one station, apart from what its packets say. The entries are the values of the topic `station_prefs`, keyed by call: a station with no path of its own, and not RF only, has no entry. A command that sets or changes one part is a `set` of the whole entry, one that clears the last part a `del`. */
@@ -1314,6 +1343,8 @@ export interface StatusMessage {
   uptime_sec: number;
   /** the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered */
   update: UpdateInfo | null;
+  /** the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there */
+  message_key: string;
 }
 
 /** Sends our status report now, with the settings as they are (from the text or from the radio, as `status/source` says), whether it changed and inside the interval; the next one of the timer is an interval later. It goes out through the TNC, so it is not answered: it arrives as the new `packets` row with direction `out`, and `status` follows with the text. Answered with an `error` when it could not be sent: the status is off or has no text, the radio is away, the call is not set, the TNC is not connected or the settings make no frame. */
@@ -1466,6 +1497,8 @@ export interface TopicValues {
   station_prefs: { [key: string]: StationPref };
   /** every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own */
   messages: { [key: string]: MessageRow };
+  /** the public key each station announced for encrypted messages, by call: the fingerprint and when it was heard. A key heard is a `set`, `forget_station_key` a `del` */
+  station_keys: { [key: string]: StationKey };
   /** the message board by `sender/slot` (`OH2XYZ/BLN1`): the bulletins, announcements, group bulletins and group messages heard and not deleted; one that is new or heard again is a `set` of its row, one that is deleted (`bulletin_delete`) a `del` */
   bulletins: { [key: string]: BulletinRow };
   /** the objects and items of ours by name: `object_set` makes or changes one (a `set` of its row, each time it is sent too), `object_kill` ends one (its row changes to `killing`, and is a `del` once the kill has been sent); a live one is also a row of `stations` */

@@ -62,9 +62,9 @@ export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel
     if (send({ cmd: "overheard_delete", from_call: from, to_call: to }) && talk.selected.value === `${from}>${to}`) talk.selected.value = null;
   }
 
-  /** Sends a message and opens the conversation it belongs to. */
-  function sendMessage(to: string, text: string): void {
-    if (send({ cmd: "send_message", to, text })) talk.selected.value = to;
+  /** Sends a message (`locked`: encrypted with the station's key) and opens the conversation it belongs to. */
+  function sendMessage(to: string, text: string, locked = false): void {
+    if (send(locked ? { cmd: "send_message", to, text, locked: true } : { cmd: "send_message", to, text })) talk.selected.value = to;
   }
 
   /** Sends the same text to several stations, a message to each (the daemon spaces them), exactly as if sent one by one; the group compose that sent them closes itself. */

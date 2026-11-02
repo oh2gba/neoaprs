@@ -31,6 +31,7 @@ from pydantic import BaseModel  # noqa: E402
 import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
+from neoaprs.cipher import MAX_LOCKED  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
@@ -237,7 +238,7 @@ def limits() -> dict[str, Any]:
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS},
         "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN},
-        "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY},
+        "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},
         "alert": {"kmMin": ALERT_KM_MIN, "kmMax": ALERT_KM_MAX},

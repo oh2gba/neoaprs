@@ -8,10 +8,11 @@ import { useFindRadio } from "@/composables/useFindRadio";
 import { usePanel } from "@/composables/usePanel";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
+import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioSearchMessage, StationPref, StationRow } from "@/protocol/protocol";
+import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -30,13 +31,14 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
   const map = part(over.map, null);
+  const status = part(over.status, null);
   const sender = (over.send as typeof send | undefined) ?? send;
   const settings = over.settings ?? useSettings(config, lastError, sender);
   const context = {
     send: sender,
     say: over.say ?? vi.fn((_text: string) => undefined),
     config,
-    status: part(over.status, null),
+    status,
     tnc: part(over.tnc, null),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
@@ -74,6 +76,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     heardPaths: part(over.heardPaths, new Map<string, string | null>()),
     heardDirect: part(over.heardDirect, new Set<string>()),
     prefs: over.prefs ?? useStationPrefs(shallowReactive(new Map<string, StationPref>()), sender),
+    keys: over.keys ?? useStationKeys(shallowReactive(new Map<string, StationKey>()), status, sender),
     settings,
     guide: over.guide ?? useSetupGuide(config, lastError, ports, sender),
     panel: over.panel ?? usePanel(),

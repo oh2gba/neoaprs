@@ -1376,6 +1376,27 @@
       "title": "ForgetStationCommand",
       "type": "object"
     },
+    "ForgetStationKey": {
+      "additionalProperties": false,
+      "description": "Takes a station's key away (the topic `station_keys`): the first key a station announces is kept, and a later announcement of a different key is not taken until the old one is forgotten. Answered by the `del` of the\nstation's entry, or by an `error` (`lock.no_key` when there is none).",
+      "properties": {
+        "cmd": {
+          "const": "forget_station_key",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call"
+      ],
+      "title": "ForgetStationKeyCommand",
+      "type": "object"
+    },
     "FrequencyValues": {
       "additionalProperties": false,
       "description": "A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say.",
@@ -2511,6 +2532,17 @@
         "route": {
           "description": "how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept",
           "type": "string"
+        },
+        "seal": {
+          "description": "what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came",
+          "enum": [
+            "",
+            "key",
+            "key_other",
+            "open",
+            "shut"
+          ],
+          "type": "string"
         }
       },
       "required": [
@@ -2527,9 +2559,25 @@
         "last_attempt_at",
         "acked_at",
         "attempts_detail",
-        "route"
+        "route",
+        "seal"
       ],
       "title": "MessageRow",
+      "type": "object"
+    },
+    "NewMessageKey": {
+      "additionalProperties": false,
+      "description": "Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next\n`status`. Answered by that `status`, or by an `error` when the key could not be kept.",
+      "properties": {
+        "cmd": {
+          "const": "message_key_new",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "NewMessageKeyCommand",
       "type": "object"
     },
     "NoteSection": {
@@ -4141,6 +4189,27 @@
       "title": "RouteMarkValues",
       "type": "object"
     },
+    "SendKey": {
+      "additionalProperties": false,
+      "description": "Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our\nlocked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is.",
+      "properties": {
+        "cmd": {
+          "const": "send_key",
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "to"
+      ],
+      "title": "SendKeyCommand",
+      "type": "object"
+    },
     "SendMessage": {
       "additionalProperties": false,
       "description": "Sends a message to a station: the addressee is a call with an optional SSID, the text at most 67 bytes of UTF-8 without `|`, `~`, `{` or a control character. The message is kept and transmitted at\nonce with the next message id; it arrives as a new row of the topic `messages` (state `sending`) and as the `out` packet, and its row changes when the acknowledgement comes or the attempts run out. It is transmitted at most 4 times, 2 for `EMAIL-2`.\nWhen the TNC is not connected the message is kept and its first attempt waits for the radio. Answered with an `error` that names the reason when the addressee or the text is refused.",
@@ -4157,6 +4226,11 @@
         "text": {
           "maxLength": 512,
           "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "description": "true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`)",
+          "type": "boolean"
         }
       },
       "required": [
@@ -4464,6 +4538,27 @@
         "km"
       ],
       "title": "StationAlertMessage",
+      "type": "object"
+    },
+    "StationKey": {
+      "additionalProperties": false,
+      "description": "The public key a station announced, kept on first hearing. The entries are the values of the topic `station_keys`, keyed by call; a station that has not announced a key has no entry. A key heard from a station is a\n`set`, `forget_station_key` a `del`.",
+      "properties": {
+        "fingerprint": {
+          "description": "16 hex characters in four groups (`A1B2 C3D4 E5F6 0718`), the start of SHA-256 of the key, for the two operators to compare on voice",
+          "type": "string"
+        },
+        "heard_at": {
+          "description": "when the key was heard",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fingerprint",
+        "heard_at"
+      ],
+      "title": "StationKey",
       "type": "object"
     },
     "StationPref": {
@@ -5228,6 +5323,10 @@
             }
           ],
           "description": "the latest version while it is newer than this one, from the daily update check; null when there is none or the check has not been answered"
+        },
+        "message_key": {
+          "description": "the fingerprint of our own key for encrypted messages (16 hex characters in four groups), made at the start of a daemon run with `--encryption`; empty while there is none (the daemon runs without the flag, or the key could not be made), which is also how the page knows the feature is not there",
+          "type": "string"
         }
       },
       "required": [
@@ -5248,7 +5347,8 @@
         "cpu_percent",
         "rss_mb",
         "uptime_sec",
-        "update"
+        "update",
+        "message_key"
       ],
       "title": "StatusMessage",
       "type": "object"
@@ -5788,6 +5888,13 @@
           "description": "every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own",
           "type": "object"
         },
+        "station_keys": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StationKey"
+          },
+          "description": "the public key each station announced for encrypted messages, by call: the fingerprint and when it was heard. A key heard is a `set`, `forget_station_key` a `del`",
+          "type": "object"
+        },
         "bulletins": {
           "additionalProperties": {
             "$ref": "#/$defs/BulletinRow"
@@ -5841,6 +5948,7 @@
         "config",
         "station_prefs",
         "messages",
+        "station_keys",
         "bulletins",
         "own_objects",
         "own_bulletins",
@@ -6351,6 +6459,7 @@
           "find_radio_cancel": "#/$defs/FindRadioCancel",
           "forget_all_stations": "#/$defs/ForgetAllStations",
           "forget_station": "#/$defs/ForgetStation",
+          "forget_station_key": "#/$defs/ForgetStationKey",
           "general_query": "#/$defs/GeneralQuery",
           "list_ports": "#/$defs/ListPorts",
           "map_cancel": "#/$defs/MapCancel",
@@ -6359,6 +6468,7 @@
           "map_wanted": "#/$defs/MapWanted",
           "message_cancel": "#/$defs/MessageCancel",
           "message_delete": "#/$defs/MessageDelete",
+          "message_key_new": "#/$defs/NewMessageKey",
           "message_retry": "#/$defs/MessageRetry",
           "object_kill": "#/$defs/ObjectKill",
           "object_set": "#/$defs/ObjectSet",
@@ -6370,6 +6480,7 @@
           "qru_ask": "#/$defs/AskQru",
           "query": "#/$defs/QueryStation",
           "release_notes": "#/$defs/ReleaseNotes",
+          "send_key": "#/$defs/SendKey",
           "send_message": "#/$defs/SendMessage",
           "set_config": "#/$defs/SetConfig",
           "set_station_alert": "#/$defs/SetStationAlert",
@@ -6433,6 +6544,15 @@
         },
         {
           "$ref": "#/$defs/SendMessage"
+        },
+        {
+          "$ref": "#/$defs/SendKey"
+        },
+        {
+          "$ref": "#/$defs/ForgetStationKey"
+        },
+        {
+          "$ref": "#/$defs/NewMessageKey"
         },
         {
           "$ref": "#/$defs/QueryStation"

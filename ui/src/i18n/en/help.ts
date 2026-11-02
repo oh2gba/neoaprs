@@ -29,6 +29,8 @@ export const help = {
   "help.picture.channels": "A station heard on the radio, by waves, is tagged RF; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
   "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
+  "help.picture.encrypt":
+    "Two stations give each other their keys. Then our locked message is read by the station that has the key, while a third station that hears it sees only the lock.",
   "help.picture.qru": "Your station asks for local info, and a server station answers with objects, a repeater and an event, which appear on your map.",
   "help.not_copied": "Not copied",
 

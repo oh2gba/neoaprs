@@ -15,3 +15,59 @@ describe("a queued message in the conversation", () => {
     expect(queued?.findAll("button").map((b) => b.text())).toEqual(["Cancel"]);
   });
 });
+
+describe("encrypted messages and keys in the conversation", () => {
+  const mounted = (thread: ReturnType<typeof message>[]) => mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
+
+  it("marks a message that was read with a padlock and shows its text, and one that cannot be read here as encrypted, not as the letters that came", () => {
+    const wrapper = mounted([
+      message(1, { text: "Moi, täällä ok", state: "acked", seal: "open" }),
+      message(2, {
+        direction: "in",
+        from_call: "OH2RDG",
+        to_call: "OH2GBA",
+        text: "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4",
+        state: "received",
+        seal: "shut",
+      }),
+    ]);
+    const [open, shut] = wrapper.findAll(".bubble");
+    expect(open?.find(".bubble-text").text()).toBe("Moi, täällä ok");
+    expect(open?.find("[data-mark='lock']").attributes("title")).toBe("Encrypted");
+    expect(shut?.find(".bubble-text").text()).toBe("Encrypted; no key to read it here");
+    expect(shut?.find(".bubble-text").classes()).toContain("sealed");
+    expect(shut?.find("[data-mark='lock']").attributes("title")).toBe("Encrypted; no key to read it here");
+  });
+
+  it("shows a key announcement as what it is, ours and theirs, with a key mark, and one that differs from the key kept as not taken", () => {
+    const wrapper = mounted([
+      message(1, { text: "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", state: "acked", seal: "key" }),
+      message(2, {
+        direction: "in",
+        from_call: "OH2RDG",
+        to_call: "OH2GBA",
+        text: "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U",
+        state: "received",
+        seal: "key",
+      }),
+      message(3, {
+        direction: "in",
+        from_call: "OH2RDG",
+        to_call: "OH2GBA",
+        text: "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U",
+        state: "received",
+        seal: "key_other",
+      }),
+    ]);
+    expect(wrapper.findAll(".bubble-text").map((b) => b.text())).toEqual(["Your key", "Its key", "A different key: not taken"]);
+    expect(wrapper.findAll("[data-mark='key']")).toHaveLength(3);
+    expect(wrapper.findAll(".bubble-text").every((b) => b.classes().includes("sealed"))).toBe(true);
+  });
+
+  it("shows a plain message with no such mark", () => {
+    const wrapper = mounted([message(1, { text: "plain", state: "acked" })]);
+    expect(wrapper.find("[data-mark='lock']").exists()).toBe(false);
+    expect(wrapper.find("[data-mark='key']").exists()).toBe(false);
+    expect(wrapper.find(".bubble-text").classes()).not.toContain("sealed");
+  });
+});

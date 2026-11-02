@@ -11,6 +11,8 @@
     own_objects  the objects and items of ours by name     changed by OwnObjects.changed (made, changed, sent) and .removed (forgotten)
     own_bulletins  the bulletins of ours by slot           changed by OwnBulletins.changed (posted, sent) and .removed (deleted)
     station_prefs  the path, RF only and alert of each station by call       changed by PrefBook.changed (one of them set or cleared)
+    station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
+    station_keys   the key each station announced, by call                   changed by Keyring.changed (a key heard, or forgotten)
     map        the base map: files, estimate, the job, and the radius of the ALOHA circle   changed by MapFetch.changed and Aloha.changed, and by every save of the settings (the area follows our position); at most four times a second
     update     Update now: whether it can, its steps    changed by SelfUpdate.changed; at most four times a second
     gps        the GPS fix, its state, and the moving station's beacon    changed by Gps.changed (a fix, a state or a problem) and by every packet of ours (the beacon went out) and every save of the settings; at most once a second
@@ -43,7 +45,7 @@ from .hub import StateHub, Topic
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
 from .updatewire import UpdateState
-from .views import bulletin_row, config_values, general_state, gps_state, igate_state, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
+from .views import bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -71,6 +73,7 @@ class Topics:
         hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
         hub.add(Topic("station_prefs", lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()}, self._station_pref))
         hub.add(Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message))
+        hub.add(Topic("station_keys", lambda: {call: key_row(*entry) for call, entry in ctl.keyring.peers().items()}, self._station_key))
         hub.add(Topic("bulletins", lambda: {b.key: bulletin_row(b) for b in ctl.bulletins.records()}, self._bulletin))
         hub.add(Topic("own_objects", lambda: {o.name: self._own_object_row(o) for o in ctl.ownobjects.records()}, self._own_object))
         hub.add(Topic("own_bulletins", lambda: {b.slot: self._own_bulletin_row(b) for b in ctl.ownbulletins.records()}, self._own_bulletin))
@@ -98,6 +101,10 @@ class Topics:
     def _station_pref(self, call: str) -> dict[str, Any] | None:
         pref = self.ctl.prefbook.all().get(call)
         return None if pref is None else pref_row(pref)
+
+    def _station_key(self, call: str) -> dict[str, Any] | None:
+        entry = self.ctl.keyring.peers().get(call)
+        return None if entry is None else key_row(*entry)
 
     def _bulletin(self, key: str) -> dict[str, Any] | None:
         record = self.ctl.bulletins.get(key)
@@ -143,7 +150,7 @@ class Topics:
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
             (ctl.ownobjects.changed, self._own_object_changed), (ctl.ownobjects.removed, self._own_object_changed),
             (ctl.ownbulletins.changed, self._own_bulletin_changed), (ctl.ownbulletins.removed, self._own_bulletin_changed),
-            (ctl.prefbook.changed, self._pref_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
+            (ctl.prefbook.changed, self._pref_changed), (ctl.keyring.changed, self._key_changed), (ctl.keyring.own_changed, self._own_key_changed), (ctl.qruask.changed, self._qru_changed), (ctl.generalask.changed, self._general_changed), (ctl.mapfetch.changed, self._map_changed), (ctl.aloha.changed, self._map_changed), (ctl.selfupdate.changed, self._update_changed),
             (ctl.stationalerts.fired, self._station_alert),
         ]
 
@@ -226,6 +233,14 @@ class Topics:
 
     def _pref_changed(self, call: str, pref: Pref | None) -> None:
         self.hub.changed("station_prefs", call)
+
+    def _key_changed(self, call: str) -> None:
+        self.hub.changed("station_keys", call)
+
+    def _own_key_changed(self) -> None:
+        """Our key is new: the status, which carries its fingerprint, is told now."""
+        if self._sent is not None:
+            self._sent()
 
     def _station_alert(self, fired: Fired) -> None:
         """An alert set on a station fired: every page is told once, as it happens (a page opened later is not told it again)."""

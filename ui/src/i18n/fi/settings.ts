@@ -21,6 +21,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.tnc": "Radio",
   "settings.group.web": "Verkkosivu",
   "settings.group.notifications": "Ilmoitukset",
+  "settings.group.encrypt": "Salatut viestit",
   "settings.group.map": "Kartta",
   "settings.group.digi": "Digipeateri",
   "settings.group.igate": "Internet-asemat",
@@ -190,6 +191,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.tip_label": "Tietoa: hälytykset",
   "settings.alerts.tip1": "Tämän tietokoneen hälytys: se suorittaa komennon jokaisesta uudesta viestistä, oletuksena ääni ja ilmoitus.",
   "settings.alerts.tip2": "Seuraava ryhmä on tämä selain. Käytä toista tai molempia, jos haluat tiedon kahdesti.",
+
+  "settings.encrypt.tip_label": "Tietoa: salatut viestit",
+  "settings.encrypt.tip1": "Viestin asemalle, jonka avain sinulla on, voi lukita: vain se asema lukee sen. Mitään ei salata eikä lähetetä itsestään.",
+  "settings.encrypt.tip2":
+    "Määräykset kieltävät sanoman salaamisen: vain olosuhteissa, jotka sen sallivat, ja vain --encryption-valitsimella käynnistetyssä NeoAPRS:ssä.",
+  "settings.encrypt.key_label": "Sinun avaimesi",
 
   "settings.browser.heading": "Tässä selaimessa",
   "settings.browser.mode": "Hälytys",

@@ -105,6 +105,10 @@ export const fr: Catalogue = {
   "error.call.shape": "l'indicatif « {value} » n'est pas formé de 1 à 6 caractères A-Z et 0-9 avec un « -SSID » facultatif",
   "error.call.ssid": "l'indicatif « {value} » a un SSID supérieur à {max}",
   "error.general.too_soon": "trop tôt pour une autre requête {query} : attendez {seconds} s",
+  "error.lock.off": "les messages chiffrés ne sont pas autorisés : NeoAPRS a été lancé sans --encryption",
+  "error.lock.no_key": "pas de clé de {call} : elle doit d'abord envoyer sa clé",
+  "error.lock.too_long": "le texte fait {length} octets, un message chiffré en accepte au plus {max}",
+  "error.lock.unprintable": "le texte est vide, ou contient un caractère qu'un message ne peut pas porter",
   "error.failed": "Cela n’a pas fonctionné ; réessayez. Si cela continue, envoyez les journaux (Réglages → Aide).",
   "error.map.no_job": "aucune tâche de carte n'est en cours",
   "error.update.unsupported": "cette copie de NeoAPRS ne peut pas se mettre à jour elle-même ; la page donne les étapes",
@@ -253,6 +257,21 @@ export const fr: Catalogue = {
   "messages.mark.failed": "échec",
   "messages.mark.no_ack_expected": "envoyé, pas d'accusé attendu",
   "messages.mark.cancelled": "annulé",
+  "lock.button": "Clé",
+  "lock.button_title": "La clé de {call}, pour les messages chiffrés",
+  "lock.none": "{call} n'a pas envoyé sa clé",
+  "lock.heard": "entendue {date}",
+  "lock.send_key": "Envoyer ma clé",
+  "lock.forget": "Oublier la clé",
+  "lock.forget_sure": "sûr ?",
+  "lock.toggle_off": "Chiffrer",
+  "lock.toggle_on": "Chiffré : appuyez pour envoyer en clair",
+  "lock.mark": "Chiffré",
+  "lock.shut": "Chiffré ; pas de clé pour le lire ici",
+  "lock.key_mark": "Une clé",
+  "lock.key_out": "Votre clé",
+  "lock.key_in": "Sa clé",
+  "lock.key_other": "Une autre clé : non retenue",
 
   "chain.you": "vous",
   "chain.internet": "internet",
@@ -1061,6 +1080,7 @@ export const fr: Catalogue = {
   "settings.group.tnc": "Radio",
   "settings.group.web": "Page web",
   "settings.group.notifications": "Notifications",
+  "settings.group.encrypt": "Messages chiffrés",
   "settings.group.map": "Carte",
   "settings.group.digi": "Digipeater",
   "settings.group.igate": "Stations Internet",
@@ -1232,6 +1252,12 @@ export const fr: Catalogue = {
   "settings.alerts.tip_label": "À propos des alertes",
   "settings.alerts.tip1": "L'alerte de cet ordinateur : il lance la commande à chaque nouveau message, par défaut un son et une notification.",
   "settings.alerts.tip2": "Le groupe suivant est ce navigateur. Utilisez l'un des deux, ou les deux pour être prévenu deux fois.",
+  "settings.encrypt.tip_label": "À propos des messages chiffrés",
+  "settings.encrypt.tip1":
+    "Un message à une station dont vous avez la clé peut être verrouillé : seule cette station le lit. Rien n'est chiffré ni envoyé seul.",
+  "settings.encrypt.tip2":
+    "Le règlement amateur interdit de cacher ce qui est dit : réservé aux circonstances qui le permettent, et à NeoAPRS lancé avec --encryption.",
+  "settings.encrypt.key_label": "Votre clé",
 
   "settings.browser.heading": "Dans ce navigateur",
   "settings.browser.mode": "Alerte",
@@ -1562,6 +1588,8 @@ export const fr: Catalogue = {
   "help.picture.dummy":
     "Des stations inventées dans un cadre en pointillés répondent à votre station, et ce qu'elle envoie ne sort pas : les ondes sont barrées.",
   "help.picture.notifications": "Un message d'une station arrive, et cet appareil joue un son, le haut-parleur, et montre une fenêtre, la carte.",
+  "help.picture.encrypt":
+    "Deux stations s'échangent leurs clés. Ensuite notre message verrouillé est lu par la station qui a la clé, tandis qu'une troisième station qui l'entend ne voit que le cadenas.",
   "help.picture.qru":
     "Votre station demande des infos locales, et une station serveur répond avec des objets, un relais et un événement, qui apparaissent sur votre carte.",
   "help.not_copied": "Non copié",

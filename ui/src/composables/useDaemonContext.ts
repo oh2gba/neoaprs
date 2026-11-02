@@ -7,6 +7,7 @@ import type { FindRadio } from "@/composables/useFindRadio";
 import type { Panel } from "@/composables/usePanel";
 import type { Settings } from "@/composables/useSettings";
 import type { SetupGuide } from "@/composables/useSetupGuide";
+import type { StationKeys } from "@/composables/useStationKeys";
 import type { StationPrefs } from "@/composables/useStationPrefs";
 import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
@@ -102,6 +103,8 @@ export interface DaemonContext {
   /** the stations heard direct */
   heardDirect: Read<ReadonlySet<string>>;
   prefs: StationPrefs;
+  /** encrypted messages: the stations' keys, our own, the switch and the commands */
+  keys: StationKeys;
   settings: Settings;
   guide: SetupGuide;
   panel: Panel;

@@ -23,6 +23,7 @@ import ChannelsPicture from "@/help/ChannelsPicture.vue";
 import DummyPicture from "@/help/DummyPicture.vue";
 import NotificationsPicture from "@/help/NotificationsPicture.vue";
 import QruPicture from "@/help/QruPicture.vue";
+import EncryptPicture from "@/help/EncryptPicture.vue";
 import type { PictureName } from "@/help/names";
 
 export const PICTURES: Record<PictureName, Component> = {
@@ -49,4 +50,5 @@ export const PICTURES: Record<PictureName, Component> = {
   dummy: DummyPicture,
   notifications: NotificationsPicture,
   qru: QruPicture,
+  encrypt: EncryptPicture,
 };

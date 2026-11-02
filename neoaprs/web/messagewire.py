@@ -1,4 +1,6 @@
-"""The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send a directed query, send one again and stop sending one, and the test of the alert that tells of one. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+"""The messages on the wire: the topic `messages` (a table of rows by id) the commands to send one, send a directed query, send one again and stop sending one, and the test of the alert that tells of one; and
+encrypted messages (neoaprs/cipher.py): the topic `station_keys` (the key each station announced, by call), the commands that send our key to a station, forget a station's key and make a new key of ours. Models like
+the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal, Self
 
 from pydantic import Field, field_validator, model_validator
@@ -44,6 +46,8 @@ class MessageRow(_Model):
     acked_at: Iso | None = Field(description="when the acknowledgement was heard")
     attempts_detail: list[AttemptRow] = Field(description="for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in")
     route: str = Field(description="how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept")
+    seal: Literal["", "key", "key_other", "open", "shut"] = Field(description="what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); "
+                                                                           "`key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came")
 
 
 class SendMessage(_Command):
@@ -53,6 +57,34 @@ class SendMessage(_Command):
     cmd: Literal["send_message"]
     to: Call
     text: MessageText
+    locked: bool = Field(default=False, description="true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`)")
+
+
+class SendKey(_Command):
+    """Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our
+    locked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is."""
+    cmd: Literal["send_key"]
+    to: Call
+
+
+class ForgetStationKey(_Command):
+    """Takes a station's key away (the topic `station_keys`): the first key a station announces is kept, and a later announcement of a different key is not taken until the old one is forgotten. Answered by the `del` of the
+    station's entry, or by an `error` (`lock.no_key` when there is none)."""
+    cmd: Literal["forget_station_key"]
+    call: Call
+
+
+class NewMessageKey(_Command):
+    """Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next
+    `status`. Answered by that `status`, or by an `error` when the key could not be kept."""
+    cmd: Literal["message_key_new"]
+
+
+class StationKey(_Model):
+    """The public key a station announced, kept on first hearing. The entries are the values of the topic `station_keys`, keyed by call; a station that has not announced a key has no entry. A key heard from a station is a
+    `set`, `forget_station_key` a `del`."""
+    fingerprint: str = Field(description="16 hex characters in four groups (`A1B2 C3D4 E5F6 0718`), the start of SHA-256 of the key, for the two operators to compare on voice")
+    heard_at: Iso = Field(description="when the key was heard")
 
 
 class QueryStation(_Command):

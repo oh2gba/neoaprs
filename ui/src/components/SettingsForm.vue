@@ -6,7 +6,7 @@
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
-// the access key with a New key button and the addresses to open the page at. The Help group (SettingsHelp) follows the Update check group, and the About group (SettingsAbout) is the last.
+// the access key with a New key button and the addresses to open the page at. The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
@@ -33,6 +33,7 @@ import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
+import { useSure } from "@/composables/useSure";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
 import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
@@ -46,7 +47,8 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now, keys } = useDaemonContext();
+const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
 const { groups, question, defaults } = form;
@@ -275,6 +277,22 @@ function typed(key: string, text: string): void {
         />
       </template>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
+    </fieldset>
+    <fieldset v-if="scope === 'settings' && keys.on.value" class="encrypt">
+      <legend>{{ t("settings.group.encrypt") }}</legend>
+      <ActionRow id="set-message-key" :label="t('settings.encrypt.key_label')" :tip-label="t('settings.encrypt.tip_label')" picture="encrypt">
+        <input id="set-message-key" class="input mono" type="text" readonly :value="keys.own.value" />
+        <button class="btn" :class="{ danger: newMessageKey.armed.value === 'key' }" type="button" @click="newMessageKey.press('key', () => keys.renew())">
+          <TwoWords :second="newMessageKey.armed.value === 'key'">
+            <template #first>{{ t("settings.new_key") }}</template>
+            <template #second>{{ t("settings.new_key_sure") }}</template>
+          </TwoWords>
+        </button>
+        <template #tip>
+          <span class="info-line">{{ t("settings.encrypt.tip1") }}</span>
+          <span class="info-line">{{ t("settings.encrypt.tip2") }}</span>
+        </template>
+      </ActionRow>
     </fieldset>
     <fieldset v-if="scope === 'settings'" class="update-check">
       <legend>{{ t("settings.update.group") }}</legend>

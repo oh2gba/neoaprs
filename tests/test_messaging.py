@@ -15,6 +15,7 @@ from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
 from neoaprs.route import Deliveries, route_of
 from neoaprs.services import messaging as messaging_module
+from neoaprs.services.keyring import Keyring
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
 from neoaprs.source import Source
@@ -30,14 +31,14 @@ WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
 class Rig(ServiceRig):
-    def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, **changes: object) -> None:
+    def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, keyring: Keyring | None = None, **changes: object) -> None:
         super().__init__(clock, tnc, **changes)
         self.log = log
         self.deliveries: dict[str, Deliveries] = {}                      # how the packets of each station reached us (the station book's, here by hand)
         self.prefs = PrefBook(log, lambda: self.config, self.deliveries.get, clock)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
         self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
-                        spacing_sec=spacing_sec)
+                        spacing_sec=spacing_sec, keyring=keyring)
         remember_stop(self.m.stop)
         self.record(self.m)
 

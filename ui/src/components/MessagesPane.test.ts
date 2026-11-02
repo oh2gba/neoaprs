@@ -372,7 +372,7 @@ describe("MessagesPane, the box to write in", () => {
     const wrapper = await pane();
     await wrapper.find("#msg-text").setValue("Moi Pekka");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi Pekka"]]);
+    expect(wrapper.emitted("send")).toEqual([["OH2RDG", "Moi Pekka", false]]);
     expect(wrapper.find<HTMLInputElement>("#msg-text").element.value).toBe("");
   });
 
@@ -380,7 +380,7 @@ describe("MessagesPane, the box to write in", () => {
     const wrapper = await pane({ selected: "OH2XYZ", thread: [] });
     await wrapper.find("#msg-text").setValue("Hi");
     await wrapper.find("form").trigger("submit");
-    expect(wrapper.emitted("send")).toEqual([["OH2XYZ", "Hi"]]);
+    expect(wrapper.emitted("send")).toEqual([["OH2XYZ", "Hi", false]]);
   });
 
   it("sends on Enter in the text box", async () => {

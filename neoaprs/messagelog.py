@@ -4,15 +4,16 @@ Like the packet log (packetlog.py) this runs on the database thread (db.py) and 
 disk, when it returns); `update_state` is an append that nobody waits for, in order with everything else the thread was asked. The statements are messagesql.py's."""
 import logging
 from dataclasses import replace
+from datetime import datetime
 
 from .chain import Attempt, HopSeen
 from .clock import Clock, utcnow
 from .db import Db
 from .dberror import Row
 from .dblog import DbLog
-from .message import MessageRecord
-from .messagesql import (all_attempts, all_hops, all_prefs, clear_chain, delete_conversation, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_pref, sending_messages,
-                         update_message)
+from .message import SEALS, MessageRecord
+from .messagesql import (all_attempts, all_hops, all_keys, all_prefs, clear_chain, delete_conversation, delete_key, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_key, save_pref,
+                         sending_messages, update_message)
 from .packetcodec import parse_stamp, stamp
 from .pref import Alert
 
@@ -28,14 +29,16 @@ def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
 def message_row(record: MessageRecord) -> Row:
     """The columns of the message table without the id, in the order of the INSERT."""
     return (stamp(record.at), record.direction, record.from_call, record.to_call, record.text, record.msg_id, record.state, record.attempts,
-            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route)
+            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire)
 
 
 def message_of(row: Row) -> MessageRecord:
     """The message from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route) = row
+    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire) = row
+    if seal not in SEALS:
+        raise ValueError(f"seal {seal!r}")
     return MessageRecord(int(number), parse_stamp(str(at)), direction, str(from_call), str(to_call), str(text), None if msg_id is None else str(msg_id), state, int(attempts),
-                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route))
+                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, None if wire is None else str(wire))
 
 
 class MessageLog(DbLog):
@@ -112,6 +115,21 @@ class MessageLog(DbLog):
         """The messages that are still being sent, the oldest first."""
         rows: list[Row] = await self._read(sending_messages, [])
         return self._records(rows)
+
+    # ---- the public keys the stations announced (the table station_key; services/keyring.py)
+    async def keys(self) -> dict[str, tuple[str, datetime]]:
+        """Every station whose key is kept: call to (the key, 43 characters of base64, and when it was heard)."""
+        rows: list[Row] = await self._read(all_keys, [])
+        return {str(call): (str(pubkey), parse_stamp(str(heard_at))) for call, pubkey, heard_at in rows}
+
+    async def save_key(self, call: str, pubkey: str, heard_at: datetime) -> bool:
+        """Keeps the key a station announced, replacing the one it had; False when the database would not take it."""
+        stamped = stamp(heard_at)
+        return await self._done(lambda conn: save_key(conn, call, pubkey, stamped), "a station's key could not be kept")
+
+    async def forget_key(self, call: str) -> bool:
+        """Removes the key of a station; False when the database would not take it."""
+        return await self._done(lambda conn: delete_key(conn, call), "a station's key could not be removed")
 
     # ---- what the operator said about each station (the table station_pref)
     async def prefs(self) -> dict[str, tuple[str | None, bool, Alert | None]]:

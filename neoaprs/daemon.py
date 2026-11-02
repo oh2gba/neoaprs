@@ -190,7 +190,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install, auto_map=True)         # the daemon must not stand still behind another writer: a few seconds
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)
@@ -239,6 +239,7 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
     parser.add_argument("--port", default="", metavar="PATH", help="the radio's port for this run only (the setting serial/port is not changed): /dev/ttyUSB0, COM3, socket://host:port for KISS over TCP (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal")
     parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells")
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
+    parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key (the amateur regulations forbid it in ordinary use: for the circumstances that allow it)")
     parser.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
     return parser
 

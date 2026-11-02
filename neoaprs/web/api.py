@@ -68,6 +68,7 @@ class Api:
                 "beacon_interval_min": c.beacon_interval_min, "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
                 "update": None if self.ctl.updatecheck.latest is None else asdict(self.ctl.updatecheck.latest),
+                "message_key": self.ctl.keyring.fingerprint(),
                 "cpu_percent": cpu_percent, "rss_mb": rss_mb, "uptime_sec": int((self.ctl.clock() - self.started_at).total_seconds())}
 
     def _packet_sent(self) -> None:

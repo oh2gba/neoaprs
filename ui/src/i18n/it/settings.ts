@@ -20,6 +20,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.group.tnc": "Radio",
   "settings.group.web": "Pagina web",
   "settings.group.notifications": "Notifiche",
+  "settings.group.encrypt": "Messaggi cifrati",
   "settings.group.map": "Mappa",
   "settings.group.digi": "Digipeater",
   "settings.group.igate": "Stazioni Internet",
@@ -189,6 +190,11 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.alerts.tip_label": "Informazioni sugli avvisi",
   "settings.alerts.tip1": "L’avviso di questo computer: esegue il comando a ogni nuovo messaggio, di norma un suono e una notifica.",
   "settings.alerts.tip2": "Il gruppo seguente è questo browser. Usa uno dei due, o entrambi per essere avvisato due volte.",
+  "settings.encrypt.tip_label": "Sui messaggi cifrati",
+  "settings.encrypt.tip1":
+    "Un messaggio a una stazione di cui hai la chiave può essere cifrato: solo quella stazione lo legge. Nulla viene cifrato o inviato da solo.",
+  "settings.encrypt.tip2": "Le norme vietano di nascondere ciò che si dice: solo se le circostanze lo permettono, con NeoAPRS avviato con --encryption.",
+  "settings.encrypt.key_label": "La tua chiave",
 
   "settings.browser.heading": "In questo browser",
   "settings.browser.mode": "Avviso",

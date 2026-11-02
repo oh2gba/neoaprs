@@ -15,6 +15,7 @@ import type {
   PortsMessage,
   RadioSearchMessage,
   StationAlertMessage,
+  StationKey,
   StationPref,
   StationRow,
   StatusMessage,
@@ -48,7 +49,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs) is told item by item, the others (tnc, config, map, update, gps, igate, qru, general) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, config, map, update, gps, igate, qru, general) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -71,6 +72,7 @@ export interface Store {
   replaceMessages(rows: Record<string, MessageRow>): void;
   replaceBulletins(rows: Record<string, BulletinRow>): void;
   replaceStationPrefs(rows: Record<string, StationPref>): void;
+  replaceStationKeys(rows: Record<string, StationKey>): void;
   replaceOwnObjects(rows: Record<string, OwnObjectRow>): void;
   replaceOwnBulletins(rows: Record<string, OwnBulletinRow>): void;
   replaceTnc(value: TopicValues["tnc"]): void;
@@ -86,6 +88,7 @@ export interface Store {
   setMessage(key: string, row: MessageRow): void;
   setBulletin(key: string, row: BulletinRow): void;
   setStationPref(call: string, pref: StationPref): void;
+  setStationKey(call: string, key: StationKey): void;
   setOwnObject(name: string, row: OwnObjectRow): void;
   setOwnBulletin(slot: string, row: OwnBulletinRow): void;
   delStation(key: string): void;
@@ -93,9 +96,30 @@ export interface Store {
   delMessage(key: string): void;
   delBulletin(key: string): void;
   delStationPref(call: string): void;
+  delStationKey(call: string): void;
   delOwnObject(name: string): void;
   delOwnBulletin(slot: string): void;
 }
+
+/** The method of the store that takes the whole value of each topic. */
+const REPLACERS: Record<TopicName, keyof Store> = {
+  stations: "replaceStations",
+  packets: "replacePackets",
+  messages: "replaceMessages",
+  bulletins: "replaceBulletins",
+  station_prefs: "replaceStationPrefs",
+  station_keys: "replaceStationKeys",
+  own_objects: "replaceOwnObjects",
+  own_bulletins: "replaceOwnBulletins",
+  tnc: "replaceTnc",
+  config: "replaceConfig",
+  map: "replaceMap",
+  update: "replaceUpdate",
+  gps: "replaceGps",
+  igate: "replaceIgate",
+  qru: "replaceQru",
+  general: "replaceGeneral",
+};
 
 /** What the hub needs of a WebSocket: the browser's has more. */
 export interface SocketLike {
@@ -289,21 +313,7 @@ export class Hub {
 
   // The values arrive as `unknown`; the daemon checks every one against its models before it sends (web/outbound.py), so an object of the right topic is taken as the topic's type.
   private replace(topic: TopicName, value: unknown): void {
-    if (topic === "stations") this.store.replaceStations(value as TopicValues["stations"]);
-    else if (topic === "packets") this.store.replacePackets(value as TopicValues["packets"]);
-    else if (topic === "messages") this.store.replaceMessages(value as TopicValues["messages"]);
-    else if (topic === "bulletins") this.store.replaceBulletins(value as TopicValues["bulletins"]);
-    else if (topic === "station_prefs") this.store.replaceStationPrefs(value as TopicValues["station_prefs"]);
-    else if (topic === "own_objects") this.store.replaceOwnObjects(value as TopicValues["own_objects"]);
-    else if (topic === "own_bulletins") this.store.replaceOwnBulletins(value as TopicValues["own_bulletins"]);
-    else if (topic === "tnc") this.store.replaceTnc(value as TopicValues["tnc"]);
-    else if (topic === "map") this.store.replaceMap(value as TopicValues["map"]);
-    else if (topic === "update") this.store.replaceUpdate(value as TopicValues["update"]);
-    else if (topic === "gps") this.store.replaceGps(value as TopicValues["gps"]);
-    else if (topic === "igate") this.store.replaceIgate(value as TopicValues["igate"]);
-    else if (topic === "qru") this.store.replaceQru(value as TopicValues["qru"]);
-    else if (topic === "general") this.store.replaceGeneral(value as TopicValues["general"]);
-    else this.store.replaceConfig(value as TopicValues["config"]);
+    (this.store[REPLACERS[topic]] as (value: unknown) => void).call(this.store, value);
   }
 
   private set(topic: TopicName, key: string, value: unknown): void {
@@ -312,6 +322,7 @@ export class Hub {
     else if (topic === "messages") this.store.setMessage(key, value as MessageRow);
     else if (topic === "bulletins") this.store.setBulletin(key, value as BulletinRow);
     else if (topic === "station_prefs") this.store.setStationPref(key, value as StationPref);
+    else if (topic === "station_keys") this.store.setStationKey(key, value as StationKey);
     else if (topic === "own_objects") this.store.setOwnObject(key, value as OwnObjectRow);
     else if (topic === "own_bulletins") this.store.setOwnBulletin(key, value as OwnBulletinRow);
   }
@@ -322,6 +333,7 @@ export class Hub {
     else if (topic === "messages") this.store.delMessage(key);
     else if (topic === "bulletins") this.store.delBulletin(key);
     else if (topic === "station_prefs") this.store.delStationPref(key);
+    else if (topic === "station_keys") this.store.delStationKey(key);
     else if (topic === "own_objects") this.store.delOwnObject(key);
     else if (topic === "own_bulletins") this.store.delOwnBulletin(key);
   }

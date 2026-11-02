@@ -33,7 +33,7 @@ from neoaprs.weatherlog import Observation
 from .bulletinwire import BulletinRow
 from .gpswire import GpsState
 from .igatewire import IgateState
-from .messagewire import AttemptRow, MessageRow
+from .messagewire import AttemptRow, MessageRow, StationKey
 from .ownwire import OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow
 from .prefwire import StationAlertMsg, StationPref
@@ -139,6 +139,11 @@ def own_object_row(obj: OwnObject, next_at: datetime | None) -> dict[str, Any]:
 
 def own_bulletin_row(bulletin: OwnBulletin, next_at: datetime | None) -> dict[str, Any]:
     return OwnBulletinRow.row(bulletin, posted_at=iso(bulletin.created_at), next_at=iso(next_at))
+
+
+def key_row(fingerprint: str, heard_at: datetime) -> dict[str, Any]:
+    """The page's entry of a station's key (services/keyring.py, Keyring.peers)."""
+    return StationKey.row(None, fingerprint=fingerprint, heard_at=iso(heard_at))
 
 
 def pref_row(pref: Pref) -> dict[str, Any]:

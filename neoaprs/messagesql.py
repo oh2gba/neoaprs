@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from .dberror import Row as Row, limit, rows
 
-MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route")
+MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route", "seal", "wire")
 _LIST = ", ".join(MESSAGE_COLUMNS)
 _NEW_LIST = ", ".join(MESSAGE_COLUMNS[1:])
 _NEW_PLACES = ", ".join("?" * (len(MESSAGE_COLUMNS) - 1))
@@ -55,6 +55,21 @@ def held_messages(db: sqlite3.Connection, count: int) -> list[Row]:
 def sending_messages(db: sqlite3.Connection) -> list[Row]:
     """The messages that are still being sent, the oldest first."""
     return rows(db.execute(f"SELECT {_LIST} FROM message WHERE state = 'sending' ORDER BY id"))
+
+
+# ---- the public keys the stations announced (the table station_key)
+def all_keys(db: sqlite3.Connection) -> list[Row]:
+    """(call, pubkey, heard_at) of every station whose key is kept."""
+    return rows(db.execute("SELECT call, pubkey, heard_at FROM station_key ORDER BY call"))
+
+
+def save_key(db: sqlite3.Connection, call: str, pubkey: str, heard_at: str) -> None:
+    """The key of a station, replacing the one it had."""
+    db.execute("INSERT INTO station_key (call, pubkey, heard_at) VALUES (?1, ?2, ?3) ON CONFLICT(call) DO UPDATE SET pubkey = ?2, heard_at = ?3", (call, pubkey, heard_at))
+
+
+def delete_key(db: sqlite3.Connection, call: str) -> int:
+    return db.execute("DELETE FROM station_key WHERE call = ?", (call,)).rowcount
 
 
 def all_prefs(db: sqlite3.Connection) -> list[Row]:

@@ -21,6 +21,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.group.tnc": "Rádio",
   "settings.group.web": "Página web",
   "settings.group.notifications": "Notificações",
+  "settings.group.encrypt": "Mensagens criptografadas",
   "settings.group.map": "Mapa",
   "settings.group.digi": "Digipeater",
   "settings.group.igate": "Estações da Internet",
@@ -190,6 +191,12 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.alerts.tip_label": "Sobre os alertas",
   "settings.alerts.tip1": "O alerta deste computador: executa o comando a cada mensagem nova, por padrão um som e uma notificação.",
   "settings.alerts.tip2": "O grupo seguinte é este navegador. Use um dos dois, ou os dois para ser avisado duas vezes.",
+
+  "settings.encrypt.tip_label": "Sobre as mensagens criptografadas",
+  "settings.encrypt.tip1":
+    "Uma mensagem para uma estação da qual você tem a chave pode ser trancada: só essa estação a lê. Nada é criptografado nem enviado sozinho.",
+  "settings.encrypt.tip2": "A regulamentação proíbe ocultar o que é dito: só quando as circunstâncias permitem, com o NeoAPRS iniciado com --encryption.",
+  "settings.encrypt.key_label": "Sua chave",
 
   "settings.browser.heading": "Neste navegador",
   "settings.browser.mode": "Alerta",

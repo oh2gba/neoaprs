@@ -118,7 +118,7 @@ OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.
                                   "path": None, "qru_group": "", "on_request": False, "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
 OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
-                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "",
+                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "",
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
                                                     "internet": None, "acked": False}]}
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
@@ -136,11 +136,11 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                 "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z",
                 "station_status": "QRV 14.074 MHz USB", "station_status_last_sent": NOW, "rig_state": "on",
                 "cpu_percent": 0.3, "rss_mb": 42.4, "uptime_sec": 10800,
-                "update": {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}},
+                "update": {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}, "message_key": "A1B2 C3D4 E5F6 0718"},
                {"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 0, "stations": 1, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
                 "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None,
                 "station_status": "", "station_status_last_sent": None, "rig_state": "unused",
-                "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None}],
+                "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None, "message_key": ""}],
     "pong": [{"type": "pong", "now": NOW}],
     "ports": [{"type": "ports", "search": False, "find": True, "ports": [{"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001 SER=A1", "vid": 1027, "pid": 24577},
                                                            {"device": "COM4", "description": "Standard Serial over Bluetooth link (COM4)", "hwid": "BTHENUM\\{00001101}", "vid": None, "pid": None}]},
@@ -174,7 +174,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
               {"type": "state", "topic": "station_prefs", "rev": 1,
                "value": {"OH2RDG": {"path": "WIDE2-1", "rf_only": False, "alert": None}, "OH2XYZ": {"path": "", "rf_only": True, "alert": None},
-                         "OH2ABC": {"path": None, "rf_only": False, "alert": {"on_air": True, "within_km": 10, "direct": False}}, "EMAIL-2": {"path": None, "rf_only": False, "alert": None}}}],
+                         "OH2ABC": {"path": None, "rf_only": False, "alert": {"on_air": True, "within_km": 10, "direct": False}}, "EMAIL-2": {"path": None, "rf_only": False, "alert": None}}},
+              {"type": "state", "topic": "station_keys", "rev": 1, "value": {"OH2RDG": {"fingerprint": "A1B2 C3D4 E5F6 0718", "heard_at": NOW}}}],
     "patch": [{"type": "patch", "topic": "stations", "rev": 4, "ops": [{"op": "set", "key": "OH2RDK-7", "value": STATION}, {"op": "del", "key": "OH2RDG"}]},
               {"type": "patch", "topic": "packets", "rev": 5, "ops": [{"op": "set", "key": "8", "value": PACKET}, {"op": "del", "key": "1"}]},
               {"type": "patch", "topic": "tnc", "rev": 2, "ops": [{"op": "replace", "value": TNC}]}, {"type": "patch", "topic": "config", "rev": 1, "ops": [{"op": "replace", "value": CONFIG}]},
@@ -183,7 +184,8 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "patch", "topic": "own_objects", "rev": 2, "ops": [{"op": "set", "key": "LEADER", "value": {**OWN_OBJECT_ROW, "state": "killing", "sent": 0}}, {"op": "del", "key": "MARK"}]},
               {"type": "patch", "topic": "own_bulletins", "rev": 2, "ops": [{"op": "set", "key": "BLN3HAMS", "value": {**OWN_BULLETIN_ROW, "sent": 2, "next_at": None}}, {"op": "del", "key": "BLN1"}]},
               {"type": "patch", "topic": "station_prefs", "rev": 2, "ops": [{"op": "set", "key": "OH2RDG", "value": {"path": "OH2RCH-2,WIDE2-1", "rf_only": False, "alert": None}},
-                                                                        {"op": "set", "key": "OH2XYZ", "value": {"path": "", "rf_only": True, "alert": {"on_air": False, "within_km": None, "direct": True}}}, {"op": "del", "key": "OH2ABC"}]}],
+                                                                        {"op": "set", "key": "OH2XYZ", "value": {"path": "", "rf_only": True, "alert": {"on_air": False, "within_km": None, "direct": True}}}, {"op": "del", "key": "OH2ABC"}]},
+              {"type": "patch", "topic": "station_keys", "rev": 2, "ops": [{"op": "set", "key": "OH2XYZ", "value": {"fingerprint": "0A0B 0C0D 0E0F 1011", "heard_at": NOW}}, {"op": "del", "key": "OH2RDG"}]}],
 }
 DECODED = [
     {"type": "position", **POSITION},
@@ -212,6 +214,9 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1"},
     "clear_station_path": {"cmd": "clear_station_path", "call": "OH2RDG"},
     "set_station_rf_only": {"cmd": "set_station_rf_only", "call": "OH2RDG", "on": True},
+    "send_key": {"cmd": "send_key", "to": "OH2RDG"},
+    "forget_station_key": {"cmd": "forget_station_key", "call": "OH2RDG"},
+    "message_key_new": {"cmd": "message_key_new"},
     "set_station_alert": {"cmd": "set_station_alert", "call": "OH2RDG", "on_air": True, "within_km": 10, "direct": False},
     "weather_series": {"cmd": "weather_series", "call": "OH2MUI", "hours": 24}, "speed_series": {"cmd": "speed_series", "call": "OH2ZMA-9", "hours": 24}, "station_traffic": {"cmd": "station_traffic", "call": "OH2RDK-7"}, "packet_history": {"cmd": "packet_history", "hours": 24}, "position_history": {"cmd": "position_history", "hours": 3}, "alert_test": {"cmd": "alert_test"}, "update_check": {"cmd": "update_check"}, "release_notes": {"cmd": "release_notes", "version": "0.4.0", "since": "0.3.0"},
     "bulletin_delete": {"cmd": "bulletin_delete", "sender": "OH2XYZ", "slot": "BLN3HAMS"},
@@ -242,7 +247,7 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
                 TOPIC_VALUES[message["topic"]].validate_json(json.dumps(op["value"]))
             elif op["op"] == "set":
                 TOPIC_ITEMS[message["topic"]].validate_json(json.dumps(op["value"]))
-    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs", "own_objects", "own_bulletins"}
+    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs", "station_keys", "own_objects", "own_bulletins"}
 
 
 def test_every_kind_of_decoded_packet_has_a_model_and_the_kinds_are_the_parsers() -> None:

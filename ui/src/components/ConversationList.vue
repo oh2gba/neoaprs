@@ -10,6 +10,7 @@ import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { ageText } from "@/lib/format";
+import { shownText } from "@/lib/lock";
 import { askedNote, conversationName, isHighlighted, overheardPair, type Conversation } from "@/lib/messages";
 import { unreadText } from "@/lib/unread";
 
@@ -34,7 +35,8 @@ const copy = useCopyMenu((row) => {
 function preview(row: Conversation["last"]): string {
   const asked = askedNote(row);
   if (asked !== null) return asked;
-  return row.direction === "out" ? t("messages.last_out", { text: row.text }) : row.text;
+  const text = shownText(row);
+  return row.direction === "out" ? t("messages.last_out", { text }) : text;
 }
 
 /** The delete of a row: the conversation goes, or the overheard pair. */

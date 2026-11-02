@@ -426,3 +426,27 @@
 .path-line {
   flex-basis: 100%;
 }
+.keybox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.keybox-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+}
+.keybox-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+.bubble-text.sealed {
+  color: var(--muted);
+  font-style: italic;
+}
+.compose-lock.pressed {
+  color: var(--accent);
+}

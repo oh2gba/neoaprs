@@ -8,6 +8,9 @@ are made 4 times, 2 for the email gateway (message.attempts_for; the record keep
 longer than 960 (message.schedule_sec); the answer to the last is waited for FINAL_WAIT_SEC, then the message is "failed", or "unconfirmed" when it was given only 1 or 2 attempts (the station is not expected to ack; an ack that comes later still settles it). An ack from the addressee that quotes our id makes it "acked", a rej "rejected";
 A message to a bulletin or a group (BLN*, ALL, CQ, QST, NWS-*, SKY*, CWA*: neoaprs/bulletin.py) is sent once, without an id, and kept as "unconfirmed" with one attempt; so is a directed query (`ask`: ?APRSP, ?APRSS, ?APRSD, ?APRST to a
 station, once per station and kind in QUERY_EVERY_SEC: services/asking.py, through `send` with `once`), which the conversation shows as a note of what was asked. `cancel` stops a message that is being sent, `retry` sends a failed, unconfirmed, rejected or cancelled one again from the first attempt, `delete` removes a message of any kind (a message being sent is cancelled first).
+An encrypted message (`send` with `locked`; neoaprs/cipher.py, the keys in services/keyring.py) is sealed once, when it is written, with the key we share with the station: the record keeps what was written
+as `text` and what goes on the air as `wire` (every attempt sends the same bytes, so that the addressee's duplicate check sees one message), and is `open`. It is refused while encrypted messages are switched off
+(`lock.off`), while the station has not announced its key (`lock.no_key`) and when the text is over 34 bytes of UTF-8 (`lock.too_long`). `send_key` announces our public key to a station as an ordinary message (`key`).
 One message to a station is on the air at a time (`queued`): a message to a station that another message of ours to it is still being sent to waits, with no attempt made, until that one is acked, rejected, failed or cancelled,
 and then goes; so the messages arrive in the order they were written, and an unanswering station is not sent several at once. The one on the air is the one that has had an attempt, else the oldest. A message that is
 not expected to be acked (given 1 or 2 attempts: the email gateway, a bulletin, a query) neither waits nor holds another up. The database keeps a waiting message as `sending`, with no attempt; the page is told it as `queued`.
@@ -33,13 +36,13 @@ import logging
 from collections.abc import Callable
 from dataclasses import replace
 
-from neoaprs import ax25
+from neoaprs import ax25, cipher
 from neoaprs.bulletin import board_slot
 from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, RETRYABLE, UNCONFIRMED_MAX, MessageRecord, MessagingError, addressed_to, attempts_for, check_text
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, RETRYABLE, UNCONFIRMED_MAX, MessageRecord, MessagingError, Seal, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
@@ -47,6 +50,7 @@ from neoaprs.services.acks import Acks
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox
+from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
 from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
@@ -83,8 +87,9 @@ class Messaging:
     def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
-                 qru_answer: Callable[[Packet, Message], bool] | None = None) -> None:
+                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
         self._tnc = tnc
+        self.keyring = keyring                                  # the keys of encrypted messages (services/keyring.py); None where there are none (some tests)
         self._config = config
         interlock = Interlock(config)
         self._log = messagelog
@@ -99,7 +104,7 @@ class Messaging:
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
-        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
+        self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
 
     def records(self) -> list[MessageRecord]:
         """The messages held, the oldest first."""
@@ -142,10 +147,11 @@ class Messaging:
         await self.inbox.stop()
 
     # ---- sending
-    async def send(self, to_call: str, text: str, once: bool = False) -> MessageRecord:
+    async def send(self, to_call: str, text: str, once: bool = False, locked: bool = False) -> MessageRecord:
         """Keeps a new message to `to_call` and transmits it. Raises MessagingError, with the reason, when the addressee or the text is not right, the radio is silent, or the message cannot be kept. The message is given back
         as it is after the first attempt; when the Tnc is not connected it has had none yet and the attempt waits. While the call is not set (the interlock) it is refused with "set your call first". With `once` (what a
-        directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt."""
+        directed query is, services/asking.py) it goes out as a message to a bulletin does: without an id, with one attempt. With `locked` the text (UTF-8, at most 34 bytes) is sealed with the key we share with the
+        station, and what goes on the air is the ciphertext (neoaprs/cipher.py); refused while encrypted messages are off, or the station has not announced its key."""
         ours = our_call(self._config())
         board = board_slot(to_call)
         once = once or board is not None
@@ -155,15 +161,50 @@ class Messaging:
             raise MessagingError(str(e)) from None
         if addressed_to(to, ours):
             raise MessagingError(f"{to} is our own call")
+        if locked:
+            if board is not None or once:
+                raise MessagingError("a bulletin or a query cannot be encrypted")
+            return await self._send(ours, to, text, False, "open", self._sealed(ours, to, text))
         try:
             check_text(text)
         except MessageError as e:
             raise MessagingError(str(e)) from None
+        return await self._send(ours, to, text, once, "", None)
+
+    async def send_key(self, to_call: str) -> MessageRecord:
+        """Announces our public key to a station as an ordinary message (`key`), so that it can encrypt to us; made when there is none yet. Refused while encrypted messages are switched off (`lock.off`), as `send` refuses."""
+        ours = our_call(self._config())
+        if self.keyring is None:
+            raise MessagingError("this daemon has no keys")
+        self.keyring.refuse_unless_on()
+        try:
+            to = normal_name(to_call)
+        except CallsignError as e:
+            raise MessagingError(str(e)) from None
+        if addressed_to(to, ours):
+            raise MessagingError(f"{to} is our own call")
+        return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
+
+    def _sealed(self, ours: str, to: str, text: str) -> str:
+        """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
+        if self.keyring is None:
+            raise MessagingError("this daemon has no keys")
+        self.keyring.refuse_unless_on()
+        shared = self.keyring.shared_with(to)
+        if shared is None:
+            raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
+        try:
+            return cipher.seal(shared, ours, to, text)
+        except cipher.CipherError as e:
+            raise MessagingError(str(e), e.code, **e.params) from None
+
+    async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
+        """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
         if self._tnc.state is Source.State.SILENT:
             raise MessagingError(self._tnc.why_unusable())
-        self._frame(_info(to, text, None if once else MSG_IDS[0], None if once else ""), to)          # (the settings make a frame, and the text one)
+        self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to)          # (the settings make a frame, and the text one)
         ident = None if once else self.acks.allocate(self._records.values())
-        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to)))
+        record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)
@@ -270,7 +311,7 @@ class Messaging:
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
-            frame = self._frame(_info(record.to_call, record.text, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
+            frame = self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
             sent = self._tnc.send_frame(frame)
         except MessagingError as e:
             if self._refused.get(record.id) != str(e):
@@ -285,7 +326,7 @@ class Messaging:
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at)
         if record.msg_id is None:
             record = replace(record, state="unconfirmed")                   # (a bulletin or a group message is sent once and nobody acks it)
-        log.info("message %d to %s sent (attempt %d of %d): %s", record.id, record.to_call, record.attempts, record.attempts_max, record.text)
+        log.info("message %d to %s sent (attempt %d of %d): %s", record.id, record.to_call, record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
         self.put(record)
         return record
 

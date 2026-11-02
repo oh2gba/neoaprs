@@ -10,7 +10,7 @@ from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
-from tests.support.migrated import opened, try_open
+from tests.support.migrated import opened, step_back, try_open
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
 
 COLUMNS = "id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route"
@@ -26,10 +26,7 @@ def version_twentytwo(path: Path, clock: FixedClock, deleted: tuple[int, ...] = 
     db.execute("DELETE FROM schema_history WHERE version >= 23")
     sql = str(db.execute("SELECT sql FROM sqlite_master WHERE name = 'message'").fetchone()[0])
     assert "AUTOINCREMENT" in sql
-    db.execute("DROP TABLE message")
-    db.execute("DROP INDEX IF EXISTS message_calls")
-    db.execute(sql.replace(" AUTOINCREMENT", ""))
-    db.execute("CREATE INDEX message_calls ON message (to_call, from_call, at)")
+    step_back(db, 22)                                    # (the message table as migration 10 made it, without AUTOINCREMENT, and nothing of the later migrations)
     db.execute("PRAGMA user_version = 22")
     for row in MESSAGES:
         db.execute(f"INSERT INTO message ({COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", row)
@@ -49,7 +46,7 @@ def migrate(folder: Path, deleted: tuple[int, ...] = (), chain_of: int = 0) -> s
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 23
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(23, "_v23", GOLDEN[23])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24])]
     fresh.close()
     return migrated.db
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply (and a small trash can, pressed twice, for one that is no longer being sent and was never acked), the delivery chain
-// of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2"). It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
+// of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2"). An encrypted message carries a padlock beside its time (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
 // (null: a new message is being written, and nothing is said). A right-click on a bubble (a long press on a touch screen) offers to copy its text (CopyMenu). A query we sent (the Stations table's menu: `?APRSS` and the like, sent with no message id) is no bubble but a small grey line in the middle, "You asked for its status", with the time. The Email tab has its own list (EmailList).
 import { computed, ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
+import LockGlyph from "@/components/LockGlyph.vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";
 import { t } from "@/i18n";
@@ -12,6 +13,7 @@ import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
+import { markOf as sealMarkOf, shownText } from "@/lib/lock";
 import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -22,8 +24,8 @@ const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [i
 const sure = useSure<number>(); // (the id of the message, armed by the first press of its trash can)
 
 const log = ref<HTMLElement | null>(null);
-/** Each message with the note of the query it is, if it is one. */
-const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m) })));
+/** Each message with the note of the query it is, if it is one, and the mark of what it is besides text (a padlock, a key). */
+const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m) })));
 
 useToNewest(log, () => [props.peer, props.thread.length]);
 /** The copy menu of a bubble: the text of its message. */
@@ -36,7 +38,7 @@ const copy = useCopyMenu((bubble) => {
 <template>
   <div ref="log" class="bubbles" role="log" :aria-label="peer === null ? t('messages.thread') : t('messages.thread_with', { peer })">
     <p v-if="peer !== null && thread.length === 0" class="empty">{{ t("messages.thread_empty", { peer }) }}</p>
-    <template v-for="{ m, asked } in items" :key="m.id">
+    <template v-for="{ m, asked, seal } in items" :key="m.id">
       <p v-if="asked" class="asked muted" data-asked>
         <span>{{ asked }}</span>
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
@@ -51,9 +53,10 @@ const copy = useCopyMenu((bubble) => {
         :data-id="m.id"
         v-on="copy.on.value"
       >
-        <p class="bubble-text">{{ m.text }}</p>
+        <p class="bubble-text" :class="{ sealed: m.seal !== '' && m.seal !== 'open' }">{{ shownText(m) }}</p>
         <p class="bubble-meta muted">
           <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
+          <LockGlyph v-if="seal" :kind="seal.kind" :title="seal.title" />
           <MessageMark :row="m" />
           <span v-if="m.direction === 'out'" class="msg-state" :class="`state-${m.state}`">{{ stateText(m) }}</span>
           <button v-if="canRetry(m)" type="button" class="btn small" @click="emit('retry', m.id)">{{ t("messages.retry") }}</button>

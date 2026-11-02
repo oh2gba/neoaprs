@@ -227,7 +227,7 @@ async def test_a_daemon_that_ends_with_an_exception_says_so_in_its_log_and_has_t
         raise RuntimeError("the end of the world")
     monkeypatch.setattr(entry, "_serve", broken)
     hooks = (sys.excepthook, threading.excepthook)
-    args = argparse.Namespace(data=str(tmp_path), port="", web_port=0, debug=False)
+    args = argparse.Namespace(data=str(tmp_path), port="", web_port=0, debug=False, encryption=False)
     with pytest.raises(RuntimeError, match="end of the world"):
         await entry._run_locked(args, tmp_path, [])
     assert (sys.excepthook, threading.excepthook) == hooks, "the hooks are put back"

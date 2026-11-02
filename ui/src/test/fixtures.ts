@@ -210,6 +210,7 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     acked_at: null,
     attempts_detail: [],
     route: "",
+    seal: "",
     ...extra,
   };
 }
@@ -520,6 +521,7 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",
+    message_key: "",
     cpu_percent: 0.3,
     rss_mb: 42.4,
     uptime_sec: 10800,

@@ -23,6 +23,7 @@ export const PICTURE_NAMES = [
   "dummy",
   "notifications",
   "qru",
+  "encrypt",
 ] as const;
 
 export type PictureName = (typeof PICTURE_NAMES)[number];

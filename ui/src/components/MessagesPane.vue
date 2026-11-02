@@ -31,7 +31,7 @@ const emit = defineEmits<{
   select: [call: string | null];
   /** the recipients of the group compose that are left, or null: it was closed */
   "update:group": [calls: string[] | null];
-  send: [to: string, text: string];
+  send: [to: string, text: string, locked: boolean];
   /** one text to several stations: a message of its own for each */
   sendMany: [to: string[], text: string];
   retry: [id: number];
@@ -102,7 +102,7 @@ function sent(send: () => void): void {
       :connected="connected"
       @update="emit('update:group', $event)"
       @close="emit('update:group', null)"
-      @send="(to, text) => sent(() => emit('send', to, text))"
+      @send="(to, text) => sent(() => emit('send', to, text, false))"
       @send-many="(to, text) => sent(() => emit('sendMany', to, text))"
     />
     <ConversationView
@@ -113,7 +113,7 @@ function sent(send: () => void): void {
       :narrow="!wide"
       :thread="thread"
       @back="back"
-      @send="(to, text) => emit('send', to, text)"
+      @send="(to, text, locked) => emit('send', to, text, locked)"
       @retry="emit('retry', $event)"
       @cancel="emit('cancel', $event)"
       @delete="emit('deleteMessage', $event)"

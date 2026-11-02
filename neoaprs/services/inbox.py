@@ -24,7 +24,11 @@ A message is to us when its addressee is our call with its SSID, exactly (no SSI
 ack from the inner source settles our message, a message from it is received and acked to it, also when its name is no AX.25 call (`OH2XYZ-L`, `WINLINK`: callsign.normal_name). The inbox knows nothing of the schedule or of the radio: it asks its host (messaging) for the
 messages held, to keep a message and to send an ack.
 
-The first copy of a message to us is also handed to `alert` (services/alerts.py), when there is one: a repeat or another digipeater's copy, an ack, a rej, a bulletin and an overheard message are not."""
+The first copy of a message to us is also handed to `alert` (services/alerts.py), when there is one: a repeat or another digipeater's copy, an ack, a rej, a bulletin and an overheard message are not.
+
+Encrypted messages (neoaprs/cipher.py; the keys in services/keyring.py, `keyring`): a message to us whose text announces the sender's key is kept as `key` (the key ring takes the key, or says `key_other` when it
+differs from the one kept); one whose text is sealed is opened with the key we share with the sender and kept with the text inside (`open`, the ciphertext as `wire`), or as it came when it does not open
+(`shut`: no key from the sender, no key of ours, or not for us). Either is acked like any message. An overheard sealed message is `shut` (it is not for us), an overheard key announcement `key`."""
 import asyncio
 import logging
 from collections.abc import Callable
@@ -32,15 +36,17 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Literal, Protocol
 
+from neoaprs import cipher
 from neoaprs.aprsmessage import line_of, reply_ack_of
 from neoaprs.bulletin import board_slot
 from neoaprs.callsign import CallsignError, normal_name
-from neoaprs.message import ACK_SETTLES, MessageRecord, addressed_to, is_query, is_telemetry_definition, same_call
+from neoaprs.message import ACK_SETTLES, MessageRecord, Seal, addressed_to, is_query, is_telemetry_definition, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.route import received_text
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.heard import ACK_AGAIN_SEC, Heard
+from neoaprs.services.keyring import Keyring
 from neoaprs.tasks import TaskSet
 
 log = logging.getLogger("neoaprs.messaging")
@@ -71,8 +77,9 @@ class Host(Protocol):
 class Inbox:
     def __init__(self, host: Host, config: ConfigSource, messagelog: MessageLog, tasks: TaskSet, board: Callable[[Packet, Message], None] | None = None,
                  alert: Callable[[MessageRecord], None] | None = None, qru: Callable[[Packet, Message], bool] | None = None,
-                 qru_answer: Callable[[Packet, Message], bool] | None = None) -> None:
+                 qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
         self._host = host
+        self._keyring = keyring                                 # the keys of encrypted messages (services/keyring.py); None where there are none
         self._qru_answer = qru_answer                           # says whether a message to us is a QRU server's answer to our request (services/qruask.py)
         self._qru = qru                                         # the QRU server: takes a message to QRU and says whether it did (services/qru.py)
         self._alert = alert                                     # told of a message to us the first time it is heard (services/alerts.py)
@@ -115,7 +122,8 @@ class Inbox:
             return                                                   # (the queries answer it; it is not kept)
         if reply:
             self._settle(packet, reply, "acked")
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received", route=received_text(packet.path, packet.gate))
+        text, seal, wire = self._opened(packet, message)
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire)
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
             if self.heard.ack_due(record, packet.heard_at):
@@ -128,6 +136,21 @@ class Inbox:
             self.tasks.spawn(self._keep(record), "message-keep")
             if self._alert is not None:
                 self._alert(record)
+
+    def _opened(self, packet: Packet, message: Message) -> tuple[str, Seal, str | None]:
+        """The text of a message to us as it is kept, what it is, and what came on the air when that differs: a key announcement as it came (`key`; the key ring takes the key when it is kept), a sealed text opened with the
+        key we share with the sender (`open`) or as it came when it does not open (`shut`), anything else as it is."""
+        text = message.text
+        if cipher.key_of_message(text) is not None:
+            return text, "key", None
+        if not cipher.is_locked(text):
+            return text, "", None
+        shared = None if self._keyring is None else self._keyring.shared_with(packet.sender)
+        opened = None if shared is None else cipher.open_sealed(shared, _station(packet.sender), self._config().station_call, text)
+        if opened is None:
+            log.info("an encrypted message from %s does not open here (%s)", packet.sender, "no key" if shared is None else "another key, or damaged")
+            return text, "shut", None
+        return opened, "open", text
 
     def _elsewhere(self, packet: Packet, message: Message) -> None:
         """A message to another station: a request to QRU that the QRU server takes (never acked), the board's when it is for a bulletin or a group (an ack or a reject of those is nothing), else overheard."""
@@ -146,11 +169,16 @@ class Inbox:
         """A message to another station: kept apart from the conversations (once for a repeat or a digipeater's copy). An ack or a reject of other stations is not a message and is not kept."""
         if message.ack_id is not None or message.rej_id is not None:
             return
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate))
+        seal: Seal = "key" if cipher.key_of_message(message.text) is not None else "shut" if cipher.is_locked(message.text) else ""
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal)
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")
 
     async def _keep(self, record: MessageRecord) -> None:
+        if record.seal == "key" and record.state == "received" and self._keyring is not None:
+            key = cipher.key_of_message(record.text)
+            if key is not None:
+                record = replace(record, seal=await self._keyring.take(record.from_call, key, record.at))
         kept = await self._log.insert(record)
         if kept is None:
             log.error("a message from %s could not be kept: the database is not open", record.from_call)

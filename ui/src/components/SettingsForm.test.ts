@@ -1519,3 +1519,28 @@ describe("SettingsForm: the RX only tickbox", () => {
     expect(wrapper.find(".info-line").text()).toBe("Nothing is sent: no beacon, message, ack or digipeat.");
   });
 });
+
+describe("the group Encrypted messages", () => {
+  it("is not there while the daemon has no key for encrypted messages (it runs without --encryption)", () => {
+    const { wrapper } = make();
+    expect(wrapper.findAll("fieldset legend").map((l) => l.text())).not.toContain("Encrypted messages");
+    expect(wrapper.find("#set-message-key").exists()).toBe(false);
+  });
+
+  it("shows our key's fingerprint with New key, which asks twice and then asks the daemon for a new key, and an (i) with the picture, when the daemon has one", async () => {
+    const { wrapper, send } = make({}, "settings", { status: status({ message_key: "A1B2 C3D4 E5F6 0718" }) });
+    const legends = wrapper.findAll("fieldset legend").map((l) => l.text());
+    expect(legends.indexOf("Encrypted messages")).toBe(legends.indexOf("Update check") - 1);
+    expect(wrapper.find<HTMLInputElement>("#set-message-key").element.value).toBe("A1B2 C3D4 E5F6 0718");
+    const button = wrapper.find("fieldset.encrypt button.btn");
+    expect(button.text()).toMatch(/^New key/); // (TwoWords holds "sure?" too, hidden until the first press)
+    await button.trigger("click");
+    expect(send).not.toHaveBeenCalledWith({ cmd: "message_key_new" });
+    expect(button.classes()).toContain("danger");
+    await button.trigger("click");
+    expect(send).toHaveBeenCalledWith({ cmd: "message_key_new" });
+    await wrapper.find("fieldset.encrypt .info-toggle").trigger("click");
+    expect(wrapper.find("fieldset.encrypt .info-text svg").attributes("data-picture")).toBe("encrypt");
+    expect(wrapper.findAll("fieldset.encrypt .info-line")).toHaveLength(2);
+  });
+});

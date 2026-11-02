@@ -15,6 +15,8 @@ from neoaprs.callsign import format_call, normal_name, parse_call
 from neoaprs.route import DIRECT_ONLY, rf_only_path
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
+Seal = Literal["", "key", "key_other", "open", "shut"]
+SEALS: tuple[Seal, ...] = ("", "key", "key_other", "open", "shut")
 STATES: tuple[str, ...] = get_args(State)
 UNSETTLED: tuple[State, ...] = ("sending", "failed", "unconfirmed")            # our messages that no ack has settled: being sent, or ended without one
 ACK_SETTLES: tuple[State, ...] = (*UNSETTLED, "cancelled")                   # an ack or a rej that comes settles a message of ours in one of these states
@@ -65,6 +67,8 @@ class MessageRecord:
     acked_at: datetime | None = None
     attempts_max: int = STATION_ATTEMPTS                  # how many attempts the message was given when it was sent (`attempts_for`); an older message keeps the count it was given then
     route: str = ""                                       # how the packet reached us, "direct" or "via OH2RCH-2" (neoaprs/route.py), for a message that was heard; empty for one of ours
+    seal: Seal = ""                                       # what the message is besides text: "" plain; "key" an announcement of the sender's public key (neoaprs/cipher.py); "key_other" one that differs from the key kept and was not taken; "open" encrypted and read; "shut" encrypted and not readable here
+    wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
 
     @property
     def peer(self) -> str:
