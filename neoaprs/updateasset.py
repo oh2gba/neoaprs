@@ -34,8 +34,9 @@ def wheel_version(version: str) -> str:
 
 
 def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
-    """The file of the release `version` that updates a copy installed as `kind` (`arch` is the .deb's architecture): None for a clone of the repository, a .deb of an architecture that has none, a version that is not one,
-    and an install made from the wheel (`uv-tool`, `pip`), which a release no longer carries: such a copy is updated by installing one of the release's files (the page says so)."""
+    """The file of the release `version` that updates a copy installed as `kind` (`arch` is the .deb's or the Mac's architecture): None for a clone of the repository, a .deb or a Mac of an architecture that has none, a
+    version that is not one, and an install made from the wheel (`uv-tool`, `pip`), which a release no longer carries: such a copy is updated by installing one of the release's files (the page says so). The macOS app's
+    file is named here so that the page can offer it; the daemon does not install it itself (neoaprs/services/selfinstall.py says why)."""
     if not release_version(version):
         return None
     match kind:
@@ -43,6 +44,8 @@ def asset_name(kind: InstallKind, version: str, arch: str = "") -> str | None:
             return f"NeoAPRS-Setup-{version}.exe"
         case "appimage":
             return f"NeoAPRS-{version}-x86_64.AppImage"
+        case "macos-app":
+            return f"NeoAPRS-{version}-arm64.dmg" if arch == "arm64" else None
         case "deb":
             return f"neoaprs_{version}_{arch}.deb" if arch in ("amd64", "arm64") else None
         case _:

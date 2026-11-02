@@ -1,7 +1,7 @@
 """How this copy of NeoAPRS was installed, from what the process can see (neoaprs/versions.py has the kinds): the page tells the user the steps of an update for that kind. `detect` takes the facts, `detect_here` collects them.
 
-`NEOAPRS_INSTALL_KIND` simulates a kind, for development (the screenshots of the update's steps): `deb`, `deb arm64 service`, `appimage /home/ham/NeoAPRS.AppImage`; the words after the kind are `amd64` or `arm64`, `service`
-and, for an AppImage, its path. A simulated kind is never updated for real (neoaprs/services/selfinstall.py rehearses it)."""
+`NEOAPRS_INSTALL_KIND` simulates a kind, for development (the screenshots of the update's steps): `deb`, `deb arm64 service`, `appimage /home/ham/NeoAPRS.AppImage`, `macos-app`; the words after the kind are `amd64` or
+`arm64`, `service` and, for an AppImage, its path. A simulated kind is never updated for real (neoaprs/services/selfinstall.py rehearses it)."""
 import os
 import platform
 import sys
@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from neoaprs import VERSION
-from neoaprs.versions import InstallInfo, InstallKind, deb_architecture, install_kind
+from neoaprs.versions import InstallInfo, InstallKind, deb_architecture, install_kind, mac_architecture
 
 from . import servicecmd
 
@@ -34,14 +34,22 @@ def deb_environment(prefix: str, root: str = DEB_PREFIX) -> bool:
     return os.path.realpath(prefix) == os.path.realpath(root)
 
 
+def app_bundle_environment(prefix: str) -> bool:
+    """Is `prefix` (sys.prefix) the Python inside the macOS app, `NeoAPRS.app/Contents/Resources` (scripts/build-macos-app lays the Python out there, with the shipped programs in its `tools/`)? The bundle's `Info.plist`
+    beside it tells a folder that only looks like one apart."""
+    folder = Path(prefix)
+    return folder.name == "Resources" and folder.parent.name == "Contents" and folder.parent.parent.suffix == ".app" and (folder.parent / "Info.plist").is_file()
+
+
 def is_checkout(tree: Path | None) -> bool:
     """Is the folder the package is imported from (`servicecmd.source_tree`) a clone of the repository: a `.git` beside `pyproject.toml`?"""
     return tree is not None and (tree / ".git").exists()
 
 
 def detect(frozen: bool, appimage: str | None, prefix: str, tree: Path | None, service: bool, environ: Mapping[str, str] = os.environ, machine: str | None = None) -> InstallInfo:
-    kind = install_kind(frozen, appimage, deb_environment(prefix), is_checkout(tree), uv_tool_environment(prefix, environ))
-    arch = deb_architecture(machine if machine is not None else platform.machine()) if kind == "deb" else ""
+    kind = install_kind(frozen, appimage, deb_environment(prefix), is_checkout(tree), uv_tool_environment(prefix, environ), app_bundle_environment(prefix))
+    found = machine if machine is not None else platform.machine()
+    arch = deb_architecture(found) if kind == "deb" else mac_architecture(found) if kind == "macos-app" else ""
     return InstallInfo(kind, (appimage or "") if kind == "appimage" else "", service, arch)
 
 
@@ -59,7 +67,7 @@ def simulated(text: str) -> InstallInfo | None:
     found = next((k for k in KINDS if k == kind), None)
     if found is None:
         return None
-    arch = next((w for w in words if w in ("amd64", "arm64")), "amd64") if found == "deb" else ""
+    arch = next((w for w in words if w in ("amd64", "arm64")), "amd64") if found == "deb" else "arm64" if found == "macos-app" else ""
     appimage = next((w for w in words if w.startswith("/")), str(Path.home() / f"NeoAPRS-{VERSION}-x86_64.AppImage")) if found == "appimage" else ""
     return InstallInfo(found, appimage, "service" in words, arch)
 

@@ -4,7 +4,7 @@ A modern, easy-to-use APRS client for a radio with a TNC.
 
 **The project page is at https://oh2gba.github.io/neoaprs/** — screenshots, downloads and what NeoAPRS does.
 
-NeoAPRS is a map, your messages and your beacon in one page. It runs as an app on Windows and Linux, or as a service on a Raspberry Pi that you open from your laptop or phone. It is RF first: it talks to your radio or TNC, and an optional tickbox shows the stations of APRS-IS round you on the map. Nothing from the internet is ever sent on the air.
+NeoAPRS is a map, your messages and your beacon in one page. It runs as an app on Windows, macOS and Linux, or as a service on a Raspberry Pi that you open from your laptop or phone. It is RF first: it talks to your radio or TNC, and an optional tickbox shows the stations of APRS-IS round you on the map. Nothing from the internet is ever sent on the air.
 
 | ![The map](docs/screenshots/map.png) | ![Messages](docs/screenshots/messages.png) |
 |---|---|
@@ -13,9 +13,10 @@ NeoAPRS is a map, your messages and your beacon in one page. It runs as an app o
 
 - Windows: [NeoAPRS-Setup.exe](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe) (no administrator rights needed; SmartScreen may warn about an unsigned installer: **More info**, **Run anyway**)
 - Linux: [NeoAPRS-x86_64.AppImage](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage): make it executable and run it
+- macOS (Apple silicon, macOS 14 or newer): [NeoAPRS-arm64.dmg](https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg): drag NeoAPRS to Applications; the first time, right-click it and choose Open (the app is not signed by Apple)
 - Raspberry Pi, Debian, Ubuntu: the `.deb` of the [latest release](https://github.com/oh2gba/neoaprs/releases/latest): `sudo apt install ./neoaprs_<version>_arm64.deb`, then `neoaprs service install --linger`
 
-Each carries its own Python and the Mercury HF modem. A Mac has no supported install until there is a macOS app.
+Each carries its own Python and the Mercury HF modem.
 
 Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four steps (call, position, symbol, radio) starts. Nothing is transmitted until a call is set. No radio yet? The radio type **Dummy** makes up traffic to try NeoAPRS with. Installing, updating and removing: [the manual](docs/manual/install.md).
 

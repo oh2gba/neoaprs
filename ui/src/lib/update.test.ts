@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appImageUrl, debName, debUrl, installerUrl, problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
+import { appImageUrl, debName, debUrl, dmgUrl, installerUrl, problemText, progressText, releaseNotes, updateHelp, updateRunning } from "@/lib/update";
 import type { InstallInfo, UpdateState } from "@/protocol/protocol";
 
 const install = (kind: InstallInfo["kind"], extra: Partial<InstallInfo> = {}): InstallInfo => ({ kind, appimage: "", service: false, arch: "", ...extra });
@@ -23,6 +23,7 @@ describe("the addresses", () => {
     expect(appImageUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-0.4.0-x86_64.AppImage");
     expect(debName("0.4.0", "arm64")).toBe("neoaprs_0.4.0_arm64.deb");
     expect(debUrl("0.4.0", "amd64")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/neoaprs_0.4.0_amd64.deb");
+    expect(dmgUrl("0.4.0")).toBe("https://github.com/oh2gba/neoaprs/releases/download/v0.4.0/NeoAPRS-0.4.0-arm64.dmg");
   });
 });
 
@@ -65,6 +66,23 @@ describe("updateHelp", () => {
     expect(byHand.at(-1)?.text).toBe("Quit NeoAPRS and start it again");
   });
 
+  it("is the app's disk image, the drag over the old app and a start for the macOS app, and for a service its restart", () => {
+    const steps = updateHelp(install("macos-app", { arch: "arm64" }), "0.4.0");
+    expect(steps[0]?.link).toEqual({ href: dmgUrl("0.4.0"), label: "NeoAPRS-0.4.0-arm64.dmg" });
+    expect(steps.map((s) => s.text)).toEqual([
+      "Download the new app",
+      "Quit NeoAPRS, open the download and drag NeoAPRS to Applications in the place of the old one",
+      "Start NeoAPRS from Applications again",
+    ]);
+    expect(commands(steps)).toEqual([]);
+    const service = updateHelp(install("macos-app", { arch: "arm64", service: true }), "0.4.0");
+    expect(commands(service)).toEqual(["launchctl kickstart -k gui/$UID/eu.oh2gba.neoaprs"]);
+    expect(service.at(-1)?.text).toBe("Restart the service");
+    const intel = updateHelp(install("macos-app"), "0.4.0");
+    expect(intel[0]?.link?.href).toBe(releaseNotes("0.4.0"));
+    expect(intel).toHaveLength(3);
+  });
+
   it("sends a deb of a machine without a package to the release page and installs whichever file was downloaded", () => {
     const steps = updateHelp(install("deb"), "0.4.0");
     expect(steps[0]?.link?.href).toBe(releaseNotes("0.4.0"));
@@ -86,7 +104,7 @@ describe("updateHelp", () => {
   });
 
   it("names no developer's tool for the kinds of the installers and the package", () => {
-    for (const kind of ["windows-installer", "appimage", "deb"] as const) {
+    for (const kind of ["windows-installer", "appimage", "macos-app", "deb"] as const) {
       const words = updateHelp(install(kind, { arch: "amd64", service: true }), "0.4.0")
         .map((s) => s.text)
         .join(" ");

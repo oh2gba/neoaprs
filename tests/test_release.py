@@ -75,10 +75,10 @@ def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
     """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until every file is on it, a run on a tag
     whose release exists writes over its files, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
     uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@v\d+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
-    assert len(uploads) == 8 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
+    assert len(uploads) == 9 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
-    assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "deb-amd64", "deb-arm64"}, "the release's five artifacts and no other"
+    assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "macos-app", "deb-amd64", "deb-arm64"}, "the release's six artifacts and no other"
     release_job = WORKFLOW.split("\n  release:\n", 1)[1]
     assert "--draft " in release_job and "--draft=false" in release_job, "a draft until every file is on it"
     assert "gh release view" in release_job and "--clobber" in release_job, "a release that is there is written over, not refused"
@@ -172,12 +172,12 @@ def test_bundled_dir_is_bin_next_to_the_executable_of_a_frozen_program(monkeypat
     assert pmtilestool.bundled_dir() == (tmp_path / "NeoAPRS").resolve() / "bin"
 
 
-def test_the_release_has_the_installer_and_the_appimage_under_fixed_names_too() -> None:
-    """The project page links to releases/latest/download/NeoAPRS-Setup.exe and NeoAPRS-x86_64.AppImage: one click, the newest, nothing between."""
+def test_the_release_has_the_installer_the_appimage_and_the_macos_app_under_fixed_names_too() -> None:
+    """The project page links to releases/latest/download/NeoAPRS-Setup.exe, NeoAPRS-x86_64.AppImage and NeoAPRS-arm64.dmg: one click, the newest, nothing between."""
     assemble = WORKFLOW.split("name: SHA256SUMS and the notes", 1)[1].split("uses: actions/upload-artifact", 1)[0]
-    assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble
+    assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble and 'cp -- "NeoAPRS-$version-arm64.dmg" NeoAPRS-arm64.dmg' in assemble
     assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
-    assert '[ "$(ls | wc -l)" = 7 ]' in assemble, "the five versioned files and the two fixed names, before SHA256SUMS"
+    assert '[ "$(ls | wc -l)" = 9 ]' in assemble, "the six versioned files and the three fixed names, before SHA256SUMS"
 
 
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
@@ -200,8 +200,8 @@ def test_the_wheel_and_the_sdist_are_named_by_the_pep_440_form_of_the_version_an
     assert 'dist/neoaprs-$wheel_version-py3-none-any.whl' in wheel_job and 'dist/neoaprs-$wheel_version.tar.gz' in wheel_job
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     assert "rm -f -- neoaprs-*.whl" in assemble and "install.sh" not in assemble, "the wheel and the install script are not files of the release: the supported installs carry Mercury"
-    assert '"neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"' in assemble, "the five versioned files; with the two fixed names and SHA256SUMS, eight"
-    assert '[ "$(ls | wc -l)" = 7 ]' in assemble
+    assert '"neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"' in assemble, "the six versioned files; with the three fixed names and SHA256SUMS, ten"
+    assert '[ "$(ls | wc -l)" = 9 ]' in assemble
 
 
 def job(name: str) -> str:
@@ -223,6 +223,20 @@ def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_li
     assert "name: mercury-${{ matrix.arch }}" in job("deb") and "--mercury dist-mercury/mercury-*-linux-*.tar.gz" in job("deb")
     pattern = re.search(r'pattern: "\{([^}]+)\}"', WORKFLOW)
     assert pattern and "mercury" not in pattern.group(1), "the tarballs are build material and not files of the release"
+
+
+def test_the_macos_app_is_built_with_its_own_mercury_on_a_mac_signed_and_tried_before_it_joins_the_release() -> None:
+    macos = job("macos")
+    assert "runs-on: macos-latest" in macos and re.search(r"needs: \[verify, wheel\]", macos), "the wheel of the wheel job; Mercury is built in this job (a Mac's build), not taken from the Linux ones"
+    assert "scripts/build-mercury --tar --out dist-mercury" in macos and "mercury-$version-macos-arm64.tar.gz" in macos
+    assert "scripts/build-macos-app --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-macos-arm64.tar.gz --out dist-macos" in macos
+    assert "scripts/smoke-macos-app dist-macos/NeoAPRS-*.dmg" in macos and "--no-mercury" not in macos
+    steps = macos.split("steps:", 1)[1]
+    assert steps.index("scripts/build-mercury --tar") < steps.index("scripts/build-macos-app --wheel") < steps.index("scripts/smoke-macos-app dist-macos") < steps.index("upload-artifact")
+    assert "name: macos-app" in macos and "path: dist-macos/NeoAPRS-*.dmg" in macos and "hashFiles('scripts/build-macos-app')" in macos
+    assert "wc -l | tr -d ' '" in macos, "a Mac's wc pads its count with spaces"
+    assert re.search(r"needs: \[[^\]]*\bmacos\b[^\]]*\]", job("assemble")), "the release waits for the app"
+    assert "arm64.dmg" in job("assemble").split("notes.md", 1)[1].split("notes.md", 1)[0], "the notes tell a Mac user what to do with the file"
 
 
 def test_the_package_is_proved_to_need_nothing_of_the_system_for_mercury() -> None:

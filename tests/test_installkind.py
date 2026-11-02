@@ -6,32 +6,45 @@ from pathlib import Path
 import pytest
 
 from neoaprs.cli import installkind
-from neoaprs.cli.installkind import DEB_PREFIX, deb_environment, detect, is_checkout, service_set, uv_tool_environment
+from neoaprs.cli.installkind import DEB_PREFIX, app_bundle_environment, deb_environment, detect, is_checkout, service_set, uv_tool_environment
 from neoaprs.versions import InstallInfo, InstallKind, install_kind
 from tests.support.env import Env
 
 INSTALL_KINDS = get_args(InstallKind)
 
 
-@pytest.mark.parametrize("frozen, appimage, deb, checkout, uv_tool, kind", [
-    (True, None, False, False, False, "windows-installer"),
-    (True, "/x/NeoAPRS.AppImage", True, True, True, "windows-installer"),     # (a frozen program is the installer's whatever else holds)
-    (False, "/home/u/NeoAPRS.AppImage", False, False, False, "appimage"),
-    (False, "/home/u/NeoAPRS.AppImage", True, True, True, "appimage"),
-    (False, None, True, False, False, "deb"),
-    (False, None, True, True, True, "deb"),
-    (False, None, False, True, False, "source"),
-    (False, None, False, True, True, "source"),                               # (a clone made with `uv sync` has a uv environment too)
-    (False, None, False, False, True, "uv-tool"),
-    (False, None, False, False, False, "pip"),
+@pytest.mark.parametrize("frozen, appimage, bundle, deb, checkout, uv_tool, kind", [
+    (True, None, False, False, False, False, "windows-installer"),
+    (True, "/x/NeoAPRS.AppImage", True, True, True, True, "windows-installer"),     # (a frozen program is the installer's whatever else holds)
+    (False, "/home/u/NeoAPRS.AppImage", False, False, False, False, "appimage"),
+    (False, "/home/u/NeoAPRS.AppImage", True, True, True, True, "appimage"),
+    (False, None, True, False, False, False, "macos-app"),
+    (False, None, True, True, True, True, "macos-app"),                              # (the app's Python is in no clone and no tool folder, but the bundle decides)
+    (False, None, False, True, False, False, "deb"),
+    (False, None, False, True, True, True, "deb"),
+    (False, None, False, False, True, False, "source"),
+    (False, None, False, False, True, True, "source"),                               # (a clone made with `uv sync` has a uv environment too)
+    (False, None, False, False, False, True, "uv-tool"),
+    (False, None, False, False, False, False, "pip"),
 ])
-def test_the_kind_follows_what_the_process_can_see_in_this_order(frozen: bool, appimage: str | None, deb: bool, checkout: bool, uv_tool: bool, kind: str) -> None:
-    assert install_kind(frozen, appimage, deb, checkout, uv_tool) == kind
+def test_the_kind_follows_what_the_process_can_see_in_this_order(frozen: bool, appimage: str | None, bundle: bool, deb: bool, checkout: bool, uv_tool: bool, kind: str) -> None:
+    assert install_kind(frozen, appimage, deb, checkout, uv_tool, bundle) == kind
     assert kind in INSTALL_KINDS
 
 
-def test_there_are_six_kinds() -> None:
-    assert INSTALL_KINDS == ("windows-installer", "appimage", "deb", "uv-tool", "pip", "source")
+def test_there_are_seven_kinds() -> None:
+    assert INSTALL_KINDS == ("windows-installer", "appimage", "macos-app", "deb", "uv-tool", "pip", "source")
+
+
+def test_the_macos_app_is_the_python_laid_out_as_resources_of_a_bundle_with_its_info_plist(tmp_path: Path) -> None:
+    resources = tmp_path / "Applications" / "NeoAPRS.app" / "Contents" / "Resources"
+    resources.mkdir(parents=True)
+    assert not app_bundle_environment(str(resources)), "a folder that only looks like a bundle is none without Info.plist"
+    (resources.parent / "Info.plist").write_text("<plist/>", encoding="utf-8")
+    assert app_bundle_environment(str(resources))
+    assert not app_bundle_environment(str(resources.parent)), "Contents is not the prefix"
+    assert not app_bundle_environment(str(tmp_path / "venv"))
+    assert not app_bundle_environment("/opt/neoaprs")
 
 
 def test_the_deb_is_the_python_of_opt_neoaprs(tmp_path: Path) -> None:
@@ -81,6 +94,11 @@ def test_detect_puts_the_facts_together_and_names_the_appimage_file_only_for_an_
     assert detect(False, None, str(tmp_path / "venv"), tmp_path, False, {}) == InstallInfo("source", "", False)
     assert detect(True, None, "C:/NeoAPRS", None, True, {}) == InstallInfo("windows-installer", "", True)
     assert detect(False, None, str(tmp_path / "venv"), None, False, {}) == InstallInfo("pip", "", False)
+    resources = tmp_path / "NeoAPRS.app" / "Contents" / "Resources"
+    resources.mkdir(parents=True)
+    (resources.parent / "Info.plist").write_text("<plist/>", encoding="utf-8")
+    assert detect(False, None, str(resources), None, False, {}, "arm64") == InstallInfo("macos-app", "", False, "arm64")
+    assert detect(False, None, str(resources), None, True, {}, "x86_64") == InstallInfo("macos-app", "", True, ""), "an Intel Mac has no file of the release"
 
 
 @pytest.mark.parametrize("machine, arch", [("x86_64", "amd64"), ("AMD64", "amd64"), ("aarch64", "arm64"), ("arm64", "arm64"), ("armv7l", ""), ("riscv64", "")])

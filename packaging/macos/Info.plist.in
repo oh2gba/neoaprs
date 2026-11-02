@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The Info.plist of NeoAPRS.app, filled in by scripts/build-macos-app: @VERSION@ is the version as written (0.16.0, 1.0.0-rc1), @BUILD@ the same without a suffix (CFBundleVersion takes numbers and dots alone).
+     The executable is the launcher of packaging/macos/launcher.c, the icon is made from the Windows icon's frames (packaging/macos/make_icns.py), and the microphone sentence is what macOS shows the first time
+     NeoAPRS opens the sound card of the HF radio (macOS counts a sound input as a microphone; a process without the sentence is ended instead of asked); the lproj folders beside it say it in the languages of the page. -->
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>NeoAPRS</string>
+    <key>CFBundleExecutable</key>
+    <string>NeoAPRS</string>
+    <key>CFBundleIconFile</key>
+    <string>NeoAPRS.icns</string>
+    <key>CFBundleIdentifier</key>
+    <string>eu.oh2gba.neoaprs</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>NeoAPRS</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@BUILD@</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>@MIN_OS@</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>NeoAPRS, GPL-3.0-or-later. https://github.com/oh2gba/neoaprs</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>NeoAPRS hears the HF radio through its sound card, which macOS counts as a microphone.</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+</dict>
+</plist>

@@ -1,5 +1,5 @@
-# What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the Debian packages for amd64 and arm64 (the Raspberry Pi), the source tarball (the sdist,
-# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the others. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
+# What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the macOS app (a disk image, for Apple silicon), the Debian packages for amd64 and arm64 (the Raspberry Pi), the source tarball (the sdist,
+# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage, the macOS app and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the Linux ones, the `macos` job's own build in the app. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the macOS app and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
 # a dry run: the same builds and checks, the files kept as the artifacts of the run, and no release; run by hand on a tag (`gh workflow run release.yml --ref v<version>`) it publishes that tag's release again. A tag run that
 # failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
 # "A release"; what the jobs do: docs/development.md.
@@ -472,6 +472,52 @@ jobs:
           if-no-files-found: ignore
           overwrite: true
 
+  # The macOS app as a disk image: the CPython of python-build-standalone for Apple silicon, the wheel and the locked dependencies of its extra app (Qt with the web engine) laid out as NeoAPRS.app, with Mercury built from
+  # the pinned source on the same runner (scripts/build-mercury on a Mac: CoreAudio alone, for macOS 14 and newer; Rhizomatica's own universal build asks for macOS 26), everything signed ad hoc (there is no Apple
+  # developer account), then opened and run as a user would (scripts/smoke-macos-app: the signature, the daemon, the page, the launchd agent, the window on the offscreen platform). macos-latest is Apple silicon; what
+  # the app asks of a Mac (macOS 14, the floor of the Qt wheels) does not depend on the runner that builds it.
+  macos:
+    needs: [verify, wheel]
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/neoaprs-build
+          key: neoaprs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-macos-app') }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Build Mercury from the pinned source, for macOS 14 and newer (the Python of setup-uv runs the script)
+        run: |
+          python="$(uv python find 3.13)"
+          "$python" scripts/build-mercury --tar --out dist-mercury
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          [ -n "$version" ] && [ -f "dist-mercury/mercury-$version-macos-arm64.tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l | tr -d ' ')" = 1 ]
+      - name: Build the app and its disk image from the wheel and that Mercury
+        run: |
+          scripts/build-macos-app --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-macos-arm64.tar.gz --out dist-macos
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)"
+          [ -f "dist-macos/NeoAPRS-$version-arm64.dmg" ] && [ "$(ls dist-macos | wc -l | tr -d ' ')" = 1 ]
+          ls -l dist-macos
+      - name: Smoke test of the image (Tornado for scripts/smoke.py comes from the wheel, in a fresh environment)
+        run: |
+          uv venv "$RUNNER_TEMP/smoke-venv"
+          uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
+          scripts/smoke-macos-app dist-macos/NeoAPRS-*.dmg --python "$RUNNER_TEMP/smoke-venv/bin/python"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-app
+          path: dist-macos/NeoAPRS-*.dmg
+          if-no-files-found: error
+          overwrite: true
+
   # The Debian package for the Raspberry Pi, Debian and Ubuntu (scripts/build-deb, from the wheel of the job above: CPython and the locked dependencies in /opt/neoaprs), one for each architecture, each built and
   # tried on a runner of its own: installed with apt, the command, the daemon against a fake TNC with the Python of the package, the unit a service install writes, an upgrade over itself, and the removal.
   deb:
@@ -583,7 +629,7 @@ jobs:
 
   # Everything a release carries in one place, with the checksums and the notes: made on a dry run too, so that this half is tried before a tag.
   assemble:
-    needs: [wheel, windows, appimage, appimage-update, deb]
+    needs: [wheel, windows, appimage, appimage-update, macos, deb]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -591,7 +637,7 @@ jobs:
       # the files of the release and nothing else: not the logs a failed update test left in an earlier attempt of this run
       - uses: actions/download-artifact@v8
         with:
-          pattern: "{dist,windows-installer,appimage,deb-amd64,deb-arm64}"
+          pattern: "{dist,windows-installer,appimage,macos-app,deb-amd64,deb-arm64}"
           path: release-files
           merge-multiple: true
       - name: SHA256SUMS and the notes
@@ -600,18 +646,19 @@ jobs:
           wheel_version="$(python3 -c 'import sys; from neoaprs.updateasset import wheel_version; print(wheel_version(sys.argv[1]))' "$version")"
           cd release-files
           rm -f -- neoaprs-*.whl                                   # (the wheel built the AppImage and the packages; it is not a file of the release: the supported installs are the ones that carry Mercury)
-          for f in "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
-          # the installer and the AppImage also under names without the version, so that the project page can link to
+          for f in "neoaprs-$wheel_version.tar.gz" "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"; do [ -f "$f" ] || { echo "::error::$f is missing"; exit 1; }; done
+          # the installer, the AppImage and the macOS app also under names without the version, so that the project page can link to
           # releases/latest/download/NAME and the download starts at once (the self-update asks for the versioned names)
           cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe
           cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage
-          [ "$(ls | wc -l)" = 7 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
+          cp -- "NeoAPRS-$version-arm64.dmg" NeoAPRS-arm64.dmg
+          [ "$(ls | wc -l)" = 9 ] || { echo "::error::unexpected files"; ls -l; exit 1; }
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
           cd ..
           if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
           python3 scripts/release-notes.py $notes_for > notes.md
-          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`.\n' "$version" "$version" "$version" >> notes.md
+          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. macOS (Apple silicon, macOS 14 or newer): open NeoAPRS-%s-arm64.dmg and drag NeoAPRS to Applications; the first time, right-click it and choose Open (the app is not signed by Apple). Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`.\n' "$version" "$version" "$version" "$version" >> notes.md
           head -c 600 notes.md
       - uses: actions/upload-artifact@v7
         with:

@@ -315,13 +315,16 @@
   stand-ins for pywebview, pystray and Pillow in `sys.modules`. `test_desktop_qt.py`: the Qt shell headless with the real PySide6-WebEngine
   (`QT_QPA_PLATFORM=offscreen`; skipped when the extra `app` is not installed: `uv sync --frozen --extra app`): the window, its size, the stored page data, the
   links, the tray menu.
-* `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, the eight files the workflow
-  assembles (the wheel taken out), the workflow's pins by major version and its one `contents: write`, the
+* `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, the ten files the workflow
+  assembles (the wheel taken out), the `macos` job, the workflow's pins by major version and its one `contents: write`, the
   installer script's promises (per user, the autostart task on by default, the uninstaller order), and the bundled pmtiles found before the PATH.
 * `test_appimage.py`: NeoAPRS in an AppImage: `$APPIMAGE` counts only for an interpreter inside `$APPDIR`; the systemd unit, the detached daemon of
   `neoaprs open` and the start at sign-in start the AppImage file and not the mount (a path with a space quoted); `AppRun` with and without arguments and
   through a link (a stand-in interpreter that prints its arguments); the desktop entry; every download of `scripts/build-appimage` pinned by version and digest.
   The image itself is tried by `scripts/smoke-appimage` in CI.
+* `test_macos_app.py`: NeoAPRS as a macOS app, as far as Linux can see it: the one rule finds the shipped programs in `Contents/Resources/tools`; the launcher of `packaging/macos/launcher.c` built against
+  this machine's Python and run from a made-up bundle (the arguments, `app` by default, the home, `sys.executable`, the isolation); the icon made from the Windows one; the pruning of the macOS layout of Qt
+  on a made-up tree; what `scripts/build-macos-app`, `scripts/smoke-macos-app`, `scripts/build-mercury` and the bundle's files promise. The app itself is built and tried by the `macos` job of the release workflow.
 * `safety/`: the database actor (`neoaprs/db.py`): order, faults, life and shutdown. Everything under it is marked `safety`.
 * `fixtures/`: captured frames and streams from the radio, with the expected decode beside each; `fixtures/aprs/cases.json` holds the parser's cases, the
   third-party frames an iGate sent (an ack and a message) among them, with the inner header expected beside the decode.
