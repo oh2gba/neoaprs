@@ -46,7 +46,8 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
         assert m.test == "tune" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, tuning"
         await until(lambda: station.tuned == ["TUNE -15"] and m.keyed)
         await until(lambda: m.test == "", 2.0)
-        assert station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed and m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
+        await until(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)                  # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a slow runner)
+        assert m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
     finally:
         await m.stop()
         await air.aclose()
