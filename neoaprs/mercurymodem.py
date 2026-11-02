@@ -11,7 +11,11 @@ Tune and the keying test (`tune`, `tune_stop`, `key_test`) are Mercury's own TUN
 tone goes through its sound card, for TUNE_SEC or until the operator presses again, or for the second of the keying test; the hold is on meanwhile, so no frame of ours goes under the tone. Mercury unkeys by
 itself after a minute whatever happens to us.
 
-A Mercury that something else runs (the `tcp://` address in `serial/port`, or the port given for this run) is not started or stopped here, only listened to on the control port 200 above its KISS port.
+The ports are chosen once for a start and kept for the program started again in the place of one that died (the HF Tnc is told its port when the radios start, and waits on it with its back-off: it finds the modem
+where it left it); only when something else took the pair meanwhile is another chosen, and the owner is told (`ports_changed`) to point the Tnc at it. A program of ours that listens on an address that is not the
+loopback is ended and not run again (`foreign_listeners`): its ports have no password, and the Mercury NeoAPRS ships listens on this computer only (packaging/mercury/loopback.patch; on Windows the installer's firewall rule).
+
+A Mercury that something else runs (the port given for this run, `--hf-port`, the benches') is not started or stopped here, only listened to on the control port 200 above its KISS port. The setting `serial/port` is never the sign of one: it is the FM radio's, and a `tcp://` address there is a Direwolf's KISS port.
 
 As the speaker of the Dummy HF radio (`start(..., speaker=True)`) the same program is started keying nothing on its fifo audio backend, paced and played by mercuryspeaker.py through the system's own player,
 and the frames the dummy line is given (`play`) are written to its broadcast port, so that the operator hears the modem's own audio from the speakers; the Tnc is not connected to it, the hold is never asked,
@@ -25,15 +29,14 @@ from pathlib import Path
 from .clock import Clock, utcnow
 from .coded import CodedError
 from .config import Config
-from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, MODE, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, ControlEvent, Keying, SerialPort, SoundCard, choose_keying, choose_sound_card, command, ini_text, keying_of, speaker_audio, tune_command
+from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, MODE, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, speaker_audio, tune_command
 from .mercurycontrol import ControlLine
-from .mercuryhelper import Command, Program, end_stale, find, free_ports, list_sound_cards
+from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, find, foreign_listeners, free_ports, list_sound_cards
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
 from .serialprobe import available_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet, cancel_all
-from .tncprofile import names_tcp
 
 log = logging.getLogger("neoaprs.mercury")
 
@@ -42,6 +45,7 @@ INI_FILE = "mercury.ini"
 PID_FILE = "mercury.pid"
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 NOT_RUNNING = "the HF radio is not running"
+OPEN_TO_NETWORK = "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
 TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
@@ -69,6 +73,8 @@ class Mercury:
         self.backoff = backoff or Backoff()                          # between two starts of a program that died
         self._control_backoff = control_backoff
         self.changed: Signal[[]] = Signal("mercury.changed")        # the state, the keying, the busy channel: the page's radio topic is told again
+        self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
+        self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
         self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem
         self.problem = ""                                            # why it is not running; empty while it is
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
@@ -95,15 +101,16 @@ class Mercury:
 
     # ---- life
     async def start(self, config: Config, attach: str = "", speaker: bool = False) -> None:
-        """Starts the program for these settings, or, for a Mercury something else runs (`attach`, or a `tcp://` address in serial/port), only listens to its control port; as `speaker`, starts it on the computer's
+        """Starts the program for these settings, or, for a Mercury something else runs (`attach`, the port given for this run; never `serial/port`, which is the FM radio's), only listens to its control port; as `speaker`, starts it on the computer's
         own sound output for the Dummy HF radio."""
         await self.stop()
         self._generation += 1
         self._config = config
         self.speaker = speaker
         self.backoff.reset()
-        if not speaker and (attach or names_tcp(config.serial_port)):
-            self.attached = attach or config.serial_port
+        self._held.forget()
+        if not speaker and attach:
+            self.attached = attach
             _, port = _address(self.attached)
             self.broadcast_port, self.control_port = port, port + CONTROL_OFFSET
             log.info("Mercury is run by something else at %s; its control port %d is listened to", self.attached, self.control_port)
@@ -139,7 +146,7 @@ class Mercury:
             self._set("waiting", NOT_INSTALLED)
             return
         try:
-            self.broadcast_port, self.control_port = free_ports()
+            self._choose_ports()
         except OSError as e:
             self._set("waiting", f"no free port for Mercury: {e}")
             return
@@ -149,7 +156,7 @@ class Mercury:
             if await asyncio.to_thread(self._audio.prepare):
                 audio = speaker_audio(str(self._audio.capture), str(self._audio.playback))
         else:
-            self.sound_card, self.keying = await asyncio.to_thread(self._chosen, program, config)
+            self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports)
         keying = self.keying
         ini, pid_file = self.data_dir / INI_FILE, self.data_dir / PID_FILE
         try:
@@ -173,20 +180,13 @@ class Mercury:
             if audio:
                 self._audio.start()
 
-    def _chosen(self, program: Command, config: Config) -> tuple[str, Keying]:
-        """The sound card and the keying the modem runs with: the settings where they are set, else the daemon's own choice from the sound cards Mercury lists and the serial ports the system lists (mercury.py says how and why).
-        Runs the program and reads the system's lists: for a thread."""
-        card, keying = config.mercury_sound_card, config.mercury_keying
-        cards = list_sound_cards(program) if not card or not keying else []
-        if not card:
-            card = choose_sound_card(cards)
-        if keying:
-            return card, keying_of(keying)
-        name = next((c.name for c in cards if c.id == card), "") if card else next((c.name for c in cards if c.default and c.capture), "")
-        ports = self.ports()
-        chosen = choose_keying(name, ports)
-        log.info("Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)", chosen.text, name or "the system's default", ", ".join(p.device for p in ports) or "none")
-        return card, chosen
+    def _choose_ports(self) -> None:
+        """The pair of ports of this start (mercuryhelper.HeldPorts: kept for a program started again in the place of one that died, so that the HF Tnc finds the modem where it left it); when something else took
+        the pair meanwhile the owner is told to point the Tnc at the new one. OSError when no pair is free."""
+        taken, (self.broadcast_port, self.control_port) = self._held.choose(free_ports), self._held.pair          # (chosen first, then read)
+        if taken is not None:
+            log.warning("Mercury's ports %d and %d were taken while it was down: it is started on %d and %d, and the HF radio is pointed at them", *taken, *self._held.pair)
+            self.ports_changed.emit()
 
     def _ended(self, code: int | None, lines: list[str]) -> None:
         """The program ended by itself (told from its reader thread): started again after the back-off, unless it was stopped."""
@@ -215,6 +215,9 @@ class Mercury:
 
     def _control_state(self, up: bool, why: str) -> None:
         if up:
+            if not self.attached and (found := foreign_listeners((self.broadcast_port, self.control_port, self.control_port + 1))):
+                self._tasks.spawn(self._refuse_open(found), "mercury-refuse")
+                return
             self.backoff.connected()
             self._set("running", "")
         else:
@@ -223,6 +226,18 @@ class Mercury:
             if self.state == "running":
                 log.info("Mercury's control port: %s", why)
                 self._set("starting", "")
+
+    async def _refuse_open(self, found: list[str]) -> None:
+        """The program we started listens on an address that is not the loopback (the kernel's table says so, `found`): it is ended and not started again. Its ports take a TUNE or a KISS frame from anyone who reaches
+        them, past every interlock of ours, so a Mercury that is not the one NeoAPRS ships (built to listen on this computer only) does not run under this daemon."""
+        log.warning("Mercury listens on the network (%s): it is ended and not run", ", ".join(found))
+        self._generation += 1
+        control, self._control = self._control, None
+        if control is not None:
+            await control.stop()
+        await asyncio.to_thread(self._program.stop)
+        self.keyed = self.busy = False
+        self._set("waiting", OPEN_TO_NETWORK)
 
     def _event(self, event: ControlEvent) -> None:
         now = time.monotonic()

@@ -413,3 +413,116 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
     await m.stop()
     assert not _alive(pid) and m.state == "stopped"
 
+
+
+# ---- the ports across a relaunch (the HF Tnc waits on the port it was given; a program started again must be where the dead one was), and where the program listens
+
+def test_a_port_whose_last_connection_is_in_time_wait_counts_as_free_as_it_does_for_mercury() -> None:
+    """The HF Tnc's line to a Mercury that died leaves the port in TIME_WAIT; a probe that called that busy made the relaunch take the next pair, which the Tnc never learnt. Mercury binds with SO_REUSEADDR, so the pair is free for it."""
+    if sys.platform == "win32":
+        pytest.skip("Windows lets a bind through a TIME_WAIT without the option, and the option there means something else")
+    with socket.socket() as server:
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       # (as Mercury's listener does, tcp_interfaces.c; the connections it accepts inherit it, and Linux lets a bind through their TIME_WAIT only then)
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        port = server.getsockname()[1]
+        with socket.create_connection(("127.0.0.1", port)) as client:
+            conn, _ = server.accept()
+            conn.close()                                                   # (the side that closes first is the one left in TIME_WAIT: the server's, on `port`)
+            client.recv(1)
+    assert mercuryhelper._free(port), "a port with nothing but a TIME_WAIT on it is free"
+    with socket.socket() as holder:
+        holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        holder.bind(("127.0.0.1", port))
+        holder.listen()
+        assert not mercuryhelper._free(port), "a port something listens on is not"
+
+
+async def tnc_on(m: Mercury) -> Tnc:
+    tnc = Tnc(f"socket://127.0.0.1:{m.broadcast_port}", profile=MERCURY, check_sec=0.0, backoff=Backoff([0.05, 0.1]), fallback_probe=False)
+    tnc.modem = m
+    await tnc.start()
+    return tnc
+
+
+async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tnc_that_waited_on_them_connects_again(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    await m.start(HF)
+    await until(lambda: m.state == "running", 5.0)
+    ports, pid = (m.broadcast_port, m.control_port), m.pid
+    tnc = await tnc_on(m)
+    try:
+        await until(lambda: tnc.usable)
+        assert m._program._process is not None
+        m._program._process.kill()                                         # (a sound device unplugged: Mercury is gone without a word)
+        await until(lambda: m.state == "waiting" and not tnc.usable, 5.0)
+        assert tnc.state is not Source.State.CONNECTED and "Mercury stopped" in m.problem, "meanwhile the status is the truth: the modem is down and the radio is not connected"
+        await until(lambda: m.starts == 2 and m.running, 5.0)
+        assert (m.broadcast_port, m.control_port) == ports and m.pid != pid, "the same pair, where the Tnc waits"
+        await until(lambda: tnc.usable, 5.0)
+        assert tnc.port == f"socket://127.0.0.1:{ports[0]}"
+    finally:
+        await tnc.stop()
+        await stopped(m)
+
+
+async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_owner_is_told_to_point_the_tnc_at_it(tmp_path: Path) -> None:
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([1.0, 1.0]), control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []
+    told: list[int] = []
+    m.ports_changed.connect(lambda: told.append(m.broadcast_port))
+    await m.start(HF)
+    await until(lambda: m.state == "running", 5.0)
+    old = m.broadcast_port
+    assert m._program._process is not None
+    m._program._process.kill()
+    await until(lambda: m.state == "waiting", 5.0)
+    with socket.socket() as holder:                                        # (another program takes the KISS port in the second the back-off waits)
+        holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        holder.bind(("127.0.0.1", old))
+        holder.listen()
+        try:
+            await until(lambda: m.starts == 2 and m.running, 5.0)
+            assert m.broadcast_port != old and m.control_port == m.broadcast_port + CONTROL_OFFSET
+            assert told == [m.broadcast_port], "told once, after the new pair was chosen"
+        finally:
+            await stopped(m)
+
+
+def test_the_listeners_of_the_kernels_table_are_read_by_port_and_the_loopback_ones_are_nobodys_concern() -> None:
+    tcp = ("  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+           "   0: 0100007F:1FA4 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 127.0.0.1:8100 LISTEN
+           "   1: 00000000:206C 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 0.0.0.0:8300 LISTEN
+           "   2: 0100007F:206D 0100007F:B2E4 01 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"       # 8301 ESTABLISHED: not a listener
+           "   3: 0100007F:1F41 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n")      # 8001: not asked about
+    tcp6 = ("  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 00000000000000000000000000000000:206D 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n"
+            "   1: 00000000000000000000000001000000:1FA4 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1 0000000000000000 100 0 0 10 0\n")
+    found = mercuryhelper._listeners((tcp, tcp6), (8100, 8300, 8301))
+    assert found == {8100: {"0100007F", "00000000000000000000000001000000"}, 8300: {"00000000"}, 8301: {"00000000000000000000000000000000"}}
+    foreign = [f"{a}:{p}" for p, s in sorted(found.items()) for a in sorted(s) if a not in mercuryhelper.LOOPBACK_HEX]
+    assert foreign == ["00000000:8300", "00000000000000000000000000000000:8301"], "the IPv4 and the IPv6 loopback are ours; INADDR_ANY and :: are the LAN's"
+    assert mercuryhelper._listeners((tcp,), ()) == {} and mercuryhelper._listeners((), (8100,)) == {}
+
+
+async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_the_network_is_ended_and_not_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until(lambda: m.state == "running", 5.0)
+        assert mercuryhelper.foreign_listeners((m.broadcast_port, m.control_port)) == [], "the fake binds 127.0.0.1, as the shipped program does"
+    finally:
+        await stopped(m)
+    monkeypatch.setattr(mercurymodem, "foreign_listeners", lambda ports: [f"00000000:{p}" for p in ports])        # (a Mercury that is not the shipped one: INADDR_ANY)
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until(lambda: m.state == "waiting", 5.0)
+        pid = m.pid
+        assert m.problem == mercurymodem.OPEN_TO_NETWORK and m.starts == 1
+        await until(lambda: not _alive(pid), 5.0)
+        await asyncio.sleep(0.5)                                           # (the back-off of a program that died is 0.1 s: a relaunch would have come)
+        assert m.starts == 1 and m.state == "waiting", "ended, and not started again"
+        assert m.describe() == f"Mercury DATAC3: {mercurymodem.OPEN_TO_NETWORK}"
+    finally:
+        await stopped(m)

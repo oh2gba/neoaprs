@@ -214,7 +214,7 @@ def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_li
     assert "arch: amd64\n            runner: ubuntu-latest" in mercury_job and "arch: arm64\n            runner: ubuntu-24.04-arm" in mercury_job
     assert "container: ubuntu:22.04" in mercury_job, "glibc 2.35, the floor the AppImage and the .deb document"
     assert "python3 scripts/build-mercury --tar --out dist-mercury" in mercury_job, "run by the Python 3.10 of the container"
-    assert "build-essential pkg-config libasound2-dev libasound2-data python3" in mercury_job
+    assert "build-essential pkg-config libasound2-dev libasound2-data python3" in mercury_job and " patch" in mercury_job, "patch applies packaging/mercury/loopback.patch"
     assert mercury_job.index("apt-get install") < mercury_job.index("actions/checkout") < mercury_job.index("build-mercury") < mercury_job.index("mercury -V") < mercury_job.index("upload-artifact")
     assert "neoaprs/mercury.py" in mercury_job and "name: mercury-${{ matrix.arch }}" in mercury_job and "path: dist-mercury/mercury-*-linux-*.tar.gz" in mercury_job
     for linux in ("appimage", "deb"):

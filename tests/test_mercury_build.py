@@ -35,7 +35,7 @@ def test_the_script_has_the_pins_of_the_program_and_none_of_its_own() -> None:
     assert "SOURCE_URL" in text and "SOURCE_SHA256" in text and "SOURCE_COMMIT" in text and "VERSION" in text
     assert "https://" not in text.replace("https://github.com/oh2gba/neoaprs", "")
     assert not re.search(r"\b[0-9a-f]{40}\b|\b[0-9a-f]{64}\b", text)
-    assert not re.search(r"\b\d+\.\d+\.\d+\b", text.replace("0.0.0", ""))           # no version of Mercury either
+    assert not re.search(r"\b\d+\.\d+\.\d+\b", text.replace("127.0.0.1", "").replace("0.0.0", ""))           # no version of Mercury either (the loopback address the ports are checked on is not one)
 
 
 def test_the_script_takes_the_values_it_builds_from_the_pins(build: ModuleType) -> None:

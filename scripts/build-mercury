@@ -13,8 +13,10 @@ configuration, Mercury's licence and the source offer, and, for the simulators o
 The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/mercury.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
 checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
 a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
-ALSA device), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does (`-V`, `-z`) and prints what it says.
-Needs gcc, make and libasound2-dev (with libasound2-data for the ALSA configuration) and a Linux machine; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
+ALSA device), the TCP listeners bound to the loopback by packaging/mercury/loopback.patch (Mercury binds its control, data and KISS ports on every interface with no password, which would let any host on the LAN key the
+radio; the patch says more), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does (`-V`, `-z`, and
+once on its fifo backend to see that its three ports listen on 127.0.0.1 and nowhere else) and prints what it says.
+Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) and a Linux machine; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
 the floor of the AppImage and the .deb. How it is used: docs/development.md, "Scripts"."""
 import argparse
 import datetime
@@ -23,9 +25,11 @@ import os
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -50,6 +54,10 @@ _PINS = pins()
 VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256 = _PINS["VERSION"], _PINS["SOURCE_COMMIT"], _PINS["SOURCE_URL"], _PINS["SOURCE_SHA256"]
 
 STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
+LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
+LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the one file the patch changes; no INADDR_ANY may be left in it
+LOOPBACK = "0100007F"                                        # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
+LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its three ports
 WORK = ROOT / "build" / "mercury" / "work"
 DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
 ALSA_DATA = Path("/usr/share/alsa")
@@ -144,11 +152,24 @@ def run(command: list[str]) -> str:
     return done.stdout
 
 
-def build(tree: Path) -> None:
-    """The stub over the PulseAudio backend, then make, with the flags above."""
+def apply_patches(tree: Path) -> None:
+    """The stub over the PulseAudio backend, and the loopback patch on the TCP listeners (which must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN)."""
     if not STUB.is_file():
         raise BuildError(f"{STUB} is missing")
+    if not LOOPBACK_PATCH.is_file():
+        raise BuildError(f"{LOOPBACK_PATCH} is missing")
     shutil.copyfile(STUB, tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c")
+    done = subprocess.run(["patch", "-p1", "--forward", "--batch", "-i", str(LOOPBACK_PATCH)], cwd=tree, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if done.returncode != 0:
+        raise BuildError(f"{LOOPBACK_PATCH.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
+    listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
+    if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
+        raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
+
+
+def build(tree: Path) -> None:
+    """The patches, then make, with the flags above."""
+    apply_patches(tree)
     command = ["make", f"-j{os.cpu_count() or 1}", *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}",
                f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
     env = {key: value for key, value in os.environ.items() if key not in ENV_DROPPED}
@@ -233,7 +254,8 @@ def stage(tree: Path, out: Path, started: float) -> Path:
         f"Commit: {SOURCE_COMMIT} (the tag v{VERSION})\n"
         f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
         f"Built: make {flags}\n"
-        f"Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build.\n"
+        f"Changes to the source: audioio/ffaudio/ffaudio/pulse.c is replaced by packaging/mercury/pulse_stub.c of NeoAPRS (https://github.com/oh2gba/neoaprs), PulseAudio not being in this build;\n"
+        f"  {LISTENERS_FILE} binds its TCP listeners to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
         f"lib/libasound.so.2 is the ALSA library (LGPL-2.1-or-later) of the machine that built this, share/alsa/ its configuration; their source is the distribution's.\n"
         f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
         f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
@@ -288,6 +310,68 @@ def check(folder: Path) -> None:
     print(f"  $ mercury -z (exit {cards.returncode})\n    " + (cards.stdout + cards.stderr).strip().replace("\n", "\n    "))
     if cards.returncode != 0:
         raise BuildError("mercury -z does not exit 0")
+    print("  " + check_loopback(program, env).replace("\n", "\n  "))
+
+
+def listeners(ports: set[int]) -> dict[int, set[str]]:
+    """The local addresses (as /proc/net/tcp writes them, hex) of the sockets in LISTEN on these ports, over IPv4 and IPv6."""
+    found: dict[int, set[str]] = {}
+    for name in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = Path(name).read_text(encoding="ascii").splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 4 or fields[3] != "0A":                                    # (0A is LISTEN)
+                continue
+            address, _, port = fields[1].rpartition(":")
+            if int(port, 16) in ports:
+                found.setdefault(int(port, 16), set()).add(address)
+    return found
+
+
+def check_loopback(program: str, env: dict[str, str]) -> str:
+    """Starts the program once on its fifo backend (no sound card: two named pipes nobody reads) with the first free pair of ports, waits for its three TCP ports to listen, and checks in /proc/net/tcp that each is bound
+    to 127.0.0.1 and nothing else: what packaging/mercury/loopback.patch is for, held against the program as built. BuildError when a port listens elsewhere or never listens."""
+    broadcast = next(port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201)))
+    ports = {broadcast, broadcast + 200, broadcast + 201}
+    with tempfile.TemporaryDirectory(prefix="mercury-loopback-") as folder:
+        capture, playback, ini = str(Path(folder) / "capture"), str(Path(folder) / "playback"), Path(folder) / "mercury.ini"
+        os.mkfifo(capture)
+        os.mkfifo(playback)
+        ini.write_text("[store]\nenabled = false\n", encoding="utf-8")
+        argv = [program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(broadcast), "-p", str(broadcast + 200), "-P", "none"]
+        child = subprocess.Popen(argv, cwd=folder, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        try:
+            deadline = time.monotonic() + LISTEN_WAIT_SEC
+            while True:
+                found = listeners(ports)
+                if set(found) == ports or time.monotonic() > deadline or child.poll() is not None:
+                    break
+                time.sleep(0.2)
+        finally:
+            child.terminate()
+            try:
+                child.wait(10)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+    if set(found) != ports:
+        raise BuildError(f"the program did not listen on its ports {sorted(ports)} within {LISTEN_WAIT_SEC:.0f} s (found {found})")
+    elsewhere = {port: addresses for port, addresses in found.items() if addresses != {LOOPBACK}}
+    if elsewhere:
+        raise BuildError(f"the program listens on an address that is not 127.0.0.1: {elsewhere} (packaging/mercury/loopback.patch was not applied?)")
+    return f"listens on 127.0.0.1 only (ports {sorted(ports)}: {LOOPBACK} each)"
+
+
+def _free(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 def megabytes(size: int) -> str:
@@ -304,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
     if sys.platform != "linux":
         print("build-mercury: this builds for Linux only", file=sys.stderr)
         return 1
-    for tool in ("gcc", "make", "ldd", "readelf", "strip"):
+    for tool in ("gcc", "make", "patch", "ldd", "readelf", "strip"):
         if shutil.which(tool) is None:
             print(f"build-mercury: {tool} is not installed", file=sys.stderr)
             return 1

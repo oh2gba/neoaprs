@@ -162,6 +162,16 @@ class Controller(Services):
         """What a change of restarts the radios: either radio's settings, or a tickbox."""
         return (wiring.tnc_settings(config, self.port_override, self.pattern_override), wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.fm_enabled, config.hf_enabled)
 
+    def repoint_hf(self) -> None:
+        """The modem was started again on other ports (the pair it had was taken while it was down): the HF Tnc is pointed at them, in a task, so that it does not wait on the old ones for ever."""
+        if self.running and self.config.hf_enabled:
+            self.tasks.spawn(self._restart_hf(), "hf-tnc")
+
+    async def _restart_hf(self) -> None:
+        await self.hf.stop()
+        self._configure_tnc()
+        await self.hf.start()
+
     async def hold_tnc(self) -> None:
         await self._stop_tnc()
 

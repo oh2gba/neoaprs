@@ -6,7 +6,10 @@ the program is told where the configuration is through the one variable ALSA rea
 It is started with `subprocess.Popen` and read by a thread, as the serial line is: the daemon's loop may be the one Tornado forces on Windows, which cannot start subprocesses of its own, and what the program prints goes
 to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner (mercurymodem.py) can start it again. Two
 NeoAPRS on one computer, or a Mercury that something else runs, must not fight over the ports: `free_ports` finds the first pair (the broadcast port and the control port 200 above it) that is free, from the defaults
-up. A Mercury of ours left behind by a crash of the daemon holds the sound card: its process id is written beside the configuration, and the next start ends a process of that id that is still a Mercury."""
+up (a port whose last connection is still in TIME_WAIT counts as free, as it does for Mercury, which binds with SO_REUSEADDR: the pair a Mercury that died held is free for the one started in its place, so the HF Tnc finds
+the modem where it left it). The program NeoAPRS ships listens on 127.0.0.1 only (packaging/mercury/loopback.patch, the Windows installer's firewall rule), and `foreign_listeners` reads the kernel's table of sockets to
+hold a started program to that: its ports have no password, so one that listened on every interface would let any host on the LAN key the radio. A Mercury of ours left behind by a crash of the daemon holds the sound card: its process id is written beside the configuration (and removed again by a clean stop), and the next start ends a process of that id
+that is still a Mercury (on Windows, one whose program file is mercury.exe; where that cannot be read, nothing is ended)."""
 import asyncio
 import logging
 import os
@@ -16,12 +19,12 @@ import subprocess
 import sys
 import threading
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, SoundCard, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -58,7 +61,12 @@ def environment(command: Command) -> dict[str, str]:
 
 
 def _free(port: int) -> bool:
+    """Whether nothing listens on the port of the loopback. The probe binds as Mercury does, with SO_REUSEADDR, so that a port whose last connection is in TIME_WAIT (the HF Tnc's line to a Mercury that just died) is free,
+    as it is for Mercury (Linux lets a bind through a TIME_WAIT when both sockets have the option: Mercury's listener sets it and the connections it accepts inherit it); not on Windows, where that option would also take a
+    port another program listens on."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        if sys.platform != "win32":
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("127.0.0.1", port))
         except OSError:
@@ -66,13 +74,85 @@ def _free(port: int) -> bool:
     return True
 
 
+def pair_free(broadcast_port: int) -> bool:
+    """Whether this broadcast port, its control port and the ARQ data port one above that (Mercury's too) are all free."""
+    return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1)
+
+
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:
     """The first broadcast port from `first` up whose control port (CONTROL_OFFSET above it) is free as well, as the pair. Mercury's defaults when they are free, so that a Mercury of ours is where the manuals say;
     the next pair when another program (another NeoAPRS, a Mercury of the operator's own) holds them. OSError when none of `tries` pairs is free."""
     for port in range(first, first + tries):
-        if _free(port) and _free(port + CONTROL_OFFSET) and _free(port + CONTROL_OFFSET + 1):          # (the ARQ data port, one above the control port, is Mercury's too)
+        if pair_free(port):
             return port, port + CONTROL_OFFSET
     raise OSError(f"no free pair of ports from {first} to {first + tries}")
+
+
+class HeldPorts:
+    """The pair of ports of one start of the program: chosen once (`choose`), and kept for a program started again in the place of one that died, so that the HF Tnc, which waits on its port with its back-off, finds
+    the modem where it left it (the pair is free for the new program: the old connections are in TIME_WAIT, which the probe and Mercury's own bind allow); another pair only when something else took the old one
+    meanwhile, which `choose` says by giving the pair that was taken, so that the owner can point the Tnc at the new one. `forget` is a fresh start."""
+
+    def __init__(self) -> None:
+        self.pair: tuple[int, int] = (BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET)
+        self._held = False
+
+    def forget(self) -> None:
+        self._held = False
+
+    def choose(self, free: Callable[[], tuple[int, int]] = free_ports) -> tuple[int, int] | None:
+        """The pair to start the program on, kept in `pair`: the one held when it is still free, else a fresh one from `free` (OSError from it when none is); the pair that was taken, when one was, else None."""
+        if self._held and pair_free(self.pair[0]):
+            return None
+        taken, self.pair, self._held = self.pair if self._held else None, free(), True
+        return taken
+
+
+def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]]) -> tuple[str, Keying]:
+    """The sound card and the keying the modem runs with: the settings (`mercury/sound_card`, `mercury/keying`) where they are set, else the daemon's own choice from the sound cards Mercury lists and the serial ports the
+    system lists (`ports`; mercury.py says how and why). Runs the program and reads the system's lists: for a thread."""
+    cards = list_sound_cards(program) if not sound_card or not keying else []
+    card = sound_card or choose_sound_card(cards)
+    if keying:
+        return card, keying_of(keying)
+    name = next((c.name for c in cards if c.id == card), "") if card else next((c.name for c in cards if c.default and c.capture), "")
+    found = ports()
+    chosen = choose_keying(name, found)
+    log.info("Mercury keys the radio by %s (chosen from the sound card %r and the serial ports %s)", chosen.text, name or "the system's default", ", ".join(p.device for p in found) or "none")
+    return card, chosen
+
+
+# ---- where the program listens
+
+LOOPBACK_HEX = ("0100007F", "00000000000000000000000001000000")        # 127.0.0.1 and ::1 as /proc/net/tcp and tcp6 write a local address (the kernel's byte order, hex)
+PROC_TCP = ("/proc/net/tcp", "/proc/net/tcp6")
+
+
+def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str]]:
+    """The local addresses, as the kernel writes them, of the sockets in LISTEN on these ports in the texts of /proc/net/tcp and tcp6."""
+    wanted = set(ports)
+    found: dict[int, set[str]] = {}
+    for text in tables:
+        for line in text.splitlines()[1:]:
+            fields = line.split()
+            if len(fields) < 4 or fields[3] != "0A":                                # (0A is LISTEN)
+                continue
+            address, _, port = fields[1].rpartition(":")
+            if int(port, 16) in wanted:
+                found.setdefault(int(port, 16), set()).add(address)
+    return found
+
+
+def foreign_listeners(ports: Iterable[int]) -> list[str]:
+    """The listeners on these ports that are not on the loopback, as `address:port` in the kernel's hex, from the kernel's table of sockets (Linux: /proc/net/tcp and tcp6); empty where that table is not there
+    (Windows, macOS: nothing can be said here, and the Windows installer's firewall rule is the shield), and empty when every listener is 127.0.0.1 or ::1. Reads two small files: for a thread or a quick call."""
+    tables: list[str] = []
+    for name in PROC_TCP:
+        try:
+            tables.append(Path(name).read_text(encoding="ascii"))
+        except OSError:
+            continue
+    return [f"{address}:{port}" for port, addresses in sorted(_listeners(tables, ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
 
 
 def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) -> list[SoundCard]:
@@ -91,8 +171,9 @@ def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) ->
 # ---- a Mercury left behind
 
 def _is_mercury(pid: int) -> bool:
-    """Whether the process of this id is a Mercury (Linux: "mercury" is in its command line, the program's or the module that stands in for it; elsewhere, that it is running). On Windows the question is
-    asked of the process's exit code: os.kill(pid, 0) there is TerminateProcess, which would end whatever process has the id before anything is known of it."""
+    """Whether the process of this id is a Mercury (Linux: "mercury" is in its command line, the program's or the module that stands in for it). On Windows it is when the process is running and its program file is
+    mercury.exe (Windows reuses process ids, after a reboot most of all, so an id in an old file may belong to anything); os.kill(pid, 0) there is TerminateProcess, which would end whatever process has the id before
+    anything is known of it, so the questions are asked of the process's exit code and image path. Where the image cannot be read, the answer is no."""
     cmdline = Path(f"/proc/{pid}/cmdline")
     if cmdline.exists():
         try:
@@ -100,8 +181,8 @@ def _is_mercury(pid: int) -> bool:
         except OSError:
             return False
     if sys.platform == "win32":
-        return _running_windows(pid)
-    else:                                                           # (a system with neither /proc nor Windows: nothing is known of the process, and nothing is ended)
+        return _running_windows(pid) and image_is_mercury(_windows_image(pid))
+    else:                                                          # (a system with neither /proc nor Windows: nothing is known of the process, and nothing is ended)
         try:
             os.kill(pid, 0)
         except OSError:
@@ -123,6 +204,28 @@ def _running_windows(pid: int) -> bool:
         return code.value == 259                                   # STILL_ACTIVE
     finally:
         kernel32.CloseHandle(handle)
+
+
+def _windows_image(pid: int) -> str | None:
+    """The full path of the program file of the Windows process of this id; None when the process cannot be opened or the path cannot be read."""
+    import ctypes
+    kernel32 = ctypes.windll.kernel32                              # type: ignore[attr-defined, unused-ignore]
+    handle = kernel32.OpenProcess(0x1000, False, pid)              # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        size = ctypes.c_ulong(32768)
+        buffer = ctypes.create_unicode_buffer(size.value)
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            return None
+        return buffer.value[:size.value]
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def image_is_mercury(image: str | None) -> bool:
+    """Whether the program file at this Windows path (either kind of slash) is mercury.exe, the name case aside; no when the path is not known: where that cannot be read, nothing is ended."""
+    return image is not None and image.replace("\\", "/").rsplit("/", 1)[-1].lower() == "mercury.exe"
 
 
 def end_stale(pid_file: Path) -> bool:
@@ -154,6 +257,7 @@ class Program:
     def __init__(self, on_ended: Callable[[int | None, list[str]], None]) -> None:
         self._on_ended = on_ended
         self._process: subprocess.Popen[str] | None = None
+        self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
 
     @property
@@ -169,6 +273,7 @@ class Program:
         loop = asyncio.get_running_loop()
         self._process = subprocess.Popen(argv, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
                                          env=environment(argv), creationflags=HIDDEN_WINDOW)
+        self._pid_file = pid_file
         if pid_file is not None:
             try:
                 pid_file.write_text(str(self._process.pid), encoding="ascii")
@@ -190,14 +295,25 @@ class Program:
             loop.call_soon_threadsafe(self._on_ended, code, list(self.last_lines))
 
     def stop(self) -> None:
-        """Ends the program: asked to end, then killed after STOP_WAIT_SEC. Waited for in the calling thread (a few milliseconds for a Mercury that ends as asked)."""
+        """Ends the program: asked to end, asked again after STOP_WAIT_SEC, killed after another STOP_WAIT_SEC. The second request is Mercury's own way to drop the transmitter at once (a kill leaves a radio keyed whose
+        keying is a GPIO pin or a serial line; on Windows both requests are the same hard end). The pid file is removed once the program has ended: a clean stop leaves nothing for the next start to look at. Waited for
+        in the calling thread (a few milliseconds for a Mercury that ends as asked)."""
         process, self._process = self._process, None
-        if process is None or process.poll() is not None:
-            return
-        process.terminate()
+        pid_file, self._pid_file = self._pid_file, None
         try:
-            process.wait(STOP_WAIT_SEC)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-        log.info("Mercury stopped (exit %s)", process.returncode)
+            if process is None or process.poll() is not None:
+                return
+            process.terminate()
+            try:
+                process.wait(STOP_WAIT_SEC)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                try:
+                    process.wait(STOP_WAIT_SEC)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            log.info("Mercury stopped (exit %s)", process.returncode)
+        finally:
+            if pid_file is not None and process is not None:
+                pid_file.unlink(missing_ok=True)
