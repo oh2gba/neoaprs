@@ -31,6 +31,7 @@ describe("beaconBlock of a fixed station", () => {
         pill: { text: "off", tone: "beacon-off" },
         line: "No automatic beacon · Beacon now still sends",
         hover: undefined,
+        radios: [],
         smart: null,
         problem: "",
       });
@@ -57,6 +58,7 @@ describe("beaconBlock of a fixed station", () => {
     expect(beaconBlock(timed({ beacon_last_sent: null }), null, {}, NOW)).toMatchObject({
       line: "No beacon sent yet · next in 56 min (every 60 min)",
       hover: undefined,
+      radios: [],
     });
     expect(beaconBlock(status(), null, {}, NOW).line).toBe("No beacon sent yet · no timed beacon");
   });
@@ -105,6 +107,7 @@ describe("beaconBlock of a moving station", () => {
       pill: { text: "fix", tone: "gps-fix" },
       line: "Fix: 60.4295 N 24.1452 E, 48 km/h, course 215°, 103 m, 9 satellites, 2 s ago",
       hover: undefined,
+      radios: [],
       smart: "No automatic beacon · Beacon now still sends",
       problem: "",
     });
@@ -133,6 +136,7 @@ describe("beaconBlock of a moving station", () => {
       pill: { text: "off", tone: "beacon-off" },
       line: "No automatic beacon · Beacon now still sends",
       hover: undefined,
+      radios: [],
       smart: null,
       problem: "",
     });
@@ -142,5 +146,38 @@ describe("beaconBlock of a moving station", () => {
     expect(beaconBlock(timed(), gpsState({ mobile: false }), GPSD, NOW).moving).toBe(false);
     expect(beaconBlock(timed(), gpsOff(), GPSD, NOW).moving).toBe(false);
     expect(beaconBlock(timed(), null, GPSD, NOW)).toMatchObject({ moving: true, label: "GPS", pill: null, line: "No word from the daemon yet.", smart: null });
+  });
+});
+
+describe("beaconBlock with the HF radio", () => {
+  const both = { "fm/enabled": "true", "hf/enabled": "true" };
+  const two = (extra = {}) =>
+    status({
+      beacon_interval_min: 30,
+      beacon_last_sent: ago(240),
+      beacon_next_due: later(26 * 60),
+      hf_beacon_last_sent: ago(120),
+      hf_beacon_next_due: later(29 * 60),
+      ...extra,
+    });
+
+  it("takes the latest beacon of any radio and the next due of any radio for the row's line, and a line for each radio behind its arrow while both are on", () => {
+    const block = beaconBlock(two(), gpsOff(), both, NOW);
+    expect(block.line).toBe("Last beacon 2 min ago · next in 26 min (every 30 min)");
+    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 26 min", "HF: last beacon 2 min ago · next in 29 min"]);
+  });
+
+  it("says a radio that has sent nothing yet, and one with no timed beacon, in its own line", () => {
+    const block = beaconBlock(two({ hf_beacon_last_sent: null, hf_beacon_next_due: null }), gpsOff(), both, NOW);
+    expect(block.radios).toEqual(["FM: last beacon 4 min ago · next in 26 min", "HF: no beacon sent yet · no timed beacon"]);
+    expect(beaconBlock(two({ beacon_last_sent: null }), gpsOff(), both, NOW).radios[0]).toBe("FM: no beacon sent yet · next in 26 min");
+  });
+
+  it("has no lines of radios while one radio is on, and the row as it was: the FM beacon alone, or the HF beacon alone", () => {
+    const fm = beaconBlock(timed(), gpsOff(), {}, NOW);
+    expect([fm.radios, fm.line]).toEqual([[], "Last beacon 4 min ago · next in 56 min (every 60 min)"]);
+    expect(beaconBlock(two(), gpsOff(), { "fm/enabled": "true", "hf/enabled": "false" }, NOW).radios).toEqual([]);
+    const hf = beaconBlock(two({ beacon_last_sent: null, beacon_next_due: null }), gpsOff(), { "fm/enabled": "false", "hf/enabled": "true" }, NOW);
+    expect([hf.radios, hf.line, hf.pill?.text]).toEqual([[], "Last beacon 2 min ago · next in 29 min (every 30 min)", "on"]);
   });
 });

@@ -18,6 +18,18 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.group.station": "Estación",
   "settings.group.tnc": "Radio",
+  "settings.group.fm_radio": "Radio FM",
+  "settings.group.hf_radio": "Radio HF",
+  "settings.fm_enabled.name": "Radio FM",
+  "settings.fm_enabled.tip_label": "Sobre la radio FM",
+  "settings.fm_enabled.tip1": "Tu radio de VHF y su TNC: la red local, con digipeaters, rutas y una baliza que sigue a un GPS.",
+  "settings.fm_enabled.tip2": "Desmárcala en una estación que solo tiene la radio de HF; los ajustes de FM se conservan.",
+  "settings.hf_enabled.name": "Radio HF",
+  "settings.hf_enabled.tip_label": "Sobre la radio HF",
+  "settings.hf_enabled.tip1": "Una radio de SSB en HF con el módem Mercury que NeoAPRS incluye: cada trama sale directa, sin ruta ni digipeater.",
+  "settings.hf_enabled.tip2":
+    "Las dos radios pueden estar activadas: las estaciones de ambas salen en el mapa, y a una escuchada por las dos se le escribe por FM.",
+  "settings.enable.only_radio_title": "La única radio de la estación: marca primero la otra",
   "settings.group.web": "Página web",
   "settings.group.notifications": "Notificaciones",
   "settings.group.encrypt": "Mensajes cifrados",
@@ -255,9 +267,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip2": "30 minutos van bien para una estación que no se mueve.",
   "settings.beacon_interval.tip_moving":
     "Activada: SmartBeaconing envía la posición GPS, más a menudo cuanto más rápido vas y en cada giro. Desactivada: sin baliza automática.",
-  "settings.hf_beacon.tip1":
-    "Cada cuánto sale tu posición por la radio de HF: no más de una vez cada {min} min. Apagada: sin baliza automática; Baliza ahora sigue enviando.",
-  "settings.hf_beacon.tip2": "Una hora va bien en HF: una trama ocupa 4 segundos de un canal que comparten todas las estaciones.",
   "settings.path.name": "Ruta de la baliza",
   "settings.path.label": "Ruta",
   "settings.path.recommended": "Recomendada ({path})",

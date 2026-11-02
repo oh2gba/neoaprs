@@ -123,7 +123,7 @@ describe("the settings area in the pseudo-locale", () => {
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
-    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(11); // (the nine groups and the two boxes of Notifications)
+    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(13); // (the nine groups, the two boxes of Notifications and the two radios of the Radio group)
     expect(wrapper.findAll("legend").every((l) => l.text().startsWith("[!! "))).toBe(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);

@@ -16,13 +16,14 @@ import { attend } from "@/lib/attention";
 import { effectivePath } from "@/lib/messages";
 import { askWait, kmWrong, qruLook, requestText, sentLine } from "@/lib/qru";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
+import { hasPaths } from "@/lib/radiosides";
 import { stationRowId } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
 import type { Command } from "@/protocol/protocol";
 
-const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath, tnc } = useDaemonContext();
-/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them the request has no path or RF only to set. */
-const routable = computed(() => tnc.value?.rules.paths ?? true);
+const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
+/** Whether the request has a path and RF only to set: the FM radio is on (HF has no paths; lib/radiosides.ts). */
+const routable = computed(() => hasPaths(config.value?.values ?? {}));
 const request = useRequestPath("qru");
 const { path, rfOnly, problem } = request;
 /** The path a request goes by when none is typed: the one set for the station QRU, else the beacon's. */

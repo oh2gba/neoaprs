@@ -69,10 +69,10 @@ def write_settings(data: Path, rows: dict[str, str], daemon: list[str] | None = 
         subprocess.run([*(daemon or default_daemon()), "db", "--data", str(data), "set", key, value], check=True, capture_output=True, env=daemon_env())
 
 
-def start_daemon(data: Path, ports: tuple[int, int], daemon: list[str] | None = None) -> subprocess.Popen[bytes]:
-    """A daemon on its data folder, attached to the Mercury on these ports, its page on a free port; its output beside the folder."""
+def start_daemon(data: Path, ports: tuple[int, int], daemon: list[str] | None = None, fm_port: int = 0) -> subprocess.Popen[bytes]:
+    """A daemon on its data folder, its HF radio attached to the Mercury on these ports (and its FM radio to the KISS hub on `fm_port`, when given), its page on a free port; its output beside the folder."""
     out = (data.parent / f"{data.name}.out").open("wb")
-    argv = [*(daemon or default_daemon()), "--data", str(data), "--port", f"socket://127.0.0.1:{ports[0]}", "--web-port", "0"]
+    argv = [*(daemon or default_daemon()), "--data", str(data), "--hf-port", f"socket://127.0.0.1:{ports[0]}", "--web-port", "0", *(["--port", f"socket://127.0.0.1:{fm_port}"] if fm_port else [])]
     return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=daemon_env())
 
 
@@ -149,7 +149,7 @@ class Page:
                 raise Failure(f"{self.name}: the daemon closed the socket")
             left = deadline - loop.time()
             if left <= 0:
-                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (tnc {json.dumps(self.topics.get('tnc', {}).get('state'))}, modem {json.dumps(self.modem())}, "
+                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (hf {json.dumps(self.topics.get('hf', {}).get('state'))}, modem {json.dumps(self.modem())}, "
                               f"the last error {json.dumps(self.errors[-1]) if self.errors else 'none'})")
             try:
                 await asyncio.wait_for(self._changed.wait(), left)
@@ -179,15 +179,15 @@ class Page:
                 self.on_error(self.name, message)
 
     def modem(self) -> dict[str, Any]:
-        return (self.topics.get("tnc") or {}).get("modem") or {}
+        return (self.topics.get("hf") or {}).get("modem") or {}
 
     def free(self) -> bool:
         """The radio connected and the modem neither keyed nor hearing a signal: a frame handed to it now goes at once (`beacon_now` and `send_message` are refused while the radio is held)."""
         return self.ready() and not self.modem().get("keyed") and not self.modem().get("busy")
 
     def ready(self) -> bool:
-        """The radio connected to its Mercury and the control port heard."""
-        return (self.topics.get("tnc") or {}).get("state") == "connected" and self.modem().get("state") == "running"
+        """The HF radio connected to its Mercury and the control port heard."""
+        return (self.topics.get("hf") or {}).get("state") == "connected" and self.modem().get("state") == "running"
 
     def stations(self) -> dict[str, Any]:
         return self.topics.get("stations") or {}
@@ -240,3 +240,44 @@ class AprsIs:
     def close(self) -> None:
         if self._server is not None:
             self._server.close()
+
+
+class FmHub:
+    """The FM air of a bench: a KISS-over-TCP server every FM radio of the simulation connects to as its TNC (the type kiss-tcp), where every frame one client writes is written to every other at once. No digipeaters,
+    no collisions: the VHF network is the suite's business; here it is the other radio beside HF. `frames` keeps every frame relayed, as (from the client's number, the KISS bytes)."""
+
+    def __init__(self) -> None:
+        self.port = 0
+        self.frames: list[tuple[int, bytes]] = []
+        self._writers: dict[int, asyncio.StreamWriter] = {}
+        self._server: asyncio.AbstractServer | None = None
+        self._count = 0
+
+    async def start(self) -> None:
+        self._server = await asyncio.start_server(self._client, "127.0.0.1", 0)
+        self.port = self._server.sockets[0].getsockname()[1]
+
+    async def _client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        self._count += 1
+        number = self._count
+        self._writers[number] = writer
+        try:
+            while data := await reader.read(4096):
+                self.frames.append((number, data))
+                for other, w in self._writers.items():
+                    if other != number:
+                        w.write(data)
+        except (ConnectionError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            self._writers.pop(number, None)
+            writer.close()
+
+    def heard(self, text: bytes) -> bool:
+        """Whether a frame with this text crossed the hub."""
+        return any(text in data for _, data in self.frames)
+
+    def close(self) -> None:
+        if self._server is not None:
+            self._server.close()
+

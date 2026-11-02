@@ -124,8 +124,8 @@ describe("the Web page group", () => {
 
   it("shows no guide while https is not served, and the reason when it could not start", () => {
     const off = settings(OFF);
-    expect(off.find(".disclosure").exists()).toBe(false);
     expect(off.find(".httpsguide").exists()).toBe(false);
+    expect(off.findAll("details.disclosure").some((box) => box.find("summary").text() === "Install the certificate on a device")).toBe(false);
     const failed = settings({ ...OFF, problem: "the secure page cannot listen on a port after 7303: address in use" });
     expect(failed.find(".field-error").text()).toContain("address in use");
   });
@@ -133,7 +133,7 @@ describe("the Web page group", () => {
   it("has the guide under a heading while https is served", () => {
     vi.stubGlobal("navigator", { userAgent: ANDROID, maxTouchPoints: 0 });
     const wrapper = settings(ON, { ...NETWORK, "web/https": "true" });
-    const box = wrapper.find("details.disclosure");
+    const box = wrapper.findAll("details.disclosure").find((d) => d.find(".httpsguide").exists()) ?? wrapper;
     expect(box.find("summary").text()).toBe("Install the certificate on a device");
     expect(box.attributes("open")).toBeUndefined();
     expect(box.find(".httpsguide a.btn").attributes("href")).toBe("/neoaprs-ca.crt");

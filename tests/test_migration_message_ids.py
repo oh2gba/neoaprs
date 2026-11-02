@@ -46,7 +46,7 @@ def migrate(folder: Path, deleted: tuple[int, ...] = (), chain_of: int = 0) -> s
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 23
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25])]
     fresh.close()
     return migrated.db
 

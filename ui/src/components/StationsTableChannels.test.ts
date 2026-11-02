@@ -19,6 +19,8 @@ const net = station("OH2NET", {
   can_message: false,
 });
 const both = station("OH2BOTH", { last_heard: ago(20), heard_rf: 2, heard_is: 1, last_is_at: ago(20), last_rf_at: ago(100) });
+const hfOnly = station("OH2HF", { last_heard: ago(40), heard_rf: 2, heard_fm: 0, heard_hf: 2, last_hf_at: ago(40), last_fm_at: null });
+const fmAndHf = station("OH2FMHF", { last_heard: ago(10), heard_rf: 5, heard_fm: 3, heard_hf: 2, last_hf_at: ago(10), last_fm_at: ago(200) });
 const object = station("LEADER", { kind: "object", own: true, last_heard: ago(200), heard_rf: 0 });
 
 const make = (...rows: ReturnType<typeof station>[]) =>
@@ -44,6 +46,17 @@ describe("how a station was heard, in the Stations table", () => {
       ["OH2NET", "Internet"],
       ["LEADER", ""],
     ]);
+  });
+
+  it("has a tag HF for a station heard on the HF radio, beside RF when it was heard on the FM radio too, and RF alone for the rest as before", () => {
+    expect(labels(make(rf, hfOnly, fmAndHf))).toEqual([
+      ["OH2FMHF", "RF · HF"],
+      ["OH2RF", "RF"],
+      ["OH2HF", "HF"],
+    ]);
+    const tags = make(fmAndHf).findAll("tbody tr[data-call] .via");
+    expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on the radio", "Heard on the HF radio"]);
+    expect(tags.every((tag) => tag.classes().includes("tag-neutral"))).toBe(true);
   });
 
   it("says in a title what the label means", () => {

@@ -12,6 +12,7 @@ import AlertBell from "@/components/AlertBell.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import BearingArrow from "@/components/BearingArrow.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
+import { useRadiosNamed } from "@/composables/useRadiosOn";
 import IconButton from "@/components/IconButton.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
 import DirectMark from "@/components/DirectMark.vue";
@@ -35,6 +36,7 @@ import { isWeatherStation, type Ranges } from "@/lib/weather";
 import { isMoving, tripStart } from "@/lib/speed";
 import type { AlertWhen, PacketHistoryMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
+const named = useRadiosNamed();
 const props = withDefaults(
   defineProps<{
     row: StationRow;
@@ -101,7 +103,7 @@ const moving = computed(() => {
   return course === null ? speedText(speed) : t("station.speed_course", { speed: speedText(speed), course: bearingText(course) });
 });
 /** When it was last heard by each channel: "RF 3 min ago · Internet 40 s ago"; the plain age for a row nothing was counted for. */
-const heardOn = computed(() => heardByChannel(props.row, props.now) || agoWords(props.row.last_heard, props.now));
+const heardOn = computed(() => heardByChannel(props.row, props.now, named.value) || agoWords(props.row.last_heard, props.now));
 const weather = computed(() => isWeatherStation(props.row));
 const heardStation = computed(() => props.row.kind === "station" && !props.row.is_me && !props.row.own);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));

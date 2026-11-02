@@ -11,6 +11,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
+import { hfOn } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
@@ -40,6 +41,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     config,
     status,
     tnc: part(over.tnc, null),
+    hf: part(over.hf, null),
+    radiosNamed: over.radiosNamed === undefined ? computed(() => hfOn(config.value?.values ?? {})) : part(over.radiosNamed, false),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
     qru: part(over.qru, null),

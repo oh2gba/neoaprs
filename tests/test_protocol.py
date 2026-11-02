@@ -109,19 +109,19 @@ WEATHER_FIELDS: dict[str, Any] = {"wind_dir": 107, "wind_kmh": 1.6, "gust_kmh": 
                                   "luminosity": None, "snow_mm": None}
 STATION: dict[str, Any] = {
     "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "symbol_name": "unknown", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
-    "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "heard_rf": 1, "heard_rf_gated": 1, "heard_is": 2, "heard_dummy": 1, "last_dummy_at": NOW, "last_rf_at": NOW, "last_rf_gated_at": NOW, "last_is_at": NOW, "position_via": "is", "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
+    "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "heard_rf": 1, "heard_rf_gated": 1, "heard_is": 2, "heard_dummy": 1, "last_dummy_at": NOW, "heard_fm": 1, "heard_hf": 0, "last_fm_at": NOW, "last_hf_at": None, "last_rf_at": NOW, "last_rf_gated_at": NOW, "last_is_at": NOW, "position_via": "is", "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
     "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "gated": 4, "igate": True, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2", "heard_path": "OH2RCH-2", "internet_reach": {"kind": "igate", "igate": "OH2GW-10", "hops": ["OH2RCH-2"]},
     "route_marks": [{"kind": "rf", "hops": ["OH2RCH-2"], "gate": "", "at": NOW, "lat": 60.165, "lon": 24.9467}],
     "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "can_message": True, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "frequency": FREQUENCY, "storm": STORM, "sign": None, "track": [[NOW, 60.165, 24.9467]]}
 BULLETIN_ROW: dict[str, Any] = {"sender": "OH2XYZ", "slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "first_heard": NOW, "last_heard": "2026-10-21T13:00:00Z", "times_heard": 3}
 OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.165, "lon": 24.9467, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 66.7,
-                                  "path": None, "qru_group": "", "on_request": False, "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
+                                  "path": None, "qru_group": "", "on_request": False, "radio": "fm", "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
 OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
-                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "",
+                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio": "",
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
-                                                    "internet": None, "acked": False}]}
-PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
+                                                    "internet": None, "acked": False, "radio": "fm"}]}
+PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio": "fm", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
 TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "dummy": False, "modem": None, "rules": {"kind": "fm", "paths": True, "digipeat": True, "smart_beacon": True, "beacon_min_min": 20}, "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
                        "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0},
@@ -133,12 +133,12 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "topics": []},
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z",
+                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "hf_beacon_last_sent": None, "hf_beacon_next_due": None,
                 "station_status": "QRV 14.074 MHz USB", "station_status_last_sent": NOW, "rig_state": "on",
                 "cpu_percent": 0.3, "rss_mb": 42.4, "uptime_sec": 10800,
                 "update": {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}, "message_key": "A1B2 C3D4 E5F6 0718"},
                {"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 0, "stations": 1, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None,
+                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None, "hf_beacon_last_sent": None, "hf_beacon_next_due": None,
                 "station_status": "", "station_status_last_sent": None, "rig_state": "unused",
                 "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None, "message_key": ""}],
     "pong": [{"type": "pong", "now": NOW}],

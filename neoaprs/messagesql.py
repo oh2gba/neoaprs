@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from .dberror import Row as Row, limit, rows
 
-MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route", "seal", "wire")
+MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route", "seal", "wire", "radio")
 _LIST = ", ".join(MESSAGE_COLUMNS)
 _NEW_LIST = ", ".join(MESSAGE_COLUMNS[1:])
 _NEW_PLACES = ", ".join("?" * (len(MESSAGE_COLUMNS) - 1))
@@ -92,8 +92,8 @@ def delete_pref(db: sqlite3.Connection, call: str) -> int:
 
 
 # ---- the delivery chain of a message we sent (the tables message_attempt and message_hop)
-def insert_attempt(db: sqlite3.Connection, number: int, attempt: int, sent_at: str, path: str) -> None:
-    db.execute("INSERT OR REPLACE INTO message_attempt (message_id, attempt, sent_at, path) VALUES (?, ?, ?, ?)", (number, attempt, sent_at, path))
+def insert_attempt(db: sqlite3.Connection, number: int, attempt: int, sent_at: str, path: str, radio: str = "") -> None:
+    db.execute("INSERT OR REPLACE INTO message_attempt (message_id, attempt, sent_at, path, radio) VALUES (?, ?, ?, ?, ?)", (number, attempt, sent_at, path, radio))
 
 
 def insert_hop(db: sqlite3.Connection, number: int, attempt: int, position: int, call: str, heard_at: str, via_internet: bool) -> int:
@@ -109,7 +109,7 @@ def clear_chain(db: sqlite3.Connection, number: int) -> None:
 
 def all_attempts(db: sqlite3.Connection) -> list[Row]:
     """(message_id, attempt, sent_at, path) of every attempt, in order."""
-    return rows(db.execute("SELECT message_id, attempt, sent_at, path FROM message_attempt ORDER BY message_id, attempt"))
+    return rows(db.execute("SELECT message_id, attempt, sent_at, path, radio FROM message_attempt ORDER BY message_id, attempt"))
 
 
 def all_hops(db: sqlite3.Connection) -> list[Row]:

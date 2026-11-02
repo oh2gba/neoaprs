@@ -506,6 +506,22 @@ describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
     expect(sent.filter((c) => c.cmd === "set_config")).toEqual([PLACE, { cmd: "set_config", values: { "tnc/profile": "dummy" } }]);
   });
 
+  it("has nothing of the HF radio, whatever type is chosen: HF is ticked in the Settings tab, and the guide saves no radio setting but the FM radio's", async () => {
+    const { wrapper, guide, stand } = make();
+    await stand(3);
+    for (const profile of TNC_PROFILES) {
+      await wrapper.find("#setup-profile").setValue(profile.key);
+      expect(
+        wrapper.findAll("[id*='mercury'], [id*='sound'], [id*='keying']").map((e) => e.attributes("id")),
+        profile.key,
+      ).toEqual([]);
+      expect(
+        Object.keys(guide.changes).filter((key) => /^(mercury|hf|fm)\//.test(key)),
+        profile.key,
+      ).toEqual([]);
+    }
+  });
+
   it("is on the screen only while the Radio step is, for what Find my radio fills", async () => {
     const { guide, radioSearch, config, sent } = make();
     guide.go(0);

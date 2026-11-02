@@ -35,6 +35,7 @@ import {
   hello,
   mapFile,
   mapState,
+  hfState,
   message,
   ownBulletin,
   ownObject,
@@ -63,6 +64,7 @@ function memory() {
     ownObjects: new Map<string, OwnObjectRow>(),
     ownBulletins: new Map<string, OwnBulletinRow>(),
     tnc: null as TncState | null,
+    hf: null as TncState | null,
     config: null as unknown,
     map: null as unknown,
     update: null as unknown,
@@ -99,6 +101,7 @@ function memory() {
     replaceOwnObjects: (rows) => (seen.ownObjects = new Map(Object.entries(rows))),
     replaceOwnBulletins: (rows) => (seen.ownBulletins = new Map(Object.entries(rows))),
     replaceTnc: (v) => (seen.tnc = v),
+    replaceHf: (v) => (seen.hf = v),
     replaceConfig: (v) => (seen.config = v),
     replaceMap: (v) => (seen.map = v),
     replaceUpdate: (v) => (seen.update = v),
@@ -157,6 +160,7 @@ describe("Hub", () => {
     socket.say(state("stations", 0, { A: station("A") }));
     socket.say(state("packets", 0, { "1": packet(1) }));
     socket.say(state("tnc", 0, tncState()));
+    socket.say(state("hf", 0, hfState({ state: "stopped" })));
     socket.say(state("config", 0, configValues()));
     socket.say(state("map", 0, mapState({ state: "ready", detail: mapFile() })));
     socket.say(state("messages", 0, { "4": message(4) }));
@@ -165,6 +169,8 @@ describe("Hub", () => {
     expect([...seen.stations.keys()]).toEqual(["A"]);
     expect([...seen.packets.keys()]).toEqual(["1"]);
     expect(seen.tnc?.state).toBe("connected");
+    expect(seen.hf?.state).toBe("stopped");
+    expect(seen.hf?.rules.kind).toBe("hf");
     expect(seen.config).toEqual(configValues());
     expect(seen.map).toEqual(mapState({ state: "ready", detail: mapFile() }));
     expect(seen.statuses).toBe(1);

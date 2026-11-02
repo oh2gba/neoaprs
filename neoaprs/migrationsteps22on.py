@@ -83,3 +83,23 @@ def _v24(db: sqlite3.Connection) -> None:
     ) STRICT""")
     db.execute("ALTER TABLE message ADD COLUMN seal TEXT NOT NULL DEFAULT '' CONSTRAINT message_seal CHECK (seal IN ('', 'key', 'key_other', 'open', 'shut'))")
     db.execute("ALTER TABLE message ADD COLUMN wire TEXT")
+
+
+def _v25(db: sqlite3.Connection) -> None:
+    """Two radios (neoaprs/radios.py): a packet of the air names the radio it came on, `packet.radio` ('fm' the FM radio, the KISS TNC; 'hf' the HF modem; '' a packet from the internet), and a station keeps how many
+    of its packets came on each and when the last did (`heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at`), which is what chooses the radio a message to it goes out on; a message that came in and an attempt of ours
+    name their radio too (`message.radio`, `message_attempt.radio`: the page's chain marks an attempt over HF), and an object of ours the radio it goes out on (`own_object.radio`: fm, hf or both; fm for every one there is). Every packet of the air kept so far came on the one radio there was, the FM one: the rows are
+    backfilled so, and a station's FM counts and time are its radio counts and time."""
+    db.execute("ALTER TABLE packet ADD COLUMN radio TEXT NOT NULL DEFAULT '' CONSTRAINT packet_radio CHECK (radio IN ('', 'fm', 'hf'))")
+    db.execute("UPDATE packet SET radio = 'fm' WHERE via <> 'is'")
+    for column in ("heard_fm", "heard_hf"):
+        db.execute(f"ALTER TABLE station ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0 CONSTRAINT station_{column}_count CHECK ({column} >= 0)")
+    for column in ("last_fm_at", "last_hf_at"):
+        db.execute(f"ALTER TABLE station ADD COLUMN {column} TEXT")
+    db.execute("UPDATE station SET heard_fm = heard_rf + heard_rf_gated + heard_dummy, last_fm_at = max(coalesce(last_rf_at, ''), coalesce(last_rf_gated_at, ''), coalesce(last_dummy_at, '')) WHERE heard_rf + heard_rf_gated + heard_dummy > 0")
+    db.execute("ALTER TABLE message ADD COLUMN radio TEXT NOT NULL DEFAULT '' CONSTRAINT message_radio CHECK (radio IN ('', 'fm', 'hf'))")
+    db.execute("ALTER TABLE message_attempt ADD COLUMN radio TEXT NOT NULL DEFAULT '' CONSTRAINT message_attempt_radio CHECK (radio IN ('', 'fm', 'hf'))")
+    db.execute("UPDATE message SET radio = 'fm' WHERE direction = 'in'")
+    db.execute("UPDATE message_attempt SET radio = 'fm'")
+    db.execute("ALTER TABLE own_object ADD COLUMN radio TEXT NOT NULL DEFAULT 'fm' CONSTRAINT own_object_radio CHECK (radio IN ('fm', 'hf', 'both'))")
+

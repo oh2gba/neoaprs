@@ -3,6 +3,7 @@ import {
   anyInternet,
   channelLabel,
   channelsOf,
+  channelTags,
   channelTitle,
   heardByChannel,
   internetOnly,
@@ -32,7 +33,14 @@ describe("the channels a station was heard by", () => {
   });
 
   it("make the small label of a row: one word, or two or three joined with a middle dot", () => {
-    expect([rf, gated, net, both, all, none].map(channelLabel)).toEqual(["RF", "iGate", "Internet", "RF · Internet", "RF · iGate · Internet", ""]);
+    expect([rf, gated, net, both, all, none].map((row) => channelLabel(row))).toEqual([
+      "RF",
+      "iGate",
+      "Internet",
+      "RF · Internet",
+      "RF · iGate · Internet",
+      "",
+    ]);
   });
 
   it("have a title that says what each word means", () => {
@@ -84,8 +92,67 @@ describe("a station known from the internet alone", () => {
 
 describe("the channel of a packet of the log", () => {
   it("is RF for a packet of the radio and of ours, iGate for a third-party one and Internet for one from APRS-IS", () => {
-    expect((["rf", "rf-gated", "is"] as const).map(packetChannel)).toEqual(["rf", "gated", "is"]);
-    expect((["rf", "rf-gated", "is"] as const).map(packetLabel)).toEqual(["RF", "iGate", "Internet"]);
+    expect((["rf", "rf-gated", "is"] as const).map((via) => packetChannel(via))).toEqual(["rf", "gated", "is"]);
+    expect((["rf", "rf-gated", "is"] as const).map((via) => packetLabel(via))).toEqual(["RF", "iGate", "Internet"]);
     expect(packetTitle("is")).toBe("Received over the internet (APRS-IS), not on the radio");
+  });
+});
+
+describe("a station heard on the HF radio", () => {
+  const hfOnly = station("HFONLY", { heard_rf: 2, heard_fm: 0, heard_hf: 2, last_rf_at: ago(60), last_fm_at: null, last_hf_at: ago(60) });
+  const hfAndFm = station("HFFM", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_rf_at: ago(60), last_fm_at: ago(180), last_hf_at: ago(60) });
+  const hfAndNet = station("HFNET", { heard_rf: 2, heard_fm: 0, heard_hf: 2, heard_is: 1, last_hf_at: ago(60), last_is_at: ago(40) });
+
+  it("has the HF tag, with the RF one only when it was heard on the FM radio too, and every station without HF as before", () => {
+    expect([hfOnly, hfAndFm, hfAndNet].map(channelsOf)).toEqual([["hf"], ["rf", "hf"], ["hf", "is"]]);
+    expect([hfOnly, hfAndFm, hfAndNet].map((row) => channelLabel(row))).toEqual(["HF", "RF · HF", "HF · Internet"]);
+    expect([rf, gated, net, both, all].map(channelsOf)).toEqual([["rf"], ["gated"], ["is"], ["rf", "is"], ["rf", "gated", "is"]]);
+  });
+
+  it("names the FM radio FM beside HF while the HF radio is on, and RF as it always was otherwise: tags, titles, times and the packets of the log", () => {
+    expect(channelLabel(hfAndFm, true)).toBe("FM · HF");
+    expect(channelLabel(rf, true)).toBe("FM");
+    expect(channelLabel(rf)).toBe("RF");
+    expect(channelLabel(both, true)).toBe("FM · Internet");
+    expect(channelTags(hfAndFm, true).map((tag) => [tag.channel, tag.label, tag.title])).toEqual([
+      ["rf", "FM", "Heard on the FM radio"],
+      ["hf", "HF", "Heard on the HF radio"],
+    ]);
+    expect(channelTitle(hfAndFm, true)).toBe("Heard on the FM radio; Heard on the HF radio");
+    expect(heardByChannel(hfAndFm, NOW, true)).toBe("FM 3 min ago · HF 1 min ago");
+    expect(heardByChannel(hfAndFm, NOW)).toBe("RF 3 min ago · HF 1 min ago");
+    expect([
+      packetLabel("rf", "fm", true),
+      packetLabel("rf", "hf", true),
+      packetLabel("rf", "fm"),
+      packetLabel("is", "", true),
+      packetLabel("rf-gated", "fm", true),
+    ]).toEqual(["FM", "HF", "RF", "Internet", "iGate"]);
+    expect(packetTitle("rf", "fm", true)).toBe("Heard on the FM radio");
+  });
+
+  it("has the HF tag in the neutral tone and its own title", () => {
+    expect(channelTags(hfAndFm).map((tag) => [tag.channel, tag.label, tag.tone])).toEqual([
+      ["rf", "RF", "neutral"],
+      ["hf", "HF", "neutral"],
+    ]);
+    expect(channelTitle(hfOnly)).toBe("Heard on the HF radio");
+    expect(channelTitle(hfAndFm)).toBe("Heard on the radio; Heard on the HF radio");
+  });
+
+  it("is told with when each radio last heard it: the RF time is the FM radio's", () => {
+    expect(heardByChannel(hfAndFm, NOW)).toBe("RF 3 min ago · HF 1 min ago");
+    expect(heardByChannel(hfOnly, NOW)).toBe("HF 1 min ago");
+  });
+
+  it("is on the air, as any station heard on a radio is, and a packet of the log says HF when it came on the HF radio", () => {
+    expect([hfOnly, hfAndNet].map(onAir)).toEqual([true, true]);
+    expect([hfOnly, hfAndNet].map(internetOnly)).toEqual([false, false]);
+    expect(packetChannel("rf", "hf")).toBe("hf");
+    expect(packetLabel("rf", "hf")).toBe("HF");
+    expect(packetLabel("rf", "fm")).toBe("RF");
+    expect(packetLabel("rf")).toBe("RF");
+    expect(packetLabel("is", "")).toBe("Internet");
+    expect(packetTitle("rf", "hf")).toBe("Heard on the HF radio");
   });
 });

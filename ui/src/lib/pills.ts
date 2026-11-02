@@ -1,5 +1,5 @@
 // The marks at the top right of the header, before the count of messages, each with a short hover title and the place where it is set. In this order (Update first, when a newer version is known), which is the order they fold in on a narrow screen (the last first): Daemon (in a browser only: ok while the page is connected, warn while it connects, bad when it is offline; in the app page and daemon are one),
-// Radio (always: ok while connected, the Dummy radio dummy, else warn with the state in words; it opens Settings → Radio), RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
+// Radio (always: ok while connected, the Dummy radio dummy, else warn with the state in words; it opens Settings → Radio; while the HF radio is ticked it is two marks, FM and HF, each in the state of its own radio, and with FM unticked the HF mark alone), RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
 // GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving), Map (info, while the detailed map is being downloaded: the percent of the step; it opens Settings → Map). Plain functions of the settings and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -8,6 +8,7 @@ import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
 import { silentText } from "@/lib/format";
 import type { Connection } from "@/lib/hub";
+import { fmOn, hfOn } from "@/lib/radiosides";
 import type { GpsState, IgateState, MapState, TncState, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
@@ -15,7 +16,7 @@ import type { TagTone } from "@/components/TagMark.vue";
 export type PillTarget = "settings" | "beacon";
 
 export interface HeaderPill {
-  id: "update" | "daemon" | "radio" | "rx" | "beacon_off" | "internet" | "gps" | "map";
+  id: "update" | "daemon" | "radio" | "fm" | "hf" | "rx" | "beacon_off" | "internet" | "gps" | "map";
   text: MessageId;
   textValues?: Params;
   title: MessageId;
@@ -28,10 +29,11 @@ export interface HeaderPill {
   focus: string;
 }
 
-/** What the page knows of the link to the daemon and to the radio: the socket, the radio's state and the time now (for how long the radio has been silent), and whether the page is the desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
+/** What the page knows of the link to the daemon and to the radios: the socket, the FM radio's state (`tnc`), the HF radio's (`hf`) and the time now (for how long a radio has been silent), and whether the page is the desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
 export interface Link {
   connection: Connection;
   tnc: TncState | null;
+  hf: TncState | null;
   now: number;
   inApp: boolean;
 }
@@ -46,23 +48,39 @@ function daemonPill(connection: Connection): HeaderPill {
   return { id: "daemon", ...states[connection], target: null, focus: "" };
 }
 
-/** The Radio mark: the state of the radio link, which is unknown (waiting) while the page's socket is not open. Settings → Radio is where it leads. */
-function radioPill(link: Link): HeaderPill {
-  const base = { id: "radio", target: "settings", focus: "set-tnc-profile" } as const;
+/** The mark of a radio: the state of its link, which is unknown (waiting) while the page's socket is not open. Settings → Radio is where it leads, to the control `focus` (inside the radio's box, which is flashed). `named` is "FM radio" or "HF radio" where there are two marks, and the mark says "Radio" (today's words) where there is one. */
+function radioPill(link: Link, radio: TncState | null, id: HeaderPill["id"], focus: string, named: MessageId | null): HeaderPill {
+  const base = { id, target: "settings", focus } as const;
+  const values = named === null ? undefined : { radio: t(named) };
+  const word = (plain: MessageId, withName: MessageId) => ({ text: named === null ? plain : withName, textValues: values }) as const;
   const why = (text: string) => ({ title: "pill.radio_why_title", titleValues: { why: text } }) as const;
-  const radio = link.connection === "open" ? link.tnc : null;
-  if (radio === null) return { ...base, text: "pill.radio_waiting", tone: "warn", ...why(t("pill.radio_waiting_why")) };
-  if (radio.state === "connected") {
-    return radio.dummy
-      ? { ...base, text: "pill.radio", title: "pill.radio_dummy_title", tone: "dummy" }
-      : { ...base, text: "pill.radio", title: "pill.radio_title", tone: "ok" };
+  const state = link.connection === "open" ? radio : null;
+  if (state === null) return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...why(t("pill.radio_waiting_why")) };
+  if (state.state === "connected") {
+    if (state.dummy) return { ...base, text: named ?? "pill.radio", title: "pill.radio_dummy_title", tone: "dummy" };
+    return named === null
+      ? { ...base, text: "pill.radio", title: "pill.radio_title", tone: "ok" }
+      : { ...base, text: named, title: "pill.radio_named_title", titleValues: values, tone: "ok" };
   }
-  if (radio.state === "silent") return { ...base, text: "pill.radio_silent", tone: "warn", ...why(silentText(radio.silent_since, link.now)) };
-  const reason = radio.problem || radio.describe || radio.state;
-  if (radio.state === "connecting") {
-    return { ...base, text: radio.describe.includes("entering KISS") ? "pill.radio_kiss" : "pill.radio_searching", tone: "warn", ...why(reason) };
+  if (state.state === "silent")
+    return { ...base, ...word("pill.radio_silent", "pill.radio_named_silent"), tone: "warn", ...why(silentText(state.silent_since, link.now)) };
+  const reason = state.problem || state.describe || state.state;
+  if (state.state === "connecting") {
+    return state.describe.includes("entering KISS")
+      ? { ...base, ...word("pill.radio_kiss", "pill.radio_named_kiss"), tone: "warn", ...why(reason) }
+      : { ...base, ...word("pill.radio_searching", "pill.radio_named_searching"), tone: "warn", ...why(reason) };
   }
-  return { ...base, text: "pill.radio_off", tone: "warn", ...why(reason) };
+  return { ...base, ...word("pill.radio_off", "pill.radio_named_off"), tone: "warn", ...why(reason) };
+}
+
+/** The radio marks: one radio on is the one Radio mark, whichever radio it is (the page names a radio only where there are two); both on are two marks, FM radio and HF radio, each in the state of its own radio. */
+function radioPills(link: Link, values: Readonly<Record<string, string>>): HeaderPill[] {
+  const fm = fmOn(values);
+  const hf = hfOn(values);
+  if (fm && hf) {
+    return [radioPill(link, link.tnc, "fm", "set-tnc-profile", "pill.fm_radio"), radioPill(link, link.hf, "hf", "set-mercury-sound_card", "pill.hf_radio")];
+  }
+  return [fm || !hf ? radioPill(link, link.tnc, "radio", "set-tnc-profile", null) : radioPill(link, link.hf, "radio", "set-mercury-sound_card", null)];
 }
 
 /** The Update mark, while a newer version is known. */
@@ -121,7 +139,7 @@ export function headerPills(
   link: Link | null = null,
   map: MapState | null = null,
 ): HeaderPill[] {
-  const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), radioPill(link)];
+  const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), ...radioPills(link, values)];
   const marks = [update === null ? null : updatePill(update), ...linked, sendingPill(values), gpsPill(values, gps), internetPill(igate), mapPill(map)];
   return marks.filter((mark): mark is HeaderPill => mark !== null);
 }

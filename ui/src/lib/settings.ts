@@ -14,7 +14,6 @@ import { GROUP_ORDER, rank } from "@/lib/settingsorder";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
-  hfBeaconChoices,
   directionChoices,
   every,
   MOVING_BEACON_ON,
@@ -142,6 +141,22 @@ const SPECS: Record<string, FieldSpec> = {
     choices: directionChoices,
     tip: ["settings.antenna_direction.tip1"],
   },
+  "fm/enabled": {
+    name: "settings.fm_enabled.name",
+    label: "settings.enable.label",
+    kind: "bool",
+    tipLabel: "settings.fm_enabled.tip_label",
+    tip: ["settings.fm_enabled.tip1", "settings.fm_enabled.tip2"],
+    picture: "tworadios",
+  },
+  "hf/enabled": {
+    name: "settings.hf_enabled.name",
+    label: "settings.enable.label",
+    kind: "bool",
+    tipLabel: "settings.hf_enabled.tip_label",
+    tip: ["settings.hf_enabled.tip1", "settings.hf_enabled.tip2"],
+    picture: "tworadios",
+  },
   "tnc/profile": {
     label: "settings.profile.label",
     kind: "choice",
@@ -255,14 +270,6 @@ const SPECS: Record<string, FieldSpec> = {
     label: "settings.status_template.label",
     tip: [["settings.status_template.tip1", { max: LIMITS.status.max }], "settings.status_template.tip2"],
   },
-  "hf/beacon_interval_min": {
-    name: "settings.beacon_interval.name",
-    label: "settings.beacon_interval.label",
-    kind: "choice",
-    choices: hfBeaconChoices,
-    other: (value) => every(value),
-    tip: [["settings.hf_beacon.tip1", { min: LIMITS.interval.hfBeaconMinMin }], "settings.hf_beacon.tip2"],
-  },
   "beacon/interval_min": {
     name: "settings.beacon_interval.name",
     label: "settings.beacon_interval.label",
@@ -348,13 +355,13 @@ interface Group {
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
-  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/", "mercury/"], also: ["station/transmit"] },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["tnc/", "serial/", "tcp/", "mercury/"], also: ["station/transmit", "fm/enabled", "hf/enabled"] },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
   { id: "map", title: "settings.group.map", prefixes: ["map/"] },
   { id: "digi", title: "settings.group.digi", prefixes: ["digi/"] },
-  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment", "hf/beacon_interval_min"] },
+  { id: "beacon", title: "settings.group.beacon", prefixes: ["beacon/"], also: ["station/comment"] },
   { id: "status", title: "settings.group.status", prefixes: ["status/"], also: ["station/status"] },
 ];
 

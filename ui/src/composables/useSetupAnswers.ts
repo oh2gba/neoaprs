@@ -5,8 +5,7 @@ import {
   baudShown,
   degreesText,
   fieldsFrom,
-  isDummy,
-  isModem,
+  noLine,
   KEY_OF,
   setupChanges,
   stepOk,
@@ -25,8 +24,7 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
   const touched = ref(false); // an answer was typed or picked: the settings no longer fill the answers
 
   const tcp = computed(() => profileOf(fields.profile)?.transport === "tcp");
-  const dummy = computed(() => isDummy(fields));
-  const modem = computed(() => isModem(fields));
+  const dummy = computed(() => noLine(fields)); // (no line to ask for: the Dummy radio, or an FM radio that is off)
   const changes = computed(() => setupChanges(fields, values.value));
   const valid = computed(() => Array.from({ length: STEP_COUNT }, (_, i) => stepOk(i, fields, search.value)));
   const problems = computed<Problems>(() => {
@@ -79,5 +77,5 @@ export function useSetupAnswers(values: Ref<Record<string, string>>, search: Ref
     edit("lon", degreesText(Math.round(wrapped * 1e5) / 1e5));
   }
 
-  return { fields, errors, touched, tcp, dummy, modem, fillRadio, changes, valid, problems, pin, fill, reset, clearErrors, edit, place };
+  return { fields, errors, touched, tcp, dummy, fillRadio, changes, valid, problems, pin, fill, reset, clearErrors, edit, place };
 }

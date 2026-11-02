@@ -32,6 +32,7 @@ class PacketRow(NamedTuple):
     decoded: str                    # JSON
     error: str | None               # why a field did not decode, for kind "undecoded"
     via: str                        # the channel: rf, rf-gated or is (Packet.via)
+    radio: str                      # the radio it came on: fm, hf, or '' for the internet (Packet.radio)
 
 
 def stamp(t: datetime) -> str:
@@ -103,7 +104,7 @@ def packet_row(packet: Packet) -> PacketRow:
     decoded = packet.decoded
     error = decoded.error if isinstance(decoded, Undecoded) else None
     return PacketRow(stamp(packet.heard_at), packet.direction, packet.raw, packet.source, packet.destination, ",".join(packet.path), packet.kind, packet.summary,
-                     encode_decoded(decoded), error, packet.via)
+                     encode_decoded(decoded), error, packet.via, packet.radio)
 
 
 def info_of(raw: bytes, via: str) -> bytes:
@@ -122,4 +123,4 @@ def packet_of(row: PacketRow) -> Packet:
     opened = header_of(info)                  # (the header of a third-party packet is in the information field; `decoded` holds what is inside it)
     via = channel_of(None if opened is None else opened[0], row.via == IS, row.via == DUMMY)
     return Packet(heard_at=parse_stamp(row.heard_at), direction=direction, raw=bytes(row.raw), source=row.source, destination=row.destination,
-                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via)
+                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via, radio=row.radio)

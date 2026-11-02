@@ -49,6 +49,9 @@ export interface SetupFields {
   baud: string;
   host: string;
   tcpPort: string;
+  /** whether the FM radio and the HF radio are on, "true" or "false" (the settings fm/enabled and hf/enabled) */
+  fm: string;
+  hf: string;
 }
 
 export type FieldName = keyof SetupFields;
@@ -65,6 +68,8 @@ export const STEP_OF: Record<FieldName, number> = {
   baud: 3,
   host: 3,
   tcpPort: 3,
+  fm: 3,
+  hf: 3,
 };
 
 /** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
@@ -79,15 +84,17 @@ export const KEY_OF: Record<string, FieldName> = {
   "serial/baud": "baud",
   "tcp/host": "host",
   "tcp/port": "tcpPort",
+  "fm/enabled": "fm",
+  "hf/enabled": "hf",
 };
 
 const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
 /** The Dummy radio: no radio, so no port, no speed and no host to ask for. */
-export const isDummy = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "dummy";
-/** A modem the daemon starts itself (the Mercury HF modem): nothing to ask for here, its sound card and keying are in the Settings tab with their defaults. */
-export const isModem = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "modem";
-/** Whether the guide has no port, speed or host to ask for the type. */
-export const noLine = (f: SetupFields): boolean => isDummy(f) || isModem(f);
+const isDummy = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "dummy";
+/** Whether the FM radio is on in the answers (the radios are on as the settings say: FM unless false, HF only when true). */
+const fmAnswered = (f: SetupFields): boolean => f.fm !== "false";
+/** Whether the guide has no port, speed or host to ask for: the Dummy radio, or an FM radio that is off. */
+export const noLine = (f: SetupFields): boolean => isDummy(f) || !fmAnswered(f);
 /** The step with the radio. */
 export const RADIO_STEP = STEP_OF.profile;
 
@@ -119,6 +126,7 @@ export function stepOk(step: number, f: SetupFields, search: boolean | null): bo
     case 2:
       return f.symbol.length === 2;
     case 3:
+      if (!fmAnswered(f)) return f.hf === "true"; // (a station has at least one radio)
       return (
         profileOf(f.profile) !== undefined && (noLine(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
       );
@@ -157,6 +165,8 @@ export function fieldsFrom(values: Readonly<Record<string, string>>): SetupField
     baud: baudShown(profile, values["serial/baud"] ?? ""),
     host: values["tcp/host"] ?? "",
     tcpPort: values["tcp/port"] ?? "",
+    fm: values["fm/enabled"] ?? "true",
+    hf: values["hf/enabled"] ?? "false",
   };
 }
 
@@ -166,6 +176,20 @@ export const NEW_STATION_BEACON_MIN = "30";
 /** The daemon has no call and no beacon: the first run. */
 function isNewStation(values: Readonly<Record<string, string>>): boolean {
   return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
+}
+
+/** The settings of the FM radio's line the answers make: its type, and the port and speed of a serial TNC or the host and port of a TCP one. Nothing while the FM radio is off (it keeps its type, port and address for the day it is ticked), and the Dummy radio has no port, no speed and no address: what the settings hold stays, for the day a real radio is chosen. */
+function fmLine(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
+  if (!fmAnswered(f)) return {};
+  if (isTcp(f)) {
+    return {
+      "tnc/profile": f.profile,
+      "tcp/host": f.host.trim(),
+      "tcp/port": f.tcpPort.trim(),
+      "serial/port": portForProfile(f.profile, values["serial/port"] ?? ""),
+    };
+  }
+  return isDummy(f) ? { "tnc/profile": f.profile } : { "tnc/profile": f.profile, "serial/port": f.port, "serial/baud": f.baud.trim() };
 }
 
 /** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port, the Dummy radio's none), and a serial device
@@ -178,23 +202,14 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "station/lon": parseNumber(f.lon) === null ? f.lon.trim() : degreesText(parseNumber(f.lon) ?? 0),
     "station/symbol_table": f.symbol.slice(0, 1),
     "station/symbol_code": f.symbol.slice(1),
-    "tnc/profile": f.profile,
+    "fm/enabled": f.fm,
+    "hf/enabled": f.hf,
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
-  if (isTcp(f)) {
-    wanted["tcp/host"] = f.host.trim();
-    wanted["tcp/port"] = f.tcpPort.trim();
-    wanted["serial/port"] = portForProfile(f.profile, values["serial/port"] ?? "");
-  } else if (isModem(f)) {
-    wanted["serial/port"] = portForProfile(f.profile, values["serial/port"] ?? ""); // (a serial device does not go with the modem, which the daemon starts itself; its two settings keep their defaults)
-  } else if (!isDummy(f)) {
-    // (the Dummy radio has no port, no speed and no address: what the settings hold stays, for the day a real radio is chosen)
-    wanted["serial/port"] = f.port;
-    wanted["serial/baud"] = f.baud.trim();
-  }
+  Object.assign(wanted, fmLine(f, values));
   const changes: Record<string, string> = {};
   for (const [key, text] of Object.entries(wanted)) {
-    const had = values[key] ?? "";
+    const had = values[key] ?? (key === "fm/enabled" ? "true" : "");
     const same = key === "serial/baud" ? baudShown(f.profile, text) === baudShown(f.profile, had) : sameNumber(text, had);
     if (!same) changes[key] = text;
   }

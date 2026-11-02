@@ -170,6 +170,7 @@ RF: Via = "rf"                         # heard on the radio, direct or by digipe
 RF_GATED: Via = "rf-gated"             # heard on the radio as a third-party packet: an iGate took it from the internet and put it on the air
 IS: Via = "is"                         # received from APRS-IS directly over the internet; it was never on the air
 DUMMY: Via = "dummy"                   # made up by the Dummy radio, which lets a person try the program with no radio: it goes everywhere a packet of the radio goes, and nowhere beyond this computer
+RADIOS: tuple[str, ...] = ("", "fm", "hf")      # what Packet.radio may be: the kind of the radio's slot (the FM radio, the KISS TNC of today, or the HF modem), or none for the internet
 
 GATEABLE: frozenset[str] = frozenset({RF, RF_GATED})
 """The channels whose packets a consumer that sends to the internet may take. An iGate (or anything else that puts a packet on APRS-IS) MUST check `packet.via in GATEABLE` before it sends: a packet from the internet (`is`)
@@ -203,12 +204,15 @@ class Packet:
     decoded: Decoded                  # what the information field says; for a third-party packet, what the wrapped packet says
     third_party: ThirdParty | None = None
     via: Via = RF
+    radio: str = ""                   # the radio it came on or went out on, by the kind of its slot (`fm`, `hf`: neoaprs/radiorules.py), set where the Tnc makes the packet; "" for a packet from the internet, and for one made without a radio (a test's), which counts as the FM radio's
 
     def __post_init__(self) -> None:
         if self.heard_at.tzinfo is None:
             raise ValueError("heard_at must be timezone-aware UTC")
         if self.via not in VIAS:
             raise ValueError(f"via {self.via!r} is no channel")
+        if self.radio not in RADIOS:
+            raise ValueError(f"radio {self.radio!r} is no radio: {RADIOS}")
         if self.via == IS and self.direction != "in":
             raise ValueError("a packet sent by us never goes by the internet")
         if (self.via == RF_GATED) != (self.third_party is not None and self.via not in (IS, DUMMY)):

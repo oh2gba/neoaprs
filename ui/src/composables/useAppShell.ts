@@ -33,6 +33,7 @@ import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
+import { hfOn } from "@/lib/radiosides";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
 import type { ConfigValues } from "@/protocol/protocol";
@@ -70,13 +71,14 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
     receiveOnly: computed(() => config.value?.values["station/transmit"] === "false"),
+    radiosNamed: computed(() => hfOn(config.value?.values ?? {})),
     pills: computed(() =>
       headerPills(
         config.value?.values ?? {},
         daemon.gps.value,
         daemon.igate.value,
         daemon.status.value?.update ?? null,
-        { connection: daemon.connection.value, tnc: tnc.value, now: now.value, inApp: app },
+        { connection: daemon.connection.value, tnc: tnc.value, hf: daemon.hf.value, now: now.value, inApp: app },
         daemon.map.value,
       ),
     ),
@@ -87,7 +89,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
       const text = values["beacon/path"] ?? "";
       return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
     }),
-    connected: computed(() => tnc.value?.state === "connected"),
+    connected: computed(() => tnc.value?.state === "connected" || daemon.hf.value?.state === "connected"), // (either radio: the one that is off is stopped)
   };
 }
 

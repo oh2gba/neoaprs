@@ -79,6 +79,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "você",
   "chain.internet": "internet",
   "chain.sent": "enviada {time}",
+  "chain.hf": "HF",
+  "chain.sent_hf": "enviada {time} por HF",
   "chain.heard": { select: "internet", yes: "recebida, e também pela internet", other: "recebida" },
   "chain.heard_at": { select: "internet", yes: "recebida {time}, e também pela internet", other: "recebida {time}" },
   "chain.seen_internet": "vista em uma cópia devolvida pela internet, não recebida aqui",
@@ -91,6 +93,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "aguardando o ack",
 
   "route.button": "Rota",
+  "messages.hf_tag_title": "As mensagens para esta estação vão pelo rádio HF: direto, sem caminho",
   "route.changed": "Rota: não é a padrão",
   "route.path": "Caminho",
   "route.calls_hint": "Indicativos separados por vírgulas, no máximo {max}",

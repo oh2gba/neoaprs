@@ -100,6 +100,8 @@ describe("the pictures in the notes of the Settings fields", () => {
     ["gps/source", "position"],
     ["mercury/sound_card", "mercury"],
     ["mercury/keying", "mercury"],
+    ["fm/enabled", "tworadios"],
+    ["hf/enabled", "tworadios"],
   ];
 
   it.each(withPicture)("%s shows the picture %s under its text", async (key, picture) => {

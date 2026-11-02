@@ -19,6 +19,17 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "Asema",
   "settings.group.tnc": "Radio",
+  "settings.group.fm_radio": "FM-radio",
+  "settings.group.hf_radio": "HF-radio",
+  "settings.fm_enabled.name": "FM-radio",
+  "settings.fm_enabled.tip_label": "Tietoa: FM-radio",
+  "settings.fm_enabled.tip1": "VHF-radiosi ja sen TNC: paikallinen verkko digipeatereineen ja poluineen sekä GPS:ää seuraava majakka.",
+  "settings.fm_enabled.tip2": "Poista valinta asemalta, jolla on vain HF-radio; FM-asetukset säilyvät.",
+  "settings.hf_enabled.name": "HF-radio",
+  "settings.hf_enabled.tip_label": "Tietoa: HF-radio",
+  "settings.hf_enabled.tip1": "SSB-radio HF:llä ja NeoAPRSin Mercury-modeemi: jokainen kehys lähtee suoraan ilman polkua tai digipeateria.",
+  "settings.hf_enabled.tip2": "Molemmat radiot voivat olla käytössä: kummallakin kuultu asema näkyy kartalla, ja molemmilla kuullulle viestit lähtevät FM:llä.",
+  "settings.enable.only_radio_title": "Aseman ainoa radio: valitse ensin toinen",
   "settings.group.web": "Verkkosivu",
   "settings.group.notifications": "Ilmoitukset",
   "settings.group.encrypt": "Salatut viestit",
@@ -256,9 +267,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip2": "30 minuuttia sopii asemalle, joka pysyy paikallaan.",
   "settings.beacon_interval.tip_moving":
     "Päällä: SmartBeaconing lähettää GPS-sijainnin, sitä useammin mitä nopeammin kuljet ja joka käänteessä. Pois: ei automaattista majakkaa.",
-  "settings.hf_beacon.tip1":
-    "Kuinka usein sijaintisi lähtee HF-radiolla: enintään {min} minuutin välein. Pois: ei automaattista majakkaa; Majakka nyt lähettää silti.",
-  "settings.hf_beacon.tip2": "Tunti sopii HF:lle: yksi kehys vie 4 sekuntia kanavasta, jonka kaikki asemat jakavat.",
   "settings.path.name": "Majakan polku",
   "settings.path.label": "Polku",
   "settings.path.recommended": "Suositus ({path})",

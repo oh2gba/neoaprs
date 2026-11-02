@@ -10,7 +10,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Scope } from "@/lib/settings";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, igateState, ownObject, tncState } from "@/test/fixtures";
+import { configValues, hfState, igateState, ownObject, tncState } from "@/test/fixtures";
 
 const ON_OFF = /^(on|off|yes|no|true|false|enabled|disabled|ein|aus|an)$/i;
 
@@ -23,12 +23,15 @@ function surfaces() {
   const scenes: [Scope, Record<string, string>][] = [
     ["settings", { "igate/enabled": "true", "digi/enabled": "true", "web/network": "true", "messages/alert": "true" }],
     ["settings", { "tnc/profile": "network", "tcp/host": "192.168.1.5", "tcp/port": "8001" }],
-    ["settings", { "tnc/profile": "mercury" }],
+    ["settings", { "hf/enabled": "true", "fm/enabled": "false" }],
     ["beacon", { "gps/source": "gpsd", "beacon/interval_min": "30" }],
     ["beacon", { "gps/source": "off", "beacon/interval_min": "0" }],
   ];
   const settings = scenes.map(([scope, extra]) =>
-    mount(SettingsForm, { props: { scope }, global: withDaemon(fakeDaemon({ config: configValues(extra), igate: igateState(), tnc: tncState() })) }),
+    mount(SettingsForm, {
+      props: { scope },
+      global: withDaemon(fakeDaemon({ config: configValues(extra), igate: igateState(), tnc: tncState(), hf: hfState() })),
+    }),
   );
   const objects = mount(ObjectForm, {
     props: {
@@ -63,7 +66,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     }
   });
 
-  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: RX only, Enable (Internet stations, Digipeater), Alert", () => {
+  it("have a tickbox first in the group of every feature that can be switched on or off, labelled with its name: RX only, Enable (the FM radio, the HF radio, Internet stations, Digipeater), Alert", () => {
     const groups = (root: Element) =>
       [...root.querySelectorAll("fieldset")].map((f) => ({
         legend: f.querySelector("legend")?.textContent?.replace(/\s*i$/, "").trim() ?? "",
@@ -73,6 +76,8 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
     const all = surfaces().flatMap(groups);
     for (const [legend, label] of [
       ["Radio", "RX only"],
+      ["FM radio", "Enable"],
+      ["HF radio", "Enable"],
       ["Internet stations", "Enable"],
       ["Digipeater", "Enable"],
       ["On the NeoAPRS computer", "Alert"],

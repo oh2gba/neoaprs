@@ -272,7 +272,13 @@ describe("MessagesPane, the thread", () => {
     const chained = message(1, {
       to_call: "OH2RDG",
       attempts_detail: [
-        { sent_at: "2026-10-22T12:00:00Z", hops: [{ call: "OH2RCH-2", heard: false, heard_at: null, by_internet: false }], internet: null, acked: false },
+        {
+          sent_at: "2026-10-22T12:00:00Z",
+          hops: [{ call: "OH2RCH-2", heard: false, heard_at: null, by_internet: false }],
+          internet: null,
+          acked: false,
+          radio: "fm",
+        },
       ],
     });
     const wrapper = await pane({ thread: [chained, incoming(2, "OH2RDG")], heardDirect: new Set(["OH2RCH-2"]) });

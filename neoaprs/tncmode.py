@@ -102,15 +102,16 @@ def _text_line(line: bytes) -> bool:
     return "cmd:" in text or _TNC2_LINE.match(text) is not None
 
 
-def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime, dummy: bool = False) -> Packet:
-    """The packet for an AX.25 frame that came in or went out at `now`: `rf`, or `rf-gated` when the frame is a third-party one (an iGate put what it took from the internet on the air), `dummy` for a frame of the Dummy radio."""
+def packet_of(direction: Literal["in", "out"], raw: bytes, frame: ax25.Frame, now: datetime, dummy: bool = False, radio: str = "fm") -> Packet:
+    """The packet for an AX.25 frame that came in or went out at `now`: `rf`, or `rf-gated` when the frame is a third-party one (an iGate put what it took from the internet on the air), `dummy` for a frame of the Dummy radio;
+    `radio` is the kind of the radio's slot it came on (the FM radio unless the Tnc says otherwise)."""
     source, destination = str(frame.source), str(frame.destination)
     decoded, third_party = aprsthirdparty.parse_packet(frame.info, source, destination, now)
     return Packet(heard_at=now, direction=direction, raw=raw, source=source, destination=destination, path=tuple(str(a) for a in frame.path),
-                  info=frame.info, decoded=decoded, third_party=third_party, via=channel_of(third_party, dummy=dummy))
+                  info=frame.info, decoded=decoded, third_party=third_party, via=channel_of(third_party, dummy=dummy), radio=radio)
 
 
-def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False) -> tuple[Packet, ax25.Frame] | str:
+def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False, radio: str = "fm") -> tuple[Packet, ax25.Frame] | str:
     """The packet in a KISS frame and its AX.25 frame, or the reason it is none (a KISS command, not a UI frame, not AX.25 at all)."""
     try:
         if kiss_frame.command != 0:
@@ -118,7 +119,7 @@ def read_frame(kiss_frame: kiss.KissFrame, now: datetime, dummy: bool = False) -
         frame = ax25.decode(kiss_frame.payload)
         if not frame.is_ui:
             return f"not a UI frame (control 0x{frame.control:02X}, PID 0x{frame.pid:02X})"
-        return packet_of("in", kiss_frame.payload, frame, now, dummy), frame
+        return packet_of("in", kiss_frame.payload, frame, now, dummy, radio), frame
     except ax25.Ax25Error as e:
         return f"not an AX.25 frame: {e}"
     except Exception:

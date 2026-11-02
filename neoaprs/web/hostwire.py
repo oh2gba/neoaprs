@@ -56,6 +56,8 @@ class Status(_Message):
     beacon_interval_min: int = Field(description="minutes between our position packets, from the settings; 0 is off")
     beacon_last_sent: Iso | None = Field(description="when the latest beacon was sent, by the timer or on request; null for none since the daemon started")
     beacon_next_due: Iso | None = Field(description="when the timer sends the next one; null while the interval is 0")
+    hf_beacon_last_sent: Iso | None = Field(description="when the latest beacon went out on the HF radio; null for none since the daemon started (and while the HF radio is off)")
+    hf_beacon_next_due: Iso | None = Field(description="when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off")
     station_status: str = Field(description="the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone")
     station_status_last_sent: Iso | None = Field(description="when the latest status report was sent (kept over a restart); null for none yet")
     rig_state: Literal["off", "on", "unused"] = Field(description="whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`)")

@@ -83,7 +83,7 @@ MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem"
 DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (), None, False, False,
                 "Nothing goes on the air and nothing is opened: the traffic is made up by the program, around the station's position.")
 
-PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, MERCURY, DUMMY)
+PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)       # the FM radio's types; MERCURY is the HF radio's one profile (neoaprs/radios.py) and no choice here
 BY_KEY = {p.key: p for p in PROFILES}
 DEFAULT = KISS                              # a fresh install: no text is ever sent to a device that was not named
 

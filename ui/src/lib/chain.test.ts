@@ -9,6 +9,7 @@ const attempt = (hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow =>
   hops,
   internet: null,
   acked: false,
+  radio: "fm",
   ...extra,
 });
 const row = message(1, { to_call: "OH2CUB-7" });

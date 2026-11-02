@@ -2,11 +2,12 @@
 """The simulation of an HF net: N real Mercury instances on one computer joined by one simulated channel (tests/support/hfchannel.py: every station hears the sum of the others with noise at a chosen signal-to-noise ratio,
 a keyed station hears nothing, two keyed at once collide), a NeoAPRS daemon on each with a data folder of its own, and a scenario driven through the pages' sockets and checked against what an HF net must do:
 every station's beacon heard by every other, a message around the ring acked by each, two stations keyed at the same moment losing both frames and a message between them going through on the retry, a station
-whose Mercury dies and comes back, a weak link, and the first station gating what it hears to a fake APRS-IS. Nothing is keyed, nothing leaves the loopback. The daemon may be the checkout's or an installed one
+whose Mercury dies and comes back, a weak link, the first stations with the FM radio too (a KISS hub is their FM air: a message to a station heard on FM goes on FM, one to a station heard on HF alone over HF), and the
+first station gating what it hears to a fake APRS-IS. Nothing is keyed, nothing leaves the loopback. The daemon may be the checkout's or an installed one
 (`--daemon /usr/bin/neoaprs` after the .deb, `--daemon ./NeoAPRS.AppImage`), and the Mercury the one the checkout carries (scripts/build-mercury --install) or any (`--mercury`), so that the same scenario runs
 against what ships. For a developer, by hand, and the release workflow against its artifacts; Linux only (named pipes, Mercury's fifo backend).
 
-  scripts/mercury-sim [--stations N] [--snr DB] [--seed S] [--timeout SEC] [--keep] [--mercury PATH] [--daemon CMD] [--report FILE]
+  scripts/mercury-sim [--stations N] [--fm N] [--snr DB] [--seed S] [--timeout SEC] [--keep] [--mercury PATH] [--daemon CMD] [--report FILE]
 
 The report is a table of what happened and the times, the channel's counts (blocks, collisions, what each station sent and heard), and exit 0 when every expectation held; --report writes the same as JSON.
 """
@@ -30,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from neoaprs.mercuryhelper import find  # noqa: E402  (the daemon package, from the checkout the simulation is in)
 from tests.support.hfchannel import Channel  # noqa: E402
-from tests.support.realmercury import AprsIs, Failure, Page, default_daemon, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
+from tests.support.realmercury import AprsIs, Failure, FmHub, Page, default_daemon, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
 
 FIRST_PORT = 18100               # station i has the KISS port FIRST_PORT + 10 i and the control port 200 above it (the daemon expects that distance of a Mercury it did not start)
 WEAK_LINK_DB = -25.0             # the gain of the weak link: at the channel's default 30 dB this leaves 5 dB, where DATAC3 still decodes but not every time
@@ -76,15 +77,17 @@ class Net:
         rx, tx = self.fifos[name]
         self.mercuries[name] = start_mercury(self.binary, self.folder, name.lower() + "-again", rx, tx, self.ports[name])
 
-    def start_daemons(self, igate_server: str) -> dict[str, str]:
+    def start_daemons(self, igate_server: str, fm_port: int = 0) -> dict[str, str]:
         bases: dict[str, str] = {}
         for i, name in enumerate(self.names):
             data = self.folder / name.lower()
-            settings = {"station/call": name, "station/lat": f"{60.0 + 0.1 * i:.2f}", "station/lon": f"{24.0 + 0.1 * i:.2f}", "tnc/profile": "mercury", "hf/beacon_interval_min": "0", "station/comment": f"sim station {i + 1}", "messages/alert": "false"}
+            on_fm = i < self.args.fm                      # (the first stations have the FM radio too: the KISS hub is their TNC)
+            settings = {"station/call": name, "station/lat": f"{60.0 + 0.1 * i:.2f}", "station/lon": f"{24.0 + 0.1 * i:.2f}", "hf/enabled": "true", "fm/enabled": "true" if on_fm else "false",
+                        "beacon/interval_min": "0", "station/comment": f"sim station {i + 1}", "messages/alert": "false", **({"tnc/profile": "kiss-tcp"} if on_fm else {})}
             if i == 0:
                 settings.update({"igate/enabled": "true", "igate/server": igate_server, "igate/password": "12345"})
             write_settings(data, settings, self.daemon_command)
-            self.daemons[name] = start_daemon(data, self.ports[name], self.daemon_command)
+            self.daemons[name] = start_daemon(data, self.ports[name], self.daemon_command, fm_port if on_fm else 0)
         for name in self.names:
             bases[name] = wait_for_page(self.daemons[name], self.folder / name.lower(), self.args.timeout)
         return bases
@@ -106,7 +109,7 @@ class Net:
                 took = max(took, await page.until(what, functools.partial(condition, page), seconds))
         return took
 
-    async def drive(self, bases: dict[str, str], aprsis: AprsIs) -> None:
+    async def drive(self, bases: dict[str, str], aprsis: AprsIs, hub: FmHub) -> None:
         timeout = self.args.timeout
         for name, page in self.pages.items():
             await page.open(bases[name])
@@ -178,7 +181,23 @@ class Net:
         except Failure:
             self.row(f"a message over a link {WEAK_LINK_DB:g} dB down (about {self.args.snr + WEAK_LINK_DB:g} dB SNR): not acked within", f"{time.monotonic() - started:.0f} s (reported, not required)")
         self.channel.set_link(self.names[0], lost, gain_db=0.0, symmetric=False)
-        # 6. the iGate: the first station gated the others' beacons
+        # 6. the FM side: a station heard on FM is messaged on FM, one heard on HF alone over HF (the hub is the FM air of the first `--fm` stations)
+        if self.args.fm >= 2:
+            fm_a, fm_b, hf_only = self.pages[self.names[0]], self.pages[self.names[1]], self.names[-1]
+            for page in (fm_a, fm_b):
+                await page.send({"cmd": "beacon_now"})                      # (both radios: the other FM station hears it on FM too)
+            await fm_a.until(f"{self.names[1]} heard on FM", lambda: (fm_a.stations().get(self.names[1]) or {}).get("heard_fm", 0) > 0, timeout)
+            await fm_a.until(f"{hf_only} heard on HF alone", lambda: (fm_a.stations().get(hf_only) or {}).get("heard_hf", 0) > 0, timeout)
+            n = fm_a.acked()
+            await self.when_free(fm_a)
+            await fm_a.send({"cmd": "send_message", "to": self.names[1], "text": "near you on FM"})
+            took = await fm_a.until("the ack on FM", lambda: fm_a.acked() > n, timeout)
+            self.row(f"a message to {self.names[1]}, heard on both radios, went on FM and was acked after", f"{took:.1f} s", hub.heard(b"near you on FM"))
+            await self.when_free(fm_a)
+            await fm_a.send({"cmd": "send_message", "to": hf_only, "text": "far from you over HF"})
+            took = await fm_a.until("the ack over HF", lambda: fm_a.acked() > n + 1, timeout * 2)
+            self.row(f"a message to {hf_only}, heard on HF alone, went over HF (nothing of it on the FM air) and was acked after", f"{took:.1f} s", not hub.heard(b"far from you over HF"))
+        # 7. the iGate: the first station gated the others' beacons
         gated = {line.split(">", 1)[0] for line in aprsis.packets}
         others = set(self.names[1:])
         self.row(f"the iGate on {self.names[0]} gated the beacons of", f"{len(gated & others)} of {len(others)} stations", others <= gated)
@@ -208,14 +227,16 @@ def run(args: argparse.Namespace) -> int:
         say(f"{args.stations} Mercury instances started from {binary}, joined by one channel at {args.snr:g} dB SNR (seed {args.seed})")
 
         async def whole() -> None:
-            aprsis = AprsIs()
+            aprsis, hub = AprsIs(), FmHub()
             await aprsis.start()
+            await hub.start()
             try:
-                bases = net.start_daemons(aprsis.address)
-                say(f"{args.stations} daemons up ({' '.join(daemon)}): " + ", ".join(f"{n} {b}" for n, b in bases.items()))
-                await net.drive(bases, aprsis)
+                bases = net.start_daemons(aprsis.address, hub.port)
+                say(f"{args.stations} daemons up ({' '.join(daemon)}), the first {args.fm} on the FM hub too: " + ", ".join(f"{n} {b}" for n, b in bases.items()))
+                await net.drive(bases, aprsis, hub)
             finally:
                 aprsis.close()
+                hub.close()
 
         asyncio.run(whole())
         report = net.channel.report()
@@ -248,6 +269,7 @@ def main() -> int:
     parser.add_argument("--stations", type=int, default=5, metavar="N", help="how many stations; default %(default)s, at least 3")
     parser.add_argument("--snr", type=float, default=30.0, metavar="DB", help="the signal-to-noise ratio in 3 kHz of a station at full gain; default %(default)s")
     parser.add_argument("--seed", type=int, default=1, metavar="S", help="the seed of the channel's noise; default %(default)s")
+    parser.add_argument("--fm", type=int, default=2, metavar="N", help="how many of the stations (the first ones) have the FM radio too, on a KISS hub that is their FM air; default %(default)s, 0 for HF alone")
     parser.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long one wait may take; default %(default)s")
     parser.add_argument("--keep", action="store_true", help="keep the folders of the run and say where they are")
     parser.add_argument("--mercury", metavar="PATH", help="the Mercury program (default: the one scripts/build-mercury --install put in the venv)")
@@ -260,6 +282,7 @@ def main() -> int:
     if args.stations < 3:
         print("sim: at least 3 stations (a third hears the two that collide)", file=sys.stderr)
         return 2
+    args.fm = max(0, min(args.fm, args.stations - 1))                 # (the last station is the one heard on HF alone)
     try:
         return run(args)
     except Failure as e:

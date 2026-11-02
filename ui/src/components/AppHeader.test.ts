@@ -81,7 +81,7 @@ describe("AppHeader", () => {
   });
 
   it("shows the Daemon mark as a mark that says and does not open, and the Radio mark as a button that opens Settings → Radio with its group flashed", async () => {
-    const link = { connection: "closed", tnc: null, now: 0, inApp: false } as const;
+    const link = { connection: "closed", tnc: null, hf: null, now: 0, inApp: false } as const;
     const wrapper = header({ pills: headerPills({}, null, null, null, link) });
     const [daemon, radio] = wrapper.findAll(".headpills .tag");
     expect([daemon?.element.tagName, daemon?.text(), daemon?.classes().includes("tag-bad"), daemon?.attributes("role")]).toEqual([

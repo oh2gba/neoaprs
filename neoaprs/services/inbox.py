@@ -70,7 +70,7 @@ class Host(Protocol):
     """What the inbox asks of messaging."""
     def records(self) -> list[MessageRecord]: ...
     def put(self, record: MessageRecord) -> None: ...
-    def ack(self, to: str, msg_id: str, reply_ack: str | None = None) -> None: ...
+    def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None: ...
     def echoed(self, packet: Packet, message: Message) -> None: ...
 
 
@@ -118,16 +118,16 @@ class Inbox:
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):
             if message.msg_id is not None:                           # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five)
-                self._host.ack(packet.sender, message.msg_id, reply)
+                self._host.ack(packet.sender, message.msg_id, reply, packet)
             return                                                   # (the queries answer it; it is not kept)
         if reply:
             self._settle(packet, reply, "acked")
         text, seal, wire = self._opened(packet, message)
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire)
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio=packet.radio)
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
             if self.heard.ack_due(record, packet.heard_at):
-                self._host.ack(packet.sender, message.msg_id, reply)
+                self._host.ack(packet.sender, message.msg_id, reply, packet)
             else:
                 log.debug("message %s from %s heard again within %d s of our ack: not acked again", message.msg_id, packet.sender, ACK_AGAIN_SEC)
             if reply is not None:
@@ -170,7 +170,7 @@ class Inbox:
         if message.ack_id is not None or message.rej_id is not None:
             return
         seal: Seal = "key" if cipher.key_of_message(message.text) is not None else "shut" if cipher.is_locked(message.text) else ""
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal)
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal, radio=packet.radio)
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")
 

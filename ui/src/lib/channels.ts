@@ -1,21 +1,23 @@
 // How a station or a packet reached us, as the page names it. The daemon marks every packet with the channel it came by (`via`: `rf` heard on the radio, `rf-gated` heard on the radio from an iGate that took it from the internet, `is` received from the internet
-// itself, `dummy` made up by the Dummy radio) and counts each station's packets by channel; the labels are RF, iGate, Internet and Dummy, and a station heard in more than one way has them joined ("RF · Internet"). Only what was on the air near us (RF, iGate and the Dummy radio's) is Nearby's and the routes'; a station
+// itself, `dummy` made up by the Dummy radio) and counts each station's packets by channel; the labels are RF (the FM radio), HF (the HF radio; a packet of the log says it by its `radio`), iGate, Internet and Dummy, and a station heard in more than one way has them joined ("RF · Internet"). The radio is named only where there are two: while the HF radio is on (`named`) the FM radio's tag is "FM" beside "HF", else it is "RF" as it always was. Only what was on the air near us (RF, iGate and the Dummy radio's) is Nearby's and the routes'; a station
 // known from the internet alone is marked so on the map, in the table and on its card. Plain functions of rows.
 import { t } from "@/i18n";
 import { agoWords } from "@/lib/format";
+import { stationRadio } from "@/lib/radiosides";
 import type { PacketRow, StationRow } from "@/protocol/protocol";
 
 /** The ways a station can have been heard, in the order they are told. */
-export type Channel = "rf" | "gated" | "is" | "dummy";
+export type Channel = "rf" | "hf" | "gated" | "is" | "dummy";
 
-type Heard = Pick<StationRow, "heard_rf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own">;
-type Times = Pick<StationRow, "last_rf_at" | "last_rf_gated_at" | "last_is_at" | "last_dummy_at">;
+type Heard = Pick<StationRow, "heard_rf" | "heard_fm" | "heard_hf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own">;
+type Times = Pick<StationRow, "last_rf_at" | "last_fm_at" | "last_hf_at" | "last_rf_gated_at" | "last_is_at" | "last_dummy_at">;
 
-/** The channels a station was heard by, in the order RF, iGate, Internet, Dummy; none for a station nothing was heard of (our own station, our objects: they are not heard). */
+/** The channels a station was heard by, in the order RF, HF, iGate, Internet, Dummy (RF is the FM radio: a station heard on HF alone has HF only); none for a station nothing was heard of (our own station, our objects: they are not heard). */
 export function channelsOf(row: Heard): Channel[] {
   const found: Channel[] = [];
   if (row.is_me || row.own) return found;
-  if (row.heard_rf > 0) found.push("rf");
+  if (row.heard_rf > 0 && stationRadio(row) === "fm") found.push("rf");
+  if (row.heard_hf > 0) found.push("hf");
   if (row.heard_rf_gated > 0) found.push("gated");
   if (row.heard_is > 0) found.push("is");
   if (row.heard_dummy > 0) found.push("dummy");
@@ -36,25 +38,28 @@ export function anyInternet(rows: Iterable<Heard>): boolean {
   return false;
 }
 
-const name = (channel: Channel): string => t(`channel.${channel}`);
+/** The word of a channel: the FM radio is "FM" where the radios are named (the HF radio is on), "RF" otherwise. */
+const name = (channel: Channel, named: boolean): string => t(channel === "rf" && named ? "channel.fm" : `channel.${channel}`);
+/** What a channel means, for its hover title. */
+const meaning = (channel: Channel, named: boolean): string => t(channel === "rf" && named ? "channel.title.fm" : `channel.title.${channel}`);
 
-/** The channels joined with a middle dot: "RF", "iGate", "Internet", "RF · Internet". */
+/** The channels joined with a middle dot: "RF", "HF", "iGate", "Internet", "RF · HF". */
 function joined(parts: string[]): string {
   return parts.reduce((all, part) => t("channel.join", { first: all, second: part }));
 }
 
 /** The small label of a row: how it was heard, "RF · Internet"; empty when nothing was heard (our own station, our objects). */
-export function channelLabel(row: Heard): string {
-  const parts = channelsOf(row).map(name);
+export function channelLabel(row: Heard, named = false): string {
+  const parts = channelsOf(row).map((channel) => name(channel, named));
   return parts.length === 0 ? "" : joined(parts);
 }
 
-/** One tag for each way a station was heard (RF, iGate, Internet, Dummy), so that a station heard in two ways has two small tags and not one long one that a narrow table would cut: the word, what it means for the hover title, and the tone. */
-export function channelTags(row: Heard): { channel: Channel; label: string; title: string; tone: "neutral" | "info" | "dummy" }[] {
+/** One tag for each way a station was heard (RF, HF, iGate, Internet, Dummy), so that a station heard in two ways has two small tags and not one long one that a narrow table would cut: the word, what it means for the hover title, and the tone. */
+export function channelTags(row: Heard, named = false): { channel: Channel; label: string; title: string; tone: "neutral" | "info" | "dummy" }[] {
   return channelsOf(row).map((channel) => ({
     channel,
-    label: name(channel),
-    title: t(`channel.title.${channel}`),
+    label: name(channel, named),
+    title: meaning(channel, named),
     tone: channel === "is" ? "info" : channel === "dummy" ? "dummy" : "neutral",
   }));
 }
@@ -63,25 +68,31 @@ export function channelTags(row: Heard): { channel: Channel; label: string; titl
 export const packetTone = (via: PacketRow["via"]): "neutral" | "info" | "dummy" => (via === "is" ? "info" : via === "dummy" ? "dummy" : "neutral");
 
 /** What the label means, for its hover title. */
-export function channelTitle(row: Heard): string {
-  const parts = channelsOf(row).map((channel) => t(`channel.title.${channel}`));
+export function channelTitle(row: Heard, named = false): string {
+  const parts = channelsOf(row).map((channel) => meaning(channel, named));
   return parts.length === 0 ? "" : parts.reduce((all, part) => t("channel.title_join", { first: all, second: part }));
 }
 
-/** When the station was last heard, by channel: "RF 3 min ago · Internet 40 s ago"; empty when nothing was heard. */
-export function heardByChannel(row: Heard & Times, nowMs: number): string {
-  const at: Record<Channel, string | null> = { rf: row.last_rf_at, gated: row.last_rf_gated_at, is: row.last_is_at, dummy: row.last_dummy_at };
-  const parts = channelsOf(row).map((channel) => t("channel.ago", { channel: name(channel), when: agoWords(at[channel], nowMs) }));
+/** When the station was last heard, by channel: "RF 3 min ago · Internet 40 s ago"; empty when nothing was heard. A station heard on HF too has its RF time from the FM radio alone (`last_rf_at` is the newest of both radios). */
+export function heardByChannel(row: Heard & Times, nowMs: number, named = false): string {
+  const at: Record<Channel, string | null> = {
+    rf: row.heard_hf > 0 ? row.last_fm_at : row.last_rf_at,
+    hf: row.last_hf_at,
+    gated: row.last_rf_gated_at,
+    is: row.last_is_at,
+    dummy: row.last_dummy_at,
+  };
+  const parts = channelsOf(row).map((channel) => t("channel.ago", { channel: name(channel, named), when: agoWords(at[channel], nowMs) }));
   return parts.length === 0 ? "" : joined(parts);
 }
 
-/** The channel of a packet of the log. */
-export function packetChannel(via: PacketRow["via"]): Channel {
-  return via === "rf-gated" ? "gated" : via === "is" ? "is" : via === "dummy" ? "dummy" : "rf";
+/** The channel of a packet of the log: a packet heard on the radio (`rf`) is HF when it came on the HF radio (`radio`), else RF. */
+export function packetChannel(via: PacketRow["via"], radio: PacketRow["radio"] = ""): Channel {
+  return via === "rf-gated" ? "gated" : via === "is" ? "is" : via === "dummy" ? "dummy" : radio === "hf" ? "hf" : "rf";
 }
 
-/** The label of a packet's channel: "RF", "iGate", "Internet", "Dummy". */
-export const packetLabel = (via: PacketRow["via"]): string => name(packetChannel(via));
+/** The label of a packet's channel: "RF", "HF", "iGate", "Internet", "Dummy". */
+export const packetLabel = (via: PacketRow["via"], radio: PacketRow["radio"] = "", named = false): string => name(packetChannel(via, radio), named);
 
 /** What a packet's channel means, for its hover title and its detail. */
-export const packetTitle = (via: PacketRow["via"]): string => t(`channel.title.${packetChannel(via)}`);
+export const packetTitle = (via: PacketRow["via"], radio: PacketRow["radio"] = "", named = false): string => meaning(packetChannel(via, radio), named);

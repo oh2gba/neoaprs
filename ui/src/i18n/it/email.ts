@@ -25,6 +25,7 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.used_before": "Usati in precedenza",
   "email.forget": "Dimentica {address}",
   "email.send": "Invia",
+  "email.fm_off": "L’email esce dalla radio FM, che è spenta",
 
   "email.state.waiting": "In attesa della radio",
   "email.state.sending": "Invio ({attempt} di {max})",

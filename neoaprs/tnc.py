@@ -258,7 +258,7 @@ class Tnc(TimedSource):
             self._reader.read(port, chunk)
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
-        read = read_frame(kiss_frame, self.now(), self.is_dummy)
+        read = read_frame(kiss_frame, self.now(), self.is_dummy, self.rules.kind)
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")
             return self._reject()
@@ -353,7 +353,7 @@ class Tnc(TimedSource):
             return False
         if not self._write(port, kiss.encode(raw)):
             return False
-        packet = packet_of("out", raw, frame, self.now(), self.is_dummy)
+        packet = packet_of("out", raw, frame, self.now(), self.is_dummy, self.rules.kind)
         self._note(_printable(f"sent {frame.tnc2()}"))
         self.packet.emit(packet)
         return True

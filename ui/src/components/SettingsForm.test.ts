@@ -6,7 +6,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapFile, mapState, status, tncState, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, status, toastOf } from "@/test/fixtures";
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
@@ -18,6 +18,10 @@ function make(extra: Record<string, string> = {}, scope: Scope = "settings", mor
 /** This browser alerts with the sound and a pop-up, so that the page shows both tests (a page on the loopback starts at off, which shows none). */
 const alertWithBoth = () => localStorage.setItem("NeoAPRS.alert.mode", "both");
 afterEach(() => localStorage.clear());
+
+/** The boxes of the Notifications group (the Radio group has two of its own, FM radio and HF radio). */
+const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
+  wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "HF radio"].includes(box.find("legend").text()));
 
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
@@ -35,6 +39,8 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "Radio",
+      "FM radio", // (the two radios' boxes are in the Radio group)
+      "HF radio",
       "Internet stations",
       "Digipeater",
       "Web page",
@@ -61,8 +67,10 @@ describe("SettingsForm", () => {
     const elsewhere = [
       "tcp/host", // (only for a TNC reached over TCP)
       "tcp/port",
-      "mercury/sound_card", // (only for the Mercury HF modem)
+      "mercury/sound_card", // (only while the HF radio is ticked)
       "mercury/keying",
+      "fm/enabled", // (the tickboxes of the two radios are counted below)
+      "hf/enabled",
       "web/key",
       "web/https",
       "serial/last_port",
@@ -79,6 +87,7 @@ describe("SettingsForm", () => {
     ];
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
+        2 + // (the Enable tickboxes of the FM radio and the HF radio, the settings fm/enabled and hf/enabled: two fields of the Radio group, one in each box)
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1, // (Language)
@@ -527,11 +536,11 @@ describe("SettingsForm", () => {
   describe("the TNC profile", () => {
     const fieldIds = (wrapper: ReturnType<typeof make>["wrapper"]) =>
       wrapper
-        .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "Radio")
+        .findAll("fieldset.subbox")
+        .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("[id^='set-']")
         .map((e) => e.attributes("id"))
-        .filter((id) => id !== "set-station-transmit"); // (the RX only tickbox is the first row of the group)
+        .filter((id) => id !== "set-fm-enabled"); // (the FM radio's fields: its tickbox is the first row of its box)
 
     it("is a select of the profiles by their names, the daemon's value chosen", () => {
       const { wrapper } = make();
@@ -543,7 +552,6 @@ describe("SettingsForm", () => {
         "Kantronics KPC-3+",
         "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
         "KISS over TCP (Direwolf, soundmodem)",
-        "Mercury HF modem (sound card, SSB radio)",
         "Dummy (no radio, made-up traffic)",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
@@ -607,19 +615,17 @@ describe("SettingsForm", () => {
       select(wrapper)
         .findAll("option")
         .map((o) => o.text());
-    const headings = (wrapper: Wrapper) =>
-      wrapper
-        .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "Radio")
-        ?.findAll(".subgroup");
+    const radio = (wrapper: Wrapper) => wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
+    const headings = (wrapper: Wrapper) => radio(wrapper)?.findAll(".subgroup");
     const found = (wrapper: Wrapper) => wrapper.find(".port-found");
+    /** The labels of the FM radio's box: its fields, without its Enable tickbox. */
     const labels = (wrapper: Wrapper) =>
-      wrapper
-        .findAll("fieldset")
-        .find((f) => f.find("legend").text() === "Radio")
+      radio(wrapper)
+        ?.findAll("fieldset.subbox")
+        .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("label")
         .map((l) => l.text())
-        .filter((text) => text !== "RX only");
+        .filter((text) => text !== "Enable");
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
@@ -951,7 +957,7 @@ describe("SettingsForm", () => {
     it("keeps the Test button of the command and the tests of the browser, with the fields and the tips, each in its box", () => {
       alertWithBoth();
       const wrapper = mount(SettingsForm, { global: withDaemon() });
-      const [computer, browser] = wrapper.findAll("fieldset.subbox");
+      const [computer, browser] = notificationBoxes(wrapper);
       expect(computer?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
       expect(browser?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
       expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
@@ -959,7 +965,7 @@ describe("SettingsForm", () => {
     });
     it("hides the Command and its Test button while the Alert is off, and shows them the moment it is ticked", async () => {
       const { wrapper } = make({ "messages/alert": "false" });
-      const box = () => wrapper.findAll("fieldset.subbox")[0];
+      const box = () => notificationBoxes(wrapper)[0];
       expect(box()?.find("legend").text()).toBe("On the NeoAPRS computer i");
       expect(
         box()
@@ -987,8 +993,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make({ "messages/alert": "true" });
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(true);
       expect(
-        wrapper
-          .findAll("fieldset.subbox")[0]
+        notificationBoxes(wrapper)[0]
           ?.findAll("button:not(.info-toggle)")
           .map((b) => b.text()),
       ).toEqual(["Test"]);
@@ -1549,34 +1554,35 @@ describe("the group Encrypted messages", () => {
   });
 });
 
-describe("the rules of the radio in use", () => {
-  const hf = { kind: "hf" as const, paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 };
-  const onHf = (extra: Record<string, string>, scope: Scope) => make(extra, scope, { tnc: tncState({ rules: hf }) });
+describe("the radios that are on", () => {
+  const FM_OFF = { "fm/enabled": "false", "hf/enabled": "true" };
+  const BOTH = { "hf/enabled": "true" };
+  const legends = (w: ReturnType<typeof make>["wrapper"]) => w.findAll("fieldset legend").map((l) => l.text());
+  const ids = (w: ReturnType<typeof make>["wrapper"], list: string[]) => list.filter((id) => w.find(id).exists());
+  const FM_ONLY_FIELDS = ["#set-beacon-path", "#set-beacon-travel"];
 
-  it("takes the Digipeater group off the Settings tab on an HF radio, and changes nothing else there", () => {
-    const legends = (w: ReturnType<typeof make>["wrapper"]) => w.findAll("fieldset legend").map((l) => l.text());
+  it("takes the Digipeater group off the Settings tab while the FM radio is off, and changes nothing else there", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
-    expect(legends(onHf({}, "settings").wrapper)).toEqual(fm.filter((l) => l !== "Digipeater"));
+    expect(legends(make(FM_OFF, "settings").wrapper)).toEqual(fm.filter((l) => l !== "Digipeater"));
+    expect(legends(make(BOTH, "settings").wrapper)).toEqual(fm);
   });
 
-  it("gives the My station tab the HF beacon's interval in place of the usual one, with Off and 15 minutes to 3 hours, and no path fold, no GPS and no Travelling", () => {
-    const { wrapper } = onHf({ "gps/source": "gpsd", "hf/beacon_interval_min": "60" }, "beacon");
-    const select = wrapper.find<HTMLSelectElement>("#set-hf-beacon_interval_min");
-    expect(select.exists()).toBe(true);
-    expect([...select.element.options].map((o) => o.text)).toEqual(["Off", "Every 15 min", "Every 30 min", "Every 60 min", "Every 3 hours"]);
-    expect(select.element.value).toBe("60");
-    for (const id of ["#set-beacon-interval_min", "#set-gps-source", "#set-gps-host", "#set-beacon-travel", "#set-beacon-path"])
-      expect(wrapper.find(id).exists(), id).toBe(false);
+  it("has the one Beacon choice for both radios, with today's four choices and no second interval, whatever radios are on", () => {
+    for (const extra of [{}, BOTH, FM_OFF]) {
+      const { wrapper } = make({ ...extra, "beacon/interval_min": "30" }, "beacon");
+      const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
+      expect([...select.element.options].map((o) => o.text)).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours"]);
+      expect(wrapper.find("label[for=set-beacon-interval_min]").text()).toBe("Beacon");
+      expect(wrapper.find("#set-hf-beacon_interval_min").exists()).toBe(false);
+    }
+  });
+
+  it("leaves out the path fold and Travelling while the FM radio is off, and keeps the Position choice, the GPS and the comment", () => {
+    const { wrapper } = make({ ...FM_OFF, "gps/source": "gpsd" }, "beacon");
+    for (const id of FM_ONLY_FIELDS) expect(wrapper.find(id).exists(), id).toBe(false);
+    for (const id of ["#set-gps-source", "#set-gps-host", "#set-station-comment", "#set-beacon-interval_min"]) expect(wrapper.find(id).exists(), id).toBe(true);
     expect(wrapper.text()).not.toContain("Advanced");
-  });
-
-  it("sends the HF interval as a choice, and keeps the usual beacon, the GPS and the path on the FM radio as before", async () => {
-    const { wrapper, send } = onHf({ "hf/beacon_interval_min": "60" }, "beacon");
-    await wrapper.find<HTMLSelectElement>("#set-hf-beacon_interval_min").setValue("15");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "hf/beacon_interval_min": "15" } });
-    const fm = make({ "gps/source": "gpsd" }, "beacon").wrapper;
-    expect(fm.find("#set-hf-beacon_interval_min").exists()).toBe(false);
-    for (const id of ["#set-beacon-interval_min", "#set-gps-source", "#set-beacon-travel"]) expect(fm.find(id).exists(), id).toBe(true);
+    expect(ids(make({ ...BOTH, "gps/source": "gpsd" }, "beacon").wrapper, FM_ONLY_FIELDS)).toEqual(FM_ONLY_FIELDS);
   });
 });

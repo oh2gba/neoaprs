@@ -26,6 +26,10 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
         station.hour_is.note(packet.heard_at)
         station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
         return
+    if packet.radio == "hf":
+        station.heard_hf, station.last_hf_at = station.heard_hf + 1, packet.heard_at
+    else:
+        station.heard_fm, station.last_fm_at = station.heard_fm + 1, packet.heard_at
     if packet.via == RF_GATED:
         station.heard_rf_gated, station.last_rf_gated_at = station.heard_rf_gated + 1, packet.heard_at
     elif packet.via == DUMMY:

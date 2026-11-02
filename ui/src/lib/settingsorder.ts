@@ -2,14 +2,16 @@
 // Status group, the Beacon group and the Station group. `rank` is where a key stands in an order, after every listed one when it is not there.
 import { ANTENNA } from "@/lib/beaconoff";
 
-/** The order of the TNC group on the page: the RX only tickbox, the type of TNC, the port and its speed, or the host and port of a TCP one, or the sound card and the keying of the Mercury HF modem. */
+/** The order of the Radio group on the page: the RX only tickbox, then the FM radio (its tickbox, the type of TNC, the port and its speed, or the host and port of a TCP one) and the HF radio (its tickbox, the sound card and the keying of the Mercury modem). */
 const TNC_ORDER = [
   "station/transmit",
+  "fm/enabled",
   "tnc/profile",
   "serial/port",
   "serial/baud",
   "tcp/host",
   "tcp/port",
+  "hf/enabled",
   "mercury/sound_card",
   "mercury/keying",
   "serial/last_port",
@@ -18,7 +20,7 @@ const TNC_ORDER = [
 /** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
 const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];
 /** The Beacon group: the Beacon choice (the interval of a fixed station, Off or On for a moving one), what it travels as (a moving station), what it says, then the folds (the antenna, the path). */
-const BEACON_ORDER = ["beacon/interval_min", "hf/beacon_interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
+const BEACON_ORDER = ["beacon/interval_min", "beacon/travel", "station/comment", ...ANTENNA, "beacon/path"];
 /** The Station group: the call, where the position comes from and what that needs (the gpsd address, or the port and speed of a serial GPS), then the place itself (only for a fixed station: with a GPS chosen the stored place is kept and not shown) and the symbol. */
 const STATION_ORDER = [
   "station/call",

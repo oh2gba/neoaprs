@@ -60,10 +60,13 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     last_comment: "",
     packets: 3,
     heard_rf: 3,
+    heard_fm: extra.heard_fm ?? extra.heard_rf ?? 3, // (what was heard on the radio was heard on the FM one, unless a test says it was the HF one)
+    heard_hf: 0,
     heard_rf_gated: 0,
     heard_is: 0,
     heard_dummy: 0,
     last_dummy_at: null,
+    last_hf_at: null,
     last_rf_gated_at: null,
     last_is_at: null,
     position_via: "rf",
@@ -98,6 +101,7 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     track: [],
     ...extra,
     last_rf_at: extra.last_rf_at !== undefined ? extra.last_rf_at : extra.heard_rf === 0 ? null : (extra.last_heard ?? ago(60)),
+    last_fm_at: extra.last_fm_at !== undefined ? extra.last_fm_at : (extra.heard_fm ?? extra.heard_rf) === 0 ? null : (extra.last_heard ?? ago(60)),
   };
 }
 
@@ -163,6 +167,7 @@ export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
     path: ["OH2RCH-2*"],
     route: "via OH2RCH-2",
     via: "rf",
+    radio: "fm",
     gate: "",
     kind: "position",
     summary: "position 60.12 24.49",
@@ -210,6 +215,7 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     acked_at: null,
     attempts_detail: [],
     route: "",
+    radio: "",
     seal: "",
     ...extra,
   };
@@ -259,6 +265,7 @@ export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnO
     path: null,
     qru_group: "",
     on_request: false,
+    radio: "fm",
     state: "live",
     created_at: ago(600),
     updated_at: ago(600),
@@ -320,6 +327,29 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
     ],
     ...extra,
   };
+}
+
+/** The topic `hf`: the HF radio (the Mercury modem) running and connected, `modem` inside, the rules of HF; a test gives what it cares about (`state: "stopped"` is what the daemon tells while `hf/enabled` is false). */
+export function hfState(extra: Partial<TncState> = {}): TncState {
+  return tncState({
+    path: "mercury",
+    baud: 0,
+    describe: "Mercury HF modem on plughw:1,0",
+    modem: {
+      state: "running",
+      problem: "",
+      mode: "DATAC3",
+      keyed: false,
+      busy: false,
+      snr: null,
+      frames_keyed: 0,
+      max_frame: 123,
+      sound_card: "plughw:1,0",
+      keying: "rts:/dev/ttyUSB0",
+    },
+    rules: { kind: "hf", paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 },
+    ...extra,
+  });
 }
 
 /** The GPS topic with a fresh fix (60.4295 N 24.1452 E, 48 km/h, course 215, 103 m, 9 satellites, 2 s old) of a station whose beacon follows it (`mobile`: the source is not off); a test gives what it cares about. */
@@ -402,6 +432,8 @@ export function gpsOff(): GpsState {
 
 export function configValues(extra: Record<string, string> = {}): ConfigValues {
   const values: Record<string, string> = {
+    "fm/enabled": "true",
+    "hf/enabled": "false",
     "tnc/profile": "kenwood-tnc2",
     "serial/port": "",
     "serial/baud": "9600",
@@ -522,6 +554,8 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     beacon_interval_min: 0,
     beacon_last_sent: null,
     beacon_next_due: null,
+    hf_beacon_last_sent: null,
+    hf_beacon_next_due: null,
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",

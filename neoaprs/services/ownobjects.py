@@ -69,7 +69,7 @@ class OwnObjects(Repeater[str]):
 
     # ---- the operator
     def set(self, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None, speed_kmh: float | None = None,
-            path: str | None = None, qru_group: str = "", on_request: bool = False) -> OwnObject:
+            path: str | None = None, qru_group: str = "", on_request: bool = False, radio: str = "fm") -> OwnObject:
         """Makes the object or item, or changes the one of the name: it is sent at once. Raises OwnError, with the reason, when the call is not set, the values make no object (neoaprs/ownobject.py), the
         name is our own call or a station's, or there are already MAX_OBJECTS."""
         if refusal := transmit_refusal(self._config(), OwnError):
@@ -82,7 +82,7 @@ class OwnObjects(Repeater[str]):
         before = self._objects.get(name)
         if before is None and len(self._objects) >= MAX_OBJECTS:
             raise OwnError(f"{MAX_OBJECTS} objects and items are being sent: kill one first")
-        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request)
+        obj = make_object(self.clock(), name, kind, lat, lon, symbol_table, symbol_code, comment, course_deg, speed_kmh, path, before, qru_group, on_request, radio)
         if before is not None and before.alive and before.same_content(obj):
             return before
         self._store(obj)
@@ -133,7 +133,7 @@ class OwnObjects(Repeater[str]):
 
     def _transmit(self, key: str, now: datetime) -> bool:
         obj = self._objects[key]
-        if not self._sender.send(info_of(obj, now), obj.path_calls):
+        if not all([self._sender.send(info_of(obj, now), obj.path_calls, radio) for radio in self._sender.radios_for(obj.radio)]):     # (an object on both radios goes on each; one radio that would not take it is tried again at the next tick)
             return False
         sent = replace(obj, sent=obj.sent + 1, last_sent_at=now)
         if not sent.alive and sent.sent >= KILL_SENDS:

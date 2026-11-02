@@ -64,6 +64,7 @@ class OwnObject:
     last_sent_at: datetime | None = None
     qru_group: str = ""                          # the group of QRU (services/qru.py) it is offered in to a station that asks; empty: none
     on_request: bool = False                     # True: never sent on the schedule, only to a station that asks for it
+    radio: str = "fm"                            # the radio it goes out on: `fm`, `hf` or `both` (neoaprs/radios.py); with one radio on it goes on that one, whatever is kept
 
     @property
     def path_calls(self) -> tuple[str, ...] | None:
@@ -117,8 +118,18 @@ def _path(path: str | None) -> str | None:
         raise OwnError(f"the path: {e}", e.code, **e.params) from None
 
 
+OBJECT_RADIOS = ("fm", "hf", "both")
+
+
+def _radio(text: str) -> str:
+    """The radio of an object as the page says it; OwnError for a word that is none."""
+    if text not in OBJECT_RADIOS:
+        raise OwnError(f"{text!r} is not a radio: fm, hf or both")
+    return text
+
+
 def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, symbol_table: str, symbol_code: str, comment: str = "", course_deg: int | None = None,
-                speed_kmh: float | None = None, path: str | None = None, before: OwnObject | None = None, qru_group: str = "", on_request: bool = False) -> OwnObject:
+                speed_kmh: float | None = None, path: str | None = None, before: OwnObject | None = None, qru_group: str = "", on_request: bool = False, radio: str = "fm") -> OwnObject:
     """The object of these values, or OwnError that says what is wrong. With `before` (the object of that name we have) the times and the count of what was sent are kept, so that the rules of the
     schedule see the change: a changed object starts its decay again."""
     if kind not in KINDS:
@@ -134,7 +145,7 @@ def make_object(now: datetime, name: str, kind: str, lat: float, lon: float, sym
         raise OwnError(f"the comment is {len(comment)} characters, at most {limit} fit{' behind the course and speed' if limit == COMMENT_MAX_MOTION else ''}", "object.comment_length",
                        length=len(comment), max=limit, motion=int(limit == COMMENT_MAX_MOTION))
     made = OwnObject(name, "object" if kind == "object" else "item", lat, lon, symbol_table, symbol_code, now if before is None else before.created_at, now, comment, course_deg, speed_kmh, _path(path),
-                     qru_group=_qru_group(qru_group), on_request=on_request)
+                     qru_group=_qru_group(qru_group), on_request=on_request, radio=_radio(radio))
     return made if before is None else replace(made, sent=0, last_sent_at=before.last_sent_at)
 
 

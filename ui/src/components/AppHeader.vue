@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The one calm line at the top: the title, which is a link to the project's page (it looks like the title, not like a link: only a hover or the keyboard shows it), the amber button "no call set" while the call is empty (it opens the first-run guide: nothing is transmitted
-// until a call is set), the marks that say how things stand at the right (Daemon in a browser, Radio, RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means; the Daemon mark has nothing to open), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's).
+// until a call is set), the marks that say how things stand at the right (Daemon in a browser, Radio, or FM and HF while the HF radio is ticked, RX only, Beacon off, Internet, GPS: lib/pills.ts, each a button that opens the place where it is set, with a hover title that says what it means; the Daemon mark has nothing to open), and the number of messages not seen, a button that opens them (the Email tab when all of them are the gateway's).
 // The Map mark says how far the download of the detailed map is. Our call is not here, nor the version: the call is in the Settings tab, the version in Settings → Update check. A newer version is the first mark, Update, which opens Settings → New version.
 import TagMark from "@/components/TagMark.vue";
 import MessageGlyph from "@/components/MessageGlyph.vue";
@@ -12,7 +12,7 @@ defineProps<{
   /** Our call from the settings; only an empty one matters here (the button), null while the daemon has not said. */
   call: string | null;
   unread: number;
-  /** The marks before the count (Update, Daemon, Radio, RX only, Beacon off, GPS, Internet). */
+  /** The marks before the count (Update, Daemon, Radio or FM and HF, RX only, Beacon off, GPS, Internet). */
   pills?: readonly HeaderPill[];
 }>();
 const emit = defineEmits<{ messages: []; setup: []; open: [target: PillTarget, focus: string] }>();

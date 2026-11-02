@@ -6,9 +6,9 @@ from collections.abc import Sequence
 
 from .dberror import Row, limit, rows
 
-PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via")
+PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via", "radio")
 STATION_COLUMNS = ("call", "kind", "reported_by", "symbol_table", "symbol_code", "lat", "lon", "altitude_m", "course_deg", "speed_kmh", "first_heard", "last_heard",
-                   "last_position_at", "last_status", "last_comment", "packets", "last_path", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at")
+                   "last_position_at", "last_status", "last_comment", "packets", "last_path", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "heard_fm", "heard_hf", "last_fm_at", "last_hf_at")
 PACKET_LIST = ", ".join(PACKET_COLUMNS)
 _STATION_LIST = ", ".join(STATION_COLUMNS)
 _PLACES = {n: ", ".join("?" * n) for n in (len(PACKET_COLUMNS), len(STATION_COLUMNS))}

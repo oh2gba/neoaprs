@@ -26,9 +26,9 @@ class Delivery:
     def attempts_of(self, number: int) -> tuple[Attempt, ...]:
         return tuple(self._chains.get(number, ()))
 
-    def sent(self, record: MessageRecord, path: tuple[str, ...], at: datetime) -> None:
-        """Message `record` was transmitted at `at` by `path`; `record.attempts` is the number of this attempt. What is kept is the digipeaters: RFONLY, NOGATE and the like are not hops."""
-        attempt = Attempt(record.attempts, at, digipeaters(path))
+    def sent(self, record: MessageRecord, path: tuple[str, ...], at: datetime, radio: str = "") -> None:
+        """Message `record` was transmitted at `at` by `path` on `radio`; `record.attempts` is the number of this attempt. What is kept is the digipeaters: RFONLY, NOGATE and the like are not hops."""
+        attempt = Attempt(record.attempts, at, digipeaters(path), radio=radio)
         self._chains.setdefault(record.id, []).append(attempt)
         self._log.add_attempt(record.id, attempt)
 

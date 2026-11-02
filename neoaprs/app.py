@@ -21,11 +21,12 @@ from .messagelog import MessageLog
 from .ownlog import OwnLog
 from .packet import IS, Packet
 from .packetlog import PacketLog
+from .radios import Radios
 from .route import Deliveries
 from .serialprobe import search_pattern
 from .services.alerts import Alerts
 from .services.aloha import Aloha
-from .services.beacon import Beacon
+from .services.beacon import HF_BEACON_MEMORY, Beacon
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
 from .services.generalask import GeneralAsk
@@ -53,6 +54,7 @@ from .stationbook import StationBook
 from .store import Store
 from .tasks import TaskSet
 from .tnc import Tnc
+from .tncprofile import MERCURY
 from .updatefetch import fetch as fetch_update
 from .versions import PLAIN_INSTALL, InstallInfo, platform_name
 from .weatherlog import WeatherLog
@@ -68,27 +70,34 @@ class Frontend(Protocol):
 
 
 class Services:
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False) -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False,
+                 hf: Tnc | None = None, hf_port: str = "") -> None:
         self.data_dir = data_dir
         self.encryption = encryption                                    # the daemon was started with --encryption: encrypted messages may be sent (services/keyring.py)
         self.clock = clock
         self.config: Config = DEFAULTS                                  # the settings; the controller reads them from the database at its start
         self.config_lock = asyncio.Lock()                               # held while the settings are stored and put in force (Controller.save_config, change_config): a change is made of the settings as they are then
-        self.port_override = port                                       # a serial port for this run only (--port): used instead of serial/port, never stored
+        self.port_override = port                                       # a serial port for this run only (--port): the FM radio's, used instead of serial/port, never stored
+        self.hf_port_override = hf_port                                 # the HF radio's for this run only (--hf-port): a Mercury that something else runs (the benches), instead of the one the daemon starts
         self.pattern_override = pattern                                 # the globs the search listens to for this run only, instead of serial/pattern (the tests: a folder of their own)
         self.store = store if store is not None else Store(clock)       # the one database: everything is kept in it
-        self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the radio; its port and speed are set from the config when it is started
-        self.tnc.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
-        self.tnc.interlock = Interlock(lambda: self.config)            # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
-        self.mercury = Mercury(data_dir, clock)                        # the Mercury HF modem: the program the daemon starts with the Tnc when the radio type is Mercury, its control port, and the hold while it transmits or the channel is busy
-        self.tnc.modem = self.mercury
+        self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # the FM radio, the KISS TNC; its port and speed are set from the config when it is started
+        self.hf = hf if hf is not None else Tnc(clock=clock, profile=MERCURY)      # the HF radio: the Tnc that reaches the Mercury modem's KISS port, with the HF rules of its profile
+        self.mercury = Mercury(data_dir, clock)                        # the Mercury HF modem: the program the daemon starts with the HF Tnc while hf/enabled, its control port, and the hold while it transmits or the channel is busy
+        self.hf.modem = self.mercury
+        interlock = Interlock(lambda: self.config)                     # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
+        for radio in (self.tnc, self.hf):
+            radio.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
+            radio.interlock = interlock
+        self.stationbook = StationBook(clock)                           # who was heard, where, and on which radio
+        self.radios = Radios(self.tnc, self.hf, lambda: self.config, self.stationbook)       # the two as one: the default radio for what addresses no station, the choice by station or by packet for what answers one (neoaprs/radios.py)
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate
         self.igate = Igate(self.aprsis, lambda: self.config, self.beacon.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
-        self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again; nothing to start
+        self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the FM radio, where the network has digipeaters; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.igate.made_up = lambda: self.tnc.is_dummy                       # (a Dummy radio makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
@@ -99,12 +108,12 @@ class Services:
         self.debug = False
 
     def _make_radio_parts(self, clock: Clock) -> None:
-        """The beacon and what it needs: the book of stations, the GPS and the status report."""
-        self.stationbook = StationBook(clock)                           # who was heard, where
+        """The beacons and what they need: the GPS and the status report."""
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
-        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
-        self.rigstatus = RigStatus(self.tnc, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
+        self.beacon = Beacon(self.tnc, lambda: self.config, clock, memory=self.store, gps=self.gps)       # our position packet on the FM radio, on an interval, on SmartBeaconing for a moving station, and on request; started by the controller after the Tnc
+        self.hf_beacon = Beacon(self.hf, lambda: self.config, clock, memory=self.store, gps=self.gps, memory_key=HF_BEACON_MEMORY)       # the same on the HF radio, by the HF rules (its own interval from the floor of 15 minutes, the random pause, no SmartBeaconing); it sends nothing while hf/enabled is off (its radio is stopped)
+        self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 
     def _make_logs(self, clock: Clock) -> None:
@@ -121,14 +130,14 @@ class Services:
 
     def _make_messaging(self, clock: Clock) -> None:
         """What sends by a schedule, the QRU parts, messaging and the answers to queries."""
-        self.sender = Sender(self.tnc, lambda: self.config, clock)      # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio
+        self.sender = Sender(self.radios, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the default radio (FM while it is on)
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
-        self.qru = Qru(self.tnc, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
-        self.qruask = QruAsk(self.tnc, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.generalask = GeneralAsk(self.tnc, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.messaging = Messaging(self.tnc, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
-        self.queries = Queries(self.tnc, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
+        self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
+        self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
+        self.generalask = GeneralAsk(self.radios, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
+        self.messaging = Messaging(self.radios, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.queries = Queries(self.radios, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging, heard=self.packetlog, igate=self.igate)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
@@ -160,7 +169,7 @@ class Services:
         return await asyncio.to_thread(candidates, pattern, self.config.serial_skip_paths)
 
     async def hold_tnc(self) -> None:
-        """The radio lets go of its line, for a search that opens the ports."""
+        """The FM radio lets go of its line, for a search that opens the ports."""
         await self.tnc.stop()
 
     def release_tnc(self) -> None:

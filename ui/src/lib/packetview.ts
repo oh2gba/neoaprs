@@ -107,12 +107,22 @@ function contentFacts(row: PacketRow): Fact[] {
   }
 }
 
+/** What the channel of a packet heard on a radio means in "Came by": "heard on the HF radio", and "heard on the FM radio" where the radios are named; else the channel's own words. */
+function cameBy(row: PacketRow, named: boolean): string {
+  if (row.via === "rf" && row.radio === "hf") return t("packets.came_by.hf");
+  if (row.via === "rf" && named) return t("packets.came_by.fm");
+  return packetTitle(row.via, row.radio);
+}
+
 /** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled, when. */
-export function packetFacts(row: PacketRow): Fact[] {
+export function packetFacts(row: PacketRow, named = false): Fact[] {
   const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];
   if (row.direction === "out") facts.push({ label: t("packets.fact.sent_via"), text: row.path.length === 0 ? t("route.direct") : row.path.join(",") });
   else {
-    facts.push({ label: t("packets.fact.came"), text: t("packets.fact.came_value", { channel: packetLabel(row.via), what: packetTitle(row.via) }) });
+    facts.push({
+      label: t("packets.fact.came"),
+      text: t("packets.fact.came_value", { channel: packetLabel(row.via, row.radio, named), what: cameBy(row, named) }),
+    });
     if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
     else if (row.via === "is" && row.path.length > 0) facts.push({ label: t("station.field.path"), text: row.path.join(",") });
   }

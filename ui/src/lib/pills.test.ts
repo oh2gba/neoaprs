@@ -3,9 +3,9 @@ import { t } from "@/i18n";
 import { headerPills, type HeaderPill, type Link } from "@/lib/pills";
 import { inApp } from "@/lib/shell";
 import type { MapState } from "@/protocol/protocol";
-import { ago, gpsState, igateState, mapState, NOW, tncState } from "@/test/fixtures";
+import { ago, gpsState, hfState, igateState, mapState, NOW, tncState } from "@/test/fixtures";
 
-const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", tnc: tncState(), now: NOW, inApp: false, ...extra });
+const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", tnc: tncState(), hf: null, now: NOW, inApp: false, ...extra });
 const marks = (extra: Partial<Link> = {}, values: Record<string, string> = {}): HeaderPill[] => headerPills(values, null, null, null, link(extra));
 const words = (pills: HeaderPill[]) => pills.map((p) => t(p.text));
 const radio = (tnc: Partial<ReturnType<typeof tncState>>, extra: Partial<Link> = {}) => marks({ tnc: tncState(tnc), ...extra }).find((p) => p.id === "radio");
@@ -92,6 +92,77 @@ describe("the Radio mark", () => {
 
   it("leads to Settings → Radio and flashes the group of the type of TNC", () => {
     expect([radio({})?.target, radio({})?.focus]).toEqual(["settings", "set-tnc-profile"]);
+  });
+});
+
+describe("the radio marks with the HF radio", () => {
+  const BOTH = { "fm/enabled": "true", "hf/enabled": "true" };
+  const HF_ONLY = { "fm/enabled": "false", "hf/enabled": "true" };
+  const radios = (extra: Partial<Link>, values: Record<string, string>) => marks(extra, values).filter((p) => ["radio", "fm", "hf"].includes(p.id));
+  const said = (p: HeaderPill) => t(p.text, p.textValues);
+
+  it("is the one Radio mark, as it always was, while only the FM radio is on, whatever the hf topic holds", () => {
+    for (const values of [{}, { "fm/enabled": "true", "hf/enabled": "false" }] as Record<string, string>[]) {
+      expect(radios({ hf: hfState({ state: "stopped" }) }, values).map((p) => [p.id, said(p), p.focus])).toEqual([["radio", "Radio", "set-tnc-profile"]]);
+      expect(radios({ hf: null }, values).map((p) => p.id)).toEqual(["radio"]);
+    }
+  });
+
+  it("is the one Radio mark too for a station with the HF radio alone, in the state of the HF radio and leading to its box", () => {
+    const hfDown = radios({ tnc: tncState({ state: "stopped" }), hf: hfState({ state: "waiting", problem: "Mercury is not in this installation" }) }, HF_ONLY);
+    expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio: not connected", "warn", "set-mercury-sound_card"]]);
+    expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual(["Mercury is not in this installation. Settings → Radio"]);
+    expect(radios({ hf: hfState() }, HF_ONLY).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
+  });
+
+  it("is two marks, FM radio and HF radio, while both are on, each in the tone of its own radio and leading to its own box", () => {
+    const two = radios({ hf: hfState() }, BOTH);
+    expect(two.map((p) => [p.id, said(p), String(p.tone), p.target, p.focus])).toEqual([
+      ["fm", "FM radio", "ok", "settings", "set-tnc-profile"],
+      ["hf", "HF radio", "ok", "settings", "set-mercury-sound_card"],
+    ]);
+    expect(two.map((p) => t(p.title, p.titleValues))).toEqual(["FM radio connected. Settings → Radio", "HF radio connected. Settings → Radio"]);
+    const fmDown = radios({ tnc: tncState({ state: "waiting", problem: "no radio found" }), hf: hfState() }, BOTH);
+    expect(fmDown.map((p) => [said(p), String(p.tone)])).toEqual([
+      ["FM radio: not connected", "warn"],
+      ["HF radio", "ok"],
+    ]);
+    const hfDown = radios({ hf: hfState({ state: "silent", silent_since: ago(7 * 60) }) }, BOTH);
+    expect(hfDown.map((p) => [said(p), String(p.tone)])).toEqual([
+      ["FM radio", "ok"],
+      ["HF radio: silent", "warn"],
+    ]);
+  });
+
+  it("says in words what each radio is doing, with its name in place of Radio", () => {
+    const mark = (id: "fm" | "hf", extra: Partial<Link>) => radios(extra, BOTH).find((p) => p.id === id)!;
+    expect(said(mark("fm", { tnc: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1 for the radio" }) }))).toBe(
+      "FM radio: searching…",
+    );
+    expect(said(mark("fm", { tnc: tncState({ state: "connecting", problem: "", describe: "/dev/brainbox_3 at 9600, entering KISS, 0 packets" }) }))).toBe(
+      "FM radio: entering KISS…",
+    );
+    const down = mark("hf", { hf: hfState({ state: "waiting", problem: "the Mercury program is not installed" }) });
+    expect([said(down), t(down.title, down.titleValues)]).toEqual(["HF radio: not connected", "the Mercury program is not installed. Settings → Radio"]);
+    expect(said(mark("hf", { hf: hfState({ state: "silent", silent_since: ago(300) }) }))).toBe("HF radio: silent");
+    const waiting = mark("hf", { hf: null });
+    expect([said(waiting), String(waiting.tone), t(waiting.title, waiting.titleValues)]).toEqual([
+      "HF radio: waiting…",
+      "warn",
+      "No word from the TNC yet. Settings → Radio",
+    ]);
+    for (const connection of ["connecting", "closed"] as const) expect(said(mark("hf", { hf: hfState(), connection }))).toBe("HF radio: waiting…");
+  });
+
+  it("keeps the order of the marks, the two radios where the one was", () => {
+    const all = headerPills(
+      { ...BOTH, "station/transmit": "false", "gps/source": "gpsd" },
+      gpsState({ state: "fix" }),
+      igateState(),
+      { version: "9.9.9", message: "", url: "" },
+      link({ hf: hfState() }),
+    );
+    expect(all.map((p) => p.id)).toEqual(["update", "daemon", "fm", "hf", "rx", "gps", "internet"]);
   });
 });
 

@@ -26,6 +26,7 @@ class Waiting:
     msg_id: str
     reply_ack: str | None
     until: datetime
+    radio: Radio                            # the radio the message came on, which the ack goes back on
 
 
 class Acks:
@@ -49,34 +50,34 @@ class Acks:
         self._last_id = ident
         return ident
 
-    def send(self, to: str, msg_id: str, reply_ack: str | None = None) -> None:
-        """Acknowledges message `msg_id` of the station `to`: now, or when a radio that is connected but held takes frames again."""
+    def send(self, to: str, msg_id: str, reply_ack: str | None = None, radio: Radio | None = None) -> None:
+        """Acknowledges message `msg_id` of the station `to` on `radio` (the one the message came on; the one radio there is by default): now, or when that radio, connected but held, takes frames again."""
         if self._interlock.refused("ack"):
             return
-        if self._tnc.state is Source.State.CONNECTED and not self._tnc.usable:
+        radio = radio or self._tnc
+        if radio.state is Source.State.CONNECTED and not radio.usable:
             if not any(ack.to == to and ack.msg_id == msg_id for ack in self.waiting):           # (a copy of the message that comes while its ack waits gets that one ack)
-                self.waiting.append(Waiting(to, msg_id, reply_ack, self._clock() + timedelta(seconds=ACK_HOLD_MAX_SEC)))
-                log.info("the ack of message %s from %s waits: %s", msg_id, to, self._tnc.why_unusable())
+                self.waiting.append(Waiting(to, msg_id, reply_ack, self._clock() + timedelta(seconds=ACK_HOLD_MAX_SEC), radio))
+                log.info("the ack of message %s from %s waits: %s", msg_id, to, radio.why_unusable())
             return
-        self._transmit(to, msg_id, reply_ack)
+        self._transmit(to, msg_id, reply_ack, radio)
 
     def flush(self) -> None:
-        """Sends the acks that waited for the radio, now that it takes frames; one that has waited longer than ACK_HOLD_MAX_SEC is dropped."""
-        if not self.waiting or not self._tnc.usable:
+        """Sends the acks that waited for their radio, now that it takes frames; one that has waited longer than ACK_HOLD_MAX_SEC is dropped. An ack whose radio is still held waits on."""
+        if not self.waiting:
             return
         now = self._clock()
         waiting, self.waiting = self.waiting, []
-        for index, ack in enumerate(waiting):
+        for ack in waiting:
             if now > ack.until:
                 log.info("the ack of message %s from %s waited over %d s for the radio and is dropped: the sender sends again", ack.msg_id, ack.to, ACK_HOLD_MAX_SEC)
-            elif not self._transmit(ack.to, ack.msg_id, ack.reply_ack, quiet=True):
-                self.waiting.extend(waiting[index:])            # (the radio was taken by the ack before this one: the rest wait for the next tick)
-                return
+            elif not ack.radio.usable or not self._transmit(ack.to, ack.msg_id, ack.reply_ack, ack.radio, quiet=True):
+                self.waiting.append(ack)                        # (the radio is held, or was taken by the ack before this one: it waits for the next tick)
 
-    def _transmit(self, to: str, msg_id: str, reply_ack: str | None, quiet: bool = False) -> bool:
-        """Sends the ack; False when the TNC would not take it (said in the log unless `quiet`: an ack that waits is told once, when it starts waiting). An ack that cannot be made is told and counts as done."""
+    def _transmit(self, to: str, msg_id: str, reply_ack: str | None, radio: Radio, quiet: bool = False) -> bool:
+        """Sends the ack on the radio; False when the TNC would not take it (said in the log unless `quiet`: an ack that waits is told once, when it starts waiting). An ack that cannot be made is told and counts as done."""
         try:
-            sent = self._tnc.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to))
+            sent = radio.send_frame(self._frame(b":" + format_ack(to, msg_id, reply_ack), to))
         except (MessageError, MessagingError) as e:
             log.warning("no ack for message %s from %s: %s", msg_id, to, e)
             return True

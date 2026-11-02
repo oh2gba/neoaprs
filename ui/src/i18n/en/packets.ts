@@ -49,6 +49,8 @@ export const packets = {
   "packets.fact.heard": "Heard",
   "packets.fact.came": "Came by",
   "packets.fact.came_value": "{channel} - {what}",
+  "packets.came_by.fm": "heard on the FM radio",
+  "packets.came_by.hf": "heard on the HF radio",
   "packets.fact.time_in_packet": "Time in the packet",
 
   "packets.position_approximate": "{position} (approximate)",

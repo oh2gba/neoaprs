@@ -63,6 +63,8 @@ export interface AttemptRow {
   internet: string | null;
   /** the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers */
   acked: boolean;
+  /** the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios */
+  radio: "" | "fm" | "hf";
 }
 
 /** Sends our position packet now, with the settings as they are (the same packet as the timer's), and the next one is an interval later. It goes out through the TNC, so it is not answered: it arrives as the new `packets` row with direction `out`, and `status` follows with the time of the beacon. Answered with an `error` when it could not be sent: the TNC is not connected, or the settings make no frame. */
@@ -642,6 +644,8 @@ export interface MessageRow {
   text: string;
   /** the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one */
   msg_id: string | null;
+  /** the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios */
+  radio: "" | "fm" | "hf";
   /** `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
   state: "queued" | "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
   /** how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) */
@@ -718,6 +722,7 @@ export interface ObjectSetCommand {
   path: string | null;
   qru_group: string;
   on_request: boolean;
+  radio?: "fm" | "hf" | "both";
 }
 
 /** Removes every message we only overheard `from_call` sending to `to_call` (the state `overheard`, that sender, that addressee: one pair of the Messages list's overheard rows) from the database in one write, from the daemon and from every page: each message's row is a `del` of the topic `messages`. The conversations are not touched: a message we sent or one sent to us is never removed by this. Answered by the `del`s, or by an `error` (no overheard message of that pair). */
@@ -767,6 +772,8 @@ export interface OwnObjectRow {
   qru_group: string;
   /** true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule */
   on_request: boolean;
+  /** the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on) */
+  radio: "fm" | "hf" | "both";
   /** `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten */
   state: "live" | "killing";
   /** when it was first made */
@@ -822,6 +829,8 @@ export interface PacketRow {
   kind: "position" | "message" | "object" | "item" | "status" | "other" | "undecoded";
   /** how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet */
   route: string;
+  /** the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet */
+  radio: "" | "fm" | "hf";
   /** the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) */
   via: "rf" | "rf-gated" | "is" | "dummy";
   /** the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet */
@@ -1278,6 +1287,14 @@ export interface StationRow {
   last_is_at: string | null;
   /** when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was */
   last_dummy_at: string | null;
+  /** how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both */
+  heard_fm: number;
+  /** how many came on the HF modem */
+  heard_hf: number;
+  /** when a packet of the station last came on the FM radio; null when none did */
+  last_fm_at: string | null;
+  /** when a packet of the station last came on the HF modem; null when none did */
+  last_hf_at: string | null;
   /** the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own */
   position_via: "rf" | "rf-gated" | "is" | "dummy" | null;
   /** how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) */
@@ -1379,6 +1396,10 @@ export interface StatusMessage {
   beacon_last_sent: string | null;
   /** when the timer sends the next one; null while the interval is 0 */
   beacon_next_due: string | null;
+  /** when the latest beacon went out on the HF radio; null for none since the daemon started (and while the HF radio is off) */
+  hf_beacon_last_sent: string | null;
+  /** when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off */
+  hf_beacon_next_due: string | null;
   /** the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone */
   station_status: string;
   /** when the latest status report was sent (kept over a restart); null for none yet */
@@ -1543,8 +1564,10 @@ export interface TopicValues {
   stations: { [key: string]: StationRow };
   /** the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest */
   packets: { [key: string]: PacketRow };
-  /** the radio; told whole as it changes, at most four times a second */
+  /** the FM radio (the KISS TNC); told whole as it changes, at most four times a second */
   tnc: TncState;
+  /** the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second */
+  hf: TncState;
   /** the settings; told again after every save, though nothing differs: the settings form waits for it */
   config: ConfigValues;
   /** what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. `set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it */

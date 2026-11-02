@@ -29,6 +29,8 @@ export const help = {
   "help.picture.channels": "A station heard on the radio, by waves, is tagged RF; one that came from the cloud, APRS-IS, has a dotted outline and its own tag.",
   "help.picture.mercury":
     "Your station and a distant one, far apart, with the signal going up and coming down between them: only a station with the same modem hears it.",
+  "help.picture.tworadios":
+    "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the HF radio reaches a distant station by the signal that goes up and comes down.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",
   "help.picture.notifications": "A message from a station arrives, and this device plays a sound, the speaker, and shows a pop-up, the card.",
   "help.picture.encrypt":

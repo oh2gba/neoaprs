@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import { dateTimeText, agoWords, untilText } from "@/lib/format";
 import { beaconOff } from "@/lib/beaconoff";
 import { gpsProblem, gpsStateText, gpsStatus, isMoving, mobileBeaconText } from "@/lib/gpsstatus";
+import { fmOn, hfOn } from "@/lib/radiosides";
 import type { GpsState, StatusMessage } from "@/protocol/protocol";
 
 export interface BeaconBlock {
@@ -21,22 +22,60 @@ export interface BeaconBlock {
   hover: string | undefined;
   /** the SmartBeaconing line of a moving station */
   smart: string | null;
+  /** one quiet line for each radio ("FM: last beacon 4 min ago · next in 26 min"), only while both radios are on: the row's line is the latest and the soonest of the two, these are the detail */
+  radios: string[];
   /** why there is no fix, when the line does not say it */
   problem: string;
   /** set when the line is "RX only: nothing is sent", which leads to the setting */
   rxOnly?: true;
 }
 
+/** The earlier of two times of the wire, the later (null for none). A time that is not one is left out. */
+function pick(times: readonly (string | null)[], later: boolean): string | null {
+  const found = times.filter((time): time is string => time !== null && !Number.isNaN(Date.parse(time)));
+  if (found.length === 0) return null;
+  return found.reduce((best, time) => (Date.parse(time) > Date.parse(best) === later ? time : best));
+}
+
+/** The beacons the daemon told: the FM radio's (`beacon_*`) and the HF radio's (`hf_beacon_*`, null while HF is off). The row's line is the latest beacon on any radio and the next due on any radio. */
+function times(status: StatusMessage): { last: string | null; next: string | null } {
+  return {
+    last: pick([status.beacon_last_sent, status.hf_beacon_last_sent], true),
+    next: pick([status.beacon_next_due, status.hf_beacon_next_due], false),
+  };
+}
+
 /** Whether the timer will send a beacon: the interval is not 0 and the daemon has a time for the next. */
-const timed = (status: StatusMessage): boolean => status.beacon_interval_min > 0 && status.beacon_next_due !== null;
+const timed = (status: StatusMessage): boolean => status.beacon_interval_min > 0 && times(status).next !== null;
 
 /** The line of a fixed station: the last beacon and the timer, "Last beacon 4 min ago · next in 56 min (every 60 min)". */
 function fixedLine(status: StatusMessage, nowMs: number): string {
-  const ago = agoWords(status.beacon_last_sent, nowMs);
-  const never = status.beacon_last_sent === null;
+  const { last, next } = times(status);
+  const ago = agoWords(last, nowMs);
+  const never = last === null;
   if (!timed(status)) return never ? t("beacon.line.untimed_none") : t("beacon.line.untimed", { ago });
-  const values = { when: untilText(status.beacon_next_due, nowMs), minutes: status.beacon_interval_min };
+  const values = { when: untilText(next, nowMs), minutes: status.beacon_interval_min };
   return never ? t("beacon.line.timed_none", values) : t("beacon.line.timed", { ago, ...values });
+}
+
+/** The line of one radio's beacon, without the interval: "last beacon 4 min ago · next in 26 min". */
+function radioLine(last: string | null, next: string | null, interval: number, nowMs: number): string {
+  const ago = agoWords(last, nowMs);
+  if (interval > 0 && next !== null) {
+    const when = untilText(next, nowMs);
+    return last === null ? t("beacon.fold.timed_none", { when }) : t("beacon.fold.timed", { ago, when });
+  }
+  return last === null ? t("beacon.fold.untimed_none") : t("beacon.fold.untimed", { ago });
+}
+
+/** The lines behind the arrow while both radios are on: FM's beacon and HF's. */
+function radioLines(status: StatusMessage, values: Readonly<Record<string, string>>, nowMs: number): string[] {
+  if (!(fmOn(values) && hfOn(values))) return [];
+  const interval = status.beacon_interval_min;
+  return [
+    t("beacon.fold.fm", { line: radioLine(status.beacon_last_sent, status.beacon_next_due, interval, nowMs) }),
+    t("beacon.fold.hf", { line: radioLine(status.hf_beacon_last_sent, status.hf_beacon_next_due, interval, nowMs) }),
+  ];
 }
 
 /** The block of a moving station: the GPS, and under it SmartBeaconing's words, or why nothing is sent (`quiet`, empty when something is). */
@@ -47,8 +86,24 @@ function movingBlock(gps: GpsState | null, values: Readonly<Record<string, strin
     pill: gps === null ? null : { text: gpsStateText(gps.state), tone: `gps-${gps.state}` },
     line: gps === null ? t("settings.no_word") : gpsStatus(gps, values, nowMs),
     hover: undefined,
+    radios: [],
     smart: quiet || mobileBeaconText(gps, nowMs),
     problem: gps === null ? "" : gpsProblem(gps),
+  };
+}
+
+/** The block of a fixed station whose beacon is not Off: on or off by the timer, the line of the latest and the next beacon, the full time of the latest on hover, and a line for each radio while both are on. */
+function fixedBlock(status: StatusMessage | null, values: Readonly<Record<string, string>>, nowMs: number): BeaconBlock {
+  const base = { moving: false, label: t("beacon.label"), smart: null, problem: "" };
+  if (status === null) return { ...base, pill: null, line: t("settings.no_word"), hover: undefined, radios: [] };
+  const on = timed(status);
+  const { last } = times(status);
+  return {
+    ...base,
+    pill: { text: t(on ? "beacon.state.on" : "beacon.state.off"), tone: on ? "beacon-on" : "beacon-off" },
+    line: fixedLine(status, nowMs),
+    hover: last === null ? undefined : dateTimeText(last),
+    radios: radioLines(status, values, nowMs),
   };
 }
 
@@ -65,19 +120,11 @@ export function beaconBlock(status: StatusMessage | null, gps: GpsState | null, 
       pill: { text: t("beacon.state.off"), tone: rxOnly ? "tnc-waiting" : "beacon-off" },
       line: quiet,
       hover: undefined,
+      radios: [],
       smart: null,
       problem: "",
       ...(rxOnly ? { rxOnly: true as const } : {}),
     };
   }
-  const on = status !== null && timed(status);
-  return {
-    moving,
-    label: t("beacon.label"),
-    pill: status === null ? null : { text: t(on ? "beacon.state.on" : "beacon.state.off"), tone: on ? "beacon-on" : "beacon-off" },
-    line: status === null ? t("settings.no_word") : fixedLine(status, nowMs),
-    hover: status === null || status.beacon_last_sent === null ? undefined : dateTimeText(status.beacon_last_sent),
-    smart: null,
-    problem: "",
-  };
+  return fixedBlock(status, values, nowMs);
 }

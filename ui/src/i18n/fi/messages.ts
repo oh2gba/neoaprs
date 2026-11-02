@@ -84,6 +84,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "sinä",
   "chain.internet": "internet",
   "chain.sent": "lähetetty {time}",
+  "chain.hf": "HF",
+  "chain.sent_hf": "lähetetty {time} HF:llä",
   "chain.heard": { select: "internet", yes: "kuultu, ja internetin kautta", other: "kuultu" },
   "chain.heard_at": { select: "internet", yes: "kuultu {time}, ja internetin kautta", other: "kuultu {time}" },
   "chain.seen_internet": "nähty internetin kautta palautetussa kopiossa, ei kuultu täällä",
@@ -96,6 +98,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "odottaa kuittausta",
 
   "route.button": "Reitti",
+  "messages.hf_tag_title": "Viestit tälle asemalle kulkevat HF-radion kautta: suoraan, ilman polkua",
   "route.changed": "Reitti: ei oletus",
   "route.path": "Polku",
   "route.calls_hint": "Kutsut pilkuilla erotettuina, enintään {max}",

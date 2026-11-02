@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from .dberror import Row, rows
 
-OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request")
+OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request", "radio")
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at")
 
 

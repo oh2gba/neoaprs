@@ -48,10 +48,11 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
-/** The topics that are told whole: the radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around). */
+/** The topics that are told whole: the FM radio, the HF radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around). */
 function useWholeTopics() {
   const refs = {
     tnc: shallowRef<TncState | null>(null),
+    hf: shallowRef<TncState | null>(null),
     config: shallowRef<ConfigValues | null>(null),
     map: shallowRef<MapState | null>(null),
     selfUpdate: shallowRef<UpdateState | null>(null),
@@ -62,9 +63,10 @@ function useWholeTopics() {
   };
   const handlers: Pick<
     Store,
-    "replaceTnc" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru" | "replaceGeneral"
+    "replaceTnc" | "replaceHf" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru" | "replaceGeneral"
   > = {
     replaceTnc: (value) => (refs.tnc.value = value),
+    replaceHf: (value) => (refs.hf.value = value),
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
     replaceUpdate: (value) => (refs.selfUpdate.value = value),

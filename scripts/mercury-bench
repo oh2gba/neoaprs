@@ -117,8 +117,8 @@ def run(args: argparse.Namespace) -> int:
             pacer.start()
         say(f"two Mercury instances started from {binary}, their audio paced through named pipes at {RATE} samples a second")
         data_a, data_b = folder / "a", folder / "b"
-        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "mercury", "hf/beacon_interval_min": "0", "beacon/path": "WIDE1-1,WIDE2-1"})       # (a path setting, to see it ignored over HF; no timed beacon: the bench sends its own)
-        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "tnc/profile": "mercury", "hf/beacon_interval_min": "0"})
+        write_settings(data_a, {"station/call": "OH2A", "station/lat": "60.17", "station/lon": "24.94", "hf/enabled": "true", "fm/enabled": "false", "beacon/interval_min": "0", "beacon/path": "WIDE1-1,WIDE2-1"})       # (a path setting, to see it ignored over HF; no timed beacon: the bench sends its own)
+        write_settings(data_b, {"station/call": "OH2B", "station/lat": "61.50", "station/lon": "23.80", "hf/enabled": "true", "fm/enabled": "false", "hf/beacon_interval_min": "0"})
         daemons = [start_daemon(data_a, A_PORTS), start_daemon(data_b, B_PORTS)]
         processes += [("daemon A", daemons[0]), ("daemon B", daemons[1])]
         bases = [wait_for_page(daemons[0], data_a, args.timeout), wait_for_page(daemons[1], data_b, args.timeout)]

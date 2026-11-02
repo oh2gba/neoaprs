@@ -13,6 +13,7 @@ import RouteText from "@/components/RouteText.vue";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { t } from "@/i18n";
 import { packetLabel, packetTitle, packetTone } from "@/lib/channels";
+import { useRadiosNamed } from "@/composables/useRadiosOn";
 import { clockText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import type { PacketRow } from "@/protocol/protocol";
@@ -20,6 +21,7 @@ import type { PacketRow } from "@/protocol/protocol";
 const props = withDefaults(defineProps<{ rows: readonly PacketRow[]; stacked: boolean; empty: string; keyOf?: (row: PacketRow) => string }>(), {
   keyOf: (row: PacketRow) => String(row.id),
 });
+const named = useRadiosNamed();
 defineSlots<{ note?: (props: { row: PacketRow }) => unknown }>();
 
 const open = ref<string | null>(null);
@@ -64,8 +66,8 @@ function toggle(key: string): void {
         >
           <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
           <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
-          <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via)">
-            <TagMark :tone="packetTone(row.via)">{{ packetLabel(row.via) }}</TagMark>
+          <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via, row.radio, named)">
+            <TagMark :tone="packetTone(row.via)">{{ packetLabel(row.via, row.radio, named) }}</TagMark>
           </td>
           <td class="mono wrap line">{{ row.tnc2 }}</td>
           <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>

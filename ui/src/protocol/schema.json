@@ -186,13 +186,23 @@
         "acked": {
           "description": "the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers",
           "type": "boolean"
+        },
+        "radio": {
+          "description": "the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios",
+          "enum": [
+            "",
+            "fm",
+            "hf"
+          ],
+          "type": "string"
         }
       },
       "required": [
         "sent_at",
         "hops",
         "internet",
-        "acked"
+        "acked",
+        "radio"
       ],
       "title": "AttemptRow",
       "type": "object"
@@ -2470,6 +2480,15 @@
           ],
           "description": "the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one"
         },
+        "radio": {
+          "description": "the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios",
+          "enum": [
+            "",
+            "fm",
+            "hf"
+          ],
+          "type": "string"
+        },
         "state": {
           "description": "`queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for)",
           "enum": [
@@ -2553,6 +2572,7 @@
         "to_call",
         "text",
         "msg_id",
+        "radio",
         "state",
         "attempts",
         "attempts_max",
@@ -2781,6 +2801,15 @@
         },
         "on_request": {
           "type": "boolean"
+        },
+        "radio": {
+          "default": "fm",
+          "enum": [
+            "fm",
+            "hf",
+            "both"
+          ],
+          "type": "string"
         }
       },
       "required": [
@@ -2974,6 +3003,15 @@
           "description": "true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule",
           "type": "boolean"
         },
+        "radio": {
+          "description": "the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on)",
+          "enum": [
+            "fm",
+            "hf",
+            "both"
+          ],
+          "type": "string"
+        },
         "state": {
           "description": "`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten",
           "enum": [
@@ -3037,6 +3075,7 @@
         "path",
         "qru_group",
         "on_request",
+        "radio",
         "state",
         "created_at",
         "updated_at",
@@ -3188,6 +3227,15 @@
           "description": "how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? \u2192 OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet",
           "type": "string"
         },
+        "radio": {
+          "description": "the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet",
+          "enum": [
+            "",
+            "fm",
+            "hf"
+          ],
+          "type": "string"
+        },
         "via": {
           "description": "the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet)",
           "enum": [
@@ -3262,6 +3310,7 @@
         "path",
         "kind",
         "route",
+        "radio",
         "via",
         "gate",
         "summary",
@@ -4938,6 +4987,42 @@
           ],
           "description": "when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was"
         },
+        "heard_fm": {
+          "description": "how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "heard_hf": {
+          "description": "how many came on the HF modem",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "last_fm_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station last came on the FM radio; null when none did"
+        },
+        "last_hf_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when a packet of the station last came on the HF modem; null when none did"
+        },
         "position_via": {
           "anyOf": [
             {
@@ -5251,6 +5336,10 @@
         "last_rf_gated_at",
         "last_is_at",
         "last_dummy_at",
+        "heard_fm",
+        "heard_hf",
+        "last_fm_at",
+        "last_hf_at",
         "position_via",
         "packets_hour",
         "device",
@@ -5416,6 +5505,32 @@
           ],
           "description": "when the timer sends the next one; null while the interval is 0"
         },
+        "hf_beacon_last_sent": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest beacon went out on the HF radio; null for none since the daemon started (and while the HF radio is off)"
+        },
+        "hf_beacon_next_due": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off"
+        },
         "station_status": {
           "description": "the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone",
           "type": "string"
@@ -5489,6 +5604,8 @@
         "beacon_interval_min",
         "beacon_last_sent",
         "beacon_next_due",
+        "hf_beacon_last_sent",
+        "hf_beacon_next_due",
         "station_status",
         "station_status_last_sent",
         "rig_state",
@@ -6033,7 +6150,11 @@
         },
         "tnc": {
           "$ref": "#/$defs/TncState",
-          "description": "the radio; told whole as it changes, at most four times a second"
+          "description": "the FM radio (the KISS TNC); told whole as it changes, at most four times a second"
+        },
+        "hf": {
+          "$ref": "#/$defs/TncState",
+          "description": "the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second"
         },
         "config": {
           "$ref": "#/$defs/ConfigValues",
@@ -6110,6 +6231,7 @@
         "stations",
         "packets",
         "tnc",
+        "hf",
         "config",
         "station_prefs",
         "messages",

@@ -49,7 +49,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, config, map, update, gps, igate, qru, general) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -76,6 +76,7 @@ export interface Store {
   replaceOwnObjects(rows: Record<string, OwnObjectRow>): void;
   replaceOwnBulletins(rows: Record<string, OwnBulletinRow>): void;
   replaceTnc(value: TopicValues["tnc"]): void;
+  replaceHf(value: TopicValues["hf"]): void;
   replaceConfig(value: TopicValues["config"]): void;
   replaceMap(value: TopicValues["map"]): void;
   replaceUpdate(value: TopicValues["update"]): void;
@@ -112,6 +113,7 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   own_objects: "replaceOwnObjects",
   own_bulletins: "replaceOwnBulletins",
   tnc: "replaceTnc",
+  hf: "replaceHf",
   config: "replaceConfig",
   map: "replaceMap",
   update: "replaceUpdate",

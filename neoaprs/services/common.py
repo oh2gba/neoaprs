@@ -3,13 +3,14 @@ to the tocall), `radio_path` (the path a frame goes by on the radio: none on HF)
 import re
 from collections.abc import Callable
 from dataclasses import replace
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from neoaprs import TOCALL, ax25
 from neoaprs.callsign import CallsignError
 from neoaprs.coded import CodedError
 from neoaprs.config import Config, can_transmit
 from neoaprs.message import MessagingError
+from neoaprs.packet import Packet
 from neoaprs.radiorules import RadioRules
 from neoaprs.source import Source
 
@@ -32,6 +33,25 @@ class Radio(Protocol):
     def rules(self) -> RadioRules: ...
     def why_unusable(self) -> str: ...
     def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool: ...
+
+
+@runtime_checkable
+class RadioSet(Radio, Protocol):
+    """The radios of the station as a service that answers stations sees them (neoaprs/radios.py): itself the default radio (FM while it is on, else HF), and the choice of the radio a station is reached on, or
+    the one a packet came on. A service that never chooses takes a plain Radio."""
+    def for_station(self, call: str) -> Radio: ...
+    def for_packet(self, packet: Packet) -> Radio: ...
+    def of(self, kind: str) -> Radio | None: ...
+
+
+def radio_for(radio: Radio, packet: Packet) -> Radio:
+    """The radio to answer the packet on: the one it came on when the service was given the radios, else the one radio it was given (a test's stub)."""
+    return radio.for_packet(packet) if isinstance(radio, RadioSet) else radio
+
+
+def radio_to(radio: Radio, call: str) -> Radio:
+    """The radio a frame of ours to the station goes out on: by the station when the service was given the radios, else the one radio it was given."""
+    return radio.for_station(call) if isinstance(radio, RadioSet) else radio
 
 
 def our_frame(config: Config, path: tuple[str, ...], info: bytes) -> ax25.Frame:

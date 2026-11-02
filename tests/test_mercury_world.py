@@ -16,7 +16,7 @@ from tests.support.mercuryworld import World
 
 def sent_by(world: World, call: str) -> list[ax25.Frame]:
     """The frames the air carried from this station, as the receivers got them."""
-    return [ax25.decode(payload) for sender, _, payload in world.air.delivered if sender is world[call].radio]
+    return [ax25.decode(payload) for sender, _, payload in world.air.delivered if sender is world[call].hf_radio]
 
 
 async def test_a_beacon_of_one_station_reaches_the_other_two_after_one_frame_on_the_air_and_nobody_else_hears_it_twice(tmp_path: Path) -> None:
@@ -27,9 +27,9 @@ async def test_a_beacon_of_one_station_reaches_the_other_two_after_one_frame_on_
     await w.start()
     for call in ("OH2B", "OH2C-10"):
         assert not [p for p in await w[call].packets() if p.source == "OH2A"]
-    assert w["OH2A"].ctl.beacon.send_now()
+    assert w["OH2A"].ctl.hf_beacon.send_now()
     await w.until(lambda: len(w.air.delivered) == 2)
-    assert {receiver for _, receiver, _ in w.air.delivered} == {w["OH2B"].radio, w["OH2C-10"].radio}
+    assert {receiver for _, receiver, _ in w.air.delivered} == {w["OH2B"].hf_radio, w["OH2C-10"].hf_radio}
     for call in ("OH2B", "OH2C-10"):
         await w.until(lambda call=call: w[call].ctl.stationbook.get("OH2A") is not None)          # type: ignore[misc]
         heard = w[call].ctl.stationbook.get("OH2A")
@@ -65,7 +65,7 @@ async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "first try")
-    assert b.ctl.beacon.send_now(), "B keys while A's frame is on the air"
+    assert b.ctl.hf_beacon.send_now(), "B keys while A's frame is on the air"
     await w.until(lambda: w.air.collisions == 2 and not w.air.transmitting, 3.0)             # (both frames are lost)
     assert w.air.delivered == [] and a.ctl.messaging.get(record.id).state == "sending" and a.ctl.messaging.get(record.id).attempts == 1       # type: ignore[union-attr]
     await idle_for(0.2)
@@ -79,20 +79,20 @@ async def test_our_frames_wait_while_a_frame_is_on_the_air_and_while_the_channel
     w = World(tmp_path, frame_sec=0.3)
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
-    assert b.ctl.beacon.send_now()                                                # B is on the air: A's modem hears BUSY ON
+    assert b.ctl.hf_beacon.send_now()                                                # B is on the air: A's modem hears BUSY ON
     await w.until(lambda: a.ctl.mercury.busy)
-    assert not a.tnc.usable and a.tnc.why_unusable() == "the channel is busy" and not a.ctl.beacon.send_now()
-    assert a.ctl.beacon.problem == "the channel is busy"
+    assert not a.hf.usable and a.hf.why_unusable() == "the channel is busy" and not a.ctl.hf_beacon.send_now()
+    assert a.ctl.hf_beacon.problem == "the channel is busy"
     record = await a.ctl.messaging.send("OH2B", "waits for the channel")
     assert record.attempts == 0 and record.state == "sending", "the attempt waits, none is used up"
     await w.until(lambda: a.ctl.messaging.get(record.id).attempts == 1, 3.0)            # type: ignore[union-attr]
     assert not a.ctl.mercury.busy, "it went when the channel was clear"
     await w.until(lambda: a.ctl.mercury.keyed)                                            # (the modem says PTT ON on its control port a moment after the frame was handed to it)
-    assert not a.tnc.usable and a.tnc.why_unusable() == "the radio is transmitting"
-    assert not a.ctl.beacon.send_now() and a.ctl.beacon.problem == "the radio is transmitting"
+    assert not a.hf.usable and a.hf.why_unusable() == "the radio is transmitting"
+    assert not a.ctl.hf_beacon.send_now() and a.ctl.hf_beacon.problem == "the radio is transmitting"
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)         # type: ignore[union-attr]
     assert w.air.collisions == 0 and len(w.air.delivered) == 3
-    assert a.tnc.describe().startswith("Mercury DATAC3 at 127.0.0.1:") and "listening" in a.tnc.describe()
+    assert a.hf.describe().startswith("Mercury DATAC3 at 127.0.0.1:") and "listening" in a.hf.describe()
 
 
 async def test_a_station_that_gates_puts_what_it_hears_over_mercury_on_aprs_is_and_nothing_comes_back(tmp_path: Path) -> None:
@@ -104,7 +104,7 @@ async def test_a_station_that_gates_puts_what_it_hears_over_mercury_on_aprs_is_a
         gate = await w.add("OH2C-10", lat=60.4, lon=22.3, **{"igate/enabled": "true", "igate/server": server.address, "igate/password": "19628"})
         await w.start()
         await until(lambda: gate.ctl.igate.state in ("connected", "listening"), 5.0)
-        assert w["OH2A"].ctl.beacon.send_now()
+        assert w["OH2A"].ctl.hf_beacon.send_now()
         await until(lambda: any(line.startswith("OH2A>") for line in server.packets), 5.0)
         [line] = [line for line in server.packets if line.startswith("OH2A>")]
         assert ",qAO,OH2C-10:" in line, "gated as heard on the radio, by this gate"
@@ -121,29 +121,29 @@ async def test_over_the_air_every_frame_is_direct_and_whole_whatever_the_path_se
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 5.0)         # type: ignore[union-attr]
     message = ax25.decode(w.air.delivered[0][2])
     assert message.path == () and len(ax25.encode(message)) == 98, "the longest message, 67 characters with its number, is 98 bytes direct: under the frame with room to spare"
-    assert a.ctl.beacon.send_now()
+    assert a.ctl.hf_beacon.send_now()
     await w.until(lambda: len(w.air.delivered) == 3)
     beacon = sent_by(w, "OH2A")[-1]
     assert beacon.path == () and beacon.info.endswith(b"A comment as long as the settings allow, 43") and len(ax25.encode(beacon)) == 79, "direct, whole, the path setting ignored and kept"
     assert w.air.truncated == [] and a.ctl.config.beacon_path_calls[0] == "WIDE1-1"
-    await w.until(lambda: b.ctl.stationbook.get("OH2A") is not None)
+    await w.until(lambda: (heard := b.ctl.stationbook.get("OH2A")) is not None and heard.last_comment.startswith("A comment as long as"))       # (B decodes the beacon a moment after the air delivered it)
     heard = b.ctl.stationbook.get("OH2A")
-    assert heard is not None and heard.last_comment.startswith("A comment as long as") and heard.lat is not None
+    assert heard is not None and heard.lat is not None
 
 
-async def test_the_hf_beacon_goes_out_on_its_own_interval_with_the_random_pause_and_a_moving_station_stays_fixed(tmp_path: Path) -> None:
+async def test_the_hf_beacon_goes_out_at_the_one_interval_with_the_random_pause(tmp_path: Path) -> None:
     w = World(tmp_path, frame_sec=0.1)
-    a = await w.add("OH2A", **{"hf/beacon_interval_min": "15", "beacon/interval_min": "0"})
+    a = await w.add("OH2A", **{"beacon/interval_min": "30"})
     await w.add("OH2B", lat=61.5, lon=23.8)
-    a.ctl.beacon.jitter = lambda most: 120.0
+    a.ctl.hf_beacon.jitter = lambda most: 120.0
     await w.start()
-    assert a.ctl.beacon.interval_min == 15 and a.ctl.config.beacon_interval_min == 0
+    assert a.ctl.hf_beacon.interval_min == 30 and a.ctl.config.beacon_interval_min == 30 and a.ctl.beacon.interval_min == 30, "one interval for both; the FM radio is off here"
     w.pass_time(31)                                                                 # (the first beacon of a run comes 30 s after the start)
     await w.until(lambda: len(w.air.delivered) == 1, 5.0)
     first = sent_by(w, "OH2A")[0]
     assert first.path == () and first.info.startswith(b"=6010.20N/02456.40E-"), "the home position, direct"
-    assert a.ctl.beacon.next_due == a.ctl.beacon.last_sent + timedelta(minutes=15) + timedelta(seconds=120)      # type: ignore[operator]
-    w.pass_time(15 * 60 + 100)
+    assert a.ctl.hf_beacon.next_due == a.ctl.hf_beacon.last_sent + timedelta(minutes=30) + timedelta(seconds=120)      # type: ignore[operator]
+    w.pass_time(30 * 60 + 100)
     await idle_for(0.3)
     assert len(w.air.delivered) == 1, "the interval has passed but the pause has not"
     w.pass_time(30)

@@ -8,10 +8,12 @@ import CopyMenu from "@/components/CopyMenu.vue";
 import KeyMenu from "@/components/KeyMenu.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
+import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { conversationName, isOverheard, overheardPair, replyTo } from "@/lib/messages";
+import { hasPaths, radioFor } from "@/lib/radiosides";
 import type { MessageRow } from "@/protocol/protocol";
 
 const props = defineProps<{
@@ -28,9 +30,11 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys, tnc } = useDaemonContext();
-/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them there is no route to set. */
-const routable = computed(() => tnc.value?.rules.paths ?? true);
+const { connected, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations } = useDaemonContext();
+/** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
+const routable = computed(() => hasPaths(config.value?.values ?? {}, stations.value.get(props.selected) ?? null));
+/** Whether the messages to the station go over the HF radio (no path, no RF only: the header says it in Route's place with a tag). */
+const overHf = computed(() => radioFor(stations.value.get(props.selected) ?? null, config.value?.values ?? {}) === "hf");
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
@@ -56,6 +60,7 @@ onMounted(() => {
         <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
+      <TagMark v-if="!heard && overHf" tone="neutral" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
       <RouteMenu
         v-if="!heard && routable"
         :key="selected"

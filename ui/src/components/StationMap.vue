@@ -302,7 +302,7 @@ watch(mapFiles, (key) => {
 watch(page.dark, (dark) => map?.setStyle(styleFor(dark)));
 
 onMounted(() => {
-  if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value);
+  if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value, page.radiosNamed);
   void create();
 });
 onBeforeUnmount(() => {

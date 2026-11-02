@@ -42,7 +42,7 @@ from neoaprs.geo import distance_km
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import RF_GATED, Message, Packet
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
-from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_for
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
 
@@ -106,6 +106,7 @@ class Qru:
                  first_wait_sec: float = FIRST_WAIT_SEC) -> None:
         self._config = config
         self.first_wait_sec = first_wait_sec
+        self._tnc = tnc
         self._answers = Answers(tnc, config, paths, spacing_sec)
         self._objects = objects
         self._book = book
@@ -130,7 +131,7 @@ class Qru:
         try:
             frames = self._frames(asker, request, packet.heard_at)
             if frames:
-                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec)
+                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec, radio=radio_for(self._tnc, packet))
             else:
                 log.debug("the request %r of %s to QRU: nothing to answer with", key, asker)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:

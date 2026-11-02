@@ -24,7 +24,7 @@ LAYERS: dict[str, list[str]] = {
     "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilestool", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem"],
     "persistence": ["store", "migrations", "migrationlog", "migrationsteps1to11", "migrationsteps12to21", "migrationsteps22on", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql"],
     "services": [],
-    "app": ["controller", "app", "wiring"],
+    "app": ["controller", "app", "wiring", "radios"],
     "delivery": ["__main__", "daemon"],
 }
 MAY_IMPORT: dict[str, set[str]] = {

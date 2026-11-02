@@ -12,7 +12,7 @@ from neoaprs.config import DEFAULTS
 from neoaprs.packet import Position
 from neoaprs.source import Source
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
-from neoaprs.wiring import tnc_settings
+from neoaprs.wiring import hf_settings, tnc_settings
 from tests.support.env import Env, idle_for, until
 
 FIXED_ORDER = ["OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"]         # the calls of the capture, in the order it came
@@ -242,14 +242,13 @@ def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches(search_p
     assert tnc_settings(replace(DEFAULTS, tnc_profile="kenwood-tnc2", serial_port="socket://localhost:7000")).port == "socket://localhost:7000", "a serial profile on a socket works"
 
 
-def test_the_mercury_modem_is_reached_on_the_port_the_modem_part_chose_and_its_two_settings_go_with_it(search_pattern_from_settings: None) -> None:
-    hf = replace(DEFAULTS, tnc_profile="mercury", mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0")
-    assert tnc_settings(hf) == ("socket://127.0.0.1:8100", 9600, MERCURY, False, (), DEFAULTS.serial_pattern, ("plughw:1,0", "rts:/dev/ttyUSB0"))
-    assert tnc_settings(hf, modem_port=8101).port == "socket://127.0.0.1:8101", "the modem part chose other ports because the defaults were taken"
-    assert tnc_settings(hf, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a port given for this run is a Mercury something else runs"
-    assert tnc_settings(replace(hf, serial_port="tcp://10.0.0.5:8100")).port == "tcp://10.0.0.5:8100", "so is an address in serial/port"
-    assert tnc_settings(replace(hf, mercury_keying="vox")) != tnc_settings(hf), "a change of the keying restarts the modem and the Tnc with it"
-    assert tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp", mercury_keying="rts:/dev/ttyUSB0")).modem == ("", ""), "the two settings count for the Mercury type only"
+def test_the_hf_radio_is_reached_on_the_port_the_modem_part_chose_and_its_two_settings_go_with_it() -> None:
+    hf = replace(DEFAULTS, mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0")
+    assert hf_settings(hf) == ("socket://127.0.0.1:8100", 9600, MERCURY, False, (), "", ("plughw:1,0", "rts:/dev/ttyUSB0"))
+    assert hf_settings(hf, modem_port=8101).port == "socket://127.0.0.1:8101", "the modem part chose other ports because the defaults were taken"
+    assert hf_settings(hf, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury something else runs (--hf-port): the benches"
+    assert hf_settings(replace(hf, mercury_keying="vox")) != hf_settings(hf), "a change of the keying restarts the modem"
+    assert tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp", mercury_keying="rts:/dev/ttyUSB0")).modem == ("", ""), "the FM radio knows nothing of the modem's settings"
 
 
 async def test_the_start_takes_the_time_the_clock_says(tmp_path: Path) -> None:

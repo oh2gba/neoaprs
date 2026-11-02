@@ -4,7 +4,7 @@
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
-// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The TNC group is SettingsRadio: the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
+// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: the FM radio and the HF radio in a box each, the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at. The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
@@ -40,7 +40,7 @@ import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
-import { shownByRules, shownFor } from "@/lib/settingsradio";
+import { shownByRadios, shownFor } from "@/lib/settingsradio";
 import { statusSource } from "@/lib/status";
 import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
@@ -100,10 +100,10 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       shownFor(key, profile.value, network.value) &&
-      shownByRules(key, tnc.value?.rules ?? null) &&
+      shownByRadios(key, draft) &&
       shownByValues(key, draft),
   );
-/** The groups with something to show: a group whose every key the radio's rules leave out (the Digipeater group on an HF radio) is not drawn. */
+/** The groups with something to show: a group whose every key the radios that are on leave out (the Digipeater group while FM is off) is not drawn. */
 const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || shown(group.keys).length > 0));
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);

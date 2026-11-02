@@ -20,10 +20,10 @@ export interface HoverRow {
 }
 
 /** The rows the card has for a station: only those that have something to say. */
-export function hoverRows(row: StationRow, nowMs: number): HoverRow[] {
+export function hoverRows(row: StationRow, nowMs: number, named = false): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
   if (channelsOf(row).some((channel) => channel !== "rf"))
-    rows.push({ label: t("station.hover.via"), text: internetOnly(row) ? channelTitle(row) : channelLabel(row) }); // (a station heard on the radio alone needs no word for it)
+    rows.push({ label: t("station.hover.via"), text: internetOnly(row) ? channelTitle(row, named) : channelLabel(row, named) }); // (a station heard on the radio alone needs no word for it)
   if (row.last_status !== "") rows.push({ label: t("station.field.status"), text: row.last_status });
   if (row.last_comment !== "") rows.push({ label: t("station.field.comment"), text: row.last_comment });
   if (row.distance_km !== null) {
@@ -56,6 +56,7 @@ export class HoverCard {
     private readonly container: HTMLElement,
     private readonly lookup: (call: string) => StationRow | undefined,
     private readonly now: () => number,
+    private readonly named: Readonly<{ value: boolean }> = { value: false }, // (whether the radios are named: the page's `radiosNamed`)
   ) {
     this.card.setAttribute("role", "tooltip");
     this.card.hidden = true;
@@ -92,7 +93,7 @@ export class HoverCard {
     }
     const head = element("div", "hc-head");
     head.append(element("b", "hc-call", row.call), element("span", "hc-symbol", symbolLabel(row)));
-    const rows = hoverRows(row, this.now()).map(({ label, text }) => {
+    const rows = hoverRows(row, this.now(), this.named.value).map(({ label, text }) => {
       const line = element("div", "hc-row");
       line.append(element("span", "hc-key", label), element("span", "hc-val", text));
       return line;

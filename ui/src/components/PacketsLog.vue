@@ -8,6 +8,7 @@ import { PACKETS_TABLE } from "@/lib/layout";
 import { t } from "@/i18n";
 import PacketLines from "@/components/PacketLines.vue";
 import TabHelp from "@/components/TabHelp.vue";
+import { useRadiosNamed } from "@/composables/useRadiosOn";
 import { filterPackets, newestFirst } from "@/lib/packets";
 import type { PacketRow } from "@/protocol/protocol";
 
@@ -19,7 +20,8 @@ const width = useElementWidth(root);
 const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 const filter = ref("");
 
-const rows = computed(() => filterPackets(newestFirst(props.packets.values()), filter.value));
+const named = useRadiosNamed();
+const rows = computed(() => filterPackets(newestFirst(props.packets.values()), filter.value, named.value));
 </script>
 
 <template>

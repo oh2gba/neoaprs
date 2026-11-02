@@ -25,6 +25,7 @@ export const PICTURE_NAMES = [
   "qru",
   "encrypt",
   "mercury",
+  "tworadios",
 ] as const;
 
 export type PictureName = (typeof PICTURE_NAMES)[number];

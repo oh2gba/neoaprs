@@ -33,7 +33,7 @@ export function useTabsFit(
   function measure(): void {
     const outer = box.value;
     const copy = probe.value;
-    if (outer === null || copy === null) return;
+    if (outer === null || copy === null || !outer.isConnected) return; // (a ResizeObserver can call after the page is gone: a test that ends, a tab that closes)
     const free = outer.clientWidth - inset(outer) - taken() - SLACK;
     if (free <= 0) return; // hidden: the last answer stays
     const tabs = Object.fromEntries(TAB_IDS.map((id) => [id, widthOf(copy, `[data-tab="${id}"]`)])) as Record<TabId, number>;

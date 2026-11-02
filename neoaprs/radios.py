@@ -1,0 +1,88 @@
+"""The radios of the station, at most one of each kind: the FM radio (the KISS TNC of today, slot `fm`) and the HF radio (the Mercury modem, slot `hf`), each a `Tnc` of its own with the rules of its kind
+(neoaprs/radiorules.py), and the one place that chooses between them. A service that sends to no station in particular (asking around, our objects and bulletins, the status) takes this object as the one `Radio` it
+always took: it is the **default radio**, the FM one while it is on, else the HF one. A service that answers a station takes the radio the station is reached on: `for_station` for a message of ours (FM when the
+station was heard on FM, or never on HF alone: it is near, and HF airtime is everyone's; HF when it was heard on HF alone, or the FM radio is off), `for_packet` for an ack or an answer (the radio the packet came
+on). While the HF radio is not enabled every choice falls to the FM radio and nothing differs from a station with one radio; a third kind (a LoRa board) is one more slot here and nothing in the services.
+
+The slots are enabled by the settings `fm/enabled` and `hf/enabled`; a radio that is not enabled stays stopped (the controller starts and stops each on its own settings) and is never chosen. Both `Tnc` objects
+always exist, so that the page's topics and the tests have them whatever the settings."""
+from collections.abc import Callable, Iterator
+
+from . import ax25
+from .config import Config
+from .packet import Packet
+from .radiorules import RadioRules
+from .source import Source
+from .stationbook import StationBook
+from .tnc import Tnc
+
+KINDS = ("fm", "hf")                     # the slots, in the order a choice falls to them
+
+
+class Radios:
+    def __init__(self, fm: Tnc, hf: Tnc, config: Callable[[], Config], book: StationBook) -> None:
+        self.fm, self.hf = fm, hf
+        self._config = config
+        self._book = book
+
+    def __iter__(self) -> Iterator[Tnc]:
+        """Every radio, enabled or not (the page's topics, the wiring of the packets: a radio that is off emits nothing)."""
+        yield self.fm
+        yield self.hf
+
+    def enabled(self, kind: str) -> bool:
+        c = self._config()
+        return c.fm_enabled if kind == "fm" else c.hf_enabled if kind == "hf" else False
+
+    def of(self, kind: str) -> Tnc | None:
+        """The radio of this kind while it is enabled; None otherwise (and for a kind that is no slot)."""
+        if not self.enabled(kind):
+            return None
+        return self.fm if kind == "fm" else self.hf
+
+    @property
+    def on(self) -> list[Tnc]:
+        """The radios that are enabled, FM first."""
+        return [radio for kind in KINDS if (radio := self.of(kind)) is not None]
+
+    @property
+    def default(self) -> Tnc:
+        """The radio of what addresses no station in particular: the FM radio while it is on, else the HF one; the FM one (stopped) when neither is, so that there is always a radio to ask."""
+        return self.of("fm") or self.of("hf") or self.fm
+
+    def for_station(self, call: str) -> Tnc:
+        """The radio a message of ours to the station goes out on: the FM radio unless the station was heard on HF alone (or FM is off); a station never heard goes on the default radio."""
+        fm, hf = self.of("fm"), self.of("hf")
+        if fm is None or hf is None:
+            return self.default
+        station = self._book.get(call)
+        return hf if station is not None and station.heard_hf > 0 and station.heard_fm == 0 else fm
+
+    def for_packet(self, packet: Packet) -> Tnc:
+        """The radio to answer a packet on: the one it came on, while it is enabled; else the default. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""
+        if not packet.on_air:
+            raise ValueError("a packet from the internet is answered on no radio")
+        return self.of(packet.radio) or self.default
+
+    # ---- the default radio as the one Radio of the services that choose none
+    @property
+    def state(self) -> Source.State:
+        return self.default.state
+
+    @property
+    def usable(self) -> bool:
+        return self.default.usable
+
+    @property
+    def max_frame(self) -> int | None:
+        return self.default.max_frame
+
+    @property
+    def rules(self) -> RadioRules:
+        return self.default.rules
+
+    def why_unusable(self) -> str:
+        return self.default.why_unusable()
+
+    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
+        return self.default.send_frame(frame, raw)

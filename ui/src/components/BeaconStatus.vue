@@ -29,6 +29,7 @@ const block = computed(() => beaconBlock(props.status, props.gps, props.values, 
   >
     <p v-if="block.smart" class="igatefold" role="status">{{ block.smart }}</p>
     <p v-if="block.problem" class="problem" role="status">{{ block.problem }}</p>
-    <p v-if="block.hover" class="igatefold">{{ block.hover }}</p>
+    <p v-for="line in block.radios" :key="line" class="igatefold">{{ line }}</p>
+    <p v-if="block.hover && block.radios.length === 0" class="igatefold">{{ block.hover }}</p>
   </StatusFold>
 </template>

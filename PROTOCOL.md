@@ -453,6 +453,7 @@ only to a station that asks for it, never on the schedule. Nothing is sent while
 | `path` | string \| null |  | (max 256 chars) |
 | `qru_group` | string |  | (max 8 chars) |
 | `on_request` | boolean |  |  |
+| `radio` | "fm" \| "hf" \| "both" | optional | (default `"fm"`) |
 
 ### `object_kill`
 
@@ -561,6 +562,8 @@ What the daemon is, for the status bar: sent after `hello`, every 10 s, when ask
 | `beacon_interval_min` | integer |  | minutes between our position packets, from the settings; 0 is off |
 | `beacon_last_sent` | time \| null |  | when the latest beacon was sent, by the timer or on request; null for none since the daemon started |
 | `beacon_next_due` | time \| null |  | when the timer sends the next one; null while the interval is 0 |
+| `hf_beacon_last_sent` | time \| null |  | when the latest beacon went out on the HF radio; null for none since the daemon started (and while the HF radio is off) |
+| `hf_beacon_next_due` | time \| null |  | when the HF beacon's timer sends the next one, its random pause included; null while the interval is 0 or the HF radio is off |
 | `station_status` | string |  | the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone |
 | `station_status_last_sent` | time \| null |  | when the latest status report was sent (kept over a restart); null for none yet |
 | `rig_state` | "off" \| "on" \| "unused" |  | whether the radio the status is made from answers: `on`, `off` (rigctld is away or the radio is off, nothing is sent), or `unused` while the status does not come from a radio (`status/source` is `text` or `off`) |
@@ -744,7 +747,8 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 |---|---|---|
 | `stations` | { [key: string]: StationRow } | the station book by call: a station heard again is a `set` of its row, one that is forgotten or pruned a `del` |
 | `packets` | { [key: string]: PacketRow } | the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest |
-| `tnc` | TncState | the radio; told whole as it changes, at most four times a second |
+| `tnc` | TncState | the FM radio (the KISS TNC); told whole as it changes, at most four times a second |
+| `hf` | TncState | the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second |
 | `config` | ConfigValues | the settings; told again after every save, though nothing differs: the settings form waits for it |
 | `station_prefs` | { [key: string]: StationPref } | what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. `set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it |
 | `messages` | { [key: string]: MessageRow } | every message by id (as text), all of them sent with the first `state`: a message that is new or changes is a `set` of its row, one that is deleted a `del`; none leaves on its own |
@@ -796,6 +800,10 @@ row has a new distance and bearing, and the topic is told whole again.
 | `last_rf_gated_at` | time \| null |  | when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was |
 | `last_is_at` | time \| null |  | when a packet of the station was last received from the internet (`is`); null when none was |
 | `last_dummy_at` | time \| null |  | when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was |
+| `heard_fm` | integer |  | how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on the FM radio (the KISS TNC), and how many on the HF modem (`Packet.radio`); a message to the station goes out on the radio it was last heard on, FM when on both (>= 0) |
+| `heard_hf` | integer |  | how many came on the HF modem (>= 0) |
+| `last_fm_at` | time \| null |  | when a packet of the station last came on the FM radio; null when none did |
+| `last_hf_at` | time \| null |  | when a packet of the station last came on the HF modem; null when none did |
 | `position_via` | "rf" \| "rf-gated" \| "is" \| "dummy" \| null |  | the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own |
 | `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
 | `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
@@ -843,6 +851,7 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `path` | string[] |  | the digipeaters, the one that repeated it marked with `*`; for a packet from the internet everything between the destination and the colon of the line (`TCPIP*`, the q-construct `qAC`, the server `T2FINLAND`) |
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |
 | `route` | string |  | how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet |
+| `radio` | "" \| "fm" \| "hf" |  | the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet |
 | `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
 | `gate` | string |  | the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
 | `summary` | string |  | one line, as the log has it |
@@ -864,6 +873,7 @@ of a message that came in, `to_call` of one we sent.
 | `to_call` | string |  | the addressee: our call for a message sent to us, the other station for one of ours, whoever it is for when overheard |
 | `text` | string |  |  |
 | `msg_id` | string \| null |  | the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one |
+| `radio` | "" \| "fm" \| "hf" |  | the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios |
 | `state` | "queued" \| "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
 | `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) (>= 0) |
 | `attempts_max` | integer |  | how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) (>= 1, <= 10) |
@@ -1145,6 +1155,7 @@ One transmission of a message of ours and what came back of it.
 | `hops` | HopRow[] |  | the digipeaters of the path the attempt went by, in order; empty for a direct path |
 | `internet` | string \| null |  | the call of the iGate that put a copy of the message back on the air as a third-party packet, when one was heard for this attempt; null otherwise |
 | `acked` | boolean |  | the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers |
+| `radio` | "" \| "fm" \| "hf" |  | the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios |
 
 ### BulletinRow
 
@@ -1428,6 +1439,7 @@ map shows; a killed one leaves that topic at once and stays here, as `killing`, 
 | `path` | string \| null |  | the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used |
 | `qru_group` | string |  | the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none |
 | `on_request` | boolean |  | true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule |
+| `radio` | "fm" \| "hf" \| "both" |  | the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on) |
 | `state` | "live" \| "killing" |  | `live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten |
 | `created_at` | time |  | when it was first made |
 | `updated_at` | time |  | when it was last changed or killed |

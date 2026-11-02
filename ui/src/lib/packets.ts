@@ -8,11 +8,13 @@ export function newestFirst(rows: Iterable<PacketRow>): PacketRow[] {
 }
 
 /** The rows that have the text (any case) in their line, summary, source, destination, kind, route or channel (RF, iGate, Internet); all for an empty text. */
-export function filterPackets(rows: readonly PacketRow[], filter: string): PacketRow[] {
+export function filterPackets(rows: readonly PacketRow[], filter: string, named = false): PacketRow[] {
   const needle = filter.trim().toLowerCase();
   if (needle === "") return [...rows];
   return rows.filter((r) =>
-    `${r.tnc2} ${r.summary} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route} ${packetLabel(r.via)}`.toLowerCase().includes(needle),
+    `${r.tnc2} ${r.summary} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route} ${packetLabel(r.via, r.radio, named)}`
+      .toLowerCase()
+      .includes(needle),
   );
 }
 

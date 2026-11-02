@@ -1,4 +1,4 @@
-"""The daemon: python -m neoaprs [--data DIR] [--port PATH] [--web-port N] [--debug]
+"""The daemon: python -m neoaprs [--data DIR] [--port PATH] [--hf-port URL] [--web-port N] [--debug]
 
 One process, one asyncio loop. Everything NeoAPRS keeps is in one database, data/neoaprs.sqlite; the log is data/neoaprs.log, rotated and bounded; only what matters for `systemctl status`
 goes to stderr (warnings, errors and the lines of the migrations; not when stderr is a file, where a launcher keeps what is said before the log exists). SIGTERM, SIGINT and SIGHUP (on Windows SIGINT, SIGTERM and SIGBREAK) end the program the same way, and so does the file `neoaprs.stop` in the data folder (`neoaprs stop`, neoaprs/stopfile.py); a second signal while it closes ends the process at once. Exit code 2: the database cannot be used, or another NeoAPRS has the data folder; a
@@ -190,7 +190,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     def page(ctl: Controller, config: Config) -> WebServer:
         return WebServer(ctl, config if args.web_port is None else replace(config, web_port=args.web_port))
 
-    controller = Controller(data_dir, busy_ms=3000, port=args.port, web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
+    controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)
@@ -237,6 +237,7 @@ def build_parser(prog: str = "neoaprs") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=prog, description="An APRS client: reads the KISS port of a radio and shows the stations it hears.")
     parser.add_argument("--data", default=str(default_data_dir()), help="the data directory: neoaprs.sqlite (everything NeoAPRS keeps) and the log; default %(default)s")
     parser.add_argument("--port", default="", metavar="PATH", help="the radio's port for this run only (the setting serial/port is not changed): /dev/ttyUSB0, COM3, socket://host:port for KISS over TCP (Direwolf: socket://127.0.0.1:8001), bt://AA:BB:CC:DD:EE:FF for a paired Bluetooth device (Linux), ble://AA:BB:CC:DD:EE:FF for a Bluetooth LE KISS TNC (needs the extra ble), a replay's pseudo-terminal")
+    parser.add_argument("--hf-port", default="", metavar="URL", help="the HF radio's Mercury for this run only, one that something else runs (socket://127.0.0.1:8100: its KISS port, the control port 200 above), instead of the one the daemon starts; the benches' way")
     parser.add_argument("--web-port", type=_port, default=None, metavar="N", help="the page's port for this run only (the setting web/port is not changed); 0 is a free port, which the log tells")
     parser.add_argument("--debug", action="store_true", help="log more (also NEOAPRS_DEBUG=1)")
     parser.add_argument("--encryption", action="store_true", help="allow encrypted messages between two stations that have each other's key (the amateur regulations forbid it in ordinary use: for the circumstances that allow it)")

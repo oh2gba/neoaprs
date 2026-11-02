@@ -69,6 +69,7 @@ class MessageRecord:
     route: str = ""                                       # how the packet reached us, "direct" or "via OH2RCH-2" (neoaprs/route.py), for a message that was heard; empty for one of ours
     seal: Seal = ""                                       # what the message is besides text: "" plain; "key" an announcement of the sender's public key (neoaprs/cipher.py); "key_other" one that differs from the key kept and was not taken; "open" encrypted and read; "shut" encrypted and not readable here
     wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
+    radio: str = ""                                      # the radio a message that came in came on (`fm`, `hf`; empty for one of ours, whose attempts say, and for one kept before there were two)
 
     @property
     def peer(self) -> str:

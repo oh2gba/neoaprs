@@ -8,6 +8,7 @@ import EmailList from "@/components/EmailList.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useFmOff } from "@/composables/useRadiosOn";
 import { tncNotConnected } from "@/lib/compose";
 import { checkingMail } from "@/lib/email";
 import type { MessageRow } from "@/protocol/protocol";
@@ -26,7 +27,8 @@ const emit = defineEmits<{
 }>();
 
 const checking = computed(() => checkingMail(props.thread));
-const away = computed(() => (!connected.value ? tncNotConnected() : checking.value ? t("email.checking") : undefined));
+const fmOff = useFmOff();
+const away = computed(() => (fmOff.value ? t("email.fm_off") : !connected.value ? tncNotConnected() : checking.value ? t("email.checking") : undefined));
 </script>
 
 <template>

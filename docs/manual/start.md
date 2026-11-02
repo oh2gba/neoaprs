@@ -16,19 +16,19 @@ On a fresh install the page opens a guide in four steps. It opens by itself once
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the My station tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
 3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
-4. **Radio.** The type of TNC, and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)). **Finish** is on this step.
+4. **Radio.** The same two boxes as Settings → Radio, each with its **Enable** tickbox: **FM radio**, ticked, with the type of TNC and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)), and **HF radio**, unticked, which is its Enable alone because the sound card and the keying find themselves (Settings has them for an override). A station with an HF radio alone ticks HF and unticks FM. **Finish** is on this step.
 
 The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), unless the detailed map it has covers the place already, so that it is there soon after the guide. A quiet line in the guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done.
 
 The radius (150 km unless you change it) and the **Download map** button are in Settings → Map ([page.md](page.md#the-base-map)).
 
-The Radio step has two helpers under its fields, the same as the Settings tab:
+The Radio step has two helpers under the fields of the FM radio, the same as the Settings tab:
 
 - **Find my radio** tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
 - **Terminal**, closed until you open it, shows what the TNC saw and did. Opening it puts the radio you chose in force, so that it shows that radio.
 - The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radio)).
 
-**Finish** saves what you set. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
+**Finish** saves what you set, the two Enable tickboxes too. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
 
 **Nothing is transmitted until a call is set.** While the call is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits, with at least one of each), NeoAPRS only listens: no beacon, status, message, ack, object, bulletin or answer to a query. A message is refused with "set your call first", and the header says "no call set". The commands that put the TNC in KISS are not transmissions and go on.
 

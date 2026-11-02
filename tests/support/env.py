@@ -37,6 +37,7 @@ from neoaprs.station import Station
 from neoaprs.tnc import Tnc
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
+from tests.support.fakemercury import FakeMercury
 from tests.support.fakeradio import FakeRadio
 from tests.support.ptyline import close_pty, feed as feed_pty, heard as heard_pty, make_pty
 from tests.support.wsclient import WsClient, connect
@@ -132,7 +133,7 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
 
 
 class Env:
-    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
+    def __init__(self, tmp_path: Path, clock: Clock | None = None, radio: bool | str | FakeRadio = True, ports: Path | None = None, web: bool = False, operator: bool = True, settings: dict[str, str] | None = None, hf: FakeMercury | None = None, auto_map: bool = False, **tnc_options: Any) -> None:
         self.dir = tmp_path
         self.settings = {**OPERATOR, **(settings or {})}          # the rows of the operator's data folder at the first start: a test about the keep-alive turns it on with `check_sec`
         self.operator = operator
@@ -145,11 +146,18 @@ class Env:
         self.master = -1                                      # the master descriptor of the radio's pty (radio="pty")
         self.link = ""                                        # the port the daemon opens: the radio's url, or the path of its pty
         self.radio: FakeRadio | None = None
+        self.hf_radio: FakeMercury | None = None               # the station of the fake Mercury's air that is this daemon's HF radio (`hf`, or `radio` when that is one: a station with the HF radio alone)
+        self.hf_link = ""                                     # what --hf-port is given: the fake Mercury's KISS port
         self._extra_radios: list[FakeRadio] = []
         options: dict[str, Any] = {"pattern": str(self.ports / "probe_*"), "check_sec": 0.0, "settle_sec": 0.15, "probe_seconds": 0.3, "backoff": Backoff([0.05, 0.05])}
         self.tnc = Tnc(clock=self.now, **{**options, **tnc_options})
         check_sec = float({**options, **tnc_options}["check_sec"])
-        if isinstance(radio, FakeRadio):                     # (a radio made elsewhere: a station of the fake Mercury's air, tests/support/fakemercury.py)
+        if isinstance(radio, FakeMercury):                   # (a station of the fake Mercury's air alone: the HF radio, and no FM radio)
+            hf, radio = radio, False
+        if hf is not None:
+            self.hf_radio, self.hf_link = hf, hf.url
+            self.settings = {**self.settings, "hf/enabled": "true", **({} if radio else {"fm/enabled": "false"})}
+        if isinstance(radio, FakeRadio):                     # (a radio made elsewhere)
             self.radio = radio
             self.link = radio.url
         elif radio == "pty":
@@ -159,7 +167,8 @@ class Env:
             self.link = self.radio.url
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
-        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map)
+        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link)
+        self.hf = self.ctl.hf                                  # the HF radio's Tnc (stopped unless the settings tick hf/enabled)
         self.ctl.mercury.ports = lambda: []                   # (the Mercury modem's choice of a keying line never reads the operator's serial ports in a test)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
@@ -224,17 +233,24 @@ class Env:
             shutil.rmtree(self.ports, ignore_errors=True)
 
     # ---- life
+    @property
+    def active(self) -> Tnc:
+        """The radio a test of one radio means: the FM one while it is on, else the HF one."""
+        return self.tnc if self.settings.get("fm/enabled", "true") != "false" else self.hf
+
     async def start(self, connected: bool = True) -> None:
         if self.radio is not None:
             await self.radio.start()
+        if self.hf_radio is not None:
+            await self.hf_radio.start()
         if self.operator:
             self.ctl.data_dir.mkdir(parents=True, exist_ok=True)
             await self.ctl.open_database()
             if await self.ctl.store.setting("station/call") is None:      # (a data folder that was set up before keeps its own call)
                 await self.ctl.store.put_settings(self.settings)
         await self.ctl.start()
-        await until(lambda: self.tnc.state is not Source.State.STOPPED)      # (the Tnc is started in a task)
-        if connected and self.link:
+        await until(lambda: self.active.state is not Source.State.STOPPED)      # (the Tnc is started in a task)
+        if connected and (self.link or self.hf_link):
             await self.until_connected()
 
     async def stop(self) -> None:
@@ -242,12 +258,16 @@ class Env:
 
     async def until_usable(self) -> None:
         """The Tnc is connected and settled: past the wait after KISS ON, so that what the daemon sends from here on is not thrown away."""
-        await until(lambda: self.tnc.usable)
+        await until(lambda: self.active.usable)
 
     async def until_connected(self) -> None:
-        await until(lambda: self.tnc.state is Source.State.CONNECTED)
-        if self.radio is not None:
-            await self.radio.connected()                      # (the radio has accepted the connection the Tnc made)
+        if self.settings.get("fm/enabled", "true") != "false":
+            await until(lambda: self.tnc.state is Source.State.CONNECTED)
+        if self.hf_link:
+            await until(lambda: self.hf.state is Source.State.CONNECTED)
+        for radio in (self.radio, self.hf_radio):
+            if radio is not None:
+                await radio.connected()                       # (the radio has accepted the connection its Tnc made)
 
     # ---- the page's server
     @property

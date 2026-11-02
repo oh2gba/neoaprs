@@ -1,10 +1,10 @@
-// Which settings are there for the radio in use: the fields of a TNC profile's transport, and what the rules of the radio (the `rules` of the tnc topic, the daemon's one fact about it) leave out.
+// Which settings are there for the radios in use: the fields of the FM radio's TNC profile (its transport), and what a radio that is off leaves out (the HF radio has no paths, no digipeater and no moving station).
+import { fmOn, hfOn } from "@/lib/radiosides";
 import { profileOf } from "@/lib/tncprofile";
-import type { RadioRulesState } from "@/protocol/protocol";
 
 const SERIAL_ONLY = ["serial/port", "serial/baud"];
 
-/** Whether a setting is shown for the chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one; the access key while the daemon lets the network in (`network`) and has made one.
+/** Whether a setting is shown for the FM radio's chosen TNC profile: the host and port for one that is reached over TCP, the port and speed for a serial one (the sound card and the keying are the HF radio's and always there); the access key while the daemon lets the network in (`network`) and has made one.
  * The port the search found last is no field: the port's own control says it. */
 export function shownFor(key: string, profileKey: string | undefined, network = true): boolean {
   if (key === "web/key" || key === "web/https") return network;
@@ -12,23 +12,18 @@ export function shownFor(key: string, profileKey: string | undefined, network = 
   const profile = profileOf(profileKey);
   if (!profile) return true;
   if (key.startsWith("tcp/")) return profile.transport === "tcp";
-  if (key.startsWith("mercury/")) return profile.transport === "modem";
   if (SERIAL_ONLY.includes(key)) return profile.transport === "serial";
   return true;
 }
 
-/** The keys that are there only on a radio whose network has digipeaters (FM): the path and the digipeater. */
+/** The keys that are there only for the FM radio, whose network has digipeaters: the path and the digipeater. */
 const PATH_KEYS = ["beacon/path", "digi/enabled"];
-/** The keys of a moving station: where the position comes from and how it travels, which a radio without SmartBeaconing (HF) has no use for. */
-const MOVING_KEYS = ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel"];
+/** What a moving station travels as: SmartBeaconing's preset, which is FM's. (The GPS itself, the Position choice and where the receiver is, stay: a station on HF alone can move, with the timed beacon.) */
+const MOVING_KEYS = ["beacon/travel"];
 
-/** Whether a setting is there for the rules of the radio in use (the `rules` of the tnc topic, the daemon's one fact about the radio; null before it has said: everything is there, as before): the HF beacon's own
- * interval only on an HF radio and the usual one only elsewhere, the path and the digipeater only where the network has digipeaters, the moving station's keys only where SmartBeaconing applies. */
-export function shownByRules(key: string, rules: RadioRulesState | null): boolean {
-  if (rules === null) return key !== "hf/beacon_interval_min";
-  if (key === "hf/beacon_interval_min") return rules.kind === "hf";
-  if (key === "beacon/interval_min") return rules.kind !== "hf";
-  if (PATH_KEYS.includes(key)) return rules.paths;
-  if (MOVING_KEYS.includes(key)) return rules.smart_beacon;
+/** Whether a setting is there for the radios that are on (`fm/enabled` and `hf/enabled` of the values): the one Beacon choice while any radio is, and the path, the digipeater and Travelling while FM is. */
+export function shownByRadios(key: string, values: Readonly<Record<string, string>>): boolean {
+  if (key === "beacon/interval_min") return fmOn(values) || hfOn(values);
+  if (PATH_KEYS.includes(key) || MOVING_KEYS.includes(key)) return fmOn(values);
   return true;
 }

@@ -19,6 +19,18 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.group.station": "Estação",
   "settings.group.tnc": "Rádio",
+  "settings.group.fm_radio": "Rádio FM",
+  "settings.group.hf_radio": "Rádio HF",
+  "settings.fm_enabled.name": "Rádio FM",
+  "settings.fm_enabled.tip_label": "Sobre o rádio FM",
+  "settings.fm_enabled.tip1": "Seu rádio VHF e o TNC dele: a rede local, com digipeaters, caminhos e um beacon que segue um GPS.",
+  "settings.fm_enabled.tip2": "Desmarque numa estação só com o rádio HF; os ajustes de FM são mantidos.",
+  "settings.hf_enabled.name": "Rádio HF",
+  "settings.hf_enabled.tip_label": "Sobre o rádio HF",
+  "settings.hf_enabled.tip1": "Um rádio SSB em HF com o modem Mercury que vem no NeoAPRS: todo quadro sai direto, sem caminho nem digipeater.",
+  "settings.hf_enabled.tip2":
+    "Os dois rádios podem estar ligados: toda estação ouvida em qualquer um está no mapa, e uma ouvida nos dois recebe as mensagens por FM.",
+  "settings.enable.only_radio_title": "O único rádio da estação: marque o outro primeiro",
   "settings.group.web": "Página web",
   "settings.group.notifications": "Notificações",
   "settings.group.encrypt": "Mensagens criptografadas",
@@ -257,9 +269,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.beacon_interval.tip2": "30 minutos servem para uma estação que fica parada.",
   "settings.beacon_interval.tip_moving":
     "Ligado: o SmartBeaconing envia a posição GPS, mais vezes quanto mais rápido você vai e em cada curva. Desligado: sem beacon automático.",
-  "settings.hf_beacon.tip1":
-    "Com que frequência sua posição sai pelo rádio de HF: no máximo a cada {min} min. Desligado: sem beacon automático; Beacon agora ainda envia.",
-  "settings.hf_beacon.tip2": "Uma hora cai bem em HF: um quadro ocupa 4 segundos de um canal que todas as estações compartilham.",
   "settings.path.name": "Caminho do beacon",
   "settings.path.label": "Caminho",
   "settings.path.recommended": "Recomendado ({path})",

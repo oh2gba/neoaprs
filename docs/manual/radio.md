@@ -49,7 +49,7 @@ The button **Find my radio**, behind the arrow of the Radio group and under the 
 
 ## The radio status
 
-The Radio group of the Settings tab is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the group; it is closed unless the radio is not connected.
+Each radio box of the Radio group of the Settings tab, after its Enable tickbox, is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the box; it is closed unless the radio is not connected.
 
 - The state is a coloured word: connected, waiting, silent, and so on.
 - One plain line follows. "Last packet 2 min ago", "Searching for the radio…" with the ports it listens to behind **Ports**, "Not connected: the reason", or for a silent radio since when it said nothing. The packet and byte counts are its hover text.
@@ -75,16 +75,20 @@ The type **Dummy (no radio, made-up traffic)**, the last in the list of **Radio 
 
 ## The Mercury HF modem
 
-The type **Mercury HF modem (sound card, SSB radio)** is APRS over HF with the Mercury modem, a separate program that NeoAPRS starts and stops itself. Which installs carry it and the rules of the air are in [`docs/RADIOS.md`](../RADIOS.md#mercury-hf-modem). The type has two settings of its own, behind the arrow of the Radio group, and no port, speed or host.
+The Radio group of the Settings tab has two boxes, **FM radio** and **HF radio**, each with its tickbox first. The FM radio is the TNC of the pages above (the type, the port, the speed; ticked by default). The
+**HF radio** is APRS over HF with the Mercury modem, a separate program that NeoAPRS carries and starts and stops itself; tick it and the station is on HF beside FM, or on HF alone with the FM box unticked.
 
-- **Sound card** is the radio's. *Find automatically*, the first choice, lets NeoAPRS pick it (the one USB sound card that records and plays, else the system's default device) and says beside the field which it chose; the list is what Mercury finds, **Refresh** reads it again, and *Other...* takes an id typed.
-- **Keying** is how the radio is switched to transmit. *Find automatically* picks RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX, and says so beside the field; or choose VOX, a CM108 sound chip, or the RTS or DTR line of one of the serial ports the system lists.
+Which installs carry it and the rules of the air are in [`docs/RADIOS.md`](../RADIOS.md#mercury-hf-modem). The HF box has two fields of its own behind the arrow of its status line, and no port, speed or host.
+
+- **Sound card** is the radio's. *Find automatically*, the first choice, lets NeoAPRS pick it (the one USB sound card that records and plays, else the system's default device) and says beside the field which it chose; the list is what Mercury finds, **Refresh** reads it again, and *Other...* takes a name typed in.
+- **Keying** is how the radio is switched to transmit. *Find automatically* picks RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX, and says so beside the field; or choose VOX, a CM108 sound chip, or the RTS or DTR line of one of the serial ports the list offers.
 - The mode and the frequencies are not settings: every NeoAPRS station is on the same mode, and the frequencies are in the radios guide.
-- The beacon over HF has an interval of its own in the My station tab (Off, or every 15, 30 or 60 minutes or every 3 hours; an hour by default), shown in place of the usual one while the HF radio is the radio. It is the timed beacon of a fixed station: the GPS and Travelling do not apply over HF.
-- Every frame goes direct: there are no digipeaters on HF, so no path is sent, the path and RF only controls of the beacon, a conversation, Ask around and Local info are not shown, and the Digipeater group is not there. The path settings are kept for VHF.
-- The radio status says what the modem does: *Transmitting…* while a frame is on the air, *Channel busy, waiting* while the modem hears a signal, else the last packet as for any radio. When Mercury has stopped, or this installation carries none, the status says so.
+- The Beacon choice of the My station tab is one for both radios: while the HF radio is on its floor is 30 minutes, the HF beacon adds a random pause of up to five minutes, and behind the status row's arrow a line per radio says each one's last and next beacon. Over HF the beacon is a timed one: SmartBeaconing is the FM radio's, and a moving station's HF beacon says where it is now.
+- Every frame goes direct: there are no digipeaters on HF, so no path is sent. With both radios a message goes out on FM when the station was heard on FM (near, quick, and HF airtime is everyone's) and over HF when it was heard on HF alone; an ack or an answer goes back the way the request came. The path and RF only controls of a conversation are there for a station heard on FM, the path of the beacon, Ask around and Local info and the Digipeater group while the FM radio is on; with the HF radio alone none of them is there, and the path settings are kept.
+- A station heard over HF has the tag **HF** in the Stations tab, beside **FM** when it was heard both ways: while the HF radio is on, the FM radio's tag says FM in place of RF.
+- Each box has its own status line: *Transmitting…* while a frame is on the air, *Channel busy, waiting* while the modem hears a signal, else the last packet as for any radio. When Mercury has stopped, or this installation carries none, the HF box's line says so. The header has the one **Radio** mark while one radio is on, and **FM radio** and **HF radio** marks while both are, each in the colour of its state and leading to its box.
 - A beacon's comment is cut to the modem's frame when it would not fit, with a line in the log; the longest message always fits.
-- In the setup guide the type needs nothing more.
+- The Radio step of the setup guide has the same two boxes with their Enable tickboxes: the FM radio's fields as ever, and for the HF radio its Enable alone, since the sound card and the keying find themselves.
 
 ## The TNC type
 
@@ -94,7 +98,6 @@ The setting `tnc/profile` says what kind of TNC the radio is. It decides what, i
 |---|---|---|---|---|
 | `kiss` (default) | Mobilinkd TNC3 and TNC4 (USB or Bluetooth serial), NinoTNC (set the speed to 57600), TNC-Pi, TNC-X, the Kenwood TH-D74 and TH-D75 with KISS switched on at the radio (`[F]` then `[LIST]` on the D75), any TNC that is in KISS when it is switched on | nothing | nothing | no |
 | `kiss-tcp` | Direwolf (8001), UZ7HO SoundModem and QtSoundModem (8100): a program that serves KISS over TCP | nothing | nothing | no |
-| `mercury` | the Mercury HF modem, which NeoAPRS starts itself and reaches as KISS over TCP on this computer ([above](#the-mercury-hf-modem)) | nothing | nothing | no |
 | `kenwood-tnc2` | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | `kenwood-d710` | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |
 | `kantronics` | Kantronics KPC-3+, KPC-3, KAM | `\rINTFACE KISS\rRESET\r` (3 s) | `C0 FF C0` | yes |

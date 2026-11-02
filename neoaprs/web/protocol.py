@@ -60,7 +60,8 @@ class TopicValues(_Model):
     """The value of each topic a page follows (neoaprs/web/topics.py): what `state` carries as `value`, and what `patch` replaces."""
     stations: dict[str, StationRow] = Field(description="the station book by call: a station heard again is a `set` of its row, one that is forgotten or pruned a `del`")
     packets: dict[str, PacketRow] = Field(description="the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest")
-    tnc: TncState = Field(description="the radio; told whole as it changes, at most four times a second")
+    tnc: TncState = Field(description="the FM radio (the KISS TNC); told whole as it changes, at most four times a second")
+    hf: TncState = Field(description="the HF radio (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second")
     config: ConfigValues = Field(description="the settings; told again after every save, though nothing differs: the settings form waits for it")
     station_prefs: dict[str, StationPref] = Field(description="what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. "
                                                    "`set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it")

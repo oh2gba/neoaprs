@@ -71,7 +71,7 @@ async def test_every_attempt_keeps_the_time_it_was_sent_and_the_path_it_went_by(
     await chain.rig.m.send("OH2RDG", "Hello Pekka")
     await chain.rig.pass_time(32)
     assert [(a.number, a.sent_at, a.path, a.seen) for a in chain.rig.m.delivery.attempts_of(1)] == [(1, first, ("OH2RCH-2", "OH2RDG"), ()), (2, chain.clock(), ("OH2RCH-2", "OH2RDG"), ())]
-    assert [row[:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, 1, "OH2RCH-2,OH2RDG"), (1, 2, "OH2RCH-2,OH2RDG")]
+    assert [row[:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, 1, "OH2RCH-2,OH2RDG", "fm"), (1, 2, "OH2RCH-2,OH2RDG", "fm")], "the path and the radio of each attempt"
 
 
 async def test_a_copy_with_the_first_digipeater_used_marks_hop_1_and_a_later_copy_with_the_second_marks_hop_2(chain: Chain) -> None:

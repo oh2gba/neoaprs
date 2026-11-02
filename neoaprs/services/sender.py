@@ -11,7 +11,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, our_frame, radio_path
+from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, RadioSet, fit_frame, our_frame, radio_path
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.source import Source
 
@@ -50,25 +50,33 @@ class Sender:
         self.problem = ""
         return True
 
-    def frame(self, info: bytes, path: tuple[str, ...] | None) -> ax25.Frame:
-        """Our frame with this information field by this path (None: `beacon/path`), its comment cut to what a radio with a fixed frame carries (said in the log). Raises SendError."""
+    def radios_for(self, choice: str) -> list[Radio]:
+        """The radios an object's choice names (`fm`, `hf`, `both`) among those that are on; the default radio when none of them is (one radio on: everything goes on it, whatever was chosen)."""
+        if not isinstance(self._tnc, RadioSet):
+            return [self._tnc]
+        found = [radio for kind in (("fm", "hf") if choice == "both" else (choice,)) if (radio := self._tnc.of(kind)) is not None]
+        return found or [self._tnc]
+
+    def frame(self, info: bytes, path: tuple[str, ...] | None, radio: Radio | None = None) -> ax25.Frame:
+        """Our frame with this information field by this path (None: `beacon/path`) for `radio` (the default radio when none is named), its comment cut to what a radio with a fixed frame carries (said in the log). Raises SendError."""
         c = self._config()
-        calls = radio_path(self._tnc, c.beacon_path_calls if path is None else path)
+        tnc = radio or self._tnc
+        calls = radio_path(tnc, c.beacon_path_calls if path is None else path)
         if len(info) > ax25.MAX_INFO:
             raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
         try:
             frame = our_frame(c, calls, info)
-            fitted = fit_frame(frame, self._tnc.max_frame)
+            fitted = fit_frame(frame, tnc.max_frame)
         except FRAME_ERRORS as e:
             raise SendError(str(e)) from None
         if fitted is not frame:
-            log.warning("a frame of ours is %d bytes more than the radio carries (%d): its comment is cut: %s", len(ax25.encode(frame)), self._tnc.max_frame, fitted.tnc2())
+            log.warning("a frame of ours is %d bytes more than the radio carries (%d): its comment is cut: %s", len(ax25.encode(frame)), tnc.max_frame, fitted.tnc2())
         return fitted
 
-    def send(self, info: bytes, path: tuple[str, ...] | None) -> bool:
-        """Sends the frame through the Tnc; False when the Tnc would not take it (it is settling, or the write failed): it is tried again at the next tick. Raises SendError."""
-        frame = self.frame(info, path)
-        if not self._tnc.send_frame(frame):
+    def send(self, info: bytes, path: tuple[str, ...] | None, radio: Radio | None = None) -> bool:
+        """Sends the frame through the Tnc (`radio`, else the default radio); False when the Tnc would not take it (it is settling, or the write failed): it is tried again at the next tick. Raises SendError."""
+        frame = self.frame(info, path, radio)
+        if not (radio or self._tnc).send_frame(frame):
             self.problem = "the TNC did not take the frame (it is restarting into KISS mode, or the write failed)"
             return False
         self._last = self.clock()

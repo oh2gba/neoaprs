@@ -15,7 +15,7 @@ from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
-from .radiorules import HF_BEACON_DEFAULT_MIN, HF_BEACON_MIN_MIN, RadioRules
+from .radiorules import HF_BEACON_MIN_MIN, RadioRules
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, Profile, names_tcp, profile_of
@@ -51,7 +51,6 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "beacon/antenna_height_m": (0, 9999),
     "beacon/antenna_gain_db": (0, 9),
     "beacon/interval_min": (MIN_BEACON_INTERVAL_MIN, 1440),
-    "hf/beacon_interval_min": (HF_BEACON_MIN_MIN, 1440),
     "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
@@ -107,6 +106,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
+    Setting("hf_enabled", "hf/enabled", boolean),                           # true: the HF radio (the Mercury modem the daemon starts, with mercury/*) is there beside the FM one, or alone (neoaprs/radios.py)
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
     Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
@@ -114,6 +114,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
     Setting("station_transmit", "station/transmit", boolean),               # false: receive only, nothing is transmitted whatever is asked or due (can_transmit); kept in the database, so it holds after a restart
+    Setting("fm_enabled", "fm/enabled", boolean),                           # true: the FM radio (the KISS TNC of tnc/profile) is there; false: no FM radio, no port searched, no FM beacon (a station with the HF radio alone)
     Setting("station_lat", "station/lat", optional_float(*LATITUDE)),     # empty: no position (no beacon; the map opens on the world)
     Setting("station_lon", "station/lon", optional_float(*LONGITUDE)),
     Setting("station_symbol_table", "station/symbol_table", symbol_table),
@@ -130,7 +131,6 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
     Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: the beacon is off, for a moving station too (any other value is On there, and unused)
-    Setting("hf_beacon_interval_min", "hf/beacon_interval_min", int_or_off(*RANGES["hf/beacon_interval_min"]), HF_BEACON_MIN_MIN),   # the beacon over the HF radio (Mercury): 0 is off, else at least 15 minutes, 60 by default; the VHF beacon's own setting is not touched
     Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
     Setting("messages_alert_command", "messages/alert_command", text_of(MAX_ALERT_COMMAND)),    # a shell line, run with NEOAPRS_FROM, NEOAPRS_TEXT, NEOAPRS_AT and NEOAPRS_MSG_ID in its environment; empty: none
@@ -155,11 +155,12 @@ SETTINGS: tuple[Setting, ...] = (
 )
 BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
-BEACON_SENT = "beacon/last_sent_at"          # the rows the beacon and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
+BEACON_SENT = "beacon/last_sent_at"          # the rows the beacons and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
+HF_BEACON_SENT = "hf/beacon_last_sent_at"    # the HF beacon's (neoaprs/radios.py: the two beacons share the interval and have each their own last send)
 STATUS_SENT = "status/last_sent_at"
 STATUS_TEXT = "status/last_text"
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
-STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO)
+STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO, HF_BEACON_SENT)
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 
 
@@ -170,6 +171,7 @@ class Config:
     serial_baud: int | None = None
     tcp_host: str = "127.0.0.1"
     tcp_port: int = 8001
+    hf_enabled: bool = False
     mercury_sound_card: str = ""
     mercury_keying: str = ""
     serial_last_port: str = ""
@@ -177,6 +179,7 @@ class Config:
     serial_skip: str = ""
     station_call: str = ""
     station_transmit: bool = True
+    fm_enabled: bool = True
     station_lat: float | None = None
     station_lon: float | None = None
     station_symbol_table: str = "/"
@@ -193,7 +196,6 @@ class Config:
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
-    hf_beacon_interval_min: int = HF_BEACON_DEFAULT_MIN
     beacon_path: str = ""
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
@@ -232,8 +234,16 @@ class Config:
         return PRESETS[self.beacon_travel]
 
     def beacon_interval_of(self, rules: RadioRules) -> int:
-        """The beacon interval of a radio of this kind, in minutes (0: off): the HF radio has its own (`hf/beacon_interval_min`), every other radio `beacon/interval_min`."""
-        return self.hf_beacon_interval_min if rules.kind == "hf" else self.beacon_interval_min
+        """The beacon interval of a radio of this kind, in minutes (0: off): the one setting `beacon/interval_min`, raised to the HF floor (HF_BEACON_MIN_MIN) while the HF radio is on, for both radios: one timer
+        for one station, and not very often while a shared HF channel is one of its radios (the beacon says so in the log when it raises it)."""
+        interval = self.beacon_interval_min
+        return max(interval, HF_BEACON_MIN_MIN) if interval and self.hf_enabled else interval
+
+    def radio_refusal(self) -> SettingError | None:
+        """Why the two tickboxes do not go together, or None when they do: a station has at least one radio (the page greys the last one that is on, so this is for the shell)."""
+        if not self.fm_enabled and not self.hf_enabled:
+            return SettingError("hf/enabled", "setting.no_radio", {}, "hf/enabled: a station has at least one radio: tick the FM radio or the HF radio")
+        return None
 
     @property
     def station_position(self) -> tuple[float, float] | None:
@@ -253,8 +263,8 @@ class Config:
         return self.serial_baud or self.profile.baud or 9600
 
     def port_refusal(self, key: str = "tnc/profile") -> SettingError | None:
-        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, and a modem the daemon starts to that modem, not to a serial device (a `tcp://` address in serial/port is fine)."""
-        if self.profile.transport in ("tcp", "modem") and self.serial_port and not names_tcp(self.serial_port):
+        """Why the profile and serial/port do not go together, or None when they do: a TCP profile connects to tcp/host and tcp/port, not to a serial device (a `tcp://` address in serial/port is fine)."""
+        if self.profile.transport == "tcp" and self.serial_port and not names_tcp(self.serial_port):
             return SettingError(key, "setting.profile_port", {"profile": self.profile.name, "port": self.serial_port},
                                 f"{key}: {self.profile.name} connects over TCP (tcp/host and tcp/port), not to the serial port {self.serial_port}: clear serial/port, or choose a serial TNC")
         return None
@@ -322,6 +332,8 @@ class Config:
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
             raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
+        if {"fm/enabled", "hf/enabled"} & parsed.keys() and (refusal := config.radio_refusal()):
+            raise refusal
         if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
             raise refusal
         return config

@@ -24,6 +24,7 @@ class AttemptRow(_Model):
     hops: list[HopRow] = Field(description="the digipeaters of the path the attempt went by, in order; empty for a direct path")
     internet: str | None = Field(description="the call of the iGate that put a copy of the message back on the air as a third-party packet, when one was heard for this attempt; null otherwise")
     acked: bool = Field(description="the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers")
+    radio: Literal["", "fm", "hf"] = Field(description="the radio the attempt went out on: `fm` the FM radio, `hf` the HF modem (direct, no path); empty for an attempt kept before there were two radios")
 
 
 class MessageRow(_Model):
@@ -37,6 +38,7 @@ class MessageRow(_Model):
     to_call: str = Field(description="the addressee: our call for a message sent to us, the other station for one of ours, whoever it is for when overheard")
     text: str
     msg_id: str | None = Field(description="the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one")
+    radio: Literal["", "fm", "hf"] = Field(description="the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios")
     state: Literal["queued", "sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"] = Field(
         description="`queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; "
                     "`received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for)")

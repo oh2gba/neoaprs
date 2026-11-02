@@ -30,8 +30,9 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False) -> None:
-        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map, encryption)
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False,
+                 hf: Tnc | None = None, hf_port: str = "") -> None:
+        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map, encryption, hf, hf_port)
         self._web_factory = web
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
@@ -69,6 +70,7 @@ class Controller(Services):
         await self.bulletins.start()
         await self.gps.start()
         await self.beacon.start()
+        await self._hf_beacon_as_set()
         await self.igate.start()
         await self.ownobjects.start()
         await self.ownbulletins.start()
@@ -103,7 +105,7 @@ class Controller(Services):
         return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_tnc), ("the update check", self.updatecheck.stop), ("the ALOHA circle", self.aloha.stop),
                 ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
                 ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
-                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the tasks", self.tasks.cancel_all)]
+                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the HF beacon", self.hf_beacon.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the tasks", self.tasks.cancel_all)]
 
     # ---- the page
     async def _start_web(self) -> None:
@@ -119,26 +121,45 @@ class Controller(Services):
         if web is not None:
             await web.stop()
 
-    # ---- the radio
+    # ---- the radios
     def start_tnc(self) -> None:
-        """(Re)starts the Tnc with the settings as they are now, in a task: finding the port can take as long as 20 s a port, and nothing waits for it. A start that is still looking for the
-        port is ended first."""
+        """(Re)starts the radios with the settings as they are now, in a task: finding the FM radio's port can take as long as 20 s a port, and nothing waits for it. A start that is still looking for the
+        port is ended first. A radio whose tickbox is off stays stopped."""
         self._tnc_task = self.tasks.spawn(self._restart_tnc(self._tnc_task), "tnc")
 
     async def _restart_tnc(self, previous: "asyncio.Task[None] | None") -> None:
         if previous is not None:
             await cancel_all([previous])
         await self.tnc.stop()
+        await self.hf.stop()
         await self.mercury.stop()
-        if self.config.profile.transport == "modem":
-            await self.mercury.start(self.config, self.port_override)       # (the modem first: it chooses the ports the Tnc then connects to; a port given for this run is a Mercury something else runs)
+        if self.config.hf_enabled:
+            await self.mercury.start(self.config, self.hf_port_override)       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs)
         self._configure_tnc()
-        await self.tnc.start()
+        if self.config.fm_enabled:
+            await self.tnc.start()
+        if self.config.hf_enabled:
+            await self.hf.start()
+        if self.running:
+            await self._hf_beacon_as_set()
+
+    async def _hf_beacon_as_set(self) -> None:
+        """The HF beacon runs while the HF radio is on and not otherwise (a beacon service of a radio that is off would only say, at every tick, why nothing goes)."""
+        if self.config.hf_enabled:
+            await self.hf_beacon.start()
+        else:
+            await self.hf_beacon.stop()
 
     def _configure_tnc(self) -> None:
-        """The Tnc, which is stopped, takes the settings as they are now."""
-        wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override, self.mercury.broadcast_port))
+        """The radios, which are stopped, take the settings as they are now."""
+        wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
+        wiring.apply_tnc_settings(self.hf, wiring.hf_settings(self.config, self.hf_port_override, self.mercury.broadcast_port))
         self.tnc.set_check(self.check_sec)
+        self.hf.set_check(self.check_sec)
+
+    def _radio_settings(self, config: Config) -> tuple[object, ...]:
+        """What a change of restarts the radios: either radio's settings, or a tickbox."""
+        return (wiring.tnc_settings(config, self.port_override, self.pattern_override), wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.fm_enabled, config.hf_enabled)
 
     async def hold_tnc(self) -> None:
         await self._stop_tnc()
@@ -152,11 +173,12 @@ class Controller(Services):
         if task is not None:
             await cancel_all([task])
         await self.tnc.stop()
+        await self.hf.stop()
         await self.mercury.stop()
 
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
-        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the Tnc when the port, the speed or entering KISS changed. False when the
+        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the radios when either's port, speed, type, sound card, keying or tickbox changed. False when the
         database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
         async with self.config_lock:
             return await self._save(config)
@@ -171,13 +193,13 @@ class Controller(Services):
         if not await self.store.put_settings({key: text for key, text in config.to_data().items() if key in stored}):        # (only what this save changes: a key written by `neoaprs db set` in the meantime stays)
             return False
         self._implied = set()
-        before = wiring.tnc_settings(self.config, self.port_override, self.pattern_override, self.mercury.broadcast_port)
+        before = self._radio_settings(self.config)
         previous, self.config = self.config, config
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
         self.igate.settings_changed()
-        if wiring.tnc_settings(config, self.port_override, self.pattern_override, self.mercury.broadcast_port) != before:
+        if self._radio_settings(config) != before:
             self.start_tnc()
         self.config_changed.emit(config)
         self.mapauto.settings_changed(previous)

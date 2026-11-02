@@ -56,6 +56,13 @@ def step_back(db: sqlite3.Connection, version: int) -> None:
             db.execute(f"ALTER TABLE station DROP COLUMN {column}")
     if version < 22:
         _v12(db)                    # (`station_pref` made again as migration 12 made it, without the columns of the alerts: a column that a CHECK names cannot be dropped; the table of a test is empty here)
+    if version < 25:
+        db.execute("ALTER TABLE packet DROP COLUMN radio")
+        db.execute("ALTER TABLE message DROP COLUMN radio")
+        db.execute("ALTER TABLE message_attempt DROP COLUMN radio")
+        db.execute("ALTER TABLE own_object DROP COLUMN radio")
+        for column in ("heard_fm", "heard_hf", "last_fm_at", "last_hf_at"):
+            db.execute(f"ALTER TABLE station DROP COLUMN {column}")
     if version < 24:
         db.execute("DROP TABLE station_key")
         db.execute("ALTER TABLE message DROP COLUMN seal")

@@ -65,7 +65,12 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, ma
 
 /** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like are not hops), a chip for a copy that came back over the internet when no hop shows it, and the recipient. `latest` is the newest attempt of the message, the one a failure is told on. */
 export function chainOf(row: MessageRow, attempt: AttemptRow, latest: boolean, heardDirect: ReadonlySet<string> = new Set(), mail = false): Chip[] {
-  const chips: Chip[] = [{ kind: "you", text: t("chain.you"), mark: "", title: t("chain.sent", { time: dateTimeText(attempt.sent_at) }) }];
+  const time = dateTimeText(attempt.sent_at);
+  // an attempt over the HF radio is marked so on the "you" chip (it went direct: no hops follow); an FM attempt, and one kept before there were two radios, is as it was
+  const hf = attempt.radio === "hf";
+  const chips: Chip[] = [
+    { kind: "you", text: t("chain.you"), mark: hf ? t("chain.hf") : "", title: hf ? t("chain.sent_hf", { time }) : t("chain.sent", { time }) },
+  ];
   chips.push(...attempt.hops.filter((hop) => !isMarker(hop.call)).map((hop) => hopChip(hop, heardDirect)));
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
     chips.push({ kind: "internet", text: t("chain.internet"), mark: "", title: t("chain.copy_back", { by: attempt.internet }) });

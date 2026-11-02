@@ -25,6 +25,23 @@ const net = station("OH2NET", {
   can_message: false,
 });
 
+describe("the card of a station heard on the HF radio", () => {
+  it("says when each radio last heard it: RF for the FM radio, HF for the HF radio", () => {
+    const both = station("OH2FMHF", {
+      heard_rf: 5,
+      heard_fm: 3,
+      heard_hf: 2,
+      last_rf_at: ago(60),
+      last_fm_at: ago(180),
+      last_hf_at: ago(60),
+      last_heard: ago(60),
+    });
+    expect(fieldsOf(card(both))["Last heard"]).toBe("RF 3 min ago · HF 1 min ago");
+    const hf = station("OH2HF", { heard_rf: 2, heard_fm: 0, heard_hf: 2, last_rf_at: ago(60), last_fm_at: null, last_hf_at: ago(60), last_heard: ago(60) });
+    expect(fieldsOf(card(hf))["Last heard"]).toBe("HF 1 min ago");
+  });
+});
+
 describe("the card of a station, by channel", () => {
   it("says when it was last heard for each channel it was heard by: RF 3 min ago · Internet 40 s ago", () => {
     const wrapper = card(both);

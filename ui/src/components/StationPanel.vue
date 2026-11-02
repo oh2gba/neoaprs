@@ -20,6 +20,7 @@ import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
 import { rxOnlyReason } from "@/lib/compose";
+import { hasPaths } from "@/lib/radiosides";
 import { canAlert } from "@/lib/stationalert";
 import { canMessage, itemLabel, itemQuery, panelItems, talksTo, type PanelItem, type QueryKind } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
@@ -33,9 +34,9 @@ const emit = defineEmits<{
   copy: [call: string];
   forget: [call: string];
 }>();
-const { prefs, heardPaths, fallbackPath, home, tnc } = useDaemonContext();
-/** Whether the radio in use carries paths (the daemon's rules; before it has said, yes): without them there is no route to set. */
-const routable = computed(() => tnc.value?.rules.paths ?? true);
+const { prefs, heardPaths, fallbackPath, home, config } = useDaemonContext();
+/** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
+const routable = computed(() => hasPaths(config.value?.values ?? {}, props.row));
 const rxOnly = useReceiveOnly();
 
 const items = computed(() => panelItems(props.row));

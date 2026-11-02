@@ -34,6 +34,8 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
     "Una stazione sentita via radio, con le onde, porta RF; una arrivata dalla nuvola, APRS-IS, ha un contorno punteggiato e una sua etichetta.",
   "help.picture.mercury":
     "La tua stazione e una lontana, molto distanti; il segnale sale e ridiscende fra loro: solo una stazione con lo stesso modem lo sente.",
+  "help.picture.tworadios":
+    "La tua stazione con due radio: la radio FM raggiunge l’auto e il digipeater vicini lungo il terreno, la radio HF raggiunge una stazione lontana con il segnale che sale e ridiscende.",
   "help.picture.dummy": "Stazioni inventate in una cornice tratteggiata rispondono alla tua stazione, e ciò che invia non esce: le onde sono barrate.",
   "help.picture.notifications":
     "Arriva un messaggio di una stazione, e questo dispositivo riproduce un suono, l’altoparlante, e mostra una notifica, la scheda.",

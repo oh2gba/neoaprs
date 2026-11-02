@@ -29,16 +29,16 @@ def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
 def message_row(record: MessageRecord) -> Row:
     """The columns of the message table without the id, in the order of the INSERT."""
     return (stamp(record.at), record.direction, record.from_call, record.to_call, record.text, record.msg_id, record.state, record.attempts,
-            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire)
+            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio)
 
 
 def message_of(row: Row) -> MessageRecord:
     """The message from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire) = row
+    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio) = row
     if seal not in SEALS:
         raise ValueError(f"seal {seal!r}")
     return MessageRecord(int(number), parse_stamp(str(at)), direction, str(from_call), str(to_call), str(text), None if msg_id is None else str(msg_id), state, int(attempts),
-                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, None if wire is None else str(wire))
+                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=str(radio))
 
 
 class MessageLog(DbLog):
@@ -73,7 +73,7 @@ class MessageLog(DbLog):
     # ---- the delivery chain (neoaprs/chain.py): each attempt of a message and the hops heard back
     def add_attempt(self, number: int, attempt: Attempt) -> bool:
         """Keeps an attempt as it was sent; False when it could not be queued."""
-        return self._append(lambda conn: insert_attempt(conn, number, attempt.number, stamp(attempt.sent_at), ",".join(attempt.path)))
+        return self._append(lambda conn: insert_attempt(conn, number, attempt.number, stamp(attempt.sent_at), ",".join(attempt.path), attempt.radio))
 
     def add_hop(self, number: int, attempt: int, seen: HopSeen) -> bool:
         """Keeps a hop that was heard back (the first time it was heard stays); False when it could not be queued."""
@@ -88,8 +88,8 @@ class MessageLog(DbLog):
         attempts: list[Row] = await self._read(all_attempts, [])
         hops: list[Row] = await self._read(all_hops, [])
         found: dict[int, list[Attempt]] = {}
-        for number, attempt, sent_at, path in attempts:
-            found.setdefault(int(number), []).append(Attempt(int(attempt), parse_stamp(str(sent_at)), tuple(p for p in str(path).split(",") if p)))
+        for number, attempt, sent_at, path, radio in attempts:
+            found.setdefault(int(number), []).append(Attempt(int(attempt), parse_stamp(str(sent_at)), tuple(p for p in str(path).split(",") if p), radio=str(radio)))
         for number, attempt, position, call, heard_at, via in hops:
             chain = found.get(int(number), [])
             for index, known in enumerate(chain):

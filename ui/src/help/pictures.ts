@@ -25,6 +25,7 @@ import NotificationsPicture from "@/help/NotificationsPicture.vue";
 import QruPicture from "@/help/QruPicture.vue";
 import EncryptPicture from "@/help/EncryptPicture.vue";
 import MercuryPicture from "@/help/MercuryPicture.vue";
+import TwoRadiosPicture from "@/help/TwoRadiosPicture.vue";
 import type { PictureName } from "@/help/names";
 
 export const PICTURES: Record<PictureName, Component> = {
@@ -53,4 +54,5 @@ export const PICTURES: Record<PictureName, Component> = {
   qru: QruPicture,
   encrypt: EncryptPicture,
   mercury: MercuryPicture,
+  tworadios: TwoRadiosPicture,
 };

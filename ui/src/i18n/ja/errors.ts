@@ -34,6 +34,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.alert.own": "{call}は自局です: 通知は他局に設定します",
   "error.message.control": "テキストに制御文字があります",
   "error.message.empty": "メッセージが空です",
+  "error.message.email_fm_off": "メールはFM無線機で送られますが、FM無線機はオフです",
   "error.message.forbidden": "テキストに{chars}があります。メッセージでは使えません(使えないのは{forbidden}です)",
   "error.message.not_ascii": {
     select: "chars",
@@ -70,6 +71,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.qru.too_soon": "ローカル情報の次の問い合わせにはまだ早すぎます。{seconds}秒待ってください",
   "error.path.direct_alone": "{word}はデジピーターではありません。単独で書くとデジピーターなしを意味します",
   "error.setting.comment_too_long": "{length}文字は、PHG拡張を付けるときの上限{limit}文字を超えています(送らない場合は beacon/power_w を空にしてください)",
+  "error.setting.no_radio": "局には少なくとも1台の無線機が必要です：FM無線機かHF無線機にチェックを入れてください",
   "error.setting.not_access_key": "アクセスキーではありません(英数字4文字の3つの組、例: k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "表示可能なASCII以外の文字があります",
   "error.setting.not_boolean": "「{value}」は true でも false でもありません",

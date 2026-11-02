@@ -33,6 +33,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.alert.own": "{call} es nuestra: un aviso es para otra estación",
   "error.message.control": "el texto tiene un carácter de control",
   "error.message.empty": "el mensaje está vacío",
+  "error.message.email_fm_off": "el correo sale por la radio FM, que está apagada",
   "error.message.forbidden": "el texto tiene {chars}, que un mensaje no puede llevar ({forbidden} no están permitidos)",
   "error.message.not_ascii": {
     select: "chars",
@@ -70,6 +71,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.qru.too_soon": "demasiado pronto para otra petición de info local: espera {seconds} s",
   "error.path.direct_alone": "{word} no es un digipeater: solo, significa ningún digipeater",
   "error.setting.comment_too_long": "{length} caracteres son más de los {limit} que se permiten con la extensión PHG (vacía beacon/power_w para no enviarla)",
+  "error.setting.no_radio": "una estación tiene al menos una radio: marca la radio FM o la radio HF",
   "error.setting.not_access_key": "no es una clave de acceso (tres grupos de cuatro dígitos y letras, como k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "tiene caracteres que no son ASCII imprimible",
   "error.setting.not_boolean": "“{value}” no es true ni false",

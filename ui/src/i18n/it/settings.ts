@@ -18,6 +18,18 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.group.station": "Stazione",
   "settings.group.tnc": "Radio",
+  "settings.group.fm_radio": "Radio FM",
+  "settings.group.hf_radio": "Radio HF",
+  "settings.fm_enabled.name": "Radio FM",
+  "settings.fm_enabled.tip_label": "Informazioni sulla radio FM",
+  "settings.fm_enabled.tip1": "La tua radio VHF e il suo TNC: la rete locale, con digipeater, percorsi e un beacon che segue un GPS.",
+  "settings.fm_enabled.tip2": "Disattivala in una stazione con la sola radio HF; le impostazioni FM restano.",
+  "settings.hf_enabled.name": "Radio HF",
+  "settings.hf_enabled.tip_label": "Informazioni sulla radio HF",
+  "settings.hf_enabled.tip1": "Una radio SSB in HF con il modem Mercury incluso in NeoAPRS: ogni frame esce in diretta, senza percorso né digipeater.",
+  "settings.hf_enabled.tip2":
+    "Le due radio possono essere attive insieme: le stazioni di entrambe sono sulla mappa, e a una ricevuta da entrambe i messaggi vanno via FM.",
+  "settings.enable.only_radio_title": "L’unica radio della stazione: attiva prima l’altra",
   "settings.group.web": "Pagina web",
   "settings.group.notifications": "Notifiche",
   "settings.group.encrypt": "Messaggi cifrati",
@@ -256,8 +268,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.beacon_interval.tip2": "30 minuti vanno bene per una stazione che resta ferma.",
   "settings.beacon_interval.tip_moving":
     "On: SmartBeaconing invia la posizione GPS, più spesso quanto più vai veloce e a ogni curva. Off: nessun beacon automatico.",
-  "settings.hf_beacon.tip1": "Ogni quanto esce la tua posizione in HF, al massimo ogni {min} min. Spenta: nessun beacon automatico; Beacon ora invia comunque.",
-  "settings.hf_beacon.tip2": "Un’ora va bene in HF: un frame occupa 4 secondi di un canale che tutte le stazioni condividono.",
   "settings.path.name": "Percorso del beacon",
   "settings.path.label": "Percorso",
   "settings.path.recommended": "Consigliato ({path})",

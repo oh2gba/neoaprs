@@ -52,6 +52,8 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.fact.heard": "Recebido",
   "packets.fact.came": "Chegou por",
   "packets.fact.came_value": "{channel} - {what}",
+  "packets.came_by.fm": "ouvida no rádio FM",
+  "packets.came_by.hf": "ouvida no rádio HF",
   "packets.fact.time_in_packet": "Hora no pacote",
 
   "packets.position_approximate": "{position} (aproximada)",

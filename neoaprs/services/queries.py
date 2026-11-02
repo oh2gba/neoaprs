@@ -57,7 +57,7 @@ from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
-from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_for
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
 from neoaprs.units import MILE_KM
@@ -207,6 +207,7 @@ class Queries:
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None) -> None:
         self._config = config
+        self._tnc = tnc
         self._answers = Answers(tnc, config, paths, spacing_sec)
         self._beacon = beacon
         self._status = status                                   # the frame of the status as last sent (RigStatus.status_frame); None while none has been sent
@@ -257,7 +258,7 @@ class Queries:
             return
         try:
             frames = [frame for frame in self._answer(packet, query) if frame is not None]
-            self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED)
+            self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED, radio=radio_for(self._tnc, packet))
         except (BeaconError, ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, asker, e)
 
@@ -298,7 +299,7 @@ class Queries:
         found = self._book.get(call)
         known = any(counts) or (found is not None and not found.internet_only)           # (a station known from the internet alone was never heard on the air)
         try:
-            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False)
+            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=radio_for(self._tnc, packet))
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, packet.sender, e)
 
@@ -327,7 +328,7 @@ class Queries:
         self._general_until[kind] = packet.heard_at + timedelta(seconds=GENERAL_EVERY_SEC)
         delay = self._delay()
         log.info("the general query %s of %s: our %s go out in %.0f s", kind, packet.sender, "position and status" if kind == GENERAL else "capabilities", delay)
-        self._answers.tasks.spawn(self._later(delay, packet.sender, kind), "query-general")
+        self._answers.tasks.spawn(self._later(delay, packet.sender, kind, radio_for(self._tnc, packet)), "query-general")
 
     def _no_igate(self) -> str:
         """Why we are no iGate to answer ?IGATE? now; empty while the iGate is connected (on, logged in and verified: it gates)."""
@@ -336,7 +337,7 @@ class Queries:
         state = self._igate.state
         return "" if state == "connected" else f"the iGate is {state}"
 
-    async def _later(self, delay: float, asker: str, kind: str) -> None:
+    async def _later(self, delay: float, asker: str, kind: str, radio: Radio) -> None:
         await asyncio.sleep(delay)
         if self._answers.refused():
             return
@@ -345,9 +346,9 @@ class Queries:
                 if why := self._no_igate():
                     log.debug("the general query %s of %s is not answered: %s", IGATE_QUERY, asker, why)
                     return
-                self._send_frames(asker, [self._capabilities])
+                self._send_frames(asker, [self._capabilities], radio)
             else:
-                self._send_frames(asker, [self._beacon.frame, self._status])
+                self._send_frames(asker, [self._beacon.frame, self._status], radio)
         except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
             log.warning("the general query of %s was not answered: %s", asker, e)
 
@@ -355,7 +356,7 @@ class Queries:
         assert self._igate is not None
         return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
 
-    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]]) -> None:
+    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: Radio) -> None:
         """Each frame is made and sent on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it."""
         for make in makers:
             try:
@@ -363,7 +364,7 @@ class Queries:
             except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
                 log.warning("the answer to the general query of %s lacks a frame: %s", asker, e)
                 continue
-            if frame is not None and not self._answers.send(asker, frame):
+            if frame is not None and not self._answers.send(asker, frame, radio=radio):
                 break
 
     # ---- the answers

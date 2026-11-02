@@ -25,6 +25,7 @@ import StationsFilters from "@/components/StationsFilters.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useRadiosNamed } from "@/composables/useRadiosOn";
 import { useRowKeys } from "@/composables/useRowKeys";
 import { useRowMenu } from "@/composables/useRowMenu";
 import { useStationPanel } from "@/composables/useStationPanel";
@@ -49,6 +50,7 @@ const props = withDefaults(
   { others: () => [] },
 );
 const { stations, now, aging, call: ownCall, send, qru, prefs } = useDaemonContext();
+const named = useRadiosNamed();
 /** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
 const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
@@ -191,7 +193,7 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-for="tag in channelTags(row)" :key="tag.channel" :tone="tag.tone" class="via" :title="tag.title">{{ tag.label }}</TagMark>
+              <TagMark v-for="tag in channelTags(row, named)" :key="tag.channel" :tone="tag.tone" class="via" :title="tag.title">{{ tag.label }}</TagMark>
               <TagMark
                 v-if="localInfo.has(row.call)"
                 tone="neutral"

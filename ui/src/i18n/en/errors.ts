@@ -32,6 +32,7 @@ export const errors = {
   "error.alert.own": "{call} is our own: an alert is for another station",
   "error.message.control": "the text has a control character",
   "error.message.empty": "the message is empty",
+  "error.message.email_fm_off": "email goes out over the FM radio, which is off",
   "error.message.forbidden": "the text has {chars}, which a message cannot carry ({forbidden} are not allowed)",
   "error.message.not_ascii": {
     select: "chars",
@@ -68,6 +69,7 @@ export const errors = {
   "error.qru.too_soon": "too soon for another request for local info: wait {seconds} s",
   "error.path.direct_alone": "{word} is no digipeater: written alone it means no digipeaters at all",
   "error.setting.comment_too_long": "{length} characters is more than the {limit} allowed with the PHG extension (clear beacon/power_w to send none)",
+  "error.setting.no_radio": "a station has at least one radio: tick the FM radio or the HF radio",
   "error.setting.not_access_key": "it is not an access key (three groups of four digits and letters, such as k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "it has characters that are not printable ASCII",
   "error.setting.not_boolean": "'{value}' is not true or false",

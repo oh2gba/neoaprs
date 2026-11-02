@@ -18,7 +18,7 @@ RESET = {"map/maxzoom": "14", "map/source": "https://example.org/world.pmtiles",
 REMOVED = ["messages/attempts", "log/keep_days", "update/check", "tnc/check_sec", "tnc/watchdog_min", "map/hide_after_min", "beacon/destination", "beacon/compressed", "beacon/dao"]
 KEPT = {"station/call": "OH2GBA", "station/transmit": "false", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_table": "\\", "station/symbol_code": ">", "station/comment": "odd comment",
         "station/status": "hello", "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB7", "serial/baud": "19200", "serial/last_port": "/dev/ttyUSB7", "tcp/host": "10.0.0.5", "tcp/port": "8100",
-        "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3", "hf/beacon_interval_min": "30",
+        "fm/enabled": "false", "hf/enabled": "true", "mercury/sound_card": "plughw:2,0", "mercury/keying": "rts:/dev/ttyUSB3",
         "beacon/interval_min": "45", "beacon/path": "WIDE2-2", "beacon/power_w": "25", "beacon/antenna_height_m": "12", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE",
         "web/network": "true", "web/key": "k7m2-x9pq-4hrt", "web/https": "true", "web/port": "7777", "web/allowed_hosts": "radio.lan,shack",
         "messages/alert": "false", "messages/alert_command": "echo hi", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "status/interval_min": "60", "status/template": "{freq}",
@@ -46,7 +46,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fifteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 16
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found

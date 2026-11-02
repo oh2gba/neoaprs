@@ -45,6 +45,10 @@ export interface DaemonContext {
   config: Read<ConfigValues | null>;
   status: Read<StatusMessage | null>;
   tnc: Read<TncState | null>;
+  /** the HF radio (the Mercury modem), the same shape as `tnc`; its state is `stopped` while HF is off, null until the daemon has told */
+  hf: Read<TncState | null>;
+  /** whether the radios are named on the page: only where there are two, while the HF radio is on (the FM radio's channel tag is "FM" beside "HF", else "RF") */
+  radiosNamed: Read<boolean>;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */
   gps: Read<GpsState | null>;
   /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */

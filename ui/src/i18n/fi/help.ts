@@ -32,6 +32,8 @@ export const help: Record<keyof typeof source, Message> = {
     "Radiolla, radioaalloilla, kuultu asema on merkitty RF; pilvestä, APRS-IS:stä, tullut asema on pisteviivareunainen ja sillä on oma merkintänsä.",
   "help.picture.mercury":
     "Oma asemasi ja kaukainen asema, kauas toisistaan; signaali nousee ylös ja tulee alas niiden välissä: vain samaa modeemia käyttävä asema kuulee sen.",
+  "help.picture.tworadios":
+    "Asemasi kahdella radiolla: FM-radio tavoittaa lähellä olevan auton ja digipeaterin maanpintaa pitkin, HF-radio kaukaisen aseman signaalilla, joka nousee ylös ja tulee alas.",
   "help.picture.dummy": "Katkoviivakehyksessä olevat keksityt asemat vastaavat asemallesi, eikä asemasi lähettämä lähde ilmaan: aallot on yliviivattu.",
   "help.picture.notifications": "Asemalta tulee viesti, ja tämä laite soittaa äänen, kaiuttimen, ja näyttää ponnahdusilmoituksen, kortin.",
   "help.picture.encrypt":

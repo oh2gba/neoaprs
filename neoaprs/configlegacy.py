@@ -26,5 +26,13 @@ def with_network(rows: Mapping[str, str]) -> Mapping[str, str]:
     return {**rows, "web/network": "true"}
 
 
+def with_radios(rows: Mapping[str, str]) -> Mapping[str, str]:
+    """The rows with the radios that a `tnc/profile` row saying `mercury` implies (the build before two radios had the Mercury modem as a type of the one radio): the HF radio on, the FM one off, and the FM type
+    the default. Only when neither tickbox has a row of its own."""
+    if rows.get("tnc/profile", "").strip() != "mercury" or "hf/enabled" in rows or "fm/enabled" in rows:
+        return rows
+    return {**rows, "tnc/profile": "kenwood-tnc2", "hf/enabled": "true", "fm/enabled": "false"}
+
+
 def with_legacy(rows: Mapping[str, str]) -> Mapping[str, str]:
-    return with_network(with_profile(rows))
+    return with_network(with_profile(with_radios(rows)))

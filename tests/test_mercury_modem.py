@@ -28,7 +28,7 @@ from tests.support.env import until
 from tests.support.fakemercury import Air
 from tests.test_tnc import Rigs, stops_rigs, ui_frame
 
-HF: Config = replace(DEFAULTS, tnc_profile="mercury", mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
+HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 QUICK = Backoff([0.1, 0.1])
 
 

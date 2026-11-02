@@ -29,6 +29,7 @@ class OwnObjectRow(_Model):
     path: str | None = Field(description="the digipeaters it goes by, calls separated by commas, or `DIRECT` for none at all; null: the path of the setting `beacon/path` is used")
     qru_group: str = Field(description="the group of QRU (1 to 8 upper-case letters and digits) a station that asks the addressee `QRU` for it is answered with this object in; empty for none")
     on_request: bool = Field(description="true: it is never sent on the decay schedule, only to a station that asks for it (`?APRSO`, or its QRU group); false: it is sent on the schedule")
+    radio: Literal["fm", "hf", "both"] = Field(description="the radio it goes out on: `fm`, `hf` or `both`; with one radio on it goes on that one, whatever is kept (the page offers the choice while both radios are on)")
     state: Literal["live", "killing"] = Field(description="`live`: it is being sent on the decay schedule; `killing`: it was killed and its killed form is being sent (three times), then it is forgotten")
     created_at: Iso = Field(description="when it was first made")
     updated_at: Iso = Field(description="when it was last changed or killed")
@@ -69,6 +70,7 @@ class ObjectSet(_Command):
     path: PathText | None
     qru_group: str = Field(max_length=QRU_GROUP_MAX)
     on_request: bool
+    radio: Literal["fm", "hf", "both"] = "fm"
 
 
 class ObjectKill(_Command):

@@ -78,6 +78,8 @@ export const messages = {
   "chain.you": "you",
   "chain.internet": "internet",
   "chain.sent": "sent {time}",
+  "chain.hf": "HF",
+  "chain.sent_hf": "sent {time} over HF",
   "chain.heard": { select: "internet", yes: "heard, and over the internet", other: "heard" },
   "chain.heard_at": { select: "internet", yes: "heard {time}, and over the internet", other: "heard {time}" },
   "chain.seen_internet": "seen in a copy gated back over the internet, not heard here",
@@ -90,6 +92,7 @@ export const messages = {
   "chain.waiting_for_ack": "waiting for the ack",
 
   "route.button": "Route",
+  "messages.hf_tag_title": "Messages to this station go over the HF radio: direct, no path",
   "route.changed": "Route: not the default",
   "route.path": "Path",
   "route.calls_hint": "Calls separated by commas, at most {max}",

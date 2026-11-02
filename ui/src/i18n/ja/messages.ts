@@ -79,6 +79,8 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "あなた",
   "chain.internet": "インターネット",
   "chain.sent": "{time}に送信",
+  "chain.hf": "HF",
+  "chain.sent_hf": "{time}にHFで送信",
   "chain.heard": { select: "internet", yes: "受信、インターネット経由でも受信", other: "受信" },
   "chain.heard_at": { select: "internet", yes: "{time}に受信、インターネット経由でも受信", other: "{time}に受信" },
   "chain.seen_internet": "インターネット経由で戻ってきたコピーで確認。こちらでは受信していません",
@@ -91,6 +93,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "応答確認を待っています",
 
   "route.button": "経路",
+  "messages.hf_tag_title": "この局へのメッセージはHF無線機で送られます：直接、パスなし",
   "route.changed": "経路: 既定と異なります",
   "route.path": "パス",
   "route.calls_hint": "コールサインをカンマで区切ります(最大{max}個)",

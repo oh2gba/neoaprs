@@ -70,6 +70,7 @@ class Topics:
         hub.add(Topic("stations", self._stations, lambda call: self._station(call)))
         hub.add(Topic("packets", self.window.whole, self.window.item))
         hub.add(Topic("tnc", lambda: tnc_state(ctl.tnc), interval=TNC_EVERY_SEC))
+        hub.add(Topic("hf", lambda: tnc_state(ctl.hf), interval=TNC_EVERY_SEC))
         hub.add(Topic("config", lambda: config_values(ctl.config, reach(), None if secure is None else secure())))
         hub.add(Topic("station_prefs", lambda: {call: pref_row(pref) for call, pref in ctl.prefbook.all().items()}, self._station_pref))
         hub.add(Topic("messages", lambda: {str(m.id): self._message_row(m) for m in ctl.messaging.records()}, self._message))
@@ -144,7 +145,8 @@ class Topics:
         return [
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
             (ctl.stationbook.cleared, self._stations_cleared),
-            (ctl.tnc.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed), (ctl.mercury.changed, self._tnc_changed),
+            (ctl.tnc.packet, self._packet), (ctl.hf.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
+            (ctl.hf.changed, self._hf_changed), (ctl.hf.state_changed, self._hf_state_changed), (ctl.mercury.changed, self._hf_changed),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),
@@ -185,6 +187,12 @@ class Topics:
 
     def _tnc_state_changed(self, state: Source.State) -> None:
         self.hub.changed("tnc")
+
+    def _hf_changed(self) -> None:
+        self.hub.changed("hf")
+
+    def _hf_state_changed(self, state: Source.State) -> None:
+        self.hub.changed("hf")
 
     def _packet(self, packet: Packet) -> None:
         for number in self.window.add(packet):

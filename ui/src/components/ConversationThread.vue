@@ -8,6 +8,7 @@ import IconButton from "@/components/IconButton.vue";
 import LockGlyph from "@/components/LockGlyph.vue";
 import MessageChain from "@/components/MessageChain.vue";
 import MessageMark from "@/components/MessageMark.vue";
+import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
@@ -72,7 +73,9 @@ const copy = useCopyMenu((bubble) => {
           />
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
-        <p v-if="m.route" class="bubble-route muted" :title="t('messages.route_title')">{{ m.route }}</p>
+        <p v-if="m.route || (m.direction === 'in' && m.radio === 'hf')" class="bubble-route muted" :title="t('messages.route_title')">
+          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="neutral" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route }}
+        </p>
       </div>
     </template>
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />

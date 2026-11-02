@@ -13,7 +13,7 @@ from neoaprs import ax25, mercury
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.message import MessagingError
 from neoaprs.radiorules import FM, HF
-from neoaprs.services.beacon import Beacon
+from neoaprs.services.beacon import Beacon, BeaconError
 from neoaprs.services.common import fit_frame, fixed_prefix, our_frame
 from neoaprs.services.sender import SendError, Sender
 from neoaprs.tncprofile import MERCURY, PROFILES, profile_of
@@ -22,7 +22,7 @@ from tests.support.env import ON_AIR
 from tests.support.stubtnc import StubTnc
 from tests.test_messaging import started_rig
 
-HF_CONFIG: Config = replace(ON_AIR, tnc_profile="mercury", beacon_path="DIRECT")
+HF_CONFIG: Config = replace(ON_AIR, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
 
 
 # ---- the mode and the frame
@@ -31,7 +31,9 @@ def test_the_one_mode_is_datac3_and_its_frame_carries_123_bytes_of_a_packet_in_u
     assert (mercury.MODE, mercury.MODE_INDEX, mercury.FRAME_BYTES, mercury.HEADER_BYTES, mercury.MAX_PAYLOAD) == ("DATAC3", 1, 126, 3, 123)
     assert 3.5 < mercury.FRAME_SEC < 4.5 and mercury.DELIVERY_SEC > mercury.FRAME_SEC
     assert MERCURY.max_frame == 123 and MERCURY.transport == "modem" and MERCURY.enter == () and not MERCURY.can_probe
-    assert profile_of("mercury") is MERCURY and MERCURY in PROFILES and PROFILES.index(MERCURY) == len(PROFILES) - 2, "before the Dummy, after the real TNCs"
+    assert MERCURY not in PROFILES and all(p.rules.kind == "fm" for p in PROFILES) and MERCURY.rules.kind == "hf", "the Mercury profile is the HF radio's, never a type of the FM radio (neoaprs/radios.py)"
+    with pytest.raises(ValueError):
+        profile_of("mercury")
 
 
 def test_the_frequencies_are_three_dials_in_the_region_1_digimode_segments_and_not_the_300_baud_one() -> None:
@@ -101,7 +103,7 @@ def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> 
 
 
 async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and_a_message_that_fits_goes(tmp_path: Path) -> None:
-    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rules=replace(HF, paths=True)), tnc_profile="mercury", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123, rules=replace(HF, paths=True)), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1")        # (a radio with a frame cap that carries paths: over HF itself no path goes, and the longest message, 67 characters to a 9-character addressee with a reply-ack, is 100 bytes)
     sent = await rig.m.send("OH2RDG", "Hello Pekka")
     assert sent.state == "sending" and rig.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1::OH2RDG   :Hello Pekka{01}"]
     with pytest.raises(MessagingError) as refused:
@@ -113,7 +115,7 @@ async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and
 
 
 async def test_a_message_kept_before_the_radio_changed_waits_with_the_reason_when_it_does_not_fit_now(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    rig = await started_rig(tmp_path, tnc_profile="mercury", beacon_path="DIRECT")
+    rig = await started_rig(tmp_path, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
     record = await rig.m.send("OH2RDG", "x" * 67)
     assert record.attempts == 1
     rig.tnc.max_frame = 90                                                # (the radio is one with a smaller frame now)
@@ -140,9 +142,10 @@ def test_the_settings_keep_the_sound_card_and_the_keying_and_refuse_a_keying_tha
     with pytest.raises(ValueError, match="mercury/keying.*not a way of keying"):
         Config.check("mercury/keying", "ptt")
     assert Config.from_data({"mercury/keying": "nonsense"}).mercury_keying == "", "a row edited by hand falls back to the default: the daemon's choice"
-    with pytest.raises(ValueError, match="not to the serial port /dev/ttyUSB0"):
-        Config.checked(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), {"tnc/profile": "mercury"})
-    assert Config.checked(DEFAULTS, {"tnc/profile": "mercury", "serial/port": "tcp://127.0.0.1:8100"}).profile is MERCURY, "a Mercury something else runs"
+    hf = Config.checked(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), {"hf/enabled": "true"})
+    assert hf.hf_enabled and hf.fm_enabled and hf.serial_port == "/dev/ttyUSB0", "the HF radio is a tickbox beside the FM radio, whatever the FM radio's port"
+    with pytest.raises(ValueError, match="not a TNC profile"):
+        Config.checked(DEFAULTS, {"tnc/profile": "mercury"})
 
 
 def test_the_command_line_names_the_configuration_the_mode_the_ports_the_sound_card_and_the_keying() -> None:
@@ -223,7 +226,7 @@ def test_over_mercury_every_frame_goes_direct_whatever_the_path_settings_say_and
 
 
 async def test_over_mercury_a_message_and_its_ack_go_direct_even_to_a_station_with_a_path_of_its_own(tmp_path: Path) -> None:
-    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123), tnc_profile="mercury", beacon_path="WIDE1-1,WIDE2-1")
+    rig = await started_rig(tmp_path, tnc=StubTnc(max_frame=123), hf_enabled=True, fm_enabled=False, beacon_path="WIDE1-1,WIDE2-1")
     await rig.prefs.set_path("OH2RDG", "OH2RCH-2,WIDE2-1")
     record = await rig.m.send("OH2RDG", "x" * 67)
     assert record.attempts == 1 and rig.lines() == ["OH2GBA>APZNEO::OH2RDG   :" + "x" * 67 + "{01}"], "the longest message fits the frame with room for a reply-ack number, and goes direct"
@@ -233,34 +236,38 @@ async def test_over_mercury_a_message_and_its_ack_go_direct_even_to_a_station_wi
     assert [a.path for a in rig.m.delivery.attempts_of(record.id)] == [()], "the chain of the message shows direct only"
 
 
-def test_over_mercury_a_moving_station_is_a_fixed_one_and_the_beacon_has_the_hf_interval_with_a_random_pause() -> None:
-    moving = replace(HF_CONFIG, gps_source="gpsd", beacon_travel="car", hf_beacon_interval_min=15)
+def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the_one_interval_has_a_random_pause() -> None:
+    moving = replace(HF_CONFIG, gps_source="gpsd", beacon_travel="car", beacon_interval_min=30)
     clock = FixedClock()
     beacon = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
-    assert beacon.interval_min == 15 and moving.beacon_interval_min == 0, "the HF radio has its own interval; the VHF beacon stays off"
-    assert beacon.frame().info.startswith(b"=6010.20N/02456.40E-"), "the home position, not the GPS: no SmartBeaconing over HF"
-    assert Beacon(StubTnc(), lambda: moving, clock).interval_min == 0
+    assert beacon.interval_min == 30, "the one interval of the station"
+    with pytest.raises(BeaconError, match="no GPS|fix"):
+        beacon.frame()                                                           # (a moving station on HF: the timed beacon says where it is now, and nothing without a fresh fix)
+    assert Beacon(StubTnc(max_frame=123), lambda: replace(moving, gps_source="off"), clock).frame().info.startswith(b"=6010.20N/02456.40E-"), "a fixed station: its home"
     paused = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
     paused.jitter = lambda most: most / 2
     paused.last_sent, paused._started = clock(), clock()
-    paused._plan(15)
-    assert paused.next_due == clock() + timedelta(minutes=15) + timedelta(seconds=150), "the interval, then the pause"
-    unpaused = Beacon(StubTnc(), lambda: replace(moving, gps_source="off", beacon_interval_min=20), clock)
+    paused._plan(30)
+    assert paused.next_due == clock() + timedelta(minutes=30) + timedelta(seconds=150), "the interval, then the pause"
+    unpaused = Beacon(StubTnc(), lambda: replace(moving, gps_source="off", hf_enabled=False, fm_enabled=True, beacon_interval_min=20), clock)
     unpaused.jitter = lambda most: 999.0
     unpaused.last_sent, unpaused._started = clock(), clock()
     unpaused._plan(20)
     assert unpaused.next_due == clock() + timedelta(minutes=20), "the FM radio has no pause"
-    assert HF.beacon_min_min == 15 and HF.beacon_default_min == 60 and HF.beacon_jitter_sec == 300 and not HF.smart_beacon and not HF.paths and not HF.digipeat
+    assert HF.beacon_min_min == 30 and HF.beacon_jitter_sec == 300 and not HF.smart_beacon and not HF.paths and not HF.digipeat
     assert FM.paths and FM.digipeat and FM.smart_beacon and FM.beacon_jitter_sec == 0 and FM.max_frame is None
 
 
-def test_the_hf_beacon_interval_is_a_setting_of_its_own_with_a_floor_of_15_minutes() -> None:
-    assert DEFAULTS.hf_beacon_interval_min == 60 and DEFAULTS.beacon_interval_min == 0
-    assert Config.check("hf/beacon_interval_min", "0") == "0" and Config.check("hf/beacon_interval_min", "15") == "15" and Config.check("hf/beacon_interval_min", "180") == "180"
-    with pytest.raises(ValueError, match="off_or_range|not 0"):
-        Config.check("hf/beacon_interval_min", "10")
-    assert Config.from_data({"hf/beacon_interval_min": "5"}).hf_beacon_interval_min == 15, "a stored value under the floor is raised to it"
-    assert replace(DEFAULTS, tnc_profile="mercury", hf_beacon_interval_min=30).beacon_interval_of(HF) == 30 and replace(DEFAULTS, beacon_interval_min=30).beacon_interval_of(FM) == 30
+def test_the_one_beacon_interval_is_raised_to_30_minutes_while_the_hf_radio_is_on_and_is_todays_otherwise() -> None:
+    assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_beacon_interval_min"), "one setting for both radios"
+    fm_only = replace(DEFAULTS, beacon_interval_min=20)
+    assert fm_only.beacon_interval_of(FM) == 20 and fm_only.beacon_interval_of(HF) == 20, "with HF off, today's floor of 20"
+    both = replace(fm_only, hf_enabled=True)
+    assert both.beacon_interval_of(FM) == 30 and both.beacon_interval_of(HF) == 30, "with HF on, 30 at the least, for both beacons"
+    assert replace(both, beacon_interval_min=60).beacon_interval_of(HF) == 60 and replace(both, beacon_interval_min=0).beacon_interval_of(HF) == 0, "a longer interval stays, Off stays Off"
+    with pytest.raises(ValueError, match="no_radio|at least one radio"):
+        Config.checked(DEFAULTS, {"fm/enabled": "false"})
+    assert Config.checked(replace(DEFAULTS, hf_enabled=True), {"fm/enabled": "false"}).hf_enabled, "the FM radio may go when the HF one is on"
 
 
 def test_the_random_pause_keeps_stations_with_the_same_interval_apart_on_the_simulated_hour() -> None:
@@ -303,7 +310,7 @@ class HeldTnc(StubTnc):
 async def test_the_ack_of_a_message_heard_while_the_radio_is_held_waits_and_goes_when_the_radio_takes_frames_again(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.messaging")
     tnc = HeldTnc()
-    rig = await started_rig(tmp_path, tnc=tnc, tnc_profile="mercury", beacon_path="DIRECT")
+    rig = await started_rig(tmp_path, tnc=tnc, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
     tnc.held = "the channel is busy"                                     # (the frame was decoded while the sender's tail was still on the air: the busy detector holds us)
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()
@@ -319,7 +326,7 @@ async def test_the_ack_of_a_message_heard_while_the_radio_is_held_waits_and_goes
 async def test_an_ack_that_waited_longer_than_a_minute_is_dropped_because_the_sender_sends_again(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.messaging")
     tnc = HeldTnc()
-    rig = await started_rig(tmp_path, tnc=tnc, tnc_profile="mercury", beacon_path="DIRECT")
+    rig = await started_rig(tmp_path, tnc=tnc, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
     tnc.held = "the radio is transmitting"
     rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", "Moi!", "12"))
     await rig.settled()

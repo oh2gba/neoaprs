@@ -95,8 +95,8 @@ Resize the panel and the layout follows, with the same conversation open.
 
 ### The conversation
 
-- The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the path the messages to the station go by and the **RF only** tickbox; Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route.
-- The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2").
+- The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the path the messages to the station go by and the **RF only** tickbox; Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route. A station that messages go to over the HF radio has a small tag **HF** in place of Route ([below](#a-station-heard-on-the-hf-radio)).
+- The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2"), and one that came in over the HF radio has the tag **HF** before its route words.
 - Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
 - The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the TNC is not connected, or the text is empty or too long. There is no To field: the conversation is the station.
 - An overheard pair has no box to write in and no Route, only the bubbles, since the messages are not yours to answer.
@@ -111,6 +111,7 @@ Under a message of yours the thread shows the digipeaters its latest attempt wen
 - A copy of your message that the radio hears again (also one an iGate gated back) is linked to the attempt it belongs to, and each hop of the path that a copy was heard with is marked as used. A hop that is used implies the hops before it, so `OH2RCH-2,OH2RDG*` shows both.
 - A hop heard is green with a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
 - The recipient at the end is green on the ack, red on failure and grey while the message waits.
+- An attempt that went out over the HF radio has the mark **HF** after the first chip ("sent 12:03 over HF" is its hover text): `you HF → OH2CUB-7`. There is no digipeater in it, because nothing on HF repeats.
 - Acks and copies of other messages are not linked. The chain goes with the message when it or its conversation is deleted, and a retry starts a new chain.
 
 ### One text to several stations
@@ -196,6 +197,16 @@ The APRS-IS rules say that an iGate does not put on the internet a packet whose 
 A station marked **RF only** (the tickbox beside the path, in the header of a conversation; its title says "iGates do not put these messages on the internet") gets `RFONLY` as the last element of the path of every frame you send to it: each attempt of a message, each ack of one of its messages and each answer to one of its queries. A path that holds `RFONLY` or `NOGATE` already gets no second one.
 
 A path of 8 digipeaters has no room for it. A message to the station is then refused with `path too long for RF only`. An attempt that is due waits (it is not used up; the log says why once). An ack or an answer is not sent. The email gateway `EMAIL-2` is on the internet and can never be RF only.
+
+## A station heard on the HF radio
+
+With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-mercury-hf-modem)), each conversation has one radio, chosen when the message goes: the FM radio, unless the station was heard on the HF radio alone or the FM radio is off, and then the HF radio. A station heard on both radios is messaged over FM, and its header is as above. A station never heard goes on the radio that is on, FM before HF.
+
+- **The header** of a conversation that goes over HF has the small tag **HF** where Route would be. Its hover text says "Messages to this station go over the HF radio: direct, no path". The Key menu and the padlock are there as ever.
+- **No path.** Every frame on HF is direct, so a station's own path and **RF only** are not used for it, and are kept for the day it is messaged over FM. The station panel of the Stations tab has no Route for it either.
+- **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is.
+- **Email** (`EMAIL-2`) goes out over the FM radio only, because it needs an iGate to put it on the internet and HF has none. While the FM radio is off, Send of the Email tab is off with the title "Email goes out over the FM radio, which is off".
+- The length is the same: every message of 67 characters fits an HF frame.
 
 ## How a packet reached us
 

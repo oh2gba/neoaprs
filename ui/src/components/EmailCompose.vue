@@ -7,6 +7,7 @@ import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
+import { useFmOff } from "@/composables/useRadiosOn";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
@@ -22,6 +23,9 @@ const listed = ref(false);
 
 const left = computed(() => emailBytesLeft(to.value, text.value));
 const rxOnly = useReceiveOnly();
+const fmOff = useFmOff();
+/** Why Send is off: RX only, the FM radio being off (the gateway is reached over FM alone), or the radio not connected; undefined when none. */
+const blocked = computed(() => (!rxOnly.value && fmOff.value ? t("email.fm_off") : sendBlockedReason(props.connected, rxOnly.value)));
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
 /** The addresses used before that match what is typed, other than the one that is typed whole. */
 const suggestions = computed(() => {
@@ -52,7 +56,7 @@ function escape(): void {
 }
 
 function submit(): void {
-  if (!ready.value || rxOnly.value) return;
+  if (!ready.value || rxOnly.value || fmOff.value) return;
   emit("send", to.value.trim(), text.value);
   text.value = "";
   textBox.value?.focus();
@@ -101,7 +105,7 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="sendBlockedReason(connected, rxOnly)">{{ t("email.send") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || fmOff" :title="blocked">{{ t("email.send") }}</button>
     </template>
   </ComposeBar>
 </template>

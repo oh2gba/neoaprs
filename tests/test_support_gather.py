@@ -14,7 +14,7 @@ from neoaprs.packetcodec import PacketRow
 
 
 def row_of(raw: bytes, source: str = "OH2XYZ", destination: str = "APRS", path: str = "WIDE1-1,WIDE2-1") -> tuple[object, ...]:
-    return tuple(PacketRow("2026-10-26T08:00:00.123456Z", "in", raw, source, destination, path, "undecoded", "", "{}", "no position", "rf"))
+    return tuple(PacketRow("2026-10-26T08:00:00.123456Z", "in", raw, source, destination, path, "undecoded", "", "{}", "no position", "rf", "fm"))
 
 
 # ---- the system

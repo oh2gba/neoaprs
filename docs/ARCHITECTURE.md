@@ -17,7 +17,7 @@ The tables of this document that are that test's data (this one, the rules after
 | adapters | `source tasks serialport serialholders serialprobe btsdp btserial btle btpaired tnc tncport callbackport dummyline tncsearch tncwatchdog tncentry tncfollow tnclines tncreader childenv rigctld gpsfeed aprsis pmtilestool worldmap updatefetch updatedownload selfreplace mercuryhelper mercurycontrol mercurymodem` | foundation, domain, adapters | persistence, services, app, delivery |
 | persistence | `store migrations migrationlog migrationsteps1to11 migrationsteps12to21 migrationsteps22on backupfolder durable instancelock stopfile walcare dbfile dberror dbstats dbthread db dbopen storesql paths dblog packetsql packetlog messagesql messagelog bulletinsql bulletinlog weathersql weatherlog ownsql ownlog supportsql` | foundation, domain, persistence | adapters, services, app, delivery |
 | services | everything in `neoaprs/services/` | foundation, domain, adapters, persistence, services | app, delivery |
-| app | `controller app wiring` | foundation, domain, adapters, persistence, services, app | delivery |
+| app | `controller app wiring radios` | foundation, domain, adapters, persistence, services, app | delivery |
 | delivery | `neoaprs/web/*`, `neoaprs/cli/*`, `neoaprs/desktop/*`, `neoaprs/daemon`, `neoaprs/__main__` | foundation, domain, adapters, persistence, services, app, delivery | - |
 <!-- /doc-arch -->
 
@@ -81,7 +81,7 @@ What each layer is for:
     repeats, the settle time, the KISS frames handed on; the `Tnc` holds the line and the states).
     A third, `tncfollow`, is for where the radio is not searched for (Windows, macOS): the USB adapter of the named port is remembered, and a COM port that comes back with another number is opened.
   * `worldmap` finds the world map that ships with the program (`neoaprs/maps/basemap-world.pmtiles`, package data: in a clone, a wheel, an AppImage's or a .deb's site-packages, the Windows app's `_internal`) and picks the one to serve: the data folder's own if it is a good PMTiles file, else the shipped one.
-  * The Mercury HF modem: `mercuryhelper` is the Mercury program as a child of the daemon (found on the PATH, in a frozen app's `bin/` or the data folder's; given free ports; started and read by a thread; stopped; a stale one of ours ended; `mercury -z` for the sound cards),
+  * The Mercury HF modem: `mercuryhelper` is the Mercury program as a child of the daemon (the one NeoAPRS ships, found where `bundled.py` says; given free ports; started and read by a thread; stopped; a stale one of ours ended; `mercury -z` for the sound cards),
     `mercurycontrol` its control port (`PTT ON/OFF`, `BUSY ON/OFF`, `SN`) as a second connection, and `mercurymodem` the part that owns both: the configuration written from the settings, the restart after the back-off, and the hold the Tnc asks about while a frame is on the air or the channel is busy. The pure values (the mode, the frame cap, the keying, the command line, the parsers) are `mercury` in the foundation.
   * `pmtilestool` is the pmtiles program that cuts the base map out of a big archive. It is found on the PATH or in the data folder's `bin/`, fetched from the
     pinned release of go-pmtiles (SHA-256 checked) when it is not there, and run in a thread so that it works on every event loop.
@@ -119,8 +119,8 @@ What each layer is for:
   * The alerts set on stations (`services/stationalerts.py`): watched as the station book changes (on the air after half an hour of silence, within N km of us, heard direct), each fired once for each crossing, to the alert command and, by the page's topics, to every page.
   * What the services that send share (`services/common.py`): the `Radio` they need of the Tnc, `ConfigSource` and `our_frame`, our frame to the tocall.
   * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`, and `services/mapauto.py`, which begins it without a click when a place is set or the guide asks, unless the map there covers the place), the update check (`services/updatecheck.py`) Update now (`services/selfupdate.py`, `services/selfinstall.py`) and Find my radio (`services/radiofinder.py`, `services/radioprobe.py`).
-* **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down (the Mercury HF modem, `mercury`, with the Tnc: started before it when the radio type is Mercury, stopped with it), and `wiring.py` connects the
-  signals, says how the settings become the Tnc's (a modem's port is the one the modem part chose), and fills the station book from the database at the start.
+* **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down (each radio on its own tickbox; the Mercury HF modem, `mercury`, with the HF Tnc: started before it, stopped with it), `radios.py` is the two radios as one for the services, and `wiring.py` connects the
+  signals (both radios' packets go the same way, each stamped with its radio), says how the settings become each Tnc's (`tnc_settings`, `hf_settings`: the HF radio's port is the one the modem part chose), and fills the station book from the database at the start.
 * **delivery**: one package each.
   * `neoaprs/web/`: Tornado, the pydantic wire models (`*wire.py`), the state hub and its topics, the commands. `server.py` is the coordinator (routes, Host
     names, the switch and the key), with `pagesocket.py` (the socket of a tab) and `listen.py` (the choice of the port). `processmeter.py` is what the daemon
@@ -147,12 +147,13 @@ What each layer is for:
 | name | what it is |
 |---|---|
 | `config` | the settings, one immutable value that the controller reads at its start |
-| `port_override`, `pattern_override` | the serial port (`--port`) and the globs of the search for this run only; never stored |
+| `port_override`, `hf_port_override`, `pattern_override` | the FM radio's serial port (`--port`), the HF radio's Mercury (`--hf-port`, one that something else runs: the benches) and the globs of the search for this run only; never stored |
 | `store` | the `Store`, the settings in the database |
-| `tnc` | the radio |
+| `tnc`, `hf` | the two radios, each a `Tnc`: the FM radio (the KISS TNC of `tnc/profile`) and the HF radio (the Mercury modem's profile, `mercury` behind it); each started while its tickbox (`fm/enabled`, `hf/enabled`) is on |
+| `radios` | the two as one (`neoaprs/radios.py`): the default radio (FM while on, else HF) for a service that addresses no station, and the choice by station (`for_station`: FM unless the station was heard on HF alone) or by packet (`for_packet`: the radio it came on) for a service that answers one. Messaging, the queries, the QRU server, asking and the sender take it; the beacons and the digipeater take their own radio |
 | `stationbook` | the stations as the packets tell them |
 | `gps_feed`, `gps` | the GPS: `gps_feed` reads a gpsd or a serial receiver (`neoaprs/gpsfeed.py`, an adapter), `gps` is the service that keeps the latest fix and how fresh it is (`services/gps.py`) and tells the station book and the ALOHA circle when we have moved. The beacon is given `gps` |
-| `beacon` | the position packet, a service: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) |
+| `beacon`, `hf_beacon` | the position packet, a service, one per radio: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) on the FM radio; on the HF radio by the HF rules (its own interval, the random pause, no SmartBeaconing), its last send in a row of its own |
 | `rigstatus` | the status report, a service. It reads rigctld through `neoaprs/rigctld.py`, and `queries` is given its `status_frame` |
 | `alerts` | the alert command, a service. Messaging is given its `alert`, and the wiring connects the alerts of the stations to its `station` |
 | `packetlog`, `messagelog`, `weatherlog`, `bulletinlog`, `ownlog` | the logs of the database: the packets and the station cache, the messages, the weather observations, the message board, our own objects and bulletins |

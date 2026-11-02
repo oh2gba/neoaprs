@@ -2,7 +2,7 @@
 QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`; the connection `Services.aprsis` reads the lines and hands each packet to `Services.hear_internet`) is handed through a signal of its own, `Services.internet_packet`, and
 goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
-Also how the settings become the Tnc's: `tnc_settings`, and how the station book is filled from the database at the start: `seed_station_book`."""
+Also how the settings become each radio's Tnc's: `tnc_settings` (the FM radio) and `hf_settings` (the HF radio), and how the station book is filled from the database at the start: `seed_station_book`."""
 import logging
 from collections.abc import Callable
 from dataclasses import replace
@@ -21,7 +21,7 @@ from .serialprobe import search_pattern
 from .source import Source
 from .stationbook import DETAILS_SEEN, ROUTES_SEEN
 from .tnc import Tnc
-from .tncprofile import Profile, names_tcp, tcp_url
+from .tncprofile import MERCURY, Profile, names_tcp, tcp_url
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
@@ -41,23 +41,25 @@ class TncSettings(NamedTuple):
     modem: tuple[str, str] = ("", "")       # what a modem the daemon starts is given (the Mercury HF modem: the sound card and the keying); empty for every other profile
 
 
-def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
-    """What the Tnc is started with. A port given for this run is the only one tried; otherwise the port of the settings, else the one the search found last time (and a port that cannot be
+def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
+    """What the FM radio's Tnc is started with. A port given for this run is the only one tried; otherwise the port of the settings, else the one the search found last time (and a port that cannot be
     opened is followed by the search). The search listens to the ports of `pattern_override` when the process was given one for this run, else of NEOAPRS_SERIAL_PATTERN when that is set, else of serial/pattern. A TCP profile connects to tcp/host and
-    tcp/port (or to the `tcp://` address in serial/port) and never searches. The Mercury HF modem (a `modem` profile) is a program the daemon starts on this computer, reached on `modem_port` (the broadcast port the
-    modem part chose), or at the `tcp://` address in serial/port, which is then a Mercury that something else runs; its sound card and keying go with the profile, so that a change of them restarts the modem."""
+    tcp/port (or to the `tcp://` address in serial/port) and never searches."""
     pattern = pattern_override or search_pattern(config.serial_pattern)
     profile, baud = config.profile, config.tnc_baud
-    modem = (config.mercury_sound_card, config.mercury_keying) if profile.transport == "modem" else ("", "")
     if port_override and profile.transport != "dummy":
-        return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern, modem)
+        return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern)
     if profile.transport == "dummy":
         return TncSettings(DUMMY_PATH, baud, profile, False, config.serial_skip_paths, pattern)       # (the Dummy radio opens nothing, and no port is chosen for it)
     if profile.transport == "tcp":
         return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(config.tcp_host, config.tcp_port), baud, profile, False, config.serial_skip_paths, pattern)
-    if profile.transport == "modem":
-        return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(MERCURY_HOST, modem_port), baud, profile, False, config.serial_skip_paths, pattern, modem)
     return TncSettings(config.serial_port or config.serial_last_port, baud, profile, True, config.serial_skip_paths, pattern)
+
+
+def hf_settings(config: Config, port_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
+    """What the HF radio's Tnc is started with: the Mercury profile, reached on `modem_port` (the broadcast port the modem part chose for the program it starts), or at the `socket://` address given for this run
+    (`--hf-port`: a Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches."""
+    return TncSettings(port_override or tcp_url(MERCURY_HOST, modem_port), 9600, MERCURY, False, (), "", (config.mercury_sound_card, config.mercury_keying))
 
 
 def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
@@ -83,17 +85,21 @@ class AirOnly:
 
 
 def wire(parts: Services) -> None:
-    tnc, book, packetlog = parts.tnc, parts.stationbook, parts.packetlog
-    tnc.packet.connect(_log_packet)
+    book, packetlog = parts.stationbook, parts.packetlog
     parts.internet_packet.connect(_log_packet)
+    for tnc in parts.radios:                                      # (both radios: what either hears goes the same way, each packet stamped with its radio)
+        tnc.packet.connect(_log_packet)
     for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
-        tnc.packet.connect(handler)
+        for tnc in parts.radios:
+            tnc.packet.connect(handler)
         parts.internet_packet.connect(handler)
     for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
-        tnc.packet.connect(AirOnly(on_air))                       # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what the radio hears on APRS-IS, nothing comes the other way)
+        for tnc in parts.radios:
+            tnc.packet.connect(AirOnly(on_air))                   # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what either radio hears on APRS-IS, nothing comes the other way)
     parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
     parts.aprsis.changed.connect(parts.igate.link_changed)
     parts.beacon.sent.connect(parts.igate.beacon_sent)           # (a moving station's beacon is also put on APRS-IS)
+    parts.hf_beacon.sent.connect(parts.igate.beacon_sent)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
@@ -102,7 +108,7 @@ def wire(parts: Services) -> None:
     parts.prefbook.changed.connect(parts.stationalerts.pref_changed)
     parts.config_changed.connect(parts.stationalerts.settings_changed)
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
-    tnc.state_changed.connect(lambda state: _remember_port(parts, state))
+    parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
     parts.gps_feed.changed.connect(parts.gps.feed_changed)

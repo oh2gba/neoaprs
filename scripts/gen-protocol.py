@@ -240,7 +240,7 @@ def limits() -> dict[str, Any]:
         "range": ranges,
         "comment": {"max": MAX_COMMENT, "maxWithPhg": MAX_COMMENT_PHG},
         "status": {"max": MAX_STATUS},
-        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF.beacon_min_min, "hfBeaconDefaultMin": HF.beacon_default_min},
+        "interval": {"beaconMinMin": MIN_BEACON_INTERVAL_MIN, "statusMinMin": MIN_STATUS_INTERVAL_MIN, "hfBeaconMinMin": HF.beacon_min_min},
         "message": {"textMax": MAX_TEXT, "forbidden": FORBIDDEN, "gateway": EMAIL_GATEWAY, "lockedMax": MAX_LOCKED},
         "call": {"baseMax": BASE_MAX, "amateurBaseMin": AMATEUR_BASE_MIN, "maxSsid": MAX_SSID, "placeholders": sorted(PLACEHOLDER_CALLS)},
         "path": {"maxCalls": MAX_PATH, "direct": DIRECT_ONLY, "rfOnly": RF_ONLY, "textMax": _path_text_max(), "recommendedMobile": WIDE_PATH, "recommendedFixed": FIXED_PATH},

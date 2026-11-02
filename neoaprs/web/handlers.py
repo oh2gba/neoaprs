@@ -105,7 +105,7 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if ctx.ctl.config.profile.transport == "modem" else []        # (the Mercury program is run for its list: only while it is the radio type)
+    cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if ctx.ctl.config.hf_enabled else []        # (the Mercury program is run for its list: only while it is the radio type)
     ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports],
                    "sound_cards": [{"id": c.id, "name": c.name, "default": c.default} for c in cards]})
 
@@ -137,8 +137,12 @@ async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
 
 @command(BeaconNow)
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
-    beacon = ctx.ctl.beacon
-    if not beacon.send_now("request"):
+    """A beacon on every radio that is on (each by its own rules: the HF one direct, the FM one by the path); refused with the reason when none went out."""
+    c = ctx.ctl.config
+    beacons = [b for b, on in ((ctx.ctl.beacon, c.fm_enabled), (ctx.ctl.hf_beacon, c.hf_enabled)) if on] or [ctx.ctl.beacon]
+    sent = [b.send_now("request") for b in beacons]
+    if not any(sent):
+        beacon = beacons[0]
         if beacon.problem == RECEIVE_ONLY:
             raise UserError("beacon_now: RX only: nothing is sent", "transmit.off")
         raise UserError(f"beacon_now: nothing was sent: {beacon.problem}", "beacon.not_sent", params={"reason": beacon.problem})
@@ -341,7 +345,7 @@ def start_map_job(ctx: Ctx, job: Job, name: str) -> None:
 @command(ObjectSet)
 async def object_set(ctx: Ctx, cmd: ObjectSet) -> None:
     with refused(cmd.cmd):
-        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path, cmd.qru_group, cmd.on_request)
+        ctx.ctl.ownobjects.set(cmd.name, cmd.kind, cmd.lat, cmd.lon, cmd.symbol_table, cmd.symbol_code, cmd.comment, cmd.course_deg, cmd.speed_kmh, cmd.path, cmd.qru_group, cmd.on_request, cmd.radio)
 
 
 @command(ObjectKill)

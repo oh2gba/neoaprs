@@ -161,7 +161,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.routemenu {
+.routemenu,
+.convo-radio {
   flex: none;
 }
 .route-dot {

@@ -78,6 +78,8 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.you": "tú",
   "chain.internet": "internet",
   "chain.sent": "enviado {time}",
+  "chain.hf": "HF",
+  "chain.sent_hf": "enviado {time} por HF",
   "chain.heard": { select: "internet", yes: "escuchado, y por internet", other: "escuchado" },
   "chain.heard_at": { select: "internet", yes: "escuchado {time}, y por internet", other: "escuchado {time}" },
   "chain.seen_internet": "visto en una copia devuelta por internet, no escuchado aquí",
@@ -90,6 +92,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.waiting_for_ack": "esperando el acuse",
 
   "route.button": "Ruta",
+  "messages.hf_tag_title": "Los mensajes a esta estación van por la radio HF: directos, sin ruta",
   "route.changed": "Ruta: no la predeterminada",
   "route.path": "Ruta",
   "route.calls_hint": "Indicativos separados por comas, como máximo {max}",

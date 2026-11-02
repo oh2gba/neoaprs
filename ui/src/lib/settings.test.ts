@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_KEYS } from "@/protocol/lists";
 import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, storedFor, valueFor } from "@/lib/settings";
-import { shownByRules, shownFor } from "@/lib/settingsradio";
+import { shownByRadios, shownFor } from "@/lib/settingsradio";
 import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
-import type { RadioRulesState } from "@/protocol/protocol";
 
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
@@ -12,11 +11,13 @@ describe("groupKeys", () => {
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
     expect(groups[0]?.keys).toEqual([
       "station/transmit",
+      "fm/enabled",
       "tnc/profile",
       "serial/port",
       "serial/baud",
       "tcp/host",
       "tcp/port",
+      "hf/enabled",
       "mercury/sound_card",
       "mercury/keying",
       "serial/last_port",
@@ -45,7 +46,6 @@ describe("groupKeys", () => {
     ]);
     expect(groups[1]?.keys).toEqual([
       "beacon/interval_min",
-      "hf/beacon_interval_min",
       "beacon/travel",
       "station/comment",
       "beacon/power_w",
@@ -301,24 +301,21 @@ describe("shownFor in the TNC group", () => {
   const keys = ["serial/port", "serial/baud", "serial/last_port", "tcp/host", "tcp/port", "mercury/sound_card", "mercury/keying"];
   const shown = (profile: string) => keys.filter((k) => shownFor(k, profile, true));
   it("shows the port and the speed for a serial TNC, and never the port found", () => {
-    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud"]);
-    expect(shown("kiss")).toEqual(["serial/port", "serial/baud"]);
+    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "mercury/sound_card", "mercury/keying"]);
+    expect(shown("kiss")).toEqual(["serial/port", "serial/baud", "mercury/sound_card", "mercury/keying"]);
   });
   it("shows only the host and the port for KISS over TCP", () => {
-    expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port"]);
+    expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port", "mercury/sound_card", "mercury/keying"]);
   });
-  it("shows only the sound card and the keying for the Mercury HF modem, and nothing of them for the Dummy", () => {
-    expect(shown("mercury")).toEqual(["mercury/sound_card", "mercury/keying"]);
-    expect(shown("dummy")).toEqual([]);
+  it("shows the sound card and the keying whatever the FM radio's type is: they are the HF radio's, and the Dummy has no line", () => {
+    expect(shown("dummy")).toEqual(["mercury/sound_card", "mercury/keying"]);
+    expect(shown("")).toEqual(keys.filter((k) => k !== "serial/last_port"));
   });
 });
 
-describe("shownByRules", () => {
-  const fm = { kind: "fm" as const, paths: true, digipeat: true, smart_beacon: true, beacon_min_min: 20 };
-  const hf = { kind: "hf" as const, paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 };
+describe("shownByRadios", () => {
   const keys = [
     "beacon/interval_min",
-    "hf/beacon_interval_min",
     "beacon/path",
     "digi/enabled",
     "gps/source",
@@ -329,13 +326,18 @@ describe("shownByRules", () => {
     "station/comment",
     "tnc/profile",
   ];
-  const shown = (rules: RadioRulesState | null) => keys.filter((k) => shownByRules(k, rules));
-  it("leaves out the HF beacon's interval and nothing else before the daemon has said its rules, and on the FM radio", () => {
-    expect(shown(null)).toEqual(keys.filter((k) => k !== "hf/beacon_interval_min"));
-    expect(shown(fm)).toEqual(keys.filter((k) => k !== "hf/beacon_interval_min"));
+  const FM_ONLY = ["beacon/path", "digi/enabled", "beacon/travel"];
+  const shown = (values: Record<string, string>) => keys.filter((k) => shownByRadios(k, values));
+  it("leaves nothing out while the FM radio is on, whether the HF radio is or not, and before the daemon has said (the keys are not there)", () => {
+    expect(shown({ "fm/enabled": "true", "hf/enabled": "false" })).toEqual(keys);
+    expect(shown({ "fm/enabled": "true", "hf/enabled": "true" })).toEqual(keys);
+    expect(shown({})).toEqual(keys);
   });
-  it("leaves out the path, the digipeater, the moving station's keys and the usual beacon interval on the HF radio, where the HF interval is the beacon's", () => {
-    expect(shown(hf)).toEqual(["hf/beacon_interval_min", "station/comment", "tnc/profile"]);
+  it("keeps the one Beacon choice and the Position's keys while the HF radio is on alone, and leaves out the path, the digipeater and Travelling, which are FM's", () => {
+    expect(shown({ "fm/enabled": "false", "hf/enabled": "true" })).toEqual(keys.filter((k) => !FM_ONLY.includes(k)));
+  });
+  it("shows no Beacon choice when both radios are off (the daemon refuses it; the page greys the last tickbox)", () => {
+    expect(shown({ "fm/enabled": "false", "hf/enabled": "false" })).toEqual(keys.filter((k) => !FM_ONLY.includes(k) && k !== "beacon/interval_min"));
   });
 });
 
@@ -400,6 +402,7 @@ describe("the beacon being Off", () => {
   it("is an interval of 0 or empty, for a fixed and a moving station alike, and not a settings list that lacks the interval", () => {
     expect([beaconOff(off), beaconOff({ "beacon/interval_min": " 0 " }), beaconOff({ "beacon/interval_min": "" })]).toEqual([true, true, true]);
     expect([beaconOff({ "beacon/interval_min": "30" }), beaconOff({ "beacon/interval_min": "20" }), beaconOff({})]).toEqual([false, false, false]);
+    expect(beaconOff({ "beacon/interval_min": "0", "hf/enabled": "true", "fm/enabled": "false" })).toBe(true); // (one interval for both radios: Off switches both beacons off)
   });
   it("greys only the timing, Travelling and the status's Every, and nothing of what is sent, of the Station group or of the Beacon choice", () => {
     for (const values of [off, { ...off, "gps/source": "gpsd" }]) {
