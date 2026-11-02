@@ -7,13 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, kiss
+from neoaprs import ax25, kiss, wiring
 from neoaprs.config import DEFAULTS
 from neoaprs.packet import Position
 from neoaprs.source import Source
 from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
 from neoaprs.wiring import hf_settings, tnc_settings
 from tests.support.env import Env, idle_for, until
+from tests.test_packetlog import from_the_internet
 
 FIXED_ORDER = ["OH2RDG", "OH2RDK-7", "OH2RDS", "OH2PU-9"]         # the calls of the capture, in the order it came
 
@@ -92,6 +93,17 @@ async def test_every_packet_is_logged_as_the_line_and_what_it_is(tmp_path: Path,
     lines = [r.getMessage() for r in caplog.records if r.name == "neoaprs.packets"]
     assert len(lines) == 4 and lines[1] == "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz"
     await e.stop()
+
+
+def test_the_line_of_a_packet_of_the_internet_is_not_made_while_the_log_does_not_take_it(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    made: list[object] = []
+    monkeypatch.setattr(wiring, "tnc2", lambda packet: made.append(packet) or "line")
+    caplog.set_level(logging.INFO, "neoaprs.packets")
+    wiring._log_packet(from_the_internet())
+    assert made == [] and caplog.records == [], "debug only"
+    caplog.set_level(logging.DEBUG, "neoaprs.packets")
+    wiring._log_packet(from_the_internet())
+    assert len(made) == 1 and [r.getMessage() for r in caplog.records if r.name == "neoaprs.packets"][0].startswith("internet line")
 
 
 async def test_the_cable_pulled_makes_the_tnc_wait_and_the_cable_put_back_makes_it_connected_again(tmp_path: Path) -> None:

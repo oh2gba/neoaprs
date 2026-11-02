@@ -36,6 +36,14 @@ AppImage and the packages from) in PEP 440, `neoaprs-0.10.0rc1.tar.gz`, which `w
 version is `0.10.0~rc1`, so that it sorts before `0.10.0` for apt, while its file name has the version as written. The installer and the AppImage are also attached as `NeoAPRS-Setup.exe`
 and `NeoAPRS-x86_64.AppImage`, which the project page's buttons link to.
 
+## What the update trusts
+
+Update now (`neoaprs/updatefetch.py`, `neoaprs/services/selfinstall.py`) trusts GitHub over TLS: it downloads the file of exactly the announced version from the release page of the project (the host
+is checked again at every redirect, the size is capped) and compares its SHA-256 with `SHA256SUMS` of the same release. That list is not signed, so whoever can replace a release's files can replace
+the list too; the check finds a damaged or cut download, not a release that was tampered with at the source. The workflow makes build attestations that the daemon does not check, and the Windows
+installer is not code-signed. A signature over `SHA256SUMS` under a key built into the program would close this; until then the trust is the account that publishes the releases, and the account's
+protection (two-factor sign-in, no token with write access to releases outside the workflow) is the control.
+
 ## A build for testing
 
 Every file of a release can be built on GitHub without releasing anything: start the release workflow by hand on `master` or any branch (Actions, release, *Run workflow*, choose the branch; or

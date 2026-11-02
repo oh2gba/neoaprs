@@ -416,6 +416,16 @@ async def test_a_line_longer_than_the_reader_takes_is_a_lost_connection_and_the_
     await until(lambda: link.verified and server.connections == 2)
 
 
+async def test_a_greeting_longer_than_the_reader_takes_is_said_in_our_words_and_the_next_login_works() -> None:
+    server = await fake_aprsis(greeting=b"#" + b"x" * 9000 + b"\r\n")
+    link = link_to(server)
+    await link.start()
+    await until(lambda: "too long" in link.last_error)
+    assert "LimitOverrunError" not in link.last_error and "Separator" not in link.last_error
+    server.greeting = b"# javAPRSSrvr 4.0\r\n"
+    await until(lambda: link.verified and server.connections >= 2)
+
+
 async def test_a_run_that_is_not_the_current_one_ends_without_touching_the_state() -> None:
     link = link_to(await fake_aprsis())
     link._generation = 5

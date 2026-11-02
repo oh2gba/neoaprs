@@ -11,7 +11,7 @@ from neoaprs.coded import CodedError
 from neoaprs.packet import Message, decode_text
 
 _ADDRESSEE_LEN = 9
-_ID = re.compile(r"[A-Za-z0-9]{1,5}$")
+_ID = re.compile(r"[A-Za-z0-9]{1,5}")
 _NUMBER = re.compile(r"\{([A-Za-z0-9]{1,5})(\}[A-Za-z0-9]{0,5})?$")      # the message number at the end of a text: "{MM", "{MM}" or "{MM}AA"
 _ACK = re.compile(r"(ack|rej)([A-Za-z0-9]{1,5})(?:\}[A-Za-z0-9]{0,5})?$")
 MAX_TEXT = 67                                        # characters of message text the specification allows
@@ -78,7 +78,7 @@ def _check_addressee(addressee: str) -> str:
 
 
 def _check_id(msg_id: str) -> str:
-    if not _ID.match(msg_id):
+    if not _ID.fullmatch(msg_id):
         raise MessageError(f"bad message id {msg_id!r}")
     return msg_id
 
