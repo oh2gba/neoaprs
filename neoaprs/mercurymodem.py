@@ -141,7 +141,8 @@ class Mercury:
         try:
             self.broadcast_port, self.control_port = free_ports()
         except OSError as e:
-            self._set("waiting", f"no free port for Mercury: {e}")
+            log.warning("Mercury cannot be started: %s", e)
+            self._set("waiting", "no free port for Mercury; the log says which were tried")
             return
         audio: list[str] = []
         if self.speaker:
@@ -155,7 +156,8 @@ class Mercury:
         try:
             ini.write_text(ini_text(keying), encoding="utf-8")
         except OSError as e:
-            self._set("waiting", f"Mercury's configuration could not be written to {ini}: {os_error_text(e)}")
+            log.warning("Mercury's configuration could not be written to %s: %s", ini, os_error_text(e))
+            self._set("waiting", f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}")
             return
         await asyncio.to_thread(end_stale, pid_file)
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)

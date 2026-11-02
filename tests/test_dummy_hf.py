@@ -148,7 +148,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     await until(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
     assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
-    assert (tmp_path / "mercury-capture.fifo").exists(), "Mercury runs on the fifo backend, paced by the daemon"
+    assert (tmp_path / "mercury-capture.fifo").exists() == hasattr(os, "mkfifo"), "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes; on its default devices elsewhere"
     await until(lambda: e.ctl.mercury.speaking, 5.0)
     for _ in range(40):
         e.now.advance(5)                                                         # type: ignore[attr-defined]

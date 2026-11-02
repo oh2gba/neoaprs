@@ -352,7 +352,7 @@ async def test_the_tnc_tells_the_modems_problem_when_its_line_cannot_be_opened(t
     await tnc.start()
     try:
         await until(lambda: tnc.state is Source.State.WAITING)
-        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"{tnc.port}, waiting"
+        assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"Mercury DATAC3: {NOT_INSTALLED}, 0 packets", "the socket the modem is reached on is nowhere in the words of the status"
     finally:
         await tnc.stop()
         await m.stop()
@@ -390,14 +390,14 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
     monkeypatch.setattr(mercurymodem, "free_ports", none)
     m = modem(tmp_path)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == "no free port for Mercury: no free pair of ports from 8100 to 8150" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
+    assert m.state == "waiting" and m.problem == "no free port for Mercury; the log says which were tried" and m.starts == 0 and not (tmp_path / INI_FILE).exists()
     await stopped(m)
 
 
 async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
     m = modem(tmp_path / "gone")                    # (no such folder: the configuration cannot be written there)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written to ") and "gone" in m.problem and m.starts == 0
+    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
 
 
