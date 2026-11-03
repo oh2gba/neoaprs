@@ -1785,7 +1785,7 @@ export const de: Catalogue = {
   "help.update.restarting": "NeoAPRS startet gleich neu",
   "help.update.restarting_installer": "Wird installiert … NeoAPRS startet gleich neu",
   "help.update.reconnecting": "NeoAPRS startet neu. Diese Seite verbindet sich von selbst wieder.",
-  "help.update.problem.download": "Das Update konnte nicht heruntergeladen werden. Prüfe die Internetverbindung und versuche es noch einmal.",
+  "help.update.problem.download": "Das Update konnte nicht heruntergeladen werden. Versuche es noch einmal oder lade es von der Projektseite herunter.",
   "help.update.problem.no_checksum": "Das Release hat für diese Datei keine Prüfsumme, darum wurde nichts installiert. Aktualisiere von Hand.",
   "help.update.problem.checksum": "Der Download ist nicht die Datei des Release; er wurde gelöscht und nichts wurde installiert. Versuche es noch einmal.",
   "help.update.problem.install": "Das Update konnte nicht installiert werden. Aktualisiere von Hand.",

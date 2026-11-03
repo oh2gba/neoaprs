@@ -135,7 +135,7 @@ describe("the progress of Update now", () => {
   it("says each problem in plain words", () => {
     expect(problemText("")).toBe("");
     expect(problemText("checksum")).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
-    expect(problemText("download")).toContain("Check the internet connection");
+    expect(problemText("download")).toContain("download it from the project page");
     expect(problemText("no_restart")).toContain("Quit NeoAPRS and start it again");
   });
 

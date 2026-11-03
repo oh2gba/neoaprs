@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed:** Update now, Send logs and the map download could fail on a fresh Windows with a certificate error where the browser of the same computer downloaded the same file (Windows fetches a missing root certificate only for a browser): NeoAPRS also trusts the usual list of root certificates (certifi), and a failed download no longer blames the internet connection.
 ## 0.16.2
 
 - **Fixed:** on Windows the HF radio no longer depends on the Windows Firewall: NeoAPRS builds the Mercury modem itself, listening on this computer only, as on Linux and macOS, so there is no firewall rule, no prompt, no check and no **Fix** button; the VOX lead-in works on Windows too. (The check could fail for a user who is not an administrator, or on a computer whose security software answered "Access is denied", and the HF radio then never started. Thanks to OH2GAX for the logs.)

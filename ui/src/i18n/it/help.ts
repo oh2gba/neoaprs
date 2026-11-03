@@ -116,7 +116,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.restarting": "NeoAPRS si riavvia tra un attimo",
   "help.update.restarting_installer": "Installazione… NeoAPRS si riavvia tra un attimo",
   "help.update.reconnecting": "NeoAPRS si sta riavviando. Questa pagina si ricollega da sola.",
-  "help.update.problem.download": "Non è stato possibile scaricare l’aggiornamento. Controlla la connessione a Internet e riprova.",
+  "help.update.problem.download": "Non è stato possibile scaricare l’aggiornamento. Riprova, oppure scaricalo dalla pagina del progetto.",
   "help.update.problem.no_checksum":
     "La versione pubblicata non ha una somma di controllo per questo file, quindi non è stato installato nulla. Aggiorna a mano.",
   "help.update.problem.checksum": "Il download non è il file della versione pubblicata: è stato eliminato e non è stato installato nulla. Riprova.",
