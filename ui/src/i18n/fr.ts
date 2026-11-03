@@ -1247,6 +1247,22 @@ export const fr: Catalogue = {
   "settings.firewall.label": "Pare-feu",
   "settings.firewall.tip_label": "À propos du pare-feu",
   "settings.firewall.tip1": "Fait en sorte que le pare-feu Windows tienne le réseau à l'écart de Mercury. Windows demande votre autorisation.",
+  "settings.scope.title": "Spectre",
+  "settings.scope.aria": "Le spectre de l'audio de la radio de 300 à 2 700 Hz ; le bloc est l'endroit où se trouve une trame.",
+  "settings.scope.level": "Niveau de réception",
+  "settings.scope.value": "{value} dBFS",
+  "settings.scope.tip_label": "À propos du niveau de réception",
+  "settings.scope.tip1":
+    "La barre est le niveau de l'audio de la radio, la partie verte la bonne plage. Le bloc du dessin est l'endroit où se trouve une trame.",
+  "settings.scope.tip2": "Trop bas : montez la sortie audio de la radio ou l'entrée de la carte son. Rouge : baissez-le, la carte son sature.",
+  "settings.txlevel.label": "Niveau d'émission",
+  "settings.txlevel.lower": "Baisser le niveau d'émission",
+  "settings.txlevel.raise": "Monter le niveau d'émission",
+  "settings.txlevel.value": "{value} dB",
+  "settings.txlevel.peak": "Crête {value} dBFS",
+  "settings.txlevel.tip_label": "À propos du niveau d'émission",
+  "settings.txlevel.tip1": "La force de l'audio du modem vers la radio, en dB. Appuyez sur Accord et surveillez l'ALC : il ne doit presque pas bouger.",
+  "settings.txlevel.tip2": "La crête devient rouge à 0 dBFS, où la carte son sature.",
   "settings.tune": "Accord",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tonalité de réglage",
@@ -1696,6 +1712,8 @@ export const fr: Catalogue = {
     "Une station entendue à la radio, par des ondes, porte RF ; une venue du nuage, APRS-IS, a un contour en pointillés et sa propre étiquette.",
   "help.picture.mercury":
     "Votre station et une station lointaine, très éloignées ; le signal monte et redescend entre elles : seule une station avec le même modem l'entend.",
+  "help.picture.scope":
+    "Une station lointaine émet ; le spectre montre sa trame comme un bloc de barres au-dessus du bruit faible, et la barre du niveau de réception reste dans sa bonne plage.",
   "help.picture.tworadios":
     "Votre station avec deux radios : la radio FM atteint la voiture et le digipeater proches au ras du sol, la radio HF atteint une station lointaine par le signal qui monte et redescend.",
   "help.picture.dummy":

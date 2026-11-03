@@ -7,7 +7,7 @@ import asyncio
 import logging
 
 from .coded import CodedError
-from .mercury import KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, Keying, key_test_level, tune_command
+from .mercury import KEY_TEST_SEC, TUNE_OFF, TUNE_SEC, Keying, key_test_level, tune_command, tune_level
 from .signal import Signal
 from .tasks import TaskSet, cancel_all
 
@@ -20,6 +20,7 @@ class Tuning:
     test: str                              # one of mercurymodem.TESTS: the tune tone or the keying test is on (the hold is on with it)
     speaker: bool                          # started as the speaker of the Dummy HF radio: nothing is keyed, Tune is refused
     keying: Keying
+    tx_gain_db: int                        # the transmit gain: the tune tone follows it (mercury.tune_level)
     changed: Signal[[]]
     _tasks: TaskSet
     _generation: int
@@ -61,7 +62,20 @@ class Tuning:
 
     async def tune(self) -> None:
         """Keys the radio with the tune tone through the sound card and the keying in use, for TUNE_SEC or until `tune_stop`. CodedError when the modem is not running (`hf.not_running`) or the radio is not free (`hf.held`)."""
-        await self._begin("tune", TUNE_LEVEL_DBFS, TUNE_SEC)
+        await self._begin("tune", tune_level(self.tx_gain_db), TUNE_SEC)
+
+    async def _retune(self) -> None:
+        """The transmit gain moved while the tune tone is on: Mercury keeps the tone out of its gain, so the tone is asked for again at the level that follows it. Mercury 1.9.21 refuses a TUNE while one is running (its source
+        says it retunes, but `modem_tune_start` refuses first, "transmit in progress", measured with the real Mercury), so the tone is ended and begun again, a second or so of silence in which the radio is unkeyed and keyed
+        again, the lines being taken in order. The hold stays on (`test` is still the tune), and our own timer starts over, since the operator is watching the meter."""
+        if self.test != "tune":
+            return
+        level = tune_level(self.tx_gain_db)
+        if not (self._write(TUNE_OFF) and self._write(tune_command(level))):
+            return
+        log.info("Mercury: the tune tone follows the transmit gain to %g dBFS", level)
+        await self._cancel_test()
+        self._test_task = self._tasks.spawn(self._end_after(TUNE_SEC, self._generation), "mercury-test")
 
     async def key_test(self) -> None:
         """Keys the radio for KEY_TEST_SEC, so that the operator sees it go to transmit and come back: with next to no audio where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio

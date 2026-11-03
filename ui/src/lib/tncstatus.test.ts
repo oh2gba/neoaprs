@@ -56,6 +56,9 @@ describe("tncStatus", () => {
       dial: "7.0541 MHz USB",
       sound_card: "",
       keying: "vox",
+      scope: false,
+      tx_gain_db: 0,
+      tx_peak_dbfs: null,
     };
     expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("DATAC3 · Transmitting… · Last packet 30 s ago");
     expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");

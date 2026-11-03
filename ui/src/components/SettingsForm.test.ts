@@ -70,6 +70,7 @@ describe("SettingsForm", () => {
       "tcp/port",
       "mercury/sound_card", // (only while the HF radio is ticked)
       "mercury/keying",
+      "mercury/tx_gain_db", // (the Transmit level row of the HF radio's box, with its Tune)
       "fm/enabled", // (the tickboxes of the two radios are counted below)
       "hf/enabled",
       "web/key",

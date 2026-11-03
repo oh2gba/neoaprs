@@ -33,6 +33,7 @@ FRAME_SEC = 3.8                        # a frame on the air, PTT ON to PTT OFF, 
 DELIVERY_SEC = 3.8                     # from the frame handed to Mercury to the packet at the far station: measured 3.68 s on average and 3.78 s at the slowest (0.14 s to PTT ON, and the far side decodes 0.26 s before PTT OFF: the postamble and the tail are still on the air)
 BROADCAST_PORT = 8100                  # Mercury's defaults (its docs/TNC.md): the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
+UI_OFFSET = 2000                       # Mercury's UI interface (the scope, the transmit level) is on the broadcast port plus this, 10100 by default: not Mercury's own 10000, which an operator's own Mercury UI may hold
 CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports; of a Mercury something else runs it is an assumption of ours (Mercury's -b and -p are independent), true of one started with its defaults
 # The busy detector (Mercury's modem/channel_busy.c, switched on in the ini the daemon writes): a spectrum every 50 ms, bands of 150 Hz over 300 to 2700 Hz, BUSY when the loudest band is `busy_threshold_db` above the noise floor
 # (the lower-quartile band, tracked slowly) for 300 ms, and CLEAR 3 dB lower for 1500 ms. Mercury's default threshold, 10 dB, is read off a quiet channel; a real band is not one. Measured on the simulated channel with real
@@ -73,6 +74,12 @@ TUNE_SEC = 10.0
 KEY_TEST_LEVEL_DBFS = -60.0
 KEY_TEST_SEC = 1.0
 TUNE_OFF = "TUNE OFF"
+
+
+def tune_level(gain_db: float) -> float:
+    """The level of the tune tone for a transmit gain: TUNE_LEVEL_DBFS moved by the gain, as far as TUNE takes (-60 to 0 dBFS). Mercury keeps the tone out of its own gain ("TUNE -15" means -15 dBFS at the sound card, modem.c),
+    so the tone follows the gain here: the radio's ALC on the tone moves with the gain as it will on the frames. (A tone that is on cannot be retuned: Mercury 1.9.21 refuses a second TUNE, so the modem part ends it and begins it again, mercurytune.py.)"""
+    return max(KEY_TEST_LEVEL_DBFS, min(0.0, TUNE_LEVEL_DBFS + gain_db))
 
 
 def key_test_level(kind: str) -> float:
@@ -158,15 +165,20 @@ def command(program: Sequence[str], config_file: str, sound_card: str, keying: K
     return argv
 
 
-def ini_text(keying: Keying) -> str:
+def ini_text(keying: Keying, tx_gain_db: int = 0, ui_port: int = 0) -> str:
     """Mercury's configuration file as the daemon writes it: the channel-busy detector on (its `BUSY ON` / `BUSY OFF` on the control port is the one carrier sense this plane has), the serial line that keys the radio
-    (`line` has no command-line flag), the lead-in tone ahead of the preamble for a radio that keys on the audio (`LEADIN_MS`, VOX only), no message store (Mercury keeps a chat history by default; NeoAPRS has its own),
-    and a quick heartbeat on the control port."""
+    (`line` has no command-line flag), the transmit gain (`tx_gain_db`, the setting `mercury/tx_gain_db`), the lead-in tone ahead of the preamble for a radio that keys on the audio (`LEADIN_MS`, VOX only), no message
+    store (Mercury keeps a chat history by default; NeoAPRS has its own), a quick heartbeat on the control port and, with a `ui_port`, the UI interface on that port with the spectrum feed off (the daemon turns it on while
+    a page has the scope open); an ini key that a Mercury does not know is ignored, so a Mercury without the interface runs as before."""
     line = keying.kind if keying.kind in PTT_WITH_DEVICE else "rts"
-    leadin = f"[audio]\ntx_leadin_ms = {LEADIN_MS}\n" if keying.kind == "vox" else ""
+    leadin = f"tx_leadin_ms = {LEADIN_MS}\n" if keying.kind == "vox" else ""
+    ui = f"[main]\nui_enabled = true\nui_port = {ui_port}\nwaterfall_enabled = false\n" if ui_port else ""
     return ("; written by NeoAPRS at every start; the command line carries the rest\n"
             "[ptt]\n"
             f"line = {line}\n"
+            f"{ui}"
+            "[audio]\n"
+            f"tx_gain_db = {tx_gain_db}\n"
             f"{leadin}"
             "[channel]\n"
             "busy_detect = true\n"

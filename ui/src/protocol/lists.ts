@@ -29,6 +29,7 @@ export const MESSAGE_TYPES = [
   "alert_result",
   "error",
   "hello",
+  "hf_scope",
   "packet_history",
   "patch",
   "pong",
@@ -56,6 +57,7 @@ export const CONFIG_KEYS = [
   "hf/profile",
   "mercury/sound_card",
   "mercury/keying",
+  "mercury/tx_gain_db",
   "serial/last_port",
   "serial/pattern",
   "serial/skip",
@@ -331,6 +333,7 @@ export const LIMITS = {
     "map/radius_km": { min: 10, max: 1000 },
     "map/maxzoom": { min: 6, max: 15 },
     "gps/baud": { min: 300, max: 921600 },
+    "mercury/tx_gain_db": { min: -20, max: 20 },
     "station/lat": { min: -90.0, max: 90.0 },
     "station/lon": { min: -180.0, max: 180.0 },
   },
@@ -353,6 +356,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
+  scope: { bins: 48, loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rangeDb: 60, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, everySec: 0.2 },
   mercury: { mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"]] },
 } as const;
 

@@ -151,6 +151,7 @@ def wire(parts: Services) -> None:
     parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
     parts.mercury.ports_changed.connect(parts.repoint_hf)                                # (a modem started again on other ports, the old pair taken meanwhile: the HF Tnc follows it)
     parts.updatecheck.dial_changed.connect(lambda dial: _show_dial(parts, dial))        # (the HF dial the group meets on comes with the version page: a move needs no release)
+    parts.config_changed.connect(lambda config: parts.mercury.set_tx_gain(config.mercury_tx_gain_db))                  # (the transmit gain is set live in the modem, and the tune tone follows it)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
     parts.gps_feed.changed.connect(parts.gps.feed_changed)

@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfAllowFirewallCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfAllowFirewallCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | HfScopeMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -467,6 +467,24 @@ export interface HfKeyTestCommand {
   cmd: "hf_key_test";
 }
 
+/** The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and the daemon switches the modem's spectrum feed on while any page asks; with `on` false, or when the page closes, the page is sent no more and the feed is switched off when no page is left. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says `modem.scope`). */
+export interface HfScopeCommand {
+  cmd: "hf_scope";
+  /** true starts the pictures for this page, false stops them */
+  on: boolean;
+}
+
+/** One picture of the HF radio's audio, told to the pages that asked for it (`hf_scope`), five a second at most: the spectrum of the passband in 48 bins of 50 Hz from 300 to 2700 Hz, the bins' level over the quiet floor of the band, and the level of the passband. The frame's signal band is 1200 to 1800 Hz (bins 18 to 29). */
+export interface HfScopeMessage {
+  type: "hf_scope";
+  /** the level of each 50 Hz bin over the band's quiet floor, whole dB, 0 to 60, the first bin 300 to 350 Hz */
+  bins: number[];
+  /** the RMS level of the audio in the passband, whole dBFS, -90 for silence (a full-scale sine reads -3) */
+  level: number;
+  /** the radio is transmitting: the picture is of our own signal (the tune tone shows as a line at 1000 Hz), and the level is of that */
+  tx: boolean;
+}
+
 /** Tune: with `on`, keys the HF radio through the keying in use and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early. For tuning the antenna, setting the audio level and finding which sound device is the radio. The topic `hf` says `test: "tune"` meanwhile and our frames wait. Answered with an `error` while RX only is ticked (`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`). */
 export interface HfTuneCommand {
   cmd: "hf_tune";
@@ -713,6 +731,12 @@ export interface ModemState {
   dial: string;
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;
+  /** the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) */
+  scope: boolean;
+  /** the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it */
+  tx_gain_db: number;
+  /** the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read */
+  tx_peak_dbfs: number | null;
 }
 
 /** Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next `status`. Answered by that `status`, or by an `error` when the key could not be kept. */

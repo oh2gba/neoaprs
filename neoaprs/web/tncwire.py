@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Model
+from .wirebase import Iso, _Command, _Message, _Model
 
 
 class TncStats(_Model):
@@ -47,6 +47,9 @@ class ModemState(_Model):
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
     dial: str = Field(description="the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
+    scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
+    tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")
+    tx_peak_dbfs: int | None = Field(description="the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read")
 
 
 class RadioRulesState(_Model):
@@ -85,6 +88,23 @@ class HfTune(_Command):
     (`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`)."""
     cmd: Literal["hf_tune"]
     on: bool = Field(description="true starts the tone, false stops it")
+
+
+class HfScope(_Command):
+    """The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and the daemon switches the modem's spectrum feed on while any page asks; with `on` false,
+    or when the page closes, the page is sent no more and the feed is switched off when no page is left. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
+    `modem.scope`)."""
+    cmd: Literal["hf_scope"]
+    on: bool = Field(description="true starts the pictures for this page, false stops them")
+
+
+class HfScopeMsg(_Message):
+    """One picture of the HF radio's audio, told to the pages that asked for it (`hf_scope`), five a second at most: the spectrum of the passband in 48 bins of 50 Hz from 300 to 2700 Hz, the bins' level over the quiet floor
+    of the band, and the level of the passband. The frame's signal band is 1200 to 1800 Hz (bins 18 to 29)."""
+    type: Literal["hf_scope"]
+    bins: list[int] = Field(min_length=48, max_length=48, description="the level of each 50 Hz bin over the band's quiet floor, whole dB, 0 to 60, the first bin 300 to 350 Hz")
+    level: int = Field(ge=-90, le=0, description="the RMS level of the audio in the passband, whole dBFS, -90 for silence (a full-scale sine reads -3)")
+    tx: bool = Field(description="the radio is transmitting: the picture is of our own signal (the tune tone shows as a line at 1000 Hz), and the level is of that")
 
 
 class HfKeyTest(_Command):

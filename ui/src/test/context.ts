@@ -43,6 +43,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     status,
     tnc: part(over.tnc, null),
     hf: part(over.hf, null),
+    hfScope: part(over.hfScope, null),
     radiosNamed: over.radiosNamed === undefined ? computed(() => hfOn(config.value?.values ?? {})) : part(over.radiosNamed, false),
     gps: part(over.gps, null),
     igate: part(over.igate, null),

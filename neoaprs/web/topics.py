@@ -44,6 +44,7 @@ from neoaprs.station import Station
 from .hub import StateHub, Topic
 from .mapview import map_state
 from .packetwindow import PACKETS_KEPT, PacketWindow
+from .scopefeed import ScopeFeed
 from .updatewire import UpdateState
 from .views import bulletin_row, config_values, general_state, gps_state, igate_state, key_row, message_row, own_bulletin_row, own_object_row, pref_row, qru_state, station_alert_message, station_row, tnc_state
 
@@ -64,6 +65,7 @@ class Topics:
         self._sent = sent                           # told when a packet of ours went out: the status (the count of packets, the time of the beacon) has changed
         self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
+        self.scope = ScopeFeed(ctl.mercury)               # the pages that have the HF scope open: the pictures are sent to them, not to every page
         self._distances_at = float("-inf")          # when every station was last told whole because we moved (the monotonic clock)
         self._config = ctl.config                   # the settings the stations were last told with
         self.window.internet = ctl.config.igate_enabled
@@ -146,7 +148,7 @@ class Topics:
             (ctl.stationbook.changed, self._station_changed), (ctl.stationbook.recounted, self._station_changed), (ctl.stationbook.removed, self._station_removed),
             (ctl.stationbook.cleared, self._stations_cleared),
             (ctl.tnc.packet, self._packet), (ctl.hf.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
-            (ctl.hf.changed, self._hf_changed), (ctl.hf.state_changed, self._hf_state_changed), (ctl.mercury.changed, self._hf_changed),
+            (ctl.hf.changed, self._hf_changed), (ctl.hf.state_changed, self._hf_state_changed), (ctl.mercury.changed, self._hf_changed), (ctl.mercury.scope_frame, self.scope.frame),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),

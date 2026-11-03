@@ -13,6 +13,7 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
+from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .radiorules import HF
@@ -38,12 +39,10 @@ MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 
 MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
 MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
-MAP_RADIUS_KM = (10, 1000)           # map/radius_km: the area of the detailed map round the station
-MAP_MAXZOOM = (6, 15)                # map/maxzoom: the deepest zoom of the detailed map
+MAP_RADIUS_KM, MAP_MAXZOOM = (10, 1000), (6, 15)           # map/radius_km: the area of the detailed map round the station; map/maxzoom: its deepest zoom
 STATION_HOURS = (1, 3, 6, 12, 24)  # map/station_hours: the hours after its last position that a station stays on the map (the page hides it then; the table keeps it): the choices of the Stations tab
 DEFAULT_STATION_HOURS = 3
-LATITUDE = (-90.0, 90.0)
-LONGITUDE = (-180.0, 180.0)
+LATITUDE, LONGITUDE = (-90.0, 90.0), (-180.0, 180.0)
 RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the settings and what each may be, from the least to the most: also the page's (LIMITS of ui/src/protocol/lists.ts)
     "serial/baud": (300, 921600),
     "tcp/port": (1, 65535),
@@ -55,6 +54,7 @@ RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the setti
     "map/radius_km": MAP_RADIUS_KM,
     "map/maxzoom": MAP_MAXZOOM,
     "gps/baud": (300, 921600),
+    "mercury/tx_gain_db": (TX_GAIN_MIN_DB, TX_GAIN_MAX_DB),
 }
 DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
 STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
@@ -110,6 +110,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("hf_profile", "hf/profile", hf_profile),                        # what the HF radio is: the Mercury modem (mercury), or the Dummy HF radio (dummy-hf) that makes up distant stations and keys nothing
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
     Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
+    Setting("mercury_tx_gain_db", "mercury/tx_gain_db", int_in(*RANGES["mercury/tx_gain_db"])),           # the Mercury modem's transmit gain in dB (0: its own level, a frame peaks at -6 dBFS): set live from the HF box beside Tune, written to its ini at every start
     Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
     Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
@@ -177,6 +178,7 @@ class Config:
     hf_profile: str = DEFAULT_HF_PROFILE.key
     mercury_sound_card: str = ""
     mercury_keying: str = ""
+    mercury_tx_gain_db: int = 0
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""

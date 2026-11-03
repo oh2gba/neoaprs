@@ -43,7 +43,7 @@ class Api:
         self.hub = StateHub()
         self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure, tell=self.out.broadcast)
         self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
-        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors)
+        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scope=self.topics.scope)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
         self.tasks = TaskSet(log, "web")
@@ -102,6 +102,7 @@ class Api:
         if conn is not None:
             self.hub.detach(conn)
             self.page_errors.forget(conn)
+            self.topics.scope.forget(conn)
         self.out.close(client)
 
     # ---- the commands

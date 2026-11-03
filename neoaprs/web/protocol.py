@@ -39,14 +39,14 @@ from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
 from .stationwire import ForgetAllStations, ForgetStation, StationRow
 from .supportwire import PageError
-from .tncwire import HfAllowFirewall, HfKeyTest, HfTune, TncState
+from .tncwire import HfAllowFirewall, HfKeyTest, HfScope, HfScopeMsg, HfTune, TncState
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
 from .weatherwire import WeatherSeries, WeatherSeriesMsg
 from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfAllowFirewall, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfAllowFirewall, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -86,7 +86,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, HfScopeMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

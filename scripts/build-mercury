@@ -14,9 +14,9 @@ needs beyond glibc and the ALSA configuration beside it; on macOS linked to the 
 The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/mercury.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
 checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
 a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
-ALSA device), the TCP listeners bound to the loopback by packaging/mercury/loopback.patch on either system (Mercury binds its control, data and KISS ports on every interface with no password, which would let any host
+ALSA device), the TCP listeners and the UI websocket bound to the loopback by packaging/mercury/loopback.patch on either system (Mercury binds its control, data, KISS and UI ports on every interface with no password, which would let any host
 on the LAN key the radio; the patch says more), a lead-in tone for a radio on VOX added by packaging/mercury/leadin.patch (the ini key `tx_leadin_ms`, off unless the ini sets it), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
-(`-V`, `-z`, and on Linux once on its fifo backend to see that its three ports listen on 127.0.0.1 and nowhere else) and prints what it says.
+(`-V`, `-z`, and on Linux once on its fifo backend to see that its four ports (the UI websocket included) listen on 127.0.0.1 and nowhere else) and prints what it says.
 Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
 the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool, patch) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
 machine it runs on; Rhizomatica's own universal build is not taken because it asks for macOS 26. How it is used: docs/development.md, "Scripts"."""
@@ -59,9 +59,10 @@ STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
 LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
 LEADIN_PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
 LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"           # the key the lead-in patch adds, which the source must hold after it
-LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the one file the patch changes; no INADDR_ANY may be left in it
+LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the file the patch changes for the TCP listeners; no INADDR_ANY may be left in it
+UI_FILE, UI_BIND = "gui_interface/websocket/mercury_websocket.c", 'opts.bind_addr = "127.0.0.1";'          # and the one for the UI websocket, whose bind address must say the loopback
 LOOPBACK = "0100007F"                                        # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
-LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its three ports
+LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its four ports
 WORK = ROOT / "build" / "mercury" / "work"
 DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
 ALSA_DATA = Path("/usr/share/alsa")
@@ -179,6 +180,8 @@ def apply_patches(tree: Path) -> None:
     listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
     if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
         raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
+    if UI_BIND not in (tree / UI_FILE).read_text(encoding="utf-8"):
+        raise BuildError(f"{UI_FILE} does not bind the UI websocket to the loopback after {LOOPBACK_PATCH.name}")
     if not MACOS:
         if not STUB.is_file():
             raise BuildError(f"{STUB} is missing")
@@ -292,7 +295,7 @@ def stage(tree: Path, out: Path, started: float) -> Path:
         f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
         f"Built: make {flags}\n"
         f"{sound}"
-        f"Changes to the source: {LISTENERS_FILE} binds its TCP listeners to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
+        f"Changes to the source: {LISTENERS_FILE} and {UI_FILE} (the UI websocket) bind to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
         f"Changes to the source: the ini key {LEADIN_KEY} plays a tone of that many milliseconds ahead of every frame's preamble, for a radio on VOX; 0 by default, no change (packaging/mercury/leadin.patch of NeoAPRS).\n"
         f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
         f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
@@ -374,15 +377,15 @@ def listeners(ports: set[int]) -> dict[int, set[str]]:
 
 
 def check_loopback(program: str, env: dict[str, str]) -> str:
-    """Starts the program once on its fifo backend (no sound card: two named pipes nobody reads) with the first free pair of ports, waits for its three TCP ports to listen, and checks in /proc/net/tcp that each is bound
-    to 127.0.0.1 and nothing else: what packaging/mercury/loopback.patch is for, held against the program as built. BuildError when a port listens elsewhere or never listens."""
-    broadcast = next(port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201)))
-    ports = {broadcast, broadcast + 200, broadcast + 201}
+    """Starts the program once on its fifo backend (no sound card: two named pipes nobody reads) with the first free pair of ports and the UI websocket on a port of its own (the ini turns it on), waits for its four TCP
+    ports to listen, and checks in /proc/net/tcp that each is bound to 127.0.0.1 and nothing else: what packaging/mercury/loopback.patch is for, held against the program as built. BuildError when a port listens elsewhere or never listens."""
+    broadcast = next(port for port in range(18100, 18200) if all(_free(port + offset) for offset in (0, 200, 201, 2000)))
+    ports = {broadcast, broadcast + 200, broadcast + 201, broadcast + 2000}
     with tempfile.TemporaryDirectory(prefix="mercury-loopback-") as folder:
         capture, playback, ini = str(Path(folder) / "capture"), str(Path(folder) / "playback"), Path(folder) / "mercury.ini"
         os.mkfifo(capture)
         os.mkfifo(playback)
-        ini.write_text("[store]\nenabled = false\n", encoding="utf-8")
+        ini.write_text(f"[main]\nui_enabled = true\nui_port = {broadcast + 2000}\nwaterfall_enabled = false\n[store]\nenabled = false\n", encoding="utf-8")
         argv = [program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(broadcast), "-p", str(broadcast + 200), "-P", "none"]
         child = subprocess.Popen(argv, cwd=folder, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         try:

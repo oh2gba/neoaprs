@@ -180,11 +180,11 @@ def test_the_configuration_switches_the_busy_detector_on_names_the_line_and_keep
 
 
 def test_the_configuration_has_the_lead_in_tone_for_vox_and_for_no_other_keying() -> None:
-    assert f"[audio]\ntx_leadin_ms = {mercury.LEADIN_MS}\n" in mercury.ini_text(mercury.Keying("vox"))
+    assert f"[audio]\ntx_gain_db = 0\ntx_leadin_ms = {mercury.LEADIN_MS}\n" in mercury.ini_text(mercury.Keying("vox"))
     assert mercury.LEADIN_MS > 0
     for keying in (mercury.Keying("rts", "/dev/ttyUSB0"), mercury.Keying("dtr", "COM3"), mercury.Keying("cm108")):
         text = mercury.ini_text(keying)
-        assert "tx_leadin_ms" not in text and "[audio]" not in text, f"{keying.kind} keys the radio itself: a tone ahead of the frame would only cost channel time"
+        assert "tx_leadin_ms" not in text, f"{keying.kind} keys the radio itself: a tone ahead of the frame would only cost channel time"
 
 
 # ---- the daemon's own choice of the sound card and the keying

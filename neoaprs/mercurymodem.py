@@ -22,17 +22,19 @@ and the frames the dummy line is given (`play`) are written to its broadcast por
 and a player or a Mercury that is not there is a line in the log and nothing more (the Dummy HF radio works without it)."""
 import asyncio
 import logging
-import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from .clock import Clock, utcnow
 from .config import Config
-from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, TUNE_OFF, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryallow import Allowing
 from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, expected_program, find, foreign_listeners, free_ports, is_shipped, list_sound_cards
+from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
+from .mercuryscoping import Scoping
+from .mercuryscope import clamp_gain
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
 from .serialprobe import PortInfo, available_ports
 from .signal import Signal
@@ -47,9 +49,6 @@ PID_FILE = "mercury.pid"
 NOT_INSTALLED = "the Mercury program is not in this installation of NeoAPRS (the AppImage, the .deb and the Windows installer carry it)"
 OPEN_TO_NETWORK = "Mercury listens on the network and is not run: the Mercury NeoAPRS ships listens on this computer only"
 SOUND_CARD_FAILED = "the sound card could not be opened: choose another one in the Sound card field"       # Mercury runs on deaf and mute when its sound card fails (seen on a station with two USB sound cards): the program is ended and the operator told where to act
-TRANSMITTING = "the radio is transmitting"
-CHANNEL_BUSY = "the channel is busy"
-KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 STATES = ("stopped", "starting", "running", "waiting")
 REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "firewall", "firewall_off", "sound_card")     # why the state is `waiting`, for the page to say in its own words (`problem` is the English of the log)
 TESTS = ("", "tune", "key")                  # what the control port was asked for and not yet told to stop: nothing, the tune tone, the keying test
@@ -80,7 +79,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Tuning, Allowing):
+class Mercury(Channel, Tuning, Allowing, Scoping):
     def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None) -> None:
         self.data_dir, self.clock = data_dir, clock
         self._finder = finder or find                                # the shipped program (mercuryhelper.find); a test gives its own
@@ -96,18 +95,14 @@ class Mercury(Tuning, Allowing):
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
         self.attached = ""                                           # the address of a Mercury that something else runs; empty for one of ours
         self.speaker = False                                         # started as the speaker of the Dummy HF radio: nothing keyed, the frames of the dummy line played
-        self.keyed = False                                           # Mercury has keyed the radio (PTT ON)
-        self.busy = False                                            # Mercury's busy detector hears a signal (BUSY ON)
+        self._init_channel()
+        self._init_scoping()
         self.test = ""                                               # one of TESTS: the tune tone or the keying test is on (the hold is on with it)
-        self.snr: float | None = None                                # the signal-to-noise ratio of the latest frame decoded, dB
         self.ports: Callable[[], list[SerialPort]] = system_serial_ports      # the serial ports the choice of a keying line looks at (a test gives none: the operator's ports are never read by a test)
         self.sound_card = ""                                         # the sound card the program runs with (the setting, else the daemon's choice; "" is the system's default device)
         self.keying = Keying("vox")                                  # how it keys the radio (the setting, else the daemon's choice)
         self.frames_keyed = 0                                        # how many times the radio was keyed since the start
         self.starts = 0                                              # how many times the program was started
-        self._keyed_at = self._busy_at = 0.0
-        self._keyed_since = self._busy_since = 0.0                   # when the PTT ON / BUSY ON that is under way came (for the log's "for 3.8 s")
-        self._told_long: set[str] = set()                            # "keyed" / "busy": the hold has said it gives up on a state that lasts too long (once for each)
         self._program = Program(self._ended, self._audio_error)
         self._audio_failed = False                                   # the program's sound card could not be opened: the problem to keep when the program we ended for it ends
         self._control: ControlLine | None = None
@@ -126,6 +121,7 @@ class Mercury(Tuning, Allowing):
         self._generation += 1
         self._config = config
         self.speaker = speaker
+        self.tx_gain_db = clamp_gain(config.mercury_tx_gain_db)
         self.backoff.reset()
         self._held.forget()
         if not speaker and attach:
@@ -151,6 +147,7 @@ class Mercury(Tuning, Allowing):
             await control.stop()
         self.speaker_line.close()
         await asyncio.to_thread(self._audio.stop)
+        await self._stop_ui()
         await asyncio.to_thread(self._program.stop)
         self.attached = ""
         self.speaker = False
@@ -187,15 +184,15 @@ class Mercury(Tuning, Allowing):
             self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports, left_out(config))
         keying = self.keying
         try:
-            ini.write_text(ini_text(keying), encoding="utf-8")
-        except OSError as e:
-            log.warning("Mercury's configuration could not be written to %s: %s", ini, os_error_text(e))
-            return self._failed(f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started")
-        try:
-            self._choose_ports()                                       # (last: nothing of the above, which takes seconds, is to find the pair taken meanwhile)
+            self._choose_ports()                                       # (last of the slow steps: nothing of the above, which takes seconds, is to find the pair taken meanwhile)
         except OSError as e:
             log.warning("Mercury cannot be started: %s", e)
             return self._failed("no free port for Mercury; the log says which were tried", "no_port")
+        try:
+            ini.write_text(ini_text(keying, self.tx_gain_db, self.ui_port), encoding="utf-8")
+        except OSError as e:
+            log.warning("Mercury's configuration could not be written to %s: %s", ini, os_error_text(e))
+            return self._failed(f"Mercury's configuration could not be written in the data folder: {os_error_text(e)}", "not_started")
         argv = command(program, str(ini), self.sound_card, keying, self.broadcast_port, self.control_port, audio)
         try:
             self._program.start(argv, self.data_dir, pid_file)
@@ -204,6 +201,8 @@ class Mercury(Tuning, Allowing):
         self.starts += 1
         self._set("starting", "")
         self._start_control()
+        await self._stop_ui()
+        self._start_ui()
         if self.speaker:
             generation = self._generation
             self._tasks.spawn(self.speaker_line.run(lambda: generation == self._generation), "mercury-speaker")
@@ -265,7 +264,7 @@ class Mercury(Tuning, Allowing):
 
     def _control_state(self, up: bool, why: str) -> None:
         if up:
-            if not self.attached and (found := foreign_listeners((self.broadcast_port, self.control_port, self.control_port + 1))):
+            if not self.attached and (found := foreign_listeners((self.broadcast_port, self.control_port, self.control_port + 1, *([self.ui_port] if self.ui_port else [])))):
                 self._tasks.spawn(self._refuse_open(found), "mercury-refuse")
                 return
             self.backoff.connected()
@@ -289,39 +288,6 @@ class Mercury(Tuning, Allowing):
         self.keyed = self.busy = False
         self._set("waiting", OPEN_TO_NETWORK, "network")
 
-    def _event(self, event: ControlEvent) -> None:
-        now = time.monotonic()
-        if event.kind == "ptt":
-            self._on_ptt(event.on, now)
-        elif event.kind == "busy":
-            self._on_busy(event.on, now)
-        elif event.kind == "snr" and event.value is not None:
-            self.snr = event.value
-        else:
-            return
-        self.changed.emit()
-
-    def _on_ptt(self, on: bool, now: float) -> None:
-        """Mercury keyed the radio or let go: one line when it lets go, with how long it was keyed (a frame, 3.8 s; the tone of Tune or the test, as long as that)."""
-        if on and not self.keyed:
-            self.frames_keyed += 1
-            self._keyed_since = now
-            self._told_long.discard("keyed")
-        elif not on and self.keyed:
-            what = {"tune": "the tune tone", "key": "the keying test"}.get(self.test, f"frame {self.frames_keyed}")
-            log.info("Mercury: the radio was keyed for %.1f s (%s)", now - self._keyed_since, what)
-        self.keyed, self._keyed_at = on, now
-
-    def _on_busy(self, on: bool, now: float) -> None:
-        """Mercury's detector heard a signal or lost it: one line when the channel is clear again, with how long it was busy."""
-        if on and not self.busy:
-            self._busy_since = now
-            self._told_long.discard("busy")
-        elif not on and self.busy:
-            held = now - self._busy_since
-            log.info("Mercury: the channel was busy for %.1f s%s", held, f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "")
-        self.busy, self._busy_at = on, now
-
     def _write(self, line: str) -> bool:
         return self._control is not None and self._control.write(line)
 
@@ -331,25 +297,6 @@ class Mercury(Tuning, Allowing):
         self.speaker_line.play(data)
 
     # ---- what the Tnc and the page ask
-    def hold(self) -> str:
-        """Why no frame is to go now: the radio is keyed (by a frame, the tune tone or the keying test), or the channel is busy (and has been for less than BUSY_HOLD_MAX_SEC); "" when one may."""
-        now = time.monotonic()
-        if self.test or (self.keyed and now - self._keyed_at < KEYED_MAX_SEC):
-            return TRANSMITTING
-        if self.busy and now - self._busy_at < BUSY_HOLD_MAX_SEC:
-            return CHANNEL_BUSY
-        self._tell_long()
-        return ""
-
-    def _tell_long(self) -> None:
-        """A keyed radio or a busy channel that has lasted longer than the hold believes it: told once for each, so that a person reading the log sees why frames go again under a signal."""
-        if self.keyed and "keyed" not in self._told_long:
-            self._told_long.add("keyed")
-            log.warning("Mercury: PTT ON and no PTT OFF for over %g s: not believed, frames are sent again", KEYED_MAX_SEC)
-        if self.busy and "busy" not in self._told_long:
-            self._told_long.add("busy")
-            log.warning("Mercury: the channel has been busy for over %g s: it no longer holds our frames", BUSY_HOLD_MAX_SEC)
-
     def describe(self) -> str:
         """The modem in a few words, for the radio's status line: "Mercury DATAC3, listening, SNR 3 dB". The ports are the log's business (the lines that start the program say them), not the operator's."""
         if self.state == "waiting":

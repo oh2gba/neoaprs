@@ -202,6 +202,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.keying.tip1", "settings.keying.tip2"],
     picture: "mercury",
   },
+  "mercury/tx_gain_db": { label: "settings.txlevel.label", tipLabel: "settings.txlevel.tip_label", tip: ["settings.txlevel.tip1", "settings.txlevel.tip2"] },
   "serial/last_port": { label: "settings.last_port.label", kind: "readonly", empty: plain("-") },
   "web/network": {
     name: "settings.network.name",
@@ -296,11 +297,7 @@ const SPECS: Record<string, FieldSpec> = {
     picture: "position",
   },
   "gps/host": { label: "settings.gps_host.label", tip: ["settings.gps_host.tip1"] },
-  "gps/device": {
-    label: "settings.gps_device.label",
-    empty: plain("/dev/ttyUSB1"),
-    tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"],
-  },
+  "gps/device": { label: "settings.gps_device.label", empty: plain("/dev/ttyUSB1"), tip: ["settings.gps_device.tip1", "settings.gps_device.tip2"] },
   "gps/baud": { label: "settings.gps_baud.label", unit: "baud", tip: ["settings.gps_baud.tip1"] },
   "beacon/travel": { label: "settings.travel.label", kind: "choice", choices: travelChoices, tip: ["settings.travel.tip1"] },
 };
@@ -318,7 +315,6 @@ export const FIELDS: Record<string, FieldInfo> = Object.fromEntries(Object.entri
 
 /** The settings of the daemon's own alert, which the Notifications group shows (beside the alert of the browser, which is the page's). */
 const ALERT = ["messages/alert", "messages/alert_command"];
-
 /** Whether the Internet switch (Enable, in the group Internet stations: the stations of APRS-IS on the map) is on in these values; it is off unless the values say so. */
 export const igateOn = (values: Readonly<Record<string, string>>): boolean => values["igate/enabled"] === "true";
 

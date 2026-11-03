@@ -1259,6 +1259,21 @@ export const de: Catalogue = {
   "settings.firewall.label": "Firewall",
   "settings.firewall.tip_label": "Über die Firewall",
   "settings.firewall.tip1": "Sorgt dafür, dass die Windows-Firewall das Netzwerk von Mercury fernhält. Windows fragt um Erlaubnis.",
+  "settings.scope.title": "Spektrum",
+  "settings.scope.aria": "Das Spektrum des Funkaudios von 300 bis 2700 Hz; der Block zeigt, wo ein Frame liegt.",
+  "settings.scope.level": "Empfangspegel",
+  "settings.scope.value": "{value} dBFS",
+  "settings.scope.tip_label": "Über den Empfangspegel",
+  "settings.scope.tip1": "Der Balken zeigt den Pegel des Funkaudios, der grüne Teil den guten Bereich. Der Block im Bild zeigt, wo ein Frame liegt.",
+  "settings.scope.tip2": "Zu niedrig: Audioausgang des Funkgeräts oder Eingang der Soundkarte anheben. Rot: absenken, die Soundkarte übersteuert.",
+  "settings.txlevel.label": "Sendepegel",
+  "settings.txlevel.lower": "Sendepegel senken",
+  "settings.txlevel.raise": "Sendepegel erhöhen",
+  "settings.txlevel.value": "{value} dB",
+  "settings.txlevel.peak": "Spitze {value} dBFS",
+  "settings.txlevel.tip_label": "Über den Sendepegel",
+  "settings.txlevel.tip1": "Wie stark das Modem-Audio zum Funkgerät geht, in dB. Drücke Abstimmen und beobachte die ALC: sie sollte sich kaum bewegen.",
+  "settings.txlevel.tip2": "Die Spitze wird bei 0 dBFS rot, dort übersteuert die Soundkarte.",
   "settings.tune": "Abstimmen",
   "settings.tune_stop": "Stopp",
   "settings.tune.label": "Abstimmton",
@@ -1710,6 +1725,8 @@ export const de: Catalogue = {
     "Eine über Funk gehörte Station, mit Wellen, trägt RF; eine aus der Wolke, APRS-IS, hat einen gepunkteten Rand und ein eigenes Schild.",
   "help.picture.mercury":
     "Deine Station und eine ferne, weit auseinander; das Signal steigt auf und kommt zwischen ihnen wieder herunter: nur eine Station mit demselben Modem hört es.",
+  "help.picture.scope":
+    "Eine ferne Station sendet; das Spektrum zeigt ihren Frame als Block aus Balken über dem niedrigen Rauschen, und der Empfangspegel liegt unten im guten Bereich.",
   "help.picture.tworadios":
     "Deine Station mit zwei Funkgeräten: das FM-Funkgerät erreicht das Auto und den Digipeater in der Nähe am Boden entlang, das KW-Funkgerät eine ferne Station durch das Signal, das aufsteigt und wieder herunterkommt.",
   "help.picture.dummy":

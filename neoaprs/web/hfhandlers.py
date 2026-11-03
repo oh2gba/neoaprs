@@ -4,7 +4,7 @@ from neoaprs.coded import CodedError
 from neoaprs.config import can_transmit
 
 from .dispatch import Ctx, UserError, command
-from .tncwire import HfAllowFirewall, HfKeyTest, HfTune
+from .tncwire import HfAllowFirewall, HfKeyTest, HfScope, HfTune
 
 
 def _may_transmit(ctx: Ctx, name: str) -> None:
@@ -44,3 +44,10 @@ async def hf_allow_firewall(ctx: Ctx, cmd: HfAllowFirewall) -> None:
     """Makes the Windows Firewall rule that keeps the network from Mercury and, when it does, starts the HF radio the usual way. Nothing is answered with an error: what did not happen is in the log and the status line."""
     if await ctx.ctl.mercury.allow_firewall():
         ctx.ctl.start_hf()
+
+
+@command(HfScope)
+async def hf_scope(ctx: Ctx, cmd: HfScope) -> None:
+    """This page wants the pictures of the HF radio's audio (or no more of them); nothing is refused, since a page asks when it shows the scope and the modem may not be up yet."""
+    if ctx.scope is not None:
+        ctx.scope.ask(ctx.conn, cmd.on)

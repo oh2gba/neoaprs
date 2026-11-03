@@ -25,6 +25,7 @@ export const PICTURE_NAMES = [
   "qru",
   "encrypt",
   "mercury",
+  "scope",
   "tworadios",
 ] as const;
 

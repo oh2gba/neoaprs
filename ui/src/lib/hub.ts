@@ -7,6 +7,7 @@ import type {
   Command,
   ErrorMessage,
   HelloMessage,
+  HfScopeMessage,
   Message,
   MessageRow,
   OwnBulletinRow,
@@ -67,6 +68,8 @@ export interface Store {
   radioSearch(message: RadioSearchMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
+  /** a picture of the HF radio's audio, told to a page that asked for the scope (`hf_scope`) */
+  hfScope(message: HfScopeMessage): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
@@ -273,6 +276,9 @@ export class Hub {
         break;
       case "station_alert":
         this.store.stationAlert(message);
+        break;
+      case "hf_scope":
+        this.store.hfScope(message);
         break;
       default:
         this.answer(message);

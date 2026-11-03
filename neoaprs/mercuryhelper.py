@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, card_reason, choose_keying, choose_sound_card, keying_of, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, UI_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, card_reason, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -89,15 +89,15 @@ def _free(port: int) -> bool:
 
 
 def pair_free(broadcast_port: int) -> bool:
-    """Whether this broadcast port, its control port and the ARQ data port one above that (Mercury's too) are all free."""
-    return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1)
+    """Whether this broadcast port, its control port, the ARQ data port one above that (Mercury's too) and the UI port are all free."""
+    return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1) and _free(broadcast_port + UI_OFFSET)
 
 
 def candidate_ports() -> list[int]:
-    """Every port a start of Mercury may be given: the broadcast ports from the default up, the control ports 200 above them and the port after each (what `foreign_listeners` watches); the Windows Firewall is asked
+    """Every port a start of Mercury may be given: the broadcast ports from the default up, the control ports 200 above them, the port after each (what `foreign_listeners` watches) and the UI ports; the Windows Firewall is asked
     about all of them, since the pair is chosen after that."""
     first = list(range(BROADCAST_PORT, BROADCAST_PORT + PORT_TRIES))
-    return first + [p + CONTROL_OFFSET for p in first] + [p + CONTROL_OFFSET + 1 for p in first]
+    return first + [p + CONTROL_OFFSET for p in first] + [p + CONTROL_OFFSET + 1 for p in first] + [p + UI_OFFSET for p in first]
 
 
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:

@@ -163,6 +163,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
+    "hf_scope": [{"type": "hf_scope", "bins": [0] * 18 + [12] * 12 + [1] * 18, "level": -38, "tx": False}, {"type": "hf_scope", "bins": [3] * 48, "level": -90, "tx": True}],
     "station_alert": [{"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": NOW, "km": None},
                       {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "text": "OH2XYZ is 8.2 km from you", "at": NOW, "km": 8.2}],
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
@@ -207,7 +208,7 @@ DECODED = [
 
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
-    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "hf_tune": {"cmd": "hf_tune", "on": True}, "hf_key_test": {"cmd": "hf_key_test"}, "hf_allow_firewall": {"cmd": "hf_allow_firewall"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
+    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "hf_tune": {"cmd": "hf_tune", "on": True}, "hf_key_test": {"cmd": "hf_key_test"}, "hf_allow_firewall": {"cmd": "hf_allow_firewall"}, "hf_scope": {"cmd": "hf_scope", "on": True}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
     "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False}, "general_query": {"cmd": "general_query", "kind": "aprs", "path": "WIDE1-1,WIDE2-1", "rf_only": True}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},

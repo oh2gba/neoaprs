@@ -22,6 +22,7 @@ describe("groupKeys", () => {
       "mercury/sound_card",
       "mercury/keying",
       "serial/last_port",
+      "mercury/tx_gain_db",
     ]);
     expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)

@@ -33,7 +33,7 @@ import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
-from neoaprs import mercury  # noqa: E402
+from neoaprs import mercury, mercuryscope  # noqa: E402
 from neoaprs.radiorules import FM, HF  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
@@ -255,6 +255,8 @@ def limits() -> dict[str, Any]:
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
+        "scope": {"bins": mercuryscope.SCOPE_BINS, "loHz": mercuryscope.SCOPE_LO_HZ, "hiHz": mercuryscope.SCOPE_HI_HZ, "signalLoHz": mercuryscope.SIGNAL_LO_HZ, "signalHiHz": mercuryscope.SIGNAL_HI_HZ, "rangeDb": mercuryscope.SCOPE_RANGE_DB,
+                  "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS, "everySec": mercuryscope.SCOPE_EVERY_SEC},
         "mercury": {"mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 

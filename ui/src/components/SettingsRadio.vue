@@ -6,6 +6,8 @@
 import { computed, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfFirewallRow from "@/components/HfFirewallRow.vue";
+import HfLevelRow from "@/components/HfLevelRow.vue";
+import HfScope from "@/components/HfScope.vue";
 import HfTuneRow from "@/components/HfTuneRow.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
@@ -27,6 +29,7 @@ const { send, tnc, hf, now } = useDaemonContext();
 const FM_KEY = "fm/enabled";
 const HF_KEY = "hf/enabled";
 const HF_PROFILE_KEY = "hf/profile";
+const HF_GAIN_KEY = "mercury/tx_gain_db"; // (the Transmit level row's, not a field of the list)
 const fm = computed(() => fmOn(props.settings.draft));
 const hfRadio = computed(() => hfOn(props.settings.draft));
 const mercury = computed(() => hfIsMercury(props.settings.draft));
@@ -34,7 +37,7 @@ const mercury = computed(() => hfIsMercury(props.settings.draft));
 const fields = (hfBox: boolean) =>
   props.keys.filter(
     (k) =>
-      ![RX_ONLY_KEY, FM_KEY, HF_KEY].includes(k) &&
+      ![RX_ONLY_KEY, FM_KEY, HF_KEY, HF_GAIN_KEY].includes(k) &&
       (k === HF_PROFILE_KEY || k.startsWith("mercury/")) === hfBox &&
       (hfBox && k.startsWith("mercury/") ? mercury.value : true),
   );
@@ -70,7 +73,11 @@ watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
       </div>
       <HfFirewallRow v-if="box.kind === 'hf' && mercury && firewallFixable(hf)" id="hf-firewall" />
       <FindRadioRow v-if="box.kind === 'fm'" id="find-radio" />
-      <HfTuneRow v-else-if="mercury" id="hf-tune" />
+      <template v-else-if="mercury">
+        <HfTuneRow id="hf-tune" />
+        <HfLevelRow v-if="keys.includes(HF_GAIN_KEY)" id="hf-txlevel" :settings="settings" :form="form" />
+        <HfScope />
+      </template>
     </RadioStatus>
   </SettingsBox>
 </template>

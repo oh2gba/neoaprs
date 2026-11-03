@@ -22,6 +22,7 @@ is kept in `fake-mercury-broadcast.bin` in its working directory (the daemon's d
 
 Both answer Mercury's `TUNE` command on the control port as Mercury 1.9.21 does: `TUNE -15` is `OK` and `PTT ON`, `TUNE OFF` is `OK` and `PTT OFF` (`tuned` keeps the lines a station was given)."""
 import asyncio
+import configparser
 import os
 import signal
 import socket
@@ -33,6 +34,7 @@ from dataclasses import dataclass, field
 
 from neoaprs import kiss
 from neoaprs.mercury import CONTROL_OFFSET, FRAME_SEC, MAX_PAYLOAD
+from tests.support.fakemercuryui import FakeUi
 from tests.support.fakeradio import FakeRadio
 
 VERSION_LINE = "Rhizomatica Mercury Version 1.9.21 (fake, tests/support/fakemercury.py)"
@@ -239,18 +241,20 @@ def tune_answer(line: str) -> bytes:
 
 ROOT = Path(__file__).resolve().parents[2]
 BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
+UI_LOG_FILE = "fake-mercury-ui.log"                    # the commands its UI interface was given, one a line (`set_tx_gain 3`), when its ini turns the interface on; `--no-ui` is a Mercury that has none
+INI_FILE_FLAG = "-C"
 
 
 AUDIO_ERROR_LINE = "[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument"       # what Mercury 1.9.21 printed on a station whose sound card it could not open (it ran on all the same)
 
 
-def program(die_after_sec: float | None = None, audio_error: bool = False) -> list[str]:
+def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False) -> list[str]:
     """The command that runs this module as the Mercury program, whatever the working directory (the daemon starts Mercury in the data folder): what the modem part's finder gives in a test. With `die_after_sec` it dies by itself;
     with `audio_error` it prints, once its ports listen, the line Mercury prints when its sound card cannot be opened, and runs on as Mercury does."""
     command = [sys.executable, "-c", f"import sys, runpy; sys.path.insert(0, {str(ROOT)!r}); runpy.run_module('tests.support.fakemercury', run_name='__main__')"]
     if die_after_sec is not None:
         command += ["--die-after", str(die_after_sec)]
-    return [*command, "--audio-error"] if audio_error else command
+    return [*command, *(["--audio-error"] if audio_error else []), *(["--no-ui"] if no_ui else [])]
 
 
 def _arguments(argv: list[str]) -> dict[str, str]:
@@ -265,7 +269,17 @@ def _arguments(argv: list[str]) -> dict[str, str]:
     return out
 
 
-async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False) -> int:
+def _ui_of(ini: str, no_ui: bool = False) -> tuple[int, float]:
+    """The UI port the ini turns on (0: none) and the transmit gain it holds, read as Mercury reads them (`[main] ui_enabled`, `ui_port`, `[audio] tx_gain_db`); none in a Mercury that has no interface."""
+    if not ini or no_ui:
+        return 0, 0.0
+    parser = configparser.ConfigParser()
+    parser.read(ini, encoding="utf-8")
+    on = parser.getboolean("main", "ui_enabled", fallback=False)
+    return (parser.getint("main", "ui_port", fallback=10000) if on else 0), parser.getfloat("audio", "tx_gain_db", fallback=0.0)
+
+
+async def _serve(broadcast_port: int, control_port: int, die_after: float | None, audio_error: bool = False, ini: str = "", no_ui: bool = False) -> int:
     """Listens on both ports as Mercury would (nothing is echoed: there is no other station) until SIGTERM, or dies after `die_after` seconds."""
     loop = asyncio.get_running_loop()
     stop = asyncio.Event()
@@ -294,6 +308,11 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
                     writer.write(tune_answer(line))
         writer.close()
 
+    ui_port, gain = _ui_of(ini, no_ui)
+    ui = FakeUi(port=ui_port, gain_db=gain, log_path=UI_LOG_FILE, noise_db=-60.0, tone_hz=1500.0) if ui_port else None
+    if ui is not None:
+        await ui.start()
+        print(f"[INF] [websocket] Initialized (url=ws://127.0.0.1:{ui_port})", flush=True)
     kiss_server = await asyncio.start_server(keep, "127.0.0.1", broadcast_port)
     control_server = await asyncio.start_server(control, "127.0.0.1", control_port)
     print(f"[INF] [engine] Initialising TCP interfaces (arq={control_port}, bc={broadcast_port})", flush=True)
@@ -309,6 +328,8 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
     finally:
         kiss_server.close()
         control_server.close()
+        if ui is not None:
+            await ui.aclose()
     print("Signal received, shutting down...", flush=True)
     return 0
 
@@ -325,7 +346,7 @@ def main(argv: list[str] | None = None, out: Callable[[str], None] = print) -> i
     if sys.platform == "win32":                                          # (no signal handlers on the Windows selector loop: SIGTERM ends the process as terminate() does)
         die_after = die_after if die_after is not None else 3600.0
     started = time.monotonic()
-    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args))
+    code = asyncio.run(_serve(int(args.get("-b", "8100")), int(args.get("-p", "8300")), die_after, "--audio-error" in args, args.get(INI_FILE_FLAG, ""), "--no-ui" in args))
     out(f"ran {time.monotonic() - started:.1f} s")
     return code
 

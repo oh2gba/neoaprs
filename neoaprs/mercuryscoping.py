@@ -1,0 +1,148 @@
+"""The scope and the transmit level of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that uses Mercury's UI interface (mercuryui.py, mercuryscope.py): the link is opened to
+the program the daemon started (not to one something else runs, whose UI port is not ours to know, and not to the speaker of the Dummy HF radio), `scope_frame` tells a picture of the passband five times a second while a page wants
+one, and the transmit gain the settings hold is set live, with the tune tone following it.
+
+The spectrum is asked for (`set_waterfall`) only while a page has the scope open (`want_scope`), and switched off again when the last one closes; the status Mercury sends twice a second says the peak of the latest
+transmission (`tx_peak_dbfs`), which the page shows beside the gain. When the link is not there (a Mercury without the interface, a connection that fails) there is no scope, the gain is applied at the next start of the program
+(the ini has it), and the controller starts the program again at a change of the gain, since nothing else would apply it (`live_gain` is false then). A modem part of its own, not the program's life: it reads and sets the modem's
+state (`state`, `keyed`, `attached`, `speaker`, the tasks and the generation of the start) and asks it to tell the page (`changed`)."""
+import asyncio
+import logging
+
+from .mercury import UI_OFFSET
+from .mercuryscope import SCOPE_EVERY_SEC, ScopeFrame, ScopeMeter, clamp_gain, parse_spectrum, parse_status
+from .mercuryui import MercuryUi
+from .signal import Signal
+from .tasks import TaskSet
+
+log = logging.getLogger("neoaprs.mercury")
+
+HOST = "127.0.0.1"
+PEAK_SILENT_DBFS = -100.0              # Mercury's peak is -120 before anything was transmitted
+
+
+class Scoping:
+    state: str
+    keyed: bool
+    attached: str
+    speaker: bool
+    test: str
+    broadcast_port: int
+    changed: Signal[[]]
+    _tasks: TaskSet
+    _generation: int
+
+    async def _retune(self) -> None:
+        raise NotImplementedError
+
+    def _init_scoping(self) -> None:
+        self.scope_frame: Signal[[ScopeFrame, bool]] = Signal("mercury.scope_frame")       # a picture of the passband, and whether the radio is transmitting (then it is of our own signal)
+        self.tx_gain_db = 0                          # the transmit gain the modem runs with (the setting, applied at the start and live)
+        self.tx_peak_dbfs: int | None = None         # the peak of the latest transmission in whole dBFS, as Mercury's status says; None before one
+        self._ui: MercuryUi | None = None
+        self._meter = ScopeMeter()
+        self._wanted = False
+        self._scope_task: asyncio.Task[None] | None = None
+
+    # ---- the link
+    @property
+    def ui_port(self) -> int:
+        """The port of Mercury's UI interface for this start (the broadcast port's, UI_OFFSET above), 0 when the program is not ours to configure."""
+        return 0 if self.attached or self.speaker else self.broadcast_port + UI_OFFSET
+
+    @property
+    def scope(self) -> bool:
+        """The link to the UI interface is open: the scope can be shown and the gain is set live."""
+        return self._ui is not None and self._ui.connected
+
+    @property
+    def live_gain(self) -> bool:
+        return self.scope
+
+    def _start_ui(self) -> None:
+        if self.ui_port == 0 or self._ui is not None:
+            return
+        self._meter.reset()
+        self._ui = MercuryUi(HOST, self.ui_port, self._ui_text, self._ui_binary, self._ui_state)
+        self._ui.want_waterfall = self._wanted
+        self._ui.start()
+
+    async def _stop_ui(self) -> None:
+        ui, self._ui = self._ui, None
+        task, self._scope_task = self._scope_task, None
+        if task is not None:
+            task.cancel()
+        if ui is not None:
+            await ui.stop()
+        self.tx_peak_dbfs = None
+
+    def _ui_state(self, up: bool) -> None:
+        if up:
+            self._ui_opened()
+        elif self._scope_task is not None:
+            self._scope_task.cancel()
+            self._scope_task = None
+        self.changed.emit()
+
+    def _ui_opened(self) -> None:
+        if self._ui is not None and self.tx_gain_db != 0:
+            self._ui.tx_gain(self.tx_gain_db)                       # (the ini carries it; this is for a program that read a file we did not write)
+        self._start_scope_task()
+
+    # ---- what it says
+    def _ui_text(self, text: str) -> None:
+        status = parse_status(text)
+        if status is None:
+            return
+        peak = None if status.tx_peak_dbfs < PEAK_SILENT_DBFS else round(status.tx_peak_dbfs)
+        if peak != self.tx_peak_dbfs:
+            self.tx_peak_dbfs = peak
+            self.changed.emit()
+
+    def _ui_binary(self, data: bytes) -> None:
+        spectrum = parse_spectrum(data)
+        if spectrum is not None and self._wanted:
+            self._meter.feed(spectrum)
+
+    # ---- the scope
+    def want_scope(self, wanted: bool) -> None:
+        """A page has the scope open (or the last one closed it): the spectrum feed is switched on (or off) in the program, and the pictures are made while it is on."""
+        if wanted == self._wanted:
+            return
+        self._wanted = wanted
+        if self._ui is not None:
+            self._ui.waterfall(wanted)
+        if wanted:
+            self._meter.reset()
+            self._start_scope_task()
+        elif self._scope_task is not None:
+            self._scope_task.cancel()
+            self._scope_task = None
+
+    def _start_scope_task(self) -> None:
+        if self._wanted and self.scope and self._scope_task is None:
+            self._scope_task = self._tasks.spawn(self._pictures(self._generation), "mercury-scope")
+
+    async def _pictures(self, generation: int) -> None:
+        try:
+            while generation == self._generation and self._wanted:
+                await asyncio.sleep(SCOPE_EVERY_SEC)
+                frame = self._meter.take(update_floor=not self.keyed)
+                if frame is not None:
+                    self.scope_frame.emit(frame, self.keyed)
+        finally:
+            self._scope_task = None
+
+    # ---- the transmit gain
+    def set_tx_gain(self, db: float) -> None:
+        """The transmit gain of the settings: sent to the program when the link is open (the tune tone, which Mercury keeps out of its gain, is retuned to follow it)."""
+        gain = clamp_gain(db)
+        if gain == self.tx_gain_db:
+            return
+        self.tx_gain_db = gain
+        if self._ui is not None and self.state == "running":
+            sent = self._ui.tx_gain(gain)
+            log.info("Mercury: the transmit gain is %+d dB%s", gain, "" if sent else " from the next start")
+        if self.test == "tune":
+            self._tasks.spawn(self._retune(), "mercury-retune")
+        self.changed.emit()

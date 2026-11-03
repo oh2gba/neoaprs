@@ -209,7 +209,7 @@ class Controller(Services):
 
     def _hf_settings(self, config: Config) -> tuple[object, ...]:
         """What a change of restarts the HF radio and its modem: its settings (its type, the sound card and the keying), or its tickbox, and nothing of the FM radio's."""
-        return (wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.hf_enabled)
+        return (wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.hf_enabled, None if self.mercury.live_gain else config.mercury_tx_gain_db)
 
     def _leave_dummy_hf(self) -> None:
         """The HF radio is no longer the Dummy HF radio (it became the Mercury modem, or was switched off): nothing it made up stays once a real radio is on. The messages still being sent to its made-up stations are cancelled

@@ -8,6 +8,7 @@ import type {
   GeneralState,
   GpsState,
   HelloMessage,
+  HfScopeMessage,
   IgateState,
   InstallInfo,
   MapState,
@@ -60,10 +61,11 @@ function useWholeTopics() {
     igate: shallowRef<IgateState | null>(null),
     qru: shallowRef<QruState | null>(null),
     general: shallowRef<GeneralState | null>(null),
+    hfScope: shallowRef<HfScopeMessage | null>(null), // (not a topic: the latest picture of the HF radio's audio, told to a page that has the scope open, composables/useHfScope.ts)
   };
   const handlers: Pick<
     Store,
-    "replaceTnc" | "replaceHf" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru" | "replaceGeneral"
+    "replaceTnc" | "replaceHf" | "replaceConfig" | "replaceMap" | "replaceUpdate" | "replaceGps" | "replaceIgate" | "replaceQru" | "replaceGeneral" | "hfScope"
   > = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceHf: (value) => (refs.hf.value = value),
@@ -74,6 +76,7 @@ function useWholeTopics() {
     replaceIgate: (value) => (refs.igate.value = value),
     replaceQru: (value) => (refs.qru.value = value),
     replaceGeneral: (value) => (refs.general.value = value),
+    hfScope: (message) => (refs.hfScope.value = message),
   };
   return { refs, handlers };
 }

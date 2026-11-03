@@ -15,6 +15,7 @@ import type {
   PacketRow,
   PortsMessage,
   RadioSearchMessage,
+  HfScopeMessage,
   StationAlertMessage,
   StationKey,
   StationPref,
@@ -53,6 +54,7 @@ function memory() {
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
     stationAlerts: [] as StationAlertMessage[],
+    scopes: [] as HfScopeMessage[],
     updates: [] as UpdateResultMessage[],
     notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
@@ -90,6 +92,7 @@ function memory() {
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
+    hfScope: (m) => seen.scopes.push(m),
     updateResult: (m) => seen.updates.push(m),
     releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
@@ -285,6 +288,14 @@ describe("Hub", () => {
     socket.say(fired);
     socket.say(fired);
     expect(seen.stationAlerts).toEqual([fired, fired]);
+  });
+
+  it("hands a picture of the HF radio's audio to the store as it comes", () => {
+    const { seen, socket } = opened();
+    const picture = { type: "hf_scope", bins: Array.from({ length: 48 }, (_, i) => i), level: -41, tx: false };
+    socket.say(picture);
+    socket.say({ ...picture, tx: true });
+    expect(seen.scopes).toEqual([picture, { ...picture, tx: true }]);
   });
 
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {

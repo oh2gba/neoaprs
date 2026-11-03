@@ -28,6 +28,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.internet": "APRS-ISにある地図の半径内の局が、雲からあなたの地図へ、一方向にだけ届きます。何も戻りません。",
   "help.picture.channels": "無線で受信した局は電波で表され、RFの札が付きます。雲(APRS-IS)から来た局は点線の輪郭と専用の札が付きます。",
   "help.picture.mercury": "自局と遠くの局が離れていて、その間を信号が上がって下りてきます。同じモデムを使う局だけがそれを聞きます。",
+  "help.picture.scope": "遠くの局が送信し、スペクトラムにはそのフレームが低いノイズの上のバーのブロックとして現れ、下の受信レベルのバーは適正範囲にあります。",
   "help.picture.tworadios": "2台の無線機を持つ自局：FM無線機は近くの車とデジピーターに地表沿いに届き、HF無線機は上がって下りてくる信号で遠くの局に届きます。",
   "help.picture.dummy": "破線の枠の中の作り物の局が自局に応答しますが、自局が送るものは出ません。電波に×が付いています。",
   "help.picture.notifications": "局からメッセージが届くと、この端末がスピーカーで音を鳴らし、カードでポップアップを表示します。",
