@@ -942,7 +942,7 @@ describe("SettingsForm", () => {
       const boxes = group?.findAll("fieldset") ?? [];
       expect(boxes).toHaveLength(2);
       expect(boxes.map((b) => b.classes())).toEqual([["subbox"], ["subbox"]]);
-      expect(boxes.map((b) => b.element.parentElement)).toEqual([group?.element, group?.element]);
+      expect(boxes.map((b) => b.element.parentElement)).toEqual([group?.find(".group-body").element, group?.find(".group-body").element]);
       expect(boxes[0]?.find("legend").text()).toBe("On the NeoAPRS computer i");
       expect(boxes[0]?.find("legend").attributes("title")).toBeTruthy();
       expect(boxes[0]?.findAll("label").map((l) => l.text())).toEqual(["Alert", "Command"]);
@@ -959,8 +959,8 @@ describe("SettingsForm", () => {
       alertWithBoth();
       const wrapper = mount(SettingsForm, { global: withDaemon() });
       const [computer, browser] = notificationBoxes(wrapper);
-      expect(computer?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Test"]);
-      expect(browser?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
+      expect(computer?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(["Test"]);
+      expect(browser?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(expect.arrayContaining(["Test sound", "Test pop-up"]));
       expect(computer?.find("#set-messages-alert_command").exists()).toBe(true);
       expect(browser?.find("#set-messages-alert_command").exists()).toBe(false);
     });
@@ -975,7 +975,7 @@ describe("SettingsForm", () => {
       ).toEqual(["Alert"]);
       expect(box()?.find("legend .info-toggle").exists()).toBe(true);
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
-      expect(box()?.findAll("button:not(.info-toggle)")).toHaveLength(0);
+      expect(box()?.findAll("button:not(.info-toggle):not(.groupfold)")).toHaveLength(0);
       await wrapper.find("#set-messages-alert").setValue(true);
       expect(
         box()
@@ -984,7 +984,7 @@ describe("SettingsForm", () => {
       ).toEqual(["Alert", "Command"]);
       expect(
         box()
-          ?.findAll("button:not(.info-toggle)")
+          ?.findAll("button:not(.info-toggle):not(.groupfold)")
           .map((b) => b.text()),
       ).toEqual(["Test"]);
       await wrapper.find("#set-messages-alert").setValue(false);
@@ -995,7 +995,7 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-messages-alert_command").exists()).toBe(true);
       expect(
         notificationBoxes(wrapper)[0]
-          ?.findAll("button:not(.info-toggle)")
+          ?.findAll("button:not(.info-toggle):not(.groupfold)")
           .map((b) => b.text()),
       ).toEqual(["Test"]);
     });
@@ -1184,7 +1184,7 @@ describe("SettingsForm", () => {
     it("is two rows, Radius with its field and unit and then the row Detailed map with a plain Download map first in its control column, in the Map group and nowhere else", () => {
       const { wrapper } = mount_();
       const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Map");
-      expect(group?.findAll("button:not(.info-toggle)").map((b) => b.text())).toEqual(["Download map"]);
+      expect(group?.findAll("button:not(.info-toggle):not(.groupfold)").map((b) => b.text())).toEqual(["Download map"]);
       expect(wrapper.findAll(".mapfetch-button")).toHaveLength(1);
       const row = wrapper.find("#set-map-radius_km").element.closest(".field");
       expect([...(row?.querySelector(".field-control")?.children ?? [])].map((c) => c.tagName + "." + (c.className.split(" ")[0] || "")).slice(0, 3)).toEqual([

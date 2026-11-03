@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the My station tab with the keys the beacon sends), in groups. There is no Save button: a choice (a list, a switch, a symbol, a place
+// The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the My station tab with the keys the beacon sends), in groups (SettingsGroup; the Settings tab's fold by an arrow in the legend, and a group with a complaint of the daemon opens by itself). There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
@@ -24,6 +24,7 @@ import SettingsFold from "@/components/SettingsFold.vue";
 import SettingsLocation from "@/components/SettingsLocation.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsAbout from "@/components/SettingsAbout.vue";
+import SettingsGroup from "@/components/SettingsGroup.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
@@ -122,6 +123,10 @@ watch(
     });
   },
 );
+/** Only the Settings tab folds its groups. */
+const folds = props.scope === "settings";
+/** A group has something the person must see, so it opens by itself: a complaint of the daemon about one of its fields, or the question it asks about one. */
+const needsLook = (groupKeys: readonly string[]): boolean => groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
 const fallback = (key: string) => defaults.value[key] ?? "";
 /** The keys of a group in boxes: a key with a heading of its own (the daemon's alert) starts a box with its legend that runs to the end of the group; the keys before it are in no box. */
 function boxesOf(keys: readonly string[]) {
@@ -149,8 +154,7 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <fieldset v-for="group in drawn" :key="group.id">
-      <legend>{{ group.title }}</legend>
+    <SettingsGroup v-for="group in drawn" :id="group.id" :key="group.id" :title="group.title" :fold="folds" :show="needsLook(group.keys)">
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
@@ -281,9 +285,8 @@ function typed(key: string, text: string): void {
         />
       </template>
       <BrowserAlerts v-if="group.id === 'notifications'" :alerts="alerts" :https="config.https" :say="say" />
-    </fieldset>
-    <fieldset v-if="scope === 'settings' && keys.on.value" class="encrypt">
-      <legend>{{ t("settings.group.encrypt") }}</legend>
+    </SettingsGroup>
+    <SettingsGroup v-if="scope === 'settings' && keys.on.value" id="encrypt" class="encrypt" :title="t('settings.group.encrypt')">
       <ActionRow id="set-message-key" :label="t('settings.encrypt.key_label')" :tip-label="t('settings.encrypt.tip_label')" picture="encrypt">
         <input id="set-message-key" class="input mono" type="text" readonly :value="keys.own.value" />
         <button class="btn" :class="{ danger: newMessageKey.armed.value === 'key' }" type="button" @click="newMessageKey.press('key', () => keys.renew())">
@@ -297,9 +300,8 @@ function typed(key: string, text: string): void {
           <span class="info-line">{{ t("settings.encrypt.tip2") }}</span>
         </template>
       </ActionRow>
-    </fieldset>
-    <fieldset v-if="scope === 'settings'" class="update-check">
-      <legend>{{ t("settings.update.group") }}</legend>
+    </SettingsGroup>
+    <SettingsGroup v-if="scope === 'settings'" id="update" class="update-check" :title="t('settings.update.group')">
       <UpdateRow
         :running="updateCheck.running.value"
         :outcome="updateCheck.outcome.value"
@@ -307,7 +309,7 @@ function typed(key: string, text: string): void {
         @update="emit('update')"
         @notes="emit('notes')"
       />
-    </fieldset>
+    </SettingsGroup>
     <SettingsHelp v-if="scope === 'settings'" />
     <SettingsAbout v-if="scope === 'settings'" />
     <slot></slot>

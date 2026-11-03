@@ -17,7 +17,7 @@ interface Box {
   fields: number;
 }
 
-/** What each group other than Radio draws: its legends, the ids inside it (the generated ones, `v-N`, left out) and how many fields. */
+/** What each group other than Radio draws: its legends, the ids inside it (the generated ones, `v-N`, and the group body's own, left out) and how many fields. */
 function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): Record<string, Box> {
   localStorage.setItem("NeoAPRS.alert.mode", "both");
   const daemon = fakeDaemon({ config: configValues({ "fm/enabled": "true", "hf/enabled": "false", ...extra }), ...more });
@@ -28,7 +28,7 @@ function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): R
     if (title === "Radio") continue;
     out[title] = {
       legends: group.findAll("legend").map((l) => l.text()),
-      ids: group.findAll("[id]").flatMap((e) => (/^v-\d+$/.test(e.attributes("id") ?? "") ? [] : [e.attributes("id") ?? ""])),
+      ids: group.findAll("[id]").flatMap((e) => (/^(v-\d+|settings-group-.*)$/.test(e.attributes("id") ?? "") ? [] : [e.attributes("id") ?? ""])),
       fields: group.findAll(".field").length,
     };
   }

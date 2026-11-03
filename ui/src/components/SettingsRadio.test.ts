@@ -63,7 +63,7 @@ describe("the Radio group of the Settings tab", () => {
     }
     expect(group.find<HTMLInputElement>("#set-fm-enabled").element.checked).toBe(true);
     expect(group.find<HTMLInputElement>("#set-hf-enabled").element.checked).toBe(true);
-    expect(group.find("legend").element.nextElementSibling).toBe(group.find(".field").element); // (the RX only tickbox is the first row)
+    expect(group.find(".group-body").element.firstElementChild).toBe(group.find(".field").element); // (the RX only tickbox is the first row)
   });
 
   it("has an (i) on each Enable, with the picture of the two radios", async () => {

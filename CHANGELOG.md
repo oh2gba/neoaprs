@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **New:** the groups of the Settings tab fold by the arrow in front of their names, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show or when a mark in the header leads to a setting in it.
+
 ## 0.16.0
 
 APRS over HF with the Mercury modem beside the FM radio, a macOS app, and encrypted messages for exceptional circumstances.
