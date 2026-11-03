@@ -245,3 +245,11 @@ footer p { margin: 0; }
 .note-card.ready { border-left: 4px solid var(--hf); }
 .note-card.ready h3 { color: var(--hf); }
 @media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+.pair:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.vs-title { margin: 8px 0 10px; font-size: 1.2rem; }
+.why.vs { margin-bottom: 8px; }
+.why.vs td:nth-child(2) { color: var(--ink-2); }
+@media (max-width: 720px) {
+  .why.vs td:nth-child(2)::before { content: "VARA: "; }
+}

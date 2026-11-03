@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 <script src="site.js?v=8" defer></script>
 </head>
 <body>
@@ -110,11 +110,19 @@
         <h3>Ready when the internet is not</h3>
         <p>When the internet and the phone network are down, APRS over HF still works: positions, short messages and bulletins between stations hundreds or thousands of kilometres apart. A radio, a laptop or a Raspberry Pi, a battery and a wire antenna are enough. No servers, no accounts, nothing in between.</p>
       </section>
-      <section class="note-card">
-        <h3>And VARA?</h3>
-        <p>A different job. VARA, whether the original VARA HF and FM or a compatible modem such as xara, is made for connected sessions between two stations: Winlink e-mail, a mailbox, a chat. NeoAPRS uses Mercury for APRS: one station sends and every station on the frequency hears it, positions, objects and short messages alike. The two go well together on the same radio.</p>
-      </section>
     </div>
+    <h3 class="vs-title">VARA or Mercury?</h3>
+    <table class="why vs">
+      <thead><tr><th scope="col">What you want to do</th><th scope="col">VARA, with Winlink, VarAC or BPQ</th><th scope="col">Mercury in NeoAPRS</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">See who is on the air, on a map</th><td>No</td><td>Yes, every station heard, with its position</td></tr>
+        <tr><th scope="row">Reach every station at once</th><td>Mostly one station at a time</td><td>Yes: beacons, bulletins and objects everyone hears</td></tr>
+        <tr><th scope="row">Short messages to one station</th><td>Yes, in a connected chat</td><td>Yes, acknowledged, with no connection to set up</td></tr>
+        <tr><th scope="row">E-mail to and from the internet</th><td>Yes, through Winlink</td><td>No</td></tr>
+        <tr><th scope="row">Long texts and files</th><td>Yes</td><td>No, APRS messages are short</td></tr>
+      </tbody>
+    </table>
+    <p class="aside">VARA means here the original VARA HF and FM and compatible modems such as xara. Both kinds of modem can live on the same radio.</p>
     <div class="hfgrid">
       <div>
         <ul class="merc">
