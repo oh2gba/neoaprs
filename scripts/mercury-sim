@@ -35,14 +35,16 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from neoaprs.mercuryhelper import find  # noqa: E402  (the daemon package, from the checkout the simulation is in)
+from neoaprs.mercury import BUSY_HOLD_MAX_SEC  # noqa: E402  (the daemon package, from the checkout the simulation is in)
+from neoaprs.mercuryhelper import find  # noqa: E402
 from tests.support.hfchannel import PRESETS, Channel  # noqa: E402
 from tests.support.realmercury import AprsIs, Failure, FmHub, Page, default_daemon, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
 
 FIRST_PORT = 18100               # station i has the KISS port FIRST_PORT + 10 i and the control port 200 above it (the daemon expects that distance of a Mercury it did not start)
 WEAK_LINK_DB = -27.0             # the gain of the weak link: at the channel's default 30 dB this leaves 3 dB, where DATAC3 still decodes every frame on a flat channel (scripts/mercury-measure decode: all frames down to -2 dB, none at -6)
 LONG_TEXT = "x" * 67             # the longest message there is: with its number and the addressee it is 98 bytes direct, under the frame's 123
-LATE_BLOCKS_MAX_PER_MILLE = 1.0  # the share of the channel's 20 ms blocks that may start a block late or more: a runner stalls the thread for a block now and then (a quiet machine has none or one in 18,000), a second's stall is about fifty
+LATE_BLOCKS_MAX_PER_MILLE = 5.0  # the share of the channel's 20 ms blocks that may start a block late or more: a busy machine stalls the thread for a block now and then (a quiet machine has none or one in 18,000; a GitHub runner was seen at 1.6 per mille and passed at under 1 twice), and a frame survives a late block, which only delays it; a second's stall would be fifty
+REFUSAL_SEC = 0.5                # how long a command is given to be refused before it counts as taken (the daemon answers a refusal at once)
 FADED_BEACONS = 6                # beacons sent over the poor channel at 0 dB: codec2's table has DATAC3 deliver 74 of 100 single frames there, so some of these are lost and some heard
 
 
@@ -110,15 +112,19 @@ class Net:
             self.failed.append(what)
 
     async def when_free(self, page: Page) -> None:
-        """Waits until the station's radio takes a frame now: the daemon refuses `beacon_now` and `send_message` while Mercury keys the radio or hears a signal (the one carrier sense of the plane), as a real operator sees the busy lamp."""
-        await page.until("the radio free", page.free, self.args.timeout * 2)
+        """Waits until the station's radio takes a frame now: the daemon refuses `beacon_now` and `send_message` while Mercury keys the radio or hears a signal (the one carrier sense of the plane), as a real operator
+        sees the busy lamp. A BUSY that lasts holds nothing after the modem's cap (the detector's noise floor learns a step slowly), so the wait is that long at most and the send then goes to the daemon's judgement."""
+        try:
+            await page.until("the radio free", page.free, BUSY_HOLD_MAX_SEC + 5.0)
+        except Failure:
+            pass
 
-    async def everyone(self, what: str, condition: Any, seconds: float, but: str = "") -> float:
-        """Waits for the condition on every station but `but`; the longest it took."""
+    async def everyone(self, what: str, condition: Any, seconds: float, since: float | None = None, but: str = "") -> float:
+        """Waits for the condition on every station but `but`; the longest it took (from `since`, the loop time of a send, or from now)."""
         took = 0.0
         for name, page in self.pages.items():
             if name != but:
-                took = max(took, await page.until(what, functools.partial(condition, page), seconds))
+                took = max(took, await page.until(what, functools.partial(condition, page), seconds, since))
         return took
 
     def attempts_of(self, page: Page, text: str) -> int:
@@ -145,18 +151,40 @@ class Net:
         await page.until("the radio back after the restart", page.ready, self.args.timeout)
         return time.monotonic() - started
 
-    async def send_when_taken(self, page: Page, command: dict[str, Any], seconds: float) -> float:
-        """Sends the command again every few seconds until the daemon takes it without a refusal (a held radio refuses `beacon_now`, for at most the modem's hold cap); the seconds it took to be taken."""
-        started = time.monotonic()
+    async def send_taken(self, page: Page, command: dict[str, Any], seconds: float | None = None) -> float:
+        """Sends the command when the station's radio is free, and again when the daemon refuses it all the same (the channel went busy, or a frame of the station's own went out, between the look and the send:
+        `beacon_now` and `send_message` are refused while the radio is held), until it is taken or `seconds` have passed; a refusal for any other reason is a Failure. The loop time of the send that was taken,
+        for the waits that measure from it."""
+        seconds = self.args.timeout * 2 if seconds is None else seconds
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         while True:
+            await self.when_free(page)
             errors = len(page.errors)
+            sent = loop.time()
             await page.send(command)
-            await asyncio.sleep(1.0)
+            while loop.time() - sent < REFUSAL_SEC and len(page.errors) == errors:
+                await asyncio.sleep(0.05)
             if len(page.errors) == errors:
-                return time.monotonic() - started
-            if time.monotonic() - started > seconds:
-                raise Failure(f"{page.name}: {command['cmd']} was refused for {seconds:g} s: {json.dumps(page.errors[-1])}")
-            await asyncio.sleep(4.0)
+                return sent
+            refusal = json.dumps(page.errors[-1])
+            if "busy" not in refusal and "transmitting" not in refusal:
+                raise Failure(f"{page.name}: {command['cmd']} was refused: {refusal}")
+            if loop.time() - started > seconds:
+                raise Failure(f"{page.name}: {command['cmd']} was refused for {seconds:g} s: {refusal}")
+            await asyncio.sleep(0.5)
+
+    async def key_together(self, a: Page, b: Page) -> None:
+        """Both stations key at the same moment: `beacon_now` to both at once, sent again when either was refused (its radio was held at that moment), up to three times."""
+        for _ in range(3):
+            await self.when_free(a)
+            await self.when_free(b)
+            errors = len(a.errors) + len(b.errors)
+            await asyncio.gather(a.send({"cmd": "beacon_now"}), b.send({"cmd": "beacon_now"}))
+            await asyncio.sleep(REFUSAL_SEC)
+            if len(a.errors) + len(b.errors) == errors:
+                return
+        raise Failure(f"{a.name} and {b.name} could not be keyed together: {json.dumps((a.errors + b.errors)[-1])}")
 
     async def fm_radio_away(self, hub: FmHub) -> None:
         """With both radios on and the FM radio away (a TNC unplugged, out of power or out of range at night), a message to a station heard on HF alone must still go: what holds a frame is the radio of the frame,
@@ -168,10 +196,9 @@ class Net:
         gone = await page.until(f"{page.name}'s daemon noticing its FM radio is gone", lambda: not page.fm_connected(), timeout)
         self.row(f"the FM air gone: {page.name}'s daemon says its FM radio is not connected after", f"{gone:.1f} s")
         n = page.acked()
-        await self.when_free(page)
-        await page.send({"cmd": "send_message", "to": far, "text": text})
+        sent = await self.send_taken(page, {"cmd": "send_message", "to": far, "text": text})
         try:
-            took = await page.until(f"the ack of the message to {far} with the FM radio away", lambda: page.acked() > n, timeout * 2)
+            took = await page.until(f"the ack of the message to {far} with the FM radio away", lambda: page.acked() > n, timeout * 2, since=sent)
             attempts = self.attempts_of(page, text)
             self.row(f"a message to {far}, heard on HF alone, sent while the FM radio is away: went over HF and was acked on attempt {attempts} after", f"{took:.1f} s (the FM radio's absence must not hold it)", attempts <= 2)
         except Failure as e:
@@ -190,9 +217,8 @@ class Net:
         # 1. every station's beacon heard by every other: one frame each, in turn, so that nothing collides here
         slowest = 0.0
         for name, page in self.pages.items():
-            await self.when_free(page)
-            await page.send({"cmd": "beacon_now"})
-            slowest = max(slowest, await self.everyone(f"{name}'s beacon", operator.methodcaller("hears", name), timeout, but=name))
+            sent = await self.send_taken(page, {"cmd": "beacon_now"})
+            slowest = max(slowest, await self.everyone(f"{name}'s beacon", operator.methodcaller("hears", name), timeout, since=sent, but=name))
         collisions = self.channel.report()["totals"]["collisions"]
         self.row(f"every beacon heard by every other station ({len(names) * (len(names) - 1)} hearings), slowest", f"{slowest:.1f} s", collisions == 0)
         self.row("collisions while the beacons went one at a time", str(collisions), collisions == 0)
@@ -202,24 +228,20 @@ class Net:
             to = names[(i + 1) % len(names)]
             page = self.pages[name]
             before = page.acked()
-            await self.when_free(page)
-            await page.send({"cmd": "send_message", "to": to, "text": LONG_TEXT})
-            acked_times.append(await page.until(f"the ack of {name}'s message to {to}", more_acked(page, before), timeout))
+            sent = await self.send_taken(page, {"cmd": "send_message", "to": to, "text": LONG_TEXT})
+            acked_times.append(await page.until(f"the ack of {name}'s message to {to}", more_acked(page, before), timeout, since=sent))
         self.row(f"the longest message (67 characters) around the ring, acked by each of {len(names)} ({len(names)} frames each way), slowest", f"{max(acked_times):.1f} s")
         # 3. two stations heard on HF alone keyed at the same moment: both frames lost (no carrier sense can see a frame that has not started), then a message between them goes through
         a, b, c = names[-2], names[-1], names[0]
         before = self.channel.report()["totals"]["collisions"]
-        await self.when_free(self.pages[a])
-        await self.when_free(self.pages[b])
-        await asyncio.gather(self.pages[a].send({"cmd": "beacon_now"}), self.pages[b].send({"cmd": "beacon_now"}))
+        await self.key_together(self.pages[a], self.pages[b])
         await self.pages[c].drain(8.0)
         collided = self.channel.report()["totals"]["collisions"] - before
         self.row(f"{a} and {b} keyed at the same moment: blocks in collision", str(collided), collided > 0)
         page = self.pages[a]
         n = page.acked()
-        await self.when_free(page)
-        await page.send({"cmd": "send_message", "to": b, "text": "after the collision"})
-        took = await page.until(f"the ack of {a}'s message to {b} after the collision", lambda: page.acked() > n, timeout * 2)
+        sent = await self.send_taken(page, {"cmd": "send_message", "to": b, "text": "after the collision"})
+        took = await page.until(f"the ack of {a}'s message to {b} after the collision", lambda: page.acked() > n, timeout * 2, since=sent)
         self.row(f"a message {a} -> {b} over HF right after it, acked on attempt {self.attempts_of(page, 'after the collision')} after", f"{took:.1f} s")
         # 4. an ack lost on its way back: the receiver hears the message and acks it into the void; the sender tries again after the first wait, the receiver acks again and keeps the message once
         sender, far = names[0], names[-1]
@@ -227,8 +249,7 @@ class Net:
         self.channel.set_link(far, sender, gain_db=-math.inf, symmetric=False)                 # (the sender hears nothing of the far station)
         n = a_page.acked()
         keyed_before = int(b_page.modem().get("frames_keyed") or 0)
-        await self.when_free(a_page)
-        await a_page.send({"cmd": "send_message", "to": far, "text": "lost ack"})
+        sent = await self.send_taken(a_page, {"cmd": "send_message", "to": far, "text": "lost ack"})
         await b_page.until(f"{far} receiving the message", lambda: self.copies_of(b_page, "lost ack") >= 1, timeout)
         await b_page.until(f"{far}'s ack keyed", lambda: int(b_page.modem().get("frames_keyed") or 0) > keyed_before, timeout)
         await a_page.drain(6.0)
@@ -247,20 +268,18 @@ class Net:
         self.row(f"{lost}'s Mercury killed: its daemon says the radio is gone after", f"{took:.1f} s")
         sender_page = self.pages[names[0]]
         n = sender_page.acked()
-        await self.when_free(sender_page)
-        await sender_page.send({"cmd": "send_message", "to": lost, "text": "are you there?"})
+        sent = await self.send_taken(sender_page, {"cmd": "send_message", "to": lost, "text": "are you there?"})
         await asyncio.sleep(3.0)
         self.restart_mercury(lost)
         took = await page.until(f"{lost}'s radio back on its Mercury", lambda: page.ready(), timeout)
         self.row(f"{lost}'s Mercury started again: its daemon back on the air after", f"{took:.1f} s")
-        took = await sender_page.until(f"the ack of the message sent while {lost} was gone", lambda: sender_page.acked() > n, timeout * 3)
+        took = await sender_page.until(f"the ack of the message sent while {lost} was gone", lambda: sender_page.acked() > n, timeout * 3, since=sent)
         self.row(f"the message sent to {lost} while it was gone, acked on attempt {self.attempts_of(sender_page, 'are you there?')} after", f"{took:.1f} s")
         # 6. a daemon stopped and started again with a message on its way: the message is in its database and goes on from there (the ack that came while it was down is lost; the retry is acked)
         sender, far = names[0], names[-1]
         page = self.pages[sender]
         n = page.acked()
-        await self.when_free(page)
-        await page.send({"cmd": "send_message", "to": far, "text": "across a restart"})
+        await self.send_taken(page, {"cmd": "send_message", "to": far, "text": "across a restart"})
         await page.until("the first attempt out", lambda: self.attempts_of(page, "across a restart") >= 1, timeout)
         restart_took = await self.restart_daemon(sender)
         page = self.pages[sender]
@@ -275,10 +294,9 @@ class Net:
         self.channel.set_link(names[0], far, gain_db=WEAK_LINK_DB, symmetric=False)
         n = sender_page.acked()
         started = time.monotonic()
-        await self.when_free(sender_page)
-        await sender_page.send({"cmd": "send_message", "to": far, "text": "over the weak link"})
+        sent = await self.send_taken(sender_page, {"cmd": "send_message", "to": far, "text": "over the weak link"})
         try:
-            took = await sender_page.until("the ack over the weak link", lambda: sender_page.acked() > n, timeout * 2)
+            took = await sender_page.until("the ack over the weak link", lambda: sender_page.acked() > n, timeout * 2, since=sent)
             self.row(f"a message over a link {WEAK_LINK_DB:g} dB down (about {self.args.snr + WEAK_LINK_DB:g} dB SNR), acked on attempt {self.attempts_of(sender_page, 'over the weak link')} after", f"{took:.1f} s")
         except Failure:
             self.row(f"a message over a link {WEAK_LINK_DB:g} dB down (about {self.args.snr + WEAK_LINK_DB:g} dB SNR): not acked within", f"{time.monotonic() - started:.0f} s (reported, not required)")
@@ -291,20 +309,22 @@ class Net:
             self.channel.set_fading("poor", seed=self.args.seed)
             self.channel.snr_db = 0.0
             heard_before = {name: int((p.stations().get(faded) or {}).get("heard_hf") or 0) for name, p in self.pages.items() if name != faded}
-            held = await self.send_when_taken(page, {"cmd": "beacon_now"}, timeout * 2)
+            held_from = time.monotonic()
+            await self.send_taken(page, {"cmd": "beacon_now"})
+            held = time.monotonic() - held_from
             self.row("the noise raised by 30 dB and every link fading: the busy detector held the radio for", f"{held:.0f} s before the first beacon went (the modem lets a frame go after a minute at most)")
             for _ in range(FADED_BEACONS - 1):
                 await asyncio.sleep(5.5)
-                await self.send_when_taken(page, {"cmd": "beacon_now"}, timeout * 2)
+                await self.send_taken(page, {"cmd": "beacon_now"})
             await asyncio.sleep(6.0)
             chances = FADED_BEACONS * (len(names) - 1)
             heard = sum(int((p.stations().get(faded) or {}).get("heard_hf") or 0) - heard_before[name] for name, p in self.pages.items() if name != faded)
             self.row(f"a poor channel at 0 dB SNR: {faded}'s {FADED_BEACONS} beacons heard by the {len(names) - 1} other stations", f"{heard} of {chances} ({100 * heard / chances:.0f} %; codec2's table: 74 of 100 frames)", 0 < heard < chances)
             n = page.acked()
-            await self.send_when_taken(page, {"cmd": "send_message", "to": far, "text": "through the fading"}, timeout * 2)
+            sent = await self.send_taken(page, {"cmd": "send_message", "to": far, "text": "through the fading"})
             started = time.monotonic()
             try:
-                took = await page.until("the ack through the fading", lambda: page.acked() > n, timeout * 4)
+                took = await page.until("the ack through the fading", lambda: page.acked() > n, timeout * 4, since=sent)
                 self.row(f"a message {faded} -> {far} through it, acked on attempt {self.attempts_of(page, 'through the fading')} after", f"{took:.1f} s")
             except Failure:
                 self.row(f"a message {faded} -> {far} through it: not acked within", f"{time.monotonic() - started:.0f} s after {self.attempts_of(page, 'through the fading')} attempts (reported, not required)")
@@ -315,17 +335,15 @@ class Net:
         if self.args.fm >= 2:
             fm_a, fm_b, hf_only = self.pages[names[0]], self.pages[names[1]], names[-1]
             for page in (fm_a, fm_b):
-                await self.send_when_taken(page, {"cmd": "beacon_now"}, timeout * 2)          # (both radios: the other FM station hears it on FM too)
+                await self.send_taken(page, {"cmd": "beacon_now"})                         # (both radios: the other FM station hears it on FM too)
             await fm_a.until(f"{names[1]} heard on FM", lambda: (fm_a.stations().get(names[1]) or {}).get("heard_fm", 0) > 0, timeout)
             await fm_a.until(f"{hf_only} heard on HF alone", lambda: (fm_a.stations().get(hf_only) or {}).get("heard_hf", 0) > 0, timeout)
             n = fm_a.acked()
-            await self.when_free(fm_a)
-            await fm_a.send({"cmd": "send_message", "to": names[1], "text": "near you on FM"})
-            took = await fm_a.until("the ack on FM", lambda: fm_a.acked() > n, timeout)
+            sent = await self.send_taken(fm_a, {"cmd": "send_message", "to": names[1], "text": "near you on FM"})
+            took = await fm_a.until("the ack on FM", lambda: fm_a.acked() > n, timeout, since=sent)
             self.row(f"a message to {names[1]}, heard on both radios, went on FM and was acked after", f"{took:.1f} s", hub.heard(b"near you on FM"))
-            await self.when_free(fm_a)
-            await fm_a.send({"cmd": "send_message", "to": hf_only, "text": "far from you over HF"})
-            took = await fm_a.until("the ack over HF", lambda: fm_a.acked() > n + 1, timeout * 2)
+            sent = await self.send_taken(fm_a, {"cmd": "send_message", "to": hf_only, "text": "far from you over HF"})
+            took = await fm_a.until("the ack over HF", lambda: fm_a.acked() > n + 1, timeout * 2, since=sent)
             self.row(f"a message to {hf_only}, heard on HF alone, went over HF (nothing of it on the FM air) and was acked after", f"{took:.1f} s (the pace keeps 10 s between two attempts of ours, on either radio)", not hub.heard(b"far from you over HF"))
             # 10. the FM radio silent while HF talks: the first station loses its FM radio, and a message to the station heard on HF alone must still go
             await self.fm_radio_away(hub)
