@@ -74,6 +74,7 @@ class RadioFinder:
         self._busy = True
         try:
             paths = await self.ports()
+            log.info("find the radio: trying %s", ", ".join(paths) or "no port")
             if not paths:
                 raise RadioSearchError("there is no port to try: none is listed that the search looks at", "radio.no_ports")
             outcome: list[Found | None] = []
@@ -85,11 +86,14 @@ class RadioFinder:
                     self._task.cancel()
                     await asyncio.gather(self._task, return_exceptions=True)
             if self._task.cancelled():
+                log.info("find the radio: cancelled")
                 return None
             if not outcome:
                 raise RadioSearchError("the search for the radio failed", "radio.failed")
             if outcome[0] is None:
+                log.info("find the radio: no radio answered on %s", ", ".join(paths))
                 raise RadioSearchError("no radio answered on the ports tried (a KISS TNC says nothing until it hears a packet: try again when the channel is busy)", "radio.not_found")
+            log.info("find the radio: found on %s at %s, profile %s", outcome[0].port, outcome[0].baud or "no speed", outcome[0].profile)
             return outcome[0]
         finally:
             self._busy = False

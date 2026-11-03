@@ -104,6 +104,11 @@ class Source:
         self._generation = 0                                           # changes at stop(), so that an attempt that was under way knows it is over
         self._tasks = TaskSet(self._task_failed)
 
+    @property
+    def label(self) -> str:
+        """What the log calls this feed in front of its lines (its name, unless a feed that exists twice says more)."""
+        return self.name
+
     # ---- what a feed implements
     async def start(self) -> None:
         raise NotImplementedError
@@ -141,7 +146,7 @@ class Source:
         before, self.last_byte_at = self.last_byte_at, self.now()
         if self.state is Source.State.SILENT:
             text = f"the radio answers again after {minutes_between(before or self.last_byte_at, self.last_byte_at)}{then}"
-            log.info("%s: %s", self.name, text)
+            log.info("%s: %s", self.label, text)
             self._note(text)
             self._set_state(Source.State.CONNECTED)
 
@@ -150,7 +155,7 @@ class Source:
         if self.state is Source.State.CONNECTED:
             self._set_state(Source.State.SILENT)
             text = f"the radio is silent: nothing heard since {self.last_byte_at or self.now():%H:%M} UTC, no answer to a check{then}"
-            log.warning("%s: %s", self.name, text)
+            log.warning("%s: %s", self.label, text)
             self._note(text)
 
     # ---- helpers for the feeds
@@ -162,7 +167,7 @@ class Source:
         return self._tasks.spawn(coro)
 
     def _task_failed(self, task: "asyncio.Task[Any]") -> None:
-        log.error("source %s: task failed: %r", self.name, task.exception())
+        log.error("source %s: task failed: %r", self.label, task.exception())
 
     async def _cancel_tasks(self) -> None:
         await self._tasks.cancel_all()
@@ -181,7 +186,7 @@ class Source:
 
     def _waiting(self, problem: str, delay: float, retry: Callable[[], Coroutine[Any, Any, None]] | None = None) -> None:
         """The line is down: the state is WAITING and the problem is why it is down now, not what was wrong with an earlier line; `retry`, when given, is run after `delay` seconds unless the feed was stopped meanwhile."""
-        logging.getLogger(f"neoaprs.{self.name}").warning("%s: %s; trying again in %g s", self.name, problem, delay)
+        logging.getLogger(f"neoaprs.{self.name}").warning("%s: %s; trying again in %g s", self.label, problem, delay)
         self.problem = ""
         self._set_state(Source.State.WAITING, problem)
         self._note(f"{problem}; trying again in {delay:g} s")

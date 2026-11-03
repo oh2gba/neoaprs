@@ -157,14 +157,20 @@ class Controller(Services):
         await self.tnc.stop()
         self._configure_fm()
         if self.config.fm_enabled:
+            log.info("the FM radio is started: %s", wiring.radio_words(wiring.tnc_settings(self.config, self.port_override, self.pattern_override)))
             await self.tnc.start()
+        else:
+            log.info("the FM radio is off in the settings")
 
     async def _restart_hf_radio(self, previous: "asyncio.Task[None] | None") -> None:
         if previous is not None:
             await cancel_all([previous])
         await self.hf.stop()
         await self.mercury.stop()
-        if self.config.hf_enabled:
+        if not self.config.hf_enabled:
+            log.info("the HF radio is off in the settings")
+        else:
+            log.info("the HF radio is started: %s", wiring.hf_words(self.config, self.hf_port_override))
             try:
                 await self.mercury.start(self.config, self.hf_port_override, speaker=not hf_is_mercury(self.config))       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs; for the Dummy HF radio the program is the speaker)
             except Exception:
@@ -280,9 +286,12 @@ class Controller(Services):
         self.beacon.settings_changed()
         self.hf_beacon.settings_changed()
         self.igate.settings_changed()
-        if self._fm_settings(config) != fm_before:
+        fm_after, hf_after = self._fm_settings(config), self._hf_settings(config)
+        if fm_after != fm_before:
+            log.info("the FM radio is restarted because its settings changed: %s", wiring.changed_words(fm_before, fm_after))
             self.start_fm()
-        if self._hf_settings(config) != hf_before:
+        if hf_after != hf_before:
+            log.info("the HF radio is restarted because its settings changed: %s", wiring.changed_words(hf_before, hf_after))
             self.start_hf()
         if left_dummy_hf:
             self._leave_dummy_hf()

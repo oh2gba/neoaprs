@@ -128,6 +128,7 @@ class Retries:
         self._told_down.discard(kind)
         span = self._down.pop(kind, None)
         if span is not None and span[1] > span[0]:
+            log.info("the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time", kind, (span[1] - span[0]).total_seconds())
             self._move_on(span[1] - span[0], kind)
 
     def _move_on(self, away: timedelta, kind: str) -> None:

@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, choose_keying, choose_sound_card, keying_of, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, card_reason, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -34,6 +34,7 @@ PORT_TRIES = 50                      # how many pairs of ports are tried from th
 LIST_TIMEOUT_SEC = 15.0              # `mercury -z` opens the sound system; a stuck one is given this long
 STOP_WAIT_SEC = 5.0                  # how long a terminated Mercury is given to end before it is killed
 LAST_LINES = 8                       # how many of the program's last lines are kept for the problem text
+STARTUP_LINES = 30                   # the first lines of each run of the program are in the log whatever they are (its version, its sound card, its keying); after them only warnings and errors are
 SAID_MAX = 1000                      # distinct warnings of the program counted at once; the count starts over beyond that
 
 Command = list[str]                  # how the program is run: its path, or an interpreter and a module that stands in for it (the tests' fake)
@@ -44,10 +45,15 @@ def program_file(system: str | None = None) -> str:
     return f"{NAME}.exe" if (system or sys.platform).startswith("win") else NAME
 
 
+def expected_program(tools: Path | None = None) -> Path:
+    """Where the shipped Mercury is looked for: `mercury/mercury[.exe]` in the folder of the shipped programs (the log says it when there is none, so that a person can see where it ought to be)."""
+    return (tools if tools is not None else tools_dir()) / NAME / program_file()
+
+
 def find(tools: Path | None = None) -> Command | None:
     """The Mercury NeoAPRS ships: `mercury/mercury[.exe]` in the folder of the shipped programs (`tools`, by default this installation's); None when this installation has none (a wheel installed with pip or uv tool: the
     AppImage, the .deb and the Windows installer carry it)."""
-    program = (tools if tools is not None else tools_dir()) / NAME / program_file()
+    program = expected_program(tools)
     return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
 
 
@@ -122,7 +128,9 @@ def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable
     one that another part of the station holds, or Mercury toggles its RTS at every frame). Runs the program and reads the system's lists: for a thread."""
     cards = list_sound_cards(program) if not sound_card or not keying else []
     card = sound_card or choose_sound_card(cards)
+    log.info("Mercury sound card: %s", card_reason(card, sound_card, cards))
     if keying:
+        log.info("Mercury keys the radio by %s, from the settings", keying)
         return card, keying_of(keying)
     name = next((c.name for c in cards if c.id == card), "") if card else next((c.name for c in cards if c.default and c.capture), "")
     found = [p for p in ports() if p.device not in leave]
@@ -283,6 +291,7 @@ class Program:
         self._pid_file: Path | None = None
         self.last_lines: deque[str] = deque(maxlen=LAST_LINES)
         self._said: dict[str, int] = {}                     # how many times each distinct warning of the program has come (a stuck sound device says the same line a thousand times a second)
+        self.lines_read = 0                                 # how many lines this run has printed (the reader thread's alone)
 
     @property
     def running(self) -> bool:
@@ -298,6 +307,7 @@ class Program:
         self._process = subprocess.Popen(argv, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
                                          env=environment(argv), creationflags=HIDDEN_WINDOW)
         self._pid_file = pid_file
+        self.lines_read = 0
         if pid_file is not None:
             try:
                 pid_file.write_text(str(self._process.pid), encoding="ascii")
@@ -322,9 +332,11 @@ class Program:
 
     def _tell(self, line: str) -> None:
         """One line of the program into the log: its warnings and errors at INFO the first, the tenth and every hundredth time the same line comes (a stuck sound device repeats one warning every millisecond, which
-        would rotate the log in minutes and bury the day's lines; the count is said with the line), everything else at DEBUG."""
+        would rotate the log in minutes and bury the day's lines; the count is said with the line); the first STARTUP_LINES lines of a run at INFO whatever they say (how it found its sound card and its keying is
+        what a person helping from the log needs), everything else at DEBUG."""
+        self.lines_read += 1
         if "[WRN]" not in line and "[ERR]" not in line:
-            mercury_log.debug("%s", line)
+            mercury_log.log(logging.INFO if self.lines_read <= STARTUP_LINES else logging.DEBUG, "%s", line)
             return
         if len(self._said) >= SAID_MAX:
             self._said.clear()

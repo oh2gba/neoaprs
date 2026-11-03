@@ -1272,3 +1272,29 @@ async def test_every_change_of_a_message_we_sent_and_the_ack_that_settles_it_are
 async def test_a_call_that_is_none_cannot_have_its_path_cleared(rig: Rig) -> None:
     with pytest.raises(MessagingError, match="call"):
         await rig.prefs.clear_path("TOOLONGCALL")
+
+
+# ---- what the log says of a message --------------------------------------------------------------------------------------------------------------
+
+async def test_the_log_says_when_a_message_is_kept_on_which_radio_it_went_when_it_is_retried_cancelled_and_acked(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.messaging")
+    await rig.m.send("OH2RDG", "Hello Pekka")
+    rig.m.cancel(1)
+    rig.m.retry(1)
+    rig.m.on_packet(rig.heard("OH2RDG", "OH2GBA", ack="01"))
+    said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.messaging"]
+    assert said == ["message 1 to OH2RDG is kept: 11 characters, at most 4 attempts, on the fm radio",
+                    "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
+                    "message 1 to OH2RDG is cancelled (the operator asked): 1 of 4 attempts were made",
+                    "message 1 to OH2RDG is sent again from the first attempt (it was cancelled; the operator asked)",
+                    "message 1 to OH2RDG sent on the fm radio (attempt 1 of 4): Hello Pekka",
+                    "message 1 to OH2RDG is acked"]
+
+
+async def test_the_log_says_when_the_radio_takes_frames_again_and_for_how_long_it_was_away(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.messaging")
+    await rig.m.send("OH2RDG", "Hello Pekka")
+    await rig.radio(Source.State.WAITING)
+    await rig.pass_time(10)
+    await rig.radio(Source.State.CONNECTED)
+    assert any("the fm radio takes frames again after" in r.getMessage() and "moved on by that time" in r.getMessage() for r in caplog.records)

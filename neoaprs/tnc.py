@@ -31,7 +31,7 @@ from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
 from .dummyscene import Scene
 from .interlock import Interlock
-from .mercury import too_long
+from .mercury import frame_words, too_long
 from .packet import Packet
 from .radiorules import RadioRules
 from .policy import TNC_CHECK_SEC
@@ -61,6 +61,8 @@ class Modem(Protocol):
     writes through the computer's speakers (`play`)."""
     @property
     def problem(self) -> str: ...
+    @property
+    def snr(self) -> float | None: ...
     def hold(self) -> str: ...
     def describe(self) -> str: ...
     def play(self, data: bytes) -> None: ...
@@ -179,7 +181,7 @@ class Tnc(TimedSource):
             self._wait(str(e))
             return
         except Exception:
-            log.exception("tnc: connecting failed")
+            log.exception("%s: connecting failed", self.label)
             self._wait("the radio could not be opened; the log says why")
             return
         if found is not None:
@@ -217,7 +219,7 @@ class Tnc(TimedSource):
         self._set_state(Source.State.SILENT if silent else Source.State.CONNECTED)
         if not reopen:
             self._note("opened the line to the modem" if self._modem() is not None else f"opened {path}{_speed(path, self.baud)}")       # (the Terminal is on the page: the modem's socket stays in the log)
-        log.log(logging.DEBUG if reopen else logging.INFO, "tnc: opened %s%s", path, _speed(path, self.baud))
+        log.log(logging.DEBUG if reopen else logging.INFO, "%s: opened %s%s", self.label, path, _speed(path, self.baud))
         if heard and self.profile.detect_command_mode and ModeDetector().feed(heard) is Mode.MONITOR:
             self._reader.enter_kiss(port, "the search found the TNC in command mode")
         self._start_watchdog()
@@ -236,6 +238,11 @@ class Tnc(TimedSource):
         """Why the modem wants no frame now ("" when it takes one): it is transmitting, or the channel is busy."""
         modem = self._modem()
         return modem.hold() if modem is not None else ""
+
+    @property
+    def label(self) -> str:
+        """What the log calls this radio: `tnc` for the FM radio, `hf radio` for the HF one (both are a Tnc, and a line of the log must say which it is about)."""
+        return "hf radio" if self.rules.kind == "hf" else "tnc"
 
     @property
     def rules(self) -> RadioRules:
@@ -274,6 +281,9 @@ class Tnc(TimedSource):
         self.stats.packets += 1
         self.stats.last_packet = packet.heard_at
         self._saw(_printable(f"{frame.tnc2()}  ->  {packet.summary}"))
+        if self.rules.kind == "hf":
+            modem = self._modem()
+            log.info("%s", frame_words("in", len(packet.raw), packet.source, None if modem is None else modem.snr))
         self.packet.emit(packet)
 
     # ---- the keep-alive (tncwatchdog.py decides when; these are the actions)
@@ -354,15 +364,19 @@ class Tnc(TimedSource):
         port = self._port
         if not self.usable or port is None:
             self._note(f"not sent: {self.why_unusable()}")
+            if self.rules.kind == "hf":
+                log.info("%s: a frame from %s (%d bytes) was not sent: %s", self.label, frame.source, len(raw), self.why_unusable())
             return False
         if self.max_frame is not None and (why := too_long(raw, self.max_frame)):
             self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))        # (the modem would cut it off and say nothing; the parts that build frames shorten or refuse first, this is the last guard)
-            log.warning("tnc: a frame was not sent: %s", why)
+            log.warning("%s: a frame was not sent: %s", self.label, why)
             return False
         if not self._write(port, kiss.encode(raw)):
             return False
         packet = packet_of("out", raw, frame, self.now(), self.is_dummy, self.rules.kind)
         self._note(_printable(f"sent {frame.tnc2()}"))
+        if self.rules.kind == "hf":
+            log.info("%s", frame_words("out", len(raw), packet.source, None))
         self.packet.emit(packet)
         return True
 

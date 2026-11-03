@@ -66,6 +66,42 @@ def hf_settings(config: Config, port_override: str = "", modem_port: int = MERCU
     return TncSettings(port_override or tcp_url(MERCURY_HOST, modem_port), 9600, profile, False, (), "", (config.mercury_sound_card, config.mercury_keying))
 
 
+def radio_words(settings: TncSettings) -> str:
+    """A radio's settings for the log: what it is and where it is reached (an address of the daemon's own, a port, a device path: nothing secret)."""
+    where = settings.port or f"the first port that matches {settings.pattern} and talks KISS"
+    modem = f", sound card {settings.modem[0] or 'by default'}, keying {settings.modem[1] or 'by default'}" if settings.profile.transport == "modem" else ""
+    return f"{settings.profile.name},{where}{'' if settings.profile.transport != 'serial' else f' at {settings.baud} baud'}{modem}"
+
+
+def hf_words(config: Config, port_override: str) -> str:
+    """The HF radio that is started, for the log: the Mercury modem (the daemon's own, or one something else runs at the address given for this run) or the Dummy HF radio."""
+    if hf_profile_of(config.hf_profile).transport == "dummy":
+        return "the Dummy HF radio, made-up stations, and the modem played through the speakers"
+    return f"the Mercury modem, one something else runs at {port_override}" if port_override else "the Mercury modem, started by NeoAPRS"
+
+
+def _shown(value: object) -> str:
+    if isinstance(value, Profile):
+        return value.name
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    if isinstance(value, tuple):
+        return ", ".join(str(v) or "default" for v in value) or "none"
+    return str(value) or "none"
+
+
+def changed_words(before: tuple[object, ...], after: tuple[object, ...]) -> str:
+    """What differs between the settings a radio ran on and the ones it is to run on, for the log: `port /dev/ttyUSB0 -> /dev/ttyUSB1, baud 9600 -> 57600`. A radio's settings are a TncSettings and whether it is on."""
+    old, new = before[0], after[0]
+    assert isinstance(old, TncSettings) and isinstance(new, TncSettings)
+    names = {"enabled": "switched on or off", "skip": "ports to skip", "pattern": "search pattern", "fallback_probe": "search when the port fails"}
+    parts = [f"{names.get(field, field)} {_shown(getattr(old, field))} -> {_shown(getattr(new, field))}" for field in TncSettings._fields if field != "modem" and getattr(old, field) != getattr(new, field)]
+    parts += [f"{what} {was or 'default'} -> {now or 'default'}" for what, was, now in zip(("sound card", "keying"), old.modem, new.modem, strict=True) if was != now]
+    if before[1] != after[1]:
+        parts.append(f"{names['enabled']}: {_shown(before[1])} -> {_shown(after[1])}")
+    return ", ".join(parts) or "nothing the radio shows"
+
+
 def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
     """For a Tnc that is stopped."""
     tnc.port, tnc.baud, tnc.profile, tnc.fallback_probe, tnc.skip, tnc.pattern = settings[:6]
