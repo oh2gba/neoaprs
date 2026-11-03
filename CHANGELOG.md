@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.16.3
+
 - **Fixed:** Update now, Send logs and the map download could fail on a fresh Windows with a certificate error where the browser of the same computer downloaded the same file (Windows fetches a missing root certificate only for a browser): NeoAPRS also trusts the usual list of root certificates (certifi), and a failed download no longer blames the internet connection.
 ## 0.16.2
 
