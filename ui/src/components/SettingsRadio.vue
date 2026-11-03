@@ -42,26 +42,43 @@ const fields = (hfBox: boolean) =>
       (k === HF_PROFILE_KEY || k.startsWith("mercury/")) === hfBox &&
       (hfBox && k.startsWith("mercury/") ? mercury.value : true),
   );
-const boxes = computed(() => [
-  { kind: "fm", legend: t("settings.group.fm_radio"), switch: FM_KEY, radio: tnc.value, on: fm.value, only: fm.value && !hfRadio.value, keys: fields(false) },
-  {
-    kind: "hf",
-    legend: t("settings.group.hf_radio"),
-    switch: HF_KEY,
-    radio: hf.value,
-    on: hfRadio.value,
-    only: hfRadio.value && !fm.value,
-    keys: fields(true),
-  },
-]);
 /** The fold is open while a radio is not connected: that is when the fields are wanted. */
 const unconnected = (radio: TncState | null): boolean => radio !== null && radio.state !== "connected";
+/** A box has something the person must see, so it opens by itself: a complaint of the daemon about one of its settings, the question it asks about one, or its radio is ticked and not connected. */
+const needsLook = (keys: readonly string[], on: boolean, radio: TncState | null): boolean =>
+  (on && unconnected(radio)) || keys.some((key) => (props.settings.errors[key] ?? "") !== "" || props.form.question.value?.key === key);
+const boxes = computed(() => {
+  const fmKeys = fields(false);
+  const hfKeys = fields(true);
+  return [
+    {
+      kind: "fm",
+      legend: t("settings.group.fm_radio"),
+      switch: FM_KEY,
+      radio: tnc.value,
+      on: fm.value,
+      only: fm.value && !hfRadio.value,
+      keys: fmKeys,
+      look: needsLook([FM_KEY, ...fmKeys], fm.value, tnc.value),
+    },
+    {
+      kind: "hf",
+      legend: t("settings.group.hf_radio"),
+      switch: HF_KEY,
+      radio: hf.value,
+      on: hfRadio.value,
+      only: hfRadio.value && !fm.value,
+      keys: hfKeys,
+      look: needsLook([HF_KEY, HF_GAIN_KEY, ...hfKeys], hfRadio.value, hf.value),
+    },
+  ];
+});
 watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
 </script>
 
 <template>
   <SettingsSwitch v-if="keys.includes(RX_ONLY_KEY)" :name="RX_ONLY_KEY" :settings="settings" :form="form" :defaults="defaults" />
-  <SettingsBox v-for="box in boxes" :key="box.kind" :title="box.legend">
+  <SettingsBox v-for="box in boxes" :key="box.kind" :title="box.legend" :fold-id="box.kind" :show="box.look">
     <SettingsSwitch v-if="keys.includes(box.switch)" :name="box.switch" :settings="settings" :form="form" :defaults="defaults" :only="box.only" />
     <RadioStatus v-if="box.on" :tnc="box.radio" :now="now" :open="unconnected(box.radio)">
       <SettingsRadioFields :keys="box.keys" :settings="settings" :form="form" :defaults="defaults" />

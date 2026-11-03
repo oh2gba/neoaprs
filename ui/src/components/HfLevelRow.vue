@@ -33,7 +33,7 @@ function move(by: number): void {
     <label :for="`${id}-up`">{{ t("settings.txlevel.label") }}</label>
     <div class="field-control txlevel-control">
       <button
-        class="btn"
+        class="btn stepbtn"
         type="button"
         :disabled="gain <= min"
         :title="t('settings.txlevel.lower')"
@@ -45,7 +45,7 @@ function move(by: number): void {
       <output class="mono txlevel-value">{{ t("settings.txlevel.value", { value: gainText(gain) }) }}</output>
       <button
         :id="`${id}-up`"
-        class="btn"
+        class="btn stepbtn"
         type="button"
         :disabled="gain >= max"
         :title="t('settings.txlevel.raise')"
@@ -54,12 +54,12 @@ function move(by: number): void {
       >
         +
       </button>
-      <output class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{ t("settings.txlevel.peak", { value: dbText(peak) }) }}</output>
       <InfoTip :label="t('settings.txlevel.tip_label')"
         ><span class="info-line">{{ t("settings.txlevel.tip1") }}</span
         ><span class="info-line">{{ t("settings.txlevel.tip2") }}</span></InfoTip
       >
     </div>
+    <output class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{ t("settings.txlevel.peak", { value: dbText(peak) }) }}</output>
   </div>
 </template>
 
@@ -69,12 +69,20 @@ function move(by: number): void {
   align-items: center;
   gap: 8px;
 }
+/* the two steps are small buttons, not the width of an action button that the first button of a row has */
+.field-control > .btn.stepbtn:first-child,
+.btn.stepbtn {
+  min-width: 0;
+  width: var(--control-h);
+}
 .txlevel-value {
   min-width: 6ch;
   text-align: center;
 }
+/* the peak stands under the control, in its column, and keeps its line whatever it says */
 .txlevel-peak {
-  min-width: 14ch;
+  grid-column: 2;
+  min-height: 1.4em;
   color: var(--muted);
 }
 .txlevel-peak.clip {

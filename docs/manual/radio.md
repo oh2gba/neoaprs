@@ -49,6 +49,8 @@ The button **Find my radio**, behind the arrow of the Radio group and under the 
 
 ## The radio status
 
+The boxes of the FM radio and the HF radio fold by the arrow in front of their names, like the groups of the Settings tab ([page.md](page.md#settings)): folded, a box is its name alone, with its Enable tickbox and everything else inside it, and the page remembers in this browser which ones you folded. A box opens by itself when its radio is ticked and not connected, when the daemon refuses one of its settings, and when the page leads you to a setting in it.
+
 Each radio box of the Radio group of the Settings tab, after its Enable tickbox, is one line, the radio status, with an arrow in front of it. The arrow opens the rest of the box; it is closed unless the radio is not connected.
 
 - The state is a coloured word: connected, waiting, silent, and so on.
