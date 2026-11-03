@@ -148,7 +148,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.rts": "{port}のRTS",
   "settings.keying.dtr": "{port}のDTR",
   "settings.keying.test": "テスト",
-  "settings.hf_frequency.label": "周波数",
+  "settings.hf_frequencies.label": "推奨周波数",
   "settings.firewall": "修正",
   "settings.firewall.label": "ファイアウォール",
   "settings.firewall.tip_label": "ファイアウォールについて",

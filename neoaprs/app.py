@@ -48,6 +48,7 @@ from .services.selfinstall import installer_for, release_source
 from .services.selfupdate import SelfUpdate
 from .services.sender import Sender
 from .services.stationalerts import StationAlerts
+from .services.frequencies import Frequencies
 from .services.updatecheck import UpdateCheck
 from .signal import Signal
 from .stationbook import StationBook
@@ -148,6 +149,7 @@ class Services:
         self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store)   # once a day: which version is the latest (update/check); started by the controller
+        self.frequencies = Frequencies(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store)       # the frequencies the project suggests: a small file asked a minute after the start and when a page shows the HF radio's box; started by the controller
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into), self._announced, release_source(), end=self._end_for_restart)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
 

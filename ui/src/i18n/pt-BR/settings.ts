@@ -148,7 +148,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.rts": "RTS em {port}",
   "settings.keying.dtr": "DTR em {port}",
   "settings.keying.test": "Testar",
-  "settings.hf_frequency.label": "Frequência",
+  "settings.hf_frequencies.label": "Frequências sugeridas",
   "settings.firewall": "Corrigir",
   "settings.firewall.label": "Firewall",
   "settings.firewall.tip_label": "Sobre o firewall",

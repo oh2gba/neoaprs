@@ -1407,6 +1407,26 @@
       "title": "ForgetStationKeyCommand",
       "type": "object"
     },
+    "FrequencyRow": {
+      "additionalProperties": false,
+      "description": "A frequency the project suggests for the HF radio.",
+      "properties": {
+        "band": {
+          "description": "the band, `40 m`",
+          "type": "string"
+        },
+        "dial": {
+          "description": "the dial with its mode, `7.0541 MHz USB`",
+          "type": "string"
+        }
+      },
+      "required": [
+        "band",
+        "dial"
+      ],
+      "title": "FrequencyRow",
+      "type": "object"
+    },
     "FrequencyValues": {
       "additionalProperties": false,
       "description": "A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say.",
@@ -1837,6 +1857,21 @@
         "cmd"
       ],
       "title": "HfAllowFirewallCommand",
+      "type": "object"
+    },
+    "HfFrequencies": {
+      "additionalProperties": false,
+      "description": "The page shows the HF radio's box (the Mercury type): the daemon asks the project's server for the suggested frequencies again, unless it asked less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is\nanswered; the topic `hf` has the list when it changes.",
+      "properties": {
+        "cmd": {
+          "const": "hf_frequencies",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "HfFrequenciesCommand",
       "type": "object"
     },
     "HfKeyTest": {
@@ -2780,9 +2815,13 @@
           "description": "the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device",
           "type": "string"
         },
-        "dial": {
-          "description": "the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is",
-          "type": "string"
+        "frequencies": {
+          "description": "the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio",
+          "items": {
+            "$ref": "#/$defs/FrequencyRow"
+          },
+          "maxItems": 3,
+          "type": "array"
         },
         "keying": {
           "description": "how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`",
@@ -2824,7 +2863,7 @@
         "frames_keyed",
         "max_frame",
         "sound_card",
-        "dial",
+        "frequencies",
         "keying",
         "scope",
         "tx_gain_db",
@@ -6932,6 +6971,7 @@
           "forget_station_key": "#/$defs/ForgetStationKey",
           "general_query": "#/$defs/GeneralQuery",
           "hf_allow_firewall": "#/$defs/HfAllowFirewall",
+          "hf_frequencies": "#/$defs/HfFrequencies",
           "hf_key_test": "#/$defs/HfKeyTest",
           "hf_scope": "#/$defs/HfScope",
           "hf_tune": "#/$defs/HfTune",
@@ -7015,6 +7055,9 @@
         },
         {
           "$ref": "#/$defs/HfAllowFirewall"
+        },
+        {
+          "$ref": "#/$defs/HfFrequencies"
         },
         {
           "$ref": "#/$defs/HfScope"

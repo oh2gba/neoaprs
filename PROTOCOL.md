@@ -106,7 +106,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-52 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+53 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -196,6 +196,11 @@ The keying test: keys the HF radio for one second, so that the operator sees it 
 Allow: while the modem waits for the Windows Firewall (`reason: "firewall"`), makes the rule that blocks inbound connections to the program, as an administrator (the prompt of Windows; one for the rule and for deleting a
 wrong one of the same name), asks the Firewall again and, when the network is kept from the program, starts the HF radio the usual way. A declined prompt, or one that cannot appear, leaves the state as it was and is a
 line in the log, never an `error`. Does nothing off Windows, and while the modem waits for anything else. The topic `hf` says `allowing: true` meanwhile.
+
+### `hf_frequencies`
+
+The page shows the HF radio's box (the Mercury type): the daemon asks the project's server for the suggested frequencies again, unless it asked less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is
+answered; the topic `hf` has the list when it changes.
 
 ### `hf_scope`
 
@@ -1254,6 +1259,15 @@ The data extensions after the symbol of an uncompressed position (taken off the 
 | `df_bearing` | DfBearingValues \| null |  |  |
 | `area` | AreaValues \| null |  |  |
 
+### FrequencyRow
+
+A frequency the project suggests for the HF radio.
+
+| field | type | | description |
+|---|---|---|---|
+| `band` | string |  | the band, `40 m` |
+| `dial` | string |  | the dial with its mode, `7.0541 MHz USB` |
+
 ### FrequencyValues
 
 A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say.
@@ -1441,7 +1455,7 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |
 | `sound_card` | string |  | the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device |
-| `dial` | string |  | the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is |
+| `frequencies` | FrequencyRow[] |  | the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio (max 3 items) |
 | `keying` | string |  | how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` |
 | `scope` | boolean |  | the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) |
 | `tx_gain_db` | integer |  | the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it (>= -20, <= 20) |

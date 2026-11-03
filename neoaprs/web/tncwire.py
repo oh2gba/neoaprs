@@ -30,6 +30,12 @@ class TncLine(_Model):
     text: str = Field(description="what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time")
 
 
+class FrequencyRow(_Model):
+    """A frequency the project suggests for the HF radio."""
+    band: str = Field(description="the band, `40 m`")
+    dial: str = Field(description="the dial with its mode, `7.0541 MHz USB`")
+
+
 class ModemState(_Model):
     """The Mercury HF modem behind the line, while the radio type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal."""
     state: Literal["stopped", "starting", "running", "waiting"] = Field(description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why")
@@ -45,7 +51,8 @@ class ModemState(_Model):
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
     max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
-    dial: str = Field(description="the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is")
+    frequencies: list[FrequencyRow] = Field(max_length=3, description="the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in "
+                                                                       "two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
     tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")
@@ -88,6 +95,12 @@ class HfTune(_Command):
     (`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`)."""
     cmd: Literal["hf_tune"]
     on: bool = Field(description="true starts the tone, false stops it")
+
+
+class HfFrequencies(_Command):
+    """The page shows the HF radio's box (the Mercury type): the daemon asks the project's server for the suggested frequencies again, unless it asked less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is
+    answered; the topic `hf` has the list when it changes."""
+    cmd: Literal["hf_frequencies"]
 
 
 class HfScope(_Command):

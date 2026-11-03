@@ -4,12 +4,17 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 UPDATE_URL = "https://neo.oh2gba.eu/version.php"              # the default of the setting update/url: the version page on the project's own name (since 0.16)
 OLD_UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"      # where the copies before 0.16 ask: the same page, kept there for them (migration 26 moves a stored default over)
+FREQUENCIES_URL = "https://neo.oh2gba.eu/frequencies.json"      # the frequencies the project suggests, a file edited by hand and uploaded with the site (site/frequencies.json); the HF radio's box shows them (services/frequencies.py)
+FREQUENCIES_ROW = "update/frequencies"                         # the last good list, kept by the daemon in the settings table (not a setting)
 SUPPORT_URL = "https://neo.oh2gba.eu/support/send.php"      # where Send logs of the Help group posts the support file (neoaprs/web/supportsend.py); the server stores it and tells the project
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
 _DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$")      # an HF dial as the page names it and the HF box shows it: "7.0541 MHz USB"
+_BAND = re.compile(r"^\d{1,3} m$")                              # the band of a suggested frequency: "40 m" (site/site.js checks the same two forms)
+MAX_FREQUENCIES = 3                                            # the most the list keeps; the box has room for two lines
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
 _PART_SEPARATORS = re.compile(r"[.\-+]")
 _ARM_MACHINES = ("aarch64", "arm64", "armv7l", "armv6l", "armv8l")        # a Raspberry Pi
@@ -111,3 +116,50 @@ def install_kind(frozen: bool, appimage: str | None, deb: bool, checkout: bool, 
 
 
 PLAIN_INSTALL = InstallInfo("pip")          # what a part that was not told how it was installed assumes (the tests)
+
+
+@dataclass(frozen=True)
+class Frequency:
+    """A frequency the project suggests: the band, `40 m`, and the dial with its mode, `7.0541 MHz USB`."""
+    band: str
+    dial: str
+
+
+def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
+    """The list in the project's file, `{"frequencies": [{"band": "40 m", "dial": "7.0541 MHz USB"}, ...]}`: every entry that is not of the two forms is dropped, a band that is there already is dropped, and the first MAX_FREQUENCIES are kept.
+    None for a file that is no list or has not one good entry (the last good list stands then)."""
+    try:
+        data: Any = json.loads(body)
+    except ValueError:
+        return None
+    entries = data.get("frequencies") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return None
+    found: list[Frequency] = []
+    for entry in entries:
+        band, dial = (text.strip() if isinstance(entry, dict) and isinstance(text := entry.get(key), str) else "" for key in ("band", "dial"))
+        if _BAND.match(band) and _DIAL.match(dial) and all(f.band != band for f in found) and len(found) < MAX_FREQUENCIES:
+            found.append(Frequency(band, dial))
+    return found or None
+
+
+def frequencies_text(frequencies: list[Frequency]) -> str:
+    """The list as the settings table keeps it: the file's own form."""
+    return json.dumps({"frequencies": [{"band": f.band, "dial": f.dial} for f in frequencies]})
+
+
+def suggested(listed: list[Frequency], hf_dial: str, built_in: list[Frequency], dial_band: str) -> list[Frequency]:
+    """What the HF box shows: the project's list when there is one; else the dial the version page names (for `dial_band`, the 40 m the earlier copies were told of); else the built-in list."""
+    if listed:
+        return listed
+    return [Frequency(dial_band, hf_dial)] if hf_dial else built_in
+
+
+def on_this_computer(text: str) -> bool:
+    """Whether `text` is the address of a server on this computer: http or https, the host 127.0.0.1 or localhost, no user, no space (what a test or a bench may point the frequencies at)."""
+    try:
+        parts = urlsplit(text)
+        _ = parts.port
+    except ValueError:
+        return False
+    return parts.scheme in ("http", "https") and parts.hostname in ("127.0.0.1", "localhost") and "@" not in parts.netloc and not any(c.isspace() for c in text)

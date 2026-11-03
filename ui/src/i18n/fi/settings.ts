@@ -148,7 +148,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.rts": "RTS portissa {port}",
   "settings.keying.dtr": "DTR portissa {port}",
   "settings.keying.test": "Testaa",
-  "settings.hf_frequency.label": "Taajuus",
+  "settings.hf_frequencies.label": "Ehdotetut taajuudet",
   "settings.firewall": "Korjaa",
   "settings.firewall.label": "Palomuuri",
   "settings.firewall.tip_label": "Tietoa palomuurista",

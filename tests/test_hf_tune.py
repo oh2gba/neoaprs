@@ -127,7 +127,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     page = await e.ws()
     await page.send({"cmd": "subscribe", "topics": ["hf"]})
     await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
-    assert page.topics["hf"]["modem"]["dial"] == "7.0541 MHz USB", "the daemon owns the dial the page shows"
+    assert page.topics["hf"]["modem"]["frequencies"][0] == {"band": "40 m", "dial": "7.0541 MHz USB"}, "the daemon owns the frequencies the page shows"
     await page.send({"cmd": "hf_tune", "on": True})
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "tune" and page.topics["hf"]["modem"]["keyed"])
     await page.send({"cmd": "hf_tune", "on": False})

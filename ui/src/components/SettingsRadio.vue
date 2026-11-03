@@ -5,6 +5,7 @@
 // The HF radio's type (`hf/profile`) is the first of its fields: with the Dummy HF radio chosen the sound card, the keying and Tune are not there, as the FM Dummy has no port; with the Mercury modem the Frequency row (the dial the group agrees on, read-only) and the Tune row stand under the fields where the FM radio has Find my radio; above Tune, only while the program waits for the Windows Firewall, the Fix row.
 import { computed, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
+import HfFrequencies from "@/components/HfFrequencies.vue";
 import HfFirewallRow from "@/components/HfFirewallRow.vue";
 import HfLevelRow from "@/components/HfLevelRow.vue";
 import HfScope from "@/components/HfScope.vue";
@@ -64,13 +65,7 @@ watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
     <SettingsSwitch v-if="keys.includes(box.switch)" :name="box.switch" :settings="settings" :form="form" :defaults="defaults" :only="box.only" />
     <RadioStatus v-if="box.on" :tnc="box.radio" :now="now" :open="unconnected(box.radio)">
       <SettingsRadioFields :keys="box.keys" :settings="settings" :form="form" :defaults="defaults" />
-      <!-- The dial frequency the group agrees on, which the daemon says (`hf.modem.dial`): plain text to read, not a box that looks as if it took typing. -->
-      <div v-if="box.kind === 'hf' && mercury && hf?.modem" class="field">
-        <label for="hf-frequency">{{ t("settings.hf_frequency.label") }}</label>
-        <div class="field-control">
-          <output id="hf-frequency" class="dial">{{ hf.modem.dial }}</output>
-        </div>
-      </div>
+      <HfFrequencies v-if="box.kind === 'hf' && mercury && hf?.modem" />
       <HfFirewallRow v-if="box.kind === 'hf' && mercury && firewallFixable(hf)" id="hf-firewall" />
       <FindRadioRow v-if="box.kind === 'fm'" id="find-radio" />
       <template v-else-if="mercury">
@@ -81,9 +76,3 @@ watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
     </RadioStatus>
   </SettingsBox>
 </template>
-
-<style scoped>
-.dial {
-  font-weight: 600;
-}
-</style>

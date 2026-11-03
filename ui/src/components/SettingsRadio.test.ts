@@ -332,19 +332,19 @@ describe("the HF radio's box in the Radio group", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/keying": "rts:/dev/ttyUSB0" } });
   });
 
-  it("has the dial frequency the daemon says as a row to read, in the HF box of the Mercury modem only", () => {
+  it("has the suggested frequencies the daemon says as a row to read, in the HF box of the Mercury modem only", () => {
     const { group } = make({ ports: cards(), hf: hfState() }, on);
-    const row = hfFold(group).find("#hf-frequency");
-    expect(row.text()).toBe("7.0541 MHz USB");
+    const row = hfFold(group).find("#hf-frequencies");
+    expect(row.findAll(".freq").map((line) => line.text())).toEqual(["40 m 7.0541 MHz USB", "20 m 14.1070 MHz USB"]);
     expect(row.element.tagName).toBe("OUTPUT"); // (text to read, not an input box that takes no typing)
-    expect(row.element.closest(".field")?.querySelector("label")?.textContent).toBe("Frequency");
-    expect(fm(group).find("#hf-frequency").exists()).toBe(false);
+    expect(row.element.closest(".field")?.querySelector("label")?.textContent).toBe("Suggested frequencies");
+    expect(fm(group).find("#hf-frequencies").exists()).toBe(false);
     expect(
       make({ ports: cards(), hf: hfState() }, { ...on, "hf/profile": "dummy-hf" })
-        .group.find("#hf-frequency")
+        .group.find("#hf-frequencies")
         .exists(),
     ).toBe(false);
-    expect(make({ ports: cards(), hf: null }, on).group.find("#hf-frequency").exists()).toBe(false);
+    expect(make({ ports: cards(), hf: null }, on).group.find("#hf-frequencies").exists()).toBe(false);
   });
 
   it("keeps a stored card that the daemon does not list as one more choice", () => {

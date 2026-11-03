@@ -4,7 +4,7 @@ from neoaprs.coded import CodedError
 from neoaprs.config import can_transmit
 
 from .dispatch import Ctx, UserError, command
-from .tncwire import HfAllowFirewall, HfKeyTest, HfScope, HfTune
+from .tncwire import HfAllowFirewall, HfFrequencies, HfKeyTest, HfScope, HfTune
 
 
 def _may_transmit(ctx: Ctx, name: str) -> None:
@@ -51,3 +51,9 @@ async def hf_scope(ctx: Ctx, cmd: HfScope) -> None:
     """This page wants the pictures of the HF radio's audio (or no more of them); nothing is refused, since a page asks when it shows the scope and the modem may not be up yet."""
     if ctx.scope is not None:
         ctx.scope.ask(ctx.conn, cmd.on)
+
+
+@command(HfFrequencies)
+async def hf_frequencies(ctx: Ctx, cmd: HfFrequencies) -> None:
+    """The page shows the HF radio's box: the project's list of frequencies is asked for again if it is time (the service keeps the 15 minutes between two questions)."""
+    ctx.ctl.frequencies.wanted()

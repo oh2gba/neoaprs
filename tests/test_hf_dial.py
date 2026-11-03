@@ -1,12 +1,12 @@
 """The HF dial the group meets on comes with the version page (`hf_dial` of its answer, neoaprs/versions.py): the update check keeps the last one it was told in the row HF_DIAL, tells it at the start and when it
-changes, and the HF box shows it (the Mercury modem's `dial`, read by the view); a page that names none, or one not of the form, changes nothing, and with none known the built-in dial stands."""
+changes, and the HF box suggests it for 40 m when the project has no list of its own (tests/test_frequencies.py); a page that names none, or one not of the form, changes nothing."""
 import json
 from pathlib import Path
 
 from neoaprs.config import HF_DIAL
-from neoaprs.mercury import DIAL_TEXT
+from neoaprs.mercury import DIAL_BAND
 from neoaprs.services.updatecheck import UpdateCheck
-from neoaprs.versions import parse_update
+from neoaprs.versions import Frequency, parse_update, suggested
 from tests.support.env import remember_stop, until
 from tests.support.storedb import store_at
 
@@ -51,12 +51,9 @@ async def test_a_dial_is_kept_told_and_survives_a_restart(tmp_path: Path) -> Non
     assert again.hf_dial == "7.0443 MHz USB", "the one kept is told at the start, before the page is asked"
 
 
-def test_the_hf_box_shows_the_dial_of_the_page_and_the_built_in_one_without(tmp_path: Path) -> None:
-    from neoaprs.mercurymodem import Mercury
-    modem = Mercury(tmp_path)
-    assert (modem.dial or DIAL_TEXT) == DIAL_TEXT
-    modem.dial = "7.0443 MHz USB"
-    assert (modem.dial or DIAL_TEXT) == "7.0443 MHz USB"
+def test_the_dial_of_the_page_is_the_forty_metre_one_of_the_box_until_the_project_has_a_list() -> None:
+    """The earlier copies were told one dial, the 40 m one; the HF box of this one shows it as the suggestion for that band when the project's file (tests/test_frequencies.py) has no list."""
+    assert suggested([], "7.0443 MHz USB", [], f"{DIAL_BAND} m") == [Frequency("40 m", "7.0443 MHz USB")]
 
 
 def _config():  # type: ignore[no-untyped-def]

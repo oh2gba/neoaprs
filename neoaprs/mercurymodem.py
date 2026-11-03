@@ -27,7 +27,7 @@ from pathlib import Path
 
 from .clock import Clock, utcnow
 from .config import Config
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryallow import Allowing
@@ -40,6 +40,7 @@ from .serialprobe import PortInfo, available_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
+from .versions import Frequency
 
 log = logging.getLogger("neoaprs.mercury")
 
@@ -86,7 +87,7 @@ class Mercury(Channel, Tuning, Allowing, Scoping):
         self.backoff = backoff or Backoff()                          # between two starts of a program that died
         self._control_backoff = control_backoff
         self.changed: Signal[[]] = Signal("mercury.changed")        # the state, the keying, the busy channel: the page's radio topic is told again
-        self.dial = ""                                              # the HF dial the version page named (UpdateCheck.hf_dial); empty: mercury.DIAL_TEXT, the built-in one
+        self.frequencies: list[Frequency] = [Frequency(band, dial) for band, dial in SUGGESTED]       # the frequencies the HF box suggests (versions.suggested: the project's list, else the version page's dial, else these two)
         self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
         self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
         self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem

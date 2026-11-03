@@ -57,6 +57,8 @@ FREQUENCIES: tuple[tuple[int, str], ...] = ((30, "10.1462"), (40, "7.0541"), (20
 DIAL_BAND = 40                                                    # the one band the group agrees on, and the page shows (the manual lists the others too)
 DIAL_TEXT = f"{dict(FREQUENCIES)[DIAL_BAND]} MHz USB"             # the dial of that band as the page says it (the same words in every language): the mode is spelled out so that nobody tunes LSB
 
+SUGGESTED: tuple[tuple[str, str], ...] = (("40 m", "7.0541 MHz USB"), ("20 m", "14.1070 MHz USB"))      # what the HF box suggests until the project's list (site/frequencies.json) or the version page has answered: (band, dial), the two of FREQUENCIES the group meets on first
+
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")           # how the radio is keyed: by itself (VOX, or the radio's own data mode), a CM108 sound chip's GPIO pin (an AIOC, some dongles), or the RTS or DTR line of a serial port (a DigiRig, a home-made interface)
 PTT_WITH_DEVICE = ("rts", "dtr")                     # the kinds that name a serial port after a colon: `rts:/dev/ttyUSB0`, `dtr:COM3`
 

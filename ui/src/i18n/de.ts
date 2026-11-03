@@ -1254,7 +1254,7 @@ export const de: Catalogue = {
   "settings.keying.rts": "RTS an {port}",
   "settings.keying.dtr": "DTR an {port}",
   "settings.keying.test": "Test",
-  "settings.hf_frequency.label": "Frequenz",
+  "settings.hf_frequencies.label": "Vorgeschlagene Frequenzen",
   "settings.firewall": "Beheben",
   "settings.firewall.label": "Firewall",
   "settings.firewall.tip_label": "Über die Firewall",

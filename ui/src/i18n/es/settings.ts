@@ -149,7 +149,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.rts": "RTS en {port}",
   "settings.keying.dtr": "DTR en {port}",
   "settings.keying.test": "Probar",
-  "settings.hf_frequency.label": "Frecuencia",
+  "settings.hf_frequencies.label": "Frecuencias sugeridas",
   "settings.firewall": "Corregir",
   "settings.firewall.label": "Firewall",
   "settings.firewall.tip_label": "Sobre el firewall",

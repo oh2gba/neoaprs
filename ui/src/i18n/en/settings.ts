@@ -145,7 +145,7 @@ export const settings = {
   "settings.keying.rts": "RTS on {port}",
   "settings.keying.dtr": "DTR on {port}",
   "settings.keying.test": "Test",
-  "settings.hf_frequency.label": "Frequency",
+  "settings.hf_frequencies.label": "Suggested frequencies",
   "settings.firewall": "Fix",
   "settings.firewall.label": "Firewall",
   "settings.firewall.tip_label": "About the firewall",

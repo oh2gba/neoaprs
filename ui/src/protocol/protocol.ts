@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfAllowFirewallCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfAllowFirewallCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | HfScopeMessage;
 
@@ -356,6 +356,14 @@ export interface ForgetStationKeyCommand {
   call: string;
 }
 
+/** A frequency the project suggests for the HF radio. */
+export interface FrequencyRow {
+  /** the band, `40 m` */
+  band: string;
+  /** the dial with its mode, `7.0541 MHz USB` */
+  dial: string;
+}
+
 /** A frequency to call on, from the local information at the start of a comment, a status text or the name of a frequency object (`145.775MHz T100 -060 R40k`); null where the text did not say. */
 export interface FrequencyValues {
   /** the transmit frequency, MHz */
@@ -460,6 +468,11 @@ export interface HelloMessage {
 /** Allow: while the modem waits for the Windows Firewall (`reason: "firewall"`), makes the rule that blocks inbound connections to the program, as an administrator (the prompt of Windows; one for the rule and for deleting a wrong one of the same name), asks the Firewall again and, when the network is kept from the program, starts the HF radio the usual way. A declined prompt, or one that cannot appear, leaves the state as it was and is a line in the log, never an `error`. Does nothing off Windows, and while the modem waits for anything else. The topic `hf` says `allowing: true` meanwhile. */
 export interface HfAllowFirewallCommand {
   cmd: "hf_allow_firewall";
+}
+
+/** The page shows the HF radio's box (the Mercury type): the daemon asks the project's server for the suggested frequencies again, unless it asked less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `hf` has the list when it changes. */
+export interface HfFrequenciesCommand {
+  cmd: "hf_frequencies";
 }
 
 /** The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says `test: "key"` meanwhile. The same refusals as `hf_tune`. */
@@ -727,8 +740,8 @@ export interface ModemState {
   max_frame: number;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
-  /** the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is */
-  dial: string;
+  /** the frequencies the project suggests, one to three: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `hf_frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio */
+  frequencies: FrequencyRow[];
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;
   /** the daemon reads the modem's UI interface: the spectrum scope can be shown (`hf_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem) */

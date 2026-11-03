@@ -90,6 +90,7 @@ class Controller(Services):
         await self._start_web()
         await self.mapauto.start()
         await self.updatecheck.start()
+        await self.frequencies.start()
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._recount_minutely(), "recount")
         self.tasks.spawn(self._flush_stations(), "station-flush")
@@ -117,7 +118,7 @@ class Controller(Services):
     def _stops(self) -> list[tuple[str, Callable[[], Awaitable[None]]]]:
         """What the stop ends and in which order: the page, Find my radio and the Tnc first (the source of the packets, so that no packet comes to a part that is stopped), then the parts that take its packets, the
         others, and last the Controller's own tasks."""
-        return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_tnc), ("the update check", self.updatecheck.stop), ("the ALOHA circle", self.aloha.stop),
+        return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_tnc), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the ALOHA circle", self.aloha.stop),
                 ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
                 ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
                 ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the HF beacon", self.hf_beacon.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the tasks", self.tasks.cancel_all)]

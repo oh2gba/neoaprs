@@ -12,7 +12,7 @@ from typing import NamedTuple
 from .app import Services
 from .config import Config
 from .dummyline import DUMMY_PATH
-from .mercury import BROADCAST_PORT as MERCURY_PORT
+from .mercury import BROADCAST_PORT as MERCURY_PORT, DIAL_BAND, SUGGESTED
 from .mercurymodem import HOST as MERCURY_HOST
 from .packet import IS, Packet
 from .packetcodec import tnc2
@@ -22,6 +22,7 @@ from .source import Source
 from .stationbook import DETAILS_SEEN, ROUTES_SEEN
 from .tnc import Tnc
 from .tncprofile import Profile, hf_profile_of, names_tcp, tcp_url
+from .versions import Frequency, suggested
 
 log = logging.getLogger("neoaprs.wiring")
 packets_log = logging.getLogger("neoaprs.packets")
@@ -150,7 +151,8 @@ def wire(parts: Services) -> None:
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
     parts.mercury.ports_changed.connect(parts.repoint_hf)                                # (a modem started again on other ports, the old pair taken meanwhile: the HF Tnc follows it)
-    parts.updatecheck.dial_changed.connect(lambda dial: _show_dial(parts, dial))        # (the HF dial the group meets on comes with the version page: a move needs no release)
+    parts.updatecheck.dial_changed.connect(lambda dial: _show_frequencies(parts))        # (the frequencies the HF box suggests come from the project's file or the version page: a move needs no release)
+    parts.frequencies.changed.connect(lambda: _show_frequencies(parts))
     parts.config_changed.connect(lambda config: parts.mercury.set_tx_gain(config.mercury_tx_gain_db))                  # (the transmit gain is set live in the modem, and the tune tone follows it)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
@@ -160,9 +162,11 @@ def wire(parts: Services) -> None:
     parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
 
 
-def _show_dial(parts: Services, dial: str) -> None:
-    """The HF dial the version page names, on the modem the HF box reads it from; the page's radio topic is told again."""
-    parts.mercury.dial = dial
+def _show_frequencies(parts: Services) -> None:
+    """The frequencies the HF box suggests, on the modem it reads them from: the project's list, else the dial the version page names, else the built-in two; the page's radio topic is told again."""
+    built_in = [Frequency(band, dial) for band, dial in SUGGESTED]
+    now = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
+    parts.mercury.frequencies = now
     parts.mercury.changed.emit()
 
 

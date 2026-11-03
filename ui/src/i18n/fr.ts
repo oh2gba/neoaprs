@@ -1242,7 +1242,7 @@ export const fr: Catalogue = {
   "settings.keying.rts": "RTS sur {port}",
   "settings.keying.dtr": "DTR sur {port}",
   "settings.keying.test": "Test",
-  "settings.hf_frequency.label": "Fréquence",
+  "settings.hf_frequencies.label": "Fréquences suggérées",
   "settings.firewall": "Corriger",
   "settings.firewall.label": "Pare-feu",
   "settings.firewall.tip_label": "À propos du pare-feu",
