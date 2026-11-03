@@ -13,7 +13,7 @@ the tone. Mercury unkeys by itself after a minute whatever happens to us.
 
 The ports are chosen once for a start and kept for the program started again in the place of one that died (the HF Tnc is told its port when the radios start, and waits on it with its back-off: it finds the modem
 where it left it); only when something else took the pair meanwhile is another chosen, and the owner is told (`ports_changed`) to point the Tnc at it. A program of ours that listens on an address that is not the
-loopback is ended and not run again (`foreign_listeners`): its ports have no password, and the Mercury NeoAPRS ships listens on this computer only (packaging/mercury/loopback.patch; on Windows the installer's firewall rule).
+loopback is ended and not run again (`foreign_listeners`): its ports have no password, and the Mercury NeoAPRS ships, on every system, listens on this computer only (packaging/mercury/loopback.patch).
 
 A Mercury that something else runs (the port given for this run, `--hf-port`, the benches') is not started or stopped here, only listened to on the control port 200 above its KISS port. The setting `serial/port` is never the sign of one: it is the FM radio's, and a `tcp://` address there is a Direwolf's KISS port.
 
@@ -31,7 +31,6 @@ from .config import Config
 from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, TUNE_OFF, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
-from .mercuryallow import Allowing
 from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, expected_program, find, foreign_listeners, free_ports, is_shipped, list_sound_cards
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
 from .serialprobe import PortInfo, available_ports
@@ -51,7 +50,7 @@ TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 STATES = ("stopped", "starting", "running", "waiting")
-REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "firewall", "firewall_off", "sound_card")     # why the state is `waiting`, for the page to say in its own words (`problem` is the English of the log)
+REASONS = ("", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card")     # why the state is `waiting`, for the page to say in its own words (`problem` is the English of the log)
 TESTS = ("", "tune", "key")                  # what the control port was asked for and not yet told to stop: nothing, the tune tone, the keying test
 
 
@@ -80,7 +79,7 @@ def _address(url: str) -> tuple[str, int]:
     return host.strip("[]") or HOST, int(port)
 
 
-class Mercury(Tuning, Allowing):
+class Mercury(Tuning):
     def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None) -> None:
         self.data_dir, self.clock = data_dir, clock
         self._finder = finder or find                                # the shipped program (mercuryhelper.find); a test gives its own
@@ -91,7 +90,6 @@ class Mercury(Tuning, Allowing):
         self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
         self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
         self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem
-        self.lets_in = ""                                            # with the reason `firewall`: the names of the Firewall rules that let the network reach Mercury, if any does
         self.problem, self.reason = "", ""                           # why it is not running, in English for the log; empty while it is. And the same as a code of REASONS, for the page's words (only `waiting` has one)
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
         self.attached = ""                                           # the address of a Mercury that something else runs; empty for one of ours
@@ -159,8 +157,8 @@ class Mercury(Tuning, Allowing):
         self._set("stopped", "")
 
     async def _launch(self) -> None:
-        """One start of the program: found (and, on Windows, shielded by the firewall rule), a Mercury of ours left behind ended, the sound card and the keying chosen, the configuration written, the ports chosen
-        last and the program started. A failure that may pass is tried again after the back-off; one that cannot (no program, no shield, a speaker without pipes) is said and left."""
+        """One start of the program: found, a Mercury of ours left behind ended, the sound card and the keying chosen, the configuration written, the ports chosen
+        last and the program started. A failure that may pass is tried again after the back-off; one that cannot (no program, a speaker without pipes) is said and left."""
         config = self._config
         assert config is not None
         program = self._finder()
@@ -170,8 +168,6 @@ class Mercury(Tuning, Allowing):
             self._set("waiting", NOT_INSTALLED, "not_installed")
             return
         log.info("Mercury program: %s%s", program[0], "" if is_shipped(program) else " (not the one NeoAPRS ships)")
-        if not await self._shielded(program):        # (the shipped binary on Windows: the Firewall must keep the network from it; shielded elsewhere, and nothing is asked of a program that is not the shipped one)
-            return
         ini, pid_file = self.data_dir / INI_FILE, self.data_dir / PID_FILE
         await asyncio.to_thread(end_stale, pid_file)                   # (first: a program of ours left behind holds the sound card and the ports)
         audio: list[str] = []
@@ -374,8 +370,7 @@ class Mercury(Tuning, Allowing):
         program = self._finder()
         return [] if program is None else list_sound_cards(program)
 
-    def _set(self, state: str, problem: str, reason: str = "", lets_in: str = "") -> None:
-        self.lets_in = lets_in
+    def _set(self, state: str, problem: str, reason: str = "") -> None:
         if (state, problem, reason) != (self.state, self.problem, self.reason):
             self.state, self.problem, self.reason = state, problem, reason
             log.log(logging.WARNING if problem else logging.INFO, "Mercury: %s%s", state, f": {problem}" if problem else "")

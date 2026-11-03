@@ -60,24 +60,15 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
   network: "settings.tnc.hf.network",
   no_port: "settings.tnc.hf.no_port",
   not_started: "settings.tnc.hf.not_started",
-  firewall: "settings.tnc.hf.firewall",
-  firewall_off: "settings.tnc.hf.firewall_off",
   sound_card: "settings.tnc.hf.sound_card",
 };
 
 /** The HF radio's line while its line is not open: the modem's reason when the program is not running, "Connecting…" while the program starts or runs and the line is between two attempts, else "Not connected". Never the daemon's English problem. */
 function hfDownText(tnc: TncState): string {
   if (tnc.modem?.state === "waiting") {
-    const { reason, lets_in } = tnc.modem;
-    if (reason === "firewall" && lets_in !== "") return t("settings.tnc.hf.firewall_rule", { rule: lets_in });
-    return t(MODEM_WAITING[reason]);
+    return t(MODEM_WAITING[tnc.modem.reason]);
   }
   return t(tnc.state === "waiting" ? "settings.tnc.connecting" : "settings.tnc.not_connected");
-}
-
-/** Whether the HF radio's box offers the button that makes the Windows Firewall keep the network from Mercury: the program waits for the Firewall and a rule that blocks it would fix that (reason `firewall`). Not for a Firewall that is switched off: only the operator can change that. */
-export function firewallFixable(tnc: TncState | null): boolean {
-  return tnc?.modem?.state === "waiting" && tnc.modem.reason === "firewall";
 }
 
 /** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air;

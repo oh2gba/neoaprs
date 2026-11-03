@@ -3,7 +3,7 @@ preamble (110 ms: five OFDM symbols of 22 ms) that the receiver acquires on. A r
 are never on the air, and a frame whose preamble is cut that far is not received (docs/mercury.md, "What scripts/mercury-measure vox measured"). This adds the `[audio]` key `tx_leadin_ms` (0 to 1000,
 default 0: Mercury's behaviour unchanged): when above 0, send_modulated_data plays that many milliseconds of a steady 1 kHz tone, the pitch of the TUNE command, at the RMS level of the frame, with a raised-cosine
 ramp of 5 ms at each end, just ahead of the preamble and inside the keyed window. The ARQ keydown and the MFSK acknowledgement, which NeoAPRS never uses, are not changed. A Mercury without this patch
-(Rhizomatica's Windows build) reads the file with iniparser and asks for the keys it knows, so the line is ignored there (common/cfg_utils.c, cfg_read).
+reads the file with iniparser and asks for the keys it knows, so the line would be ignored there (common/cfg_utils.c, cfg_read).
 scripts/build-mercury applies this file after loopback.patch (`patch -p1`) and checks that the key is in the source; neoaprs/mercury.py writes the key into the ini only for VOX keying. Made from the source of
 the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves these lines fails the build loudly, which is right.
 

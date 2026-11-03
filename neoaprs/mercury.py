@@ -13,15 +13,12 @@ from dataclasses import dataclass
 
 from .coded import CodedError
 
-# The one Mercury NeoAPRS ships: every release carries this version, built from this source (scripts/build-mercury, Linux) or taken from this signed release file (packaging/windows/bundle_mercury.py), so that what
+# The one Mercury NeoAPRS ships: every release carries this version, built from this source on every system (scripts/build-mercury: natively on Linux and on a Mac, cross-compiled with MinGW-w64 for Windows), so that what
 # the suite and the simulators ran against is what the operator has. A new Mercury is a change of these constants (docs/MAINTAINING.md, "Moving the Mercury pin"), tried by the suite, never something that happens on the operator's computer.
 VERSION = "1.9.21"
 SOURCE_COMMIT = "edca701ba2e432aecd7d4e217ec8fa717ed23aa3"           # the commit the tag v1.9.21 points at
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
 SOURCE_SHA256 = "d991640df2672fa6df29ab973ebf3cd57b65ce2bb12417033e5aa2354cac0191"
-WINDOWS_URL = f"https://github.com/Rhizomatica/mercury/releases/download/v{VERSION}/mercury-{VERSION}-w64-{SOURCE_COMMIT[:8]}.zip"
-WINDOWS_SHA256 = "85163f2c2db65e03cbbeaac0b32c6a0cacf930616923c1a18d4d17730b74b806"
-WINDOWS_SIZE = 16_065_263
 
 # Every number here is justified in docs/mercury.md (where it comes from, and what was measured with scripts/mercury-measure on 2 November 2026 against Mercury 1.9.21 on the simulated channel).
 MODE = "DATAC3"                        # the one mode, for every station (Mercury's `-m 1`, its default): the narrowest of its modes that carries a whole APRS packet (docs/MODES.md of Mercury: 9 carriers, 562 Hz)
@@ -47,7 +44,7 @@ BUSY_THRESHOLD_DB = 14
 BUSY_HOLD_MAX_SEC = 20.0
 # A radio that keys itself on the audio (the keying `vox`) starts to transmit only after it has heard audio for its attack time, and the first milliseconds of a frame, the preamble the far Mercury acquires on (110 ms), are
 # lost to it. The Mercury NeoAPRS builds plays this many milliseconds of a steady tone ahead of the preamble when its ini says `tx_leadin_ms` (packaging/mercury/leadin.patch), and the daemon says it for VOX and for no other
-# keying. How long a frame survives the loss and what the tone costs: the table "What scripts/mercury-measure vox measured" of docs/mercury.md. Rhizomatica's Windows build does not know the key and plays no tone.
+# keying. How long a frame survives the loss and what the tone costs: the table "What scripts/mercury-measure vox measured" of docs/mercury.md.
 LEADIN_MS = 150
 
 # Where the stations meet: dial frequencies, upper sideband, inside the IARU Region 1 digimode segments and in a gap between the known neighbours (the frequencies are proposals until confirmed on the air).

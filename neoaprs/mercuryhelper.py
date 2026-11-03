@@ -7,7 +7,7 @@ It is started with `subprocess.Popen` and read by a thread, as the serial line i
 to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner (mercurymodem.py) can start it again. Two
 NeoAPRS on one computer, or a Mercury that something else runs, must not fight over the ports: `free_ports` finds the first pair (the broadcast port and the control port 200 above it) that is free, from the defaults
 up (a port whose last connection is still in TIME_WAIT counts as free, as it does for Mercury, which binds with SO_REUSEADDR: the pair a Mercury that died held is free for the one started in its place, so the HF Tnc finds
-the modem where it left it). The program NeoAPRS ships listens on 127.0.0.1 only (packaging/mercury/loopback.patch, the Windows installer's firewall rule), and `foreign_listeners` reads the kernel's table of sockets to
+the modem where it left it). The program NeoAPRS ships listens on 127.0.0.1 only (packaging/mercury/loopback.patch, on every system), and `foreign_listeners` reads the kernel's table of sockets to
 hold a started program to that: its ports have no password, so one that listened on every interface would let any host on the LAN key the radio. A Mercury of ours left behind by a crash of the daemon holds the sound card: its process id is written beside the configuration (and removed again by a clean stop), and the next start ends a process of that id
 that is still a Mercury (on Windows, one whose program file is mercury.exe; where that cannot be read, nothing is ended)."""
 import asyncio
@@ -58,8 +58,8 @@ def find(tools: Path | None = None) -> Command | None:
 
 
 def is_shipped(command: Command, tools: Path | None = None) -> bool:
-    """Whether the command is the Mercury NeoAPRS ships, the one file `find` gives (the Windows installer's mercury.exe, the AppImage's, the .deb's, a checkout's build): what the installer's firewall rule is for, and
-    nothing else is asked about it (not the tests' fake, an interpreter and a module; not a program named by its path elsewhere)."""
+    """Whether the command is the Mercury NeoAPRS ships, the one file `find` gives (the Windows installer's mercury.exe, the AppImage's, the .deb's, a checkout's build): the log says whether the program is the shipped one
+    (not the tests' fake, an interpreter and a module; not a program named by its path elsewhere)."""
     shipped = (tools if tools is not None else tools_dir()) / NAME / program_file()
     return len(command) == 1 and Path(command[0]).resolve() == shipped.resolve()
 
@@ -91,13 +91,6 @@ def _free(port: int) -> bool:
 def pair_free(broadcast_port: int) -> bool:
     """Whether this broadcast port, its control port and the ARQ data port one above that (Mercury's too) are all free."""
     return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1)
-
-
-def candidate_ports() -> list[int]:
-    """Every port a start of Mercury may be given: the broadcast ports from the default up, the control ports 200 above them and the port after each (what `foreign_listeners` watches); the Windows Firewall is asked
-    about all of them, since the pair is chosen after that."""
-    first = list(range(BROADCAST_PORT, BROADCAST_PORT + PORT_TRIES))
-    return first + [p + CONTROL_OFFSET for p in first] + [p + CONTROL_OFFSET + 1 for p in first]
 
 
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:
@@ -169,7 +162,7 @@ def _listeners(tables: Sequence[str], ports: Iterable[int]) -> dict[int, set[str
 
 def foreign_listeners(ports: Iterable[int]) -> list[str]:
     """The listeners on these ports that are not on the loopback, as `address:port` in the kernel's hex, from the kernel's table of sockets (Linux: /proc/net/tcp and tcp6); empty where that table is not there
-    (Windows, macOS: nothing can be said here, and the Windows installer's firewall rule is the shield), and empty when every listener is 127.0.0.1 or ::1. Reads two small files: for a thread or a quick call."""
+    (Windows, macOS: nothing can be said here; the shipped program binds the loopback in its source), and empty when every listener is 127.0.0.1 or ::1. Reads two small files: for a thread or a quick call."""
     tables: list[str] = []
     for name in PROC_TCP:
         try:

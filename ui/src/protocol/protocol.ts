@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfAllowFirewallCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
 
@@ -457,11 +457,6 @@ export interface HelloMessage {
   topics: string[];
 }
 
-/** Allow: while the modem waits for the Windows Firewall (`reason: "firewall"`), makes the rule that blocks inbound connections to the program, as an administrator (the prompt of Windows; one for the rule and for deleting a wrong one of the same name), asks the Firewall again and, when the network is kept from the program, starts the HF radio the usual way. A declined prompt, or one that cannot appear, leaves the state as it was and is a line in the log, never an `error`. Does nothing off Windows, and while the modem waits for anything else. The topic `hf` says `allowing: true` meanwhile. */
-export interface HfAllowFirewallCommand {
-  cmd: "hf_allow_firewall";
-}
-
 /** The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says `test: "key"` meanwhile. The same refusals as `hf_tune`. */
 export interface HfKeyTestCommand {
   cmd: "hf_key_test";
@@ -687,12 +682,8 @@ export interface ModemState {
   state: "stopped" | "starting" | "running" | "waiting";
   /** why the modem is not running (not installed, stopped); empty while it runs */
   problem: string;
-  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall does not keep the network from the program (no rule blocks it and something lets it in, or the rule of the installer is wrong): the page offers the button that makes the rule (`hf_allow_firewall`); `firewall_off` the Windows Firewall is switched off for a profile, which only the operator can change; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting` */
-  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "firewall" | "firewall_off" | "sound_card";
-  /** with the reason `firewall`: the names of the Windows Firewall rules that let the network reach the program (up to three, joined by a comma), as the page shows them; empty when none does or the reason is another */
-  lets_in: string;
-  /** the rule is being made (`hf_allow_firewall`): the prompt of Windows may be open, and the page's button waits */
-  allowing: boolean;
+  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting` */
+  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card";
   /** the modem's mode, the same for every station: `DATAC3` */
   mode: string;
   /** the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on */

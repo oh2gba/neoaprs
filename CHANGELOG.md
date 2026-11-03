@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Fixed:** on Windows, the HF radio could not start for a user who is not an administrator: the firewall check asked Windows in a way that needs administrator rights ("Access is denied"); it now reads the firewall the way every user may. Thanks to OH2GAX for the logs.
+- **Fixed:** on Windows the HF radio no longer depends on the Windows Firewall: NeoAPRS builds the Mercury modem itself, listening on this computer only, as on Linux and macOS, so there is no firewall rule, no prompt, no check and no **Fix** button; the VOX lead-in works on Windows too. (The check could fail for a user who is not an administrator, or on a computer whose security software answered "Access is denied", and the HF radio then never started. Thanks to OH2GAX for the logs.)
 - **Fixed:** a copy installed with the install line before 0.16 could not update (the address its update window runs answered 404): every release again carries `install.sh` and the wheel it installs.
 ## 0.16.1
 
