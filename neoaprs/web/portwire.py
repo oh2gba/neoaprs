@@ -21,6 +21,7 @@ class SoundCardRow(_Model):
     id: str = Field(description="the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows")
     name: str = Field(description="what the system calls it, such as `USB Audio CODEC`")
     default: bool = Field(description="whether it is the system's default device, which the empty setting means")
+    pick: bool = Field(description="whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it")
 
 
 class ListPorts(_Command):
@@ -36,6 +37,7 @@ class PortsMsg(_Message):
     search: bool = Field(description="whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list")
     find: bool = Field(description="whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS")
     sound_cards: list[SoundCardRow] = Field(description="the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise")
+    keying: str = Field(description="the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as `mercury/keying` while that is empty; empty when no sound card is listed")
 
 
 class FindRadio(_Command):

@@ -36,6 +36,8 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--info-soft-fg` | `#0b5570` | `#86d6ea` | the info tag: the text (AA at 11 px) |
 | `--neutral-soft-bg` | `#e9ecee` | `#2a3036` | the neutral tag: the background |
 | `--neutral-soft-fg` | `#454f58` | `#b6c0c9` | the neutral tag: the text (AA at 11 px) |
+| `--hf-soft-bg` | `#eadcf8` | `#3a2958` | the HF tag (the HF radio's channel mark, beside the FM radio's neutral one): the background |
+| `--hf-soft-fg` | `#5b2a91` | `#d5bff5` | the HF tag: the text (AA at 11 px) |
 | `--scrim` | `rgba(0, 0, 0, 0.45)` | `rgba(0, 0, 0, 0.45)` | the veil behind a dialog |
 | `--map-label` | `#1d2125` | `#e3e6e8` | the map: text |
 | `--map-halo` | `rgba(255, 255, 255, 0.9)` | `rgba(20, 23, 26, 0.9)` | the map: the halo of text |

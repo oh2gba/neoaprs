@@ -5,6 +5,8 @@ import { STATION_HOURS } from "@/lib/aging";
 export interface Choice {
   value: string;
   label: string;
+  /** the hover text of the option, where the label does not say all (a sound card's id) */
+  title?: string;
 }
 
 /** What On stores for a moving station that was Off: the interval a fixed station is offered first (the daemon does not use it there). */

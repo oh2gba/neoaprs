@@ -7,6 +7,8 @@
   scripts/mercury-measure decode  --snr 0,3,6 [--fading poor] [--frames N]  frames delivered of N sent, at each signal-to-noise ratio, on a flat channel or a fading one (the Watterson presets of the channel:
                                                                           good, moderate, poor, flutter)
   scripts/mercury-measure acks    [--messages N] [--snr DB] [--fading P]  two daemons on the channel: N messages one after another, the time to each ack, its distribution against the retry schedule
+  scripts/mercury-measure busy    [--frames N] [--quiet-sec S]            the busy detector's threshold (`busy_threshold_db`) at 10 to 24 dB, seven real Mercury instances on one channel: which frames each sees, from -3 to 20 dB SNR,
+                                                                          and how long each reads BUSY on noise that is white, filtered, with carriers, and after a step of 10 and 20 dB (docs/mercury.md has the table); about 20 minutes
   scripts/mercury-measure beacons [--hours H] [--stations 2,5,10]         no Mercury: fixed stations on one beacon interval with the random pause, over H hours of simulated time, for each size of the pause:
                                                                           how often two beacons overlap, and how many frames an hour are lost to it
 
@@ -71,11 +73,11 @@ class Recorder:
 class Modem:
     """A Mercury of the measurement: its process, a KISS client on its broadcast port and a reader of its control port, with every line stamped."""
 
-    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int]) -> None:
+    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int], threshold: int | None = None) -> None:
         self.name, self.ports = name, ports
         self.rx, self.tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
         channel.add(name, self.rx, self.tx)
-        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports)
+        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports, busy_threshold_db=threshold)
         self.frames: list[tuple[float, bytes]] = []                 # (when, payload) of every frame heard on the broadcast port
         self.events: list[tuple[float, str, bool]] = []             # (when, kind, on) of PTT and BUSY, and ("snr", value) as (when, "snr", value)
         self.snr: list[float] = []
@@ -259,6 +261,165 @@ async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, An
         channel.stop()
 
 
+# ---- busy
+
+THRESHOLDS = (10, 12, 14, 16, 18, 20, 24)
+RECEIVER_BAND_HZ = 150.0                    # the bands of Mercury's detector (modem/channel_busy.h BUSY_BAND_HZ)
+
+
+class Bandpass:
+    """Two biquads in a row, a high pass and a low pass of 12 dB an octave: the audio of an SSB receiver, as a radio's filter gives it (300 to 2700 Hz)."""
+
+    def __init__(self, low_hz: float, high_hz: float) -> None:
+        self.stages = [self._coefficients(low_hz, True), self._coefficients(high_hz, False)]
+        self.state = [[0.0, 0.0], [0.0, 0.0]]
+
+    @staticmethod
+    def _coefficients(hz: float, high_pass: bool) -> tuple[float, float, float, float, float]:
+        w = 2 * math.pi * hz / 8000.0
+        alpha = math.sin(w) / (2 * 0.7071)
+        cos = math.cos(w)
+        a0 = 1 + alpha
+        if high_pass:
+            b0, b1, b2 = (1 + cos) / 2, -(1 + cos), (1 + cos) / 2
+        else:
+            b0, b1, b2 = (1 - cos) / 2, 1 - cos, (1 - cos) / 2
+        return b0 / a0, b1 / a0, b2 / a0, -2 * cos / a0, (1 - alpha) / a0
+
+    def __call__(self, x: float) -> float:
+        for (b0, b1, b2, a1, a2), z in zip(self.stages, self.state):
+            y = b0 * x + z[0]
+            z[0] = b1 * x - a1 * y + z[1]
+            z[1] = b2 * x - a2 * y
+            x = y
+        return x
+
+
+class Noise:
+    """What one receiver hears besides the channel's white noise: the stand-in for `random.Random` of the channel (it calls `gauss(0, sigma)` for every sample of every block), so the noise is
+    coloured and carries carriers. `kind`: `white`; `ssb` (white through the receiver's 300 to 2700 Hz filter); `carriers` (the same, with three steady carriers at 600, 1300 and 2100 Hz that are `excess` dB
+    above the noise of their 150 Hz band, as heterodynes and the carriers of broadcasters and of other services are on a crowded band)."""
+
+    def __init__(self, kind: str, seed: int, excess_db: float = 0.0) -> None:
+        self.rng = random.Random(seed)
+        self.kind = kind
+        self.filter = Bandpass(300.0, 2700.0)
+        self.scale = 1.0
+        if kind != "white":
+            probe = [self.filter(self.rng.gauss(0.0, 1.0)) for _ in range(40000)][4000:]
+            self.scale = 1.0 / math.sqrt(sum(v * v for v in probe) / len(probe))
+        self.carriers = [(hz, 2 * math.pi * hz / 8000.0, self.rng.uniform(0, 2 * math.pi)) for hz in (600.0, 1300.0, 2100.0)] if kind == "carriers" else []
+        self.excess = excess_db
+        self.n = 0
+
+    def gauss(self, mu: float, sigma: float) -> float:
+        if self.kind == "white":
+            return self.rng.gauss(mu, sigma)
+        value = self.filter(self.rng.gauss(0.0, 1.0)) * self.scale * sigma
+        if self.carriers:
+            amplitude = sigma * math.sqrt(2 * (math.pow(10, self.excess / 10) - 1) * RECEIVER_BAND_HZ / 4000.0 * 1.0)
+            value += sum(amplitude * math.sin(step * self.n + phase) for _, step, phase in self.carriers)
+            self.n += 1
+        return value
+
+
+class BusyChannel(Channel):
+    """The channel with a noise of its own for every receiver (`feeds`), whatever the SNR it is set to says about the level."""
+
+    feeds: dict[str, Noise]
+
+    def _deliver(self, receiver: Any) -> None:
+        feed = self.feeds.get(receiver.name)
+        if feed is not None:
+            self._rng = feed          # type: ignore[assignment]
+        super()._deliver(receiver)
+
+
+async def measure_busy(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
+    """The busy detector's threshold (`channel:busy_threshold_db`, 10 dB by default) tried at 10, 12 ... 24 dB: one transmitter and one receiver for each threshold on the same channel. First what a frame does to each (does
+    its BUSY ON come, and how soon) at signal-to-noise ratios from -3 to 20 dB on white noise; then what no frame does: how long each reads BUSY in 90 s of noise that is white, filtered as a radio's audio is, with
+    carriers 6, 9, 12 and 15 dB above the noise of their band, and after a step of 10 and of 20 dB in the noise."""
+    binary = binary_of(args)
+    channel = BusyChannel(snr_db=20.0, seed=args.seed)
+    channel.feeds = {}
+    a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
+    receivers = [Modem(f"R{t}", binary, folder, channel, (args.first_port + 10 * (i + 1), args.first_port + 10 * (i + 1) + 200), threshold=t) for i, t in enumerate(THRESHOLDS)]
+    channel.start()
+    snrs = [float(v) for v in args.snr.split(",")] if args.snr != "0,3,6,9" else [-3.0, 0.0, 3.0, 6.0, 10.0, 20.0]
+    detection: dict[str, dict[float, int]] = {f"R{t}": {} for t in THRESHOLDS}
+    quiet: dict[str, dict[str, tuple[int, float]]] = {f"R{t}": {} for t in THRESHOLDS}
+    try:
+        await a.connect(args.timeout)
+        for r in receivers:
+            await r.connect(args.timeout)
+        await asyncio.sleep(3.0)
+        await asyncio.sleep(10.0)                                   # (the noise stays where it is, 20 dB under a frame at gain 0: a frame's level is the link's gain, and the floors do not have to follow a step)
+        for snr in snrs:
+            for r in receivers:
+                channel.set_link("A", r.name, gain_db=snr - channel.snr_db, symmetric=False)
+            await asyncio.sleep(2.0)
+            for _ in range(args.frames):
+                t0 = a.send(PAYLOAD)
+                t_on = await a.when("ptt", True, t0, args.timeout)
+                t_off = await a.when("ptt", False, t_on, args.timeout)
+                await asyncio.sleep(2.5)
+                for r in receivers:
+                    seen = any(k == "busy" and on and t_on - 0.2 <= when <= t_off + 0.5 for when, k, on in r.events)
+                    detection[r.name][snr] = detection[r.name].get(snr, 0) + seen
+            say(f"{snr:g} dB: " + ", ".join(f"{t} dB {detection[f'R{t}'][snr]}/{args.frames}" for t in THRESHOLDS))
+        scenes: list[tuple[str, str, float, float]] = [("white noise", "white", 0.0, 20.0), ("noise through the receiver's filter", "ssb", 0.0, 20.0)]
+        scenes += [(f"filtered noise, carriers {e:g} dB above their band", "carriers", e, 20.0) for e in (6.0, 9.0, 12.0, 15.0)]
+        for label, kind, excess, snr in scenes:
+            channel.feeds = {r.name: Noise(kind, args.seed + i, excess) for i, r in enumerate(receivers)}
+            channel.snr_db = snr
+            await asyncio.sleep(20.0)                                 # (the floors settle)
+            await run_quiet(label, receivers, quiet, args.quiet_sec)
+        channel.feeds = {r.name: Noise("white", args.seed + i) for i, r in enumerate(receivers)}
+        for step in (10.0, 20.0):
+            channel.snr_db = 20.0
+            await asyncio.sleep(12.0)
+            channel.snr_db = 20.0 - step
+            await run_quiet(f"white noise, a step of {step:g} dB", receivers, quiet, args.quiet_sec * 2)
+        rows = [("signal detected (BUSY ON within a frame), frames of " + str(args.frames), "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS))]
+        for snr in snrs:
+            rows.append((f"  a frame at {snr:g} dB SNR", "           " + "  ".join(f"{detection[f'R{t}'][snr]:>3}" for t in THRESHOLDS)))
+        rows.append(("quiet channel, seconds read BUSY (events)", "threshold " + "  ".join(f"{t:>3}" for t in THRESHOLDS)))
+        for label in quiet["R10"]:
+            rows.append((f"  {label}", "           " + "  ".join(f"{quiet[f'R{t}'][label][1]:>3.0f}" for t in THRESHOLDS)))
+        table(rows)
+        say(f"the channel: {channel.blocks} blocks, {channel.late_blocks} started a block late or more, the longest took {1000 * channel.work_sec_max:.0f} ms of 20 and the average {1000 * channel.work_sec_total / max(1, channel.blocks):.1f} ms")
+        if args.keep:
+            Path(folder / "events.json").write_text(json.dumps({r.name: r.events for r in receivers} | {"A": a.events}), encoding="utf-8")
+        return {"thresholds": THRESHOLDS, "detection": {k: {str(s): n for s, n in v.items()} for k, v in detection.items()}, "quiet": quiet, "rows": rows, "frames": args.frames}
+    finally:
+        for r in receivers:
+            r.close()
+        a.close()
+        channel.stop()
+
+
+async def run_quiet(label: str, receivers: list[Modem], quiet: dict[str, dict[str, tuple[int, float]]], seconds: float) -> None:
+    """How long each receiver reads BUSY in the `seconds` from now (the events since, with a BUSY that began before counted from now)."""
+    start = time.monotonic()
+    marks = {r.name: len(r.events) for r in receivers}
+    held = {r.name: next((on for _, k, on in reversed(r.events) if k == "busy"), False) for r in receivers}
+    await asyncio.sleep(seconds)
+    end = time.monotonic()
+    for r in receivers:
+        events = [(when, on) for when, k, on in r.events[marks[r.name]:] if k == "busy"]
+        busy_sec, since, count = 0.0, (start if held[r.name] else None), 0
+        for when, on in events:
+            if on and since is None:
+                since, count = when, count + 1
+            elif not on and since is not None:
+                busy_sec += when - since
+                since = None
+        if since is not None:
+            busy_sec += end - since
+        quiet[r.name][label] = (count, busy_sec)
+    say(f"{label}: " + ", ".join(f"{r.name[1:]} dB {quiet[r.name][label][1]:.0f} s" for r in receivers))
+
+
 # ---- acks
 
 async def measure_acks(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
@@ -381,7 +542,7 @@ def run(args: argparse.Namespace) -> int:
     else:
         folder = Path(tempfile.mkdtemp(prefix="mercury-measure-"))
         try:
-            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "acks": measure_acks}[args.what](args, folder))
+            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "acks": measure_acks, "busy": measure_busy}[args.what](args, folder))
         finally:
             if args.keep:
                 say(f"kept {folder}")
@@ -394,11 +555,12 @@ def run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel")
-    parser.add_argument("what", choices=("frame", "decode", "acks", "beacons"))
+    parser.add_argument("what", choices=("frame", "decode", "acks", "beacons", "busy"))
     parser.add_argument("--frames", type=int, default=6, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50)")
     parser.add_argument("--snr", default="0,3,6,9", metavar="DB,DB", help="decode: the signal-to-noise ratios in 3 kHz to try; default %(default)s")
     parser.add_argument("--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s")
     parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, acks: the Watterson preset of every link (default: a flat channel)")
+    parser.add_argument("--quiet-sec", type=float, default=90.0, metavar="SEC", help="busy: how long each noisy scene is listened to; default %(default)s")
     parser.add_argument("--messages", type=int, default=20, metavar="N", help="acks: how many messages; default %(default)s")
     parser.add_argument("--hours", type=int, default=50, metavar="H", help="beacons: hours of simulated time per round; default %(default)s")
     parser.add_argument("--rounds", type=int, default=400, metavar="R", help="beacons: rounds of H hours (each round draws the stations' phases again; without the pause an overlap of phases lasts the whole round, so many short rounds measure it); default %(default)s")

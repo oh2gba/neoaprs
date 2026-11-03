@@ -51,6 +51,7 @@ describe("tncStatus", () => {
       snr: null,
       frames_keyed: 0,
       max_frame: 123,
+      dial: "7.0541 MHz USB",
       sound_card: "",
       keying: "vox",
     };

@@ -11,6 +11,7 @@ import { configValues, hfState, tncState } from "@/test/fixtures";
 const ports = (find = true): PortsMessage => ({
   type: "ports",
   sound_cards: [],
+  keying: "",
   search: find,
   find,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
@@ -252,12 +253,16 @@ describe("the toast of Find my radio", () => {
 describe("the HF radio's box in the Radio group", () => {
   const cards = (): PortsMessage => ({
     ...ports(),
+    keying: "rts:/dev/ttyUSB0",
     sound_cards: [
-      { id: "plughw:1,0", name: "USB Audio CODEC", default: true },
-      { id: "plughw:0,0", name: "HDA Intel PCH", default: false },
+      { id: "plughw:1,0", name: "USB AUDIO  CODEC USB Audio", default: true, pick: true },
+      { id: "plughw:0,0", name: "HDA Intel PCH", default: false, pick: false },
     ],
   });
-  const on = { "hf/enabled": "true", "mercury/keying": "vox" };
+  const on = { "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" };
+  const empty = { "hf/enabled": "true", "mercury/sound_card": "", "mercury/keying": "" };
+  const sets = (send: ReturnType<typeof make>["send"]) =>
+    send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
 
   it("has the sound card and the keying as its two fields, and no port, speed, host or TCP port", () => {
     const { group } = make({ ports: cards(), hf: hfState() }, on);
@@ -265,34 +270,48 @@ describe("the HF radio's box in the Radio group", () => {
     for (const id of ["#set-serial-port", "#set-serial-baud", "#set-tcp-host", "#set-tcp-port", "#set-tnc-profile"])
       expect(hf(group).find(id).exists(), id).toBe(false);
     for (const id of ["#set-mercury-sound_card", "#set-mercury-keying"]) expect(fm(group).find(id).exists(), id).toBe(false);
-    const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
-    expect([...card.element.options].map((o) => o.text)).toEqual([
-      "find automatically",
-      "plughw:1,0 - USB Audio CODEC",
-      "plughw:0,0 - HDA Intel PCH",
-      "Other...",
-    ]);
-    expect(card.element.value).toBe("");
     const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
-    expect([...keying.element.options].map((o) => o.value)).toEqual(["", "vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
+    expect([...keying.element.options].map((o) => o.value)).toEqual(["vox", "cm108", "rts:/dev/ttyUSB0", "dtr:/dev/ttyUSB0"]);
     expect(keying.element.value).toBe("vox");
   });
 
-  it("offers find automatically first for both, and says beside each what the daemon chose (the hf topic's modem) while the setting is empty", () => {
-    const { group } = make({ ports: cards(), hf: hfState() }, { ...on, "mercury/sound_card": "", "mercury/keying": "" });
+  it("offers the sound cards by the system's name with the id as the hover title, and no find automatically and no Other", () => {
+    const { group } = make({ ports: cards(), hf: hfState() }, on);
     const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
-    expect([...card.element.options].map((o) => o.text)[0]).toBe("find automatically");
-    expect(card.element.value).toBe("");
+    expect([...card.element.options].map((o) => o.text)).toEqual(["USB AUDIO  CODEC USB Audio", "HDA Intel PCH"]);
+    expect([...card.element.options].map((o) => o.title)).toEqual(["plughw:1,0", "plughw:0,0"]);
+    expect([...card.element.options].map((o) => o.value)).not.toContain("");
+    expect(card.element.value).toBe("plughw:1,0");
     const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
-    expect([...keying.element.options].map((o) => o.text)[0]).toBe("find automatically");
-    expect(keying.element.value).toBe("");
+    expect([...card.element.options, ...keying.element.options].map((o) => o.text)).not.toContain("find automatically");
+    expect(hf(group).findAll(".port-found")).toHaveLength(0);
     expect(
       hf(group)
-        .findAll(".port-found")
-        .map((e) => e.text()),
-    ).toEqual(["found: plughw:1,0", "found: RTS on /dev/ttyUSB0"]);
-    const chosen = make({ ports: cards(), hf: hfState() }, { ...on, "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" });
-    expect(hf(chosen.group).findAll(".port-found")).toHaveLength(0);
+        .findAll("button")
+        .some((b) => b.text() === "Refresh"),
+    ).toBe(true);
+  });
+
+  it("preselects the daemon's proposal for both while the settings are empty, and stores the card and then the keying as the settings", async () => {
+    const { group, send, daemon } = make({ ports: cards(), hf: hfState() }, empty);
+    const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
+    const keying = group.find<HTMLSelectElement>("#set-mercury-keying");
+    expect(card.element.value).toBe("plughw:1,0");
+    expect(keying.element.value).toBe("rts:/dev/ttyUSB0");
+    expect([...keying.element.options].map((o) => o.value)).not.toContain("");
+    expect(sets(send)).toEqual([{ "mercury/sound_card": "plughw:1,0" }]);
+    await tell(daemon, { config: configValues({ ...empty, "mercury/sound_card": "plughw:1,0" }) });
+    await flush();
+    expect(sets(send)).toEqual([{ "mercury/sound_card": "plughw:1,0" }, { "mercury/keying": "rts:/dev/ttyUSB0" }]);
+  });
+
+  it("stores nothing where the settings name a card and a keying, or the daemon proposes none", async () => {
+    const chosen = make({ ports: cards(), hf: hfState() }, on);
+    await flush();
+    expect(sets(chosen.send)).toEqual([]);
+    const none = make({ ports: ports(), hf: hfState() }, empty);
+    await flush();
+    expect(sets(none.send)).toEqual([]);
   });
 
   it("is there whatever the FM radio's type is, and the FM radio's modem is never looked at", () => {
@@ -302,17 +321,37 @@ describe("the HF radio's box in the Radio group", () => {
       expect(hf(group).find("#set-mercury-keying").exists(), profile).toBe(true);
       expect(fm(group).find("#set-mercury-sound_card").exists(), profile).toBe(false);
     }
-    const { group } = make({ tnc: tncState({ modem: hfState().modem }), hf: null }, on);
-    expect(hf(group).findAll(".port-found")).toHaveLength(0);
   });
 
   it("sends the chosen card and keying as any choice", async () => {
     const { group, send, daemon } = make({ ports: cards(), hf: hfState() }, on);
-    await group.find<HTMLSelectElement>("#set-mercury-sound_card").setValue("plughw:1,0");
-    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/sound_card": "plughw:1,0" } });
-    await tell(daemon, { config: configValues({ ...on, "mercury/sound_card": "plughw:1,0" }) }); // (the daemon's answer: the form sends one change at a time)
+    await group.find<HTMLSelectElement>("#set-mercury-sound_card").setValue("plughw:0,0");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/sound_card": "plughw:0,0" } });
+    await tell(daemon, { config: configValues({ ...on, "mercury/sound_card": "plughw:0,0" }) }); // (the daemon's answer: the form sends one change at a time)
     await group.find<HTMLSelectElement>("#set-mercury-keying").setValue("rts:/dev/ttyUSB0");
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "mercury/keying": "rts:/dev/ttyUSB0" } });
+  });
+
+  it("has the dial frequency the daemon says as a row to read, in the HF box of the Mercury modem only", () => {
+    const { group } = make({ ports: cards(), hf: hfState() }, on);
+    const row = hfFold(group).find<HTMLInputElement>("#hf-frequency");
+    expect(row.element.value).toBe("7.0541 MHz USB");
+    expect(row.element.readOnly).toBe(true);
+    expect(row.element.closest(".field")?.querySelector("label")?.textContent).toBe("Frequency");
+    expect(fm(group).find("#hf-frequency").exists()).toBe(false);
+    expect(
+      make({ ports: cards(), hf: hfState() }, { ...on, "hf/profile": "dummy-hf" })
+        .group.find("#hf-frequency")
+        .exists(),
+    ).toBe(false);
+    expect(make({ ports: cards(), hf: null }, on).group.find("#hf-frequency").exists()).toBe(false);
+  });
+
+  it("keeps a stored card that the daemon does not list as one more choice", () => {
+    const { group } = make({ ports: cards(), hf: hfState() }, { ...on, "mercury/sound_card": "plughw:7,0" });
+    const card = group.find<HTMLSelectElement>("#set-mercury-sound_card");
+    expect(card.element.value).toBe("plughw:7,0");
+    expect([...card.element.options].map((o) => o.value)).toEqual(["plughw:1,0", "plughw:0,0", "plughw:7,0"]);
   });
 });
 

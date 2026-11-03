@@ -14,6 +14,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from neoaprs.mercury import BUSY_THRESHOLD_DB
+
 RATE = 8000                      # samples a second of Mercury's fifo backend
 SAMPLE_BYTES = 4                 # s32le: the 16-bit sample in the top half of each word
 
@@ -31,17 +33,18 @@ def fifo(folder: Path, name: str) -> str:
     return str(path)
 
 
-def mercury_ini(busy_detect: bool = True) -> str:
-    """What NeoAPRS writes for a Mercury it starts itself, as far as a bench needs it: the busy detector (the one carrier sense of the plane) and no message store."""
-    return f"[channel]\nbusy_detect = {'true' if busy_detect else 'false'}\n[store]\nenabled = false\n"
+def mercury_ini(busy_detect: bool = True, busy_threshold_db: int | None = None) -> str:
+    """What NeoAPRS writes for a Mercury it starts itself, as far as a bench needs it: the busy detector (the one carrier sense of the plane, with the threshold the daemon writes, `BUSY_THRESHOLD_DB`, unless a bench tries another) and no message store."""
+    threshold = f"busy_threshold_db = {BUSY_THRESHOLD_DB if busy_threshold_db is None else busy_threshold_db}\n"
+    return f"[channel]\nbusy_detect = {'true' if busy_detect else 'false'}\n{threshold}[store]\nenabled = false\n"
 
 
-def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: str, ports: tuple[int, int], busy_detect: bool = True) -> subprocess.Popen[bytes]:
+def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: str, ports: tuple[int, int], busy_detect: bool = True, busy_threshold_db: int | None = None) -> subprocess.Popen[bytes]:
     """One Mercury on the fifo backend: it hears `capture`, transmits into `playback`, serves KISS on ports[0] and its control port on ports[1] (200 above, as the daemon expects), keys nothing (`-P none`), logs to the folder.
     ALSA_CONFIG_PATH is the bundled configuration beside the program when there is one (the fifo backend opens no sound card, but the program still reads the configuration at start)."""
     out = (folder / f"mercury-{name}.log").open("wb")
     ini = folder / f"mercury-{name}.ini"
-    ini.write_text(mercury_ini(busy_detect), encoding="utf-8")
+    ini.write_text(mercury_ini(busy_detect, busy_threshold_db), encoding="utf-8")
     argv = [binary, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", capture, "-o", playback, "-b", str(ports[0]), "-p", str(ports[1]), "-P", "none", "-v"]
     env = dict(os.environ)
     conf = Path(binary).resolve().parent / "share" / "alsa" / "alsa.conf"

@@ -8,6 +8,7 @@ import os
 import sys
 import threading
 import time
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -317,3 +318,28 @@ async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_i
     assert not real.ctl.igate.made_up(), "the real HF radio alone"
     await real.stop()
     await air.aclose()
+
+
+@pytest.mark.parametrize("leave", [{"hf_profile": "mercury"}, {"hf_enabled": False, "fm_enabled": True}])
+async def test_leaving_the_dummy_hf_radio_cancels_what_was_being_sent_to_its_stations_and_forgets_them(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]) -> None:
+    """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real HF radio and held the channel. Nothing made up stays once a real radio is on."""
+    caplog.set_level(logging.INFO, logger="neoaprs")
+    e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
+    e.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
+    await e.start()
+    await until(lambda: e.hf.state is Source.State.CONNECTED)
+    for _ in range(400):
+        e.now.advance(10)                                                        # type: ignore[attr-defined]
+        await asyncio.sleep(0.01)
+        if sum(1 for s in e.ctl.stationbook.stations() if s.call.startswith("Q")) >= 3:
+            break
+    assert any(s.call.startswith("Q") for s in e.ctl.stationbook.stations())
+    kuopio = await e.ctl.messaging.send("Q1KUO", "hello Kuopio")                 # (one that does not answer: the message stays being sent)
+    real = await e.ctl.messaging.send("OH2REAL", "a real station")
+    assert kuopio.state == "sending" and real.state == "sending"
+    assert await e.ctl.change_config(lambda c: replace(c, **leave))
+    assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "cancelled"
+    assert getattr(e.ctl.messaging.get(real.id), "state", "") == "sending", "a message to a real station is the operator's to cancel"
+    assert [s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q")] == [], "the made-up stations are gone"
+    assert "cancelled: the Dummy HF radio" in caplog.text and "forgot the made-up stations" in caplog.text
+    await e.stop()

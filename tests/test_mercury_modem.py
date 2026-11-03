@@ -20,7 +20,8 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
-from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury
+from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
+from neoaprs.serialprobe import PortInfo
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
@@ -601,6 +602,15 @@ async def test_the_fm_radios_the_gpss_and_the_skipped_ports_are_never_chosen_to_
         assert m.keying == Keying("vox"), "the GPS's port and a skipped port leave no serial port: VOX"
     finally:
         await stopped(m)
+
+
+def test_the_page_is_proposed_the_card_and_the_keying_the_daemon_would_choose_and_the_ports_of_the_other_radios_key_nothing() -> None:
+    cards = [SoundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", True, True, False), SoundCard("plughw:0,0", "HDA Intel PCH", True, True, True)]
+    usb = [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)]
+    assert proposal(cards, usb, DEFAULTS) == ("plughw:1,0", "rts:/dev/ttyUSB0")
+    assert proposal(cards, usb, replace(DEFAULTS, serial_port="/dev/ttyUSB0")) == ("plughw:1,0", "vox"), "the FM radio's port keys no HF radio"
+    assert proposal(cards[1:], usb, DEFAULTS) == ("plughw:0,0", "vox"), "the system's default device, named, and no radio's sound card to key a line by"
+    assert proposal([], usb, DEFAULTS) == ("", "")
 
 
 async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_the_ports_are_chosen_last(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

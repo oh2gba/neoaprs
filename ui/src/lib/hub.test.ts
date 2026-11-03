@@ -261,6 +261,7 @@ describe("Hub", () => {
     const answer = {
       type: "ports",
       sound_cards: [],
+      keying: "",
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "USB VID:PID=0403:6001", vid: 1027, pid: 24577 }],
       search: true,
       find: true,

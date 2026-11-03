@@ -34,11 +34,23 @@ DELIVERY_SEC = 3.8                     # from the frame handed to Mercury to the
 BROADCAST_PORT = 8100                  # Mercury's defaults (its docs/TNC.md): the KISS port, and the control port 200 below it
 CONTROL_PORT = 8300
 CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is this far from the broadcast port, where the daemon chooses the ports; of a Mercury something else runs it is an assumption of ours (Mercury's -b and -p are independent), true of one started with its defaults
-BUSY_HOLD_MAX_SEC = 60.0               # a BUSY that lasts longer than this holds nothing any more: the detector's noise floor rises slowly (Mercury's channel_busy.c says a wideband signal reads BUSY for 60 to 95 s and a step in the noise for 100 to 145 s), and traffic must not be stranded by it; in the simulation a step of 30 dB held the radio 56 s
+# The busy detector (Mercury's modem/channel_busy.c, switched on in the ini the daemon writes): a spectrum every 50 ms, bands of 150 Hz over 300 to 2700 Hz, BUSY when the loudest band is `busy_threshold_db` above the noise floor
+# (the lower-quartile band, tracked slowly) for 300 ms, and CLEAR 3 dB lower for 1500 ms. Mercury's default threshold, 10 dB, is read off a quiet channel; a real band is not one. Measured on the simulated channel with real
+# Mercury instances (scripts/mercury-measure busy, 2 November 2026, seven receivers of thresholds 10 to 24 dB on one channel; the table is in docs/mercury.md): a frame is seen from 0 dB SNR in 3 kHz at 10 dB, 3 dB at 12, 6 dB at 14,
+# 10 dB at 16 and 18, 20 dB at 20; a carrier that stands 9 dB over the noise of its band (a heterodyne, a broadcaster's carrier) holds the radio at 10 dB for as long as it lasts, 12 dB at 12, 15 dB at 14; a step of 10 dB in the
+# noise (the band opening, a QRM) held the radio 119 s of 120 at 10 dB and 69 s at 12, and none at 14 or above, a step of 20 dB 108 s at 14. 14 dB is the highest threshold that still sees a frame at 6 dB SNR (DATAC3 delivers
+# its frames from 3 dB on a flat channel and three of four from 6 dB on a poor one): a weaker one is not heard as a carrier, and a collision with it costs the other station a frame it could hardly decode.
+BUSY_THRESHOLD_DB = 14
+# A BUSY that lasts longer than this holds nothing any more, whatever the threshold: the noise floor rises slowly under a signal that covers the passband (channel_busy.c says 60 to 95 s for a wideband signal and 100 to 145 s for a step in
+# the noise), and traffic must not be stranded by it. A frame of another station is FRAME_SEC on the air and the detector hangs on 1.5 s more; frames of two stations after one another may run together for a few frames, so the cap is five frames'
+# worth and a margin: 20 s (it was a minute, and a normal morning on 40 m held the radio that long: John, 3 November 2026). In the simulation a step of 30 dB in the noise held the radio 56 s before the cap was lowered.
+BUSY_HOLD_MAX_SEC = 20.0
 
 # Where the stations meet: dial frequencies, upper sideband, inside the IARU Region 1 digimode segments and in a gap between the known neighbours (the frequencies are proposals until confirmed on the air).
 # Mercury is centred on 1500 Hz of audio, so the signal sits 1.2 to 1.8 kHz above the dial. 10.1476 MHz, the 300 baud HF APRS dial, is not one of these.
 FREQUENCIES: tuple[tuple[int, str], ...] = ((30, "10.1462"), (40, "7.0541"), (20, "14.1070"))      # (band in metres, dial in MHz)
+DIAL_BAND = 40                                                    # the one band the group agrees on, and the page shows (the manual lists the others too)
+DIAL_TEXT = f"{dict(FREQUENCIES)[DIAL_BAND]} MHz USB"             # the dial of that band as the page says it (the same words in every language): the mode is spelled out so that nobody tunes LSB
 
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")           # how the radio is keyed: by itself (VOX, or the radio's own data mode), a CM108 sound chip's GPIO pin (an AIOC, some dongles), or the RTS or DTR line of a serial port (a DigiRig, a home-made interface)
 PTT_WITH_DEVICE = ("rts", "dtr")                     # the kinds that name a serial port after a colon: `rts:/dev/ttyUSB0`, `dtr:COM3`
@@ -49,13 +61,19 @@ PTT_WITH_DEVICE = ("rts", "dtr")                     # the kinds that name a ser
 # antenna tuner matches where the signal will be. Its level is Mercury's own default for TUNE, the example the manual gives, and is set at the sound card as the frames' level is, so the radio's ALC at the tone is
 # what it will be on a frame. Ten seconds is long enough for an automatic tuner to find its match (most settle in a few seconds) and for the audio level to be read off a meter, and well under Mercury's deadline.
 # The keying test is the same command for one second (what Mercury's own `-Q` keys for) at the quietest level TUNE takes, 60 dB under full scale: TUNE wants a level, "none" is not one of its choices, and a tone
-# 45 dB under the tune tone moves no meter and is not heard on a monitor, so the operator sees the radio go to transmit and come back with nothing on the air to speak of.
+# 45 dB under the tune tone moves no meter and is not heard on a monitor, so the operator sees the radio go to transmit and come back with nothing on the air to speak of. That holds for a keying that is a line
+# (RTS, DTR, a CM108 pin): the line goes up whatever the tone is. A radio that keys itself (VOX, or its own data mode) keys on audio, and a silent test leaves it in receive: its test sends the tune tone at the tune level.
 TUNE_TONE_HZ = 1000
 TUNE_LEVEL_DBFS = -15.0
 TUNE_SEC = 10.0
 KEY_TEST_LEVEL_DBFS = -60.0
 KEY_TEST_SEC = 1.0
 TUNE_OFF = "TUNE OFF"
+
+
+def key_test_level(kind: str) -> float:
+    """The level of the keying test for a keying of this kind: the tune tone's where the radio keys on audio (`vox`), else the quietest TUNE takes, since the line is keyed whatever the tone is."""
+    return TUNE_LEVEL_DBFS if kind == "vox" else KEY_TEST_LEVEL_DBFS
 
 
 def tune_command(level_dbfs: float) -> str:
@@ -138,6 +156,7 @@ def ini_text(keying: Keying) -> str:
             f"line = {line}\n"
             "[channel]\n"
             "busy_detect = true\n"
+            f"busy_threshold_db = {BUSY_THRESHOLD_DB}\n"
             "[store]\n"
             "enabled = false\n"
             "[tnc]\n"
@@ -210,6 +229,12 @@ def choose_sound_card(cards: Sequence[SoundCard]) -> str:
     return others[0].id if len(others) == 1 and not radios else ""
 
 
+def propose_sound_card(cards: Sequence[SoundCard]) -> str:
+    """The sound card the page proposes and stores when the setting is empty, as its id, "" only for a computer with no card listed: the daemon's own choice (`choose_sound_card`), else the system's default device (which is what
+    the empty setting meant), else the first card that records and plays, else the first card. The empty setting stays legal; the page never offers it."""
+    return choose_sound_card(cards) or next((c.id for c in cards if c.default), "") or next((c.id for c in cards if c.playback and c.capture), "") or (cards[0].id if cards else "")
+
+
 def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     """How the radio is likely keyed: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one (a DigiRig keys on RTS of its CP2102; an IC-7300 or an FT-710 with its USB cable keys on
     RTS when the radio's USB SEND is RTS, which the manuals say to set for digital modes), else VOX, which every radio has and which a SignaLink does by itself. A CM108-class chip could be keyed on its GPIO, but not
@@ -218,6 +243,13 @@ def choose_keying(card_name: str, ports: Sequence[SerialPort]) -> Keying:
     if _RADIO_CARD.search(card_name or "") and len(usb) == 1:
         return Keying("rts", usb[0].device)
     return Keying("vox")
+
+
+def propose_keying(cards: Sequence[SoundCard], card: str, ports: Sequence[SerialPort]) -> str:
+    """The keying the page proposes with the proposed sound card `card` (`choose_keying` on that card's name and the serial ports), as the setting writes it; "" with no card listed."""
+    if not cards:
+        return ""
+    return choose_keying(next((c.name for c in cards if c.id == card), ""), ports).text
 
 
 # ---- what the program prints

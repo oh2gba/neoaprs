@@ -33,10 +33,10 @@ describe("the conversation header", () => {
   };
   const tag = (wrapper: ReturnType<typeof header>) => wrapper.find(".convo-head .convo-radio");
 
-  it("has the neutral tag HF in the place of Route for a station heard on the HF radio alone, with the title that says where its messages go", () => {
+  it("has the HF tag in the place of Route for a station heard on the HF radio alone, with the title that says where its messages go", () => {
     const wrapper = header(BOTH, "OH2HF");
     expect(tag(wrapper).text()).toBe("HF");
-    expect(tag(wrapper).classes()).toContain("tag-neutral");
+    expect(tag(wrapper).classes()).toContain("tag-hf");
     expect(tag(wrapper).attributes("title")).toBe("Messages to this station go over the HF radio: direct, no path");
     expect(wrapper.findAll("button").some((b) => b.text() === "Route")).toBe(false);
   });
@@ -216,7 +216,7 @@ describe("the channel tags while the HF radio is on", () => {
 describe("the radio step of the setup guide", () => {
   const fresh = (extra: Record<string, string> = {}) =>
     configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
-  const portList = (): PortsMessage => ({ type: "ports", sound_cards: [], search: true, find: true, ports: [] });
+  const portList = (): PortsMessage => ({ type: "ports", sound_cards: [], keying: "", search: true, find: true, ports: [] });
 
   async function open(values: Record<string, string> = {}) {
     const config = ref<ConfigValues | null>(fresh(values));

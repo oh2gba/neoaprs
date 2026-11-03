@@ -23,18 +23,18 @@ and a player or a Mercury that is not there is a line in the log and nothing mor
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from .clock import Clock, utcnow
 from .config import Config
-from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, TUNE_OFF, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, speaker_audio
+from .mercury import BROADCAST_PORT, BUSY_HOLD_MAX_SEC, CONTROL_OFFSET, FRAME_SEC, MODE, TUNE_OFF, ControlEvent, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
 from .mercuryfirewall import loopback_only
 from .mercuryhelper import Command, HeldPorts, Program, choose_setup, end_stale, find, foreign_listeners, free_ports, is_shipped, list_sound_cards
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
-from .serialprobe import available_ports
+from .serialprobe import PortInfo, available_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -58,6 +58,19 @@ TESTS = ("", "tune", "key")                  # what the control port was asked f
 def system_serial_ports() -> list[SerialPort]:
     """The serial ports of the machine, the little the choice of a keying line needs of each (reads the system's lists: for a thread)."""
     return [SerialPort(p.device, p.vid, p.pid) for p in available_ports()]
+
+
+def left_out(config: Config) -> tuple[str, ...]:
+    """The serial ports that key no radio: the FM radio's, the GPS receiver's and the skipped ones (the choice of a keying line leaves them out)."""
+    return tuple(p for p in (config.serial_port, config.serial_last_port, config.gps_device, *config.serial_skip_paths) if p)
+
+
+def proposal(cards: Sequence[SoundCard], ports: Sequence[PortInfo], config: Config) -> tuple[str, str]:
+    """The sound card (its id) and the keying (as the setting writes it) that the page proposes and stores while the settings are empty: the card from the cards listed, the keying from that card and the serial ports that key
+    a radio (the ones the choice of the modem leaves out are left out here too); both empty when no card is listed."""
+    card = propose_sound_card(cards)
+    leave = left_out(config)
+    return card, propose_keying(cards, card, [SerialPort(p.device, p.vid, p.pid) for p in ports if p.device not in leave])
 
 
 def _address(url: str) -> tuple[str, int]:
@@ -116,6 +129,8 @@ class Mercury(Tuning):
             self.attached = attach
             _, port = _address(self.attached)
             self.broadcast_port, self.control_port = port, port + CONTROL_OFFSET
+            if config.mercury_keying:
+                self.keying = keying_of(config.mercury_keying)         # (the keying of the program something else runs is not ours to know: the setting is the best word there is, for what the keying test sends)
             log.info("Mercury is run by something else at %s; its control port %d is listened to", self.attached, self.control_port)
             self._set("starting", "")
             self._start_control()
@@ -164,8 +179,7 @@ class Mercury(Tuning):
                 return
             audio = speaker_audio(str(self._audio.capture), str(self._audio.playback))
         else:
-            leave = tuple(p for p in (config.serial_port, config.serial_last_port, config.gps_device, *config.serial_skip_paths) if p)        # (the FM radio's, the GPS's and the skipped ports key no radio)
-            self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports, leave)
+            self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, config.mercury_sound_card, config.mercury_keying, self.ports, left_out(config))
         keying = self.keying
         try:
             ini.write_text(ini_text(keying), encoding="utf-8")

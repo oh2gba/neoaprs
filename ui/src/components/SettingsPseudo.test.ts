@@ -80,6 +80,7 @@ const https: HttpsState = { on: true, port: 7304, fingerprint: "AB:CD:EF", probl
 const ports: PortsMessage = {
   type: "ports",
   sound_cards: [],
+  keying: "",
   search: true,
   find: true,
   ports: [{ device: "/dev/ttyUSB0", description: "FT232R", hwid: "n/a", vid: null, pid: null }],

@@ -102,7 +102,7 @@ that both the daemon and the page are tested against (`ui/src/protocol/vectors.j
 - **Neutrals:** `--bg` (behind), `--panel` (a surface), `--raised` (what stands over one), `--text`, `--muted`, `--border`, `--row-hover`, `--row-selected`, `--input-bg`.
 - **One accent**, the blue: `--accent` with `--accent-text`.
 - **Four meanings**, `ok` (green), `warn` (amber), `bad` (red), `info` (teal): the strong `--ok`, `--warn`, `--bad`, `--info` (a line, a word, the rare loud fill with `--on-strong`), and for a tag the soft pair `--NAME-soft-bg` with `--NAME-soft-fg`, which the accent and the neutral have as well.
-- **Tags** (`TagMark`) are soft pairs by meaning: a count is `accent`, a label (RF, Beacon off) `neutral`, the internet `info`, a made-up thing (Dummy) `dummy` (neutral, dashed), RX only `warn`, a GPS fix `ok`. Never a hue chosen for itself.
+- **Tags** (`TagMark`) are soft pairs by meaning: a count is `accent`, a label (RF, Beacon off) `neutral`, the internet `info`, the HF radio `hf` (a violet pair; the FM radio is neutral), a made-up thing (Dummy) `dummy` (neutral, dashed), RX only `warn`, a GPS fix `ok`. Never a hue chosen for itself.
 - `--map-*` and `--wx-*` are what the map and the weather graphs draw with.
 
 ## On/off and state controls on the page

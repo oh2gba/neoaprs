@@ -186,7 +186,7 @@ For tuning the antenna, setting the audio level and finding which sound device i
 
 ### `hf_key_test`
 
-The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says
+The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says
 `test: "key"` meanwhile. The same refusals as `hf_tune`.
 
 ### `set_config`
@@ -619,6 +619,7 @@ The answer to `list_ports`.
 | `search` | boolean |  | whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list |
 | `find` | boolean |  | whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS |
 | `sound_cards` | SoundCardRow[] |  | the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise |
+| `keying` | string |  | the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as `mercury/keying` while that is empty; empty when no sound card is listed |
 
 ### `state`
 
@@ -1409,6 +1410,7 @@ The Mercury HF modem behind the line, while the radio type is Mercury: the progr
 | `frames_keyed` | integer |  | how many times the radio was keyed since the modem started (>= 0) |
 | `max_frame` | integer |  | the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut (>= 1) |
 | `sound_card` | string |  | the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device |
+| `dial` | string |  | the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is |
 | `keying` | string |  | how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` |
 
 ### NoteSection
@@ -1578,6 +1580,7 @@ A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card
 | `id` | string |  | the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows |
 | `name` | string |  | what the system calls it, such as `USB Audio CODEC` |
 | `default` | boolean |  | whether it is the system's default device, which the empty setting means |
+| `pick` | boolean |  | whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it |
 
 ### StationKey
 

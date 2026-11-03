@@ -13,6 +13,15 @@ describe("TagMark", () => {
     expect(button.attributes("type")).toBe("button");
   });
 
+  it("has a tone of its own for the HF radio: a violet pair of the palette, apart from the FM radio's neutral grey in both themes", () => {
+    const hf = mount(TagMark, { props: { tone: "hf" }, slots: { default: "HF" } });
+    const fm = mount(TagMark, { props: { tone: "neutral" }, slots: { default: "FM" } });
+    expect(hf.classes()).toEqual(["tag", "tag-hf"]);
+    expect(hf.classes()).not.toEqual(fm.classes());
+    expect(cssRule(".tag-hf")).toMatch(/background:\s*var\(--hf-soft-bg\)/);
+    expect(cssRule(".tag-hf")).toMatch(/color:\s*var\(--hf-soft-fg\)/);
+  });
+
   it("has its size in one rule, the blue count's: 18 px high, 11 px, 6 px at each side, round", () => {
     const rule = cssRule(".tag");
     expect(rule).toMatch(/height:\s*18px/);

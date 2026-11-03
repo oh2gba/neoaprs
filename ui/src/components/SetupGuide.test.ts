@@ -17,6 +17,7 @@ const row = (device: string, description: string) => ({ device, description, hwi
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   sound_cards: [],
+  keying: "",
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],

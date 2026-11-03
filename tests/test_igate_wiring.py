@@ -49,9 +49,9 @@ async def test_a_capture_played_into_the_daemon_is_on_the_server_and_every_packe
     assert frames == 4 and igate.gated == 4 and not igate.dropped, "(each packet heard is gated or counted by its reason)"
     gated = [line for line in server.packets if not line.startswith(f"OH2GBA>{TOCALL},")]
     assert gated == [
-        "OH2RDG>APN391,OH2RCH-2*,TRACE2-1,qAO,OH2GBA:!6007.47NN02429.82E#PHG8470/R,W,T,Wn,Tn Kirkkonummi oh1gsm@sral.fi",
+        "OH2RDG>APN391,OH2RCH-2*,TRACE2-1,qAO,OH2GBA:!6007.47NN02429.82E#PHG8470/R,W,T,Wn,Tn Kirkkonummi oh1gsm@ham.org",
         "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1,qAO,OH2GBA:!6009.90NT02456.80E&432.500 MHz",
-        "OH2RDS>APN391,OH2RCH-2*,qAO,OH2GBA:!6016.66NN02515.26E#PHG8470/R,W,T,Wn,Tn Sipoo oh1gsm@sral.fi",
+        "OH2RDS>APN391,OH2RCH-2*,qAO,OH2GBA:!6016.66NN02515.26E#PHG8470/R,W,T,Wn,Tn Sipoo oh1gsm@ham.org",
         "OH2PU-9>APOTC1,OH2RCH-2*,qAO,OH2GBA:!/0&m]TbwX>z!GQRV D-STAR 144.650MHz"]
     assert all(LINE.match(line) for line in gated)
     assert server.logins == [f"user OH2GBA pass {PASSWORD} vers {PROGRAM} {VERSION} filter {FILTER}"]

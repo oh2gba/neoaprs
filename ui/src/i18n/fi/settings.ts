@@ -137,8 +137,8 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.sound_card.label": "Äänikortti",
   "settings.sound_card.tip_label": "Tietoa äänikortista",
   "settings.sound_card.tip1": "Äänikortti, jonka kautta radion ääni kulkee: USB-koodekki, DigiRig tai radion oma USB-ääni.",
-  "settings.sound_card.tip2": "Etsi automaattisesti valitsee sen yhden USB-äänikortin, joka sekä äänittää että toistaa; Päivitä lukee luettelon uudelleen.",
-  "settings.sound_card.id_label": "Äänikortin tunnus",
+  "settings.sound_card.tip2":
+    "Radion oma kortti kutsuu itseään yleensä USB-koodekiksi. Viritä tekee valitusta kortista kuuluvan; Päivitä lukee luettelon uudelleen.",
   "settings.keying.label": "Avainnus",
   "settings.keying.tip_label": "Tietoa avainnuksesta",
   "settings.keying.tip1": "Miten radio kytketään lähetykselle: itsestään (VOX tai sen datatila), CM108-äänipiirillä tai sarjaportin linjalla.",
@@ -148,6 +148,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.rts": "RTS portissa {port}",
   "settings.keying.dtr": "DTR portissa {port}",
   "settings.keying.test": "Testaa",
+  "settings.hf_frequency.label": "Taajuus",
   "settings.tune": "Viritä",
   "settings.tune_stop": "Pysäytä",
   "settings.tune.label": "Viritysääni",

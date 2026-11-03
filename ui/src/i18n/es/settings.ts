@@ -137,8 +137,8 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.sound_card.label": "Tarjeta de sonido",
   "settings.sound_card.tip_label": "Sobre la tarjeta de sonido",
   "settings.sound_card.tip1": "La tarjeta de sonido por la que pasa el audio de la radio: un códec USB, un DigiRig o el audio USB de la propia radio.",
-  "settings.sound_card.tip2": "Buscar automáticamente elige la única tarjeta de sonido USB que graba y reproduce; Actualizar vuelve a leer la lista.",
-  "settings.sound_card.id_label": "Id de la tarjeta de sonido",
+  "settings.sound_card.tip2":
+    "La tarjeta de la propia radio suele llamarse códec USB. Sintonizar hace audible la tarjeta elegida; Actualizar vuelve a leer la lista.",
   "settings.keying.label": "Conmutación",
   "settings.keying.tip_label": "Sobre la conmutación",
   "settings.keying.tip1":
@@ -149,6 +149,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.rts": "RTS en {port}",
   "settings.keying.dtr": "DTR en {port}",
   "settings.keying.test": "Probar",
+  "settings.hf_frequency.label": "Frecuencia",
   "settings.tune": "Sintonizar",
   "settings.tune_stop": "Parar",
   "settings.tune.label": "Tono de sintonía",

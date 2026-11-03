@@ -347,6 +347,7 @@ describe("portOptions", () => {
   const ports = (search = true) => ({
     type: "ports" as const,
     sound_cards: [],
+    keying: "",
     search,
     find: true,
     ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")],
@@ -369,6 +370,7 @@ describe("portOptions", () => {
     const listed = {
       type: "ports" as const,
       sound_cards: [],
+      keying: "",
       search: true,
       find: true,
       ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],

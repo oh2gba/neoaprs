@@ -1231,8 +1231,7 @@ export const fr: Catalogue = {
   "settings.sound_card.label": "Carte son",
   "settings.sound_card.tip_label": "À propos de la carte son",
   "settings.sound_card.tip1": "La carte son par laquelle passe l'audio de la radio : un codec USB, un DigiRig ou l'audio USB de la radio elle-même.",
-  "settings.sound_card.tip2": "Trouver automatiquement choisit la seule carte son USB qui enregistre et joue ; Actualiser relit la liste.",
-  "settings.sound_card.id_label": "Id de la carte son",
+  "settings.sound_card.tip2": "La carte de la radio se nomme le plus souvent codec USB. Accord rend la carte choisie audible ; Actualiser relit la liste.",
   "settings.keying.label": "Commutation",
   "settings.keying.tip_label": "À propos de la commutation",
   "settings.keying.tip1":
@@ -1243,6 +1242,7 @@ export const fr: Catalogue = {
   "settings.keying.rts": "RTS sur {port}",
   "settings.keying.dtr": "DTR sur {port}",
   "settings.keying.test": "Test",
+  "settings.hf_frequency.label": "Fréquence",
   "settings.tune": "Accord",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tonalité de réglage",

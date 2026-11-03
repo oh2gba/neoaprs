@@ -41,6 +41,10 @@
   background: var(--info-soft-bg);
   color: var(--info-soft-fg);
 }
+.tag-hf {
+  background: var(--hf-soft-bg);
+  color: var(--hf-soft-fg);
+}
 /* what is made up (the Dummy radio): neutral, with a dashed border, as the stations of the internet have a dotted outline on the map */
 .tag-dummy {
   border-style: dashed;

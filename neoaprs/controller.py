@@ -5,6 +5,7 @@ the order of the start (the message board, the GPS and the beacon, our objects a
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from pathlib import Path
 
 from . import wiring
@@ -13,7 +14,8 @@ from .clock import Clock, days, utcnow
 from .config import DEFAULTS, Config
 from .message import MessagingError
 from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
-from .radios import hf_is_mercury
+from .radios import hf_is_dummy, hf_is_mercury
+from .dummyhfscene import STATIONS as DUMMY_HF_STATIONS
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
@@ -203,6 +205,31 @@ class Controller(Services):
         """What a change of restarts the HF radio and its modem: its settings (its type, the sound card and the keying), or its tickbox, and nothing of the FM radio's."""
         return (wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.hf_enabled)
 
+    def _leave_dummy_hf(self) -> None:
+        """The HF radio is no longer the Dummy HF radio (it became the Mercury modem, or was switched off): nothing it made up stays once a real radio is on. The messages still being sent to its made-up stations are cancelled
+        (a real radio would send them on the air for ever, to calls that are nobody's, and hold the channel), and the stations it made up are forgotten with their place on the map, unless something real was heard of them too."""
+        made_up = {station.call for station in DUMMY_HF_STATIONS}
+        for record in self.messaging.records():
+            if record.state == "sending" and record.to_call in made_up:
+                self.messaging.cancel(record.id)
+                log.info("message %d to %s cancelled: the Dummy HF radio that makes %s up is left", record.id, record.to_call, record.to_call)
+        gone = [s.call for s in self.stationbook.stations() if s.call in made_up and s.heard_dummy > 0 and s.heard_rf == s.heard_rf_gated == s.heard_is == 0 and self.stationbook.forget(s.call)]
+        if gone:
+            log.info("forgot the made-up stations of the Dummy HF radio: %s", ", ".join(gone))
+
+    def _made_explicit(self, before: Config, after: Config) -> Config:
+        """`before`, with the sound card and the keying that the running modem has chosen for itself (the settings were empty) taken as set where `after` sets exactly those: the page stores the daemon's proposal as the setting, which
+        changes nothing the modem does, so it is no reason to restart it."""
+        modem = self.mercury
+        if modem.state not in ("starting", "running"):
+            return before
+        card, keying = before.mercury_sound_card, before.mercury_keying
+        if card == "" and after.mercury_sound_card == modem.sound_card:
+            card = after.mercury_sound_card
+        if keying == "" and after.mercury_keying == modem.keying.text:
+            keying = after.mercury_keying
+        return replace(before, mercury_sound_card=card, mercury_keying=keying)
+
     def repoint_hf(self) -> None:
         """The modem was started again on other ports (the pair it had was taken while it was down): the HF Tnc is pointed at them, in a task, so that it does not wait on the old ones for ever."""
         if self.running and self.config.hf_enabled:
@@ -245,8 +272,9 @@ class Controller(Services):
         if not await self.store.put_settings({key: text for key, text in config.to_data().items() if key in stored}):        # (only what this save changes: a key written by `neoaprs db set` in the meantime stays)
             return False
         self._implied = set()
-        fm_before, hf_before = self._fm_settings(self.config), self._hf_settings(self.config)
+        fm_before, hf_before = self._fm_settings(self.config), self._hf_settings(self._made_explicit(self.config, config))
         previous, self.config = self.config, config
+        left_dummy_hf = hf_is_dummy(previous) and not hf_is_dummy(config)
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
@@ -256,6 +284,8 @@ class Controller(Services):
             self.start_fm()
         if self._hf_settings(config) != hf_before:
             self.start_hf()
+        if left_dummy_hf:
+            self._leave_dummy_hf()
         self.config_changed.emit(config)
         self.mapauto.settings_changed(previous)
         if self.web is not None:

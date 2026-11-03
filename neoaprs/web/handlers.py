@@ -18,6 +18,7 @@ from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.pref import Alert
+from neoaprs.mercurymodem import proposal
 from neoaprs.radios import hf_is_mercury
 from neoaprs.radiosearch import Trying
 from neoaprs.serialprobe import available_ports, can_find, can_search, paired_bluetooth_ports, with_links
@@ -108,8 +109,9 @@ async def forget_all_stations(ctx: Ctx, cmd: ForgetAllStations) -> None:
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
     cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if hf_is_mercury(ctx.ctl.config) else []        # (the Mercury program is run for its list: only while it is the HF radio)
+    pick, keying = proposal(cards, ports, ctx.ctl.config)
     ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports],
-                   "sound_cards": [{"id": c.id, "name": c.name, "default": c.default} for c in cards]})
+                   "sound_cards": [{"id": c.id, "name": c.name, "default": c.default, "pick": c.id == pick} for c in cards], "keying": keying})
 
 
 @command(FindRadio)

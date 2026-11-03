@@ -67,7 +67,7 @@ function toggle(key: string): void {
           <td class="mono nowrap time">{{ clockText(row.heard_at) }}</td>
           <td class="dir" :class="row.direction">{{ t(`packets.dir.${row.direction}`) }}</td>
           <td class="via" :class="{ internet: row.via === 'is' }" :title="packetTitle(row.via, row.radio, named)">
-            <TagMark :tone="packetTone(row.via)">{{ packetLabel(row.via, row.radio, named) }}</TagMark>
+            <TagMark :tone="packetTone(row.via, row.radio)">{{ packetLabel(row.via, row.radio, named) }}</TagMark>
           </td>
           <td class="mono wrap line">{{ row.tnc2 }}</td>
           <td class="muted route-cell"><RouteText :text="routeWords(row.route)" /></td>

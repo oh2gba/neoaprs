@@ -76,6 +76,20 @@ describe("PacketsLog", () => {
     expect(wrapper.findAll("td.via .tag").map((t) => t.classes()[1])).toEqual(["tag-dummy", "tag-neutral", "tag-info", "tag-neutral", "tag-neutral"]);
   });
 
+  it("marks a packet heard on the HF radio with a tag of its own, apart from the FM radio's, the words RF and HF staying", () => {
+    const wrapper = mount(PacketsLog, {
+      props: {
+        packets: new Map([
+          ["1", packet(1, { radio: "fm" })],
+          ["2", packet(2, { radio: "hf" })],
+        ]),
+      },
+    });
+    const tags = wrapper.findAll("td.via .tag");
+    expect(tags.map((t) => t.text())).toEqual(["HF", "RF"]);
+    expect(tags.map((t) => t.classes()[1])).toEqual(["tag-hf", "tag-neutral"]);
+  });
+
   it("filters by the channel too: Internet finds the packets of the internet", async () => {
     const wrapper = mount(PacketsLog, {
       props: {

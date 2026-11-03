@@ -108,7 +108,7 @@ watch(
               }}</TagMark>
               <TagMark
                 v-if="twoRadios && row.radio !== 'fm'"
-                tone="neutral"
+                tone="hf"
                 class="own-radio"
                 :title="t(row.radio === 'both' ? 'objects.radio_title.both' : 'objects.radio_title.hf')"
                 >{{ t("objects.radio.hf") }}</TagMark
