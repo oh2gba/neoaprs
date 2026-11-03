@@ -128,7 +128,7 @@ def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_th
     assert "no firewall rule" in text.lower() or "firewall rule to stand in" in text, "the patch says that no firewall rule stands in for it any more"
 
 
-def test_both_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive_is_at_hand(build: types.ModuleType, tmp_path: Path) -> None:
+def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive_is_at_hand(build: types.ModuleType, tmp_path: Path) -> None:
     archive = build.cache_dir() / f"mercury-{mercury.VERSION}-{mercury.SOURCE_COMMIT[:8]}.tar.gz"
     if not archive.is_file() or build.sha256(archive) != mercury.SOURCE_SHA256 or sys.platform == "win32":
         pytest.skip("the pinned source archive is in the build cache after any build of Mercury")
@@ -137,13 +137,14 @@ def test_both_patches_apply_to_the_pinned_source_for_windows_too_when_the_archiv
     assert 'opts.bind_addr = "127.0.0.1"' in (tree / build.WEBSOCKET_FILE).read_text(encoding="utf-8")
     assert "INADDR_ANY" not in (tree / build.LISTENERS_FILE).read_text(encoding="utf-8")
     assert "audio:tx_leadin_ms" in (tree / build.LEADIN_FILE).read_text(encoding="utf-8")
+    assert 'LoadLibraryW(L"dsound.dll")' in (tree / build.DSOUND_FILE).read_text(encoding="utf-8") and "-ldsound" not in (tree / "Makefile").read_text(encoding="utf-8"), "DirectSound is loaded on first use, not linked"
     assert "pulse_stub" not in (tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c").read_text(encoding="utf-8"), "the stub over PulseAudio is for Linux only"
     assert (tree / build.HIDAPI_DIR / "src" / "hid.c").is_file() and (tree / build.HIDAPI_DIR / "LICENSE.txt").is_file(), "the vendored hidapi and its licence are in the source"
 
 
 def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with_windows_is_refused(build: types.ModuleType, tmp_path: Path) -> None:
     program = tmp_path / "mercury.exe"
-    ok = ["KERNEL32.dll", "WS2_32.dll", "ole32.dll", "DSOUND.dll", "USER32.dll", "msvcrt.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]
+    ok = ["KERNEL32.dll", "WS2_32.dll", "ole32.dll", "USER32.dll", "msvcrt.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]
     program.write_bytes(make_pe(ok, delay=["SETUPAPI.dll"]))
     machine, names = build.pe_imports(program)
     assert machine == 0x8664 and names == [*ok, "SETUPAPI.dll"], "the delay-loaded ones too"
@@ -154,6 +155,9 @@ def test_the_import_table_of_a_program_is_read_and_a_dll_that_does_not_come_with
             build.check_windows(tmp_path)
     program.write_bytes(make_pe(ok, delay=["libwinpthread-1.dll"]))
     with pytest.raises(build.BuildError, match="libwinpthread"):
+        build.check_windows(tmp_path)
+    program.write_bytes(make_pe([*ok, "DSOUND.dll"]))                    # (Windows's own, but on an N edition it needs the missing ResampleDmo.dll and the program never starts)
+    with pytest.raises(build.BuildError, match="Media Feature Pack"):
         build.check_windows(tmp_path)
 
 

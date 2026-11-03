@@ -42,6 +42,11 @@ OutputDir=..\..\dist-installer
 Name: "autostart"; Description: "Start NeoAPRS when I sign in"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
+; The Mercury folder is made again by every install: the Mercury of 0.16.1 and before came with DLLs of its own (hamlib, libusb, the MinGW runtime) that the one built since
+; then needs none of, and that would otherwise stay there after an update.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\bin\mercury"
+
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion

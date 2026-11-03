@@ -1,0 +1,70 @@
+DirectSound loaded on first use instead of linked. Mercury 1.9.21's Windows build links dsound.dll (the Makefile's
+FFAUDIO_LINKFLAGS), so Windows loads it before the program starts. On a Windows without the Media Feature Pack (the
+"N" editions) dsound.dll needs ResampleDmo.dll, which is not there: Windows then stops the program at load time with a
+"ResampleDmo.DLL was not found" dialog, and `mercury -z` and the modem hang until NeoAPRS gives up on them (John's
+Windows 11 VM, 3 Nov 2026, on 0.16.3). WASAPI, the backend Mercury uses by default and NeoAPRS uses, needs neither.
+
+This drops -ldsound from the link (dxguid, a static library of GUIDs, stays) and has ffaudio's DirectSound backend
+(audioio/ffaudio/ffaudio/dsound.c) load dsound.dll with LoadLibrary the first time it is used, with Windows's error
+dialogs off while it loads, and take its four functions with GetProcAddress, typed as the header declares them. Where
+the library or a function is missing, each call fails with ERROR_MOD_NOT_FOUND, which the backend reports as it reports
+any DirectSound error: the backend lists no device, and the program runs on WASAPI.
+
+scripts/build-mercury applies this file after leadin.patch (`patch -p1`) and checks that the Windows program imports no
+dsound.dll. Made from the source of the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves these
+lines fails the build loudly, which is right.
+
+--- a/Makefile
++++ b/Makefile
+@@ -33,7 +33,7 @@
+ 
+ ifeq ($(OS),Windows_NT)
+ 	FFAUDIO_LINKFLAGS += -lole32
+-	FFAUDIO_LINKFLAGS += -ldsound -ldxguid
++	FFAUDIO_LINKFLAGS += -ldxguid
+ 	FFAUDIO_LINKFLAGS += -lws2_32
+ 	FFAUDIO_LINKFLAGS += -static-libgcc -static-libstdc++ -l:libwinpthread.a
+ 	ifneq ($(strip $(HAMLIB_W64_LIBS)),)
+--- a/audioio/ffaudio/ffaudio/dsound.c
++++ b/audioio/ffaudio/ffaudio/dsound.c
+@@ -8,6 +8,40 @@
+ 
+ #include <dsound.h>
+ 
++/* DirectSound is loaded when this backend is first used, not linked: a program that imports dsound.dll does not
++   start at all on a Windows without the Media Feature Pack (the "N" editions), whose dsound.dll needs the missing
++   ResampleDmo.dll, and Windows stops it at load time with a dialog; WASAPI, the default, needs neither. Where the
++   library or one of its functions is missing, every call below fails with ERROR_MOD_NOT_FOUND, which the callers
++   report as for any other DirectSound error. (packaging/mercury/dsound.patch of NeoAPRS) */
++static __typeof__(&DirectSoundEnumerateW) ds_enum_play;
++static __typeof__(&DirectSoundCaptureEnumerateW) ds_enum_capt;
++static __typeof__(&DirectSoundCreate8) ds_create_play;
++static __typeof__(&DirectSoundCaptureCreate) ds_create_capt;
++
++static int ds_load(void)
++{
++	static int tried;
++	if (!tried) {
++		tried = 1;
++		UINT mode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
++		HMODULE lib = LoadLibraryW(L"dsound.dll");
++		SetErrorMode(mode);
++		if (lib != NULL) {
++			ds_enum_play = (__typeof__(ds_enum_play)) (void (*)(void)) GetProcAddress(lib, "DirectSoundEnumerateW");
++			ds_enum_capt = (__typeof__(ds_enum_capt)) (void (*)(void)) GetProcAddress(lib, "DirectSoundCaptureEnumerateW");
++			ds_create_play = (__typeof__(ds_create_play)) (void (*)(void)) GetProcAddress(lib, "DirectSoundCreate8");
++			ds_create_capt = (__typeof__(ds_create_capt)) (void (*)(void)) GetProcAddress(lib, "DirectSoundCaptureCreate");
++		}
++	}
++	return (ds_enum_play && ds_enum_capt && ds_create_play && ds_create_capt) ? 0 : -1;
++}
++
++#define DS_NOT_LOADED ((HRESULT) 0x8007007EL)          /* HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND) */
++#define DirectSoundEnumerateW(cb, ctx) (ds_load() ? DS_NOT_LOADED : ds_enum_play((cb), (ctx)))
++#define DirectSoundCaptureEnumerateW(cb, ctx) (ds_load() ? DS_NOT_LOADED : ds_enum_capt((cb), (ctx)))
++#define DirectSoundCreate8(guid, dev, outer) (ds_load() ? DS_NOT_LOADED : ds_create_play((guid), (dev), (outer)))
++#define DirectSoundCaptureCreate(guid, dev, outer) (ds_load() ? DS_NOT_LOADED : ds_create_capt((guid), (dev), (outer)))
++
+ 
+ int ffdsound_init(ffaudio_init_conf *conf)
+ {

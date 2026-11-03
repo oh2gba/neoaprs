@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed:** on Windows 10 and 11 "N" editions the HF radio's Mercury modem did not start: Windows stopped it with "ResampleDmo.DLL was not found", and the HF radio waited for it for ever. The modem no longer needs that file. An update also clears the Mercury folder of files older versions left there.
+
 ## 0.17.0
 
 - **New:** the FM radio and the HF radio boxes of the Radio group fold by the arrow in front of their names, as the groups do, and the page remembers in this browser which ones you folded. A box opens by itself when its radio is ticked and not connected, when the daemon refuses one of its settings, and when a mark in the header leads you to a setting in it.
