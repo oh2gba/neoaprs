@@ -39,7 +39,8 @@ class Controller(Services):
         self._web_factory = web
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
-        self._tnc_task: asyncio.Task[None] | None = None
+        self._fm_task: asyncio.Task[None] | None = None         # the start of the FM radio, and of the HF radio with its modem: each radio is restarted on its own
+        self._hf_task: asyncio.Task[None] | None = None
         self._implied: set[str] = set()         # the settings that a row of an older version implies (configlegacy.py), stored at the first save
         wiring.wire(self)
 
@@ -135,23 +136,40 @@ class Controller(Services):
 
     # ---- the radios
     def start_tnc(self) -> None:
-        """(Re)starts the radios with the settings as they are now, in a task: finding the FM radio's port can take as long as 20 s a port, and nothing waits for it. A start that is still looking for the
-        port is ended first. A radio whose tickbox is off stays stopped."""
-        self._tnc_task = self.tasks.spawn(self._restart_tnc(self._tnc_task), "tnc")
+        """(Re)starts both radios with the settings as they are now, each in a task of its own (see start_fm and start_hf)."""
+        self.start_fm()
+        self.start_hf()
 
-    async def _restart_tnc(self, previous: "asyncio.Task[None] | None") -> None:
+    def start_fm(self) -> None:
+        """(Re)starts the FM radio with the settings as they are now, in a task: finding its port can take as long as 20 s a port, and nothing waits for it, the HF radio least. A start that is still looking for the port is
+        ended first. A radio whose tickbox is off stays stopped. The HF radio and its modem are not touched."""
+        self._fm_task = self.tasks.spawn(self._restart_fm(self._fm_task), "tnc")
+
+    def start_hf(self) -> None:
+        """(Re)starts the HF radio and the modem it connects to with the settings as they are now, in a task. The FM radio is not touched."""
+        self._hf_task = self.tasks.spawn(self._restart_hf_radio(self._hf_task), "hf")
+
+    async def _restart_fm(self, previous: "asyncio.Task[None] | None") -> None:
         if previous is not None:
             await cancel_all([previous])
         await self.tnc.stop()
+        self._configure_fm()
+        if self.config.fm_enabled:
+            await self.tnc.start()
+
+    async def _restart_hf_radio(self, previous: "asyncio.Task[None] | None") -> None:
+        if previous is not None:
+            await cancel_all([previous])
         await self.hf.stop()
         await self.mercury.stop()
         if self.config.hf_enabled:
             try:
                 await self.mercury.start(self.config, self.hf_port_override, speaker=not hf_is_mercury(self.config))       # (the modem first: it chooses the ports the HF Tnc then connects to; a port given for this run is a Mercury something else runs; for the Dummy HF radio the program is the speaker)
             except Exception:
-                log.exception("the Mercury modem could not be started")        # (the radios are started all the same: the FM radio does not wait on the modem, the HF radio keeps trying its port)
-        self._configure_tnc()
-        await asyncio.gather(*(radio.start() for on, radio in ((self.config.fm_enabled, self.tnc), (self.config.hf_enabled, self.hf)) if on))       # (together: the FM radio searching for its port, which has no limit, does not keep the HF radio from starting)
+                log.exception("the Mercury modem could not be started")        # (the HF radio is started all the same: it keeps trying its port)
+        self._configure_hf()
+        if self.config.hf_enabled:
+            await self.hf.start()
         if self.running:
             await self._hf_beacon_as_set()
 
@@ -164,23 +182,35 @@ class Controller(Services):
 
     def _configure_tnc(self) -> None:
         """The radios, which are stopped, take the settings as they are now."""
+        self._configure_fm()
+        self._configure_hf()
+
+    def _configure_fm(self) -> None:
+        """The FM radio, which is stopped, takes the settings as they are now (the HF radio, which may be running, is left alone)."""
         wiring.apply_tnc_settings(self.tnc, wiring.tnc_settings(self.config, self.port_override, self.pattern_override))
-        wiring.apply_tnc_settings(self.hf, wiring.hf_settings(self.config, self.hf_port_override, self.mercury.broadcast_port))
         self.tnc.set_check(self.check_sec)
+
+    def _configure_hf(self) -> None:
+        """The HF radio, which is stopped, takes the settings as they are now (the FM radio, which may be running, is left alone)."""
+        wiring.apply_tnc_settings(self.hf, wiring.hf_settings(self.config, self.hf_port_override, self.mercury.broadcast_port))
         self.hf.set_check(self.check_sec)
 
-    def _radio_settings(self, config: Config) -> tuple[object, ...]:
-        """What a change of restarts the radios: either radio's settings, or a tickbox."""
-        return (wiring.tnc_settings(config, self.port_override, self.pattern_override), wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.fm_enabled, config.hf_enabled)
+    def _fm_settings(self, config: Config) -> tuple[object, ...]:
+        """What a change of restarts the FM radio: its settings, or its tickbox, and nothing of the HF radio's."""
+        return (wiring.tnc_settings(config, self.port_override, self.pattern_override), config.fm_enabled)
+
+    def _hf_settings(self, config: Config) -> tuple[object, ...]:
+        """What a change of restarts the HF radio and its modem: its settings (its type, the sound card and the keying), or its tickbox, and nothing of the FM radio's."""
+        return (wiring.hf_settings(config, self.hf_port_override, self.mercury.broadcast_port), config.hf_enabled)
 
     def repoint_hf(self) -> None:
         """The modem was started again on other ports (the pair it had was taken while it was down): the HF Tnc is pointed at them, in a task, so that it does not wait on the old ones for ever."""
         if self.running and self.config.hf_enabled:
-            self.tasks.spawn(self._restart_hf(), "hf-tnc")
+            self.tasks.spawn(self._repoint_hf(), "hf-tnc")
 
-    async def _restart_hf(self) -> None:
+    async def _repoint_hf(self) -> None:
         await self.hf.stop()
-        self._configure_tnc()
+        self._configure_hf()
         await self.hf.start()
 
     async def hold_tnc(self) -> None:
@@ -191,16 +221,16 @@ class Controller(Services):
             self.start_tnc()
 
     async def _stop_tnc(self) -> None:
-        task, self._tnc_task = self._tnc_task, None
-        if task is not None:
-            await cancel_all([task])
+        tasks = [task for task in (self._fm_task, self._hf_task) if task is not None]
+        self._fm_task = self._hf_task = None
+        await cancel_all(tasks)
         await self.tnc.stop()
         await self.hf.stop()
         await self.mercury.stop()
 
     # ---- the settings
     async def save_config(self, config: Config) -> bool:
-        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the radios when either's port, speed, type, sound card, keying or tickbox changed. False when the
+        """Stores the settings that differ from the ones in force, puts them all in force, and restarts the radio whose port, speed, type, sound card, keying or tickbox changed (and only that one). False when the
         database would not take them (nothing changed). The settings are a whole: a change made of the settings in force goes through `change_config`, so that two that overlap keep each other's keys."""
         async with self.config_lock:
             return await self._save(config)
@@ -215,15 +245,17 @@ class Controller(Services):
         if not await self.store.put_settings({key: text for key, text in config.to_data().items() if key in stored}):        # (only what this save changes: a key written by `neoaprs db set` in the meantime stays)
             return False
         self._implied = set()
-        before = self._radio_settings(self.config)
+        fm_before, hf_before = self._fm_settings(self.config), self._hf_settings(self.config)
         previous, self.config = self.config, config
         wiring.place_me(self)
         self.gps.settings_changed()
         self.beacon.settings_changed()
         self.hf_beacon.settings_changed()
         self.igate.settings_changed()
-        if self._radio_settings(config) != before:
-            self.start_tnc()
+        if self._fm_settings(config) != fm_before:
+            self.start_fm()
+        if self._hf_settings(config) != hf_before:
+            self.start_hf()
         self.config_changed.emit(config)
         self.mapauto.settings_changed(previous)
         if self.web is not None:

@@ -316,6 +316,37 @@ describe("the HF radio's box in the Radio group", () => {
   });
 });
 
+describe("the fold of each box follows its own radio", () => {
+  it("opens the HF fold alone when the HF radio is not connected, and the FM fold alone when the FM radio is not", async () => {
+    const { group, daemon } = make({ hf: hfState() }, BOTH);
+    expect([fold(group).element.open, hfFold(group).element.open]).toEqual([false, false]);
+    await tell(daemon, { hf: hfState({ state: "connecting", describe: "starting Mercury", problem: "" }) });
+    expect([fold(group).element.open, hfFold(group).element.open]).toEqual([false, true]);
+    const other = make({ hf: hfState() }, BOTH);
+    await tell(other.daemon, { tnc: tncState({ state: "silent", silent_since: null }) });
+    expect([fold(other.group).element.open, hfFold(other.group).element.open]).toEqual([true, false]);
+  });
+
+  it("leaves the FM fold as it was when the HF radio's type is changed and the HF radio goes through connecting, in both directions", async () => {
+    const { group, send, daemon } = make({ hf: hfState() }, BOTH);
+    expect(fold(group).element.open).toBe(false);
+    await hfFold(group).find("#set-hf-profile").setValue("dummy-hf");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "hf/profile": "dummy-hf" } });
+    await tell(daemon, {
+      config: configValues({ ...BOTH, "hf/profile": "dummy-hf" }),
+      hf: hfState({ state: "connecting", dummy: true, modem: null, problem: "" }),
+    });
+    expect(hfFold(group).element.open).toBe(true);
+    expect(fold(group).element.open).toBe(false);
+    await tell(daemon, { hf: hfState({ dummy: true, modem: null }) });
+    await hfFold(group).find("#set-hf-profile").setValue("mercury");
+    expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "hf/profile": "mercury" } });
+    await tell(daemon, { config: configValues(BOTH), hf: hfState({ state: "connecting", problem: "" }) });
+    expect(fold(group).element.open).toBe(false);
+    expect(fold(group).find(".statetext").text()).toBe("connected");
+  });
+});
+
 describe("the HF radio's type, Tune and the keying test", () => {
   const on = { "hf/enabled": "true", "mercury/keying": "vox" };
   const running = (test: "" | "tune" | "key" = "") => hfState({ modem: { ...hfState().modem!, test } });

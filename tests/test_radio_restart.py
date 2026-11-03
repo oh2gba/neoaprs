@@ -1,0 +1,64 @@
+"""A saved setting restarts the radio it belongs to and no other (Controller._save): a station with both radios on keeps the FM radio's line through a change of the HF radio's modem, its sound card or its tickbox, and keeps the HF
+radio's through a change of the FM radio's speed. (The page opens the fold of a radio's box while the radio is not connected; an FM radio that went through "connecting" because an HF setting was saved opened the FM box's fold.)"""
+from dataclasses import replace
+from pathlib import Path
+
+from neoaprs.source import Source
+from neoaprs.tnc import Tnc
+from tests.support.mercuryworld import World
+
+
+async def both_radios(tmp_path: Path) -> World:
+    w = World(tmp_path, frame_sec=0.2)
+    await w.add("OH2A", 60.17, 24.94, fm=True, hf=True)
+    await w.start()
+    return w
+
+
+def watch(tnc: Tnc) -> list[Source.State]:
+    """Every state the radio goes to from now on."""
+    seen: list[Source.State] = []
+    tnc.state_changed.connect(seen.append)
+    return seen
+
+
+async def test_a_change_of_the_hf_radios_modem_restarts_the_hf_radio_and_the_fm_radio_keeps_its_line(tmp_path: Path) -> None:
+    w = await both_radios(tmp_path)
+    a = w["OH2A"]
+    fm_seen, hf_seen = watch(a.tnc), watch(a.hf)
+    fm_line = a.tnc._generation
+    assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:9,0"))
+    await w.until(lambda: Source.State.STOPPED in hf_seen and a.hf.usable)
+    assert hf_seen[0] is Source.State.STOPPED, "the HF radio was restarted"
+    assert fm_seen == [] and a.tnc.state is Source.State.CONNECTED and a.tnc._generation == fm_line, "the FM radio was not touched"
+
+
+async def test_the_hf_radio_switched_off_and_on_again_leaves_the_fm_radio_connected(tmp_path: Path) -> None:
+    w = await both_radios(tmp_path)
+    a = w["OH2A"]
+    fm_seen = watch(a.tnc)
+    assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=False))
+    await w.until(lambda: a.hf.state is Source.State.STOPPED)
+    assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=True))
+    await w.until(lambda: a.hf.usable)
+    assert fm_seen == [] and a.tnc.state is Source.State.CONNECTED
+
+
+async def test_a_change_of_the_fm_radios_speed_restarts_the_fm_radio_and_the_hf_radio_keeps_its_line(tmp_path: Path) -> None:
+    w = await both_radios(tmp_path)
+    a = w["OH2A"]
+    fm_seen, hf_seen = watch(a.tnc), watch(a.hf)
+    hf_line = a.hf._generation
+    assert await a.ctl.save_config(replace(a.ctl.config, serial_baud=19200))
+    await w.until(lambda: Source.State.STOPPED in fm_seen and a.tnc.usable)
+    assert hf_seen == [] and a.hf.state is Source.State.CONNECTED and a.hf._generation == hf_line, "the HF radio was not touched"
+    assert a.tnc.baud == 19200
+
+
+async def test_a_setting_of_neither_radio_restarts_neither(tmp_path: Path) -> None:
+    w = await both_radios(tmp_path)
+    a = w["OH2A"]
+    fm_seen, hf_seen = watch(a.tnc), watch(a.hf)
+    assert await a.ctl.save_config(replace(a.ctl.config, station_comment="a new comment"))
+    await w.until(lambda: True)
+    assert fm_seen == [] and hf_seen == []
