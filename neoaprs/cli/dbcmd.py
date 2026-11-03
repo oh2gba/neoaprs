@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from neoaprs.config import BY_KEY, DEFAULTS, INSTALL_ID, STATE_KEYS, Config
+from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, STATE_KEYS, Config
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
@@ -61,6 +61,8 @@ def stamp(t: datetime) -> str:
 def kept_note(key: str) -> str:
     if key in STATE_KEYS:
         return "kept by the daemon (when it last sent, how the map stands), not a setting"
+    if key == HF_DIAL:
+        return "kept by the daemon (the HF dial the version page named last), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
 
 

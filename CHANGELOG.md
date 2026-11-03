@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Changed:** the HF radio's box shows the frequency the group meets on as the project page names it, through the daily update check, so that a move of the frequency needs no new release.
 - **New:** the groups of the Settings tab fold by the arrow in front of their names, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show or when a mark in the header leads to a setting in it.
 
 ## 0.16.0

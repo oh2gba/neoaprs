@@ -14,10 +14,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-from neoaprs.config import INSTALL_ID
+from neoaprs.config import HF_DIAL, INSTALL_ID
 from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
+from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet, every
 from neoaprs.updatefetch import fetch_url
 from neoaprs.versions import Update, compare_versions, parse_update
@@ -60,6 +61,8 @@ class UpdateCheck:
         self._memory = memory
         self._install_id: str | None = None                     # kept in the row INSTALL_ID; without a memory (the tests) it lasts as long as this object
         self.latest: Update | None = None                       # the answer, while it names a version newer than ours
+        self.hf_dial = ""                                       # the HF dial the page named last (kept in the row HF_DIAL); empty: none yet, the built-in one stands
+        self.dial_changed: Signal[[str]] = Signal("update.dial_changed")     # the HF dial the page names changed (and at the start, the one kept): the HF box shows it
         self._tasks = TaskSet(log, "update")
         self._asking = asyncio.Lock()                           # one question at a time, whoever asks
 
@@ -71,10 +74,17 @@ class UpdateCheck:
         if not self._tasks:
             self._tasks.spawn(self._run(), "update-check")
 
+    async def _kept_dial(self) -> None:
+        """The HF dial the page named before this start, from the row HF_DIAL, told before the page is asked (inside the task: the start of the daemon does not wait for the database)."""
+        if self._memory is not None and not self.hf_dial and (kept := await self._memory.setting(HF_DIAL)):
+            self.hf_dial = kept
+            self.dial_changed.emit(kept)
+
     async def stop(self) -> None:
         await self._tasks.cancel_all()
 
     async def _run(self) -> None:
+        await self._kept_dial()
         await every(self._wait, self._round, "the update check", first=self.first_sec)
 
     def _wait(self) -> float:
@@ -120,7 +130,18 @@ class UpdateCheck:
             if answer is None:
                 log.debug("the update check got no usable answer from %s: %s", self._config().update_url, reason)
                 return None
+            await self._take_dial(answer.hf_dial)
             return self._take(answer)
+
+    async def _take_dial(self, dial: str) -> None:
+        """The HF dial of an answer, when it names one and it is another than the one known: kept, logged and told. An answer without one changes nothing (the last one stands)."""
+        if not dial or dial == self.hf_dial:
+            return
+        log.info("the version page names the HF dial %s (was %s)", dial, self.hf_dial or "the built-in one")
+        self.hf_dial = dial
+        if self._memory is not None:
+            await self._memory.put_settings({HF_DIAL: dial})
+        self.dial_changed.emit(dial)
 
     async def release_notes(self, version: str, since: str = "") -> tuple[list[Section], str]:
         """What is new up to `version`, which must be the newer one the check found or our own (a page asks for no other address): the sections of the changelog at its tag of the versions newer than `since` and not newer

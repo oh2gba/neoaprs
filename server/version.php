@@ -21,6 +21,9 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 const PROJECT_URL  = 'https://neo.oh2gba.eu/';
+// The HF dial the group meets on, shown in the HF radio's box of every copy from 0.16.1 on (older copies show the one built in): a move of the
+// frequency is this line and server/deploy.sh, not a release. The form is "N.NNNN MHz USB"; anything else is ignored by the daemon.
+const HF_DIAL      = '7.0541 MHz USB';
 
 require __DIR__ . '/latest.php';
 
@@ -62,4 +65,5 @@ echo json_encode([
     'version' => neoaprs_latest_version() ?: '0.0.0',
     'url'     => PROJECT_URL,
     'message' => $message,
+    'hf_dial' => HF_DIAL,
 ], JSON_UNESCAPED_SLASHES), "\n";

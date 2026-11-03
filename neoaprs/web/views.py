@@ -166,7 +166,7 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
     modem = tnc.modem
     if modem is None or tnc.profile.transport != "modem" or not isinstance(modem, Mercury):
         return None
-    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, dial=DIAL_TEXT, keying=modem.keying.text)
+    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, dial=modem.dial or DIAL_TEXT, keying=modem.keying.text)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

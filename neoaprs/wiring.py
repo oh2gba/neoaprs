@@ -150,12 +150,19 @@ def wire(parts: Services) -> None:
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
     parts.mercury.ports_changed.connect(parts.repoint_hf)                                # (a modem started again on other ports, the old pair taken meanwhile: the HF Tnc follows it)
+    parts.updatecheck.dial_changed.connect(lambda dial: _show_dial(parts, dial))        # (the HF dial the group meets on comes with the version page: a move needs no release)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
     parts.gps_feed.changed.connect(parts.gps.feed_changed)
     parts.gps.moved.connect(lambda: place_me(parts))
     parts.gps.moved.connect(parts.aloha.refresh)
     parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
+
+
+def _show_dial(parts: Services, dial: str) -> None:
+    """The HF dial the version page names, on the modem the HF box reads it from; the page's radio topic is told again."""
+    parts.mercury.dial = dial
+    parts.mercury.changed.emit()
 
 
 def _log_packet(packet: Packet) -> None:

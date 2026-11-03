@@ -89,7 +89,7 @@ async def page(tmp_path: Path) -> AsyncIterator[Page]:
 
 
 async def test_the_answer_names_the_latest_release_the_project_page_and_no_message(page: Page) -> None:
-    assert await page.ask() == {"version": "0.2.0", "url": "https://neo.oh2gba.eu/", "message": ""}
+    assert await page.ask() == {"version": "0.2.0", "url": "https://neo.oh2gba.eu/", "message": "", "hf_dial": "7.0541 MHz USB"}
     assert page.github.requests[0][1]["user-agent"] == "neoaprs-version-page"
 
 

@@ -88,6 +88,7 @@ class Mercury(Tuning):
         self.backoff = backoff or Backoff()                          # between two starts of a program that died
         self._control_backoff = control_backoff
         self.changed: Signal[[]] = Signal("mercury.changed")        # the state, the keying, the busy channel: the page's radio topic is told again
+        self.dial = ""                                              # the HF dial the version page named (UpdateCheck.hf_dial); empty: mercury.DIAL_TEXT, the built-in one
         self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
         self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
         self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem

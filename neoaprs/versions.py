@@ -8,6 +8,7 @@ from typing import Any, Literal
 UPDATE_URL = "https://neo.oh2gba.eu/version.php"              # the default of the setting update/url: the version page on the project's own name (since 0.16)
 OLD_UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"      # where the copies before 0.16 ask: the same page, kept there for them (migration 26 moves a stored default over)
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
+_DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$")      # an HF dial as the page names it and the HF box shows it: "7.0541 MHz USB"
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
 _PART_SEPARATORS = re.compile(r"[.\-+]")
 _ARM_MACHINES = ("aarch64", "arm64", "armv7l", "armv6l", "armv8l")        # a Raspberry Pi
@@ -17,10 +18,11 @@ _MAC_ARCHITECTURES = {"arm64": "arm64", "aarch64": "arm64"}                     
 
 @dataclass(frozen=True)
 class Update:
-    """What the version page said: the latest version, where to get it and an optional short note from the project."""
+    """What the version page said: the latest version, where to get it, an optional short note from the project, and the HF dial the group meets on."""
     version: str
     url: str                         # https, or empty
     message: str
+    hf_dial: str = ""                # "7.0541 MHz USB"; empty when the page names none (a page older than 0.16.1) or names one that is not of that form
 
 
 def _parts(version: str) -> list[str]:
@@ -43,17 +45,18 @@ def compare_versions(a: str, b: str) -> int:
 
 
 def parse_update(body: bytes | str) -> Update | None:
-    """The answer of the version page, `{"version", "url", "message"}`, or None when it is not one: the version must look like one, an address that is not https is dropped, the note is cut to MAX_MESSAGE characters."""
+    """The answer of the version page, `{"version", "url", "message", "hf_dial"}`, or None when it is not one: the version must look like one, an address that is not https is dropped, the note is cut to MAX_MESSAGE characters,
+    and a dial that is not "N.NNNN MHz USB" (or LSB) is dropped."""
     try:
         data: Any = json.loads(body)
     except ValueError:
         return None
     if not isinstance(data, dict):
         return None
-    version, url, message = (text.strip() if isinstance(text := data.get(key), str) else "" for key in ("version", "url", "message"))
+    version, url, message, dial = (text.strip() if isinstance(text := data.get(key), str) else "" for key in ("version", "url", "message", "hf_dial"))
     if not _VERSION.match(version):
         return None
-    return Update(version, url if url.startswith("https://") else "", message[:MAX_MESSAGE])
+    return Update(version, url if url.startswith("https://") else "", message[:MAX_MESSAGE], dial if _DIAL.match(dial) else "")
 
 
 def platform_name(system: str, machine: str, appimage: bool) -> str:
