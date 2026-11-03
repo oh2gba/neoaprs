@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.16.1
+
 - **New:** **Send logs** in the Help group of the Settings tab sends the support file to the project with one press: a small window asks "What happened?", **Send** makes the same file as Download logs and sends it with your words, and the page says "Sent" with a short reference to quote (or why it could not be sent). Nothing is sent before you press Send. Download logs and the e-mail stay as they were.
 - **Changed:** the HF radio's box shows the frequency the group meets on as the project page names it, through the daily update check, so that a move of the frequency needs no new release.
 - **Fixed:** on Windows, a copy updated to 0.16.0 from an earlier version could miss the firewall rule Mercury needs; the HF radio's box now has a **Fix** button that adds it (Windows asks for permission once). The HF radio also starts without the installer's rule when the Windows Firewall already keeps the network from Mercury (on in every profile, inbound connections blocked by default, no rule that lets Mercury in), and the status line says plainly when the Firewall is off or a rule lets the network in.
