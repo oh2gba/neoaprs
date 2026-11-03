@@ -33,6 +33,9 @@ sys.path.insert(0, str(ROOT))
 import demoscene                                                  # noqa: E402  (the scene needs the path above)
 from neoaprs import VERSION                                       # noqa: E402
 from neoaprs.controller import Controller                         # noqa: E402
+from neoaprs import mercury as mercuryrules                        # noqa: E402
+from neoaprs.mercuryhelper import find as find_mercury             # noqa: E402
+from neoaprs.mercuryspeaker import SpeakerAudio                    # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
@@ -183,7 +186,8 @@ class Shots:
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
         self.receive_url = ""                                      # the page of the daemon that is set to RX only (the "beacon-rx" shot)
         self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
-        self.hf_url = ""                                           # the page of the daemon with the HF radio on, the Dummy HF radio (the "settings-hf" and "stations-hf" shots)
+        self.hf_url = ""                                           # the page of the daemon with the HF radio on as the Dummy HF radio (the "stations-hf" shot)
+        self.hf_mercury_url = ""                                   # the page of the daemon whose HF radio is the Mercury modem, a real one on pipes that hears silence (the "settings-hf" shot)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
 
@@ -539,15 +543,77 @@ async def shot_packets(s: Shots, _: str) -> None:
     await s.save(page, "packets")
 
 
-HF_WORLD = (58.6, 20.5, 4.6)                                       # the view of the map that holds the Dummy HF radio's made-up stations (Turku to Warsaw) and the day's stations round Helsinki
+HF_WORLD = (57.9, 20.2, 4.5)                                       # the view of the map that holds the Dummy HF radio's made-up stations (Turku to Warsaw) and the day's stations round Helsinki
+
+
+SHOWN_CARDS = ["USB Audio CODEC", "Built-in Audio"]                 # what the Settings shot shows as the sound cards: the machine's own cards (which the daemon lists from the real Mercury) never appear in a shot
+
+
+class PipeMercury:
+    """The shipped Mercury started on its fifo backend for the "settings-hf" shot: it hears silence and plays into a pipe that is drained and not heard (the speaker thread with no player), keys nothing, and serves its KISS and control ports on the loopback for a daemon started with --hf-port, so that the HF radio's box shows the Mercury modem connected, with the sound card, the keying, Tune, Test and the frequency, and no sound card of this machine is opened."""
+
+    def __init__(self, folder: Path) -> None:
+        self.folder = folder
+        self.audio = SpeakerAudio(folder, player=lambda: None)
+        self.proc: subprocess.Popen[bytes] | None = None
+        self.kiss_port = 0
+
+    def start(self) -> str:
+        program = find_mercury() or find_mercury(ROOT / ".venv" / "tools")                  # (`uv run --with playwright` runs this in an environment of its own, whose prefix has no tools/: the checkout's venv has them)
+        if program is None:
+            raise RuntimeError("no Mercury in this checkout: build it with scripts/build-mercury --install")
+        if not self.audio.prepare():
+            raise RuntimeError("the pipes for Mercury could not be made")
+        while True:
+            with socket.socket() as a, socket.socket() as b:
+                a.bind((demoscene.HOST, 0))
+                port = a.getsockname()[1]
+                try:
+                    b.bind((demoscene.HOST, port + mercuryrules.CONTROL_PORT - mercuryrules.BROADCAST_PORT))
+                except OSError:
+                    continue
+            break
+        self.kiss_port = port
+        ini = self.folder / "mercury-shot.ini"
+        ini.write_text(mercuryrules.ini_text(mercuryrules.keying_of("vox")), encoding="utf-8")
+        env = dict(os.environ)
+        conf = Path(program[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
+        if conf.is_file():
+            env["ALSA_CONFIG_PATH"] = str(conf)
+        argv = [*program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", str(self.audio.capture), "-o", str(self.audio.playback), "-b", str(port), "-p", str(port + mercuryrules.CONTROL_PORT - mercuryrules.BROADCAST_PORT), "-P", "none"]
+        self.proc = subprocess.Popen(argv, cwd=str(self.folder), stdin=subprocess.DEVNULL, stdout=(self.folder / "mercury-shot.log").open("wb"), stderr=subprocess.STDOUT, env=env)
+        self.audio.start()
+        return f"socket://{demoscene.HOST}:{port}"
+
+    def stop(self) -> None:
+        self.audio.stop()
+        if self.proc is not None and self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(10)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
 
 
 async def shot_settings_hf(s: Shots, _: str) -> None:
-    """Settings, the Radio group of a station with both radios: the FM radio box folded to its status line (its TNC is connected) and the HF radio box opened by its arrow, with the radio type, the sound card and the keying, and Tune and Test."""
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560, url=s.hf_url)
+    """Settings, the Radio group of a station with both radios: the FM radio box folded to its status line (its TNC is connected) and the HF radio box opened by its arrow, with the radio type (the Mercury modem, a real one on pipes), the sound card and the keying (the machine's own cards replaced by made-up names on the screen), Tune and Test, and the frequency."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560, url=s.hf_mercury_url)
     await made_up_web(page)
     await page.locator("#pane-settings fieldset.subbox", has_text="HF radio").locator(".statushead").click()
     await settle(page, 600)
+    await page.evaluate("""(names) => {
+        const put = () => {
+            const box = [...document.querySelectorAll("#pane-settings fieldset.subbox")].find((f) => f.textContent.includes("HF radio"));
+            const selects = box ? [...box.querySelectorAll("select")] : [];
+            const cards = selects[1];                              // (the type, the sound card, the keying)
+            if (!cards) return;
+            [...cards.options].forEach((option, i) => { if (i < names.length) option.textContent = names[i]; else option.remove(); });
+            while (cards.options.length < names.length) { const o = document.createElement("option"); o.textContent = names[cards.options.length]; cards.append(o); }
+        };
+        put();
+        setInterval(put, 25);
+    }""", SHOWN_CARDS)
+    await settle(page, 300)
     await whole_groups(page, "fieldset:has(.radiostatus)")
     await s.save(page, "settings-hf")
 
@@ -717,6 +783,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     daemons: list[Daemon] = []
     servers: list[asyncio.Server] = []
     gpsds: list[asyncio.subprocess.Process] = []
+    modems: list[PipeMercury] = []
     try:
         data = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
         updating: Daemon | None = None
@@ -746,12 +813,21 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             moving = Daemon(work / "moving")
             daemons.append(moving)
         hf: Daemon | None = None
-        if {"settings-hf", "settings-hf-dark", "stations-hf", "stations-hf-dark"} & set(chosen):
+        if {"stations-hf", "stations-hf-dark"} & set(chosen):
             copy_data(data, work / "hf")
             neoaprs_db_set(work / "hf", "hf/enabled", "true")
             neoaprs_db_set(work / "hf", "hf/profile", "dummy-hf")
             hf = Daemon(work / "hf", env={"PATH": "/nonexistent"})                                   # (the same day on the air and the Dummy HF radio beside it; with no player on the PATH its frames are not played through this machine's speakers)
             daemons.append(hf)
+        hf_mercury: Daemon | None = None
+        if {"settings-hf", "settings-hf-dark"} & set(chosen):
+            copy_data(data, work / "hf-mercury")
+            for key, value in {"hf/enabled": "true", "hf/profile": "mercury", "mercury/keying": "vox", "mercury/sound_card": ""}.items():
+                neoaprs_db_set(work / "hf-mercury", key, value)
+            pipes = PipeMercury(work / "hf-mercury")
+            modems.append(pipes)
+            hf_mercury = Daemon(work / "hf-mercury", "--hf-port", pipes.start())                   # (the same day on the air and the Mercury modem beside it, a real one on pipes that hears silence and keys nothing)
+            daemons.append(hf_mercury)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
@@ -767,6 +843,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         receive_url = await receiving.start() if receiving else ""
         moving_url = await moving.start() if moving else ""
         hf_url = await hf.start() if hf else ""
+        hf_mercury_url = await hf_mercury.start() if hf_mercury else ""
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
@@ -777,6 +854,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             shots.receive_url = receive_url
             shots.moving_url = moving_url
             shots.hf_url = hf_url
+            shots.hf_mercury_url = hf_mercury_url
             for name in chosen:
                 await SHOTS[name](shots, fresh_url)
             await browser.close()
@@ -788,6 +866,8 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
     finally:
         for daemon in daemons:
             await daemon.stop()
+        for modem in modems:
+            modem.stop()
         for gpsd in gpsds:
             if gpsd.returncode is None:
                 gpsd.terminate()
