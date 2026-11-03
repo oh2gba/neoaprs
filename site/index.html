@@ -3,22 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NeoAPRS: an APRS client for Windows, macOS, Linux and the Raspberry Pi</title>
-<meta name="description" content="An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>NeoAPRS: APRS on VHF and HF for Windows, macOS, Linux and the Raspberry Pi</title>
+<meta name="description" content="A free APRS client for the radio you already have: a map, messages and your beacon in a browser or a desktop app. Any KISS TNC on VHF, and APRS over HF with the Mercury modem built in. Windows, macOS, Linux, Raspberry Pi.">
+<meta name="keywords" content="APRS, APRS client, APRS software, amateur radio, ham radio, packet radio, KISS TNC, AX.25, APRS over HF, HF digital mode, Mercury modem, Raspberry Pi APRS, Linux APRS, Windows APRS, macOS APRS, Kenwood TH-D74, TH-D75, TM-D710, Mobilinkd, Direwolf, iGate, digipeater, SmartBeaconing, aprs.fi">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1215" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15171a" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="canonical" href="https://oh2gba.github.io/neoaprs/">
+<link rel="canonical" href="https://neo.oh2gba.eu/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NeoAPRS">
-<meta property="og:title" content="NeoAPRS: an APRS client">
-<meta property="og:description" content="A map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.">
-<meta property="og:url" content="https://oh2gba.github.io/neoaprs/">
-<meta property="og:image" content="https://oh2gba.github.io/neoaprs/shots/og.png">
+<meta property="og:title" content="NeoAPRS: APRS on VHF and HF">
+<meta property="og:description" content="A map, messages and your beacon for the radio you already have. Any KISS TNC on VHF, the Mercury modem on HF. Windows, macOS, Linux, Raspberry Pi.">
+<meta property="og:url" content="https://neo.oh2gba.eu/">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
@@ -29,177 +30,274 @@
 <body>
 <a class="skip" href="#main">Skip to the content</a>
 
-<header class="top">
+<header class="mast">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="favicon.svg" alt="" width="28" height="28">NeoAPRS</a>
-    <nav class="nav" aria-label="Page">
-      <a class="opt" href="#features">Features</a>
+    <a class="brand" href="#top"><img src="favicon.svg" alt="" width="26" height="26"><span>NeoAPRS</span></a>
+    <nav aria-label="Page">
+      <a href="#download">Download</a>
+      <a href="#does">What it does</a>
+      <a href="#hf">HF</a>
+      <a href="#radios">Radios</a>
       <a href="#install">Install</a>
-      <a class="opt" href="#radios">Radios</a>
-      <a class="opt" href="#gallery">Screenshots</a>
-      <a class="gh" href="https://github.com/oh2gba/neoaprs">GitHub</a>
+      <a href="#shots">Screenshots</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
     </nav>
   </div>
 </header>
 
 <main id="main">
-<div class="hero" id="top">
+
+<section class="open" id="top">
   <div class="wrap">
-    <h1>Neo<span>APRS</span></h1>
-    <p class="lead">An APRS client for a radio with a TNC: a map, messages and your beacon in a browser or a desktop app. Windows, macOS, Linux, Raspberry Pi.</p>
-    <div class="actions">
-      <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
-        <span class="label">Windows installer<small>Download NeoAPRS-Setup .exe</small></span>
-      </a>
-      <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
-        <span class="label">Linux AppImage<small>Download NeoAPRS .AppImage</small></span>
-      </a>
-      <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
-        <span class="label">macOS app<small>Download NeoAPRS .dmg (Apple silicon)</small></span>
-      </a>
-      <a class="btn" href="https://github.com/oh2gba/neoaprs">
-        <span class="label">GitHub<small>source, issues, releases</small></span>
-      </a>
-    </div>
+    <h1>APRS for the radio you already have.</h1>
+    <p class="lead">A map of who is around, a message that tells you whether it arrived, and your own beacon. In a browser or as a desktop app, on the desk or on a Raspberry Pi in the shack. Any KISS TNC on VHF. And now HF, with the Mercury modem built in.</p>
+
+    <figure class="packet" aria-label="An APRS packet, decoded">
+      <pre><code><span class="pk-from" data-note="from">OH2GBA</span><span class="pk-sep">&gt;</span><span class="pk-to" data-note="the program">APZNEO</span><span class="pk-sep">,</span><span class="pk-path" data-note="the path, two digipeater hops">WIDE1-1,WIDE2-1</span><span class="pk-sep">:</span><span class="pk-pos" data-note="position">=6010.17N/02456.62E</span><span class="pk-sym" data-note="symbol: a house">-</span><span class="pk-txt" data-note="comment">NeoAPRS in Espoo</span></code></pre>
+      <figcaption>One packet of the air, as the radio hears it. NeoAPRS turns a day of these into a map, a station book and your conversations. On HF the same packet goes out without the path: every station on the mode hears every frame.</figcaption>
+    </figure>
   </div>
-  <figure class="hero-shot shot">
-    <a class="zoom frame" href="shots/map.png"><picture><source srcset="shots/phone-map-dark.png" media="(max-width: 640px) and (prefers-color-scheme: dark)"><source srcset="shots/phone-map.png" media="(max-width: 640px)"><source srcset="shots/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/map.png" width="1440" height="900" fetchpriority="high" alt="The map with the stations heard around Helsinki, their trails, and the Stations table"></picture></a>
+
+  <figure class="big">
+    <a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/phone-map-dark.png" media="(max-width: 640px) and (prefers-color-scheme: dark)"><source srcset="shots/phone-map.png" media="(max-width: 640px)"><source srcset="shots/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/map.png" width="1440" height="900" fetchpriority="high" alt="The map with the stations heard around Helsinki, their trails, and the Stations table"></picture></a>
+    <figcaption>A made-up day on the air round Helsinki: a car, a hiker and a boat moving, two weather stations, messages, bulletins. The calls are invented.</figcaption>
   </figure>
-</div>
-
-<section id="features">
-  <div class="wrap">
-    <h2>Features</h2>
-    <div class="cards">
-      <article class="card" id="map">
-        <a class="zoom" href="shots/map.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt="The map with station symbols and trails"></picture></a>
-        <h3>Map</h3>
-        <p>Symbols, fading trails and the route of each packet on a street map kept on your disk. A station's card shows what it runs and its antenna direction.</p>
-      </article>
-      <article class="card" id="stations">
-        <a class="zoom" href="shots/stations-menu.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt="The Stations table with a row menu open"></picture></a>
-        <h3>Stations</h3>
-        <p>A table with distance, bearing and when last heard; several cards open side by side. The row menu sends a message or an APRS query: position, status, heard direct, trace.</p>
-      </article>
-      <article class="card" id="messages">
-        <a class="zoom" href="shots/messages.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt="The Messages tab with a conversation and its delivery chains"></picture></a>
-        <h3>Messages</h3>
-        <p>Acks, reply-acks and retries, with the delivery chain of each message, hop by hop. Email through the gateway, bulletins and group messages, alerts on the desktop and in the browser.</p>
-      </article>
-      <article class="card" id="weather">
-        <a class="zoom" href="shots/weather.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt="Two weather station cards with 24 hour graphs"></picture></a>
-        <h3>Weather</h3>
-        <p>Readings, and 24 hour and 7 day graphs of temperature, pressure, wind and rain. Stations opened side by side share the same scales.</p>
-      </article>
-      <article class="card" id="nearby">
-        <a class="zoom" href="shots/nearby.png"><picture><source srcset="shots/thumbs/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/nearby.png" width="640" height="400" loading="lazy" alt="The Nearby tab with a digipeater selected and its range circle on the map"></picture></a>
-        <h3>Nearby</h3>
-        <p>Digipeaters, voice frequencies, iGates and stations heard direct, nearest first; the range of the selected digipeater is drawn on the map. Frequencies, storm data and signposts are decoded, and a QRU server answers for your objects.</p>
-      </article>
-      <article class="card" id="mobile">
-        <a class="zoom" href="shots/beacon-gps.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt="The My station tab of a moving station with a GPS fix"></picture></a>
-        <h3>Mobile</h3>
-        <p>The beacon follows a GPS (gpsd or a serial port) and is sent by SmartBeaconing, with presets for car, bicycle, foot and boat. With no fix nothing is sent.</p>
-      </article>
-      <article class="card" id="objects">
-        <a class="zoom" href="shots/objects.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt="The map with three objects of our own"></picture></a>
-        <h3>Objects</h3>
-        <p>Objects and items of your own, placed and moved on the map and sent on the specification's schedule. A kill removes one from the air.</p>
-      </article>
-      <article class="card" id="beacon">
-        <a class="zoom" href="shots/beacon.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt="The My station tab with the beacon status, position, symbol and path"></picture></a>
-        <h3>Beacon</h3>
-        <p>Position, symbol, path and status text; a change applies at once, with Undo. Beacon Off sends no automatic beacon (Beacon now still sends) while messages still work; nothing is sent until a call is set.</p>
-      </article>
-      <article class="card" id="network">
-        <a class="zoom" href="shots/settings-web.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt="Settings, Web page: the access key and the addresses to open"></picture></a>
-        <h3>Network</h3>
-        <p>Run it on a Raspberry Pi and open the page from a laptop, tablet or phone, with an access key and optional https. English, Deutsch, Español, Suomi, Français, Italiano, 日本語, Português.</p>
-      </article>
-    </div>
-  </div>
 </section>
 
-<section id="install">
+<section class="sec" id="download">
   <div class="wrap">
-    <h2>Install</h2>
-    <div class="steps">
-      <div class="card step">
-        <h3>Windows</h3>
-        <p>Run the installer; no administrator rights are needed. If SmartScreen warns about an unsigned installer: More info, Run anyway.</p>
-        <div class="run">
-          <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">Windows installer</a>
-        </div>
-      </div>
-      <div class="card step">
-        <h3>Linux (AppImage)</h3>
-        <p>Make the AppImage executable and run it.</p>
-        <div class="run">
-          <div class="cmd">
-            <code id="appimage-line"><span class="prompt">$ </span>chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage</code>
-            <button class="copy" type="button" data-target="appimage-line" data-text="chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage" hidden>Copy</button>
-          </div>
-        </div>
-      </div>
-      <div class="card step">
-        <h3>macOS</h3>
-        <p>Open the disk image and drag NeoAPRS to Applications. The first time, right-click it and choose Open: the app is not signed by Apple. Apple silicon, macOS 14 or newer.</p>
-        <div class="run">
-          <a class="btn primary" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">macOS app</a>
-        </div>
-      </div>
-      <div class="card step">
-        <h3>Debian, Ubuntu, Raspberry Pi</h3>
-        <p>The .deb (arm64 for a Pi, amd64 for a PC) brings its own Python and the Mercury HF modem, like the installer, the AppImage and the macOS app.</p>
-        <div class="run">
-          <div class="cmd">
-            <code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code>
-            <button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <p class="note">Updates: the Windows installer and the AppImage have Update now; elsewhere the update window lists the steps.</p>
-    <p class="note">No radio at hand? This plays the sample capture as a TNC on a TCP port.</p>
-    <div class="cmd replay">
-      <code id="replay-line"><span class="prompt">$ </span>neoaprs replay</code>
-      <button class="copy" type="button" data-target="replay-line" data-text="neoaprs replay" hidden>Copy</button>
-    </div>
-  </div>
-</section>
-
-<section id="radios">
-  <div class="wrap">
-    <h2>Radios</h2>
-    <table class="radios">
-      <thead><tr><th scope="col">Radio or TNC</th><th scope="col">Connects by</th></tr></thead>
+    <p class="kicker">Download</p>
+    <h2>One file. Python and the HF modem are inside.</h2>
+    <table class="files">
       <tbody>
-        <tr><th scope="row">Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B/1274/1278, TAPR)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></td></tr>
-        <tr><th scope="row">Kenwood TM-D710, TH-D72</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-tm-d710-and-th-d72">serial or USB</a></td></tr>
-        <tr><th scope="row">Kenwood TH-D74, TH-D75</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></td></tr>
-        <tr><th scope="row">Mobilinkd TNC3, TNC4</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></td></tr>
-        <tr><th scope="row">BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></td></tr>
-        <tr><th scope="row">PicoAPRS V4 (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></td></tr>
-        <tr><th scope="row">LoRa APRS, CA2RXU firmware (untested)</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></td></tr>
-        <tr><th scope="row">NinoTNC, TNC-Pi, TNC-X, any TNC in KISS</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></td></tr>
-        <tr><th scope="row">Kantronics KPC-3+</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></td></tr>
-        <tr><th scope="row">Any radio with a sound-card interface (Digirig, SignaLink), through Direwolf</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></td></tr>
-        <tr><th scope="row">GPS receiver, for a moving station</th><td><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></td></tr>
+        <tr>
+          <th scope="row">Windows</th>
+          <td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">NeoAPRS-Setup.exe</a></td>
+          <td>Installer, no administrator rights needed. SmartScreen may warn about an unsigned installer: More info, Run anyway.</td>
+        </tr>
+        <tr>
+          <th scope="row">macOS</th>
+          <td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">NeoAPRS-arm64.dmg</a></td>
+          <td>Apple silicon, macOS 14 or newer. Drag to Applications; the first time, right-click and Open, since the app is not signed by Apple.</td>
+        </tr>
+        <tr>
+          <th scope="row">Linux</th>
+          <td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">NeoAPRS-x86_64.AppImage</a></td>
+          <td>Make it executable and run it. Updates itself from the update window.</td>
+        </tr>
+        <tr>
+          <th scope="row">Raspberry Pi, Debian, Ubuntu</th>
+          <td><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_&lt;version&gt;_arm64.deb</a></td>
+          <td>A service that starts with the Pi; open the page from any device in the house. amd64 for a PC.</td>
+        </tr>
+        <tr>
+          <th scope="row">Source</th>
+          <td><a href="https://github.com/oh2gba/neoaprs">github.com/oh2gba/neoaprs</a></td>
+          <td>Python and Vue, GPL v3 or later. Releases, changelog and issues.</td>
+        </tr>
       </tbody>
     </table>
-    <p class="note">Bluetooth LE (<code>ble://</code>) is untested on a radio. Yaesu and Icom have no KISS TNC for a computer: use a sound-card interface and Direwolf. <b>Find my radio</b> in the setup and in Settings looks for the port (Linux, Windows, macOS). <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">Radio guide</a></p>
+    <p class="aside">Free software. No account, no advert, no tracker in the program. Nothing from the internet is ever sent on the air.</p>
   </div>
 </section>
 
-<section id="gallery">
+<section class="sec" id="does">
   <div class="wrap">
-    <h2>Screenshots</h2>
+    <p class="kicker">What it does</p>
+    <h2>The page is the station.</h2>
+    <p class="lead-sm">Nine tabs beside the map. Everything below is on it, on a laptop, a tablet or a phone.</p>
+
+    <ol class="walk">
+      <li>
+        <div class="txt">
+          <h3>Stations</h3>
+          <p>Every station heard, with distance, bearing and when it was last heard, tagged FM or HF by the radio it came on. A station's card says what it runs and where its antenna points; several cards open side by side. The row menu sends a message or an APRS query: position, status, heard direct, trace.</p>
+        </div>
+        <a class="zoom pic" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt="The Stations table with a row menu open"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>Messages</h3>
+          <p>Acks, reply-acks and retries on the specification's schedule, and the delivery chain of each message, hop by hop, so you see which digipeater carried it and where it stopped. Bulletins and group messages, email through the gateway, an alert on the desktop and in the browser when something arrives.</p>
+        </div>
+        <a class="zoom pic" href="shots/messages.png" data-dark="shots/messages-dark.png"><picture><source srcset="shots/thumbs/messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/messages.png" width="640" height="400" loading="lazy" alt="The Messages tab with a conversation and its delivery chains"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>Weather</h3>
+          <p>Readings as they come, and graphs of the last 24 hours and 7 days: temperature, pressure, wind and rain. Two stations opened together share the same scales, so a front shows as a front.</p>
+        </div>
+        <a class="zoom pic" href="shots/weather.png" data-dark="shots/weather-dark.png"><picture><source srcset="shots/thumbs/weather-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/weather.png" width="640" height="400" loading="lazy" alt="Two weather station cards with 24 hour graphs"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>Nearby</h3>
+          <p>Digipeaters, voice frequencies, iGates and the stations heard direct, nearest first. Pick a digipeater and its range is drawn on the map. Frequency objects, storm data and signposts are decoded, and a QRU server answers for your objects.</p>
+        </div>
+        <a class="zoom pic" href="shots/nearby.png" data-dark="shots/nearby-dark.png"><picture><source srcset="shots/thumbs/nearby-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/nearby.png" width="640" height="400" loading="lazy" alt="The Nearby tab with a digipeater selected and its range circle on the map"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>Your beacon</h3>
+          <p>Position, symbol, path and status text; a change applies at once, with Undo. In a car, on a bicycle, on foot or on a boat the beacon follows a GPS by SmartBeaconing: more often on the turns, rarely on the straight. With no fix nothing is sent. Receive only is one tick.</p>
+        </div>
+        <a class="zoom pic" href="shots/beacon-gps.png" data-dark="shots/beacon-gps-dark.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt="The My station tab of a moving station with a GPS fix"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>Objects</h3>
+          <p>Objects and items of your own, placed and moved on the map and sent on the specification's schedule: the net's meeting point, the repeater, the fox. A kill takes one off the air. Each goes out on FM, on HF or on both.</p>
+        </div>
+        <a class="zoom pic" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" alt="The map with three objects of our own"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>The packet log</h3>
+          <p>Every frame as it came, with the radio it came on, the path it took and what NeoAPRS made of it. An optional fill-in digipeater and a receive-only iGate; a tick puts the stations of APRS-IS round you on the map. Nothing from the internet goes to the radio.</p>
+        </div>
+        <a class="zoom pic" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" alt="The packet log"></picture></a>
+      </li>
+      <li>
+        <div class="txt">
+          <h3>From anywhere in the house</h3>
+          <p>Run it on a Raspberry Pi next to the radio and open the page on the sofa: an access key, optional https, and a layout that fits a phone. Eight languages: English, Deutsch, Español, Suomi, Français, Italiano, 日本語, Português.</p>
+        </div>
+        <a class="zoom pic tall" href="shots/phone-messages.png" data-dark="shots/phone-messages-dark.png"><picture><source srcset="shots/thumbs/phone-messages-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-messages.png" width="270" height="584" loading="lazy" alt="The Messages tab on a phone"></picture></a>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec hf" id="hf">
+  <div class="wrap">
+    <p class="kicker">Now on HF</p>
+    <h2>Two radios, one station.</h2>
+    <p class="lead-sm">The FM radio with its TNC, and an SSB radio with a sound card. Both on the same map, in the same station book, in the same conversations. Stations carry an FM or an HF tag; a message goes out on the radio the other station was heard on.</p>
+
+    <div class="hfgrid">
+      <figure class="diagram">
+        <svg viewBox="0 0 560 250" role="img" aria-labelledby="dg-title">
+          <title id="dg-title">The FM radio and its TNC, and the HF radio with its sound card, both into NeoAPRS, which is one map</title>
+          <g class="dg-fm">
+            <rect x="24" y="30" width="150" height="54" rx="6"/>
+            <text x="99" y="52" text-anchor="middle" class="dg-h">FM radio</text>
+            <text x="99" y="72" text-anchor="middle" class="dg-s">KISS TNC · 144.800 MHz</text>
+            <path d="M174 57h66" class="dg-wire"/>
+            <text x="207" y="50" text-anchor="middle" class="dg-tag">FM</text>
+          </g>
+          <g class="dg-hf">
+            <rect x="24" y="166" width="150" height="54" rx="6"/>
+            <text x="99" y="188" text-anchor="middle" class="dg-h">HF radio, SSB</text>
+            <text x="99" y="208" text-anchor="middle" class="dg-s">sound card · 7.0541 MHz USB</text>
+            <path d="M174 193h66" class="dg-wire"/>
+            <text x="207" y="186" text-anchor="middle" class="dg-tag">HF</text>
+          </g>
+          <g class="dg-neo">
+            <rect x="240" y="30" width="120" height="190" rx="8"/>
+            <text x="300" y="118" text-anchor="middle" class="dg-h">NeoAPRS</text>
+            <text x="300" y="140" text-anchor="middle" class="dg-s">Mercury inside</text>
+          </g>
+          <path d="M360 125h60" class="dg-wire"/>
+          <g class="dg-map">
+            <rect x="420" y="30" width="116" height="190" rx="8"/>
+            <text x="478" y="60" text-anchor="middle" class="dg-h">One map</text>
+            <circle cx="452" cy="100" r="5" class="dg-dot-fm"/>
+            <circle cx="500" cy="88" r="5" class="dg-dot-fm"/>
+            <circle cx="470" cy="150" r="5" class="dg-dot-fm"/>
+            <circle cx="510" cy="190" r="5" class="dg-dot-hf"/>
+            <circle cx="446" cy="195" r="5" class="dg-dot-hf"/>
+            <circle cx="520" cy="130" r="5" class="dg-dot-hf"/>
+            <text x="478" y="212" text-anchor="middle" class="dg-s">near and 1500 km away</text>
+          </g>
+        </svg>
+      </figure>
+
+      <dl class="facts">
+        <div><dt>The modem is inside</dt><dd>Rhizomatica's Mercury, one pinned version, built into every download. Nothing to install, nothing to configure but the sound card and the keying, and both are picked for you. Tick HF radio and leave the type at Mercury.</dd></div>
+        <div><dt>No path</dt><dd>There are no digipeaters on HF: every station on the mode hears every frame, so every frame goes direct and the path controls are not shown. Distant stations are heard 1000 to 2000 km away, not nearby.</dd></div>
+        <div><dt>A slow, steady channel</dt><dd>A packet keys the radio for 3.8 seconds and carries 123 bytes. A message and its ack take about ten seconds. The beacon keeps your interval, 30 minutes at the least on HF, with a random pause so fixed stations do not key up together.</dd></div>
+        <div><dt>Tune and Test</dt><dd>Tune keys the radio with a steady 1000 Hz tone for the antenna tuner and the drive setting; Test keys it for a second so you see it go to transmit and come back. Both are in the HF radio box of the Settings tab.</dd></div>
+        <div><dt>Hear it first</dt><dd>The Dummy HF radio makes up six stations far away and plays your own frames through the speakers as the modem's real audio. Nothing is keyed. Try the pace of a message over HF before you wire a radio.</dd></div>
+      </dl>
+    </div>
+
+    <div class="freq">
+      <p class="freq-label">Where to meet</p>
+      <p class="freq-value"><span class="band">40 m</span><span class="dial">7.0541 MHz</span><span class="mode">USB</span></p>
+      <p class="freq-note">The dial frequency, upper sideband; the signal sits 1.2 to 1.8 kHz above it, inside the band's digital segment. The HF radio box of the Settings tab says it too. Only stations on the same modem and the same frequency hear each other: this is not the 300 baud HF APRS network.</p>
+    </div>
+
+    <div class="hfshots">
+      <a class="zoom pic" href="shots/settings-hf.png" data-dark="shots/settings-hf-dark.png"><picture><source srcset="shots/thumbs/settings-hf-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-hf.png" width="640" height="400" loading="lazy" alt="Settings, the Radio group: the FM radio box and the HF radio box with Tune and Test"></picture><span>The Radio group: FM radio and HF radio, each with its own box</span></a>
+      <a class="zoom pic" href="shots/stations-hf.png" data-dark="shots/stations-hf-dark.png"><picture><source srcset="shots/thumbs/stations-hf-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-hf.png" width="640" height="400" loading="lazy" alt="The Stations table with stations tagged FM and HF, the HF ones hundreds of kilometres away"></picture><span>Stations heard on FM and on HF in one table</span></a>
+    </div>
+
+    <p class="honest">Tested against the Mercury program on one computer, not yet with two radios on the air. Nobody had sent APRS over Mercury before NeoAPRS, so the frequency is a proposal until stations confirm it on the air. Be the second station.</p>
+  </div>
+</section>
+
+<section class="sec" id="radios">
+  <div class="wrap">
+    <p class="kicker">Radios</p>
+    <h2>Any TNC that speaks KISS. Any SSB radio with a sound card.</h2>
+    <div class="cols">
+      <dl class="rlist">
+        <div><dt>Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B, 1274, 1278, TAPR)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></dd></div>
+        <div><dt>Kenwood TM-D710, TH-D72</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-tm-d710-and-th-d72">serial or USB</a></dd></div>
+        <div><dt>Kenwood TH-D74, TH-D75</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></dd></div>
+        <div><dt>Mobilinkd TNC3, TNC4</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></dd></div>
+        <div><dt>BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></dd></div>
+        <div><dt>PicoAPRS V4 <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></dd></div>
+      </dl>
+      <dl class="rlist">
+        <div><dt>LoRa APRS, CA2RXU firmware <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></dd></div>
+        <div><dt>NinoTNC, TNC-Pi, TNC-X, any TNC in KISS</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></dd></div>
+        <div><dt>Kantronics KPC-3+</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></dd></div>
+        <div><dt>Any radio with a sound-card interface (Digirig, SignaLink), through Direwolf</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></dd></div>
+        <div><dt>On HF: an SSB radio with a USB sound card or an interface (DigiRig, SignaLink, the radio's own USB audio)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mercury-hf-modem">the Mercury modem inside NeoAPRS</a></dd></div>
+        <div><dt>A GPS receiver, for a moving station</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></dd></div>
+      </dl>
+    </div>
+    <p class="aside">Yaesu and Icom have no KISS TNC for a computer: use a sound-card interface and Direwolf on VHF, and the radio's own USB audio on HF. <b>Find my radio</b> in the setup and in Settings looks for the port. The <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#which-radio-or-tnc-do-you-have">radio guide</a> has the setup of each and says which are tried on the air.</p>
+  </div>
+</section>
+
+<section class="sec" id="install">
+  <div class="wrap">
+    <p class="kicker">Install</p>
+    <h2>Four steps at the first start: call, position, symbol, radio.</h2>
+    <div class="recipes">
+      <div class="recipe">
+        <h3>Windows</h3>
+        <p>Run <a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">NeoAPRS-Setup.exe</a>. A window opens with the page; NeoAPRS sits in the tray and tells you itself when there is a newer version, with Update now.</p>
+      </div>
+      <div class="recipe">
+        <h3>macOS</h3>
+        <p>Open <a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">the disk image</a> and drag NeoAPRS to Applications. The first time, right-click it and choose Open. macOS asks once whether NeoAPRS may use the microphone: that is the radio's sound card, for HF.</p>
+      </div>
+      <div class="recipe">
+        <h3>Linux</h3>
+        <div class="cmd"><code id="appimage-line"><span class="prompt">$ </span>chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage</code><button class="copy" type="button" data-target="appimage-line" data-text="chmod +x NeoAPRS-*-x86_64.AppImage &amp;&amp; ./NeoAPRS-*-x86_64.AppImage" hidden>Copy</button></div>
+        <p>The AppImage is the app; it updates itself from the update window.</p>
+      </div>
+      <div class="recipe">
+        <h3>Raspberry Pi, Debian, Ubuntu</h3>
+        <div class="cmd"><code id="deb-line"><span class="prompt">$ </span>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code><button class="copy" type="button" data-target="deb-line" data-text="sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger" hidden>Copy</button></div>
+        <p>A user service that starts with the Pi. Open the page from any device in the house with the access key the setup shows.</p>
+      </div>
+    </div>
+    <p class="aside">No radio at hand? The radio type <b>Dummy</b> makes up VHF traffic to try the page with, and the <b>Dummy HF radio</b> makes up distant stations and plays the modem through the speakers. The <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">manual</a> has the rest.</p>
+  </div>
+</section>
+
+<section class="sec" id="shots">
+  <div class="wrap">
+    <p class="kicker">Screenshots</p>
+    <h2>Light and dark, desk and phone.</h2>
     <ul class="gallery">
       <li><a class="zoom" href="shots/map.png" data-dark="shots/map-dark.png"><picture><source srcset="shots/thumbs/map-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/map.png" width="640" height="400" loading="lazy" alt=""></picture><span>Map</span></a></li>
       <li><a class="zoom" href="shots/stations.png" data-dark="shots/stations-dark.png"><picture><source srcset="shots/thumbs/stations-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations.png" width="640" height="400" loading="lazy" alt=""></picture><span>Stations table</span></a></li>
+      <li><a class="zoom" href="shots/stations-hf.png" data-dark="shots/stations-hf-dark.png"><picture><source srcset="shots/thumbs/stations-hf-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-hf.png" width="640" height="400" loading="lazy" alt=""></picture><span>Stations on FM and HF</span></a></li>
       <li><a class="zoom" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station menu: APRS queries</span></a></li>
       <li><a class="zoom" href="shots/station.png" data-dark="shots/station-dark.png"><picture><source srcset="shots/thumbs/station-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station card</span></a></li>
       <li><a class="zoom" href="shots/station-details.png" data-dark="shots/station-details-dark.png"><picture><source srcset="shots/thumbs/station-details-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/station-details.png" width="640" height="400" loading="lazy" alt=""></picture><span>Station card, Details open</span></a></li>
@@ -215,6 +313,7 @@
       <li><a class="zoom" href="shots/beacon.png" data-dark="shots/beacon-dark.png"><picture><source srcset="shots/thumbs/beacon-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon.png" width="640" height="400" loading="lazy" alt=""></picture><span>Beacon</span></a></li>
       <li><a class="zoom" href="shots/beacon-gps.png" data-dark="shots/beacon-gps-dark.png"><picture><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" alt=""></picture><span>Moving station: GPS, SmartBeaconing</span></a></li>
       <li><a class="zoom" href="shots/settings.png" data-dark="shots/settings-dark.png"><picture><source srcset="shots/thumbs/settings-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings</span></a></li>
+      <li><a class="zoom" href="shots/settings-hf.png" data-dark="shots/settings-hf-dark.png"><picture><source srcset="shots/thumbs/settings-hf-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-hf.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings: FM radio and HF radio</span></a></li>
       <li><a class="zoom" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings: TNC</span></a></li>
       <li><a class="zoom" href="shots/settings-web.png" data-dark="shots/settings-web-dark.png"><picture><source srcset="shots/thumbs/settings-web-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/settings-web.png" width="640" height="400" loading="lazy" alt=""></picture><span>Settings: network access</span></a></li>
       <li><a class="zoom" href="shots/beacon-rx.png" data-dark="shots/beacon-rx-dark.png"><picture><source srcset="shots/thumbs/beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/beacon-rx.png" width="640" height="400" loading="lazy" alt=""></picture><span>Receive only</span></a></li>
@@ -231,7 +330,7 @@
       <li class="tall"><a class="zoom" href="shots/phone-beacon-rx.png" data-dark="shots/phone-beacon-rx-dark.png"><picture><source srcset="shots/thumbs/phone-beacon-rx-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-beacon-rx.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: Receive only</span></a></li>
       <li class="tall"><a class="zoom" href="shots/phone-bulletins.png" data-dark="shots/phone-bulletins-dark.png"><picture><source srcset="shots/thumbs/phone-bulletins-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/phone-bulletins.png" width="270" height="584" loading="lazy" alt=""></picture><span>Phone: bulletins</span></a></li>
     </ul>
-    <p class="note">A made-up day on the air: apart from a few digipeaters of the sample capture, the calls are invented.</p>
+    <p class="aside">A made-up day on the air: apart from a few digipeaters of the sample capture, the calls are invented.</p>
   </div>
 </section>
 </main>
@@ -241,13 +340,15 @@
     <p class="links">
       <a href="https://github.com/oh2gba/neoaprs">Source on GitHub</a>
       <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
       <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
       <a href="https://github.com/oh2gba/neoaprs/blob/master/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/oh2gba/neoaprs/issues">Issues</a>
     </p>
-    <p>Support: <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>. In the page, Settings, Help, Download logs makes the file to attach. Feedback and ideas: <a href="https://github.com/oh2gba/neoaprs/issues">GitHub issues</a> (preferred) or <a href="mailto:neoaprs@oh2gba.eu">e-mail</a>.</p>
-    <p>Free software under the <a href="https://github.com/oh2gba/neoaprs/blob/master/LICENSE">GNU GPL v3 or later</a>. By <a href="https://oh2gba.eu">OH2GBA</a>. Thanks to OH2GAX, OH2DPN and OH7NFC for their feedback.</p>
+    <p>Support: <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>. In the page, Settings, Help, Download logs makes the file to attach. Feedback and ideas: <a href="https://github.com/oh2gba/neoaprs/issues">GitHub issues</a> or <a href="mailto:neoaprs@oh2gba.eu">e-mail</a>.</p>
+    <p>Free software under the <a href="https://github.com/oh2gba/neoaprs/blob/master/LICENSE">GNU GPL v3 or later</a>. By <a href="https://oh2gba.eu">OH2GBA</a>, Espoo. Thanks to OH2GAX, OH2DPN and OH7NFC for their feedback. The HF modem is <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica, GPL v3.</p>
     <p>Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> via <a href="https://protomaps.com">Protomaps</a>. APRS symbols by Heikki Hannikainen OH7LZB (<a href="https://github.com/hessu/aprs-symbols">hessu/aprs-symbols</a>). Device names from the APRS device identification list by Hessu, OH7LZB (<a href="https://github.com/aprsorg/aprs-deviceid">aprsorg/aprs-deviceid</a>, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a>).</p>
+    <p class="privacy">No cookies · no IP addresses stored · no advertising</p>
   </div>
 </footer>
 

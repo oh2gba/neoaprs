@@ -439,7 +439,7 @@ class Release:
 
     def step_deploy(self) -> str:
         if not self.deploy:
-            return "not asked (--deploy): the version page names the new release by itself; to upload version.php run server/deploy.sh (it needs the Bitwarden session)"
+            return "not asked (--deploy): the version page names the new release by itself; to upload version.php to both of its places run server/deploy.sh (it needs the Bitwarden session)"
         if self.dry_run:
             return "would run server/deploy.sh"
         if self.run(str(ROOT / "server" / "deploy.sh"), check=False, capture=False).returncode != 0:

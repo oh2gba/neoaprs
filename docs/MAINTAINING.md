@@ -18,8 +18,8 @@ packaged is in [`docs/development.md`](development.md).
 | the architecture tables | `docs/ARCHITECTURE.md` | generated: `scripts/doc-arch --write` |
 | the page | `neoaprs/page/` | built: `scripts/build-page` |
 | the screenshots | `docs/screenshots/`, `site/shots/` | `scripts/screenshots.py` (a made-up day from `scripts/demoscene.py`; nothing reaches a real radio) when the page changed in a way a shot shows; the version beside Check now is hidden in the shots and the update shot's newer number is made from `VERSION`, so a new version by itself makes no shot old |
-| the project page | `site/` | <https://oh2gba.github.io/neoaprs/>, deployed by `.github/workflows/pages.yml` on a push to master; the features, the shots, the download names |
-| the version page | `server/` | <https://oh2gba.eu/neoaprs/version.php>: the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; the project page's download buttons go straight to GitHub (`releases/latest/download/NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, the copies under fixed names that every release carries); `server/usage-report.sh` counts the starts and, by the id in the log, the installations |
+| the project page | `site/` | <https://neo.oh2gba.eu/>, uploaded by `server/deploy.sh --site` (the mirror <https://oh2gba.github.io/neoaprs/> is deployed by `.github/workflows/pages.yml` on a push to master); the features, the shots, the download names |
+| the version page | `server/` | <https://neo.oh2gba.eu/version.php> (and the same file at <https://oh2gba.eu/neoaprs/version.php> for the copies before 0.16): the update check of every installed copy asks it and it names the latest GitHub release by itself, so a release needs nothing done there; the project page's download buttons go straight to GitHub (`releases/latest/download/NeoAPRS-Setup.exe` and `NeoAPRS-x86_64.AppImage`, the copies under fixed names that every release carries); `server/usage-report.sh` counts the starts and, by the id in the log, the installations |
 | the announcement | the NeoAPRS post on <https://oh2gba.eu/> | everything it says must stay true; a large release gets a post of its own |
 
 The manual's files name the version only as `<version>`, so a release changes none of them. `tests/test_docs.py` holds that, the length of the manual's
@@ -92,7 +92,7 @@ Each step says in one line what it does, and every one is skipped when it is don
    when every file is on it.
 9. **verify**: the release is published, not a draft, has its 10 files (the Windows installer, the AppImage, the macOS app, the two packages, the first three again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage` and `NeoAPRS-arm64.dmg`, the source tarball and `SHA256SUMS`) and every download link answers.
 10. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
-    ten minutes (`curl 'https://oh2gba.eu/neoaprs/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
+    ten minutes (`curl 'https://neo.oh2gba.eu/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 
 `--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it does not ask GitHub). `scripts/release` has tests with a fake `gh` and a fake origin
 (`tests/test_release_script.py`): the order of the steps, the dry run, the resume after a failure at each step and the refusals.

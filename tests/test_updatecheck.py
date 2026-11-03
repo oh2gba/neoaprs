@@ -43,7 +43,7 @@ async def test_a_newer_version_is_kept_with_its_address_and_note() -> None:
     answer = await service.check()
     assert answer is not None and service.latest == answer
     assert (answer.version, answer.url, answer.message) == ("0.2.0", "https://oh2gba.github.io/neoaprs/", "Fixes the map download")
-    assert page.asked == [("https://oh2gba.eu/neoaprs/version.php", "0.1.0", "linux")]
+    assert page.asked == [("https://neo.oh2gba.eu/version.php", "0.1.0", "linux")]
 
 
 @pytest.mark.parametrize("version", ["0.1.0", "0.0.9", "0.1"])

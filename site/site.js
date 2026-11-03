@@ -1,4 +1,4 @@
-// The project page's only script: the copy buttons and the lightbox of the screenshots. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
+// The project page's only script: the copy buttons, the lightbox of the screenshots, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
 (() => {
   "use strict";
 
@@ -32,12 +32,39 @@
     });
   }
 
+  // A view: the page says it rendered, once, to its own host, after load. Only on the site itself (the mirror on GitHub Pages has no endpoint); nothing is kept in the browser and no cookie is set (what is recorded: the
+  // line in the footer).
+  if (location.hostname === "neo.oh2gba.eu" && navigator.sendBeacon) {
+    addEventListener("load", () => {
+      setTimeout(() => {
+        try {
+          const nav = performance.getEntriesByType("navigation")[0];
+          const body = { path: location.pathname, ref: document.referrer || null, w: innerWidth, load: nav && nav.duration > 0 ? Math.round(nav.duration) : null, tz: -new Date().getTimezoneOffset() };
+          const who = new URLSearchParams(location.search).get("who");
+          if (who !== null) {
+            body.who = who.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 3) || null;
+            const url = new URL(location.href);
+            url.searchParams.delete("who");
+            history.replaceState(null, "", url.pathname + url.search + url.hash);
+          }
+          navigator.sendBeacon("/api/v1/view", new Blob([JSON.stringify(body)], { type: "application/json" }));
+        } catch {
+          // a view that is not counted is no loss to the reader
+        }
+      }, 0);
+    });
+  }
+
   const box = document.getElementById("lightbox");
   if (!(box instanceof HTMLDialogElement) || typeof box.showModal !== "function") return;
   const image = box.querySelector("img");
   const caption = box.querySelector("p");
   const dark = window.matchMedia("(prefers-color-scheme: dark)");
-  const slides = [...document.querySelectorAll(".gallery a.zoom")].map((a) => ({ href: a.getAttribute("href") || "", dark: a.dataset.dark || "", text: a.textContent?.trim() || "" }));
+  const slides = [...document.querySelectorAll("a.zoom")].map((a) => ({
+    href: a.getAttribute("href") || "",
+    dark: a.dataset.dark || "",
+    text: a.querySelector("span")?.textContent?.trim() || a.querySelector("img")?.alt || "",
+  }));
   let index = 0;
 
   function show(i) {
@@ -48,15 +75,14 @@
     caption.textContent = `${slide.text} (${index + 1} of ${slides.length})`;
   }
 
-  for (const link of document.querySelectorAll("a.zoom")) {
+  document.querySelectorAll("a.zoom").forEach((link, i) => {
     link.addEventListener("click", (event) => {
-      const found = slides.findIndex((s) => s.href === link.getAttribute("href"));
-      if (found < 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return;
       event.preventDefault();
-      show(found);
+      show(i);
       box.showModal();
     });
-  }
+  });
 
   box.querySelector(".close").addEventListener("click", () => box.close());
   box.querySelector(".prev").addEventListener("click", () => show(index - 1));

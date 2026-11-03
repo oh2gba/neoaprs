@@ -183,6 +183,7 @@ class Shots:
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
         self.receive_url = ""                                      # the page of the daemon that is set to RX only (the "beacon-rx" shot)
         self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
+        self.hf_url = ""                                           # the page of the daemon with the HF radio on, the Dummy HF radio (the "settings-hf" and "stations-hf" shots)
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.started = asyncio.get_running_loop().time()
 
@@ -538,6 +539,30 @@ async def shot_packets(s: Shots, _: str) -> None:
     await s.save(page, "packets")
 
 
+HF_WORLD = (58.6, 20.5, 4.6)                                       # the view of the map that holds the Dummy HF radio's made-up stations (Turku to Warsaw) and the day's stations round Helsinki
+
+
+async def shot_settings_hf(s: Shots, _: str) -> None:
+    """Settings, the Radio group of a station with both radios: the FM radio box folded to its status line (its TNC is connected) and the HF radio box opened by its arrow, with the radio type, the sound card and the keying, and Tune and Test."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560, url=s.hf_url)
+    await made_up_web(page)
+    await page.locator("#pane-settings fieldset.subbox", has_text="HF radio").locator(".statushead").click()
+    await settle(page, 600)
+    await whole_groups(page, "fieldset:has(.radiostatus)")
+    await s.save(page, "settings-hf")
+
+
+async def shot_stations_hf(s: Shots, _: str) -> None:
+    """The Stations table of a station with both radios, the map zoomed out to hold both: the day's stations round Helsinki tagged FM, and the six made-up stations of the Dummy HF radio, hundreds of kilometres away, tagged HF. Their first beacons come within two minutes of the daemon's start."""
+    page = await s.page(DESKTOP, tab="stations", view=HF_WORLD, panel=760, url=s.hf_url)
+    rows = page.locator("#pane-stations tbody tr", has_text="HF")
+    async with asyncio.timeout(170):
+        while await rows.count() < 6:
+            await page.wait_for_timeout(1000)
+    await settle(page, 2500)
+    await s.save(page, "stations-hf")
+
+
 async def shot_phone_map(s: Shots, _: str) -> None:
     page = await s.page(PHONE, view=(60.19, 24.80, 9.4))
     await s.save(page, "phone-map")
@@ -640,9 +665,9 @@ SHOTS: dict[str, Shot] = {
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
     "station-details": shot_station_details, "settings-tnc": shot_settings_tnc, "beacon-rx": shot_beacon_rx, "phone-beacon-rx": shot_phone_beacon_rx,
-    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps,
+    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps, "settings-hf": shot_settings_hf, "stations-hf": shot_stations_hf,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps", "settings-hf", "stations-hf")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -720,6 +745,13 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
                 neoaprs_db_set(work / "moving", key, value)
             moving = Daemon(work / "moving")
             daemons.append(moving)
+        hf: Daemon | None = None
+        if {"settings-hf", "settings-hf-dark", "stations-hf", "stations-hf-dark"} & set(chosen):
+            copy_data(data, work / "hf")
+            neoaprs_db_set(work / "hf", "hf/enabled", "true")
+            neoaprs_db_set(work / "hf", "hf/profile", "dummy-hf")
+            hf = Daemon(work / "hf", env={"PATH": "/nonexistent"})                                   # (the same day on the air and the Dummy HF radio beside it; with no player on the PATH its frames are not played through this machine's speakers)
+            daemons.append(hf)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
         url = await main_daemon.start()
@@ -734,6 +766,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
         update_url = await updating.start() if updating else ""
         receive_url = await receiving.start() if receiving else ""
         moving_url = await moving.start() if moving else ""
+        hf_url = await hf.start() if hf else ""
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
             if args.chromium:
@@ -743,6 +776,7 @@ async def take(args: argparse.Namespace, chosen: list[str]) -> None:
             shots.update_url = update_url
             shots.receive_url = receive_url
             shots.moving_url = moving_url
+            shots.hf_url = hf_url
             for name in chosen:
                 await SHOTS[name](shots, fresh_url)
             await browser.close()

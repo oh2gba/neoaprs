@@ -18,7 +18,7 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
         "beacon/path": "",
         "messages/alert": "true", "messages/alert_command": DEFAULT_ALERT_COMMAND, "status/source": "", "status/rigctld": "", "status/interval_min": "30", "status/template": "QRV {freq} {mode}",
         "map/radius_km": "150", "map/maxzoom": "12", "map/station_hours": "3", "map/source": "",
-        "update/url": "https://oh2gba.eu/neoaprs/version.php", "digi/enabled": "false", "igate/enabled": "false", "igate/server": "rotate.aprs2.net:14580", "igate/password": "",
+        "update/url": "https://neo.oh2gba.eu/version.php", "digi/enabled": "false", "igate/enabled": "false", "igate/server": "rotate.aprs2.net:14580", "igate/password": "",
         "gps/source": "off", "gps/host": "127.0.0.1:2947", "gps/device": "", "gps/baud": "4800", "beacon/travel": "car"}
     assert Config() == DEFAULTS
 
@@ -305,7 +305,7 @@ def test_a_tcp_profile_is_refused_with_a_serial_port_and_accepted_with_a_tcp_add
 
 
 def test_the_update_check_asks_the_page_of_the_project_unless_the_settings_say_otherwise() -> None:
-    assert DEFAULTS.update_url == "https://oh2gba.eu/neoaprs/version.php"
+    assert DEFAULTS.update_url == "https://neo.oh2gba.eu/version.php"
     c = Config.from_data({"update/url": " http://127.0.0.1:8000/version.php "})
     assert c.update_url == "http://127.0.0.1:8000/version.php"
     assert Config.check("update/url", "https://example.org/v.php?a=1") == "https://example.org/v.php?a=1"

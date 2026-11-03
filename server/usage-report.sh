@@ -26,9 +26,15 @@ sec() { "$BWS" secret list -o json --color no | python3 -c \
 FH=$(sec ftp_server); FU=$(sec ftp_login); FP=$(sec ftp_pw)
 
 mkdir -p "$ROOT/logs"
-for f in $(curl -sS --max-time 60 -u "$FU:$FP" "sftp://$FH$REMOTE/log/" | awk '{print $NF}' | grep -E '^starts-[0-9]{4}-[0-9]{2}\.log$'); do
-  curl -sS --max-time 120 -u "$FU:$FP" -o "$ROOT/logs/$f" "sftp://$FH$REMOTE/log/$f"
+# The page writes its log in both of its places (server/deploy.sh): the old folder, which the copies before 0.16 ask, and the project's own name, which the later ones ask. The lines of a month from both are one file here.
+NEO="${PROJECT_PAGE_REMOTE:-/public_html/neo}"
+for place in "$REMOTE" "$NEO"; do
+  for f in $(curl -sS --max-time 60 -u "$FU:$FP" "sftp://$FH$place/log/" | awk '{print $NF}' | grep -E '^starts-[0-9]{4}-[0-9]{2}\.log$'); do
+    curl -sS --max-time 120 -u "$FU:$FP" -o "$ROOT/logs/$f.part" "sftp://$FH$place/log/$f"
+    cat "$ROOT/logs/$f.part" >> "$ROOT/logs/$f.new" && rm -f "$ROOT/logs/$f.part"
+  done
 done
+for f in "$ROOT"/logs/*.new; do [ -f "$f" ] && sort -u "$f" > "${f%.new}" && rm -f "$f"; done
 
 cat "$ROOT"/logs/starts-*.log 2>/dev/null | awk -F'\t' '
   { day=substr($1,1,10); days[day]++; ver[$2]++; os[$3]++; n++ }

@@ -18,7 +18,7 @@ defineProps<{
 const emit = defineEmits<{ messages: []; setup: []; open: [target: PillTarget, focus: string] }>();
 
 /** The project's page. */
-const PROJECT_URL = "https://oh2gba.github.io/neoaprs/";
+const PROJECT_URL = "https://neo.oh2gba.eu/";
 </script>
 
 <template>

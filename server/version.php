@@ -1,5 +1,6 @@
 <?php
-// Version check for NeoAPRS. The daemon calls this once a day with
+// Version check for NeoAPRS, served at neo.oh2gba.eu/version.php (the copies from 0.16 on ask there) and at
+// oh2gba.eu/neoaprs/version.php (the copies before do; the same file in both places). The daemon calls this once a day with
 //   version.php?v=<its version>&os=<platform>
 // and gets back the latest released version, the address of the project page
 // and an optional short message, as JSON. The latest version is read from the
@@ -19,7 +20,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-const PROJECT_URL  = 'https://oh2gba.github.io/neoaprs/';
+const PROJECT_URL  = 'https://neo.oh2gba.eu/';
 
 require __DIR__ . '/latest.php';
 

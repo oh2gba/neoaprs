@@ -12,7 +12,7 @@ describe("AppHeader", () => {
   it("has the title as a link to the project page that opens in a new tab and cannot reach back to the page", () => {
     const link = header().find("h1 a");
     expect(link.text()).toBe("NeoAPRS");
-    expect(link.attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
+    expect(link.attributes("href")).toBe("https://neo.oh2gba.eu/");
     expect(link.attributes("target")).toBe("_blank");
     expect(link.attributes("rel")).toBe("noopener");
   });

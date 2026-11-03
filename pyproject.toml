@@ -35,7 +35,7 @@ ble = [
 ]
 
 [project.urls]
-Homepage = "https://oh2gba.github.io/neoaprs/"
+Homepage = "https://neo.oh2gba.eu/"
 Repository = "https://github.com/oh2gba/neoaprs"
 Issues = "https://github.com/oh2gba/neoaprs/issues"
 Releases = "https://github.com/oh2gba/neoaprs/releases"

@@ -34,7 +34,7 @@ describe("App", () => {
     expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
     expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2GBA");
-    expect(wrapper.find(".appheader a").attributes("href")).toBe("https://oh2gba.github.io/neoaprs/");
+    expect(wrapper.find(".appheader a").attributes("href")).toBe("https://neo.oh2gba.eu/");
     expect(wrapper.find(".panelfoot").exists()).toBe(false);
     expect(wrapper.find("footer").exists()).toBe(false);
   });

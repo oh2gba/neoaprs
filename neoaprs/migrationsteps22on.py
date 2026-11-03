@@ -103,3 +103,12 @@ def _v25(db: sqlite3.Connection) -> None:
     db.execute("UPDATE message_attempt SET radio = 'fm'")
     db.execute("ALTER TABLE own_object ADD COLUMN radio TEXT NOT NULL DEFAULT 'fm' CONSTRAINT own_object_radio CHECK (radio IN ('fm', 'hf', 'both'))")
 
+
+
+def _v26(db: sqlite3.Connection) -> None:
+    """The version page moved to the project's own name, neo.oh2gba.eu/version.php (neoaprs/versions.py, UPDATE_URL): a row of `update/url` that still holds the old default, oh2gba.eu/neoaprs/version.php, is
+    deleted, so that the new default is in force; an address somebody set by hand (`neoaprs db set`) is kept as it is. The old address keeps answering for the copies before 0.16."""
+    row = db.execute("SELECT value FROM settings WHERE key = 'update/url'").fetchone()
+    if row is not None and " ".join(str(row[0]).split()) == "https://oh2gba.eu/neoaprs/version.php":
+        db.execute("DELETE FROM settings WHERE key = 'update/url'")
+        log.info("update/url reset to the default: https://oh2gba.eu/neoaprs/version.php → https://neo.oh2gba.eu/version.php")

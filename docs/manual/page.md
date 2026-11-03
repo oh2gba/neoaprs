@@ -240,7 +240,7 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 ## The header
 
-The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://oh2gba.github.io/neoaprs/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
+The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://neo.oh2gba.eu/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
 While no call is set an amber **no call set** button is beside the title, which opens the setup guide.
 

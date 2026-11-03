@@ -5,7 +5,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"          # the default of the setting update/url
+UPDATE_URL = "https://neo.oh2gba.eu/version.php"              # the default of the setting update/url: the version page on the project's own name (since 0.16)
+OLD_UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"      # where the copies before 0.16 ask: the same page, kept there for them (migration 26 moves a stored default over)
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
 _PART_SEPARATORS = re.compile(r"[.\-+]")
