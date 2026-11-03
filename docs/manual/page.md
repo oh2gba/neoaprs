@@ -108,7 +108,7 @@ A beacon, message or answer you sent is in the log as a packet with direction `o
 
 ### Settings
 
-The tab has no Save button ([start.md](start.md#how-settings-apply)). From the top it has:
+The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group folds by the arrow in front of its name, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show, and when the page leads you to a setting in it (a mark in the header). From the top it has:
 
 - **Language**, and **Run the setup guide again** ([start.md](start.md#the-setup-guide));
 - **Radio**: the **RX only** tickbox first (ticked sends nothing, [beacon.md](beacon.md#rx-only)), and under it two boxes, **FM radio** and **HF radio** ([radio.md](radio.md#the-radio-status)). Each begins with its **Enable** tickbox, with an (i) and a picture of the two radios; FM is ticked and HF unticked until you change them. A station has at least one radio, so the Enable of its only radio is greyed, with the hover text "The station's only radio: tick the other first". An unticked box is its Enable row alone;

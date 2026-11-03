@@ -313,7 +313,8 @@ fieldset.composebox > legend {
 .statushead::-webkit-details-marker {
   display: none;
 }
-.statushead::before {
+.statushead::before,
+.groupfold::before {
   content: "";
   flex: none;
   width: 0;
@@ -322,9 +323,32 @@ fieldset.composebox > legend {
   border-style: solid;
   border-color: transparent transparent transparent var(--muted);
 }
-.statusfold[open] > .statushead::before {
+.statusfold[open] > .statushead::before,
+.groupfold[aria-expanded="true"]::before {
   border-width: 8px 5px 0;
   border-color: var(--muted) transparent transparent;
+}
+/* the name of a group of the Settings tab (SettingsGroup) is the button of its fold, with the arrow of the status rows in front; the arrow of an open group is two pixels wider than a closed one's, which the margin gives back, so that the name stays where it is */
+.groupfold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.groupfold::before {
+  margin-right: 2px;
+}
+.groupfold[aria-expanded="true"]::before {
+  margin-right: 0;
+}
+.settings fieldset.folded {
+  padding-bottom: 0;
 }
 .statushead .statetext {
   flex: none;

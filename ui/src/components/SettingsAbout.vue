@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's), who made it and when, the licence and the source as plain links, the HF modem and a thanks to everyone. Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
 import { t } from "@/i18n";
+import SettingsGroup from "@/components/SettingsGroup.vue";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { ABOUT_AUTHOR, ABOUT_ISSUES_URL, ABOUT_LICENSE_URL, ABOUT_MODEM, ABOUT_MODEM_URL, ABOUT_SOURCE_URL, ABOUT_YEAR } from "@/lib/about";
@@ -10,8 +11,7 @@ const { version } = useDaemonContext();
 </script>
 
 <template>
-  <fieldset class="about">
-    <legend>{{ t("settings.about.group") }}</legend>
+  <SettingsGroup id="about" class="about" :title="t('settings.about.group')">
     <p>
       <RichMessage id="settings.about.intro" :params="{ version: version, year: ABOUT_YEAR }"
         ><template #call>{{ ABOUT_AUTHOR }}</template></RichMessage
@@ -44,5 +44,5 @@ const { version } = useDaemonContext();
         ></RichMessage
       >
     </p>
-  </fieldset>
+  </SettingsGroup>
 </template>

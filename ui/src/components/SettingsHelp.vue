@@ -3,6 +3,7 @@
 // and saves it (composables/useSupportLogs.ts); the (i) beside it says what the file holds. After a download the group says the file's name, or why there is no file. The page sends nothing by itself: the e-mail is the person's own.
 import { computed } from "vue";
 import { t } from "@/i18n";
+import SettingsGroup from "@/components/SettingsGroup.vue";
 import ActionRow from "@/components/ActionRow.vue";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -15,8 +16,7 @@ const label = computed(() => (logs.running.value ? t("settings.help.collecting")
 </script>
 
 <template>
-  <fieldset class="help-logs">
-    <legend>{{ t("settings.help.group") }}</legend>
+  <SettingsGroup id="help" class="help-logs" :title="t('settings.help.group')">
     <p>
       <RichMessage id="settings.help.text"
         ><template #address
@@ -36,5 +36,5 @@ const label = computed(() => (logs.running.value ? t("settings.help.collecting")
         </div>
       </template>
     </ActionRow>
-  </fieldset>
+  </SettingsGroup>
 </template>

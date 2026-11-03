@@ -68,22 +68,22 @@ describe("the Help group", () => {
     let finish: (response: Response) => void = () => undefined;
     const fetcher = daemonSays(() => new Promise<Response>((resolve) => (finish = resolve)));
     const wrapper = make();
-    await wrapper.get("button").trigger("click");
-    expect(wrapper.get("button").text()).toBe("Collecting…");
-    expect(wrapper.get("button").attributes("disabled")).toBeDefined();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
+    expect(wrapper.get("#set-help-logs").text()).toBe("Collecting…");
+    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeDefined();
+    await wrapper.get("#set-help-logs").trigger("click");
     expect(fetcher).toHaveBeenCalledTimes(1);
     finish(new Response("PK", { status: 200, headers: ZIP }));
     await flushPromises();
-    expect(wrapper.get("button").text()).toBe("Download logs");
-    expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
+    expect(wrapper.get("#set-help-logs").text()).toBe("Download logs");
+    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
   });
 
   it("posts the page's info as {page: ...} beside the page, with the ring of errors in it", async () => {
     pageErrors.record(new Error("seen before the press"), "window");
     const fetcher = daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
     const wrapper = make({ connection: "open" });
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("http://127.0.0.1:7303/support/bundle");
@@ -118,7 +118,7 @@ describe("the Help group", () => {
   it("saves the zip under the daemon's name, says so quietly and adds the reminder to attach it to the e-mail", async () => {
     daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
     const wrapper = make();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(downloads).toEqual([{ href: "blob:support", download: "neoaprs-support-OH2GBA-20261021-123456Z.zip" }]);
     expect(wrapper.get(".help-result .muted").text()).toBe("Saved neoaprs-support-OH2GBA-20261021-123456Z.zip.");
@@ -149,7 +149,7 @@ describe("the Help group", () => {
   it("makes a name from the call and the time when the daemon gave none", async () => {
     daemonSays(() => Promise.resolve(new Response("PK", { status: 200 })));
     const wrapper = make();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(downloads[0]?.download).toMatch(/^neoaprs-support-OH2GBA-\d{8}-\d{6}Z\.zip$/);
   });
@@ -162,22 +162,22 @@ describe("the Help group", () => {
   ])("says in plain words what a %i means, and no file is named", async (status, text) => {
     daemonSays(() => Promise.resolve(new Response(null, { status })));
     const wrapper = make();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(wrapper.get(".help-result .field-error").text()).toBe(text);
     expect(wrapper.find(".help-result .muted").exists()).toBe(false);
     expect(downloads).toEqual([]);
-    expect(wrapper.get("button").attributes("disabled")).toBeUndefined();
+    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
   });
 
   it("says the daemon cannot be reached when there is no answer, and takes the words back at the next try", async () => {
     daemonSays(() => Promise.reject(new TypeError("network")));
     const wrapper = make();
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(wrapper.get(".help-result").text()).toBe("The daemon could not be reached.");
     daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
     expect(wrapper.find(".field-error").exists()).toBe(false);
     expect(wrapper.get(".help-result .muted").text()).toContain("Saved");

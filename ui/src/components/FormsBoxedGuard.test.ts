@@ -28,6 +28,7 @@ describe("every form of fields is a group box", () => {
     const bar = readFileSync(resolve(COMPONENTS, "ComposeBar.vue"), "utf8");
     expect(bar).toMatch(/inline \? 'div' : 'fieldset'/);
     expect(bar).toMatch(/<legend v-if="!inline">/);
-    expect(readFileSync(resolve(COMPONENTS, "SettingsForm.vue"), "utf8")).toContain("<fieldset");
+    expect(readFileSync(resolve(COMPONENTS, "SettingsForm.vue"), "utf8")).toContain("<SettingsGroup");
+    expect(readFileSync(resolve(COMPONENTS, "SettingsGroup.vue"), "utf8")).toMatch(/<fieldset[\s\S]*<legend>/);
   });
 });

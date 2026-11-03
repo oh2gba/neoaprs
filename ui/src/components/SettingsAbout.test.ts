@@ -19,7 +19,7 @@ describe("the About group", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
     expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radio, on VHF and over HF. Made by OH2GBA, 2026.");
-    expect(wrapper.findAll("button, input, select")).toHaveLength(0);
+    expect(wrapper.findAll("button:not(.groupfold), input, select")).toHaveLength(0);
   });
 
   it("shows the version the daemon reports", () => {
