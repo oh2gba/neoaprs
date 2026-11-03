@@ -1,0 +1,192 @@
+A lead-in tone for a radio that keys itself on the audio (VOX). Mercury 1.9.21 keys and plays a frame with ptt_on(), a sleep of `tx_delay_ms`, and the frame's audio, which begins with the DATAC3
+preamble (110 ms: five OFDM symbols of 22 ms) that the receiver acquires on. A radio on VOX starts to transmit only after it has heard audio for its attack time, so the first milliseconds of the preamble
+are never on the air, and a frame whose preamble is cut that far is not received (docs/mercury.md, "What scripts/mercury-measure vox measured"). This adds the `[audio]` key `tx_leadin_ms` (0 to 1000,
+default 0: Mercury's behaviour unchanged): when above 0, send_modulated_data plays that many milliseconds of a steady 1 kHz tone, the pitch of the TUNE command, at the RMS level of the frame, with a raised-cosine
+ramp of 5 ms at each end, just ahead of the preamble and inside the keyed window. The ARQ keydown and the MFSK acknowledgement, which NeoAPRS never uses, are not changed. A Mercury without this patch
+(Rhizomatica's Windows build) reads the file with iniparser and asks for the keys it knows, so the line is ignored there (common/cfg_utils.c, cfg_read).
+scripts/build-mercury applies this file after loopback.patch (`patch -p1`) and checks that the key is in the source; neoaprs/mercury.py writes the key into the ini only for VOX keying. Made from the source of
+the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves these lines fails the build loudly, which is right.
+
+--- a/common/cfg_utils.h
++++ b/common/cfg_utils.h
+@@ -65,6 +65,7 @@
+ #define CFG_KEY_DISCONNECT_DRAIN_TIMEOUT_S "arq:disconnect_drain_timeout_s"
+ #define CFG_KEY_TX_GAIN_DB          "audio:tx_gain_db"
+ #define CFG_KEY_TX_DELAY_MS         "audio:tx_delay_ms"
++#define CFG_KEY_TX_LEADIN_MS        "audio:tx_leadin_ms"
+ #define CFG_KEY_TNC_KEEPALIVE_S     "tnc:keepalive_s"
+ #define CFG_KEY_TNC_BUFFER_REPORT_MS "tnc:buffer_report_ms"
+ #define CFG_KEY_ARQ_RETRY_STAGGER_MS          "arq:retry_stagger_ms"
+@@ -126,6 +127,13 @@
+                                     * slow external PTT more time to key up
+                                     * before the signal starts. Clamped
+                                     * 0..2000. */
++    int      tx_leadin_ms;          /* A steady 1 kHz tone of this many ms
++                                    * played ahead of every frame's
++                                    * preamble, for a radio that keys
++                                    * itself on the audio (VOX) and would
++                                    * lose the start of the preamble to
++                                    * its attack time. Default 0 (none).
++                                    * Range 0..1000. */
+     int      tnc_keepalive_s;       /* IAMALIVE interval on the TNC control
+                                     * port. Default 60, clamped 5..600.   */
+     int      tnc_buffer_report_ms;  /* BUFFER report interval on the TNC
+--- a/common/cfg_utils.c
++++ b/common/cfg_utils.c
+@@ -65,6 +65,7 @@
+     cfg->tnc_buffer_report_ms = 1000;
+     cfg->tx_gain_db            = 0.0f;
+     cfg->tx_delay_ms           = 10;
++    cfg->tx_leadin_ms          = 0;
+     cfg->retry_stagger_ms            = ARQ_RETRY_STAGGER_MS_DEFAULT;
+     cfg->removed_keys                = 0;
+     cfg->mfsk_tx_only                = false;
+@@ -438,6 +439,9 @@
+     i = iniparser_getint(ini, CFG_KEY_TX_DELAY_MS, cfg->tx_delay_ms);
+     if (i >= 0 && i <= 2000) cfg->tx_delay_ms = i;
+ 
++    i = iniparser_getint(ini, CFG_KEY_TX_LEADIN_MS, cfg->tx_leadin_ms);
++    if (i >= 0 && i <= 1000) cfg->tx_leadin_ms = i;
++
+     cfg->store_enabled = (bool) iniparser_getboolean(ini, CFG_KEY_STORE_ENABLED,
+                                                      cfg->store_enabled ? 1 : 0);
+ 
+@@ -572,6 +576,7 @@
+     fprintf(f, "\n[audio]\n");
+     fprintf(f, "tx_gain_db = %.2f\n", cfg->tx_gain_db);
+     fprintf(f, "tx_delay_ms = %d\n", cfg->tx_delay_ms);
++    fprintf(f, "tx_leadin_ms = %d\n", cfg->tx_leadin_ms);
+ 
+     fprintf(f, "\n[tnc]\n");
+     fprintf(f, "keepalive_s = %d\n", cfg->tnc_keepalive_s);
+--- a/common/mercury_engine.c
++++ b/common/mercury_engine.c
+@@ -189,6 +189,7 @@
+     arq_set_tx_mfsk_only(cfg->mfsk_tx_only);
+     modem_set_tx_gain(powf(10.0f, cfg->tx_gain_db / 20.0f));
+     modem_set_tx_delay_ms(cfg->tx_delay_ms);
++    modem_set_tx_leadin_ms(cfg->tx_leadin_ms);
+     modem_set_busy_cfg((float)cfg->busy_threshold_db,
+                        (float)cfg->busy_hysteresis_db,
+                        (uint32_t)cfg->busy_on_debounce_ms,
+--- a/mercury.ini.example
++++ b/mercury.ini.example
+@@ -146,6 +146,16 @@
+ ; Range: 0 .. 2000 (values outside are clamped).
+ tx_delay_ms = 10
+ 
++; Lead-in tone in milliseconds (default: 0, none): a steady 1 kHz tone at the
++; level of the frame, with a ramp of 5 ms at each end, played just ahead of
++; the preamble of every frame. For a radio that keys itself on the audio
++; (VOX): it starts transmitting only after it has heard audio for its attack
++; time, and that time is otherwise taken out of the start of the preamble,
++; which the receiver acquires on. Set it to the attack time plus a margin.
++; Applies to frames sent by the broadcast and ARQ data paths.
++; Range: 0 .. 1000 (values outside are ignored).
++tx_leadin_ms = 0
++
+ [arq]
+ 
+ ; Older files may still set no_progress_timeout_s, data_retry_slots,
+--- a/modem/modem.h
++++ b/modem/modem.h
+@@ -93,6 +93,15 @@
+ void modem_set_tx_delay_ms(int delay_ms);
+ int  modem_get_tx_delay_ms(void);
+ 
++/* Lead-in (ms, clamped 0..1000): a steady 1 kHz tone, at the RMS level of the
++ * frame, played just ahead of the preamble of a frame sent by
++ * send_modulated_data, for a radio that keys itself on the audio (VOX): it
++ * transmits only once it has heard audio for its attack time, and without the
++ * tone that time is taken out of the preamble the receiver acquires on.
++ * Default 0: the frame as before. */
++void modem_set_tx_leadin_ms(int leadin_ms);
++int  modem_get_tx_leadin_ms(void);
++
+ // Most recent TX burst peak amplitude in dBFS (0 dBFS = INT32 full-scale,
+ // i.e. the clip ceiling).  Measured post-gain but pre-saturation, once per
+ // burst, so a return value above 0 dBFS means the burst clipped by that many
+--- a/modem/modem.c
++++ b/modem/modem.c
+@@ -186,6 +186,21 @@
+     return atomic_load(&g_tx_delay_ms);
+ }
+ 
++/* --- TX lead-in tone (ms) played ahead of the preamble; 0 = none. */
++static _Atomic int g_tx_leadin_ms = 0;
++
++void modem_set_tx_leadin_ms(int leadin_ms)
++{
++    if (leadin_ms < 0)    leadin_ms = 0;
++    if (leadin_ms > 1000) leadin_ms = 1000;
++    atomic_store(&g_tx_leadin_ms, leadin_ms);
++}
++
++int modem_get_tx_leadin_ms(void)
++{
++    return atomic_load(&g_tx_leadin_ms);
++}
++
+ float modem_get_tx_peak_dbfs(void)
+ {
+     return atomic_load(&g_tx_peak_dbfs);
+@@ -1396,6 +1411,31 @@
+     arq_modem_ptt_off();
+ }
+ 
++#define TX_LEADIN_TONE_HZ  1000.0   /* the tuning tone's pitch: inside every SSB filter */
++#define TX_LEADIN_RAMP_MS  5        /* raised-cosine ramp at each end: no click */
++
++/* Fill `n` samples with the lead-in tone: a sine at the RMS level of the
++ * `burst_n` samples of burst audio that follow it, so the radio is driven as
++ * hard for the tone as for the frame. */
++static void fill_leadin(int32_t *dst, int n, const int32_t *burst, size_t burst_n)
++{
++    static const double PI = 3.14159265358979323846;
++    double sum = 0.0;
++    for (size_t i = 0; i < burst_n; i++)
++        sum += (double)burst[i] * (double)burst[i];
++    double amp = burst_n ? sqrt(2.0 * sum / (double)burst_n) : 0.0;
++    if (amp > 2147483647.0) amp = 2147483647.0;
++    int ramp = FREEDV_FS_8000 * TX_LEADIN_RAMP_MS / 1000;
++    if (ramp > n / 2) ramp = n / 2;
++    for (int i = 0; i < n; i++)
++    {
++        double env = 1.0;
++        if (i < ramp)          env = 0.5 - 0.5 * cos(PI * i / ramp);
++        else if (i >= n - ramp) env = 0.5 - 0.5 * cos(PI * (n - 1 - i) / ramp);
++        dst[i] = (int32_t)(amp * env * sin(2.0 * PI * TX_LEADIN_TONE_HZ * i / FREEDV_FS_8000));
++    }
++}
++
+ /* Samples of silence ahead of the first preamble: gives the radio RX->TX relay
+  * and the peer's audio path time to settle before the preamble arrives. */
+ #define TX_HEAD_SILENCE_MS   100
+@@ -1432,9 +1472,10 @@
+             samples_silence = fsk_settle_samples;
+     }
+     int samples_head = FREEDV_FS_8000 * TX_HEAD_SILENCE_MS / 1000;
++    int samples_leadin = FREEDV_FS_8000 * modem_get_tx_leadin_ms() / 1000;
+ 
+-    size_t max_samples = (size_t)samples_head + burst_audio_max_samples(&codec, frames_per_burst) +
+-                         (size_t)samples_silence;
++    size_t max_samples = (size_t)samples_head + (size_t)samples_leadin +
++                         burst_audio_max_samples(&codec, frames_per_burst) + (size_t)samples_silence;
+     int32_t *tx_buffer = (int32_t *)malloc(max_samples * sizeof(int32_t));
+     int16_t *mod_out_short = (int16_t *)malloc(burst_scratch_samples(&codec) * sizeof(int16_t));
+     if (!tx_buffer || !mod_out_short)
+@@ -1463,8 +1504,14 @@
+ 
+     for (int i = 0; i < samples_head; i++)
+         tx_buffer[total_samples++] = 0;
++    total_samples += (size_t)samples_leadin;    /* filled once the burst's level is known */
+     append_burst_audio(&codec, bytes_in, frames_per_burst, 0, tx_buffer, &total_samples,
+                        mod_out_short, tx_gain, &peak_fs);
++    if (samples_leadin > 0)
++    {
++        size_t burst_at = (size_t)samples_head + (size_t)samples_leadin;
++        fill_leadin(tx_buffer + samples_head, samples_leadin, tx_buffer + burst_at, total_samples - burst_at);
++    }
+     for (int i = 0; i < samples_silence; i++)
+         tx_buffer[total_samples++] = 0;
+     pthread_mutex_unlock(ilock);

@@ -45,6 +45,10 @@ BUSY_THRESHOLD_DB = 14
 # the noise), and traffic must not be stranded by it. A frame of another station is FRAME_SEC on the air and the detector hangs on 1.5 s more; frames of two stations after one another may run together for a few frames, so the cap is five frames'
 # worth and a margin: 20 s (it was a minute, and a normal morning on 40 m held the radio that long: John, 3 November 2026). In the simulation a step of 30 dB in the noise held the radio 56 s before the cap was lowered.
 BUSY_HOLD_MAX_SEC = 20.0
+# A radio that keys itself on the audio (the keying `vox`) starts to transmit only after it has heard audio for its attack time, and the first milliseconds of a frame, the preamble the far Mercury acquires on (110 ms), are
+# lost to it. The Mercury NeoAPRS builds plays this many milliseconds of a steady tone ahead of the preamble when its ini says `tx_leadin_ms` (packaging/mercury/leadin.patch), and the daemon says it for VOX and for no other
+# keying. How long a frame survives the loss and what the tone costs: the table "What scripts/mercury-measure vox measured" of docs/mercury.md. Rhizomatica's Windows build does not know the key and plays no tone.
+LEADIN_MS = 150
 
 # Where the stations meet: dial frequencies, upper sideband, inside the IARU Region 1 digimode segments and in a gap between the known neighbours (the frequencies are proposals until confirmed on the air).
 # Mercury is centred on 1500 Hz of audio, so the signal sits 1.2 to 1.8 kHz above the dial. 10.1476 MHz, the 300 baud HF APRS dial, is not one of these.
@@ -156,11 +160,14 @@ def command(program: Sequence[str], config_file: str, sound_card: str, keying: K
 
 def ini_text(keying: Keying) -> str:
     """Mercury's configuration file as the daemon writes it: the channel-busy detector on (its `BUSY ON` / `BUSY OFF` on the control port is the one carrier sense this plane has), the serial line that keys the radio
-    (`line` has no command-line flag), no message store (Mercury keeps a chat history by default; NeoAPRS has its own), and a quick heartbeat on the control port."""
+    (`line` has no command-line flag), the lead-in tone ahead of the preamble for a radio that keys on the audio (`LEADIN_MS`, VOX only), no message store (Mercury keeps a chat history by default; NeoAPRS has its own),
+    and a quick heartbeat on the control port."""
     line = keying.kind if keying.kind in PTT_WITH_DEVICE else "rts"
+    leadin = f"[audio]\ntx_leadin_ms = {LEADIN_MS}\n" if keying.kind == "vox" else ""
     return ("; written by NeoAPRS at every start; the command line carries the rest\n"
             "[ptt]\n"
             f"line = {line}\n"
+            f"{leadin}"
             "[channel]\n"
             "busy_detect = true\n"
             f"busy_threshold_db = {BUSY_THRESHOLD_DB}\n"

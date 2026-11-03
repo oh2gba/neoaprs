@@ -210,6 +210,36 @@ class Fading:
         return array("h", [32767 if v > 32767 else -32768 if v < -32768 else round(v) for v in out])
 
 
+class Attack:
+    """A VOX's attack on one link, a `Shaper`: the first `ms` of every transmission, counted from its first sample that is not zero (a VOX hears audio, and Mercury's 100 ms of silence ahead of the preamble is none), are
+    muted, as they are when the radio has not started to transmit yet; the rest passes unchanged. A transmission is a run of consecutive blocks of the channel, which `blocks` (the channel's own count, `lambda: channel.blocks`)
+    says; give it to the link of one direction (`symmetric=False`) and change `ms` at any time."""
+
+    def __init__(self, blocks: Callable[[], int], ms: float = 0.0, rate: int = RATE) -> None:
+        self.blocks, self.ms, self.rate = blocks, ms, rate
+        self._last = -2
+        self._left = 0
+        self._started = False
+
+    def __call__(self, samples: array[int]) -> array[int]:
+        now = self.blocks()
+        if now != self._last + 1:                                           # (a new transmission: the block before this one was not keyed)
+            self._left, self._started = round(self.ms * self.rate / 1000), False
+        self._last = now
+        if not self._left:
+            return samples
+        out = array("h", samples)
+        first = 0
+        if not self._started:
+            while first < len(out) and not out[first]:
+                first += 1
+            self._started = first < len(out)
+        count = min(self._left, len(out) - first)
+        out[first:first + count] = array("h", bytes(2 * count))
+        self._left -= count
+        return out
+
+
 @dataclass(eq=False)
 class Station:
     """One Mercury's two pipes and what the channel counted of it."""

@@ -15,7 +15,7 @@ The version, the commit, the URL and the SHA-256 of the source are the pins at t
 checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
 a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
 ALSA device), the TCP listeners bound to the loopback by packaging/mercury/loopback.patch on either system (Mercury binds its control, data and KISS ports on every interface with no password, which would let any host
-on the LAN key the radio; the patch says more), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
+on the LAN key the radio; the patch says more), a lead-in tone for a radio on VOX added by packaging/mercury/leadin.patch (the ini key `tx_leadin_ms`, off unless the ini sets it), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
 (`-V`, `-z`, and on Linux once on its fifo backend to see that its three ports listen on 127.0.0.1 and nowhere else) and prints what it says.
 Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
 the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool, patch) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
@@ -57,6 +57,8 @@ VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256 = _PINS["VERSION"], _PINS["SOU
 
 STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
 LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
+LEADIN_PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
+LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"           # the key the lead-in patch adds, which the source must hold after it
 LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the one file the patch changes; no INADDR_ANY may be left in it
 LOOPBACK = "0100007F"                                        # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
 LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its three ports
@@ -159,14 +161,21 @@ def run(command: list[str]) -> str:
     return done.stdout
 
 
-def apply_patches(tree: Path) -> None:
-    """The loopback patch on the TCP listeners, on either system (it must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN), and on Linux the stub over the
-    PulseAudio backend."""
-    if not LOOPBACK_PATCH.is_file():
-        raise BuildError(f"{LOOPBACK_PATCH} is missing")
-    done = subprocess.run(["patch", "-p1", "--forward", "--batch", "-i", str(LOOPBACK_PATCH)], cwd=tree, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+def apply_patch(tree: Path, patch: Path) -> None:
+    if not patch.is_file():
+        raise BuildError(f"{patch} is missing")
+    done = subprocess.run(["patch", "-p1", "--forward", "--batch", "-i", str(patch)], cwd=tree, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if done.returncode != 0:
-        raise BuildError(f"{LOOPBACK_PATCH.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
+        raise BuildError(f"{patch.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
+
+
+def apply_patches(tree: Path) -> None:
+    """The loopback patch on the TCP listeners, on either system (it must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN), the lead-in patch for a radio on
+    VOX (the source must hold its ini key after it), and on Linux the stub over the PulseAudio backend."""
+    apply_patch(tree, LOOPBACK_PATCH)
+    apply_patch(tree, LEADIN_PATCH)
+    if LEADIN_KEY not in (tree / LEADIN_FILE).read_text(encoding="utf-8"):
+        raise BuildError(f"{LEADIN_FILE} has no {LEADIN_KEY} after {LEADIN_PATCH.name}")
     listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
     if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
         raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
@@ -284,6 +293,7 @@ def stage(tree: Path, out: Path, started: float) -> Path:
         f"Built: make {flags}\n"
         f"{sound}"
         f"Changes to the source: {LISTENERS_FILE} binds its TCP listeners to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
+        f"Changes to the source: the ini key {LEADIN_KEY} plays a tone of that many milliseconds ahead of every frame's preamble, for a radio on VOX; 0 by default, no change (packaging/mercury/leadin.patch of NeoAPRS).\n"
         f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
         f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
     print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")

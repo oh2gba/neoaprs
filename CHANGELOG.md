@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Changed:** a radio keyed by VOX no longer loses the start of a frame: the HF modem plays a short tone, 150 ms, just before each frame, so that the radio is transmitting by the time the modem's own signal begins (the Windows modem, which is Rhizomatica's own build, plays none). Other keyings are unchanged.
+
 ## 0.16.0
 
 APRS over HF with the Mercury modem beside the FM radio, a macOS app, and encrypted messages for exceptional circumstances.

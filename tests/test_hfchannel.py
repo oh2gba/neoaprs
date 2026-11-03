@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.hfchannel import HILBERT_TAPS, PRESETS, REFERENCE_RMS, RATE, Channel, Fading, _Tap, hilbert_taps, pcm_to_s32le, s32le_to_pcm
+from tests.support.hfchannel import HILBERT_TAPS, PRESETS, REFERENCE_RMS, RATE, Attack, Channel, Fading, _Tap, hilbert_taps, pcm_to_s32le, s32le_to_pcm
 
 BLOCK = 160
 INF = math.inf
@@ -228,6 +228,20 @@ def test_a_shaper_is_applied_to_its_link_before_the_gain(make) -> None:
     rig.run(2, plan_of((0, "A", sent)))
     assert rig.samples("C") == sent
     assert rig.samples("B") == array("h", [round(-x / 2) for x in sent])
+
+
+def test_an_attack_mutes_the_first_milliseconds_of_every_transmission_from_its_first_sample_that_is_not_zero(make) -> None:
+    rig = make("AB", snr_db=INF)
+    attack = Attack(lambda: rig.channel.blocks, ms=30.0)
+    rig.channel.set_link("A", "B", shaper=attack, symmetric=False)
+    lead = 40                                                           # (silence ahead of the audio inside the first block: Mercury's 100 ms of it is no audio to a VOX)
+    sent = array("h", bytes(2 * lead)) + array("h", [1000] * (3 * BLOCK - lead))
+    rig.run(12, plan_of((1, "A", sent), (7, "A", sent)))                # (two transmissions with silent blocks between: the attack starts over)
+    muted = 30 * RATE // 1000
+    expected = array("h", sent)
+    expected[lead:lead + muted] = array("h", bytes(2 * muted))
+    assert rig.samples("B", 1, 4) == expected and rig.samples("B", 7, 10) == expected
+    assert rig.samples("B", 4, 7) == array("h", bytes(2 * 3 * BLOCK)), "nothing but the transmissions"
 
 
 # ---- fading: the Watterson channel ----

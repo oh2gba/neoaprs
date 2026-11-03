@@ -28,6 +28,7 @@ the suite, with no radio.
 | no SmartBeaconing, no path, no digipeater over HF (`radiorules.HF`) | a moving station sends its timed beacon with its fix; every frame goes direct | HF APRS practice (digipeating floods a channel every station hears; a path costs bytes of a frame that carries 123), and the frame's 3.8 s | chosen, with the practice as the ground |
 | the sound card: the one USB sound card that records and plays, else the system's default | the daemon's proposal, which the page stores as the setting when it is empty | the names a radio's sound card gives itself (an IC-7300's "USB Audio CODEC", a DigiRig's or a dongle's C-Media "USB PnP Sound Device") against the computer's own ("HDA Intel"); nothing to measure without the hardware | chosen from the devices' documentation |
 | the keying: RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX | the daemon's proposal, which the page stores as the setting when it is empty | a DigiRig keys on RTS of its CP2102; an IC-7300 or an FT-710 with its USB cable keys on RTS when the radio's USB SEND is set to RTS, which their manuals say to do for digital modes; VOX every radio has. A CM108 chip could be keyed on its GPIO (`cm108`), but not every dongle wires the pin, so the serial line wins where there is one; on the Linux build CM108 keying talks to `/dev/hidrawN` directly (Mercury's `radio_io/cm108_ptt.c`, compiled in without hidapi) and needs the daemon's user to be allowed that device | chosen from the devices' documentation |
+| the lead-in for VOX: 150 ms (`LEADIN_MS` (150 ms), the ini key `tx_leadin_ms`, written only when the keying is VOX) | a steady tone of 1 kHz (the pitch of TUNE) at the frame's RMS level, with 5 ms of ramp at each end, played just ahead of the preamble inside the keyed window, so that the radio's VOX has its attack behind it when the preamble begins; the frame is then 3.95 s on the air (`FRAME_SEC` stays 3.8: 4 percent) | the table below: the DATAC3 preamble is 110 ms; a VOX that loses 60 ms of a frame costs nothing, at 80 ms frames begin to fall (17 of 20 at 20 dB), at 100 ms none are heard at 20 dB and half at 10 dB; with 150 ms of tone nothing is lost up to 200 ms on any of the four channels. Mercury has no such option: `packaging/mercury/leadin.patch`, applied by `scripts/build-mercury`, adds it to the Linux and macOS builds. Rhizomatica's Windows build does not know the key and plays no tone. | measured: `scripts/mercury-measure vox`; the 150 ms is chosen (the attack of a radio's VOX is not known to NeoAPRS) |
 | the audio level: nothing set | NeoAPRS sets no level; the sound card's mixer is the operator's (the manual: the ALC must not move) | Mercury plays its OFDM at a peak of 16384 of 32768 (`-6 dBFS`; `tx_gain_db` 0 by default, its range ±20 dB, not used); measured on the fifo backend: peak 15739 (-6.4 dBFS), RMS 7276 (-13.1 dBFS), a crest factor of 6.7 dB. Mercury's TUNE is a 1 kHz tone at -15 dBFS for at most 60 s | measured: `scripts/mercury-measure frame` |
 | the SNR in the status line | what Mercury's `SN` line says for the latest frame decoded, in dB | Mercury's estimate from the OFDM demodulator, scaled to 3 kHz and calibrated per mode on a flat channel (DATAC3: `1.154 × raw + 0.37`, fitted from -2.1 to 9.9 dB); it stops rising at about 12 dB. Measured: -0.7 dB reported at a true 0 dB, 11.0 dB reported at a true 33 dB. So "SNR 11 dB" means 11 or anything above, and the words beside it (listening, transmitting, channel busy) are the modem's states, not thresholds | measured: `scripts/mercury-measure decode` and `frame` |
 | the frequencies: 10.1462, 7.0541 and 14.1070 MHz USB (the page shows the 40 m one, `DIAL_TEXT`, "7.0541 MHz USB", in the HF radio's box) | dial frequencies in the IARU Region 1 digimode segments, between the known neighbours | the band plan and community lists of the neighbours (the study of 2 November 2026); nothing on the air yet, so they are proposals until a listen on each band | chosen; to be confirmed on the air |
@@ -67,6 +68,37 @@ A frame's level over its band is about 10 log (1 + 6 SNR): a frame at 6 dB SNR s
 frame at 6 dB SNR is still seen (DATAC3 delivers its frames from 3 dB on a flat channel and three of four from 6 dB on a poor one: a signal weaker than that is hardly a signal to wait for), and it is quiet on a carrier up to 12 dB over its band and on a step of 10 dB, which
 Mercury's own 10 dB read as busy for the whole two minutes. A bigger step cannot be told from a wide signal at any threshold that still sees a frame, so the cap (`BUSY_HOLD_MAX_SEC`, 20 s) ends that hold. The noise is the channel's model, not a recording of a band:
 a measurement of the real 40 m, with a receiver on the antenna, would say more about how often such steps happen.
+
+## What `scripts/mercury-measure vox` measured: the VOX radio's attack and the lead-in
+
+A radio keyed by VOX (`mercury/keying = vox`: no PTT line, the radio keys itself on the audio) starts to transmit only when its VOX has heard audio for its attack time, so the first part of what Mercury plays is not on the air. Mercury (`modem/modem.c`,
+`send_modulated_data` and `key_and_play`) plays `ptt_on()` (nothing with no PTT line), a sleep of `tx_delay_ms` (10 ms), 100 ms of silence (`TX_HEAD_SILENCE_MS`: a VOX does not hear it), and then the frame's audio, which begins with the preamble that the
+receiver acquires on. The DATAC3 preamble is one modem frame of the mode: 5 OFDM symbols of 22 ms (`ts` 16 ms and `tcp` 6 ms in `modem/freedv/ofdm_mode.c`, 176 samples each), 880 samples, **110 ms**; the postamble is as long, and the 29 modem frames
+of data between them are 3.19 s (the audio is 3.41 s, 27280 samples). Mercury's receiver (`ofdm_sync_search_burst` in `modem/freedv/ofdm.c`) looks for the preamble and for the postamble, and decodes back from whichever it finds first, which is why a frame
+whose preamble is cut is sometimes still heard.
+
+The measurement (3 November 2026): two real Mercury instances on the simulated channel, the sender's link muted for the first N ms of every transmission, counted from the first sample of audio that is not zero (`Attack` in `tests/support/hfchannel.py`), 20 frames for each N, on a flat channel at 20, 10 and
+3 dB SNR in 3 kHz and on the poor fading channel at 3 dB; frames delivered of 20, once with Mercury as it is and once with a lead-in of 150 ms (`tx_leadin_ms = 150`, the build with `packaging/mercury/leadin.patch`):
+
+| the first N ms muted | flat 20 dB, as is | flat 20 dB, 150 ms lead-in | flat 10 dB, as is | flat 10 dB, 150 ms lead-in | flat 3 dB, as is | flat 3 dB, 150 ms lead-in | poor 3 dB, as is | poor 3 dB, 150 ms lead-in |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 20 | 20 | 20 | 20 | 20 | 20 | 18 | 19 |
+| 20 | 20 | 20 | 20 | 20 | 20 | 20 | 19 | 20 |
+| 40 | 20 | 20 | 20 | 20 | 20 | 20 | 18 | 19 |
+| 60 | 20 | 20 | 20 | 20 | 20 | 20 | 18 | 20 |
+| 80 | 17 | 20 | 19 | 20 | 20 | 20 | 17 | 19 |
+| 100 | 0 | 20 | 10 | 20 | 20 | 20 | 18 | 20 |
+| 150 | 0 | 20 | 8 | 20 | 20 | 20 | 16 | 19 |
+| 200 | 0 | 20 | 8 | 20 | 20 | 20 | 14 | 20 |
+| 250 | 0 | 0 | 7 | 12 | 18 | 20 | 5 | 17 |
+| 300 | 0 | 0 | 3 | 5 | 3 | 20 | 4 | 17 |
+
+Reading it: with Mercury as it is, a VOX that loses up to 60 ms of a frame loses nothing, at 80 ms the loss begins on a strong signal (3 frames of 20 at 20 dB), at 100 ms none of the frames are heard at 20 dB and half at 10 dB, and a weak signal holds out longer
+(3 dB flat loses nothing up to 200 ms). The poor channel loses a tenth of the frames at any N, the fading's own loss (18 of 20 with nothing muted), and more from 150 ms on. A weak signal surviving a lost preamble better than a strong one is what was measured; it was not
+chased further. With 150 ms of tone ahead of the preamble every point up to 200 ms is as good as with nothing muted (the poor channel's one or two frames in 20 are the fading's own), and the loss comes back when the radio loses more than the tone and the 60 to 80 ms the preamble can spare:
+from 250 ms on, first on a strong signal (0 of 20 at 20 dB, 12 at 10 dB). 150 ms was chosen for a VOX that needs up to 200 ms; it costs 150 ms of the channel's 3.8 s for every frame of a station on VOX, and nothing for any other keying. The lead-in is audio on purpose: silence does not trigger a VOX. The tone is below the 1219 to 1781 Hz that the mode
+occupies, and ends before the preamble begins (the table's 0 ms rows are as good with the tone as without). The key is written only for VOX (`ini_text` in `neoaprs/mercury.py`); Mercury's ini reader asks for the keys it knows and ignores any other (`cfg_read` in `common/cfg_utils.c`), so Rhizomatica's Windows build, which does not
+know `tx_leadin_ms`, starts and plays frames as before, and there a VOX radio has the table's left-hand columns. The patch changes the broadcast and ARQ data frames, which are what NeoAPRS sends, and not the ARQ keydown or the MFSK acknowledgement.
 
 ## The channel the measurements were made on
 
@@ -115,6 +147,10 @@ scripts/mercury-measure decode --snr -6,-4,-2,0,2,4 --fading poor
 
 ```bash
 scripts/mercury-measure acks --messages 20 --fading poor --snr-one 6
+```
+
+```bash
+scripts/mercury-measure vox --snr 10 --attack-ms 0,40,80,100,150,200 --leadin-ms 150
 ```
 
 ```bash
