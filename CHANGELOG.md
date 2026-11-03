@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.16.0
+
 APRS over HF with the Mercury modem beside the FM radio, a macOS app, and encrypted messages for exceptional circumstances.
 
 - **New:** APRS over HF with Rhizomatica's Mercury modem, as a second radio beside the FM one: the Radio group of the Settings tab has an **FM radio** box (the TNC of today) and an **HF radio** box, each with a tickbox. The modem comes inside NeoAPRS and asks only for the sound card and the keying (both picked for you); its stations appear on the same map and in the same Messages tab with an HF tag, messages to them are acked as on FM, there is no path on HF, the beacon goes at your interval with a floor of 30 minutes while HF is on, **Tune** and a keying **Test** help set the radio up, and a **Dummy HF radio** lets you hear the modem with no radio at all. Stations meet on 7.0541 MHz USB (40 m), which the HF box shows. See [docs/RADIOS.md](docs/RADIOS.md).
