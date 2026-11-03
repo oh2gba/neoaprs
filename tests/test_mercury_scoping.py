@@ -176,7 +176,7 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
         assert pid is not None
         import os
         import signal
-        os.kill(pid, signal.SIGKILL)
+        os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))          # (Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden)
         await until(lambda: m.pid != pid and m.scope and m.state == "running", 20.0)
         assert sent(tmp_path).count("set_waterfall on") >= 2, "what a page wants is asked for again of the new program"
     finally:

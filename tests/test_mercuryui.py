@@ -226,7 +226,8 @@ async def test_a_server_that_is_not_there_is_told_once_and_the_link_opens_when_i
     link = Link(fake)
     with caplog.at_level(logging.DEBUG, logger="neoaprs.mercury"):
         link.ui.start()
-        await asyncio.sleep(0.4)
+        retried = lambda: [r for r in caplog.records if r.levelno == logging.DEBUG and f"UI interface on port {fake.port}:" in r.getMessage()]  # noqa: E731
+        await until(lambda: len(retried()) >= 2, 15.0)                   # (attempts, not a time: a refused connection takes Windows about 2 s, Linux none)
         told = [r for r in caplog.records if r.levelno == logging.INFO and "cannot be reached" in r.getMessage()]
         assert len(told) == 1 and not link.ui.connected and link.states == [], "one line in the log for any number of attempts"
         await fake.start()
