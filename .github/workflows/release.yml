@@ -1,5 +1,5 @@
 # What a release is made of, built by GitHub: the Windows installer (PyInstaller and Inno Setup), the Linux AppImage, the macOS app (a disk image, for Apple silicon), the Debian packages for amd64 and arm64 (the Raspberry Pi), the source tarball (the sdist,
-# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage, the macOS app and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py): Rhizomatica's build in the first, the job `mercury` in the Linux ones, the `macos` job's own build in the app. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the macOS app and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
+# for packagers; the wheel it is built with is build material and not a file of the release) and SHA256SUMS. The Windows installer, the AppImage, the macOS app and the packages carry the pinned Mercury HF modem (neoaprs/mercury.py), built from its source by NeoAPRS in each: the job `mercury-windows` for the installer, the job `mercury` in the Linux ones, the `macos` job's own build in the app. Pushing a tag `v*` builds all of it, checks it (the wheel, the installed Windows app, the AppImage, the macOS app and the packages installed with apt are each run against a fake TNC), updates the installed Windows app and the AppImage to a next version with Update now from a fake release (scripts/update-e2e.py), and creates the release. Run by hand (workflow_dispatch) on a branch it is
 # a dry run: the same builds and checks, the files kept as the artifacts of the run, and no release; run by hand on a tag (`gh workflow run release.yml --ref v<version>`) it publishes that tag's release again. A tag run that
 # failed is run again with "Re-run failed jobs" (every artifact may be written over, the release is made as a draft and an existing one is added to), never by moving the tag. How to make a release: docs/MAINTAINING.md,
 # "A release"; what the jobs do: docs/development.md.
@@ -107,7 +107,7 @@ jobs:
 
   # The app as a folder with three programs (the console one, the daemon, the desktop app), then the installer around it; both are smoke tested, the second one installed and uninstalled for real.
   windows:
-    needs: verify
+    needs: [verify, mercury-windows]
     if: ${{ !failure() && !cancelled() }}
     runs-on: windows-latest
     timeout-minutes: 45
@@ -136,15 +136,20 @@ jobs:
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
       - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
         run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
-      - name: The pinned Mercury, checked against its SHA-256, into bin/mercury/ (mercury.exe and its DLLs), and it starts
+      - uses: actions/download-artifact@v8
+        with:
+          name: mercury-windows
+          path: dist-mercury
+      - name: The Mercury of the job mercury-windows, built from the pinned source, into bin/mercury/ (mercury.exe and the licences), and it starts and listens on this computer only
         run: |
-          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS
+          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz
           test -f dist/NeoAPRS/bin/mercury/mercury.exe
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
           [ -n "$version" ]
           said="$(dist/NeoAPRS/bin/mercury/mercury.exe -V 2>&1 || true)"
           echo "mercury.exe -V: $said"
           echo "$said" | grep -qF "$version"
+          build-venv/Scripts/python.exe packaging/windows/smoke_mercury.py dist/NeoAPRS/bin/mercury/mercury.exe
       - name: The world map is in the frozen app (the page has a map from the first start; scripts/smoke.py then asks the daemon for it)
         run: test -f dist/NeoAPRS/_internal/neoaprs/maps/basemap-world.pmtiles
       - name: Smoke test of the app folder
@@ -185,12 +190,13 @@ jobs:
           if ((Get-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\NeoAPRS.lnk").Length -eq 0) { throw "empty Start menu entry" }
       - name: Smoke test of the installed app
         run: build-venv/Scripts/python.exe scripts/smoke.py --command "$LOCALAPPDATA\\Programs\\NeoAPRS\\neoaprs.exe"
-      - name: The installed Mercury starts (its DLLs came through the installer)
+      - name: The installed Mercury starts and listens on this computer only
         run: |
           version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
           said="$("$LOCALAPPDATA\\Programs\\NeoAPRS\\bin\\mercury\\mercury.exe" -V 2>&1 || true)"
           echo "mercury.exe -V: $said"
           echo "$said" | grep -qF "$version"
+          build-venv/Scripts/python.exe packaging/windows/smoke_mercury.py "$LOCALAPPDATA\\Programs\\NeoAPRS\\bin\\mercury\\mercury.exe"
       - name: open and stop on a data folder of their own (what the Start menu entries run)
         shell: pwsh
         run: |
@@ -293,7 +299,7 @@ jobs:
           rm -rf build-venv/Lib/site-packages/neoaprs/__pycache__
           (cd packaging/windows && ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist-e2e --workpath ../../build-e2e neoaprs.spec)
           build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist-e2e/NeoAPRS
-          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist-e2e/NeoAPRS
+          build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist-e2e/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz
           [ "$(dist-e2e/NeoAPRS/neoaprs.exe --version)" = "NeoAPRS $next" ]
       - name: "Update now: Inno Setup for the next version"
         shell: pwsh
@@ -328,7 +334,42 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Mercury, the HF modem every Linux download carries (the Windows one gets Rhizomatica's own build): built from the pinned source (scripts/build-mercury) for each architecture, in ubuntu:22.04, so that the program asks
+  # Mercury for the Windows installer: built from the pinned source (scripts/build-mercury --windows) on Linux with the MinGW-w64 cross compiler, in a Debian container with the packages Rhizomatica's own release workflow
+  # builds its Windows zip with (gcc-mingw-w64-x86-64, mingw-w64-x86-64-dev, mingw-w64-common), so that the program is the pinned version with NeoAPRS's two patches (every port bound to the loopback, the lead-in of a radio
+  # on VOX) and the Windows Firewall has nothing to do with it. The folder is one program that imports the DLLs of Windows alone; the tarball is what the job `windows` packs into the installer
+  # (packaging/windows/bundle_mercury.py), which then starts the program and reads the system's table of sockets (packaging/windows/smoke_mercury.py).
+  mercury-windows:
+    needs: verify
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container: debian:trixie
+    steps:
+      - name: The tools of the build (a bare container has none)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential python3 ca-certificates git patch file gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common
+      - uses: actions/checkout@v7
+      - name: Build Mercury for Windows from the pinned source
+        run: python3 scripts/build-mercury --windows --tar --out dist-mercury-windows
+      - name: It is the pinned version and one folder of plain files (the build has read the program's import table, 64-bit and no DLL of MinGW)
+        run: |
+          version="$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/mercury.py)"
+          [ -n "$version" ]
+          [ -f "dist-mercury-windows/mercury-$version-windows-x86_64.tar.gz" ] && [ "$(ls dist-mercury-windows/*.tar.gz | wc -l)" = 1 ]
+          ls -l dist-mercury-windows dist-mercury-windows/mercury
+          for f in LICENSE LICENSE-freedv SOURCE.txt mercury.exe; do [ -f "dist-mercury-windows/mercury/$f" ]; done
+          [ "$(ls dist-mercury-windows/mercury | wc -l)" = 6 ]
+          file dist-mercury-windows/mercury/mercury.exe
+          grep -qaF "$version" dist-mercury-windows/mercury/mercury.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mercury-windows
+          path: dist-mercury-windows/mercury-*-windows-*.tar.gz
+          if-no-files-found: error
+          overwrite: true
+
+  # Mercury, the HF modem every Linux download carries: built from the pinned source (scripts/build-mercury) for each architecture, in ubuntu:22.04, so that the program asks
   # for glibc 2.35 at most, the floor the AppImage and the .deb document, and its one other library (ALSA) and that library's configuration travel in the folder. The folder is the tarball the two jobs below unpack
   # into their files. The container's Python is the 3.10 of Ubuntu 22.04: scripts/build-mercury runs on it.
   mercury:

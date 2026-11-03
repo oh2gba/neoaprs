@@ -6,8 +6,10 @@ import asyncio
 import itertools
 import logging
 import os
+import shlex
 import signal
 import socket
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,8 +20,7 @@ from dataclasses import replace
 
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
-from neoaprs import mercuryfirewall, mercuryhelper, mercurymodem
-from neoaprs.mercuryfirewall import Verdict
+from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
 from neoaprs.serialprobe import PortInfo
@@ -566,7 +567,7 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
         await stopped(m)
 
 
-# ---- the rest of the review's list for the modem part: a launch that fails and is tried again, the ports left alone, the speaker without pipes, the order of a launch, the firewall on Windows
+# ---- the rest of the review's list for the modem part: a launch that fails and is tried again, the ports left alone, the speaker without pipes, the order of a launch, the shipped program
 
 async def test_a_launch_that_fails_for_a_reason_that_may_pass_is_tried_again_after_the_back_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[int] = []
@@ -639,33 +640,38 @@ async def test_without_named_pipes_the_speaker_of_the_dummy_hf_radio_is_not_star
     await stopped(m)
 
 
-async def test_the_shipped_binary_is_not_started_while_the_firewall_does_not_shield_it_and_nothing_else_is_asked_about(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The installer's firewall rule is for the mercury.exe it installs, the one file `find` gives; the tests' fake (an interpreter and a module), a program named by its path elsewhere, and a Mercury something else runs
-    are not it, and the Windows Firewall is never asked about them (CI's Windows runner has no rule, and a fake is not to fail for one)."""
+@pytest.mark.skipif(sys.platform == "win32", reason="the shipped program here is a shell script that stands in for mercury.exe")
+async def test_the_shipped_program_is_started_with_no_question_asked_of_the_system_and_is_said_to_be_the_shipped_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """The Mercury NeoAPRS ships binds the loopback on every system, so it is started at once: no PowerShell and no netsh are run for it, whatever the system (the Windows installer's firewall rule and the daemon's
+    check of the firewall are gone); the log says the program is the shipped one, and that a program named by its path elsewhere is not."""
     asked: list[str] = []
-    monkeypatch.setattr(mercuryfirewall, "check", lambda program, ports=(): (asked.append(program.name), Verdict(f"the Windows Firewall rule 'NeoAPRS Mercury' that blocks it is missing ({program.name})", "firewall", False, "mercury.exe"))[1])
+    real_run = subprocess.run
+
+    def run(command: list[str] | str, *args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        asked.append(str(command))
+        return real_run(command, *args, **kwargs)  # type: ignore[call-overload, no-any-return]
+
+    monkeypatch.setattr(subprocess, "run", run)
     shipped = tmp_path / "tools" / "mercury" / mercuryhelper.program_file()
     shipped.parent.mkdir(parents=True)
-    shipped.write_text("")
+    shipped.write_text("#!/bin/sh\nexec " + " ".join(shlex.quote(part) for part in fakemercury.program()) + ' "$@"\n')
+    shipped.chmod(0o755)
     monkeypatch.setattr(mercuryhelper, "tools_dir", lambda: tmp_path / "tools")
     assert mercuryhelper.is_shipped([str(shipped)]) and not mercuryhelper.is_shipped([str(tmp_path / "mercury.exe")]) and not mercuryhelper.is_shipped(fakemercury.program())
-    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK)
-    await m.start(HF)
-    assert m.state == "waiting" and m.reason == "firewall" and m.lets_in == "mercury.exe" and "NeoAPRS Mercury" in m.problem and m.starts == 0 and asked == [shipped.name]
-    await asyncio.sleep(0.3)
-    assert m.starts == 0, "not tried again by itself: the rule does not appear by itself"
-    await stopped(m)
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK)          # (a program named by its path elsewhere: not asked about; what it is said to be is the system's words)
-    await m.start(HF)
-    assert m.reason == "not_started" and asked == [shipped.name]
-    await stopped(m)
-    m = modem(tmp_path)                                                    # (the fake program is an interpreter and a module, not the shipped binary: not asked)
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m.ports = lambda: []                                                  # (never the operator's serial ports)
     await m.start(HF)
     try:
         await until(lambda: m.running, 5.0)
-        assert asked == [shipped.name]
+        assert m.starts == 1 and m.reason == "" and "(not the one NeoAPRS ships)" not in caplog.text
+        assert not [call for call in asked if "powershell" in call.lower() or "netsh" in call.lower()], asked
     finally:
         await stopped(m)
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK)          # (a program named by its path elsewhere: said not to be the shipped one; what it is said to be is the system's words)
+    await m.start(HF)
+    assert m.reason == "not_started" and "(not the one NeoAPRS ships)" in caplog.text
+    await stopped(m)
 
 
 def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_hundredth_time(caplog: pytest.LogCaptureFixture) -> None:
@@ -677,23 +683,3 @@ def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_h
     said = [r for r in caplog.records if r.name == "neoaprs.mercury.program"]
     assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 4, "the 1st, the 10th, the 100th and the 200th"
     assert "(the 200th time)" in said[3].getMessage() and said[-1].levelno == logging.DEBUG
-
-
-async def test_a_firewall_that_could_not_be_asked_is_tried_again_after_the_back_off_and_one_that_is_off_is_not(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """PowerShell that failed or timed out may answer next time; a Firewall that is off stays off until the operator switches it on."""
-    answers = [Verdict("the Windows Firewall could not be asked: PowerShell did not answer in 30 s", "not_started"), Verdict("Windows Firewall is off for the Private profile", "firewall_off")]
-    asked: list[str] = []
-    monkeypatch.setattr(mercuryfirewall, "check", lambda program, ports=(): (asked.append(program.name), answers[min(len(asked) - 1, 1)])[1])
-    shipped = tmp_path / "tools" / "mercury" / mercuryhelper.program_file()
-    shipped.parent.mkdir(parents=True)
-    shipped.write_text("")
-    monkeypatch.setattr(mercuryhelper, "tools_dir", lambda: tmp_path / "tools")
-    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK)
-    await m.start(HF)
-    try:
-        assert m.reason == "not_started"
-        await until(lambda: m.reason == "firewall_off", 5.0)
-        await asyncio.sleep(0.3)
-        assert len(asked) == 2 and m.starts == 0 and m.lets_in == ""
-    finally:
-        await stopped(m)

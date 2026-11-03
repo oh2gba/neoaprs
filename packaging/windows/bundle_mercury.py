@@ -1,85 +1,78 @@
-"""Puts the pinned Mercury for Windows into the app folder: `bundle_mercury.py DIST/NeoAPRS` makes DIST/NeoAPRS/bin/mercury/ with `mercury.exe`, every DLL of the release's zip beside it (the exe finds its DLLs next to itself) and
-Mercury's LICENSE, downloaded from the address that neoaprs/mercury.py pins and kept only when its SHA-256 is the pinned one and its size not over the pinned one. The zip's graphical `mercury-ui.exe` (27 MB, never run by NeoAPRS) and its
-example configuration are left out. Run with the Python that has NeoAPRS installed."""
-import hashlib
-import http.client
+"""Puts the Mercury that NeoAPRS built for Windows into the app folder: `bundle_mercury.py DIST/NeoAPRS TARBALL` makes DIST/NeoAPRS/bin/mercury/ with what the tarball holds in its folder `mercury/`: `mercury.exe` and the licences and
+source offer beside it. TARBALL is the file `scripts/build-mercury --windows --tar` makes (the release workflow's job `mercury-windows` builds it from the pinned source of neoaprs/mercury.py on Linux with MinGW-w64, and the
+Windows job downloads it); nothing is fetched here. The tarball is held to what it must be before anything is kept: its name is the pinned version's, its source offer names the pinned source and its SHA-256, it holds a program
+(a file that begins with the DOS header of a Windows program) and nothing but plain files of a few known names, none of them a path out of the folder. Run with the Python that has NeoAPRS installed."""
 import shutil
 import sys
-import tempfile
-import urllib.request
-import zipfile
+import tarfile
 from pathlib import Path, PurePosixPath
 
 from neoaprs import mercury
-from neoaprs.pmtilestool import TIMEOUT_SEC, USER_AGENT
 
-MAX_FILE = 64_000_000           # the biggest file taken out of the zip (the biggest real one is a DLL of 11.5 MB)
+MAX_FILE = 64_000_000           # the biggest file taken out of the tarball (the program is 2.4 MB)
+PROGRAM = "mercury.exe"
 
 
-def download(url: str, target: Path, sha256: str, size: int) -> None:
-    """The file at `url` written to `target`; SystemExit, and nothing kept, when it is longer than `size` or its digest is not `sha256`."""
-    digest, done, too_long = hashlib.sha256(), 0, False
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:
-        while chunk := response.read(1 << 16):
-            done += len(chunk)
-            if done > size:
-                too_long = True                                                     # (the file is deleted once it is closed: Windows refuses to delete an open one)
-                break
-            digest.update(chunk)
-            out.write(chunk)
-        if not too_long and done < int(response.headers.get("Content-Length") or 0):                 # (a body that stops short is read to its end without a word)
-            raise http.client.IncompleteRead(b"")
-    if too_long:
-        target.unlink()
-        raise SystemExit(f"bundle_mercury: what {url} sends is longer than the pinned {size} bytes, and was thrown away")
-    if digest.hexdigest() != sha256:
-        target.unlink()
-        raise SystemExit(f"bundle_mercury: {url} has the SHA-256 {digest.hexdigest()}, not the pinned {sha256}; nothing was kept")
+def tarball_name() -> str:
+    """The name the tarball of the pinned version has (scripts/build-mercury says the same, from the same pins)."""
+    return f"mercury-{mercury.VERSION}-windows-x86_64.tar.gz"
+
+
+def refuse(message: str) -> SystemExit:
+    return SystemExit(f"bundle_mercury: {message}")
+
+
+def kept(name: str) -> bool:
+    """Whether a file of the tarball's folder is one the app takes: the program, the source offer and the licences (LICENSE, LICENSE-freedv, LICENSE-hidapi.txt, ...)."""
+    return name in (PROGRAM, "SOURCE.txt") or (name.startswith("LICENSE") and all(c.isalnum() or c in "._-" for c in name))
 
 
 def unpack(archive: Path, folder: Path) -> list[Path]:
-    """The program, its DLLs and the licence out of the zip, side by side in `folder` whatever folders they are in inside the zip; the files written. The licence is ours when the zip has none."""
-    written: list[Path] = []
-    licence_found = False
-    with zipfile.ZipFile(archive) as z:
-        members = [(PurePosixPath(i.filename.replace("\\", "/")).name, i) for i in z.infolist() if not i.is_dir()]
-        if not any(name.lower() == "mercury.exe" for name, _ in members):
-            raise SystemExit("bundle_mercury: mercury.exe is not in the zip")
-        for name, info in members:
-            lower, upper = name.lower(), name.upper()
-            if lower == "mercury.exe":
-                target = folder / "mercury.exe"
-            elif lower.endswith(".dll"):
-                target = folder / name
-            elif upper.startswith("LICENSE") and not licence_found:
-                target, licence_found = folder / "LICENSE", True
-            else:
+    """The files of `mercury/` in the tarball written to `folder`; SystemExit, with nothing kept, for a tarball that is not the pinned Mercury's for Windows."""
+    if archive.name != tarball_name():
+        raise refuse(f"{archive.name} is not {tarball_name()}, the file of the pinned Mercury {mercury.VERSION}")
+    contents: dict[str, bytes] = {}
+    with tarfile.open(archive) as tar:
+        for member in tar.getmembers():
+            path = PurePosixPath(member.name)
+            if path.is_absolute() or ".." in path.parts or path.parts[:1] != ("mercury",):
+                raise refuse(f"{member.name} is outside the folder mercury/ of the tarball")
+            if member.isdir() and len(path.parts) == 1:
                 continue
-            if info.file_size > MAX_FILE:
-                raise SystemExit(f"bundle_mercury: {info.filename} is {info.file_size} bytes: the zip is not what it should be")
-            target.write_bytes(z.read(info))
-            written.append(target)
-    if not licence_found:
-        target = folder / "LICENSE.txt"
-        target.write_text(f"Mercury {mercury.VERSION} is free software, licensed GPL-3.0-or-later. Copyright: Rhizomatica and the authors of Mercury.\nThe source of this version: {mercury.SOURCE_URL}\n", encoding="utf-8")
-        written.append(target)
-        print(f"bundle_mercury: the zip has no LICENSE file; {target.name} says Mercury is GPL-3.0-or-later and where its source is")
+            if not member.isfile() or len(path.parts) != 2 or not kept(path.name):
+                raise refuse(f"{member.name} is not a file the app takes from the tarball (the program, SOURCE.txt and the licences, flat in mercury/)")
+            if member.size > MAX_FILE:
+                raise refuse(f"{member.name} is {member.size} bytes: the tarball is not what it should be")
+            handle = tar.extractfile(member)
+            assert handle is not None
+            contents[path.name] = handle.read()
+    if PROGRAM not in contents or "SOURCE.txt" not in contents or "LICENSE" not in contents:
+        raise refuse(f"the tarball lacks {PROGRAM}, SOURCE.txt or LICENSE")
+    if contents[PROGRAM][:2] != b"MZ":
+        raise refuse(f"{PROGRAM} is not a program for Windows")
+    offer = contents["SOURCE.txt"].decode("utf-8", "replace")
+    for pin in (f"Mercury {mercury.VERSION},", mercury.SOURCE_COMMIT, mercury.SOURCE_SHA256):
+        if pin not in offer:
+            raise refuse(f"SOURCE.txt does not name {pin}: this is not a Mercury built from the pinned source")
+    folder.mkdir(parents=True)
+    written: list[Path] = []
+    for name, data in sorted(contents.items()):
+        (folder / name).write_bytes(data)
+        written.append(folder / name)
     return written
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or sys.argv[1] in ("-h", "--help"):
+    if len(sys.argv) != 3 or sys.argv[1] in ("-h", "--help"):
         print(__doc__)
-        return 0 if len(sys.argv) == 2 else 2
+        return 0 if len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help") else 2
     folder = Path(sys.argv[1]) / "bin" / "mercury"
-    with tempfile.TemporaryDirectory() as work:
-        archive = Path(work) / "mercury.zip"
-        download(mercury.WINDOWS_URL, archive, mercury.WINDOWS_SHA256, mercury.WINDOWS_SIZE)           # (SystemExit, and nothing kept, when the digest is not the pinned one)
-        print(f"bundle_mercury: {mercury.WINDOWS_URL} ({archive.stat().st_size} bytes), SHA-256 {mercury.WINDOWS_SHA256} checked")
-        shutil.rmtree(folder, ignore_errors=True)
-        folder.mkdir(parents=True)
-        for path in unpack(archive, folder):
-            print(f"bundle_mercury: {path} ({path.stat().st_size} bytes)")
+    archive = Path(sys.argv[2])
+    if not archive.is_file():
+        raise refuse(f"{archive} is not there")
+    shutil.rmtree(folder, ignore_errors=True)
+    for path in unpack(archive, folder):
+        print(f"bundle_mercury: {path} ({path.stat().st_size} bytes)")
     return 0
 
 

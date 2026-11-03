@@ -1,13 +1,8 @@
 """The release's own files, as far as a test can see them without GitHub or a Windows machine: the notes taken out of the changelog, the install script's template rendered and read by `sh -n`, the workflow's
 pins and permissions, the Windows installer script's promises (per user, the tasks, the uninstaller), the bundled pmtiles that the program looks for first, and the bundled Mercury (the job that builds it, the Windows script that unpacks it, what the Linux jobs prove of it). The whole of it is run by `.github/workflows/release.yml`."""
-import hashlib
-import importlib.util
-import io
 import re
 import subprocess
 import sys
-import types
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -75,7 +70,7 @@ def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
     """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until every file is on it, a run on a tag
     whose release exists writes over its files, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
     uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@v\d+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
-    assert len(uploads) == 9 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
+    assert len(uploads) == 10 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
     assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "macos-app", "deb-amd64", "deb-arm64"}, "the release's six artifacts and no other"
@@ -281,105 +276,36 @@ def test_the_package_is_proved_to_need_nothing_of_the_system_for_mercury() -> No
     assert "smoke-appimage dist-appimage/NeoAPRS-*.AppImage" in job("appimage") and "--no-mercury" not in job("appimage")
 
 
+def test_mercury_for_windows_is_built_from_the_pinned_source_on_linux_with_the_packages_of_rhizomaticas_own_workflow() -> None:
+    built = job("mercury-windows")
+    assert "runs-on: ubuntu-latest" in built and "container: debian:trixie" in built, "the container Mercury's own release workflow builds its Windows zip in"
+    assert "gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common" in built and " patch" in built and "python3" in built, "the cross compiler, its headers and runtime, and patch for the two patches"
+    assert "python3 scripts/build-mercury --windows --tar --out dist-mercury-windows" in built
+    assert built.index("apt-get install") < built.index("actions/checkout") < built.index("build-mercury --windows") < built.index("file dist-mercury-windows") < built.index("upload-artifact")
+    assert "name: mercury-windows" in built and "path: dist-mercury-windows/mercury-*-windows-*.tar.gz" in built and "neoaprs/mercury.py" in built
+    assert re.search(r"needs: \[[^\]]*\bmercury-windows\b[^\]]*\]", job("windows")), "the installer is built from the Mercury of that job"
+    pattern = re.search(r'pattern: "\{([^}]+)\}"', WORKFLOW)
+    assert pattern and "mercury" not in pattern.group(1), "the tarball is build material and not a file of the release"
+    assert "WINDOWS_URL" not in WORKFLOW and "Rhizomatica/mercury/releases" not in WORKFLOW, "Rhizomatica's zip is not downloaded any more"
+
+
 def test_the_windows_job_puts_mercury_in_after_pmtiles_and_checks_it_before_and_after_the_installer() -> None:
     windows = job("windows")
-    bundle = "build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS"
+    bundle = "build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz"
+    assert windows.index("name: mercury-windows") < windows.index(bundle), "the tarball of the job mercury-windows is downloaded first"
     assert windows.index("bundle_pmtiles.py dist/NeoAPRS") < windows.index(bundle) < windows.index("Smoke test of the app folder") < windows.index("Inno Setup")
     assert "test -f dist/NeoAPRS/bin/mercury/mercury.exe" in windows and "dist/NeoAPRS/bin/mercury/mercury.exe -V" in windows
+    folder = windows.split(bundle, 1)[1].split("Smoke test of the app folder", 1)[0]
+    assert "build-venv/Scripts/python.exe packaging/windows/smoke_mercury.py dist/NeoAPRS/bin/mercury/mercury.exe" in folder, "the program of the app folder is started and its sockets read"
     installed = windows.split("Install silently, as a user without administrator rights", 1)[1]
     assert "'bin\\mercury\\mercury.exe'" in installed.split("foreach ($l in", 1)[0], "the installer put it in the app folder"
-    assert "Programs\\\\NeoAPRS\\\\bin\\\\mercury\\\\mercury.exe\" -V" in installed, "and it starts from there, its DLLs beside it"
-    assert "bundle_mercury.py dist-e2e/NeoAPRS" in windows.split("bundle_pmtiles.py dist-e2e/NeoAPRS", 1)[1].split("neoaprs.exe --version", 1)[0], "the build of the next version for the update test has it too"
+    assert "Programs\\\\NeoAPRS\\\\bin\\\\mercury\\\\mercury.exe\" -V" in installed, "and it starts from there"
+    assert 'smoke_mercury.py "$LOCALAPPDATA\\\\Programs\\\\NeoAPRS\\\\bin\\\\mercury\\\\mercury.exe"' in installed, "and listens on 127.0.0.1 only from there"
+    assert "bundle_mercury.py dist-e2e/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz" in windows.split("bundle_pmtiles.py dist-e2e/NeoAPRS", 1)[1].split("neoaprs.exe --version", 1)[0], "the build of the next version for the update test has it too"
     assert r'Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion' in INSTALLER, "the installer packs bin\\mercury with the rest of the folder"
 
 
-def load_bundle_mercury() -> types.ModuleType:
-    spec = importlib.util.spec_from_file_location("bundle_mercury", ROOT / "packaging" / "windows" / "bundle_mercury.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def release_zip(path: Path, licence: bool = True) -> None:
-    names = {"mercury-1.9.21/mercury.exe": b"MZ exe", "mercury-1.9.21/mercury-ui.exe": b"MZ ui", "mercury-1.9.21/mercury.ini.example": b"[x]", "mercury-1.9.21/libhamlib-4.dll": b"MZ dll", "mercury-1.9.21/libusb-1.0.dll": b"MZ dll2"}
-    if licence:
-        names["mercury-1.9.21/LICENSE"] = b"GPL text"
-    with zipfile.ZipFile(path, "w") as z:
-        for name, data in names.items():
-            z.writestr(name, data)
-
-
-def test_bundle_mercury_takes_its_address_and_pins_from_the_program_and_writes_none_of_its_own() -> None:
-    source = (ROOT / "packaging" / "windows" / "bundle_mercury.py").read_text(encoding="utf-8")
-    assert "from neoaprs import mercury" in source and "mercury.WINDOWS_URL" in source and "mercury.WINDOWS_SHA256" in source and "mercury.WINDOWS_SIZE" in source
-    assert "https://" not in source and "http://" not in source and not re.search(r"\b[0-9a-f]{64}\b", source), "the pins are in neoaprs/mercury.py and nowhere else"
-
-
-def test_bundle_mercury_puts_the_exe_the_dlls_and_the_licence_in_bin_mercury_and_leaves_the_ui_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    from neoaprs import mercury
-    module = load_bundle_mercury()
-    asked: list[tuple[str, str, int]] = []
-
-    def fake_download(url: str, target: Path, sha256: str, size: int) -> None:
-        asked.append((url, sha256, size))
-        release_zip(target)
-
-    monkeypatch.setattr(module, "download", fake_download)
-    monkeypatch.setattr(sys, "argv", ["bundle_mercury.py", str(tmp_path / "NeoAPRS")])
-    assert module.main() == 0
-    assert asked == [(mercury.WINDOWS_URL, mercury.WINDOWS_SHA256, mercury.WINDOWS_SIZE)]
-    folder = tmp_path / "NeoAPRS" / "bin" / "mercury"
-    assert sorted(p.name for p in folder.iterdir()) == ["LICENSE", "libhamlib-4.dll", "libusb-1.0.dll", "mercury.exe"], "no mercury-ui.exe, no example configuration, no folder of the zip's"
-    assert (folder / "mercury.exe").read_bytes() == b"MZ exe" and (folder / "LICENSE").read_bytes() == b"GPL text"
-    out = capsys.readouterr().out
-    assert "mercury.exe (6 bytes)" in out and "libhamlib-4.dll" in out
-    (folder / "stale.dll").write_bytes(b"old")
-    assert module.main() == 0 and not (folder / "stale.dll").exists(), "a folder of an earlier run is made again, not added to"
-
-
-def test_bundle_mercury_writes_a_licence_text_of_its_own_when_the_zip_has_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    from neoaprs import mercury
-    module = load_bundle_mercury()
-    monkeypatch.setattr(module, "download", lambda url, target, sha256, size: release_zip(target, licence=False))
-    monkeypatch.setattr(sys, "argv", ["bundle_mercury.py", str(tmp_path)])
-    assert module.main() == 0
-    text = (tmp_path / "bin" / "mercury" / "LICENSE.txt").read_text(encoding="utf-8")
-    assert "GPL-3.0-or-later" in text and mercury.SOURCE_URL in text
-    assert "no LICENSE file" in capsys.readouterr().out, "it says that it did"
-
-
-def test_bundle_mercury_refuses_a_zip_without_the_exe_and_keeps_nothing_of_a_download_that_is_not_the_pinned_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    module = load_bundle_mercury()
-    empty = tmp_path / "empty.zip"
-    with zipfile.ZipFile(empty, "w") as z:
-        z.writestr("readme.txt", b"x")
-    with pytest.raises(SystemExit, match=r"mercury\.exe is not in the zip"):
-        module.unpack(empty, tmp_path)
-
-    class Response:
-        headers: dict[str, str] = {}
-
-        def __init__(self, body: bytes) -> None:
-            self.body = io.BytesIO(body)
-
-        def __enter__(self) -> "Response":
-            return self
-
-        def __exit__(self, *exc: object) -> None:
-            return None
-
-        def read(self, n: int) -> bytes:
-            return self.body.read(n)
-
-    body = b"not the release" * 100
-    monkeypatch.setattr(module.urllib.request, "urlopen", lambda request, timeout: Response(body))
-    target = tmp_path / "download"
-    with pytest.raises(SystemExit, match="not the pinned"):
-        module.download("https://example.invalid/m.zip", target, hashlib.sha256(b"other").hexdigest(), len(body))
-    assert not target.exists(), "nothing is kept on a digest that is not the pinned one"
-    with pytest.raises(SystemExit, match="longer than the pinned"):
-        module.download("https://example.invalid/m.zip", target, hashlib.sha256(body).hexdigest(), len(body) - 1)
-    assert not target.exists(), "nor of a download that is longer than the pinned size"
-    module.download("https://example.invalid/m.zip", target, hashlib.sha256(body).hexdigest(), len(body))
-    assert target.read_bytes() == body
+def test_the_installer_has_nothing_to_do_with_the_windows_firewall() -> None:
+    """The Mercury it carries binds the loopback, so no rule is added, none is asked for with a prompt of Windows, and none is removed by the uninstaller (a rule an earlier version added stays: a block rule is harmless)."""
+    assert not re.search(r"firewall|netsh|runas|ShellExec", INSTALLER.replace("nothing done to the Windows Firewall", ""), re.IGNORECASE), "no firewall, no netsh, no prompt for rights"
+    assert "CurUninstallStepChanged" not in INSTALLER and "AddMercury" not in INSTALLER and "PrivilegesRequired=lowest" in INSTALLER

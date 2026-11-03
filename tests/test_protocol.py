@@ -207,7 +207,7 @@ DECODED = [
 
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
-    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "hf_tune": {"cmd": "hf_tune", "on": True}, "hf_key_test": {"cmd": "hf_key_test"}, "hf_allow_firewall": {"cmd": "hf_allow_firewall"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
+    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports"}, "find_radio": {"cmd": "find_radio"}, "find_radio_cancel": {"cmd": "find_radio_cancel"}, "hf_tune": {"cmd": "hf_tune", "on": True}, "hf_key_test": {"cmd": "hf_key_test"}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
     "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False}, "general_query": {"cmd": "general_query", "kind": "aprs", "path": "WIDE1-1,WIDE2-1", "rf_only": True}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},
@@ -313,6 +313,16 @@ def test_every_command_has_an_example_that_round_trips() -> None:
         assert command.cmd == name and command.model_dump(mode="json", exclude_unset=True) == example         # (a field that may be left out, packet_history's call, is not added)
         again = COMMANDS.validate_json(command.model_dump_json())
         assert again == command
+
+
+def test_the_firewall_of_windows_is_no_part_of_the_protocol_any_more() -> None:
+    """The Mercury NeoAPRS ships binds the loopback on every system: no command asks for a firewall rule, no reason says the firewall stops the modem, and the modem's state has no word of it."""
+    with pytest.raises(ValidationError):
+        COMMANDS.validate_python({"cmd": "hf_allow_firewall"})
+    assert "hf_allow_firewall" not in COMMAND_NAMES
+    reasons = TncState.model_json_schema()["$defs"]["ModemState"]["properties"]
+    assert set(reasons["reason"]["enum"]) == {"", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card"}
+    assert "lets_in" not in reasons and "allowing" not in reasons
 
 
 @pytest.mark.parametrize("name", sorted(COMMAND_EXAMPLES))

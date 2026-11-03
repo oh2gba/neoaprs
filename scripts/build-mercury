@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux or macOS and lays it out as the folder `mercury/` that NeoAPRS ships: the program (on Linux with RUNPATH `$ORIGIN/lib`, stripped, the one library it
-needs beyond glibc and the ALSA configuration beside it; on macOS linked to the system's CoreAudio alone), Mercury's licence and the source offer, and, for the simulators only, the HF channel simulator.
+"""Builds Rhizomatica's Mercury HF modem from the pinned source for Linux, macOS or Windows and lays it out as the folder `mercury/` that NeoAPRS ships: the program (on Linux with RUNPATH `$ORIGIN/lib`, stripped, the one library it
+needs beyond glibc and the ALSA configuration beside it; on macOS linked to the system's CoreAudio alone; for Windows `mercury.exe`, cross-compiled with MinGW-w64 on Linux, stripped and linked to the system's DLLs alone), Mercury's licence and the source offer, and,
+for the simulators only, the HF channel simulator.
 
-  scripts/build-mercury [--out DIR] [--tar] [--install] [--source FILE]
+  scripts/build-mercury [--windows] [--out DIR] [--tar] [--install] [--source FILE]
 
-  --out DIR      the folder DIR/mercury/ is made there (default build/mercury/dist/)
-  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz (DIR/mercury-<version>-macos-arm64.tar.gz on a Mac), with mercury/ as its top folder: what the AppImage, the .deb, the macOS app and the release
-                 workflow take (their --mercury argument)
+  --windows      cross-compile mercury.exe for 64-bit Windows with the MinGW-w64 compiler (x86_64-w64-mingw32-gcc and -ar on the PATH; Debian: gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common), on Linux only. The folder
+                 mercury/ holds mercury.exe, the licences and SOURCE.txt, and nothing else: no DLL (the C runtime's threads are linked in, the sound is DirectSound and WASAPI of Windows), so that the installer packs it as it is
+  --out DIR      the folder DIR/mercury/ is made there (default build/mercury/dist/, build/mercury/dist-windows/ with --windows)
+  --tar          also DIR/mercury-<version>-linux-<x86_64|aarch64>.tar.gz (DIR/mercury-<version>-macos-arm64.tar.gz on a Mac, DIR/mercury-<version>-windows-x86_64.tar.gz with --windows), with mercury/ as its top folder: what the
+                 AppImage, the .deb, the macOS app, the Windows installer (packaging/windows/bundle_mercury.py) and the release workflow take
   --install      the folder is copied to <sys.prefix>/tools/mercury of the virtual environment this script runs in, where the daemon run from a checkout looks for it (neoaprs/bundled.py); the default when neither --out
-                 nor --tar is given. Run it as `.venv/bin/python scripts/build-mercury`
+                 nor --tar is given (not with --windows: a program for Windows is no use to a Linux checkout). Run it as `.venv/bin/python scripts/build-mercury`
   --source FILE  the source archive at hand instead of the download; it has to be the pinned one all the same
 
 The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/mercury.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
-checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
-a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
+checked against the pin, and a different file is refused. The tree is built in build/mercury/work/ (build/mercury/work-windows/ with --windows) with `make HAVE_HAMLIB=0 HAVE_HIDAPI=0 WS_TLS=0` (NeoAPRS keys the radio itself: VOX, CM108 over /dev/hidraw, RTS or DTR of
+a serial port, so Mercury links no hamlib, no hidapi and no OpenSSL; for Windows `HAVE_HAMLIB=0 WS_TLS=0` and hidapi stays, since it is compiled into the program from Mercury's own copy of its source and is how a CM108 chip is keyed there), the PulseAudio backend replaced by packaging/mercury/pulse_stub.c (ALSA is the one sound system of the bundle; PulseAudio and PipeWire both offer an
 ALSA device), the TCP listeners bound to the loopback by packaging/mercury/loopback.patch on either system (Mercury binds its control, data and KISS ports on every interface with no password, which would let any host
 on the LAN key the radio; the patch says more), a lead-in tone for a radio on VOX added by packaging/mercury/leadin.patch (the ini key `tx_leadin_ms`, off unless the ini sets it), and the link then checked with ldd: only libasound, glibc and its helpers may be there. The last step of every run starts the program from the folder as the daemon does
-(`-V`, `-z`, and on Linux once on its fifo backend to see that its three ports listen on 127.0.0.1 and nowhere else) and prints what it says.
+(`-V`, `-z`, and on Linux once on its fifo backend to see that its three ports listen on 127.0.0.1 and nowhere else) and prints what it says. A program for Windows cannot be run here: its import table is read instead, and it may name no DLL that
+does not come with Windows (the release workflow's Windows job starts it and reads the system's table of sockets).
 Needs gcc, make, patch and libasound2-dev (with libasound2-data for the ALSA configuration) on Linux; patchelf is not needed, the RUNPATH is set by the link. The CI job (release.yml) runs it in ubuntu:22.04, whose glibc is
 the floor of the AppImage and the .deb. On a Mac it needs the command line tools (cc, make, otool, patch) and builds for macOS 14 and newer (MACOS_MIN, the floor of the app, which scripts/build-macos-app says too), for the
 machine it runs on; Rhizomatica's own universal build is not taken because it asks for macOS 26. How it is used: docs/development.md, "Scripts"."""
@@ -28,6 +32,7 @@ import platform
 import re
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import tarfile
@@ -59,11 +64,15 @@ STUB = ROOT / "packaging" / "mercury" / "pulse_stub.c"
 LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
 LEADIN_PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
 LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"           # the key the lead-in patch adds, which the source must hold after it
-LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the one file the patch changes; no INADDR_ANY may be left in it
+LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the file with the two TCP listeners the loopback patch changes; no INADDR_ANY may be left in it
+WEBSOCKET_FILE = "gui_interface/websocket/mercury_websocket.c"          # the third place Mercury binds a socket (its own web page, off unless it is started with -G, which NeoAPRS never does); the patch gives it the loopback too
+WEBSOCKET_BIND = 'opts.bind_addr = "127.0.0.1";'
 LOOPBACK = "0100007F"                                        # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
 LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its three ports
 WORK = ROOT / "build" / "mercury" / "work"
 DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
+WORK_WINDOWS = ROOT / "build" / "mercury" / "work-windows"
+DEFAULT_OUT_WINDOWS = ROOT / "build" / "mercury" / "dist-windows"
 ALSA_DATA = Path("/usr/share/alsa")
 ALSA_SKIP = ("ucm", "ucm2", "topology")            # what only the sound servers and alsaucm read: 4 MB the program never opens
 
@@ -78,6 +87,21 @@ LINK_FLAGS = "-lasound -lpthread -lrt"
 RUNPATH_FLAGS = "-Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN/lib' -Wl,--as-needed"
 ENV_DROPPED = ("CFLAGS", "CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")            # the caller's flags would be copied into every link by the Makefile
 
+# The Windows program is made the way Mercury's own `windows` target makes it (OS=Windows_NT, the MinGW-w64 compiler as CC and AR; its Makefile then links DirectSound and WASAPI, Winsock, and the C runtime's thread
+# library and the compiler's runtime statically, so that no DLL of MinGW travels), without `make clean` (the tree is new) and without the utilities. Hamlib and the TLS of the web page stay out as on Linux; hidapi stays in:
+# Mercury compiles its own copy of it (radio_io/hidapi-w64) into the program, and it is how a CM108 chip is keyed on Windows, which the keying `cm108` of the HF radio's box offers. `-s` strips the program and `-static` makes sure that no DLL of MinGW is asked for whatever thread model the compiler has.
+MINGW = "x86_64-w64-mingw32-"
+WINDOWS_TOOLS = ("make", "patch", f"{MINGW}gcc", f"{MINGW}ar")
+WINDOWS_MAKE_FLAGS = ("OS=Windows_NT", f"CC={MINGW}gcc", f"AR={MINGW}ar", "HAVE_HAMLIB=0", "WS_TLS=0")
+WINDOWS_MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "WS_TLS_CFLAGS", "WS_TLS_LDFLAGS")
+WINDOWS_STRIP = "EXTRA_LDFLAGS=-s -static"
+HIDAPI_DIR = "radio_io/hidapi-w64"                    # the vendored hidapi of the Windows build: its licences travel with the program
+PE_MACHINE_X64 = 0x8664
+# The DLLs a program for Windows may not name: those that do not come with Windows and would have to travel with it, which the folder (one file) has no room for. A DLL of MinGW (libwinpthread-1, libgcc_s_seh-1, libstdc++-6),
+# of a library (hamlib, libusb, OpenSSL, zlib) or of a C runtime that needs a redistributable (msvcr100, msvcp140, vcruntime140); msvcrt.dll and the universal runtime, which Windows has, are not among them. Whatever
+# else a program imports is Windows's own, and one that is missing there is found by the release workflow, which starts the program.
+WINDOWS_DLL_NEVER = re.compile(r"^(lib|zlib|mingw|msvcr(?!t\.)|msvcp|vcruntime|vcomp|concrt|vccorlib|ucrtbased)", re.IGNORECASE)
+
 NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libpthread\.|librt\.|libdl\.|libasound\.so)")
 NEEDED_NEVER = ("libpulse", "libhamlib", "libhidapi", "libssl", "libcrypto")
 MACOS = sys.platform == "darwin"
@@ -90,15 +114,18 @@ class BuildError(Exception):
 
 
 def machine_name(machine: str | None = None, system: str = sys.platform) -> str:
-    """The architecture as the tarball names it: on Linux x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it; on a Mac arm64 or x86_64, Apple's words."""
+    """The architecture as the tarball names it: on Linux x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it; on a Mac arm64 or x86_64, Apple's words; for Windows (`win32`,
+    made on Linux for the 64-bit PC) x86_64 always."""
     name = (machine or platform.machine()).lower()
+    if system == "win32":
+        return "x86_64"
     if system == "darwin":
         return {"aarch64": "arm64", "amd64": "x86_64"}.get(name, name)
     return {"amd64": "x86_64", "arm64": "aarch64"}.get(name, name)
 
 
 def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
-    return f"mercury-{VERSION}-{'macos' if system == 'darwin' else 'linux'}-{machine_name(machine, system)}.tar.gz"
+    return f"mercury-{VERSION}-{ {'darwin': 'macos', 'win32': 'windows'}.get(system, 'linux')}-{machine_name(machine, system)}.tar.gz"
 
 
 def cache_dir() -> Path:
@@ -169,9 +196,9 @@ def apply_patch(tree: Path, patch: Path) -> None:
         raise BuildError(f"{patch.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
 
 
-def apply_patches(tree: Path) -> None:
-    """The loopback patch on the TCP listeners, on either system (it must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN), the lead-in patch for a radio on
-    VOX (the source must hold its ini key after it), and on Linux the stub over the PulseAudio backend."""
+def apply_patches(tree: Path, windows: bool = False) -> None:
+    """The loopback patch on the TCP listeners and the web page's socket, on every system (it must leave no INADDR_ANY in the file: a new pin that moved the lines is found here and not by an operator on a LAN), the
+    lead-in patch for a radio on VOX (the source must hold its ini key after it), and on Linux the stub over the PulseAudio backend (Windows and macOS have their own sound systems in the source)."""
     apply_patch(tree, LOOPBACK_PATCH)
     apply_patch(tree, LEADIN_PATCH)
     if LEADIN_KEY not in (tree / LEADIN_FILE).read_text(encoding="utf-8"):
@@ -179,26 +206,39 @@ def apply_patches(tree: Path) -> None:
     listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
     if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
         raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
-    if not MACOS:
+    if WEBSOCKET_BIND not in (tree / WEBSOCKET_FILE).read_text(encoding="utf-8"):
+        raise BuildError(f"{WEBSOCKET_FILE} does not bind its socket to the loopback after {LOOPBACK_PATCH.name}")
+    if not MACOS and not windows:
         if not STUB.is_file():
             raise BuildError(f"{STUB} is missing")
         shutil.copyfile(STUB, tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c")
 
 
-def build(tree: Path) -> None:
-    """The patches, then make, with the flags above: on a Mac the Makefile's own Darwin branch linking CoreAudio, for MACOS_MIN and newer."""
-    apply_patches(tree)
-    command = ["make", f"-j{os.cpu_count() or 1}", *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}"]
+def make_commands(windows: bool = False) -> list[list[str]]:
+    """The commands that make the program, run in the tree one after the other. On Linux and macOS one `make` with the flags above (on a Mac the Makefile's own Darwin branch linking CoreAudio, for MACOS_MIN and newer);
+    for Windows two, the objects of the folders and then the program (`make internal_deps mercury.exe` would run the two side by side, and the link must wait for the objects)."""
+    jobs = f"-j{os.cpu_count() or 1}"
+    if windows:
+        flags = [*WINDOWS_MAKE_FLAGS, *(f"{name}=" for name in WINDOWS_MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}", WINDOWS_STRIP]
+        return [["make", jobs, *flags, "internal_deps"], ["make", jobs, *flags, "mercury.exe"]]
+    command = ["make", jobs, *MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), f"GIT_HASH={SOURCE_COMMIT[:8]}"]
+    if not MACOS:
+        command += [f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
+    return [command]
+
+
+def build(tree: Path, windows: bool = False) -> None:
+    """The patches, then make."""
+    apply_patches(tree, windows)
     env = {key: value for key, value in os.environ.items() if key not in ENV_DROPPED}
     if MACOS:
         env["MACOSX_DEPLOYMENT_TARGET"] = MACOS_MIN
-    else:
-        command += [f"FFAUDIO_LINKFLAGS={LINK_FLAGS}", f"EXTRA_LDFLAGS={RUNPATH_FLAGS}"]
-    print("+ " + " ".join(command), flush=True)
-    done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if done.returncode != 0:
-        raise BuildError(f"make failed with {done.returncode}; the end of its output:\n" + "\n".join(done.stdout.splitlines()[-40:]))
-    for name in ("mercury", "utils/watterson_test"):
+    for command in make_commands(windows):
+        print("+ " + " ".join(command), flush=True)
+        done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if done.returncode != 0:
+            raise BuildError(f"make failed with {done.returncode}; the end of its output:\n" + "\n".join(done.stdout.splitlines()[-40:]))
+    for name in ("mercury.exe",) if windows else ("mercury", "utils/watterson_test"):
         if not (tree / name).is_file():
             raise BuildError(f"make left no {name}")
 
@@ -285,28 +325,105 @@ def stage(tree: Path, out: Path, started: float) -> Path:
     shutil.copyfile(tree / "utils" / "watterson_test", folder / "dev" / "watterson_test")
     (folder / "dev" / "watterson_test").chmod(0o755)
     flags = " ".join((*MAKE_FLAGS, *(f"{name}=" for name in MAKE_EMPTY), *(() if MACOS else (f"FFAUDIO_LINKFLAGS={LINK_FLAGS}",))))
-    (folder / "SOURCE.txt").write_text(
+    (folder / "SOURCE.txt").write_text(source_offer(flags, sound, "dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"), encoding="utf-8")
+    print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
+    return folder
+
+
+def source_offer(flags: str, notes: str, last: str) -> str:
+    """SOURCE.txt, the written offer of the source that the GPL asks for: what was built, from which source, with which command, and every change NeoAPRS made to it. NOTES is what is particular to the system, LAST the closing remark."""
+    return (
         f"Mercury {VERSION}, Rhizomatica's HF modem (GPL-3.0-or-later, see LICENSE), built by NeoAPRS (scripts/build-mercury).\n"
         f"Source: {SOURCE_URL}\n"
         f"Commit: {SOURCE_COMMIT} (the tag v{VERSION})\n"
         f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
         f"Built: make {flags}\n"
-        f"{sound}"
-        f"Changes to the source: {LISTENERS_FILE} binds its TCP listeners to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
+        f"{notes}"
+        f"Changes to the source: {LISTENERS_FILE} binds its TCP listeners, and {WEBSOCKET_FILE} its web page's socket, to 127.0.0.1 instead of every interface (packaging/mercury/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
         f"Changes to the source: the ini key {LEADIN_KEY} plays a tone of that many milliseconds ahead of every frame's preamble, for a radio on VOX; 0 by default, no change (packaging/mercury/leadin.patch of NeoAPRS).\n"
-        f"dev/watterson_test is Mercury's HF channel simulator, for the simulators of NeoAPRS; it is not part of what is shipped.\n"
-        f"Date: {datetime.date.today().isoformat()}\n", encoding="utf-8")
+        f"{last}"
+        f"Date: {datetime.date.today().isoformat()}\n")
+
+
+def stage_windows(tree: Path, out: Path, started: float) -> Path:
+    """The folder OUT/mercury/ for Windows from the built TREE: mercury.exe, the licences of Mercury, of FreeDV and of the hidapi compiled into it, and the source offer. Nothing else: the program needs no DLL of ours, and
+    the simulator is not built."""
+    folder = out / "mercury"
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    shutil.copyfile(tree / "mercury.exe", folder / "mercury.exe")
+    shutil.copyfile(tree / "LICENSE", folder / "LICENSE")
+    if (tree / "LICENSE-freedv").is_file():
+        shutil.copyfile(tree / "LICENSE-freedv", folder / "LICENSE-freedv")
+    for name, target in (("LICENSE.txt", "LICENSE-hidapi.txt"), ("LICENSE-bsd.txt", "LICENSE-hidapi-bsd.txt")):
+        if not (tree / HIDAPI_DIR / name).is_file():
+            raise BuildError(f"{HIDAPI_DIR}/{name} is missing: hidapi is compiled into the program, and its licence has to travel with it")
+        shutil.copyfile(tree / HIDAPI_DIR / name, folder / target)
+    flags = " ".join((*WINDOWS_MAKE_FLAGS, *(f"{name}=" for name in WINDOWS_MAKE_EMPTY), WINDOWS_STRIP))
+    notes = (f"For Windows, cross-compiled on Linux with the MinGW-w64 compiler ({MINGW}gcc); the C runtime's thread library (winpthreads, MIT licence) and the compiler's runtime library (GPL-3.0-or-later with the runtime library exception) are linked in statically.\n"
+             f"hidapi ({HIDAPI_DIR}/ of the source, BSD-3-Clause or GPL-3.0 or the HIDAPI licence, see LICENSE-hidapi.txt and LICENSE-hidapi-bsd.txt) is compiled in, for keying a CM108 sound chip; hamlib and OpenSSL are not in this build.\n")
+    (folder / "SOURCE.txt").write_text(source_offer(flags, notes, ""), encoding="utf-8")
     print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
     return folder
+
+
+def pe_imports(path: Path) -> tuple[int, list[str]]:
+    """The machine type and the names of the DLLs that a program for Windows (a PE32+ file) imports, those loaded with it and the delay-loaded ones, read out of the file itself (no objdump is needed, and none is
+    trusted to be of the MinGW the program was made with). ValueError for a file that is not a 64-bit PE."""
+    data = path.read_bytes()
+    if data[:2] != b"MZ" or len(data) < 0x40:
+        raise ValueError(f"{path.name} is not a program for Windows (no MZ header)")
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    if data[pe:pe + 4] != b"PE\0\0":
+        raise ValueError(f"{path.name} is not a program for Windows (no PE signature)")
+    machine, count, _, _, _, optional_size, _ = struct.unpack_from("<HHIIIHH", data, pe + 4)
+    optional = pe + 24
+    if struct.unpack_from("<H", data, optional)[0] != 0x20B:
+        raise ValueError(f"{path.name} is not a 64-bit program")
+    directories = optional + 112
+    sections = [struct.unpack_from("<IIII", data, optional + optional_size + 40 * index + 8) for index in range(count)]
+
+    def offset(rva: int) -> int:
+        for size, address, raw_size, raw in sections:
+            if address <= rva < address + max(size, raw_size):
+                return raw + rva - address
+        raise ValueError(f"{path.name}: the address {rva:#x} is in no section")
+
+    names: list[str] = []
+    for directory, length, name_at in ((1, 20, 12), (13, 32, 4)):                  # (the import table, 20 bytes a DLL, and the delay-load table, 32)
+        rva = struct.unpack_from("<I", data, directories + 8 * directory)[0]
+        if rva == 0:
+            continue
+        at = offset(rva)
+        while data[at:at + length] != bytes(length):
+            start = offset(struct.unpack_from("<I", data, at + name_at)[0])
+            names.append(data[start:data.index(b"\0", start)].decode("ascii"))
+            at += length
+    return machine, names
+
+
+def check_windows(folder: Path) -> str:
+    """The checks of a program that cannot be run here: it is a 64-bit program for Windows, it says the pinned version, and it imports no DLL that does not come with Windows (so that nothing but mercury.exe has to travel).
+    The listening on 127.0.0.1 is held against the running program by the Windows job of the release workflow; the patch is held against the source here (apply_patches). Returns the imports, for the log."""
+    program = folder / "mercury.exe"
+    machine, names = pe_imports(program)
+    if machine != PE_MACHINE_X64:
+        raise BuildError(f"{program.name} is for the machine {machine:#x}, not for x86-64 Windows")
+    if VERSION.encode("ascii") not in program.read_bytes():
+        raise BuildError(f"{program.name} does not say it is Mercury {VERSION}")
+    foreign = [name for name in names if WINDOWS_DLL_NEVER.match(name)]
+    if foreign:
+        raise BuildError(f"{program.name} imports {', '.join(foreign)}, which do not come with Windows and would have to travel with it:\n  " + "\n  ".join(names))
+    return "imports: " + ", ".join(sorted(names, key=str.lower))
 
 
 def folder_size(folder: Path) -> int:
     return sum(path.stat().st_size for path in folder.rglob("*") if path.is_file() and not path.is_symlink())
 
 
-def make_tarball(folder: Path, out: Path) -> Path:
-    """OUT/mercury-<version>-linux-<machine>.tar.gz with mercury/ as its top folder, the entries in name order and owned by no one."""
-    target = out / tarball_name()
+def make_tarball(folder: Path, out: Path, system: str = sys.platform) -> Path:
+    """OUT/mercury-<version>-<linux|macos|windows>-<machine>.tar.gz with mercury/ as its top folder, the entries in name order and owned by no one."""
+    target = out / tarball_name(system=system)
 
     def anonymous(info: tarfile.TarInfo) -> tarfile.TarInfo:
         info.uid = info.gid = 0
@@ -330,12 +447,15 @@ def install(folder: Path) -> Path:
     return target
 
 
-def check(folder: Path) -> None:
-    """The program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with
+def check(folder: Path, windows: bool = False) -> None:
+    """For Windows check_windows (the program cannot be run here). Else the program as the daemon starts it: from its folder, on Linux with the ALSA configuration of the folder and no LD_LIBRARY_PATH. `-V` has to say the pinned version; `-z` lists the sound cards and exits 0 with
     none on Linux (on a Mac what it says is printed: a build machine without a sound device is no place to hold CoreAudio to an exit code)."""
     env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
     program = str(folder / "mercury")
     print(f"check: {folder}")
+    if windows:
+        print("  " + check_windows(folder))
+        return
     if MACOS:
         print("  " + check_links_mac(folder / "mercury").replace("\n", "\n  ").rstrip())
     else:
@@ -421,32 +541,37 @@ def megabytes(size: int) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux or macOS and lays it out as the folder mercury/ that NeoAPRS ships.")
+    parser = argparse.ArgumentParser(prog="build-mercury", description="Builds the pinned Mercury for Linux, macOS or (cross-compiled on Linux) Windows and lays it out as the folder mercury/ that NeoAPRS ships.")
+    parser.add_argument("--windows", action="store_true", help=f"cross-compile mercury.exe for 64-bit Windows with MinGW-w64 ({MINGW}gcc), on Linux; default folder build/mercury/dist-windows, the tarball {tarball_name(system='win32')}")
     parser.add_argument("--out", type=Path, help="the folder in which mercury/ is made (default build/mercury/dist)")
     parser.add_argument("--tar", action="store_true", help=f"also make {tarball_name()} in it")
     parser.add_argument("--install", action="store_true", help="copy the folder to <sys.prefix>/tools/mercury of the virtual environment (the default when neither --out nor --tar is given)")
     parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
     args = parser.parse_args(argv)
-    if sys.platform not in ("linux", "darwin"):
-        print("build-mercury: this builds for Linux and macOS only", file=sys.stderr)
+    windows = args.windows
+    if sys.platform not in ("linux", "darwin") or (windows and sys.platform != "linux"):
+        print("build-mercury: this builds for Linux and macOS, and for Windows on Linux only", file=sys.stderr)
         return 1
-    for tool in ("cc", "make", "otool", "patch") if MACOS else ("gcc", "make", "patch", "ldd", "readelf", "strip"):
+    if windows and args.install:
+        print("build-mercury: --install is for the program of this system; a program for Windows is no use to a checkout here", file=sys.stderr)
+        return 1
+    for tool in WINDOWS_TOOLS if windows else ("cc", "make", "otool", "patch") if MACOS else ("gcc", "make", "patch", "ldd", "readelf", "strip"):
         if shutil.which(tool) is None:
             print(f"build-mercury: {tool} is not installed", file=sys.stderr)
             return 1
-    do_install = args.install or (args.out is None and not args.tar)
-    out = (args.out or DEFAULT_OUT).resolve()
+    do_install = not windows and (args.install or (args.out is None and not args.tar))
+    out = (args.out or (DEFAULT_OUT_WINDOWS if windows else DEFAULT_OUT)).resolve()
     started = time.monotonic()
     try:
         archive = args.source.resolve() if args.source else fetch_source()
         if not archive.is_file() or sha256(archive) != SOURCE_SHA256:
             raise BuildError(f"{archive} is not the file with SHA-256 {SOURCE_SHA256}")
-        tree = unpack(archive, WORK)
-        build(tree)
+        tree = unpack(archive, WORK_WINDOWS if windows else WORK)
+        build(tree, windows)
         out.mkdir(parents=True, exist_ok=True)
-        folder = stage(tree, out, started)
-        check(folder)
-        tarball = make_tarball(folder, out) if args.tar else None
+        folder = stage_windows(tree, out, started) if windows else stage(tree, out, started)
+        check(folder, windows)
+        tarball = make_tarball(folder, out, "win32" if windows else sys.platform) if args.tar else None
         installed = install(folder) if do_install else None
         if installed is not None:
             check(installed)

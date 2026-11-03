@@ -1,11 +1,14 @@
 Mercury's TCP listeners bound to the loopback. Mercury 1.9.21 binds its control port and its ARQ data port (open_listener_socket, used for both) and its KISS broadcast port
 (tcp_broadcast_server_thread) on INADDR_ANY, every network interface, and has no bind option on its command line or in its configuration file; nothing on those ports asks for a
 password. Any host on the LAN could write `TUNE -15` to the control port and key the transmitter for a minute, or hand a KISS frame to the broadcast port and have it sent on HF, past
-every interlock of NeoAPRS (the page's access key, RX only, the call). NeoAPRS reaches the Mercury it starts on this computer alone, so the two binds become INADDR_LOOPBACK.
-scripts/build-mercury applies this file to the pinned source before the build (`patch -p1`) and checks that no INADDR_ANY is left in the file; the daemon checks at every start that the
-program it started listens on 127.0.0.1 only (neoaprs/mercuryhelper.py, `foreign_listeners`). The Windows build is Rhizomatica's own and is not patched: there the installer's firewall
-rule stands in for this (packaging/windows/neoaprs.iss, neoaprs/mercuryfirewall.py). A bind option has been asked of upstream; when a Mercury carries one, this file goes and the option
-takes its place on the command line. Made from the source of the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin that moves these lines fails the build loudly, which is right.
+every interlock of NeoAPRS (the page's access key, RX only, the call). NeoAPRS reaches the Mercury it starts on this computer alone, so the two binds become INADDR_LOOPBACK. The code is the same
+on every system (Winsock has the same bind and the same constant): the patch is applied to the build for Linux, macOS and Windows alike, and there is no firewall rule to stand in for it. The third place
+Mercury binds a socket, the websocket of its own web page (ui_transport_init, off unless Mercury is started with -G, which NeoAPRS never does), is given the loopback as well, so that no listener of the
+program is left that the network could reach.
+scripts/build-mercury applies this file to the pinned source before the build (`patch -p1`) and checks that no INADDR_ANY is left in the listeners' file; the daemon checks at every start that the
+program it started listens on 127.0.0.1 only (neoaprs/mercuryhelper.py, `foreign_listeners`), and the release workflow starts the built program on each system and reads that table of sockets. A bind option has
+been asked of upstream; when a Mercury carries one, this file goes and the option takes its place on the command line. Made from the source of the pinned commit (neoaprs/mercury.py: SOURCE_COMMIT); a new pin
+that moves these lines fails the build loudly, which is right.
 
 --- a/data_interfaces/tcp_interfaces.c
 +++ b/data_interfaces/tcp_interfaces.c
@@ -27,3 +30,14 @@ takes its place on the command line. Made from the source of the pinned commit (
      local_addr.sin_port = htons(tcp_port);
 
      if (bind(tcp_socket, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
+--- a/gui_interface/websocket/mercury_websocket.c
++++ b/gui_interface/websocket/mercury_websocket.c
+@@ -128,7 +128,7 @@
+
+     memset(&opts, 0, sizeof(opts));
+     opts.port = port;
+-    opts.bind_addr = NULL;                      /* 0.0.0.0, as before */
++    opts.bind_addr = "127.0.0.1";               /* the loopback only */
+     opts.ws_path = "/websocket";
+     opts.max_message_size = UI_MAX_MESSAGE_SIZE;
+     opts.tls_enabled = tls_enabled;
