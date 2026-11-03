@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed:** on Windows, the HF radio could not start for a user who is not an administrator: the firewall check asked Windows in a way that needs administrator rights ("Access is denied"); it now reads the firewall the way every user may. Thanks to OH2GAX for the logs.
+- **Fixed:** a copy installed with the install line before 0.16 could not update (the address its update window runs answered 404): every release again carries `install.sh` and the wheel it installs.
 ## 0.16.1
 
 - **New:** **Send logs** in the Help group of the Settings tab sends the support file to the project with one press: a small window asks "What happened?", **Send** makes the same file as Download logs and sends it with your words, and the page says "Sent" with a short reference to quote (or why it could not be sent). Nothing is sent before you press Send. Download logs and the e-mail stay as they were.

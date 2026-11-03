@@ -29,14 +29,21 @@ RULE_NAME = "NeoAPRS Mercury"        # the rule's name in the installer
 TIMEOUT_SEC = 30.0                   # PowerShell's start is slow on a busy computer, and the list of the allow rules is long; a stuck one is given this long
 SHOWN_NAMES = 3                      # how many rules that let Mercury in are named
 
+# The facts through the Firewall's COM interface (HNetCfg.FwPolicy2), which every user may read: the NetSecurity cmdlets (Get-NetFirewallApplicationFilter) answer "Access is denied" to a user who is not an administrator
+# on some Windows 10 (OH2GAX's, 0.16.1). Numbers, not words, come back (direction 1 in, action 0 block / 1 allow, protocol 6 TCP / 17 UDP / 256 any, profiles 1 domain / 2 private / 4 public), so the lines are the same
+# in every language of Windows; they are printed in the form `_facts` reads.
 SCRIPT = (
     "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
-    f"$r = @(Get-NetFirewallRule -DisplayName '{RULE_NAME}' -ErrorAction SilentlyContinue); "
-    "if ($r.Count -eq 0) { 'rule none' } else { foreach ($x in $r) { $p = ($x | Get-NetFirewallApplicationFilter).Program; \"rule $($x.Enabled) $($x.Direction) $($x.Action) $p\" } }; "
-    "Get-NetFirewallProfile | ForEach-Object { \"profile $($_.Name) $($_.Enabled) $($_.DefaultInboundAction)\" }; "
-    "$apps = @{}; Get-NetFirewallApplicationFilter | ForEach-Object { $apps[$_.InstanceID] = $_.Program }; "
-    "$ports = @{}; Get-NetFirewallPortFilter | ForEach-Object { $ports[$_.InstanceID] = \"$($_.Protocol)`t$($_.LocalPort -join ',')\" }; "
-    "Get-NetFirewallRule -Enabled True -Direction Inbound -Action Allow | ForEach-Object { \"allow`t$($_.DisplayName)`t$($apps[$_.Name])`t$($ports[$_.Name])\" }"
+    "$p = New-Object -ComObject HNetCfg.FwPolicy2; $found = $false; "
+    "foreach ($x in $p.Rules) { "
+    f"if ($x.Name -eq '{RULE_NAME}') {{ $found = $true; $d = if ($x.Direction -eq 1) {{ 'Inbound' }} else {{ 'Outbound' }}; $a = if ($x.Action -eq 0) {{ 'Block' }} else {{ 'Allow' }}; \"rule $($x.Enabled) $d $a $($x.ApplicationName)\" }}; "
+    "if ($x.Enabled -and $x.Direction -eq 1 -and $x.Action -eq 1) { "
+    "$prog = if ($x.ApplicationName) { $x.ApplicationName } else { 'Any' }; "
+    "$proto = switch ($x.Protocol) { 6 { 'TCP' } 17 { 'UDP' } 256 { 'Any' } default { \"$($x.Protocol)\" } }; "
+    "$lp = if (-not $x.LocalPorts -or $x.LocalPorts -eq '*') { 'Any' } else { $x.LocalPorts }; "
+    "\"allow`t$($x.Name)`t$prog`t$proto`t$lp\" } }; "
+    "if (-not $found) { 'rule none' }; "
+    "foreach ($k in @(@(1, 'Domain'), @(2, 'Private'), @(4, 'Public'))) { $e = $p.FirewallEnabled($k[0]); $i = if ($p.DefaultInboundAction($k[0]) -eq 0) { 'Block' } else { 'Allow' }; \"profile $($k[1]) $e $i\" }"
 )
 
 
