@@ -110,7 +110,7 @@ export const help = {
   "help.update.restarting": "NeoAPRS restarts in a moment",
   "help.update.restarting_installer": "Installing… NeoAPRS restarts in a moment",
   "help.update.reconnecting": "NeoAPRS is restarting. This page reconnects by itself.",
-  "help.update.problem.download": "The update could not be downloaded. Check the internet connection and try again.",
+  "help.update.problem.download": "The update could not be downloaded. Try again, or download it from the project page.",
   "help.update.problem.no_checksum": "The release has no checksum for this file, so nothing was installed. Update by hand.",
   "help.update.problem.checksum": "The download is not the release's file, so it was deleted and nothing was installed. Try again.",
   "help.update.problem.install": "The update could not be installed. Update by hand.",

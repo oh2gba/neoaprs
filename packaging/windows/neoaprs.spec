@@ -19,7 +19,7 @@ dotnet_binaries = [item for _datas, bins, _hidden in dotnet for item in bins]
 hidden += [item for _datas, _bins, hidden_ in dotnet for item in hidden_]
 icon = str(Path(neoaprs.desktop.__file__).parent / "icon.ico")
 # The page, the placeholder page, the sample capture and the world map (neoaprs/maps/, which the daemon serves until a map of the area is made: neoaprs/worldmap.py looks for it in _internal); the systemd unit template is of no use on Windows.
-datas = collect_data_files("neoaprs", excludes=["**/*.service", "**/__pycache__/**"]) + dotnet_datas
+datas = collect_data_files("neoaprs", excludes=["**/*.service", "**/__pycache__/**"]) + dotnet_datas + collect_data_files("certifi")          # (certifi's cacert.pem: the roots trusted beside the system's, neoaprs/httpstrust.py)
 
 # (PySide6 is the shell of the other systems: the app of Windows has no use for it, even if a build environment has it)
 a = Analysis(["neoaprs_entry.py"], pathex=[SPECPATH], binaries=dotnet_binaries, datas=datas, hiddenimports=hidden, excludes=["tkinter", "PySide6", "shiboken6"], noarchive=False)

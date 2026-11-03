@@ -1790,7 +1790,7 @@ export const fr: Catalogue = {
   "help.update.restarting": "NeoAPRS redémarre dans un instant",
   "help.update.restarting_installer": "Installation… NeoAPRS redémarre dans un instant",
   "help.update.reconnecting": "NeoAPRS redémarre. Cette page se reconnecte d'elle-même.",
-  "help.update.problem.download": "La mise à jour n'a pas pu être téléchargée. Vérifiez la connexion Internet et réessayez.",
+  "help.update.problem.download": "La mise à jour n'a pas pu être téléchargée. Réessayez, ou téléchargez-la depuis la page du projet.",
   "help.update.problem.no_checksum": "La version publiée n'a pas de somme de contrôle pour ce fichier : rien n'a été installé. Mettez à jour à la main.",
   "help.update.problem.checksum": "Le fichier téléchargé n'est pas celui de la version publiée : il a été supprimé et rien n'a été installé. Réessayez.",
   "help.update.problem.install": "La mise à jour n'a pas pu être installée. Mettez à jour à la main.",

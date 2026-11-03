@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import IO
 
 from .updatedownload import in_thread
+from .httpstrust import https_handler
 
 log = logging.getLogger("neoaprs.update")
 
@@ -49,7 +50,7 @@ def get_url(url: str, version: str, platform: str, timeout_sec: float = TIMEOUT_
         return None                                  # (urllib also reads file: and ftp: addresses)
     request = urllib.request.Request(url, headers={"User-Agent": f"NeoAPRS/{version} ({platform})"})
     try:
-        with urllib.request.build_opener(_NotDowngraded).open(request, timeout=timeout_sec) as response:
+        with urllib.request.build_opener(https_handler(), _NotDowngraded).open(request, timeout=timeout_sec) as response:
             return bytes(response.read(max_bytes))
     except (OSError, ValueError, http.client.HTTPException) as e:
         log.debug("the update check could not reach %s: %r", url, e)
@@ -100,7 +101,7 @@ def post_form(url: str, fields: dict[str, str], files: dict[str, tuple[str, byte
     content_type, body = multipart(fields, files)
     request = urllib.request.Request(url, data=body, method="POST", headers={"User-Agent": f"NeoAPRS/{version} ({platform})", "Content-Type": content_type})
     try:
-        with urllib.request.build_opener(_NotFollowed).open(request, timeout=timeout_sec) as response:
+        with urllib.request.build_opener(https_handler(), _NotFollowed).open(request, timeout=timeout_sec) as response:
             return int(response.status), bytes(response.read(max_bytes))
     except urllib.error.HTTPError as e:
         try:

@@ -112,7 +112,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting": "O NeoAPRS reinicia em instantes",
   "help.update.restarting_installer": "Instalando… o NeoAPRS reinicia em instantes",
   "help.update.reconnecting": "O NeoAPRS está reiniciando. Esta página se reconecta sozinha.",
-  "help.update.problem.download": "Não foi possível baixar a atualização. Verifique a conexão com a internet e tente de novo.",
+  "help.update.problem.download": "Não foi possível baixar a atualização. Tente de novo ou baixe-a na página do projeto.",
   "help.update.problem.no_checksum": "A versão publicada não tem soma de verificação para este arquivo, então nada foi instalado. Atualize manualmente.",
   "help.update.problem.checksum": "O download não é o arquivo da versão publicada: ele foi apagado e nada foi instalado. Tente de novo.",
   "help.update.problem.install": "Não foi possível instalar a atualização. Atualize manualmente.",

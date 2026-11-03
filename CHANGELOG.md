@@ -11,6 +11,10 @@
 - **New:** the HF radio's box has a **Transmit level** under Tune: the - and + beside it lower and raise the modem's audio to the radio in whole dB, the modem takes it at once, and the tuning tone follows it, so that you press Tune and watch the radio's ALC while you set the level. The peak of the latest transmission is shown beside it and turns red where the sound card clips.
 - **New:** a small **Spectrum** under one row at the end of the HF radio's box (folded until you open it, and remembered in this browser): the spectrum of the radio's audio from 300 to 2700 Hz with the place of a frame marked, and the receive level as a bar with its good range, to set the radio's audio output by. It is only there while the modem can give it, and the modem makes it only while the fold is open.
 
+## 0.16.3
+
+- **Fixed:** Update now, Send logs and the map download could fail on a fresh Windows with a certificate error where the browser of the same computer downloaded the same file (Windows fetches a missing root certificate only for a browser): NeoAPRS also trusts the usual list of root certificates (certifi), and a failed download no longer blames the internet connection.
+
 ## 0.16.2
 
 - **Fixed:** on Windows the HF radio no longer depends on the Windows Firewall: NeoAPRS builds the Mercury modem itself, listening on this computer only, as on Linux and macOS, so there is no firewall rule, no prompt, no check and no **Fix** button; the VOX lead-in works on Windows too. (The check could fail for a user who is not an administrator, or on a computer whose security software answered "Access is denied", and the HF radio then never started. Thanks to OH2GAX for the logs.)

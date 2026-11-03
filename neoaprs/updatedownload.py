@@ -11,6 +11,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Any, Protocol
+from .httpstrust import https_handler
 
 log = logging.getLogger("neoaprs.update")
 
@@ -62,7 +63,7 @@ def open_url(url: str, allowed: Allowed) -> Response:
         raise DownloadError(f"{url} is not one of GitHub's addresses for release files")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        response: Response = urllib.request.build_opener(_Guarded(allowed)).open(request, timeout=TIMEOUT_SEC)
+        response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed)).open(request, timeout=TIMEOUT_SEC)
     except urllib.error.HTTPError as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}") from None
     except (OSError, ValueError, http.client.HTTPException) as e:

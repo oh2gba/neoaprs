@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath
 
 from neoaprs.mapstate import MapError
+from .httpstrust import https_handler
 
 VERSION = "1.31.2"
 RELEASE_URL = f"https://github.com/protomaps/go-pmtiles/releases/download/v{VERSION}"
@@ -119,7 +120,7 @@ def _download(url: str, target: Path, sha256: str) -> None:
     """The file at the address, written to `target`, if its digest is the pinned one; else ToolError and nothing is kept."""
     digest, size = hashlib.sha256(), 0
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:
+        with urllib.request.build_opener(https_handler()).open(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:
             while chunk := response.read(1 << 16):
                 size += len(chunk)
                 if size > MAX_DOWNLOAD:
@@ -364,7 +365,7 @@ async def extract(program: Path, source: str, target: Path, bbox: tuple[float, f
 def url_exists(url: str) -> bool:
     """Whether a HEAD request for the address is answered with a success. A connection that fails is a no. Blocks: run it in a thread."""
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=20) as response:
+        with urllib.request.build_opener(https_handler()).open(urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=20) as response:
             return bool(200 <= response.status < 300)
     except (OSError, ValueError):
         return False
