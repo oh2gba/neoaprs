@@ -117,7 +117,8 @@ end;
 
 // Blocks the network from the installed Mercury: it listens on every interface with no password, and the daemon reaches it on this computer, which the Firewall does not filter. Adding a rule needs administrator
 // rights and this installer has none, so the netsh that adds it runs with `runas` (the UAC prompt); declining leaves the rule out and the installation goes on (the daemon does not start Mercury without it).
-// A silent update finds the rule from the first installation (the program's path does not change) and asks nothing.
+// A silent update of a copy that already has the rule finds it (the program's path does not change) and asks nothing. A copy updated from a version before Mercury has no rule and, with a silent update, may never
+// see the prompt: the HF radio's box then has a button that makes the same rule (neoaprs/mercuryrule.py).
 procedure AddMercuryFirewallRule();
 var
   Code: Integer;
