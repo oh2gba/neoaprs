@@ -124,6 +124,13 @@ def too_long(raw: bytes, max_payload: int = MAX_PAYLOAD) -> str | None:
     return None if len(raw) <= max_payload else f"{len(raw)} bytes, the radio carries {max_payload}"
 
 
+def frame_words(direction: str, size: int, station: str, snr: float | None) -> str:
+    """One frame over the modem as the log tells it: "HF frame heard from OH2XYZ: 87 bytes, SNR -2 dB" (the modem's latest SNR, when it said one), "HF frame sent from OH2GBA: 64 bytes"."""
+    if direction == "out":
+        return f"HF frame sent from {station}: {size} bytes"
+    return f"HF frame heard from {station}: {size} bytes" + ("" if snr is None else f", SNR {snr:.0f} dB")
+
+
 def ports_from(broadcast_port: int) -> tuple[int, int]:
     """The broadcast port and the control port that goes with it."""
     return broadcast_port, broadcast_port + CONTROL_OFFSET
@@ -227,6 +234,18 @@ def choose_sound_card(cards: Sequence[SoundCard]) -> str:
         return radios[0].id
     others = [c for c in both if not c.default]
     return others[0].id if len(others) == 1 and not radios else ""
+
+
+def card_reason(card: str, setting: str, cards: Sequence[SoundCard]) -> str:
+    """Which sound card the modem runs with and why, for the log: from the setting, chosen from the cards Mercury listed (named, so that a person reading the log sees what the choice was made among), or the
+    system's default device because none stood out or none was listed."""
+    listed = ", ".join(f"{c.name!r} ({c.id})" for c in cards) or "none listed"
+    if setting:
+        return f"{setting!r}, from the settings"
+    if card:
+        name = next((c.name for c in cards if c.id == card), card)
+        return f"{name!r} ({card}), chosen by NeoAPRS among the cards listed: {listed}"
+    return f"the system's default device; no card stood out among those listed: {listed}"
 
 
 def propose_sound_card(cards: Sequence[SoundCard]) -> str:

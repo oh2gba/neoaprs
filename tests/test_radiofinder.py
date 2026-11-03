@@ -1,6 +1,7 @@
 """Find my radio (neoaprs/services/radiofinder.py, radioprobe.py): the order the ports and speeds are tried in, that the search stops at the first TNC that answers, which profile fits what answers, what a cancel leaves,
 and which ports are listed at all. The TNCs are fakes (tests/support/faketnc.py): a TCP server on the loopback, or a port that is not one and takes a speed. No device of the machine is listed or opened."""
 import asyncio
+import logging
 from pathlib import Path
 
 import pytest
@@ -201,3 +202,13 @@ async def test_a_search_that_fails_for_a_reason_of_its_own_is_said_to_have_faile
     with pytest.raises(CodedError) as caught:
         await finder.find(lambda trying: None)
     assert caught.value.code == "radio.failed" and not finder.running
+
+
+async def test_the_log_says_which_ports_are_tried_and_what_the_search_found(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.tnc")
+    [tnc] = await serve("kiss")
+    rig = Rig([tnc.url])
+    await rig.finder.find(rig.tried.append)
+    said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.tnc"]
+    assert said == [f"find the radio: trying {tnc.url}", f"find the radio: found on {tnc.url} at no speed, profile kiss"]
+    await tnc.aclose()

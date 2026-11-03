@@ -210,6 +210,7 @@ class Messaging:
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)
+        log.info("message %d to %s is kept: %d characters, at most %d attempts, on the %s radio", record.id, to, len(text), record.attempts_max, radio.rules.kind)
         return self.attempt(record)
 
     def retry(self, number: int) -> MessageRecord:
@@ -218,6 +219,7 @@ class Messaging:
         record = self._ours(number)
         if record.state not in RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
+        log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None)
         self.delivery.restart(number)
         self.put(record)
@@ -229,6 +231,7 @@ class Messaging:
         if record.state != "sending":
             raise MessagingError(f"message {number} is {record.state}: only a message that is being sent can be cancelled")
         record = replace(record, state="cancelled")
+        log.info("message %d to %s is cancelled (the operator asked): %d of %d attempts were made", number, record.to_call, record.attempts, record.attempts_max)
         self.put(record)
         return record
 
@@ -343,7 +346,7 @@ class Messaging:
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.rules.kind)
         if record.msg_id is None:
             record = replace(record, state="unconfirmed")                   # (a bulletin or a group message is sent once and nobody acks it)
-        log.info("message %d to %s sent (attempt %d of %d): %s", record.id, record.to_call, record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
+        log.info("message %d to %s sent on the %s radio (attempt %d of %d): %s", record.id, record.to_call, radio.rules.kind, record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
         self.put(record)
         return record
 
