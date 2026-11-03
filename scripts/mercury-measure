@@ -6,6 +6,9 @@
                                                                           PTT ON to PTT OFF, hand-in to the far station's KISS port, the busy detector's lag and hang time, the SNR the far station reports
   scripts/mercury-measure decode  --snr 0,3,6 [--fading poor] [--frames N]  frames delivered of N sent, at each signal-to-noise ratio, on a flat channel or a fading one (the Watterson presets of the channel:
                                                                           good, moderate, poor, flutter)
+  scripts/mercury-measure vox     --attack-ms 0,40,100 --snr 10,3 [--leadin-ms MS] [--frames N]  frames delivered of N sent when the first ms of every transmission is muted (a VOX's attack: the radio starts
+                                                                          to transmit only when it has heard the audio that long), with Mercury's own beginning of the frame (--leadin-ms 0) or with the lead-in tone NeoAPRS's
+                                                                          Mercury plays ahead of the preamble (--leadin-ms 150)
   scripts/mercury-measure acks    [--messages N] [--snr DB] [--fading P]  two daemons on the channel: N messages one after another, the time to each ack, its distribution against the retry schedule
   scripts/mercury-measure busy    [--frames N] [--quiet-sec S]            the busy detector's threshold (`busy_threshold_db`) at 10 to 24 dB, seven real Mercury instances on one channel: which frames each sees, from -3 to 20 dB SNR,
                                                                           and how long each reads BUSY on noise that is white, filtered, with carriers, and after a step of 10 and 20 dB (docs/mercury.md has the table); about 20 minutes
@@ -36,7 +39,7 @@ from neoaprs.mercury import FRAME_SEC, parse_control_line, split_control_lines  
 from neoaprs.mercuryhelper import find  # noqa: E402
 from neoaprs.message import FIRST_WAIT_SEC  # noqa: E402
 from neoaprs.radiorules import HF_BEACON_JITTER_SEC  # noqa: E402
-from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Channel  # noqa: E402
+from tests.support.hfchannel import PRESETS, REFERENCE_RMS, Attack, Channel  # noqa: E402
 from tests.support.realmercury import Failure, Page, fifo, start_daemon, start_mercury, stop, wait_for_page, write_settings  # noqa: E402
 
 PAYLOAD = b"OH2A>APNEO1:=6010.20N/02456.40E-a packet of a hundred bytes, as a beacon with a comment is on the air....."         # (100 bytes: the frame is its full size whatever the payload)
@@ -73,11 +76,11 @@ class Recorder:
 class Modem:
     """A Mercury of the measurement: its process, a KISS client on its broadcast port and a reader of its control port, with every line stamped."""
 
-    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int], threshold: int | None = None) -> None:
+    def __init__(self, name: str, binary: str, folder: Path, channel: Channel, ports: tuple[int, int], threshold: int | None = None, leadin_ms: int = 0) -> None:
         self.name, self.ports = name, ports
         self.rx, self.tx = fifo(folder, f"{name}-rx"), fifo(folder, f"{name}-tx")
         channel.add(name, self.rx, self.tx)
-        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports, busy_threshold_db=threshold)
+        self.process = start_mercury(binary, folder, name.lower(), self.rx, self.tx, ports, busy_threshold_db=threshold, leadin_ms=leadin_ms)
         self.frames: list[tuple[float, bytes]] = []                 # (when, payload) of every frame heard on the broadcast port
         self.events: list[tuple[float, str, bool]] = []             # (when, kind, on) of PTT and BUSY, and ("snr", value) as (when, "snr", value)
         self.snr: list[float] = []
@@ -160,8 +163,9 @@ def binary_of(args: argparse.Namespace) -> str:
 
 def pair(args: argparse.Namespace, folder: Path, channel: Channel) -> tuple[Modem, Modem]:
     binary = binary_of(args)
-    a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200))
-    b = Modem("B", binary, folder, channel, (args.first_port + 10, args.first_port + 210))
+    leadin = getattr(args, "leadin_ms", 0)
+    a = Modem("A", binary, folder, channel, (args.first_port, args.first_port + 200), leadin_ms=leadin)
+    b = Modem("B", binary, folder, channel, (args.first_port + 10, args.first_port + 210), leadin_ms=leadin)
     return a, b
 
 
@@ -253,6 +257,51 @@ async def measure_decode(args: argparse.Namespace, folder: Path) -> dict[str, An
             results.append(result)
             say(f"{args.fading or 'flat'} at {snr:g} dB: {delivered} of {args.frames} delivered" + (f", SNR reported {result['snr_reported_mean']:.1f} dB" if reported else "") + f" ({result['seconds']} s)")
         rows = [(f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR", f"{r['delivered']} of {r['sent']} frames delivered" + (f", reported SNR {r['snr_reported_mean']:.1f} dB" if r["snr_reported_mean"] is not None else "")) for r in results]
+        table(rows)
+        return {"points": results, "rows": rows}
+    finally:
+        a.close()
+        b.close()
+        channel.stop()
+
+
+# ---- vox
+
+async def measure_vox(args: argparse.Namespace, folder: Path) -> dict[str, Any]:
+    attacks = [float(v) for v in args.attack_ms.split(",")]
+    points = [float(v) for v in args.snr.split(",")]
+    channel = Channel(snr_db=points[0], seed=args.seed)
+    a, b = pair(args, folder, channel)
+    if args.fading:
+        channel.set_fading(args.fading, seed=args.seed)
+    attack = Attack(lambda: channel.blocks)
+    fading = channel.links[("A", "B")].shaper if args.fading else None
+    channel.set_link("A", "B", shaper=attack if fading is None else (lambda block: fading(attack(block))), symmetric=False)        # (A's transmissions lose their first milliseconds before the channel's fading, as a radio that starts late does)
+    channel.start()
+    results: list[dict[str, Any]] = []
+    try:
+        await a.connect(args.timeout)
+        await b.connect(args.timeout)
+        await asyncio.sleep(2.0)
+        for snr in points:
+            channel.snr_db = snr
+            await asyncio.sleep(1.0)
+            for ms in attacks:
+                attack.ms = ms
+                heard_before, snr_before = len(b.frames), len(b.snr)
+                started = time.monotonic()
+                for _ in range(args.frames):
+                    t0 = a.send(PAYLOAD)
+                    t_on = await a.when("ptt", True, t0, args.timeout)
+                    await a.when("ptt", False, t_on, args.timeout)
+                    await asyncio.sleep(1.5)
+                delivered = len(b.frames) - heard_before
+                reported = b.snr[snr_before:]
+                result = {"snr_db": snr, "fading": args.fading, "attack_ms": ms, "leadin_ms": args.leadin_ms, "sent": args.frames, "delivered": delivered,
+                          "snr_reported_mean": statistics.fmean(reported) if reported else None, "seconds": round(time.monotonic() - started, 1)}
+                results.append(result)
+                say(f"{args.fading or 'flat'} at {snr:g} dB, first {ms:g} ms muted, lead-in {args.leadin_ms} ms: {delivered} of {args.frames} delivered ({result['seconds']} s)")
+        rows = [(f"{args.fading or 'flat channel'} at {r['snr_db']:g} dB SNR, first {r['attack_ms']:g} ms muted, lead-in {r['leadin_ms']} ms", f"{r['delivered']} of {r['sent']} frames delivered") for r in results]
         table(rows)
         return {"points": results, "rows": rows}
     finally:
@@ -542,7 +591,7 @@ def run(args: argparse.Namespace) -> int:
     else:
         folder = Path(tempfile.mkdtemp(prefix="mercury-measure-"))
         try:
-            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "acks": measure_acks, "busy": measure_busy}[args.what](args, folder))
+            report = asyncio.run({"frame": measure_frame, "decode": measure_decode, "vox": measure_vox, "acks": measure_acks, "busy": measure_busy}[args.what](args, folder))
         finally:
             if args.keep:
                 say(f"kept {folder}")
@@ -555,11 +604,13 @@ def run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="the measurements behind NeoAPRS's Mercury numbers, on the simulated channel")
-    parser.add_argument("what", choices=("frame", "decode", "acks", "beacons", "busy"))
-    parser.add_argument("--frames", type=int, default=6, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50)")
-    parser.add_argument("--snr", default="0,3,6,9", metavar="DB,DB", help="decode: the signal-to-noise ratios in 3 kHz to try; default %(default)s")
+    parser.add_argument("what", choices=("frame", "decode", "vox", "acks", "beacons", "busy"))
+    parser.add_argument("--frames", type=int, default=6, metavar="N", help="frame: how many frames (default 6); decode: frames per point (default 50); vox: frames per point (default 20)")
+    parser.add_argument("--snr", metavar="DB,DB", help="decode, vox: the signal-to-noise ratios in 3 kHz to try; default 0,3,6,9 (decode), 10,3 (vox)")
+    parser.add_argument("--attack-ms", default="0,20,40,60,80,100,150,200", metavar="MS,MS", help="vox: how many milliseconds of every transmission are muted, one point each; default %(default)s")
+    parser.add_argument("--leadin-ms", type=int, default=0, metavar="MS", help="vox: the lead-in tone Mercury plays ahead of the preamble (`tx_leadin_ms`, the build of NeoAPRS only); default %(default)s, Mercury's own frame")
     parser.add_argument("--snr-one", type=float, default=30.0, metavar="DB", help="acks: the channel's SNR; default %(default)s")
-    parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, acks: the Watterson preset of every link (default: a flat channel)")
+    parser.add_argument("--fading", choices=tuple(PRESETS), help="decode, vox, acks: the Watterson preset of every link (default: a flat channel)")
     parser.add_argument("--quiet-sec", type=float, default=90.0, metavar="SEC", help="busy: how long each noisy scene is listened to; default %(default)s")
     parser.add_argument("--messages", type=int, default=20, metavar="N", help="acks: how many messages; default %(default)s")
     parser.add_argument("--hours", type=int, default=50, metavar="H", help="beacons: hours of simulated time per round; default %(default)s")
@@ -573,8 +624,10 @@ def main() -> int:
     parser.add_argument("--report", metavar="FILE", help="write the result as JSON here too")
     parser.add_argument("--keep", action="store_true", help="keep the folder of the run")
     args = parser.parse_args()
-    if args.what == "decode" and args.frames == 6:
-        args.frames = 50
+    if args.what in ("decode", "vox") and args.frames == 6:
+        args.frames = 50 if args.what == "decode" else 20
+    if args.snr is None:
+        args.snr = "10,3" if args.what == "vox" else "0,3,6,9"
     if sys.platform == "win32" and args.what != "beacons":
         print("measure: named pipes of this kind are Linux's; run it there", file=sys.stderr)
         return 2
