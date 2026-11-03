@@ -2,8 +2,6 @@
 
 ## Unreleased
 
-## 0.17.0
-
 - **New:** the FM radio and the HF radio boxes of the Radio group fold by the arrow in front of their names, as the groups do, and the page remembers in this browser which ones you folded. A box opens by itself when its radio is ticked and not connected, when the daemon refuses one of its settings, and when a mark in the header leads you to a setting in it.
 - **New:** the HF radio's box has a **Transmit level** under Tune: the - and + beside it lower and raise the modem's audio to the radio in whole dB, the modem takes it at once, and the tuning tone follows it, so that you press Tune and watch the radio's ALC while you set the level. The peak of the latest transmission is shown beside it and turns red where the sound card clips.
 - **New:** a small **Spectrum** under one row at the end of the HF radio's box (folded until you open it, and remembered in this browser): the spectrum of the radio's audio from 300 to 2700 Hz with the place of a frame marked, and the receive level as a bar with its good range, to set the radio's audio output by. It is only there while the modem can give it, and the modem makes it only while the fold is open.
