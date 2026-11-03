@@ -8,7 +8,6 @@ import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfTuneRow from "@/components/HfTuneRow.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
-import SettingsField from "@/components/SettingsField.vue";
 import SettingsRadioFields from "@/components/SettingsRadioFields.vue";
 import SettingsSwitch from "@/components/SettingsSwitch.vue";
 import type { Settings } from "@/composables/useSettings";
@@ -17,7 +16,7 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { hfIsMercury } from "@/lib/mercury";
 import { fmOn, hfOn } from "@/lib/radiosides";
-import { RX_ONLY_KEY, type FieldInfo } from "@/lib/settings";
+import { RX_ONLY_KEY } from "@/lib/settings";
 import type { TncState } from "@/protocol/protocol";
 
 const props = defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
@@ -26,8 +25,6 @@ const { send, tnc, hf, now } = useDaemonContext();
 const FM_KEY = "fm/enabled";
 const HF_KEY = "hf/enabled";
 const HF_PROFILE_KEY = "hf/profile";
-/** The dial frequency the group agrees on, which the daemon says (`hf.modem.dial`): a row to read, in the pattern of the read-only fields of the form. */
-const frequency = computed<FieldInfo>(() => ({ label: t("settings.hf_frequency.label"), kind: "readonly" }));
 const fm = computed(() => fmOn(props.settings.draft));
 const hfRadio = computed(() => hfOn(props.settings.draft));
 const mercury = computed(() => hfIsMercury(props.settings.draft));
@@ -62,17 +59,21 @@ watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
     <SettingsSwitch v-if="keys.includes(box.switch)" :name="box.switch" :settings="settings" :form="form" :defaults="defaults" :only="box.only" />
     <RadioStatus v-if="box.on" :tnc="box.radio" :now="now" :open="unconnected(box.radio)">
       <SettingsRadioFields :keys="box.keys" :settings="settings" :form="form" :defaults="defaults" />
-      <SettingsField
-        v-if="box.kind === 'hf' && mercury && hf?.modem"
-        id="hf-frequency"
-        :info="frequency"
-        :model-value="hf.modem.dial"
-        fallback=""
-        error=""
-        :changed="false"
-      />
+      <!-- The dial frequency the group agrees on, which the daemon says (`hf.modem.dial`): plain text to read, not a box that looks as if it took typing. -->
+      <div v-if="box.kind === 'hf' && mercury && hf?.modem" class="field">
+        <label for="hf-frequency">{{ t("settings.hf_frequency.label") }}</label>
+        <div class="field-control">
+          <output id="hf-frequency" class="dial">{{ hf.modem.dial }}</output>
+        </div>
+      </div>
       <FindRadioRow v-if="box.kind === 'fm'" id="find-radio" />
       <HfTuneRow v-else-if="mercury" id="hf-tune" />
     </RadioStatus>
   </SettingsBox>
 </template>
+
+<style scoped>
+.dial {
+  font-weight: 600;
+}
+</style>
