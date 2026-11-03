@@ -136,11 +136,12 @@ class Page:
     async def send(self, command: dict[str, Any]) -> None:
         await self._connection.write_message(json.dumps(command))
 
-    async def until(self, what: str, condition: Callable[[], bool], seconds: float) -> float:
-        """Waits until the condition holds on the topics; the seconds it took. Failure, with the radio's and the modem's state and the last refusal, when it does not within `seconds` or the daemon closed the socket."""
+    async def until(self, what: str, condition: Callable[[], bool], seconds: float, since: float | None = None) -> float:
+        """Waits until the condition holds on the topics; the seconds it took, from `since` (a loop time: the moment a command was sent) or from now. Failure, with the radio's and the modem's state and the last
+        refusal, when it does not within `seconds` or the daemon closed the socket."""
         loop = asyncio.get_running_loop()
-        started = loop.time()
-        deadline = started + seconds
+        started = since if since is not None else loop.time()
+        deadline = loop.time() + seconds
         while True:
             self._changed.clear()                   # (cleared before the look, so that a message between the look and the wait is not missed)
             if condition():
