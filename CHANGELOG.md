@@ -3,13 +3,10 @@
 ## Unreleased
 
 - **New:** the FM radio and the HF radio boxes of the Radio group fold by the arrow in front of their names, as the groups do, and the page remembers in this browser which ones you folded. A box opens by itself when its radio is ticked and not connected, when the daemon refuses one of its settings, and when a mark in the header leads you to a setting in it.
-
-- **Changed:** the HF radio's box shows **Suggested frequencies**, a line for each band (40 m and 20 m for now), from a small list on the project page that is looked at again whenever you open the box, at most every quarter of an hour, so that a move reaches every copy at once. The old row called Frequency looked as if the radio had said it; this says plainly that it is a suggestion.
-
-- **Changed:** the HF radio no longer takes a step in the noise or a carrier beside the signal for another station: NeoAPRS reads the modem's spectrum and calls the channel busy when a signal as wide as a frame is on it, which it sees down to the weakest frames the modem decodes (the modem's own fixed threshold saw only frames from 6 dB up, and held the radio for up to 20 s at each rise of the band's noise). With a modem that cannot give the spectrum the old way is kept. There is nothing to set.
-
 - **New:** the HF radio's box has a **Transmit level** under Tune: the - and + beside it lower and raise the modem's audio to the radio in whole dB, the modem takes it at once, and the tuning tone follows it, so that you press Tune and watch the radio's ALC while you set the level. The peak of the latest transmission is shown beside it and turns red where the sound card clips.
 - **New:** a small **Spectrum** under one row at the end of the HF radio's box (folded until you open it, and remembered in this browser): the spectrum of the radio's audio from 300 to 2700 Hz with the place of a frame marked, and the receive level as a bar with its good range, to set the radio's audio output by. It is only there while the modem can give it, and the modem makes it only while the fold is open.
+- **Changed:** the HF radio's box shows **Suggested frequencies**, a line for each band (40 m and 20 m for now), from a small list on the project page that is looked at again whenever you open the box, at most every quarter of an hour, so that a move reaches every copy at once. The old row called Frequency looked as if the radio had said it; this says plainly that it is a suggestion.
+- **Changed:** the HF radio no longer takes a step in the noise or a carrier beside the signal for another station: NeoAPRS reads the modem's spectrum and calls the channel busy when a signal as wide as a frame is on it, which it sees down to the weakest frames the modem decodes (the modem's own fixed threshold saw only frames from 6 dB up, and held the radio for up to 20 s at each rise of the band's noise). With a modem that cannot give the spectrum the old way is kept. There is nothing to set.
 
 ## 0.16.3
 
