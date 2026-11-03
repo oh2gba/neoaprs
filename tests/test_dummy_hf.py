@@ -159,10 +159,12 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
         await until(lambda: e.ctl.mercury.speaker_line.open, 5.0)
     else:
         assert e.ctl.mercury.state == "stopped" and e.ctl.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
-    for _ in range(40):
+    deadline = asyncio.get_running_loop().time() + 20.0                          # (real seconds: a slow runner needs more than 40 steps of 20 ms to play the made-up day; Windows CI heard 3 stations in that)
+    while asyncio.get_running_loop().time() < deadline:
         e.now.advance(5)                                                         # type: ignore[attr-defined]
-        await asyncio.sleep(0.02)
-        if len(e.ctl.stationbook.stations()) >= 4 and (not speaking or e.ctl.mercury.speaker_line.played >= 1):
+        await asyncio.sleep(0.05)
+        heard = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]        # (the made-up stations; our own is in the book too, and counted it the wait ended one station early)
+        if len(heard) >= 4 and (not speaking or e.ctl.mercury.speaker_line.played >= 1):
             break
     stations = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]
     assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
