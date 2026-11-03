@@ -23,7 +23,7 @@ pytestmark = posix_only      # (bash scripts and a script with a shebang: a deve
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.9.1"
 TAG = f"v{VERSION}"
-ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
+ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"neoaprs-{VERSION}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
                  "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "SHA256SUMS"])
 
 FAKE_GH = '''#!{python}

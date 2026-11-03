@@ -1,10 +1,10 @@
-"""The commands of the HF radio's Tune and keying test (neoaprs/web/tncwire.py: `hf_tune`, `hf_key_test`), answered by the modem part (neoaprs/mercurymodem.py) through Mercury's own TUNE command, and of its Allow button (`hf_allow_firewall`). Registered with the
+"""The commands of the HF radio's Tune and keying test (neoaprs/web/tncwire.py: `hf_tune`, `hf_key_test`), answered by the modem part (neoaprs/mercurymodem.py) through Mercury's own TUNE command. Registered with the
 dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there."""
 from neoaprs.coded import CodedError
 from neoaprs.config import can_transmit
 
 from .dispatch import Ctx, UserError, command
-from .tncwire import HfAllowFirewall, HfFrequencies, HfKeyTest, HfScope, HfTune
+from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfTune
 
 
 def _may_transmit(ctx: Ctx, name: str) -> None:
@@ -37,13 +37,6 @@ async def hf_key_test(ctx: Ctx, cmd: HfKeyTest) -> None:
         await ctx.ctl.mercury.key_test()
     except CodedError as e:
         raise UserError(f"hf_key_test: {e}", e.code, params=e.params) from None
-
-
-@command(HfAllowFirewall)
-async def hf_allow_firewall(ctx: Ctx, cmd: HfAllowFirewall) -> None:
-    """Makes the Windows Firewall rule that keeps the network from Mercury and, when it does, starts the HF radio the usual way. Nothing is answered with an error: what did not happen is in the log and the status line."""
-    if await ctx.ctl.mercury.allow_firewall():
-        ctx.ctl.start_hf()
 
 
 @command(HfScope)

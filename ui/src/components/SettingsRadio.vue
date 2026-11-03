@@ -2,11 +2,10 @@
 // The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the two radios in a box each under their own legend (SettingsBox): the FM radio and the HF radio. A box begins with its Enable tickbox and is that row alone while the radio is unticked.
 // Ticked, it has the radio's status line (RadioStatus: the topic `tnc` for FM, `hf` for HF) and behind the arrow its fields: the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP, Find my radio and the terminal for FM; the sound card, the keying and the terminal for HF (SettingsRadioFields).
 // The fold is open when the radio is not connected. The Enable of the station's only radio is greyed, since a station has at least one. The sound cards and the ports are asked for again when HF is ticked, since the daemon lists the sound cards only then.
-// The HF radio's type (`hf/profile`) is the first of its fields: with the Dummy HF radio chosen the sound card, the keying and Tune are not there, as the FM Dummy has no port; with the Mercury modem the Frequency row (the dial the group agrees on, read-only) and the Tune row stand under the fields where the FM radio has Find my radio; above Tune, only while the program waits for the Windows Firewall, the Fix row.
+// The HF radio's type (`hf/profile`) is the first of its fields: with the Dummy HF radio chosen the sound card, the keying and Tune are not there, as the FM Dummy has no port; with the Mercury modem the Frequency row (the dial the group agrees on, read-only) and the Tune row stand under the fields where the FM radio has Find my radio.
 import { computed, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfFrequencies from "@/components/HfFrequencies.vue";
-import HfFirewallRow from "@/components/HfFirewallRow.vue";
 import HfLevelRow from "@/components/HfLevelRow.vue";
 import HfScope from "@/components/HfScope.vue";
 import HfTuneRow from "@/components/HfTuneRow.vue";
@@ -19,7 +18,6 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { hfIsMercury } from "@/lib/mercury";
-import { firewallFixable } from "@/lib/tncstatus";
 import { fmOn, hfOn } from "@/lib/radiosides";
 import { RX_ONLY_KEY } from "@/lib/settings";
 import type { TncState } from "@/protocol/protocol";
@@ -83,7 +81,6 @@ watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
     <RadioStatus v-if="box.on" :tnc="box.radio" :now="now" :open="unconnected(box.radio)">
       <SettingsRadioFields :keys="box.keys" :settings="settings" :form="form" :defaults="defaults" />
       <HfFrequencies v-if="box.kind === 'hf' && mercury && hf?.modem" />
-      <HfFirewallRow v-if="box.kind === 'hf' && mercury && firewallFixable(hf)" id="hf-firewall" />
       <FindRadioRow v-if="box.kind === 'fm'" id="find-radio" />
       <template v-else-if="mercury">
         <HfTuneRow id="hf-tune" />

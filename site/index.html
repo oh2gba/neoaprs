@@ -27,8 +27,8 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=5">
-<script src="site.js?v=5" defer></script>
+<link rel="stylesheet" href="style.css?v=11">
+<script src="site.js?v=8" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -64,8 +64,8 @@
       </a>
     </div>
     <ul class="highlights">
-      <li class="hf"><h3>APRS over HF</h3><p>The Mercury modem is built in: beacons and acked messages across 1000 to 2000 km.</p></li>
-      <li class=""><h3>Messages that arrive</h3><p>Acks, retries, and the path each message took, hop by hop.</p></li>
+      <li class="hf"><h3>APRS over HF</h3><p>The Mercury modem is built in: beacons and messages across 1000 to 2000 km.</p></li>
+      <li class=""><h3>Messaging</h3><p>Conversations, bulletins and email, and the path each message took, hop by hop.</p></li>
       <li class=""><h3>Any KISS TNC</h3><p>Kenwood, Mobilinkd, NinoTNC, Direwolf and more, over serial, USB, Bluetooth or TCP.</p></li>
       <li class=""><h3>On every screen</h3><p>Run it on a Raspberry Pi by the radio; open it on a phone, tablet or laptop.</p></li>
     </ul>
@@ -96,17 +96,43 @@
     <p class="flag">New</p>
     <h2>APRS over HF, with Mercury</h2>
     <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica. NeoAPRS puts APRS on it, as a second radio beside the FM one: an SSB radio with a sound card. HF stations are on the same map and in the same messages, tagged HF.</p>
+    <table class="why">
+      <thead><tr><th scope="col"></th><th scope="col">Old HF packet, 300 baud</th><th scope="col">Mercury in NeoAPRS</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">On a noisy band</th><td>Lost as soon as the noise comes up</td><td>Still heard when the signal is no stronger than the noise <small>every frame at 3 dB signal-to-noise in our simulations</small></td></tr>
+        <tr><th scope="row">A bad moment</th><td>One wrong bit and the whole packet is gone</td><td>Small errors are repaired on arrival <small>a strong error-correcting code (LDPC)</small></td></tr>
+        <tr><th scope="row">Fading and echoes</th><td>Garble the packet</td><td>Taken in its stride <small>nine carriers in 500 Hz, each with a guard time against the ionosphere's echoes</small></td></tr>
+        <tr><th scope="row">Other stations</th><td>Sends on top of them</td><td>Listens first and waits for a free channel</td></tr>
+      </tbody>
+    </table>
+    <div class="pair">
+      <section class="note-card ready">
+        <h3>Ready when the internet is not</h3>
+        <p>When the internet and the phone network are down, APRS over HF still works: positions, short messages and bulletins between stations hundreds or thousands of kilometres apart. A radio, a laptop or a Raspberry Pi, a battery and a wire antenna are enough. No servers, no accounts, nothing in between.</p>
+      </section>
+    </div>
+    <h3 class="vs-title">VARA or Mercury?</h3>
+    <table class="why vs">
+      <thead><tr><th scope="col">What you want to do</th><th scope="col">VARA, with Winlink, VarAC or BPQ</th><th scope="col">Mercury in NeoAPRS</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">See who is on the air, on a map</th><td>No</td><td>Yes, every station heard, with its position</td></tr>
+        <tr><th scope="row">Reach every station at once</th><td>Mostly one station at a time</td><td>Yes: beacons, bulletins and objects everyone hears</td></tr>
+        <tr><th scope="row">Short messages to one station</th><td>Yes, in a connected chat</td><td>Yes, acknowledged, with no connection to set up</td></tr>
+        <tr><th scope="row">E-mail to and from the internet</th><td>Yes, through Winlink</td><td>No</td></tr>
+        <tr><th scope="row">Long texts and files</th><td>Yes</td><td>No, APRS messages are short</td></tr>
+      </tbody>
+    </table>
+    <p class="aside">VARA means here the original VARA HF and FM and compatible modems such as xara. Both kinds of modem can live on the same radio.</p>
     <div class="hfgrid">
       <div>
         <ul class="merc">
-          <li><h3>A first</h3><p>APRS has not been carried over Mercury before. NeoAPRS does it, with the APRS you know: positions, objects and messages with acks.</p></li>
+          <li><h3>A first</h3><p>APRS has not been carried over Mercury before. NeoAPRS does it, with the APRS you know: positions, objects and messages.</p></li>
           <li><h3>Far</h3><p>Stations 1000 to 2000 km away, on one HF frequency, with no digipeaters and no internet.</p></li>
-          <li><h3>Robust</h3><p>In our simulations every frame came through down to 3 dB signal-to-noise, and four of five at 0 dB on a fading channel.</p></li>
           <li><h3>Nothing to install</h3><p>Mercury is inside NeoAPRS. The sound card and the keying are preselected; Tune and Test set up the radio.</p></li>
-          <li><h3>Fast enough</h3><p>A frame takes 3.8 s on the air; a message and its ack about 10 s.</p></li>
+          <li><h3>Fast enough</h3><p>A frame takes 3.8 s on the air.</p></li>
           <li><h3>Try it first</h3><p>The Dummy HF radio makes up distant stations and plays the modem through your speakers.</p></li>
         </ul>
-        <dl class="dial"><dt>Frequency</dt><dd>7.0541 MHz USB</dd><dd class="band-m">40 m</dd></dl>
+        <table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody><tr><th scope="row">40 m</th><td>7.0541 MHz USB</td></tr><tr><th scope="row">20 m</th><td>14.1070 MHz USB</td></tr></tbody></table>
       </div>
       <div class="hfshots">
         <a class="zoom pic" href="shots/settings-hf.png" data-dark="shots/settings-hf-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/settings-hf-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/settings-hf-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/settings-hf.webp"><img src="shots/thumbs/settings-hf.png" width="640" height="400" loading="lazy" decoding="async" alt="NeoAPRS Settings, the Radio group: the FM radio and the HF radio with the sound card, keying, frequency, Tune and Test"></picture></a>

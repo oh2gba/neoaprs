@@ -215,6 +215,7 @@ async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await e.play()
     await page.until(lambda: len(page.topics["packets"]) == 4)
+    await page.quiet(0.4)                                          # (the TNC topic is told at most four times a second: its patch for the four frames is in before the picture is taken)
     before = json.dumps(page.topics, sort_keys=True)
     bad = ['not json', '[1, 2]', '{"cmd": "nope"}', '{}', '{"cmd": 7}', '{"cmd": "ping", "extra": 1}', '{"cmd": "forget_station"}', '{"cmd": "forget_station", "call": 5}',
            '{"cmd": "set_config", "values": {"station/lat": 61}}', '{"cmd": "subscribe", "topics": "stations"}', '{"cmd": "set_config", "values": NaN}']

@@ -26,9 +26,9 @@ AddType image/webp .webp
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-  # The page, its stylesheet and its script are asked again at every visit (an answer of 304 when unchanged, so that a new page never meets an old stylesheet); the pictures may be kept a day.
-  <FilesMatch "\.(html|php|css|js|txt|xml)$">
-    Header set Cache-Control "no-cache"
+  # The page, its stylesheet, its script and the frequencies are never kept by the browser (they are small: every visit loads them whole, so nobody needs Ctrl+F5); the pictures may be kept a day.
+  <FilesMatch "\.(html|php|css|js|json|txt|xml)$">
+    Header set Cache-Control "no-store, max-age=0"
   </FilesMatch>
   <FilesMatch "\.(png|webp|svg|ico)$">
     Header set Cache-Control "public, max-age=86400"

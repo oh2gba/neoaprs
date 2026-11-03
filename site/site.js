@@ -55,6 +55,31 @@
     });
   }
 
+  // The suggested HF frequencies, from the same file NeoAPRS itself reads (frequencies.json beside this page): the page's own copy stands when the file cannot be read.
+  const dial = document.getElementById("frequencies");
+  if (dial && window.fetch) {
+    fetch("frequencies.json", { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const good = (data && Array.isArray(data.frequencies) ? data.frequencies : [])
+          .filter((f) => f && /^\d{1,3} m$/.test(f.band) && /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/.test(f.dial))
+          .slice(0, 3);
+        const body = dial.querySelector("tbody");
+        if (!good.length || !body) return;
+        body.replaceChildren(...good.map((f) => {
+          const row = document.createElement("tr");
+          const band = document.createElement("th");
+          band.scope = "row";
+          band.textContent = f.band;
+          const freq = document.createElement("td");
+          freq.textContent = f.dial;
+          row.append(band, freq);
+          return row;
+        }));
+      })
+      .catch(() => {});
+  }
+
   const box = document.getElementById("lightbox");
   if (!(box instanceof HTMLDialogElement) || typeof box.showModal !== "function") return;
   const image = box.querySelector("img");

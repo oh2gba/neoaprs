@@ -16,7 +16,7 @@
   --shadow: 0 1px 2px rgba(16, 44, 90, 0.08), 0 18px 40px -22px rgba(16, 44, 90, 0.45);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
-  --wrap: 1600px;
+  --wrap: 1800px;
   --gutter: clamp(16px, 3vw, 48px);
 }
 
@@ -161,10 +161,12 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .merc li { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--hf); border-radius: 10px; padding: 12px 16px; }
 .merc h3 { margin: 0 0 2px; font-size: 1.02rem; color: var(--hf); }
 .merc p { margin: 0; color: var(--ink-2); font-size: 0.93rem; }
-.dial { margin: 18px 0 0; padding: 14px 18px; border-radius: 10px; background: var(--surface); border: 1.5px solid var(--hf); display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
-.dial dt { font-weight: 650; }
-.dial dd { margin: 0; font: 700 1.35rem/1.3 var(--mono); white-space: nowrap; }
-.dial dd.band-m { font: 400 0.95rem/1.3 var(--mono); color: var(--muted); }
+.freqs { margin: 18px 0 0; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1.5px solid var(--hf); border-radius: 10px; overflow: hidden; }
+.freqs caption { caption-side: top; text-align: left; padding: 0 0 6px; font-weight: 650; }
+.freqs th, .freqs td { padding: 8px 18px; border-top: 1px solid var(--rule); text-align: left; }
+.freqs tr:first-child th, .freqs tr:first-child td { border-top: 0; }
+.freqs th { font: 400 0.95rem/1.3 var(--mono); color: var(--muted); }
+.freqs td { font: 700 1.25rem/1.3 var(--mono); white-space: nowrap; }
 .hfshots { display: grid; gap: 16px; }
 @media (max-width: 1100px) { .hfgrid { grid-template-columns: minmax(0, 1fr); } .hfshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .merc, .hfshots { grid-template-columns: minmax(0, 1fr); } }
@@ -216,3 +218,38 @@ footer .wrap { display: grid; gap: 10px; }
 footer p { margin: 0; }
 .links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 0.92rem; }
 .privacy { font-family: var(--mono); font-size: 0.8rem; }
+
+/* ---- why Mercury: the comparison in the HF band */
+.why { width: 100%; margin: 0 0 28px; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; font-size: 0.97rem; }
+.why th, .why td { padding: 11px 16px; text-align: left; vertical-align: top; border-top: 1px solid var(--rule); }
+.why thead th { border-top: 0; background: var(--surface-2); font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.why thead th:last-child { color: var(--hf); }
+.why tbody th { width: 16%; font-weight: 650; }
+.why td:nth-child(2) { width: 30%; color: var(--muted); }
+.why td:nth-child(3) { color: var(--ink); font-weight: 550; }
+.why td small { display: block; margin-top: 2px; font-size: 0.82rem; font-weight: 400; color: var(--muted); }
+@media (max-width: 720px) {
+  .why thead { display: none; }
+  .why, .why tbody, .why tr, .why th, .why td { display: block; width: auto; }
+  .why tbody th { padding-bottom: 2px; }
+  .why td { border-top: 0; padding-top: 2px; }
+  .why td:nth-child(2)::before { content: "Old HF packet: "; }
+  .why td:nth-child(3)::before { content: "Mercury: "; color: var(--hf); }
+}
+
+/* ---- preparedness and VARA: two notes side by side under the comparison */
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 28px; }
+.note-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 16px 20px; }
+.note-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.note-card p { margin: 0; color: var(--ink-2); font-size: 0.97rem; }
+.note-card.ready { border-left: 4px solid var(--hf); }
+.note-card.ready h3 { color: var(--hf); }
+@media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+.pair:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.vs-title { margin: 8px 0 10px; font-size: 1.2rem; }
+.why.vs { margin-bottom: 8px; }
+.why.vs td:nth-child(2) { color: var(--ink-2); }
+@media (max-width: 720px) {
+  .why.vs td:nth-child(2)::before { content: "VARA: "; }
+}

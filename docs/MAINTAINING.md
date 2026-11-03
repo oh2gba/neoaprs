@@ -55,14 +55,14 @@ Actions page of the run lists them under *Artifacts*. A tag started by hand (`--
 
 ## Moving the Mercury pin
 
-The Mercury that every release carries is the seven constants at the head of `neoaprs/mercury.py`: `VERSION`, `SOURCE_COMMIT`, `SOURCE_URL`, `SOURCE_SHA256`, `WINDOWS_URL`, `WINDOWS_SHA256` and `WINDOWS_SIZE`. The two addresses are made from the others, so five are typed. A new Mercury is a change of them in one commit, with these steps:
+The Mercury that every release carries is the four constants at the head of `neoaprs/mercury.py`: `VERSION`, `SOURCE_COMMIT`, `SOURCE_URL` and `SOURCE_SHA256`. The address is made from the commit, so three are typed. The same source is built for Linux, macOS and Windows, so there is no other pin. A new Mercury is a change of them in one commit, with these steps:
 
-1. `VERSION` is Rhizomatica's tag, `SOURCE_COMMIT` the commit that tag points at, `SOURCE_SHA256` the SHA-256 of the archive at `SOURCE_URL`. `WINDOWS_SHA256` and `WINDOWS_SIZE` are those of the zip that Rhizomatica's release of that tag has for Windows (the name `WINDOWS_URL` makes).
+1. `VERSION` is Rhizomatica's tag, `SOURCE_COMMIT` the commit that tag points at, `SOURCE_SHA256` the SHA-256 of the archive at `SOURCE_URL`.
 2. Look for the old version and the old commit in the whole tree (`grep -rn`) and change what names them: `packaging/deb/copyright` (the source address), `docs/RADIOS.md`, the profile's description and comments in `neoaprs/tncprofile.py` and `neoaprs/mercury.py`, the fake in `tests/support/fakemercury.py` and the file names of the tarballs in `tests/test_mercury_build.py`, `tests/test_deb.py`, `tests/test_appimage.py` and `tests/test_release.py`.
 3. `scripts/build-mercury --install` builds the new source into the venv and stops when the archive is not the one with the SHA-256 given. If it fails to link, `packaging/mercury/pulse_stub.c` no longer covers what Mercury asks of PulseAudio. Every flag that `command()` of `neoaprs/mercury.py` starts the program with has to be in the new `mercury -h`.
 4. Run the suite, then the real thing: `scripts/mercury-bench` and `scripts/check --stage sim`.
 5. Measure again what [`docs/mercury.md`](mercury.md) quotes (`scripts/mercury-measure`: the time of a frame, the delivery time, the level of the audio, the size of the beacon pause, the frames a VOX radio loses to its attack time with and without the lead-in) and move the constants of `neoaprs/mercury.py` and `neoaprs/radiorules.py` and the table of the document when a figure has moved.
-6. The Windows zip is checked against the two constants by `packaging/windows/bundle_mercury.py`, which a build for testing (above) runs, together with the Linux build for both architectures.
+6. Both patches (`packaging/mercury/loopback.patch`, `packaging/mercury/leadin.patch`) must still apply, and the Windows build must still link: `scripts/build-mercury --windows` needs the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common` on Debian), and a build for testing (above) runs it as the job `mercury-windows`, together with the Linux build for both architectures; the `windows` job then starts the program and checks that it listens on 127.0.0.1 only.
 
 ## A release
 
@@ -90,7 +90,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 8. **release**: waits for the release run the same way (`--rerun` for its failed jobs). `.github/workflows/release.yml` builds, smoke-tests and publishes; its first job, `verify`, stops in seconds a tag whose number is not `VERSION`,
    a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and published
    when every file is on it.
-9. **verify**: the release is published, not a draft, has its 10 files (the Windows installer, the AppImage, the macOS app, the two packages, the first three again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage` and `NeoAPRS-arm64.dmg`, the source tarball and `SHA256SUMS`) and every download link answers.
+9. **verify**: the release is published, not a draft, has its 12 files (the Windows installer, the AppImage, the macOS app, the two packages, the first three again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage` and `NeoAPRS-arm64.dmg`, the source tarball, the wheel and `install.sh` for the copies installed with the install line before 0.16, and `SHA256SUMS`) and every download link answers.
 10. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
     ten minutes (`curl 'https://neo.oh2gba.eu/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 

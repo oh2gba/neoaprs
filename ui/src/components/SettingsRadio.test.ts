@@ -436,53 +436,6 @@ describe("the HF radio's type, Tune and the keying test", () => {
     expect(keyTest(group).element.disabled).toBe(true);
   });
 
-  const waiting = (reason: "firewall" | "firewall_off" | "stopped", extra: { lets_in?: string; allowing?: boolean } = {}) =>
-    hfState({ modem: { ...hfState().modem!, state: "waiting", problem: "x", reason, ...extra }, state: "waiting" });
-  const firewall = (group: ReturnType<typeof make>["group"]) => hf(group).find<HTMLButtonElement>("#hf-firewall");
-
-  it("has the Fix row above Tune only while the program waits for the Windows Firewall, and a press asks the daemon", async () => {
-    const { group, send } = make({ hf: waiting("firewall") }, on);
-    expect(firewall(group).exists()).toBe(true);
-    expect(firewall(group).element.closest(".field.action-row")?.querySelector("label")?.textContent).toBe("Firewall");
-    expect(firewall(group).text()).toBe("Fix");
-    expect(hf(group).find("#hf-firewall").element.closest(".field")?.nextElementSibling?.querySelector("#hf-tune")).not.toBeNull();
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Not run: the Windows Firewall would let the network reach Mercury");
-    await firewall(group).trigger("click");
-    expect(send).toHaveBeenLastCalledWith({ cmd: "hf_allow_firewall" });
-  });
-
-  it("names the rule that lets the network in on the status line", () => {
-    const { group } = make({ hf: waiting("firewall", { lets_in: "mercury.exe" }) }, on);
-    expect(hfFold(group).find(".tncstatus").text()).toBe("Not run: the Windows Firewall rule “mercury.exe” lets the network reach Mercury");
-    expect(firewall(group).exists()).toBe(true);
-  });
-
-  it("has no Fix row while the program runs, for a Firewall that is off, or for any other reason", () => {
-    expect(firewall(make({ hf: running() }, on).group).exists()).toBe(false);
-    const off = make({ hf: waiting("firewall_off") }, on);
-    expect(firewall(off.group).exists()).toBe(false);
-    expect(hfFold(off.group).find(".tncstatus").text()).toBe("Not run: Windows Firewall is switched off; switch it on");
-    expect(firewall(make({ hf: waiting("stopped") }, on).group).exists()).toBe(false);
-  });
-
-  it("has no Fix row in the FM radio's box or with the Dummy HF radio", () => {
-    expect(
-      fm(make({ hf: waiting("firewall") }, { ...on, "fm/enabled": "true" }).group)
-        .find("#hf-firewall")
-        .exists(),
-    ).toBe(false);
-    expect(firewall(make({ hf: waiting("firewall") }, { ...on, "hf/profile": "dummy-hf" }).group).exists()).toBe(false);
-  });
-
-  it("is off while the daemon makes the rule, and a press then sends nothing", async () => {
-    const { group, send, daemon } = make({ hf: waiting("firewall", { allowing: true }) }, on);
-    expect(firewall(group).element.disabled).toBe(true);
-    await firewall(group).trigger("click");
-    expect(send).not.toHaveBeenCalledWith({ cmd: "hf_allow_firewall" });
-    await tell(daemon, { hf: waiting("firewall", { allowing: false }) });
-    expect(firewall(group).element.disabled).toBe(false);
-  });
-
   it("has no aria-pressed on Tune: the label that swaps to Stop says it", () => {
     for (const test of ["", "tune"] as const) expect(tune(make({ hf: running(test) }, on).group).attributes("aria-pressed"), test).toBeUndefined();
   });

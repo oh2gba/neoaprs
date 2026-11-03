@@ -1,6 +1,4 @@
-; The one thing here that asks for administrator rights is a Windows Firewall rule, "NeoAPRS Mercury", that blocks the network from the Mercury modem (bin\mercury\mercury.exe): Mercury listens on every network interface with no password
-; of its own, and anyone on the LAN could key the transmitter through it; the rule leaves the daemon's own connections on this computer alone. It is added once (a UAC prompt, which may be declined: the daemon then does not start Mercury and says why), and removed by the uninstaller.
-; Inno Setup script of the Windows installer: NeoAPRS-Setup-VERSION.exe. Per user (no administrator rights, no UAC prompt): the app goes to %LOCALAPPDATA%\Programs\NeoAPRS, the Start menu gets "NeoAPRS" (the desktop
+; Inno Setup script of the Windows installer: NeoAPRS-Setup-VERSION.exe. Per user (no administrator rights, no UAC prompt, nothing done to the Windows Firewall: the Mercury modem in bin\mercury\ is built to listen on this computer only): the app goes to %LOCALAPPDATA%\Programs\NeoAPRS, the Start menu gets "NeoAPRS" (the desktop
 ; app, neoaprs-app.exe: a window and a tray icon; it starts the daemon itself), "Stop NeoAPRS" and "NeoAPRS support logs" (neoaprs.exe support: the logs in one file on the Desktop), a task makes a desktop shortcut, and a task, on by default, makes the app start in the tray when the user signs in
 ; (the value NeoAPRS of the Run key of the user, `neoaprs-app.exe --tray`; the daemon is the app's to start). The data (%LOCALAPPDATA%\NeoAPRS: settings, messages, packets, the map)
 ; is the program's own and is never touched by the installer or the uninstaller. Build, from the repository root, after packaging/windows/neoaprs.spec has made dist\NeoAPRS:
@@ -105,53 +103,9 @@ begin
   Result := '';
 end;
 
-// Is there a Windows Firewall rule of that name? `show rule` needs no rights: exit code 0 when it exists, 1 when not. When netsh cannot be run at all, the answer is "yes", so that no prompt is made for nothing.
-function FirewallRuleExists(): Boolean;
-var
-  Code: Integer;
-begin
-  Result := True;
-  if Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall show rule name="NeoAPRS Mercury"', '', SW_HIDE, ewWaitUntilTerminated, Code) then
-    Result := (Code = 0);
-end;
-
-// Blocks the network from the installed Mercury: it listens on every interface with no password, and the daemon reaches it on this computer, which the Firewall does not filter. Adding a rule needs administrator
-// rights and this installer has none, so the netsh that adds it runs with `runas` (the UAC prompt); declining leaves the rule out and the installation goes on (the daemon does not start Mercury without it).
-// A silent update of a copy that already has the rule finds it (the program's path does not change) and asks nothing. A copy updated from a version before Mercury has no rule and, with a silent update, may never
-// see the prompt: the HF radio's box then has a button that makes the same rule (neoaprs/mercuryrule.py).
-procedure AddMercuryFirewallRule();
-var
-  Code: Integer;
-begin
-  if FirewallRuleExists() then
-    Exit;
-  ShellExec('runas', ExpandConstant('{sys}\netsh.exe'),
-    'advfirewall firewall add rule name="NeoAPRS Mercury" dir=in action=block program="' + ExpandConstant('{app}\bin\mercury\mercury.exe') + '"'
-    + ' description="NeoAPRS: the Mercury HF modem is reached by NeoAPRS on this computer only"',
-    '', SW_HIDE, ewWaitUntilTerminated, Code);
-end;
-
-// The rule goes with the program; declining the prompt leaves a rule that points at a file that is gone, which does no harm.
-procedure RemoveMercuryFirewallRule();
-var
-  Code: Integer;
-begin
-  if not FirewallRuleExists() then
-    Exit;
-  ShellExec('runas', ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="NeoAPRS Mercury"', '', SW_HIDE, ewWaitUntilTerminated, Code);
-end;
-
-// The same once more right before the files are replaced: the safety net for an app or a daemon started in between. And, with the files in place, the firewall rule for Mercury.
+// The same once more right before the files are replaced: the safety net for an app or a daemon started in between.
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
     EndRunningNeoAPRS();
-  if CurStep = ssPostInstall then
-    AddMercuryFirewallRule();
-end;
-
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-begin
-  if CurUninstallStep = usPostUninstall then
-    RemoveMercuryFirewallRule();
 end;

@@ -11,6 +11,11 @@
 - **New:** the HF radio's box has a **Transmit level** under Tune: the - and + beside it lower and raise the modem's audio to the radio in whole dB, the modem takes it at once, and the tuning tone follows it, so that you press Tune and watch the radio's ALC while you set the level. The peak of the latest transmission is shown beside it and turns red where the sound card clips.
 - **New:** a small **Spectrum** under one row at the end of the HF radio's box (folded until you open it, and remembered in this browser): the spectrum of the radio's audio from 300 to 2700 Hz with the place of a frame marked, and the receive level as a bar with its good range, to set the radio's audio output by. It is only there while the modem can give it, and the modem makes it only while the fold is open.
 
+## 0.16.2
+
+- **Fixed:** on Windows the HF radio no longer depends on the Windows Firewall: NeoAPRS builds the Mercury modem itself, listening on this computer only, as on Linux and macOS, so there is no firewall rule, no prompt, no check and no **Fix** button; the VOX lead-in works on Windows too. (The check could fail for a user who is not an administrator, or on a computer whose security software answered "Access is denied", and the HF radio then never started. Thanks to OH2GAX for the logs.)
+- **Fixed:** a copy installed with the install line before 0.16 could not update (the address its update window runs answered 404): every release again carries `install.sh` and the wheel it installs.
+
 ## 0.16.1
 
 - **New:** **Send logs** in the Help group of the Settings tab sends the support file to the project with one press: a small window asks "What happened?", **Send** makes the same file as Download logs and sends it with your words, and the page says "Sent" with a short reference to quote (or why it could not be sent). Nothing is sent before you press Send. Download logs and the e-mail stay as they were.

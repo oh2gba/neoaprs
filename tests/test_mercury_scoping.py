@@ -3,6 +3,7 @@ the pictures made only while a page wants them, the gain sent live and the peak 
 program is the fake Mercury of the suite (tests/support/fakemercury.py), whose UI is tests/support/fakemercuryui.py; the real Mercury is tests/test_mercury_scope_real.py."""
 import asyncio
 import json
+import socket
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -37,10 +38,13 @@ def sent(tmp_path: Path) -> list[str]:
         return []
 
 
-def test_the_ui_port_is_the_kiss_port_plus_a_fixed_distance_and_a_candidate_of_the_firewall() -> None:
+def test_the_ui_port_is_the_kiss_port_plus_a_fixed_distance_and_a_pair_whose_ui_port_is_taken_is_not_free() -> None:
     assert UI_OFFSET == 2000, "10100 with Mercury's defaults: not Mercury's own 10000"
-    ports = mercuryhelper.candidate_ports()
-    assert all(port + mercuryhelper.UI_OFFSET in ports for port in range(8100, 8150)), "the Windows Firewall is asked about the UI ports too"
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        port = taken.getsockname()[1] - mercuryhelper.UI_OFFSET
+        assert port > 0 and not mercuryhelper.pair_free(port), "a broadcast port whose UI port something holds is passed over"
 
 
 async def test_the_ini_has_the_gain_and_the_ui_interface_on_its_own_port_with_the_waterfall_off(tmp_path: Path) -> None:

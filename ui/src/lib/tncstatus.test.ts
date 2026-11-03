@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
-import { firewallFixable, lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
+import { lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
 import type { ModemState } from "@/protocol/protocol";
 import { NOW, ago, hfState, tncState } from "@/test/fixtures";
 
@@ -44,8 +44,6 @@ describe("tncStatus", () => {
       state: "running" as const,
       problem: "",
       reason: "" as const,
-      lets_in: "",
-      allowing: false,
       mode: "DATAC3",
       keyed: false,
       busy: false,
@@ -158,28 +156,10 @@ describe("the HF radio's line", () => {
     expect(down("network")).toBe("Not run: Mercury would be open to the network");
     expect(down("no_port", "no free port for Mercury: [Errno 98]")).toBe("Not running: no free port");
     expect(down("not_started", "Mercury could not be started: [Errno 2]")).toBe("Mercury could not be started");
-    expect(down("firewall")).toBe("Not run: the Windows Firewall would let the network reach Mercury");
-    expect(down("firewall_off")).toBe("Not run: Windows Firewall is switched off; switch it on");
     expect(down("sound_card", "the sound card could not be opened: choose another one in the Sound card field")).toBe(
       "Sound card could not be opened: choose another",
     );
     expect(down("")).toBe("Not connected");
-  });
-
-  it("names the rule that lets the network reach Mercury, when the daemon says one does", () => {
-    const tnc = hf({ state: "waiting", problem: "x", reason: "firewall", lets_in: "mercury.exe, Everything" }, { state: "waiting" });
-    expect(tncStatus(tnc, NOW)).toBe("Not run: the Windows Firewall rule “mercury.exe, Everything” lets the network reach Mercury");
-  });
-
-  it("offers the firewall button while the program waits for the Firewall, and only then: not for a Firewall that is off, not for other reasons, not while it runs", () => {
-    const modem = (extra: Partial<ModemState>) => hf({ state: "waiting", problem: "x", reason: "firewall", ...extra }, { state: "waiting" });
-    expect(firewallFixable(modem({}))).toBe(true);
-    expect(firewallFixable(modem({ reason: "firewall_off" }))).toBe(false);
-    for (const reason of ["", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card"] as const)
-      expect(firewallFixable(modem({ reason })), reason).toBe(false);
-    expect(firewallFixable(modem({ state: "running", reason: "" }))).toBe(false);
-    expect(firewallFixable(tncState())).toBe(false);
-    expect(firewallFixable(null)).toBe(false);
   });
 
   it("says Connecting… while the program starts or runs and the line is between two attempts, and never the problem of the line", () => {

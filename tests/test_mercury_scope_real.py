@@ -11,7 +11,6 @@ import pytest
 
 from neoaprs import kiss
 from neoaprs.channelbusy import OccupancyBusy
-from neoaprs.mercury import UI_OFFSET
 from neoaprs.mercuryhelper import find, foreign_listeners
 from neoaprs.mercuryscope import SCOPE_BINS, ScopeMeter, bands_db, parse_spectrum, parse_status
 from neoaprs.mercuryui import MercuryUi
@@ -20,7 +19,7 @@ from tests.support.env import until
 from tests.support.hfchannel import Channel
 from tests.support.realmercury import fifo, start_mercury, stop
 
-FIRST_PORT = 19400                      # (this test's own ports: the KISS port, the control port 200 above, the UI port)
+FIRST_PORT = 19400                      # (this test's own ports: the KISS port, the control port 200 above, the UI port 300 above)
 
 
 async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level_and_the_gain(tmp_path: Path) -> None:
@@ -28,7 +27,7 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
     if program is None or not hasattr(os, "mkfifo") or "gui_interface/websocket" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace"):
         pytest.skip("the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed")
     ports = (FIRST_PORT, FIRST_PORT + 200)
-    ui_port = FIRST_PORT + UI_OFFSET
+    ui_port = FIRST_PORT + 300                           # (below the ports of the test workers, which begin at 20000: tests/test_mercury_modem.py)
     channel = Channel(snr_db=10.0, seed=3)
     rx, tx = fifo(tmp_path, "rx"), fifo(tmp_path, "tx")
     channel.add("A", rx, tx)
@@ -93,7 +92,7 @@ async def test_the_automatic_busy_control_sees_a_frame_of_another_real_mercury_a
     if program is None or not hasattr(os, "mkfifo") or "gui_interface/websocket" not in (Path(program[0]).parent / "SOURCE.txt").read_text(encoding="utf-8", errors="replace"):
         pytest.skip("the Mercury that scripts/build-mercury --install builds (with the UI interface on the loopback) and named pipes are needed")
     sender, receiver = (FIRST_PORT + 20, FIRST_PORT + 220), (FIRST_PORT + 40, FIRST_PORT + 240)
-    ui_port = receiver[0] + UI_OFFSET
+    ui_port = receiver[0] + 300                          # (below the ports of the test workers: see the test above)
     channel = Channel(snr_db=20.0, seed=5)
     pipes = {name: (fifo(tmp_path, f"{name}-rx"), fifo(tmp_path, f"{name}-tx")) for name in ("A", "B")}
     for name, (rx, tx) in pipes.items():

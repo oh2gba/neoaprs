@@ -1844,21 +1844,6 @@
       "title": "HelloMessage",
       "type": "object"
     },
-    "HfAllowFirewall": {
-      "additionalProperties": false,
-      "description": "Allow: while the modem waits for the Windows Firewall (`reason: \"firewall\"`), makes the rule that blocks inbound connections to the program, as an administrator (the prompt of Windows; one for the rule and for deleting a\nwrong one of the same name), asks the Firewall again and, when the network is kept from the program, starts the HF radio the usual way. A declined prompt, or one that cannot appear, leaves the state as it was and is a\nline in the log, never an `error`. Does nothing off Windows, and while the modem waits for anything else. The topic `hf` says `allowing: true` meanwhile.",
-      "properties": {
-        "cmd": {
-          "const": "hf_allow_firewall",
-          "type": "string"
-        }
-      },
-      "required": [
-        "cmd"
-      ],
-      "title": "HfAllowFirewallCommand",
-      "type": "object"
-    },
     "HfFrequencies": {
       "additionalProperties": false,
       "description": "The page shows the HF radio's box (the Mercury type): the daemon asks the project's server for the suggested frequencies again, unless it asked less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is\nanswered; the topic `hf` has the list when it changes.",
@@ -2747,7 +2732,7 @@
           "type": "string"
         },
         "reason": {
-          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `firewall` the Windows Firewall does not keep the network from the program (no rule blocks it and something lets it in, or the rule of the installer is wrong): the page offers the button that makes the rule (`hf_allow_firewall`); `firewall_off` the Windows Firewall is switched off for a profile, which only the operator can change; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting`",
+          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting`",
           "enum": [
             "",
             "not_installed",
@@ -2755,19 +2740,9 @@
             "network",
             "no_port",
             "not_started",
-            "firewall",
-            "firewall_off",
             "sound_card"
           ],
           "type": "string"
-        },
-        "lets_in": {
-          "description": "with the reason `firewall`: the names of the Windows Firewall rules that let the network reach the program (up to three, joined by a comma), as the page shows them; empty when none does or the reason is another",
-          "type": "string"
-        },
-        "allowing": {
-          "description": "the rule is being made (`hf_allow_firewall`): the prompt of Windows may be open, and the page's button waits",
-          "type": "boolean"
         },
         "mode": {
           "description": "the modem's mode, the same for every station: `DATAC3`",
@@ -2853,8 +2828,6 @@
         "state",
         "problem",
         "reason",
-        "lets_in",
-        "allowing",
         "mode",
         "keyed",
         "busy",
@@ -6970,7 +6943,6 @@
           "forget_station": "#/$defs/ForgetStation",
           "forget_station_key": "#/$defs/ForgetStationKey",
           "general_query": "#/$defs/GeneralQuery",
-          "hf_allow_firewall": "#/$defs/HfAllowFirewall",
           "hf_frequencies": "#/$defs/HfFrequencies",
           "hf_key_test": "#/$defs/HfKeyTest",
           "hf_scope": "#/$defs/HfScope",
@@ -7052,9 +7024,6 @@
         },
         {
           "$ref": "#/$defs/HfKeyTest"
-        },
-        {
-          "$ref": "#/$defs/HfAllowFirewall"
         },
         {
           "$ref": "#/$defs/HfFrequencies"
