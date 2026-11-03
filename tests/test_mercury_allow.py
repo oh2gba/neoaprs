@@ -4,6 +4,7 @@ Firewall's answer by scripted verdicts; nothing here is run on Windows."""
 import logging
 import shlex
 import stat
+import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -169,6 +170,7 @@ async def test_a_wrong_rule_is_replaced_in_one_elevated_run(tmp_path: Path, monk
         await m.stop()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the stand-in Mercury is a shell script (`shipped(runnable=True)`), which Windows cannot run; the flow is the same everywhere")
 async def test_the_start_that_follows_the_run_asks_again_and_starts_mercury(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     m, firewall, elevated = await waiting(tmp_path, monkeypatch, MISSING, MISSING, SHIELDED, SHIELDED, runnable=True)
     try:
