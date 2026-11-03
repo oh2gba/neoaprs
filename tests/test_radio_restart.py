@@ -102,6 +102,6 @@ async def test_the_log_says_which_radio_is_restarted_and_what_changed_in_its_set
     [why] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("the FM radio is restarted because its settings changed")]
     assert "baud 9600 -> 19200" in why
     assert await a.ctl.save_config(replace(a.ctl.config, hf_enabled=False))
-    await w.until(lambda: a.hf.state is Source.State.STOPPED)
+    await w.until(lambda: any(r.getMessage() == "the HF radio is off in the settings" for r in caplog.records))          # (the line comes after the modem is stopped too, which on Windows takes longer than the radio's STOPPED)
+    assert a.hf.state is Source.State.STOPPED
     assert any(r.getMessage().startswith("the HF radio is restarted because its settings changed: switched on or off: on -> off") for r in caplog.records)
-    assert any(r.getMessage() == "the HF radio is off in the settings" for r in caplog.records)
