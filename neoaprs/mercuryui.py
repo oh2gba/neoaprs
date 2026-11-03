@@ -2,7 +2,7 @@
 spectrum scope and the transmit level. It is opened after the back-off when it drops, for as long as the owner (mercuryscoping.py) keeps it, and it is an extra: a Mercury without the interface (a refused connection, a server that does not
 upgrade) is told once in the log and tried again slowly, and nothing else of the modem depends on it.
 
-The spectrum is switched on only while somebody wants it (`want_waterfall`): Mercury then makes twenty frames a second, and the daemon reads, parses and averages them. What is wanted is sent again whenever the link opens."""
+The spectrum is switched on when somebody wants it (`want_waterfall`; the modem part wants it whenever the link is open, for the channel-busy control): Mercury then makes twenty frames a second, and the daemon reads and parses them. What is wanted is sent again whenever the link opens."""
 import asyncio
 import logging
 from collections.abc import Callable

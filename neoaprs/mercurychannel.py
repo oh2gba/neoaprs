@@ -13,6 +13,7 @@ log = logging.getLogger("neoaprs.mercury")
 
 TRANSMITTING = "the radio is transmitting"
 CHANNEL_BUSY = "the channel is busy"
+AUTO_STALE_SEC = 1.0                         # the automatic busy control (neoaprs/mercuryscoping.py) has heard no spectrum for this long: Mercury's own BUSY lines are believed again
 KEYED_MAX_SEC = 2 * FRAME_SEC + 5.0          # a `PTT ON` with no `PTT OFF` after this long (12.6 s, three frames' worth) is not believed: a transmitter that stayed keyed is Mercury's safety timer's business (its TUNE ends after 60 s), and ours is not to wait for ever; a choice, not a measurement (docs/mercury.md)
 
 
@@ -23,7 +24,9 @@ class Channel:
 
     def _init_channel(self) -> None:
         self.keyed = False                                           # Mercury has keyed the radio (PTT ON)
-        self.busy = False                                            # Mercury's busy detector hears a signal (BUSY ON)
+        self.busy = False                                            # a signal is on the channel: by the spectrum (the automatic control) while that is read, else Mercury's own detector (BUSY ON)
+        self._mercury_busy = False                                   # what Mercury's detector says, kept for the time the spectrum is not read
+        self._auto_at = 0.0                                          # when the automatic control last heard a spectrum (0: it does not)
         self.snr: float | None = None                                # the signal-to-noise ratio of the latest frame decoded, dB
         self._keyed_at = self._busy_at = 0.0
         self._keyed_since = self._busy_since = 0.0                   # when the PTT ON / BUSY ON that is under way came (for the log's "for 3.8 s")
@@ -53,19 +56,50 @@ class Channel:
         self.keyed, self._keyed_at = on, now
 
     def _on_busy(self, on: bool, now: float) -> None:
-        """Mercury's detector heard a signal or lost it: one line when the channel is clear again, with how long it was busy."""
+        """Mercury's detector heard a signal or lost it. It is the channel's state only while the spectrum is not read (`auto_busy`): the fixed threshold of 14 dB takes a carrier or a step of the noise for a signal."""
+        self._mercury_busy = on
+        if not self.auto_live(now):
+            self._set_busy(on, now, "")
+
+    def auto_live(self, now: float) -> bool:
+        """Whether the automatic control has a spectrum less than AUTO_STALE_SEC old."""
+        return now - self._auto_at < AUTO_STALE_SEC
+
+    def auto_busy(self, on: bool, now: float) -> None:
+        """The automatic control (a signal as wide as a frame in the spectrum, neoaprs/channelbusy.py) says what it hears; it is the channel's state while it is fed."""
+        was = self.auto_live(now)
+        self._auto_at = now
+        if not was:
+            log.info("Mercury: the channel is judged by the spectrum, not by the modem's fixed threshold")
+        if on != self.busy:
+            self._set_busy(on, now, " (by the spectrum)")
+            self.changed.emit()
+
+    def auto_lost(self, now: float) -> None:
+        """The spectrum is no more (the link to the program's UI dropped): Mercury's detector is the channel's state again."""
+        if self._auto_at:
+            self._auto_at = 0.0
+            log.info("Mercury: the spectrum is not read any more, the channel is judged by the modem's own detector")
+            if self.busy != self._mercury_busy:
+                self._set_busy(self._mercury_busy, now, "")
+                self.changed.emit()
+
+    def _set_busy(self, on: bool, now: float, how: str) -> None:
+        """The channel got busy or clear: one line when it is clear again, with how long it was busy."""
         if on and not self.busy:
             self._busy_since = now
             self._told_long.discard("busy")
         elif not on and self.busy:
             held = now - self._busy_since
-            log.info("Mercury: the channel was busy for %.1f s%s", held, f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "")
+            log.info("Mercury: the channel was busy for %.1f s%s%s", held, how, f" (our frames were held for the first {BUSY_HOLD_MAX_SEC:g} s)" if held > BUSY_HOLD_MAX_SEC else "")
         self.busy, self._busy_at = on, now
 
 
     def hold(self) -> str:
         """Why no frame is to go now: the radio is keyed (by a frame, the tune tone or the keying test), or the channel is busy (and has been for less than BUSY_HOLD_MAX_SEC); "" when one may."""
         now = time.monotonic()
+        if self._auto_at and not self.auto_live(now):                 # (the spectrum stopped without the link saying so)
+            self.auto_lost(now)
         if self.test or (self.keyed and now - self._keyed_at < KEYED_MAX_SEC):
             return TRANSMITTING
         if self.busy and now - self._busy_at < BUSY_HOLD_MAX_SEC:

@@ -1,5 +1,5 @@
 """The pages that have the HF radio's scope open (`hf_scope`, neoaprs/web/tncwire.py): each is sent the pictures the modem part makes (neoaprs/mercuryscoping.py) while it asks, and the modem is told whether any page wants
-them, so that Mercury's spectrum feed runs only while one is looked at. A page that leaves is forgotten."""
+them, so that the pictures are made only while one is looked at. A page that leaves is forgotten."""
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryscope import ScopeFrame
 

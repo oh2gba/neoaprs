@@ -41,7 +41,7 @@ CONTROL_OFFSET = CONTROL_PORT - BROADCAST_PORT         # the control port is thi
 # 10 dB at 16 and 18, 20 dB at 20; a carrier that stands 9 dB over the noise of its band (a heterodyne, a broadcaster's carrier) holds the radio at 10 dB for as long as it lasts, 12 dB at 12, 15 dB at 14; a step of 10 dB in the
 # noise (the band opening, a QRM) held the radio 119 s of 120 at 10 dB and 69 s at 12, and none at 14 or above, a step of 20 dB 108 s at 14. 14 dB is the highest threshold that still sees a frame at 6 dB SNR (DATAC3 delivers
 # its frames from 3 dB on a flat channel and three of four from 6 dB on a poor one): a weaker one is not heard as a carrier, and a collision with it costs the other station a frame it could hardly decode.
-BUSY_THRESHOLD_DB = 14
+BUSY_THRESHOLD_DB = 14                  # (the fallback: while the spectrum is read, the channel is busy by the automatic control, neoaprs/channelbusy.py, which a step or a carrier does not hold: docs/mercury.md)
 # A BUSY that lasts longer than this holds nothing any more, whatever the threshold: the noise floor rises slowly under a signal that covers the passband (channel_busy.c says 60 to 95 s for a wideband signal and 100 to 145 s for a step in
 # the noise), and traffic must not be stranded by it. A frame of another station is FRAME_SEC on the air and the detector hangs on 1.5 s more; frames of two stations after one another may run together for a few frames, so the cap is five frames'
 # worth and a margin: 20 s (it was a minute, and a normal morning on 40 m held the radio that long: John, 3 November 2026). In the simulation a step of 30 dB in the noise held the radio 56 s before the cap was lowered.

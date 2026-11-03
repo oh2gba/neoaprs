@@ -2,29 +2,25 @@
 the pictures made only while a page wants them, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
 program is the fake Mercury of the suite (tests/support/fakemercury.py), whose UI is tests/support/fakemercuryui.py; the real Mercury is tests/test_mercury_scope_real.py."""
 import asyncio
+import json
+import time
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from neoaprs import mercurychannel  # noqa: F401  (the module that holds the hold)
-from neoaprs import mercuryhelper, mercuryscoping
+from neoaprs import mercuryhelper
 from neoaprs.mercury import CONTROL_OFFSET, UI_OFFSET
 from neoaprs.mercuryscope import SCOPE_BINS, ScopeFrame
-from neoaprs.mercurymodem import INI_FILE, Mercury
+from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
 from tests.support.env import until
-from tests.support.fakemercury import UI_LOG_FILE, Air
+from tests.support.fakemercury import UI_LOG_FILE, UI_SCENE_FILE, Air
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test  # noqa: F401  (the fixture gives each test ports of its own)
 
-UI_NEAR = 400                                    # the UI port of a test is this far above its KISS port: inside the thousand ports of the worker (the test's ports are in tests/test_mercury_modem.py)
-
-
-@pytest.fixture(autouse=True)
-def _ui_port_in_the_workers_range(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mercuryscoping, "UI_OFFSET", UI_NEAR)
-    monkeypatch.setattr(mercuryhelper, "UI_OFFSET", UI_NEAR)
+UI_NEAR = 400                                    # the UI port of a test is this far above its KISS port (tests/support/fixtures.py: inside the range of the worker)
 
 
 def modem(tmp_path: Path, no_ui: bool = False) -> Mercury:
@@ -78,28 +74,28 @@ async def test_a_mercury_something_else_runs_and_the_speaker_of_the_dummy_have_n
     assert s.ui_port == 0
 
 
-async def test_pictures_are_made_only_while_a_page_wants_them_and_the_feed_is_switched_on_and_off_in_the_program(tmp_path: Path) -> None:
+async def test_the_feed_is_on_for_the_busy_control_and_pictures_are_made_only_while_a_page_wants_them(tmp_path: Path) -> None:
     m = modem(tmp_path)
     frames: list[tuple[ScopeFrame, bool]] = []
     m.scope_frame.connect(lambda frame, tx: frames.append((frame, tx)))
     await m.start(HF)
     try:
         await until(lambda: m.scope, 10.0)
-        await until(lambda: "set_waterfall off" in sent(tmp_path))
-        await asyncio.sleep(0.5)
-        assert frames == [], "nobody wants the scope: no spectrum is asked for and no picture is made"
-        m.want_scope(True)
         await until(lambda: "set_waterfall on" in sent(tmp_path))
+        await asyncio.sleep(0.5)
+        assert frames == [], "nobody wants the scope: no picture is made (the spectrum is read all the same, by the busy control)"
+        m.want_scope(True)
         await until(lambda: len(frames) >= 3)
         frame, tx = frames[-1]
         assert len(frame.bins) == SCOPE_BINS and tx is False and -90 <= frame.level <= 0
         tone = (1500 - 300) // 50
         assert frame.bins[tone] > 10 and frame.bins[tone - 3] == 0, "the fake program's tone at 1500 Hz stands over its noise in its own bin"
         m.want_scope(False)
-        await until(lambda: sent(tmp_path)[-1] == "set_waterfall off")
+        await asyncio.sleep(0.3)
         seen = len(frames)
         await asyncio.sleep(0.5)
         assert len(frames) <= seen + 1
+        assert "set_waterfall off" not in sent(tmp_path), "the feed stays on: the busy control reads it"
     finally:
         await m.stop()
 
@@ -213,3 +209,76 @@ async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_m
     finally:
         await m.stop()
         await air.aclose()
+
+
+# ---- the automatic channel-busy control
+
+def air(tmp_path: Path, blocks: list[list[float]] | None = None, noise_db: float = -60.0) -> None:
+    """The air of the fake program's UI: noise at a level and bands lifted by so many dB."""
+    (tmp_path / UI_SCENE_FILE).write_text(json.dumps({"blocks": blocks or [], "noise_db": noise_db}), encoding="utf-8")
+
+
+async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_frame_and_not_for_a_carrier_or_a_step(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until(lambda: m.scope and m.state == "running", 10.0)
+        await asyncio.sleep(3.0)
+        assert not m.busy and m.hold() == "", "the fake program's air has a carrier at 1500 Hz 30 dB over the noise, which is a run of one band"
+        air(tmp_path, [[1200, 1800, 12]])
+        await until(lambda: m.busy and m.hold() == CHANNEL_BUSY, 10.0)
+        assert m.describe().endswith("channel busy")
+        air(tmp_path, [])
+        await until(lambda: not m.busy, 10.0)
+        air(tmp_path, [], noise_db=-35.0)
+        await asyncio.sleep(4.0)
+        assert not m.busy, "a step of 25 dB in the noise is no signal"
+    finally:
+        await m.stop()
+
+
+async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until(lambda: m.scope, 10.0)
+        await asyncio.sleep(2.0)
+        air(tmp_path, [[1200, 1800, 15]])
+        m.keyed, m._keyed_at = True, time.monotonic()
+        await asyncio.sleep(2.0)
+        assert not m.busy and m.hold() == TRANSMITTING, "our own signal is no other station's"
+        m.keyed = False
+        m._keyed_at = time.monotonic()
+        await asyncio.sleep(0.2)
+        assert not m.busy, "the end of our own frame is still in the spectrum for a moment"
+        await until(lambda: m.busy, 10.0)
+    finally:
+        m.keyed = False
+        await m.stop()
+
+
+def test_mercurys_own_busy_lines_are_the_state_only_while_the_spectrum_is_not_read() -> None:
+    m = Mercury(Path("."))
+    now = time.monotonic()
+    m._on_busy(True, now)
+    assert m.busy, "no spectrum: Mercury's detector is the channel's state"
+    m.auto_busy(False, now)
+    assert not m.busy, "the spectrum says it is clear: it wins"
+    m._on_busy(False, now)
+    m._on_busy(True, now)
+    assert not m.busy and m._mercury_busy, "Mercury's lines are kept, not believed, while the spectrum is read"
+    m.auto_busy(True, now)
+    assert m.busy
+    m.auto_lost(now)
+    assert m.busy and m._mercury_busy, "the link is gone: Mercury's detector again"
+    m._on_busy(False, now)
+    assert not m.busy
+
+
+def test_a_spectrum_that_stops_without_a_word_is_given_up_after_a_second() -> None:
+    m = Mercury(Path("."))
+    m._on_busy(False, time.monotonic())
+    m.auto_busy(True, time.monotonic())
+    assert m.hold() == CHANNEL_BUSY
+    m._auto_at = time.monotonic() - 2.0
+    assert m.hold() == "" and not m.busy and m._auto_at == 0.0, "its busy state is not believed once nothing feeds it: Mercury's (clear) is"

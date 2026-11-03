@@ -160,3 +160,24 @@ class ScopeMeter:
 
     def reset(self) -> None:
         self._power, self._level, self._count, self.floor = [0.0] * SCOPE_BINS, 0.0, 0, None
+
+
+BAND_HZ = 150.0                          # the bands of Mercury's own busy detector (modem/channel_busy.h BUSY_BAND_HZ), 300 to 2700 Hz: 17 of them at 8 kHz, the last of four bins
+
+
+def bands_db(spectrum: Spectrum) -> list[float]:
+    """The mean power of each 150 Hz band of the passband in dB, cut as Mercury's busy detector cuts them (`channel_busy_update`: the bins from 300 Hz up in bands of 19, the last one short), so that a detector of ours sees what Mercury's sees."""
+    count = len(spectrum.db)
+    hz_per_bin = (spectrum.sample_rate // 2) / count
+    lo, hi = _clamp_bin(int(SCOPE_LO_HZ / hz_per_bin), count), _clamp_bin(int(SCOPE_HI_HZ / hz_per_bin), count)
+    width = max(1, int(BAND_HZ / hz_per_bin + 0.5))
+    bands: list[float] = []
+    for first in range(lo, hi + 1, width):
+        last = min(first + width - 1, hi)
+        power = sum(10 ** (spectrum.db[i] / 10) for i in range(first, last + 1)) / (last - first + 1)
+        bands.append(10 * math.log10(power + 1e-30))
+    return bands
+
+
+def _clamp_bin(bin_: int, count: int) -> int:
+    return max(0, min(count - 1, bin_))

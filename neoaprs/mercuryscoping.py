@@ -1,16 +1,19 @@
-"""The scope and the transmit level of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that uses Mercury's UI interface (mercuryui.py, mercuryscope.py): the link is opened to
+"""The scope, the transmit level and the automatic channel-busy control of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that uses Mercury's UI interface (mercuryui.py, mercuryscope.py): the link is opened to
 the program the daemon started (not to one something else runs, whose UI port is not ours to know, and not to the speaker of the Dummy HF radio), `scope_frame` tells a picture of the passband five times a second while a page wants
 one, and the transmit gain the settings hold is set live, with the tune tone following it.
 
-The spectrum is asked for (`set_waterfall`) only while a page has the scope open (`want_scope`), and switched off again when the last one closes; the status Mercury sends twice a second says the peak of the latest
+The spectrum is asked for (`set_waterfall`) whenever the link is open, because the channel-busy control reads every spectrum (channelbusy.py: a signal as wide as a frame is busy, a step in the noise or a carrier is not; it stands still while the radio
+transmits; `Channel.auto_busy` makes it the channel's state, Mercury's own detector being the state while the spectrum is not read); the pictures of the scope are made only while a page has it open (`want_scope`). The status Mercury sends twice a second says the peak of the latest
 transmission (`tx_peak_dbfs`), which the page shows beside the gain. When the link is not there (a Mercury without the interface, a connection that fails) there is no scope, the gain is applied at the next start of the program
 (the ini has it), and the controller starts the program again at a change of the gain, since nothing else would apply it (`live_gain` is false then). A modem part of its own, not the program's life: it reads and sets the modem's
 state (`state`, `keyed`, `attached`, `speaker`, the tasks and the generation of the start) and asks it to tell the page (`changed`)."""
 import asyncio
 import logging
+import time
 
 from .mercury import UI_OFFSET
-from .mercuryscope import SCOPE_EVERY_SEC, ScopeFrame, ScopeMeter, clamp_gain, parse_spectrum, parse_status
+from .channelbusy import OccupancyBusy
+from .mercuryscope import SCOPE_EVERY_SEC, ScopeFrame, ScopeMeter, bands_db, clamp_gain, parse_spectrum, parse_status
 from .mercuryui import MercuryUi
 from .signal import Signal
 from .tasks import TaskSet
@@ -19,11 +22,13 @@ log = logging.getLogger("neoaprs.mercury")
 
 HOST = "127.0.0.1"
 PEAK_SILENT_DBFS = -100.0              # Mercury's peak is -120 before anything was transmitted
+AFTER_TX_SEC = 0.4                     # the spectrum of a Mercury that has just let go of the radio holds the end of its own frame (a window of 128 ms, and Mercury's own busy detector waits 300 ms: BUSY_TX_HOLDOFF_MS)
 
 
 class Scoping:
     state: str
     keyed: bool
+    _keyed_at: float
     attached: str
     speaker: bool
     test: str
@@ -35,12 +40,19 @@ class Scoping:
     async def _retune(self) -> None:
         raise NotImplementedError
 
+    def auto_busy(self, on: bool, now: float) -> None:
+        raise NotImplementedError
+
+    def auto_lost(self, now: float) -> None:
+        raise NotImplementedError
+
     def _init_scoping(self) -> None:
         self.scope_frame: Signal[[ScopeFrame, bool]] = Signal("mercury.scope_frame")       # a picture of the passband, and whether the radio is transmitting (then it is of our own signal)
         self.tx_gain_db = 0                          # the transmit gain the modem runs with (the setting, applied at the start and live)
         self.tx_peak_dbfs: int | None = None         # the peak of the latest transmission in whole dBFS, as Mercury's status says; None before one
         self._ui: MercuryUi | None = None
         self._meter = ScopeMeter()
+        self._auto = OccupancyBusy()                 # the automatic channel-busy control: it reads every spectrum of the program, whether a page has the scope open or not
         self._wanted = False
         self._scope_task: asyncio.Task[None] | None = None
 
@@ -63,8 +75,9 @@ class Scoping:
         if self.ui_port == 0 or self._ui is not None:
             return
         self._meter.reset()
+        self._auto = OccupancyBusy()
         self._ui = MercuryUi(HOST, self.ui_port, self._ui_text, self._ui_binary, self._ui_state)
-        self._ui.want_waterfall = self._wanted
+        self._ui.want_waterfall = True               # (the busy control needs the spectrum all the time; what a page wants is the pictures)
         self._ui.start()
 
     async def _stop_ui(self) -> None:
@@ -79,9 +92,11 @@ class Scoping:
     def _ui_state(self, up: bool) -> None:
         if up:
             self._ui_opened()
-        elif self._scope_task is not None:
-            self._scope_task.cancel()
-            self._scope_task = None
+        else:
+            self.auto_lost(time.monotonic())
+            if self._scope_task is not None:
+                self._scope_task.cancel()
+                self._scope_task = None
         self.changed.emit()
 
     def _ui_opened(self) -> None:
@@ -101,17 +116,23 @@ class Scoping:
 
     def _ui_binary(self, data: bytes) -> None:
         spectrum = parse_spectrum(data)
-        if spectrum is not None and self._wanted:
+        if spectrum is None:
+            return
+        now = time.monotonic()
+        if self.keyed or now - self._keyed_at < AFTER_TX_SEC:
+            self._auto.pause()                        # (what the radio hears now is its own signal)
+            self.auto_busy(False, now)
+        else:
+            self.auto_busy(self._auto.update(now, bands_db(spectrum)), now)
+        if self._wanted:
             self._meter.feed(spectrum)
 
     # ---- the scope
     def want_scope(self, wanted: bool) -> None:
-        """A page has the scope open (or the last one closed it): the spectrum feed is switched on (or off) in the program, and the pictures are made while it is on."""
+        """A page has the scope open (or the last one closed it): the pictures are made while one does."""
         if wanted == self._wanted:
             return
         self._wanted = wanted
-        if self._ui is not None:
-            self._ui.waterfall(wanted)
         if wanted:
             self._meter.reset()
             self._start_scope_task()

@@ -6,6 +6,7 @@ import asyncio
 import json
 import math
 import random
+from pathlib import Path
 import struct
 from dataclasses import dataclass, field
 
@@ -30,6 +31,7 @@ class FakeUi:
     connections: int = 0
     waterfall: bool = False
     log_path: str = ""                         # a file each command is appended to (the program of the fake Mercury keeps it in its working directory)
+    scene_path: str = ""                       # a JSON file read for every spectrum, so that a test can change the air of a program it started: {"blocks": [[1200, 1800, 12]]} lifts those frequencies by that many dB, {"noise_db": -50} moves the noise
     upgrade: bool = True                       # false: the server answers a GET with a plain 200, as a server that is no websocket does
     _server: asyncio.Server | None = None
     _clients: list[asyncio.StreamWriter] = field(default_factory=list)
@@ -61,9 +63,20 @@ class FakeUi:
         return json.dumps({"type": "status", "bitrate": 0, "snr": 0.0, "tx_gain_db": self.gain_db, "tx_peak_dbfs": self.peak_dbfs, "waterfall": self.waterfall, "audio_ok": True, "audio_error": "", "busy": ""})
 
     def spectrum_db(self) -> list[float]:
-        db = [self.noise_db + random.uniform(-1.0, 1.0) for _ in range(BINS)]
+        scene: dict[str, object] = {}
+        if self.scene_path:
+            try:
+                scene = json.loads(Path(self.scene_path).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                scene = {}
+        noise = scene.get("noise_db", self.noise_db)
+        db = [float(noise) + random.gauss(0.0, 0.7) for _ in range(BINS)] if isinstance(noise, int | float) else [self.noise_db] * BINS
         if self.tone_hz is not None:
             db[round(self.tone_hz / (RATE / 2 / BINS))] = self.tone_db
+        blocks = scene.get("blocks", [])
+        for lo, hi, lift in blocks if isinstance(blocks, list) else []:
+            for i in range(round(lo / (RATE / 2 / BINS)), round(hi / (RATE / 2 / BINS)) + 1):
+                db[i] += lift
         return db
 
     def broadcast(self, payload: bytes, opcode: int) -> None:

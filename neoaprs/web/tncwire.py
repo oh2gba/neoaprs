@@ -39,7 +39,7 @@ class ModemState(_Model):
     allowing: bool = Field(description="the rule is being made (`hf_allow_firewall`): the prompt of Windows may be open, and the page's button waits")
     mode: str = Field(description="the modem's mode, the same for every station: `DATAC3`")
     keyed: bool = Field(description="the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on")
-    busy: bool = Field(description="the modem's busy detector hears a signal on the channel: our frames wait")
+    busy: bool = Field(description="another station's signal is on the channel: our frames wait. The daemon judges it from the modem's spectrum (a signal as wide as a frame; a step in the noise or a carrier is none) while it reads that, else it is the modem's own fixed-threshold detector")
     test: Literal["", "tune", "key"] = Field(description="`tune` while the tune tone is on (`hf_tune`), `key` during the keying test (`hf_key_test`); empty otherwise. Our frames wait while either is on")
     snr: float | None = Field(description="the signal-to-noise ratio of the latest frame decoded, in dB; null before one")
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
@@ -91,8 +91,8 @@ class HfTune(_Command):
 
 
 class HfScope(_Command):
-    """The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and the daemon switches the modem's spectrum feed on while any page asks; with `on` false,
-    or when the page closes, the page is sent no more and the feed is switched off when no page is left. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
+    """The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and with `on` false,
+    or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
     `modem.scope`)."""
     cmd: Literal["hf_scope"]
     on: bool = Field(description="true starts the pictures for this page, false stops them")

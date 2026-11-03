@@ -241,6 +241,7 @@ def tune_answer(line: str) -> bytes:
 
 ROOT = Path(__file__).resolve().parents[2]
 BROADCAST_FILE = "fake-mercury-broadcast.bin"          # what the program's KISS port was given, in its working directory
+UI_SCENE_FILE = "fake-mercury-ui-scene.json"           # what its UI interface hears, as tests/support/fakemercuryui.py reads it, in the working directory
 UI_LOG_FILE = "fake-mercury-ui.log"                    # the commands its UI interface was given, one a line (`set_tx_gain 3`), when its ini turns the interface on; `--no-ui` is a Mercury that has none
 INI_FILE_FLAG = "-C"
 
@@ -309,7 +310,7 @@ async def _serve(broadcast_port: int, control_port: int, die_after: float | None
         writer.close()
 
     ui_port, gain = _ui_of(ini, no_ui)
-    ui = FakeUi(port=ui_port, gain_db=gain, log_path=UI_LOG_FILE, noise_db=-60.0, tone_hz=1500.0) if ui_port else None
+    ui = FakeUi(port=ui_port, gain_db=gain, log_path=UI_LOG_FILE, scene_path=UI_SCENE_FILE, noise_db=-60.0, tone_hz=1500.0) if ui_port else None
     if ui is not None:
         await ui.start()
         print(f"[INF] [websocket] Initialized (url=ws://127.0.0.1:{ui_port})", flush=True)

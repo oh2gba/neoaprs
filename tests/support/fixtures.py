@@ -18,6 +18,14 @@ def protocol_violations() -> Iterator[None]:
     assert not found, "messages that do not match neoaprs/web/protocol.py:\n" + "\n".join(found[:10])
 
 
+@pytest.fixture(autouse=True)
+def ui_port_near_the_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The port of a Mercury's UI interface is 2000 above its KISS port (neoaprs/mercury.py UI_OFFSET); the tests that start a program choose their KISS ports in a range of their own for each worker (tests/test_mercury_modem.py),
+    and a port 2000 above would be in another worker's range. In the tests it is 400 above, inside the range of the pair."""
+    monkeypatch.setattr("neoaprs.mercuryscoping.UI_OFFSET", 400)
+    monkeypatch.setattr("neoaprs.mercuryhelper.UI_OFFSET", 400)
+
+
 @pytest.fixture
 def clock() -> FixedClock:
     return FixedClock()
