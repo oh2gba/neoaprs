@@ -80,6 +80,22 @@ def test_a_daemon_that_holds_the_folder_is_said_so_and_its_state_is_in_the_bundl
     assert "state.json" in members["README.txt"]
 
 
+def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_name(tmp_path: Path) -> None:
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "hf/profile": "mercury", "mercury/sound_card": "{0.0.0.00000000}.{ca03}", "mercury/keying": "rts:COM7"})
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
+            "hf": {"enabled": True, "profile": "mercury", "sound_card": "{0.0.0.00000000}.{ca03}", "keying": "rts:COM7", "tnc": {"state": "waiting", "problem": "the sound card could not be opened"},
+                   "sound_cards": [{"name": "USB Audio CODEC", "id": "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}", "records": True, "plays": True, "default": False},
+                                   {"name": "Line (Webcam)", "id": "{0.0.1.00000000}.{dddd}", "records": True, "plays": False, "default": True}]}}
+    summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
+    assert "HF radio" in summary and "{0.0.0.00000000}.{ca03}" in summary and "rts:COM7" in summary and "the sound card could not be opened" in summary
+    assert "'USB Audio CODEC': records and plays; {0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" in summary
+    assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in summary
+    (tmp_path / "off").mkdir()
+    off = made(tmp_path / "off", fake_folder(tmp_path / "off"))[1]["summary.txt"]
+    assert "HF radio" in off
+
+
 def test_the_page_and_its_errors_are_members_when_given(tmp_path: Path) -> None:
     _, members = made(tmp_path, page={"build": "index-abc.js", "browser": "Firefox"}, page_errors=[{"message": "boom"}])
     assert json.loads(members["page.json"]) == {"build": "index-abc.js", "browser": "Firefox"}

@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from neoaprs.clock import iso
 from neoaprs.config import can_transmit
 from neoaprs.controller import Controller
+from neoaprs.radios import hf_is_mercury
 from neoaprs.serialholders import held_by
 from neoaprs.serialprobe import available_ports
 
@@ -66,4 +67,14 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "update": {"latest": None if ctl.updatecheck.latest is None else asdict(ctl.updatecheck.latest), "now": UpdateState.row(ctl.selfupdate.status())},
     }
     state["ports"] = await asyncio.to_thread(ports_with_holders)
+    state["hf"] = await hf_state(ctl)
     return state
+
+
+async def hf_state(ctl: Controller) -> dict[str, Any]:
+    """The HF radio: its settings, its Tnc and, while it is the Mercury modem, every sound card Mercury lists (name, directions, id), so that a report says which device is the radio's even when the setting
+    names one (the daemon lists them only when it chooses: OH2GAX's reports of 3 Nov 2026 had ids and no names)."""
+    c = ctl.config
+    cards = await asyncio.to_thread(ctl.mercury.sound_cards) if hf_is_mercury(c) else []
+    return {"enabled": c.hf_enabled, "profile": c.hf_profile, "sound_card": c.mercury_sound_card, "keying": c.mercury_keying, "tnc": tnc_state(ctl.hf),
+            "sound_cards": [{"name": s.name, "id": s.id, "records": s.capture, "plays": s.playback, "default": s.default} for s in cards]}

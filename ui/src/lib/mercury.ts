@@ -21,6 +21,13 @@ export function soundCardChoices(ports: PortsMessage | null): Choice[] {
 /** The sound card the daemon proposes (the id), "" when none is listed. */
 export const soundCardPick = (ports: PortsMessage | null): string => ports?.sound_cards.find((c) => c.pick)?.id ?? "";
 
+/** Between the two devices of a Windows sound card in one id (the one it records from, then the one it plays to: neoaprs/mercury.py, PAIR). */
+const PAIR = "|";
+
+/** The listed card one of whose two devices is `value`, a setting made before Windows's recording and playing device of a card were one choice; "" when `value` is a whole card or none matches. */
+export const soundCardWith = (ports: PortsMessage | null, value: string): string =>
+  value === "" || value.includes(PAIR) ? "" : (ports?.sound_cards.find((c) => c.id.includes(PAIR) && c.id.split(PAIR).includes(value))?.id ?? "");
+
 /** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with). The value in force stays offered when its port is not listed. */
 export function keyingChoices(ports: PortsMessage | null, current = ""): Choice[] {
   const kinds = LIMITS.mercury.pttKinds;

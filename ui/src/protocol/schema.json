@@ -4748,7 +4748,7 @@
       "description": "A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type.",
       "properties": {
         "id": {
-          "description": "the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows",
+          "description": "the name to give as `mercury/sound_card`: `plughw:1,0` on Linux; on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner)",
           "type": "string"
         },
         "name": {

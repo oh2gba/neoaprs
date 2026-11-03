@@ -1227,7 +1227,7 @@ export interface SetStationRfOnlyCommand {
 
 /** A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type. */
 export interface SoundCardRow {
-  /** the name to give as `mercury/sound_card`: `plughw:1,0` on Linux, the device's name on Windows */
+  /** the name to give as `mercury/sound_card`: `plughw:1,0` on Linux; on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner) */
   id: string;
   /** what the system calls it, such as `USB Audio CODEC` */
   name: string;

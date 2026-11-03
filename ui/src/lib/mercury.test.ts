@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyingChoices, soundCardChoices, soundCardPick } from "@/lib/mercury";
+import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
@@ -60,6 +60,20 @@ describe("the sound cards as a plain choice", () => {
       ],
     };
     expect(soundCardChoices(two).map((c) => c.label)).toEqual(["USB Audio (hw:1,0)", "USB Audio (hw:2,0)"]);
+  });
+
+  it("find the whole Windows card of a setting that names one of its two devices, and nothing for a whole card or an unknown one", () => {
+    const windows: PortsMessage = {
+      ...ports,
+      sound_cards: [{ id: "{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}", name: "USB Audio CODEC", default: false, pick: true }],
+    };
+    expect(soundCardWith(windows, "{0.0.0.00000000}.{spk}")).toBe("{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}");
+    expect(soundCardWith(windows, "{0.0.1.00000000}.{mic}")).toBe("{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}");
+    expect(soundCardWith(windows, "{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}")).toBe("");
+    expect(soundCardWith(windows, "{0.0.0.00000000}.{other}")).toBe("");
+    expect(soundCardWith(windows, "")).toBe("");
+    expect(soundCardWith(null, "{0.0.0.00000000}.{spk}")).toBe("");
+    expect(soundCardWith(ports, "plughw:1,0")).toBe("");
   });
 
   it("have the daemon's proposal, the one marked, and none before the list is there", () => {

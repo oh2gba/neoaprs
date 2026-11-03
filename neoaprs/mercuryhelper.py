@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, UI_OFFSET, Keying, SerialPort, SoundCard, audio_open_error, card_reason, choose_keying, choose_sound_card, keying_of, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -126,9 +126,14 @@ def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable
     """The sound card and the keying the modem runs with: the settings (`mercury/sound_card`, `mercury/keying`) where they are set, else the daemon's own choice from the sound cards Mercury lists and the serial ports the
     system lists (`ports`; mercury.py says how and why), the ports in `leave` left out of the choice (the FM radio's, the GPS receiver's, the skipped ones: the one USB serial port the choice keys the radio on must not be
     one that another part of the station holds, or Mercury toggles its RTS at every frame). Runs the program and reads the system's lists: for a thread."""
-    cards = list_sound_cards(program) if not sound_card or not keying else []
-    card = sound_card or choose_sound_card(cards)
-    log.info("Mercury sound card: %s", card_reason(card, sound_card, cards))
+    lone = PAIR not in sound_card and sound_card.startswith((WASAPI_CAPTURE, WASAPI_PLAYBACK))        # (one device of a Windows card: a setting made before the two were one choice)
+    cards = list_sound_cards(program) if not sound_card or not keying or lone else []
+    paired = card_with(cards, sound_card) if lone else ""
+    card = paired or sound_card or choose_sound_card(cards)
+    if paired:
+        log.info("Mercury sound card: %r, both devices of the card whose one device the setting names (%s)", next((c.name for c in cards if c.id == paired), paired), sound_card)
+    else:
+        log.info("Mercury sound card: %s", card_reason(card, sound_card, cards))
     if keying:
         log.info("Mercury keys the radio by %s, from the settings", keying)
         return card, keying_of(keying)

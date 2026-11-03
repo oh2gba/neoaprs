@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fixed:** on Windows the HF radio's sound card could not be set right: Windows lists every sound card twice, as a speaker and as a microphone, and whichever of the two you chose was used to record and to play, so one of them always failed ("the sound card could not be opened"). The Sound card field now offers each card once, named after the card, and the modem records from its microphone and plays to its speaker. A card chosen before is taken as the whole card.
+- **Fixed:** a support report names every sound card the HF modem sees, and the HF radio's settings and state, so that remote help can tell which one is the radio's.
+
 ## 0.17.1
 
 - **New:** the FM radio and the HF radio boxes of the Radio group fold by the arrow in front of their names, as the groups do, and the page remembers in this browser which ones you folded. A box opens by itself when its radio is ticked and not connected, when the daemon refuses one of its settings, and when a mark in the header leads you to a setting in it.

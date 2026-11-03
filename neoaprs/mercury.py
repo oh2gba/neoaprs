@@ -12,6 +12,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .coded import CodedError
+from .mercurycards import (  # (the sound cards are read in mercurycards.py; the rest of the daemon finds them here as before)
+    PAIR as PAIR,
+    WASAPI_CAPTURE as WASAPI_CAPTURE,
+    WASAPI_PLAYBACK as WASAPI_PLAYBACK,
+    SoundCard as SoundCard,
+    card_with as card_with,
+    endpoints as endpoints,
+    pair_directions as pair_directions,
+    parse_sound_cards as parse_sound_cards,
+)
 
 # The one Mercury NeoAPRS ships: every release carries this version, built from this source on every system (scripts/build-mercury: natively on Linux and on a Mac, cross-compiled with MinGW-w64 for Windows), so that what
 # the suite and the simulators ran against is what the operator has. A new Mercury is a change of these constants (docs/MAINTAINING.md, "Moving the Mercury pin"), tried by the suite, never something that happens on the operator's computer.
@@ -153,8 +163,11 @@ def command(program: Sequence[str], config_file: str, sound_card: str, keying: K
     playback (empty: the system's default device; `audio` names another backend instead, the Dummy HF radio's speaker's), the keying, and the two ports. The command line wins over the file, so what matters is
     said here."""
     argv = [*program, "-C", config_file, "-m", str(MODE_INDEX), "-b", str(broadcast_port), "-p", str(control_port), *audio]
-    if sound_card and not audio:
-        argv += ["-i", sound_card, "-o", sound_card]
+    capture, playback = endpoints(sound_card) if not audio else ("", "")
+    if capture:
+        argv += ["-i", capture]
+    if playback:
+        argv += ["-o", playback]
     if keying.kind == "vox":
         argv += ["-P", "none"]
     elif keying.kind == "cm108":
@@ -186,40 +199,6 @@ def ini_text(keying: Keying, tx_gain_db: int = 0, ui_port: int = 0) -> str:
             "enabled = false\n"
             "[tnc]\n"
             "keepalive_s = 10\n")
-
-
-@dataclass(frozen=True)
-class SoundCard:
-    """A sound card as `mercury -z` lists it: the id to give Mercury and the name the system gives it."""
-    id: str
-    name: str
-    playback: bool = False
-    capture: bool = False
-    default: bool = False
-
-
-_DEVICE = re.compile(r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id>.*?)'|(?P<name2>.*?)\s+id=(?P<id2>\S+))(?P<default>\s+\(system (?:default|route)\))?\s*$")
-
-
-def parse_sound_cards(text: str) -> list[SoundCard]:
-    """The sound cards of `mercury -z` (Mercury 1.9.21: "playback devices:" and "capture devices:" each followed by `device: name: 'USB Audio CODEC'  id: 'plughw:1,0'  (system default)` lines, or `device #1: Default (system route)
-    id=default` where the backend lists none). A card that is in both lists is one card, which is what a radio's sound card is."""
-    cards: dict[str, SoundCard] = {}
-    section = ""
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.endswith("devices:"):
-            section = stripped.split()[0]
-            continue
-        m = _DEVICE.match(stripped)
-        if m is None or not section:
-            continue
-        ident = m.group("id") or m.group("id2") or ""
-        name = (m.group("name") or m.group("name2") or ident).strip()
-        before = cards.get(ident, SoundCard(ident, name))
-        default = m.group("default") is not None or "(system route)" in name or "(system default)" in name
-        cards[ident] = SoundCard(ident, before.name or name, before.playback or section == "playback", before.capture or section == "capture", before.default or default)
-    return list(cards.values())
 
 
 @dataclass(frozen=True)

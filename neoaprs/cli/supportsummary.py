@@ -127,6 +127,25 @@ def _radio(f: Facts, c: Config) -> list[tuple[str, str]]:
             ("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or tnc.get("last_error") or "none"))]
 
 
+def _hf(f: Facts, c: Config) -> list[tuple[str, str]]:
+    """The HF radio: its type and settings, its state, and the sound cards Mercury lists (the running daemon's: which device is the radio's, by name)."""
+    if not c.hf_enabled:
+        return [("HF radio", "off")]
+    rows = [("Type", c.hf_profile), ("Sound card", c.mercury_sound_card or "(the daemon's choice)"), ("Keying", c.mercury_keying or "(the daemon's choice)")]
+    hf = (f.live or {}).get("hf")
+    if not isinstance(hf, dict):
+        return [*rows, ("State", NO_DAEMON)]
+    found = hf.get("tnc")
+    tnc: dict[str, Any] = found if isinstance(found, dict) else {}
+    rows += [("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or tnc.get("last_error") or "none"))]
+    for card in hf.get("sound_cards") or []:
+        ways = " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on) or "neither"
+        rows.append(("Sound card listed", f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}"))
+    if hf.get("sound_cards") == []:
+        rows.append(("Sound cards listed", "none (or not the Mercury modem)"))
+    return rows
+
+
 def _gps(f: Facts, c: Config) -> list[tuple[str, str]]:
     gps = (f.live or {}).get("gps")
     if isinstance(gps, dict):
@@ -179,6 +198,7 @@ def sections(f: Facts) -> list[Section]:
         c = f.config
         out.append(("Station", [("Call", c.station_call or "(none set: nothing is transmitted)"), ("Position", _position(c)), ("Beacon", _beacon(f, c))]))
         out.append(("Radio", _radio(f, c)))
+        out.append(("HF radio", _hf(f, c)))
         out.append(("GPS", _gps(f, c)))
         out.append(("Web page", [("Listens", _web(f, c))]))
     out.append(("Database", [("File", _database(f.database))]))

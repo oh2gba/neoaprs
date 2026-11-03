@@ -247,6 +247,57 @@ def test_the_sound_cards_of_mercury_z_are_read_one_card_for_both_directions() ->
     assert mercury.parse_sound_cards("device: name: 'x'  id: 'y'\n") == [], "a device line before any list is nothing"
 
 
+# What Mercury 1.9.21 lists on Windows (WASAPI): each card twice, a playing and a recording device with ids of their own (OH2GAX's IC-7300 beside the computer's own sound, 3 Nov 2026).
+WINDOWS_Z = ("playback devices:\n"
+             "device: name: 'Speakers (Realtek High Definition Audio)'  id: '{0.0.0.00000000}.{aaaa}'  (system default)\n"
+             "device: name: 'Speakers (USB Audio CODEC)'  id: '{0.0.0.00000000}.{ca03}'\n"
+             "device: name: 'Headphones (Realtek High Definition Audio)'  id: '{0.0.0.00000000}.{bbbb}'\n"
+             "capture devices:\n"
+             "device: name: 'Microphone (USB Audio CODEC)'  id: '{0.0.1.00000000}.{2301}'\n"
+             "device: name: 'Microphone (Realtek High Definition Audio)'  id: '{0.0.1.00000000}.{cccc}'  (system default)\n"
+             "device: name: 'Line (Webcam)'  id: '{0.0.1.00000000}.{dddd}'\n")
+
+
+def test_the_two_devices_of_a_windows_card_are_one_card_that_records_from_the_one_and_plays_to_the_other() -> None:
+    cards = mercury.parse_sound_cards(WINDOWS_Z)
+    assert [(c.name, c.playback, c.capture, c.default) for c in cards] == [
+        ("Realtek High Definition Audio (Microphone, Speakers)", True, True, True),
+        ("Realtek High Definition Audio (Microphone, Headphones)", True, True, False),
+        ("USB Audio CODEC", True, True, False),
+        ("Line (Webcam)", False, True, False)], "one pair for each way a card with several devices can be used, and a device with no partner as it was"
+    radio = next(c for c in cards if c.name == "USB Audio CODEC")
+    assert radio.id == "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" and mercury.choose_sound_card(cards) == radio.id
+    argv = mercury.command(["mercury"], "m.ini", radio.id, mercury.Keying("vox"))
+    assert argv[argv.index("-i") + 1] == "{0.0.1.00000000}.{2301}" and argv[argv.index("-o") + 1] == "{0.0.0.00000000}.{ca03}"
+    assert mercury.endpoints("{0.0.1.00000000}.{dddd}") == ("{0.0.1.00000000}.{dddd}", ""), "a recording device alone: the system's default device plays"
+    assert mercury.endpoints("{0.0.0.00000000}.{ca03}") == ("", "{0.0.0.00000000}.{ca03}") and mercury.endpoints("plughw:1,0") == ("plughw:1,0", "plughw:1,0")
+    alone = mercury.command(["mercury"], "m.ini", "{0.0.0.00000000}.{ca03}", mercury.Keying("vox"))
+    assert "-i" not in alone and alone[alone.index("-o") + 1] == "{0.0.0.00000000}.{ca03}"
+    assert mercury.card_with(cards, "{0.0.0.00000000}.{ca03}") == radio.id == mercury.card_with(cards, "{0.0.1.00000000}.{2301}")
+    assert mercury.card_with(cards, "{0.0.0.00000000}.{nope}") == "" and mercury.card_with(cards, "plughw:1,0") == ""
+    vm = mercury.parse_sound_cards("playback devices:\ndevice: name: 'Speakers (High Definition Audio Device)'  id: '{0.0.0.00000000}.{a62b}'  (system default)\n"
+                                   "capture devices:\ndevice: name: 'Microphone (High Definition Audio Device)'  id: '{0.0.1.00000000}.{9507}'  (system default)\n")
+    assert vm == [mercury.SoundCard("{0.0.1.00000000}.{9507}|{0.0.0.00000000}.{a62b}", "High Definition Audio Device", True, True, True)], "John's Windows VM"
+
+
+def test_a_setting_that_names_one_device_of_a_windows_card_starts_mercury_on_both(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    from neoaprs import mercuryhelper
+    listed: list[int] = []
+
+    def fake_list(program: object, timeout_sec: float = 0) -> list[mercury.SoundCard]:
+        listed.append(1)
+        return mercury.parse_sound_cards(WINDOWS_Z)
+    monkeypatch.setattr(mercuryhelper, "list_sound_cards", fake_list)
+    with caplog.at_level(logging.INFO, logger="neoaprs.mercury"):
+        card, _ = mercuryhelper.choose_setup(["mercury"], "{0.0.0.00000000}.{ca03}", "vox", lambda: [])
+    assert card == "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" and listed == [1]
+    assert "both devices of the card whose one device the setting names" in caplog.text and "'USB Audio CODEC'" in caplog.text
+    card, _ = mercuryhelper.choose_setup(["mercury"], "plughw:1,0", "vox", lambda: [])
+    assert card == "plughw:1,0" and listed == [1], "a whole card in the setting: nothing is listed"
+    card, _ = mercuryhelper.choose_setup(["mercury"], "{0.0.1.00000000}.{dddd}", "vox", lambda: [])
+    assert card == "{0.0.1.00000000}.{dddd}", "a device with no partner stays as it is"
+
+
 def test_the_lines_of_the_control_port_are_read_as_mercury_writes_them() -> None:
     assert mercury.parse_control_line("PTT ON") == mercury.ControlEvent("ptt", on=True, text="PTT ON")
     assert mercury.parse_control_line("PTT OFF\r").on is False and mercury.parse_control_line("BUSY ON").kind == "busy"

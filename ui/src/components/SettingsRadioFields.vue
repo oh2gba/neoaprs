@@ -12,7 +12,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useHfTests } from "@/composables/useHfTests";
 import { fieldId, type SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { keyingChoices, soundCardChoices, soundCardPick } from "@/lib/mercury";
+import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
 import { speedFallback } from "@/lib/tncprofile";
 
@@ -30,8 +30,14 @@ const valueOf = (key: string): string => (props.settings.draft[key] ?? "") || pi
 const cardInfo = computed<FieldInfo>(() => ({ ...info(SOUND_CARD_KEY), kind: "choice", choices: soundCardChoices(ports.value) }));
 const keyingInfo = computed<FieldInfo>(() => ({ ...info(KEYING_KEY), kind: "choice", choices: keyingChoices(ports.value, valueOf(KEYING_KEY)) }));
 const infoOf = (key: string): FieldInfo => (key === SOUND_CARD_KEY ? cardInfo.value : key === KEYING_KEY ? keyingInfo.value : info(key));
-// An empty setting takes the proposal: the card first, the keying when nothing is out any more (the form sends one change at a time).
+// An empty setting takes the proposal: the card first, the keying when nothing is out any more (the form sends one change at a time). A card stored as one of its two Windows devices becomes the whole card first.
 watchEffect(() => {
+  const stored = props.settings.draft[SOUND_CARD_KEY] ?? "";
+  const whole = soundCardWith(ports.value, stored);
+  if (props.keys.includes(SOUND_CARD_KEY) && whole !== "" && props.settings.expected(SOUND_CARD_KEY) === stored) {
+    if (!props.settings.saving.value) props.form.choose({ [SOUND_CARD_KEY]: whole });
+    return;
+  }
   for (const key of [SOUND_CARD_KEY, KEYING_KEY]) {
     const proposal = pick(key);
     if (!props.keys.includes(key) || proposal === "" || (props.settings.draft[key] ?? "") !== "" || props.settings.expected(key) !== "") continue;
