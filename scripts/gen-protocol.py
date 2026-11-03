@@ -344,6 +344,8 @@ files of `assets/` `public, max-age=31536000, immutable`.
 settings with the access key left out, the state of the running parts, the doctor's checks, the database's, the latest packets and what the page reported (`page_error`). It is behind the same login as the socket (`401` without the
 session, `403` for a Host name that is not ours or an `Origin` that is not the `Host`), one at a time (`429` while another is being made, with `Retry-After`) and `400` for a body that is not a JSON object with a `page` object.
 
+`POST /support/send` with `{"page": {...}, "note": "..."}` (at most 256 KB; the note is text of at most 2000 characters, optional) is Send logs: the daemon makes the same bundle and posts it with the note, the call, the version and the platform to the project's server, and answers `200` with `{"ok": true, "ref": "NEO-YYYYmmdd-HHMM-XXXX"}`, the reference the person can quote, or `{"ok": false, "reason": CODE}` with `offline` (the server could not be reached), `rate` (too many from this connection in the last hour), `too_large` or `refused`. It is behind the same login and gates as `/support/bundle`, shares its one-at-a-time (`429`) and answers `400` for a body that is not as described.
+
 At most 256 connections are open at once (32 from one address that is not the loopback). A message from the page is at most 64 KiB (a bigger one closes the socket with 1009). A page whose socket
 holds more than 4 MiB it has not read is sent no patches and is sent the topic whole when it has read down; one that holds 32 MiB is cut off. The socket is compressed when the browser offers
 `permessage-deflate`.

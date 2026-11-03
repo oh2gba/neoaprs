@@ -3,8 +3,14 @@ RewriteEngine On
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
-# The page-view endpoint, at the path the page's script posts to. The file behind it and version.php are the only PHP on this site.
+# The page-view endpoint, at the path the page's script posts to. The file behind it, version.php and support/send.php (Send logs of the program: the support file, stored in private/) are the only PHP on this site.
 RewriteRule ^api/v1/view$ /api/v1/view.php [L]
+
+# The stored support files are in private/ (and refused there by its own .htaccess too), and PHP's settings for the support endpoint in .user.ini; neither is ever served.
+RewriteRule ^private(/|$) - [F,L]
+<FilesMatch "^\.user\.ini$">
+  Require all denied
+</FilesMatch>
 
 Options -Indexes
 

@@ -36,10 +36,10 @@ function make(over = {}) {
 }
 
 describe("the Help group", () => {
-  it("is one line with the address as the e-mail link, one plain button with its (i), and nothing else", () => {
+  it("is one line with the address as the e-mail link, the two plain buttons with their one (i), and nothing else", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("Help");
-    expect(wrapper.get("p").text()).toBe("Problem? Send the logs to neoaprs@oh2gba.eu.");
+    expect(wrapper.get("p").text()).toBe("Problem? Send the logs, or e-mail them to neoaprs@oh2gba.eu.");
     const link = wrapper.get("p a");
     expect(link.text()).toBe("neoaprs@oh2gba.eu");
     const url = new URL(link.attributes("href") ?? "");
@@ -48,6 +48,7 @@ describe("the Help group", () => {
     expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
     expect(url.searchParams.get("body")).toBe(["What I did:", "", "What I expected:", "", "What happened:", "", "When (roughly):", ""].join("\r\n").trimEnd());
     expect(wrapper.findAll("a")).toHaveLength(1);
+    expect(wrapper.findAll("button.btn").map((b) => b.text())).toEqual(["Download logs", "Send logs"]);
     const button = wrapper.get("button.btn");
     expect(button.text()).toBe("Download logs");
     expect(button.classes()).toEqual(["btn"]);
@@ -61,7 +62,10 @@ describe("the Help group", () => {
   it("tells in the (i) what the file holds", async () => {
     const wrapper = make();
     await wrapper.get(".infotip button").trigger("click");
-    expect(wrapper.get(".info-line").text()).toBe("The log, the settings without the access key, the packets heard and sent. NeoAPRS sends nothing by itself.");
+    expect(wrapper.findAll(".info-line").map((line) => line.text())).toEqual([
+      "The log, the settings without the access key, the packets heard and sent. They can be saved as a file or sent to the project.",
+      "NeoAPRS sends nothing by itself.",
+    ]);
   });
 
   it("reads Collecting… and is disabled while the file is made, and asks only once", async () => {
@@ -71,6 +75,7 @@ describe("the Help group", () => {
     await wrapper.get("#set-help-logs").trigger("click");
     expect(wrapper.get("#set-help-logs").text()).toBe("Collecting…");
     expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeDefined();
+    expect(wrapper.get("#set-help-send").attributes("disabled")).toBeDefined();
     await wrapper.get("#set-help-logs").trigger("click");
     expect(fetcher).toHaveBeenCalledTimes(1);
     finish(new Response("PK", { status: 200, headers: ZIP }));

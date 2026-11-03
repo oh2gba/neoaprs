@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **New:** **Send logs** in the Help group of the Settings tab sends the support file to the project with one press: a small window asks "What happened?", **Send** makes the same file as Download logs and sends it with your words, and the page says "Sent" with a short reference to quote (or why it could not be sent). Nothing is sent before you press Send. Download logs and the e-mail stay as they were.
 - **Changed:** the HF radio's box shows the frequency the group meets on as the project page names it, through the daily update check, so that a move of the frequency needs no new release.
 - **New:** the groups of the Settings tab fold by the arrow in front of their names, and the page remembers in this browser which ones you folded. A group opens by itself when it has an error to show or when a mark in the header leads to a setting in it.
 

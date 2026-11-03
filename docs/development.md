@@ -500,6 +500,7 @@ A user with a problem sends one zip ([the log and the support bundle](daemon.md#
 | `neoaprs/cli/supportcmd.py` | `neoaprs support` |
 | `neoaprs/supportsql.py` | the statements, read-only (a home of SQL in `tests/test_architecture.py`) |
 | `neoaprs/web/supporthandler.py`, `supportstate.py` | `POST /support/bundle`, and `state.json` from the running parts |
+| `neoaprs/web/supportsend.py`, `neoaprs/updatefetch.py` (`post_form`) | `POST /support/send`: the same bundle posted with the note to the project's server (`SUPPORT_URL` of `neoaprs/versions.py`) |
 | `neoaprs/web/pageerrors.py`, `supportwire.py`, `browser.py` | `page_error`: the log line, the rate limit and the ring of 100; the command's model; the browser's name from its `User-Agent` |
 | `neoaprs/cli/uncaught.py` | what escapes a thread, the main thread and the event loop is logged |
 
@@ -507,6 +508,17 @@ To make a bundle while developing: `.venv/bin/python -m neoaprs support --data .
 `curl -s -X POST -H 'Content-Type: application/json' -d '{"page": {}}' http://127.0.0.1:7303/support/bundle -o support.zip`. `tests/support/supportdata.py` makes a data folder for a test (a migrated database with settings and packets, logs). A new part of the bundle is a gatherer
 in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FILE_HELP`; one that can fail must be a step, so that its failure is a file and not the end of the bundle. The tests are `tests/test_support_bundle.py` (the builder), `tests/test_support_web.py`
 (the endpoint and `page_error`) and `tests/test_support_cli.py` (the command, the tray, the log lines, what escapes); the Start menu entry is held by `tests/test_release.py` and checked on Windows by the release workflow.
+
+**Send logs and its server.** The page's Send logs ([daemon.md](daemon.md#the-log-and-the-support-bundle)) posts the bundle to `server/neo/support/send.php` on the project's web host (`https://neo.oh2gba.eu/support/send.php`, uploaded with the rest of `server/neo/` by `server/deploy.sh --site`). `tests/test_support_send.py` tests the daemon's side against a fake server of the loopback (`tests/support/fakesupportserver.py`, which reads the multipart form; `NEOAPRS_SUPPORT_URL` points the daemon at it), and `tests/test_support_php.py` the endpoint under `php -S` with the mail stubbed (a function `support_send_mail` defined before the page runs; skipped without `php`). The endpoint:
+
+- takes a POST of multipart/form-data (`bundle`, `note`, `call`, `version`, `platform`) and answers JSON, `{"ok": true, "ref": ...}` or `{"ok": false, "reason": ...}`: `405 method`, `413 too_large` (a body over 20 MB is refused from its Content-Length, before anything is read; `server/neo/support/.user.ini` raises PHP's `upload_max_filesize` and `post_max_size` for the folder to 20 and 21 MB), `429 rate`, `400 bad_request` or `not_a_bundle`, `500 storage`;
+- takes the file for a bundle when it starts with the zip's magic bytes and its list of members, read from the central directory without any zip extension, has `summary.txt` and only names a bundle has (`FILE_HELP` of `neoaprs/cli/supportreadme.py`: the files by name, `logs/NAME`, `NAME.error.txt`);
+- cleans what the person's page said: the call to letters, digits and dashes (12), the version and the platform to plain characters, the note to valid text without control characters, 2000 characters at most;
+- keeps `REF.zip` and `REF.json` (time, call, version, platform, size, note; written last, so that its presence says the pair is whole) in `private/support/` of the site (`SUPPORT_DIR` moves it), a folder Apache never serves (`server/neo/private/.htaccess` and a rule of `server/neo/.htaccess`; the endpoint writes a `.htaccess` into the folder too); the reference is `NEO-YYYYmmdd-HHMM-XXXX`, four random hex digits;
+- holds a sender to 5 files an hour (60 in all) by a hash of its address (an IPv6 address by its first 64 bits) under a salt kept in the folder; `rate.json` holds only hashes and the times of the last hour, and the address is written nowhere;
+- sends one plain mail to neoaprs@oh2gba.eu with `mail()` as the status application does (`From: NeoAPRS <noreply@oh2gba.eu>`): the subject has the reference and the cleaned call, the body the reference, call, version, platform, size, time and the note; the call and the note cannot reach a header, and the zip is not attached. A mail that fails is a line in `private/logs/support.log` (where the host's rules put an application's log, capped at 256 KB) and the upload still succeeds.
+
+`server/support-fetch.sh` brings the files that are new to `server/support/` (not in git) over SFTP with the account of `deploy.sh`, and prints each with its note; `--list` shows what the server holds. Nothing is deleted on the server by it.
 
 ## What is in the folder
 
@@ -522,7 +534,7 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `.github/`: the workflows `ci.yml`, `release.yml` and `pages.yml`.
 - `site/`: the project page.
 - `server/`: the version page that the update check asks, on the project's web host: `version.php`, `latest.php` (the latest release), `log/.htaccess` (the logs and the cache are not served),
-  `deploy.sh` (uploads those files and nothing else) and `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id).
+  `deploy.sh` (uploads those files and nothing else), `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id) and `support-fetch.sh` (fetches the support files that Send logs stored, `neo/support/send.php`).
 - `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker, the list of what is signed by itself and the microphone sentence in eight languages), `deb/` and `mercury/` (the one C file of the Mercury build).
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
 - `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.

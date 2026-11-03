@@ -58,7 +58,7 @@ const SETTINGS_TAB = {
   Notifications: NOTIFICATIONS,
   Map: only("Map", ["set-map-radius_km"]),
   "Update check": only("Update check", ["set-update-now"]),
-  Help: only("Help", ["set-help-logs"]),
+  Help: box(["set-help-logs", "set-help-send"], 1, ["Help"]),
   About: box([], 0, ["About"]),
 };
 const STATION = ["set-station-call", "set-station-call-ssid", "set-gps-source", "set-station-place", "set-station-symbol-change"];

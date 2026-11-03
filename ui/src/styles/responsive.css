@@ -167,6 +167,11 @@ button,
   flex: 1;
 }
 
+/* the two buttons of the Help group share the column on a phone */
+.size-phone .help-logs .action-row .field-control > .btn {
+  flex: 1;
+}
+
 /* the button of the update check keeps its size on a phone: the version and the answer are beside it, or under it when they do not fit */
 .size-phone .action-row .field-control:has(.updateline) > .btn:first-child {
   flex: none;

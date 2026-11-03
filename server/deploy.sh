@@ -3,7 +3,7 @@
 #
 #   server/deploy.sh          # the version page (version.php, latest.php, log/.htaccess) to both of its places:
 #                             #   neo.oh2gba.eu/version.php, which the copies from 0.16 on ask, and oh2gba.eu/neoaprs/version.php, which the copies before ask
-#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/: the .htaccess and the page-view endpoint) to neo.oh2gba.eu
+#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as it is: the .htaccess, the page-view endpoint, the Send logs endpoint support/send.php with its .user.ini, and private/.htaccess) to neo.oh2gba.eu
 #   server/deploy.sh --list   # show what would be uploaded, don't touch the network
 #
 # Only these files: nothing else of either folder is touched, and message.txt and the logs, which live on the server only, are never uploaded or removed.

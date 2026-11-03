@@ -1,8 +1,8 @@
 # Getting help
 
-When something does not work, NeoAPRS can collect what it knows into one file, which you e-mail to the project with a few words. The file is made on your computer and goes nowhere by itself: you can open it and read every part before you send it.
+When something does not work, NeoAPRS can collect what it knows into one file and send it to the project with a few words from you, with one button. Or you can save the file and e-mail it yourself. The file is made on your computer and goes nowhere by itself: nothing is sent unless you press Send, and you can open the file and read every part before you send it.
 
-Send it to **neoaprs@oh2gba.eu**. It helps most to say:
+To e-mail it, send it to **neoaprs@oh2gba.eu**. Whichever way it goes, it helps most to say:
 
 - what you did,
 - what you expected,
@@ -22,6 +22,12 @@ If the button cannot make the file, it says why:
 - **The daemon could not be reached:** use the command below.
 
 The page also tells the daemon when it fails itself, and the file carries those errors.
+
+## Send logs
+
+Beside Download logs, **Send logs** opens a small window with one text, "What happened?": what you did, what you expected and roughly when. **Send** makes the same file as Download logs and sends it, with your words, your call, the version and the kind of system, over a secure connection to the project's server. The server keeps the file for the developer and tells him that a new one has come; it does not keep your network address. Nothing is sent before you press Send, and **Cancel** closes the window and sends nothing.
+
+While the file is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many files came from your connection in the last hour (five at most). Download logs and the e-mail still work then.
 
 ## Without a working page
 
@@ -57,7 +63,7 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 - **Your messages as the program keeps them,** and **the database file itself.** They are yours, and a fault is found without them. `database.txt` says what is in the database.
 - **The base map.** It is large and a fault is not in it.
 
-Know what is in it before you send it. The log and `packets.txt` have the packets heard and sent, which on APRS are public, with the texts of messages to and from other stations and their calls. The log also has the addresses of the devices that opened the page, and `settings.json` the position your beacon sends.
+Know what is in it before you send it; Send logs sends exactly this file. The log and `packets.txt` have the packets heard and sent, which on APRS are public, with the texts of messages to and from other stations and their calls. The log also has the addresses of the devices that opened the page, and `settings.json` the position your beacon sends.
 
 ## Feedback
 

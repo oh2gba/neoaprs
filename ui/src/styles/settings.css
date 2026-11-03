@@ -169,6 +169,18 @@ fieldset.composebox > legend {
   margin: 6px 0;
 }
 /* an action row (ActionRow: Detailed map, New version, Logs): the button stands first in the control column, as wide as the other action buttons (above), the (i) after it, and the notes of the outcome under it in the same column; no notes, no gap */
+/* the Help group has two action buttons (Download logs, Send logs): each as wide as an action button is, and where the control column has not the room for both one under the other, whatever the words of the language, with the (i) after the last */
+.help-logs .field-control {
+  flex-wrap: wrap;
+}
+.help-logs .field-control > .btn {
+  min-width: var(--action-w);
+  white-space: nowrap;
+}
+/* the reference of a sent file is one word, to be read out and quoted whole: it does not break at its dashes */
+.help-ref {
+  white-space: nowrap;
+}
 .action-row > .action-notes {
   grid-column: 2;
 }

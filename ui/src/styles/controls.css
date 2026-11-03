@@ -9,6 +9,13 @@
   font: inherit;
   min-width: 0;
 }
+/* the text area of a dialog (Send logs): a few lines, a size of its own that the person cannot drag, so that nothing round it moves */
+.input.area {
+  height: auto;
+  padding: 6px 8px;
+  line-height: 1.35;
+  resize: none;
+}
 .input:disabled {
   opacity: 0.5;
   cursor: default;

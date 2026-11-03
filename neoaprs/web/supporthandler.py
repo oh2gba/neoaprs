@@ -36,7 +36,8 @@ class Bundler:
 
     def __init__(self, server: LiveHost) -> None:
         self.server = server
-        self.busy = False
+        self.busy = False                                    # a bundle is being made
+        self.sending = False                                 # a bundle is being made and sent (neoaprs/web/supportsend.py)
 
     async def make(self, page: dict[str, Any]) -> tuple[str, bytes]:
         """(the name of the file, the zip). The state is read here, on the loop; the files are read and the zip is written in a thread."""
@@ -80,7 +81,8 @@ class SupportBundle(SecurityHeaders):
             self.chunks.append(chunk)
             self.size += len(chunk)
 
-    async def post(self) -> None:
+    def json_body(self) -> dict[str, Any]:
+        """The body: a JSON object with a `page` object."""
         try:
             body = json.loads(b"".join(self.chunks))
             page = body["page"]
@@ -88,17 +90,28 @@ class SupportBundle(SecurityHeaders):
             raise tornado.web.HTTPError(400, reason="Bad Request: the body is a JSON object with a page") from None
         if not isinstance(page, dict):
             raise tornado.web.HTTPError(400, reason="Bad Request: the page is a JSON object")
-        bundler = self.server.bundles
-        if bundler.busy:
-            self.set_status(429)
-            self.set_header("Retry-After", str(RETRY_AFTER_SEC))
-            self.finish("429 Too Many Requests: a support bundle is being made; try again in a moment\n")
-            return
+        return dict(body)
+
+    def too_busy(self) -> None:
+        self.set_status(429)
+        self.set_header("Retry-After", str(RETRY_AFTER_SEC))
+        self.finish("429 Too Many Requests: a support bundle is being made; try again in a moment\n")
+
+    async def made(self, page: dict[str, Any]) -> tuple[str, bytes]:
+        """(the name, the zip) of the bundle for the page; a 500 when it could not be made."""
         try:
-            name, data = await bundler.make(page)
+            return await self.server.bundles.make(page)
         except Exception:
             log.exception("the support bundle for the page could not be made")
             raise tornado.web.HTTPError(500, reason="Internal Server Error: the support bundle could not be made, the log says why") from None
+
+    async def post(self) -> None:
+        page = self.json_body()["page"]
+        bundler = self.server.bundles
+        if bundler.busy or bundler.sending:
+            self.too_busy()
+            return
+        name, data = await self.made(page)
         log.info("support bundle made for the page: %s, %d KB", name, max(1, len(data) // 1024))
         self.set_header("Content-Type", "application/zip")
         self.set_header("Content-Disposition", f'attachment; filename="{name}"')
