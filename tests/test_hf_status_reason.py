@@ -37,7 +37,7 @@ async def test_a_program_that_is_not_installed_is_not_installed(tmp_path: Path) 
 
 
 async def test_a_program_that_dies_is_stopped_while_it_waits_and_nothing_once_it_runs_again(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=1.5), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
     seen: list[tuple[str, str]] = []
     m.changed.connect(lambda: seen.append((m.state, m.reason)))
     await m.start(HF)

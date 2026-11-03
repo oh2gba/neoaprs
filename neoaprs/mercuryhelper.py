@@ -51,6 +51,13 @@ def find(tools: Path | None = None) -> Command | None:
     return [str(program)] if program.is_file() and os.access(program, os.X_OK) else None
 
 
+def is_shipped(command: Command, tools: Path | None = None) -> bool:
+    """Whether the command is the Mercury NeoAPRS ships, the one file `find` gives (the Windows installer's mercury.exe, the AppImage's, the .deb's, a checkout's build): what the installer's firewall rule is for, and
+    nothing else is asked about it (not the tests' fake, an interpreter and a module; not a program named by its path elsewhere)."""
+    shipped = (tools if tools is not None else tools_dir()) / NAME / program_file()
+    return len(command) == 1 and Path(command[0]).resolve() == shipped.resolve()
+
+
 def environment(command: Command) -> dict[str, str]:
     """The environment the program runs with: the daemon's reduced one (childenv.py), and ALSA_CONFIG_PATH pointing at the ALSA configuration shipped beside the program when there is one (Linux: the bundled ALSA library
     would otherwise look for the system's /usr/share/alsa/alsa.conf, which a machine without ALSA installed does not have, and open no sound card)."""
