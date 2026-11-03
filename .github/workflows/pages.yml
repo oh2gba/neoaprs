@@ -1,11 +1,8 @@
-# The mirror of the project page on GitHub Pages (https://oh2gba.github.io/neoaprs/; the page itself is https://neo.oh2gba.eu/, uploaded by server/deploy.sh --site): the folder site/ as it is, plain files with nothing to build. A push to master that touches site/ (or this file) publishes it; run by hand it publishes the
-# current master. Pages is switched on in the repository's settings (Pages, Source: GitHub Actions), which this workflow does not do. The page and its screenshots: docs/development.md, "The project page".
+# The old address of the project page, https://oh2gba.github.io/neoaprs/, sends its visitors to https://neo.oh2gba.eu (the page itself, uploaded by server/deploy.sh --site): it publishes
+# packaging/pages-redirect/, a page that moves the browser on at once (with a canonical link, which search engines take as a permanent move) and a 404 page that does the same for any other path. Run by hand.
 name: pages
 
 on:
-  push:
-    branches: [master]
-    paths: ["site/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +25,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: packaging/pages-redirect
       - id: deployment
         uses: actions/deploy-pages@v5

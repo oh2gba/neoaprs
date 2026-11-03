@@ -459,9 +459,9 @@ library that does not share Qt's event loop on Linux, while Qt has both.
 
 ### The project page
 
-`site/` is the project page, <https://neo.oh2gba.eu/> (uploaded there by `server/deploy.sh --site`, with `server/neo/`: the host's `.htaccess` and the page-view endpoint), mirrored at <https://oh2gba.github.io/neoaprs/>: plain files (`index.html`, `style.css`, `site.js`, the icons and `shots/`), a system font
+`site/` is the project page, <https://neo.oh2gba.eu/> (uploaded there by `server/deploy.sh --site`, with `server/neo/`: the host's `.htaccess` and the page-view endpoint), (the old address <https://oh2gba.github.io/neoaprs/> redirects there): plain files (`index.html`, `style.css`, `site.js`, the icons and `shots/`), a system font
 stack, no external file, tracker or framework, and a Content-Security-Policy that lets it load its own files only. `.github/workflows/pages.yml` publishes the
-folder as it is when a push to master touches it (or by hand); Pages is switched on once, in the repository's settings (Pages, Source: GitHub Actions). To look
+redirect of the old address (`packaging/pages-redirect/`), by hand. `robots.txt` and `sitemap.xml` are the site's own, and every picture has a `.webp` beside its `.png` (made with the thumbnails), which the page offers first. To look
 at it: `python -m http.server --directory site`.
 
 The screenshots are made by `scripts/screenshots.py`. It starts a daemon of its own on a temporary data folder, plays a day on the air into it

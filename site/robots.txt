@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /version.php
+Disallow: /latest.php
+Disallow: /api/
+Disallow: /log/
+
+Sitemap: https://neo.oh2gba.eu/sitemap.xml

@@ -677,7 +677,7 @@ async def shot_setup(s: Shots, fresh_url: str) -> None:
 
 
 def make_thumbs(out: Path) -> None:
-    """thumbs/NAME.png next to each shot: 640 px wide (270 for a phone), what the gallery of the site loads before a picture is opened."""
+    """thumbs/NAME.png next to each shot: 640 px wide (270 for a phone), what the page shows before a picture is opened; and NAME.webp beside every shot and thumb, which the page offers first."""
     from PIL import Image
     (out / "thumbs").mkdir(exist_ok=True)
     for path in sorted(out.glob("*.png")):
@@ -687,7 +687,9 @@ def make_thumbs(out: Path) -> None:
         width = 270 if path.name.startswith("phone-") else 640
         small = image.resize((width, round(image.height * width / image.width)), Image.LANCZOS).quantize(128, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
         small.save(out / "thumbs" / path.name, optimize=True)
-    print(f"thumbs/: {len(list((out / 'thumbs').glob('*.png')))} files")
+        image.save(path.with_suffix(".webp"), quality=82, method=6)                                       # (the page offers the WebP first: a third of the PNG's bytes)
+        image.resize(small.size, Image.LANCZOS).save((out / "thumbs" / path.name).with_suffix(".webp"), quality=80, method=6)
+    print(f"thumbs/: {len(list((out / 'thumbs').glob('*.png')))} files, and a .webp beside each picture")
 
 
 def _font(size: int, bold: bool) -> Any:

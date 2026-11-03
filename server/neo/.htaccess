@@ -8,6 +8,8 @@ RewriteRule ^api/v1/view$ /api/v1/view.php [L]
 
 Options -Indexes
 
+AddType image/webp .webp
+
 # What every response carries (oh2gba/SHARED-HOST.md). The page's own Content-Security-Policy is the same as the meta tag in index.html: own files only, and a POST to its own host for the view.
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=86400"
@@ -18,11 +20,11 @@ Options -Indexes
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-  # The page itself is always fetched (a release changes it); the pictures, the stylesheet and the script may be kept a day.
-  <FilesMatch "\.(html|php)$">
+  # The page, its stylesheet and its script are asked again at every visit (an answer of 304 when unchanged, so that a new page never meets an old stylesheet); the pictures may be kept a day.
+  <FilesMatch "\.(html|php|css|js|txt|xml)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
-  <FilesMatch "\.(png|svg|ico|css|js)$">
+  <FilesMatch "\.(png|webp|svg|ico)$">
     Header set Cache-Control "public, max-age=86400"
   </FilesMatch>
 </IfModule>

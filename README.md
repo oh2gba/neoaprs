@@ -1,10 +1,12 @@
 # NeoAPRS
 
-A modern, easy-to-use APRS client for the radio you already have: a map, messages and your beacon, on VHF with any KISS TNC and on HF with the Mercury modem built in. Windows, macOS, Linux and the Raspberry Pi.
+APRS client for Windows, macOS, Linux and the Raspberry Pi. Any KISS TNC on VHF, and APRS over HF with the Mercury modem built in.
 
-**The project page is at https://neo.oh2gba.eu/** — screenshots, downloads and what NeoAPRS does.
+**Project page: [neo.oh2gba.eu](https://neo.oh2gba.eu)**, with screenshots and downloads.
 
-NeoAPRS is a map, your messages and your beacon in one page. It runs as an app on Windows, macOS and Linux, or as a service on a Raspberry Pi that you open from your laptop or phone. It is RF first: it talks to your radio or TNC (Kenwood, Mobilinkd, NinoTNC, Direwolf, any KISS TNC), and to an SSB radio with a sound card over HF; an optional tickbox shows the stations of APRS-IS round you on the map. Nothing from the internet is ever sent on the air.
+NeoAPRS shows the stations you hear on a map, sends and receives APRS messages with acks, and sends your beacon. Run it as a desktop app, or as a service on a Raspberry Pi next to the radio and open it on a laptop, tablet or phone. Your radio comes first: stations from APRS-IS can be added to the map with one tick, and nothing from the internet is ever sent on the air.
+
+**New: APRS over HF.** NeoAPRS is the first to carry APRS over Rhizomatica's Mercury modem: an SSB radio with a sound card, stations 1000 to 2000 km away, messages with acks, and nothing extra to install.
 
 | ![The map](docs/screenshots/map.png) | ![Messages](docs/screenshots/messages.png) |
 |---|---|
@@ -47,8 +49,6 @@ Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (p
 
 ## More
 
-[Project page](https://neo.oh2gba.eu/) · [Manual](docs/manual/README.md) · [Radios](docs/RADIOS.md) · [Changelog](CHANGELOG.md) · [Development](docs/development.md) · [Roadmap](ROADMAP.md) · [Issues](https://github.com/oh2gba/neoaprs/issues)
+[Project page](https://neo.oh2gba.eu) · [Manual](docs/manual/README.md) · [Radios](docs/RADIOS.md) · [Changelog](CHANGELOG.md) · [Development](docs/development.md) · [Roadmap](ROADMAP.md) · [Issues](https://github.com/oh2gba/neoaprs/issues)
 
 Written in Python (asyncio, Tornado, SQLite) and Vue, with a Qt window for the desktop app. Licence: GPL-3.0-or-later ([LICENSE](LICENSE)). Map data © OpenStreetMap contributors via Protomaps; APRS symbols by Heikki Hannikainen OH7LZB; device names from the APRS device identification list by Hessu, OH7LZB (CC BY-SA 2.0); the HF modem is Mercury by Rhizomatica (GPL-3).
-
-*Keywords: APRS, APRS client, APRS software, amateur radio, ham radio, packet radio, AX.25, KISS TNC, APRS over HF, HF digital mode, Mercury modem, iGate, digipeater, SmartBeaconing, Raspberry Pi, Linux, Windows, macOS, Kenwood TH-D74, TH-D75, TM-D710, Mobilinkd, Direwolf, aprs.fi.*
