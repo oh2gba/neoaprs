@@ -93,11 +93,9 @@ describe("App: the alert of this browser", () => {
     vi.spyOn(window, "focus").mockImplementation(() => undefined);
     const { wrapper, socket } = await open();
     patch(socket, 1, "4", incoming(4, "OH2DPN", { text: "Moi!" }));
-    await flushPromises();
-    expect(FakeNotification.shown.map((n) => n.title)).toEqual(["APRS message from OH2DPN"]);
+    await vi.waitFor(() => expect(FakeNotification.shown.map((n) => n.title)).toEqual(["APRS message from OH2DPN"])); // (under the load of the whole suite the notification comes a moment after one flush)
     FakeNotification.shown[0]?.onclick?.();
-    await flushPromises();
-    expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true");
+    await vi.waitFor(() => expect(tabButton(wrapper, "Messages")?.attributes("aria-selected")).toBe("true"));
     expect(wrapper.find("#pane-messages").text()).toContain("Moi!");
   });
 });

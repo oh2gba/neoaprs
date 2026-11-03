@@ -339,6 +339,8 @@ export function hfState(extra: Partial<TncState> = {}): TncState {
       state: "running",
       problem: "",
       reason: "",
+      lets_in: "",
+      allowing: false,
       mode: "DATAC3",
       keyed: false,
       busy: false,

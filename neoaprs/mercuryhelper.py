@@ -93,6 +93,13 @@ def pair_free(broadcast_port: int) -> bool:
     return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1)
 
 
+def candidate_ports() -> list[int]:
+    """Every port a start of Mercury may be given: the broadcast ports from the default up, the control ports 200 above them and the port after each (what `foreign_listeners` watches); the Windows Firewall is asked
+    about all of them, since the pair is chosen after that."""
+    first = list(range(BROADCAST_PORT, BROADCAST_PORT + PORT_TRIES))
+    return first + [p + CONTROL_OFFSET for p in first] + [p + CONTROL_OFFSET + 1 for p in first]
+
+
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:
     """The first broadcast port from `first` up whose control port (CONTROL_OFFSET above it) is free as well, as the pair. Mercury's defaults when they are free, so that a Mercury of ours is where the manuals say;
     the next pair when another program (another NeoAPRS, a Mercury of the operator's own) holds them. OSError when none of `tries` pairs is free."""
