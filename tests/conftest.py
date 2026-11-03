@@ -24,6 +24,12 @@ os.environ["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-test-no-such-port*"
 os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
 
 
+# No test may reach the developer's desktop: a daemon a test starts that gets a message runs the default alert command (notify-send, else kdialog's pop-up, and a sound), which showed John a stream of pop-ups while the suite and
+# the simulators ran (3 Nov 2026). Without the session's display and message bus the command finds no desktop and does nothing visible; a test of the alert command gives its own command.
+for _name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY"):
+    os.environ.pop(_name, None)
+
+
 # Hypothesis is in the dev group. 'ci' is the default so that a run is reproducible (derandomize: the same examples every time, no example database);
 # HYPOTHESIS_PROFILE=dev explores far more, with a random seed, and keeps what it finds in .hypothesis/ to replay.
 try:

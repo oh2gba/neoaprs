@@ -21,7 +21,7 @@ from dataclasses import replace
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs import mercuryhelper, mercurymodem
-from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards
+from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
 from neoaprs.serialprobe import PortInfo
 from neoaprs.source import Backoff, Source
@@ -138,8 +138,16 @@ def test_the_bundled_alsa_configuration_is_given_to_the_program_through_the_envi
     assert "PATH" in environment([str(program)]), "the reduced environment of a child, as for every program the daemon starts"
 
 
+def three_free_pairs() -> int:
+    """The first of three pairs that are free now: a Mercury of the machine's own (the developer's station, the simulation of another worktree's suite) may hold Mercury's defaults and any fixed range."""
+    for first in range(18100, 19900, 10):
+        if all(pair_free(port) for port in range(first, first + 3)):
+            return first
+    pytest.skip("no three free pairs of ports on this machine")
+
+
 def test_the_ports_are_mercurys_defaults_when_free_else_the_next_pair_with_the_control_port_200_above() -> None:
-    first = 18100
+    first = three_free_pairs()
     assert free_ports(first, 3) == (first, first + CONTROL_OFFSET)
     with socket.socket() as holder:
         holder.bind(("127.0.0.1", first + CONTROL_OFFSET))                           # (a program holds the control port: the pair is skipped)
