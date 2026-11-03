@@ -59,10 +59,10 @@ def test_the_stub_is_a_whole_ffpulse_with_designated_initialisers() -> None:
 
 
 def test_the_tarball_is_named_for_the_version_and_the_machine(build: ModuleType) -> None:
-    assert build.tarball_name("x86_64") == "mercury-1.9.21-linux-x86_64.tar.gz"
-    assert build.tarball_name("aarch64") == "mercury-1.9.21-linux-aarch64.tar.gz"
-    assert build.tarball_name("amd64") == "mercury-1.9.21-linux-x86_64.tar.gz"
-    assert build.tarball_name("arm64") == "mercury-1.9.21-linux-aarch64.tar.gz"
+    assert build.tarball_name("x86_64", "linux") == "mercury-1.9.21-linux-x86_64.tar.gz"
+    assert build.tarball_name("aarch64", "linux") == "mercury-1.9.21-linux-aarch64.tar.gz"
+    assert build.tarball_name("amd64", "linux") == "mercury-1.9.21-linux-x86_64.tar.gz"
+    assert build.tarball_name("arm64", "linux") == "mercury-1.9.21-linux-aarch64.tar.gz"
 
 
 def test_the_usage_prints() -> None:
