@@ -61,5 +61,6 @@ test-results/
 /.idea/
 /.vscode/
 
-# The start logs usage-report.sh fetches from the version page.
+# The start logs usage-report.sh fetches from the version page, and the support files support-fetch.sh fetches from the Send logs endpoint.
 /server/logs/
+/server/support/

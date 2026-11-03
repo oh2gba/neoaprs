@@ -1,5 +1,5 @@
 // What the Help group of the Settings tab needs to ask the daemon for the support file: the facts of this page that the daemon cannot know (`pageInfo`), the request (`requestBundle`: `POST support/bundle` with the same cookie as the page), the name of
-// the file it answers with, the saving of it as a download and the e-mail that goes with it. The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
+// the file it answers with, the saving of it as a download and the e-mail that goes with it; and Send logs, the same bundle posted to the project by the daemon with a few words of the person (`requestSend`: `POST support/send`, answered with a reference to quote). The daemon makes the zip (the log, the settings without the access key, the packets); the page adds page.json and page-errors.json to it by sending `page`.
 import { endpoint } from "@/lib/access";
 import { pageBuild } from "@/lib/build";
 import { pad2 } from "@/lib/format";
@@ -10,6 +10,8 @@ import type { PageErrorEntry } from "@/lib/pageerrors";
 export const SUPPORT_ADDRESS = "neoaprs@oh2gba.eu";
 /** The daemon takes a body of 256 KB at the most; the page keeps under it and cuts the errors, not the facts. */
 export const BODY_MAX_BYTES = 240_000;
+/** The longest note of Send logs; the daemon and the server cut at the same number of characters. */
+export const NOTE_MAX = 2000;
 
 export interface PageInfo {
   build: string;
@@ -76,21 +78,22 @@ export function pageInfo(given: InfoGiven, host: InfoHost = window, now: number 
   };
 }
 
-/** The request body: when it is over the daemon's limit the stacks of the errors are cut short, then the oldest errors go. */
-export function bodyOf(info: PageInfo): string {
+/** The request body: when it is over the daemon's limit the stacks of the errors are cut short, then the oldest errors go. The note of Send logs goes beside the page. */
+export function bodyOf(info: PageInfo, note?: string): string {
   const size = (text: string): number => new TextEncoder().encode(text).length;
-  let body = JSON.stringify({ page: info });
-  if (size(body) <= BODY_MAX_BYTES) return body;
+  const body = (page: PageInfo): string => JSON.stringify(note === undefined ? { page } : { page, note });
+  let text = body(info);
+  if (size(text) <= BODY_MAX_BYTES) return text;
   let errors = info.errors.map((entry) => ({ ...entry, stack: entry.stack.slice(0, 500) }));
-  body = JSON.stringify({ page: { ...info, errors } });
-  while (size(body) > BODY_MAX_BYTES && errors.length > 0) {
+  text = body({ ...info, errors });
+  while (size(text) > BODY_MAX_BYTES && errors.length > 0) {
     errors = errors.slice(1);
-    body = JSON.stringify({ page: { ...info, errors } });
+    text = body({ ...info, errors });
   }
-  return body;
+  return text;
 }
 
-export type BundleProblem = "access" | "busy" | "unreachable" | "failed";
+type BundleProblem = "access" | "busy" | "unreachable" | "failed";
 
 export type Bundle = { ok: true; blob: Blob; filename: string } | { ok: false; problem: BundleProblem; status: number };
 
@@ -133,6 +136,40 @@ export async function requestBundle(info: PageInfo, call: string | null, fetcher
     return { ok: true, blob, filename: filenameOf(response.headers.get("Content-Disposition")) ?? madeName(call, now) };
   } catch {
     return { ok: false, problem: "unreachable", status: 0 };
+  }
+}
+
+export type SendProblem = BundleProblem | "offline" | "rate" | "too_large" | "refused";
+
+export type Sent = { ok: true; ref: string } | { ok: false; problem: SendProblem; status: number };
+
+const SERVER_REASONS: ReadonlySet<string> = new Set(["offline", "rate", "too_large", "refused"]);
+
+/** Asks the daemon to send the support file to the project with the person's note. The daemon answers 200 with `{ ok, ref }` or `{ ok: false, reason }` (no internet connection, too many sends, too large, refused); its 401 and 403 are no access, its 429 is another file being made. */
+export async function requestSend(info: PageInfo, note: string, fetcher: typeof fetch = fetch): Promise<Sent> {
+  let response: Response;
+  try {
+    response = await fetcher(endpoint("support/send"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: bodyOf(info, note.slice(0, NOTE_MAX)),
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, problem: "unreachable", status: 0 };
+  }
+  if (response.status === 401 || response.status === 403) return { ok: false, problem: "access", status: response.status };
+  if (response.status === 429) return { ok: false, problem: "busy", status: 429 };
+  if (!response.ok) return { ok: false, problem: "failed", status: response.status };
+  try {
+    const said: unknown = await response.json();
+    const answer = typeof said === "object" && said !== null ? (said as { ok?: unknown; ref?: unknown; reason?: unknown }) : {};
+    if (answer.ok === true && typeof answer.ref === "string" && answer.ref !== "") return { ok: true, ref: answer.ref };
+    const reason = typeof answer.reason === "string" && SERVER_REASONS.has(answer.reason) ? (answer.reason as SendProblem) : "refused";
+    return { ok: false, problem: reason, status: 200 };
+  } catch {
+    return { ok: false, problem: "failed", status: 200 };
   }
 }
 

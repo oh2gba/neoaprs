@@ -50,7 +50,8 @@
 }
 /* the dialog of a new version (UpdateDialog) over the dimmed page, and the steps by hand (UpdateSteps); on a phone it is the whole screen (responsive.css) */
 .updatedialog-backdrop,
-.pathbuild-backdrop {
+.pathbuild-backdrop,
+.logsdialog-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -61,7 +62,8 @@
   background: var(--scrim);
 }
 .updatedialog,
-.pathbuild {
+.pathbuild,
+.logsdialog {
   width: min(540px, 100%);
   max-height: min(88vh, 100%);
   overflow: auto;
@@ -73,11 +75,38 @@
   box-shadow: var(--shadow);
 }
 .updatedialog:focus,
-.pathbuild:focus {
+.pathbuild:focus,
+.logsdialog:focus {
   outline: none;
 }
 .updatedialog-head {
   align-items: flex-start;
+}
+/* the dialog of Send logs (SendLogsDialog): the frame of the path builder's, narrower; the (i) sits beside the title, the text takes the width, and Send and Cancel stand at the right */
+.logsdialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+}
+.logsdialog-title {
+  min-width: 0;
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+.logsdialog-tip {
+  flex: 1;
+  margin-top: 4px;
+}
+.logsdialog-label {
+  font-weight: 600;
+}
+.logsdialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
 }
 .updatedialog-titles {
   flex: 1;

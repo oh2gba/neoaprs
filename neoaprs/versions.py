@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 UPDATE_URL = "https://neo.oh2gba.eu/version.php"              # the default of the setting update/url: the version page on the project's own name (since 0.16)
 OLD_UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"      # where the copies before 0.16 ask: the same page, kept there for them (migration 26 moves a stored default over)
+SUPPORT_URL = "https://neo.oh2gba.eu/support/send.php"      # where Send logs of the Help group posts the support file (neoaprs/web/supportsend.py); the server stores it and tells the project
 MAX_MESSAGE = 200                    # the longest note of the answer that is kept
 _DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$")      # an HF dial as the page names it and the HF box shows it: "7.0541 MHz USB"
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
