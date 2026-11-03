@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyingChoices, keyingLabel, soundCardPorts } from "@/lib/mercury";
+import { keyingChoices, soundCardChoices, soundCardPick } from "@/lib/mercury";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
@@ -9,9 +9,10 @@ const ports: PortsMessage = {
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("bt://AA:BB:CC:DD:EE:01", "TH-D74"), row("COM3", "USB Serial Port (COM3)")],
   sound_cards: [
-    { id: "plughw:1,0", name: "USB Audio CODEC", default: true },
-    { id: "plughw:0,0", name: "HDA Intel PCH", default: false },
+    { id: "plughw:1,0", name: "USB Audio CODEC", default: true, pick: true },
+    { id: "plughw:0,0", name: "HDA Intel PCH", default: false, pick: false },
   ],
+  keying: "rts:/dev/ttyUSB0",
 };
 
 describe("the keying choices of the Mercury HF modem", () => {
@@ -39,24 +40,31 @@ describe("the keying choices of the Mercury HF modem", () => {
   });
 });
 
-describe("the sound cards as a list like the ports", () => {
-  it("are the cards the daemon listed, the id as the device and the system's name as its description, and nothing is searched for", () => {
-    const cards = soundCardPorts(ports);
-    expect(cards?.ports.map((p) => [p.device, p.description])).toEqual([
-      ["plughw:1,0", "USB Audio CODEC"],
-      ["plughw:0,0", "HDA Intel PCH"],
+describe("the sound cards as a plain choice", () => {
+  it("are the cards the daemon listed, the system's name as the label and the id as the hover title, and no choice of leaving it to the daemon", () => {
+    const choices = soundCardChoices(ports);
+    expect(choices.map((c) => [c.value, c.label, c.title])).toEqual([
+      ["plughw:1,0", "USB Audio CODEC", "plughw:1,0"],
+      ["plughw:0,0", "HDA Intel PCH", "plughw:0,0"],
     ]);
-    expect(cards?.search).toBe(false);
-    expect(soundCardPorts(null)).toBeNull();
+    expect(choices.map((c) => c.value)).not.toContain("");
+    expect(soundCardChoices(null)).toEqual([]);
   });
-});
 
-describe("the words for a keying", () => {
-  it("say the kind and its port, or the text itself for one the page has no words for", () => {
-    expect(keyingLabel("vox")).toBe("The radio keys itself (VOX)");
-    expect(keyingLabel("cm108")).toBe("CM108 sound chip");
-    expect(keyingLabel("rts:/dev/ttyUSB0")).toBe("RTS on /dev/ttyUSB0");
-    expect(keyingLabel("dtr:COM3")).toBe("DTR on COM3");
-    expect(keyingLabel("hamlib:/dev/ttyUSB0")).toBe("hamlib:/dev/ttyUSB0");
+  it("tell two cards of one name apart by their ids", () => {
+    const two: PortsMessage = {
+      ...ports,
+      sound_cards: [
+        { id: "hw:1,0", name: "USB Audio", default: false, pick: false },
+        { id: "hw:2,0", name: "USB Audio", default: false, pick: false },
+      ],
+    };
+    expect(soundCardChoices(two).map((c) => c.label)).toEqual(["USB Audio (hw:1,0)", "USB Audio (hw:2,0)"]);
+  });
+
+  it("have the daemon's proposal, the one marked, and none before the list is there", () => {
+    expect(soundCardPick(ports)).toBe("plughw:1,0");
+    expect(soundCardPick({ ...ports, sound_cards: [] })).toBe("");
+    expect(soundCardPick(null)).toBe("");
   });
 });

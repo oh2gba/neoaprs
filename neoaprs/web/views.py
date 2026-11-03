@@ -15,7 +15,7 @@ from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
-from neoaprs.mercury import MAX_PAYLOAD, MODE
+from neoaprs.mercury import DIAL_TEXT, MAX_PAYLOAD, MODE
 from neoaprs.mercurymodem import Mercury
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -166,7 +166,7 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
     modem = tnc.modem
     if modem is None or tnc.profile.transport != "modem" or not isinstance(modem, Mercury):
         return None
-    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, keying=modem.keying.text)
+    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, dial=DIAL_TEXT, keying=modem.keying.text)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

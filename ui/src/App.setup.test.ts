@@ -143,6 +143,7 @@ describe("App: the first-run guide", () => {
     socket.say({
       type: "ports",
       sound_cards: [],
+      keying: "",
       search: true,
       find: true,
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],

@@ -346,6 +346,7 @@ export function hfState(extra: Partial<TncState> = {}): TncState {
       snr: null,
       frames_keyed: 0,
       max_frame: 123,
+      dial: "7.0541 MHz USB",
       sound_card: "plughw:1,0",
       keying: "rts:/dev/ttyUSB0",
     },

@@ -137,8 +137,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.sound_card.label": "Scheda audio",
   "settings.sound_card.tip_label": "Informazioni sulla scheda audio",
   "settings.sound_card.tip1": "La scheda audio da cui passa l’audio della radio: un codec USB, un DigiRig o l’audio USB della radio stessa.",
-  "settings.sound_card.tip2": "Trova automaticamente sceglie l’unica scheda audio USB che registra e riproduce; Aggiorna rilegge l’elenco.",
-  "settings.sound_card.id_label": "Id della scheda audio",
+  "settings.sound_card.tip2": "La scheda della radio di solito si chiama codec USB. Accordatura rende udibile la scheda scelta; Aggiorna rilegge l’elenco.",
   "settings.keying.label": "Commutazione",
   "settings.keying.tip_label": "Informazioni sulla commutazione",
   "settings.keying.tip1":
@@ -149,6 +148,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.rts": "RTS su {port}",
   "settings.keying.dtr": "DTR su {port}",
   "settings.keying.test": "Prova",
+  "settings.hf_frequency.label": "Frequenza",
   "settings.tune": "Accordatura",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tono di accordatura",

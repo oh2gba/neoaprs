@@ -1,4 +1,4 @@
-// The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a list of what the daemon found (`sound_cards` of the ports message, shaped as a ports message so that the port's control shows it), and the keying
+// The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a choice among what the daemon found (`sound_cards` of the ports message), and the keying
 // as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how the setting `mercury/keying` is written.
 import { t } from "@/i18n";
 import type { Choice } from "@/lib/settingchoices";
@@ -11,26 +11,15 @@ const LINES = ["rts", "dtr"] as const;
 export const hfIsMercury = (values: Readonly<Record<string, string>>): boolean =>
   HF_PROFILES.find((p) => p.key === (values["hf/profile"] ?? ""))?.transport !== "dummy";
 
-/** The sound cards as a ports message: the id is the device, the system's name its description. */
-export function soundCardPorts(ports: PortsMessage | null): PortsMessage | null {
-  if (ports === null) return null;
-  return {
-    type: "ports",
-    search: false,
-    find: false,
-    sound_cards: [],
-    ports: ports.sound_cards.map((c) => ({ device: c.id, description: c.name, hwid: "n/a", vid: null, pid: null })),
-  };
+/** The sound cards as the choice of the Sound card field: the system's name for each, with the id as the hover title; a name that two cards share has its id after it. There is no choice of leaving it to the daemon: the daemon's proposal
+ * (`soundCardPick`) is preselected and stored. */
+export function soundCardChoices(ports: PortsMessage | null): Choice[] {
+  const cards = ports?.sound_cards ?? [];
+  return cards.map((c) => ({ value: c.id, label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name, title: c.id }));
 }
 
-/** The words for a keying as the setting (or the daemon's choice) writes it: "RTS on /dev/ttyUSB0", "The radio keys itself (VOX)"; the text itself for one the page has no words for. */
-export function keyingLabel(value: string): string {
-  const [kind, device] = value.split(":", 2);
-  if (kind === "vox") return t("settings.keying.vox");
-  if (kind === "cm108") return t("settings.keying.cm108");
-  if ((kind === "rts" || kind === "dtr") && device) return t(`settings.keying.${kind}`, { port: device });
-  return value;
-}
+/** The sound card the daemon proposes (the id), "" when none is listed. */
+export const soundCardPick = (ports: PortsMessage | null): string => ports?.sound_cards.find((c) => c.pick)?.id ?? "";
 
 /** The ways of keying: the radio by itself, a CM108 chip, then RTS and DTR of every serial port the daemon lists (a Bluetooth device has no line to key with). The value in force stays offered when its port is not listed. */
 export function keyingChoices(ports: PortsMessage | null, current = ""): Choice[] {

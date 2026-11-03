@@ -302,7 +302,7 @@ class Net:
             self.row(f"a message over a link {WEAK_LINK_DB:g} dB down (about {self.args.snr + WEAK_LINK_DB:g} dB SNR): not acked within", f"{time.monotonic() - started:.0f} s (reported, not required)")
         self.channel.set_link(names[0], far, gain_db=0.0, symmetric=False)
         # 8. a poor channel at 0 dB: every link fades (CCIR 520-2 poor: two paths, 2 ms apart, 1 Hz of Doppler spread) and the noise is at the signal's level; some beacons are lost, a message gets through on its
-        #    retries, and the busy detectors, whose noise floor rises slowly, hold the radios for a while (the modem's hold cap lets a frame go after a minute at most)
+        #    retries, and the busy detectors, whose noise floor rises slowly, hold the radios for a while (the modem's hold cap lets a frame go after BUSY_HOLD_MAX_SEC at most)
         if not self.args.fading:
             faded, far = names[-2], names[-1]
             page = self.pages[faded]
@@ -312,7 +312,7 @@ class Net:
             held_from = time.monotonic()
             await self.send_taken(page, {"cmd": "beacon_now"})
             held = time.monotonic() - held_from
-            self.row("the noise raised by 30 dB and every link fading: the busy detector held the radio for", f"{held:.0f} s before the first beacon went (the modem lets a frame go after a minute at most)")
+            self.row("the noise raised by 30 dB and every link fading: the busy detector held the radio for", f"{held:.0f} s before the first beacon went (the modem lets a frame go after BUSY_HOLD_MAX_SEC at most)")
             for _ in range(FADED_BEACONS - 1):
                 await asyncio.sleep(5.5)
                 await self.send_taken(page, {"cmd": "beacon_now"})

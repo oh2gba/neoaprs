@@ -9,7 +9,7 @@ import pytest
 
 from neoaprs.coded import CodedError
 from neoaprs.config import DEFAULTS, Config
-from neoaprs.mercury import KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, TUNE_TONE_HZ, tune_command
+from neoaprs.mercury import KEY_TEST_LEVEL_DBFS, key_test_level, KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, TUNE_TONE_HZ, tune_command
 from neoaprs.mercurymodem import TRANSMITTING, Mercury
 from neoaprs import mercurytune
 from neoaprs.mercurytune import NOT_RUNNING
@@ -76,6 +76,27 @@ async def test_a_second_press_stops_the_tone_early_and_the_keying_test_is_one_qu
         await air.aclose()
 
 
+async def test_the_keying_test_of_a_radio_that_keys_on_audio_sends_the_tune_tone_and_of_a_line_stays_quiet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """VOX keys on audio: a silent test would leave the radio in receive (John's, 3 Nov 2026). RTS, DTR and CM108 key the line whatever the tone is."""
+    monkeypatch.setattr(mercurytune, "KEY_TEST_SEC", 0.2)
+    assert [key_test_level(k) for k in ("vox", "rts", "dtr", "cm108")] == [TUNE_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS, KEY_TEST_LEVEL_DBFS]
+    for keying, sent in (("vox", "TUNE -15"), ("cm108", "TUNE -60"), ("dtr:/dev/ttyUSB0", "TUNE -60")):
+        air = Air(frame_sec=0.2)
+        station = air.station()
+        await air.start()
+        m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]))
+        m.ports = lambda: []
+        await m.start(replace(HF, mercury_keying=keying), attach=station.url)
+        try:
+            await until(lambda m=m: m.state == "running")
+            await m.key_test()
+            await until(lambda m=m: m.test == "", 2.0)
+            await until(lambda station=station, sent=sent: station.tuned == [sent, "TUNE OFF"])
+        finally:
+            await m.stop()
+            await air.aclose()
+
+
 async def test_the_tone_is_refused_while_the_modem_is_not_running_or_the_radio_is_not_free_and_a_stop_ends_a_tone_under_way(tmp_path: Path) -> None:
     air = Air(frame_sec=0.2)
     m, station = await running(tmp_path, air)
@@ -106,6 +127,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     page = await e.ws()
     await page.send({"cmd": "subscribe", "topics": ["hf"]})
     await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
+    assert page.topics["hf"]["modem"]["dial"] == "7.0541 MHz USB", "the daemon owns the dial the page shows"
     await page.send({"cmd": "hf_tune", "on": True})
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "tune" and page.topics["hf"]["modem"]["keyed"])
     await page.send({"cmd": "hf_tune", "on": False})
@@ -113,7 +135,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     await page.send({"cmd": "hf_key_test"})
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "key")
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "", 3.0)
-    assert station.tuned == ["TUNE -15", "TUNE OFF", "TUNE -60", "TUNE OFF"]
+    assert station.tuned == ["TUNE -15", "TUNE OFF", "TUNE -15", "TUNE OFF"], "(the keying here is the default, VOX: the test sends the tone)"
     await e.ctl.change_config(lambda c: replace(c, station_transmit=False))
     for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):
         await page.send(cmd)

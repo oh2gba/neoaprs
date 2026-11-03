@@ -89,7 +89,7 @@ function onEscape(event: KeyboardEvent): void {
         :aria-describedby="describedBy"
         @change="onInput"
       >
-        <option v-for="choice in options" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+        <option v-for="choice in options" :key="choice.value" :value="choice.value" :title="choice.title">{{ choice.label }}</option>
       </select>
       <CallInput
         v-else-if="info.kind === 'call'"

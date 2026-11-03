@@ -2,6 +2,7 @@
 a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor."""
 import logging
 import random
+import re
 from dataclasses import replace
 from datetime import timedelta
 from itertools import combinations
@@ -44,6 +45,14 @@ def test_the_frequencies_are_three_dials_in_the_region_1_digimode_segments_and_n
     assert 7.050 <= dials[40] + 0.0012 and dials[40] + 0.0018 <= 7.060
     assert 14.101 <= dials[20] + 0.0012 and dials[20] + 0.0018 <= 14.112
     assert "10.1476" not in dict(mercury.FREQUENCIES).values()
+
+
+def test_the_manuals_table_of_frequencies_is_the_constant_and_the_dial_of_the_page_is_the_forty_metre_one() -> None:
+    """docs/RADIOS.md prints the dials of FREQUENCIES (30, 40 and 20 m) and the page says the one of DIAL_BAND, with its mode spelled out: a number changed in one place and not the other fails here."""
+    manual = (Path(__file__).resolve().parent.parent / "docs" / "RADIOS.md").read_text(encoding="utf-8")
+    assert [(int(band), dial) for band, dial in re.findall(r"^\| (\d+) m \| ([\d.]+) MHz \|$", manual, re.MULTILINE)] == list(mercury.FREQUENCIES)
+    assert mercury.DIAL_BAND == 40 and mercury.DIAL_TEXT == "7.0541 MHz USB"
+    assert mercury.DIAL_TEXT.split()[0] in dict(mercury.FREQUENCIES).values() and mercury.DIAL_TEXT.endswith(" USB")
 
 
 def test_the_overflow_is_what_the_modem_would_cut_off() -> None:
@@ -166,7 +175,7 @@ def test_the_command_line_names_the_configuration_the_mode_the_ports_the_sound_c
 
 def test_the_configuration_switches_the_busy_detector_on_names_the_line_and_keeps_no_message_store() -> None:
     text = mercury.ini_text(mercury.Keying("dtr", "COM3"))
-    assert "[channel]\nbusy_detect = true" in text and "[store]\nenabled = false" in text and "line = dtr" in text and "keepalive_s = 10" in text
+    assert f"[channel]\nbusy_detect = true\nbusy_threshold_db = {mercury.BUSY_THRESHOLD_DB}\n" in text and "[store]\nenabled = false" in text and "line = dtr" in text and "keepalive_s = 10" in text
     assert "line = rts" in mercury.ini_text(mercury.Keying("vox")) and "line = rts" in mercury.ini_text(mercury.Keying("rts", "/dev/ttyUSB0"))
 
 
@@ -196,6 +205,25 @@ def test_the_keying_chosen_is_rts_of_the_one_usb_serial_port_with_a_usb_sound_ca
     assert mercury.choose_keying("USB PnP Sound Device", two) == mercury.Keying("vox"), "two USB serial ports: nobody can tell which keys the radio"
     assert mercury.choose_keying("USB PnP Sound Device", [mercury.SerialPort("COM3", 0x10C4, 0xEA60)]) == mercury.Keying("rts", "COM3")
     assert mercury.choose_keying("USB PnP Sound Device", [mercury.SerialPort("/dev/ttyUSB0", 0x303A, 0x1001)]) == mercury.Keying("vox"), "a development board's port is not a radio's"
+
+
+def test_the_proposal_is_the_daemons_choice_else_the_default_card_else_the_first_that_records_and_plays() -> None:
+    codec = mercury.SoundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", True, True, False)
+    own = mercury.SoundCard("plughw:0,0", "HDA Intel PCH", True, True, True)
+    assert mercury.propose_sound_card([own, codec]) == "plughw:1,0", "the card the daemon would choose"
+    assert mercury.choose_sound_card([own]) == "" and mercury.propose_sound_card([own]) == "plughw:0,0", "no radio card: the system's default device, named"
+    dongles = [mercury.SoundCard("plughw:2,0", "USB PnP Sound Device", True, True, False), mercury.SoundCard("plughw:3,0", "USB Audio Device", True, True, False)]
+    assert mercury.choose_sound_card(dongles) == "" and mercury.propose_sound_card(dongles) == "plughw:2,0", "two that nobody can tell apart: the first that records and plays"
+    assert mercury.propose_sound_card([mercury.SoundCard("plughw:5,0", "Speakers", True, False, False)]) == "plughw:5,0", "else the first card"
+    assert mercury.propose_sound_card([]) == ""
+
+
+def test_the_proposed_keying_follows_the_proposed_card_and_is_empty_without_cards() -> None:
+    codec = mercury.SoundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", True, True, False)
+    usb = [mercury.SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)]
+    assert mercury.propose_keying([codec], "plughw:1,0", usb) == "rts:/dev/ttyUSB0"
+    assert mercury.propose_keying([codec], "plughw:1,0", []) == "vox"
+    assert mercury.propose_keying([], "", usb) == ""
 
 
 # ---- what the program prints

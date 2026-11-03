@@ -13,8 +13,8 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues, hfState, igateState, ownObject, tncState } from "@/test/fixtures";
 
 const ON_OFF = /^(on|off|yes|no|true|false|enabled|disabled|ein|aus|an)$/i;
-/** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF radio's type is the Mercury modem and the Dummy HF radio today). */
-const KINDS_OF_TWO = ["set-hf-profile"];
+/** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF radio's type is the Mercury modem and the Dummy HF radio today; the keying is the radio by itself and a CM108 chip before the ports are listed). */
+const KINDS_OF_TWO = ["set-hf-profile", "set-mercury-keying"];
 
 /** The dropdowns of a mounted surface, each as the values it offers. */
 function dropdowns(root: Element): { id: string; values: string[] }[] {
@@ -52,10 +52,7 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
   it("have no dropdown that is an on/off: a dropdown offers a real choice of three values or more, or is a list of what is found or of kinds (a port, a path, a radio type)", () => {
     for (const root of surfaces()) {
       for (const { id, values } of dropdowns(root)) {
-        expect(
-          values.every((v) => ON_OFF.test(v)),
-          `${id}: ${values.join(" / ")} is an on/off: make it a tickbox`,
-        ).toBe(false);
+        expect(values.length > 0 && values.every((v) => ON_OFF.test(v)), `${id}: ${values.join(" / ")} is an on/off: make it a tickbox`).toBe(false);
         expect(values.length === 2 && !KINDS_OF_TWO.includes(id), `${id}: two choices are a tickbox`).toBe(false);
       }
     }

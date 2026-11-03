@@ -1826,7 +1826,7 @@
     },
     "HfKeyTest": {
       "additionalProperties": false,
-      "description": "The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says\n`test: \"key\"` meanwhile. The same refusals as `hf_tune`.",
+      "description": "The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says\n`test: \"key\"` meanwhile. The same refusals as `hf_tune`.",
       "properties": {
         "cmd": {
           "const": "hf_key_test",
@@ -2699,6 +2699,10 @@
           "description": "the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device",
           "type": "string"
         },
+        "dial": {
+          "description": "the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is",
+          "type": "string"
+        },
         "keying": {
           "description": "how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`",
           "type": "string"
@@ -2716,6 +2720,7 @@
         "frames_keyed",
         "max_frame",
         "sound_card",
+        "dial",
         "keying"
       ],
       "title": "ModemState",
@@ -3635,6 +3640,10 @@
             "$ref": "#/$defs/SoundCardRow"
           },
           "type": "array"
+        },
+        "keying": {
+          "description": "the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as `mercury/keying` while that is empty; empty when no sound card is listed",
+          "type": "string"
         }
       },
       "required": [
@@ -3642,7 +3651,8 @@
         "ports",
         "search",
         "find",
-        "sound_cards"
+        "sound_cards",
+        "keying"
       ],
       "title": "PortsMessage",
       "type": "object"
@@ -4629,12 +4639,17 @@
         "default": {
           "type": "boolean",
           "description": "whether it is the system's default device, which the empty setting means"
+        },
+        "pick": {
+          "description": "whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it",
+          "type": "boolean"
         }
       },
       "required": [
         "id",
         "name",
-        "default"
+        "default",
+        "pick"
       ],
       "title": "SoundCardRow",
       "type": "object"

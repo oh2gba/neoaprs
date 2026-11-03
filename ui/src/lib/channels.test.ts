@@ -9,6 +9,7 @@ import {
   internetOnly,
   onAir,
   packetChannel,
+  packetTone,
   packetLabel,
   packetTitle,
 } from "@/lib/channels";
@@ -131,11 +132,13 @@ describe("a station heard on the HF radio", () => {
     expect(packetTitle("rf", "fm", true)).toBe("Heard on the FM radio");
   });
 
-  it("has the HF tag in the neutral tone and its own title", () => {
+  it("has the HF tag in a tone of its own, the FM radio's neutral, and its own title", () => {
     expect(channelTags(hfAndFm).map((tag) => [tag.channel, tag.label, tag.tone])).toEqual([
       ["rf", "RF", "neutral"],
-      ["hf", "HF", "neutral"],
+      ["hf", "HF", "hf"],
     ]);
+    expect((["rf", "rf-gated", "is", "dummy"] as const).map((via) => packetTone(via))).toEqual(["neutral", "neutral", "info", "dummy"]);
+    expect([packetTone("rf", "fm"), packetTone("rf", "hf")]).toEqual(["neutral", "hf"]);
     expect(channelTitle(hfOnly)).toBe("Heard on the HF radio");
     expect(channelTitle(hfAndFm)).toBe("Heard on the radio; Heard on the HF radio");
   });

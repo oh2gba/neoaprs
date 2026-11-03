@@ -54,18 +54,22 @@ export function channelLabel(row: Heard, named = false): string {
   return parts.length === 0 ? "" : joined(parts);
 }
 
+/** The tone of a channel's tag: the internet teal, the Dummy radio's dashed, the HF radio's violet, and the FM radio's and the iGate's the neutral grey (the words stay: the colour is not the only difference). */
+type ChannelTone = "neutral" | "info" | "hf" | "dummy";
+const toneOf = (channel: Channel): ChannelTone => (channel === "is" ? "info" : channel === "dummy" ? "dummy" : channel === "hf" ? "hf" : "neutral");
+
 /** One tag for each way a station was heard (RF, HF, iGate, Internet, Dummy), so that a station heard in two ways has two small tags and not one long one that a narrow table would cut: the word, what it means for the hover title, and the tone. */
-export function channelTags(row: Heard, named = false): { channel: Channel; label: string; title: string; tone: "neutral" | "info" | "dummy" }[] {
+export function channelTags(row: Heard, named = false): { channel: Channel; label: string; title: string; tone: "neutral" | "info" | "hf" | "dummy" }[] {
   return channelsOf(row).map((channel) => ({
     channel,
     label: name(channel, named),
     title: meaning(channel, named),
-    tone: channel === "is" ? "info" : channel === "dummy" ? "dummy" : "neutral",
+    tone: toneOf(channel),
   }));
 }
 
 /** The tone of the tag of a packet's channel. */
-export const packetTone = (via: PacketRow["via"]): "neutral" | "info" | "dummy" => (via === "is" ? "info" : via === "dummy" ? "dummy" : "neutral");
+export const packetTone = (via: PacketRow["via"], radio: PacketRow["radio"] = ""): ChannelTone => toneOf(packetChannel(via, radio));
 
 /** What the label means, for its hover title. */
 export function channelTitle(row: Heard, named = false): string {

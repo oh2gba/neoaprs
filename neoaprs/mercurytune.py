@@ -7,7 +7,7 @@ import asyncio
 import logging
 
 from .coded import CodedError
-from .mercury import KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, Keying, tune_command
+from .mercury import KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, Keying, key_test_level, tune_command
 from .signal import Signal
 from .tasks import TaskSet, cancel_all
 
@@ -61,8 +61,9 @@ class Tuning:
         await self._begin("tune", TUNE_LEVEL_DBFS, TUNE_SEC)
 
     async def key_test(self) -> None:
-        """Keys the radio for KEY_TEST_SEC with next to no audio, so that the operator sees it go to transmit and come back. The same refusals as `tune`."""
-        await self._begin("key", KEY_TEST_LEVEL_DBFS, KEY_TEST_SEC)
+        """Keys the radio for KEY_TEST_SEC, so that the operator sees it go to transmit and come back: with next to no audio where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio
+        (VOX: a silent test would leave it in receive). The same refusals as `tune`."""
+        await self._begin("key", key_test_level(self.keying.kind), KEY_TEST_SEC)
 
     async def tune_stop(self) -> None:
         """Ends the tone or the test early; nothing when none is on."""

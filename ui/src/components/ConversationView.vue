@@ -62,7 +62,7 @@ onMounted(() => {
         <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
-      <TagMark v-if="!heard && overHf" tone="neutral" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
+      <TagMark v-if="!heard && overHf" tone="hf" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
       <RouteMenu
         v-if="!heard && routable"
         :key="selected"

@@ -457,7 +457,7 @@ export interface HelloMessage {
   topics: string[];
 }
 
-/** The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says `test: "key"` meanwhile. The same refusals as `hf_tune`. */
+/** The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says `test: "key"` meanwhile. The same refusals as `hf_tune`. */
 export interface HfKeyTestCommand {
   cmd: "hf_key_test";
 }
@@ -700,6 +700,8 @@ export interface ModemState {
   max_frame: number;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
+  /** the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is */
+  dial: string;
   /** how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT` */
   keying: string;
 }
@@ -929,6 +931,8 @@ export interface PortsMessage {
   find: boolean;
   /** the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise */
   sound_cards: SoundCardRow[];
+  /** the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as `mercury/keying` while that is empty; empty when no sound card is listed */
+  keying: string;
 }
 
 /** A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres. */
@@ -1192,6 +1196,8 @@ export interface SoundCardRow {
   name: string;
   /** whether it is the system's default device, which the empty setting means */
   default: boolean;
+  /** whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it */
+  pick: boolean;
 }
 
 /** Asks for the speeds a station reported in its positions in the last `hours` hours. Answered with a `speed_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a station that reported no speed is answered with no points. */

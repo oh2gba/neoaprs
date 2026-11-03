@@ -1242,8 +1242,8 @@ export const de: Catalogue = {
   "settings.sound_card.label": "Soundkarte",
   "settings.sound_card.tip_label": "Über die Soundkarte",
   "settings.sound_card.tip1": "Die Soundkarte, über die der Ton des Funkgeräts läuft: ein USB-Codec, ein DigiRig oder der USB-Ton des Funkgeräts selbst.",
-  "settings.sound_card.tip2": "Automatisch finden wählt die eine USB-Soundkarte, die aufnimmt und wiedergibt; Aktualisieren liest die Liste neu.",
-  "settings.sound_card.id_label": "Soundkarten-Id",
+  "settings.sound_card.tip2":
+    "Die Karte des Funkgeräts nennt sich meist USB-Codec. Abstimmen macht die gewählte Karte hörbar; Aktualisieren liest die Liste neu.",
   "settings.keying.label": "Tastung",
   "settings.keying.tip_label": "Über die Tastung",
   "settings.keying.tip1":
@@ -1254,6 +1254,7 @@ export const de: Catalogue = {
   "settings.keying.rts": "RTS an {port}",
   "settings.keying.dtr": "DTR an {port}",
   "settings.keying.test": "Test",
+  "settings.hf_frequency.label": "Frequenz",
   "settings.tune": "Abstimmen",
   "settings.tune_stop": "Stopp",
   "settings.tune.label": "Abstimmton",

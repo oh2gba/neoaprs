@@ -43,6 +43,7 @@ class ModemState(_Model):
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
     max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
+    dial: str = Field(description="the dial frequency the group agrees on, with its mode, `7.0541 MHz USB`: the daemon owns the number (neoaprs/mercury.py, docs/RADIOS.md), and the page shows it in the HF radio's box as it is")
     keying: str = Field(description="how it keys the radio (`mercury/keying`, or the daemon's choice while that is empty): `vox`, `cm108`, `rts:PORT` or `dtr:PORT`")
 
 
@@ -85,6 +86,6 @@ class HfTune(_Command):
 
 
 class HfKeyTest(_Command):
-    """The keying test: keys the HF radio for one second with next to no audio (Mercury's TUNE at its quietest level), so that the operator sees the radio go to transmit and come back; the topic `hf` says
+    """The keying test: keys the HF radio for one second, so that the operator sees it go to transmit and come back: with next to no audio (Mercury's TUNE at its quietest level) where the keying is a line (RTS, DTR, CM108), with the tune tone where the radio keys on audio (VOX); the topic `hf` says
     `test: "key"` meanwhile. The same refusals as `hf_tune`."""
     cmd: Literal["hf_key_test"]

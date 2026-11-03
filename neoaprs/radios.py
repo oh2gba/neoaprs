@@ -25,6 +25,11 @@ def hf_is_mercury(config: Config) -> bool:
     return config.hf_enabled and hf_profile_of(config.hf_profile).transport == "modem"
 
 
+def hf_is_dummy(config: Config) -> bool:
+    """Whether the HF radio is on as the Dummy HF radio, which makes up distant stations (dummyhfscene.py) and sends nothing on any air."""
+    return config.hf_enabled and hf_profile_of(config.hf_profile).transport == "dummy"
+
+
 class Radios:
     def __init__(self, fm: Tnc, hf: Tnc, config: Callable[[], Config], book: StationBook) -> None:
         self.fm, self.hf = fm, hf

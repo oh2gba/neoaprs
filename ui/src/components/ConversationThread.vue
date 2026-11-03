@@ -74,7 +74,7 @@ const copy = useCopyMenu((bubble) => {
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
         <p v-if="m.route || (m.direction === 'in' && m.radio === 'hf')" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="neutral" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route }}
+          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="hf" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route }}
         </p>
       </div>
     </template>

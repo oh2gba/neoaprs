@@ -56,7 +56,7 @@ describe("how a station was heard, in the Stations table", () => {
     ]);
     const tags = make(fmAndHf).findAll("tbody tr[data-call] .via");
     expect(tags.map((tag) => tag.attributes("title"))).toEqual(["Heard on the radio", "Heard on the HF radio"]);
-    expect(tags.every((tag) => tag.classes().includes("tag-neutral"))).toBe(true);
+    expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-hf"]);
   });
 
   it("says in a title what the label means", () => {
@@ -89,7 +89,7 @@ describe("how a station was heard, in the Stations table", () => {
         tr
           .get("td.heard .via")
           .classes()
-          .some((c) => ["tag-neutral", "tag-info", "tag-dummy"].includes(c)),
+          .some((c) => ["tag-neutral", "tag-hf", "tag-info", "tag-dummy"].includes(c)),
       ).toBe(true);
     }
     expect(wrapper.findAll("thead th").map((th) => th.text())).toContain("Heard on");

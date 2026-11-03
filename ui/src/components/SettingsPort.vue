@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A serial port as one control (the TNC's, the GPS receiver's, and the sound card of the Mercury HF modem, which is a list of what was found like a port): a choice of "find automatically" (the empty port; "not set" for the GPS, which is never searched for; `first` for other words), the ports the system lists and "Other..." for a path or a socket address typed. When the port is automatic and the daemon has found the radio before, that
+// A serial port as one control (the TNC's and the GPS receiver's): a choice of "find automatically" (the empty port; "not set" for the GPS, which is never searched for; `first` for other words), the ports the system lists and "Other..." for a path or a socket address typed. When the port is automatic and the daemon has found the radio before, that
 // port is told beside the control (it is the daemon's own memory, `serial/last_port`, and not a field). Refresh asks the system for its ports again. A port picked from the list is a choice (`choose`, at once); a path typed applies on Enter or when
 // the field is left (`commit`), and Esc (`cancel`) puts the port in force back.
 import { computed, ref, watch } from "vue";
@@ -17,9 +17,6 @@ const props = defineProps<{
   found: string;
   /** the empty port is "not set", not "find automatically": the port of the GPS receiver */
   unset?: boolean;
-  /** other words for the empty value (the sound card's "system default"), and for the typed field's name (its id) */
-  first?: string;
-  typedLabel?: string;
   ports: PortsMessage | null;
   error: string;
   changed: boolean;
@@ -27,7 +24,7 @@ const props = defineProps<{
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: []; refresh: [] }>();
 
 const typing = ref(false);
-const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset, props.first));
+const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset));
 const field = computed<FieldInfo>(() => ({ ...props.info, kind: "choice", choices: options.value }));
 
 function pick(value: string): void {
@@ -79,7 +76,7 @@ watch(
         spellcheck="false"
         :value="modelValue"
         :placeholder="info.empty"
-        :aria-label="typedLabel ?? t('settings.port.path_label')"
+        :aria-label="t('settings.port.path_label')"
         @input="type"
         @blur="leave"
         @keydown.enter.prevent="emit('commit', null)"

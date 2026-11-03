@@ -62,7 +62,7 @@ describe("the palette", () => {
   it("has every colour token in the light and in the dark theme, and each theme's own where the colour changes", () => {
     const colours = Object.keys(light).filter((k) => COLOUR.test(light[k] ?? ""));
     expect(colours.length).toBeGreaterThan(30);
-    for (const meaning of ["accent", "ok", "warn", "bad", "info", "neutral"]) {
+    for (const meaning of ["accent", "ok", "warn", "bad", "info", "neutral", "hf"]) {
       for (const part of ["bg", "fg"]) expect(dark, `--${meaning}-soft-${part} for dark`).toHaveProperty(`--${meaning}-soft-${part}`);
     }
     for (const strong of ["--ok", "--warn", "--bad", "--info", "--accent", "--text", "--panel", "--border", "--muted"])
@@ -75,7 +75,7 @@ describe("the palette", () => {
       ["light", light],
       ["dark", { ...light, ...dark }],
     ] as const) {
-      for (const meaning of ["accent", "ok", "warn", "bad", "info", "neutral"]) {
+      for (const meaning of ["accent", "ok", "warn", "bad", "info", "neutral", "hf"]) {
         const ratio = contrast(theme[`--${meaning}-soft-bg`] ?? "#000000", theme[`--${meaning}-soft-fg`] ?? "#000000");
         expect({ name, meaning, ok: ratio >= 4.5 }).toEqual({ name, meaning, ok: true });
       }
