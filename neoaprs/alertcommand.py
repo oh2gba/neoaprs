@@ -1,5 +1,5 @@
 """The default command of the alert (`messages/alert_command`), one for each system: the line the alert runs (neoaprs/services/alerts.py) for a message to us and for an alert of a station, with the title, the sender and the text in its environment
-(NEOAPRS_TITLE, NEOAPRS_FROM, NEOAPRS_TEXT) and never in the line itself. On Linux and macOS it is a shell line; on Windows it is a PowerShell script, which the alert runs as it is (an encoded script, no quoting)."""
+(NEOAPRS_TITLE, NEOAPRS_FROM, NEOAPRS_TEXT) and never in the line itself. On Linux and macOS it is a shell line; on Windows it is a PowerShell script, which the alert gives PowerShell as it is on its standard input (no quoting)."""
 import sys
 
 LINUX_ALERT_COMMAND = '(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga'

@@ -325,3 +325,17 @@ def test_the_installer_has_nothing_to_do_with_the_windows_firewall() -> None:
     """The Mercury it carries binds the loopback, so no rule is added, none is asked for with a prompt of Windows, and none is removed by the uninstaller (a rule an earlier version added stays: a block rule is harmless)."""
     assert not re.search(r"firewall|netsh|runas|ShellExec", INSTALLER.replace("nothing done to the Windows Firewall", ""), re.IGNORECASE), "no firewall, no netsh, no prompt for rights"
     assert "CurUninstallStepChanged" not in INSTALLER and "AddMercury" not in INSTALLER and "PrivilegesRequired=lowest" in INSTALLER
+
+
+def test_the_windows_programs_do_not_look_like_malware_to_a_virus_scanners_guess() -> None:
+    """Windows Defender's machine-learning guess took NeoAPRS for a trojan (Trojan:Win32/Bearfoos!ml, 3 and 4 Nov 2026): the programs are packed with a bootloader compiled for them, not the one of
+    PyInstaller's wheel that every packed program shares, and each says what it is in its file properties. (The alert's PowerShell is in tests/test_alerts_runner.py.)"""
+    build = WORKFLOW.split("Build environment, from the wheel", 1)[1].split("- name:", 1)[0]
+    assert 'PYINSTALLER_COMPILE_BOOTLOADER: "1"' in build and "--no-binary pyinstaller pyinstaller==" in build
+    spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
+    for name in ("neoaprs", "neoaprsw", "neoaprs-app"):
+        assert f'name="{name}"' in spec and f'version=version_file("{name}"' in spec, name
+    for field in ("CompanyName", "FileDescription", "ProductName", "ProductVersion", "OriginalFilename"):
+        assert f'("{field}"' in spec, field
+    assert "upx=False" in spec, "no packer over the programs"
+

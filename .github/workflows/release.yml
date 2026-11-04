@@ -124,13 +124,18 @@ jobs:
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
       - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow; PyInstaller is installed here and nowhere else)
+        # PyInstaller from its source with the bootloader compiled here (the runner's MSVC), not the bootloader of the wheel, which every program packed with it shares, malware included: Windows
+        # Defender's guess took NeoAPRS for a trojan (4 Nov 2026)
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: |
           uv build --wheel --out-dir dist-wheel
           uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o build-requirements.txt
           uv venv build-venv
           uv pip install --python build-venv/Scripts/python.exe -r build-requirements.txt
           uv pip install --python build-venv/Scripts/python.exe --no-deps dist-wheel/*.whl
-          uv pip install --python build-venv/Scripts/python.exe pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+          uv pip install --python build-venv/Scripts/python.exe --no-binary pyinstaller pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+          build-venv/Scripts/python.exe -c "import PyInstaller, pathlib; run = pathlib.Path(PyInstaller.__file__).parent / 'bootloader' / 'Windows-64bit-intel' / 'run.exe'; print('the bootloader', run, run.stat().st_size, 'bytes')"
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec

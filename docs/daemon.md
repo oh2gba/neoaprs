@@ -275,7 +275,7 @@ groups are the board's. Every message is a row of the table `message`, so a rest
 
 **Alerts** (`neoaprs/services/alerts.py`). The shell line is run by `asyncio.create_subprocess_shell`. Its environment is made by `neoaprs/childenv.py`.
 `TIMEOUT_SEC` is 20 s (60 on Windows), `MAX_RUNNING` is 5, and a failure is told at WARNING once an hour (`TOLD_EVERY`). On Windows the line is a PowerShell
-script run from a thread as an encoded script, so nothing of it is quoted and the text is never in it; a step that fails ends it with status 1
+script run from a thread and given on PowerShell's standard input (`-Command -`, no encoded command and no execution policy bypass, which Windows Defender's guess took for a trojan's), so nothing of it is quoted and the text is never in it; a step that fails ends it with status 1
 (`$ErrorActionPreference='Stop'`), and a run out of time is killed with everything it started (`taskkill /T /F`). The unit sets
 `DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus`. The command `alert_test` runs it as saved, whatever `messages/alert` says, and answers `alert_result{ok, text}`; an
 empty command is an `error`. `Alerts.station` runs the same line, under the same switch and limits, for an alert set on a station that fired, with `NEOAPRS_KIND=station`, the title `APRS alert: <call>` and no message id

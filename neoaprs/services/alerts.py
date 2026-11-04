@@ -18,7 +18,6 @@ logged at DEBUG. `test()` runs the command as saved for a made-up message (the t
 touch the daemon, and nothing here raises.
 """
 import asyncio
-import base64
 import logging
 import os
 import signal
@@ -45,7 +44,9 @@ TEST_TEXT = "This is a test of the NeoAPRS alert"
 MAX_RUNNING = 5                                                 # alerts running at once; more are dropped (a flood of messages is no reason to start a flood of programs)
 MAX_LINE = 200                                                  # characters of the first line of stderr the test button shows
 MAX_OUTPUT = 400                                                # characters of a command's output kept in the log
-POWERSHELL = ("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-OutputFormat", "Text", "-EncodedCommand")       # (Text: else what it writes to stderr is XML)
+# The script goes in on standard input (`-Command -`), as it is: no encoded command and no execution policy bypass, which a windowless program starting PowerShell with does what malware does, and Windows
+# Defender's guess took NeoAPRS for a trojan (4 Nov 2026); a command given inline is not under the execution policy anyway. (Text: else what it writes to stderr is XML.)
+POWERSHELL = ("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", "-")
 POWERSHELL_PRELUDE = "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"           # the Windows counterpart of `set -e` for cmdlets; the status of a program that failed is passed on by the postlude
 POWERSHELL_POSTLUDE = ";if($LASTEXITCODE){exit $LASTEXITCODE}"
 
@@ -161,8 +162,8 @@ class Alerts:
         return Outcome(status=proc.returncode or 0, out=out.decode("utf-8", errors="replace"), err=err.decode("utf-8", errors="replace"))
 
     async def _execute_in_thread(self, command: str, env: dict[str, str]) -> "Outcome":
-        """Windows: a thread starts the process, whatever loop runs (and the Windows loops differ in what they can do), with PowerShell and the line as an encoded script (no quoting of the line, and the text
-        never in it). A run that is cancelled (the daemon ends) kills the process and what it started."""
+        """Windows: a thread starts the process, whatever loop runs (and the Windows loops differ in what they can do), with PowerShell and the line on its standard input (no quoting of the line, and the
+        text never in it). A run that is cancelled (the daemon ends) kills the process and what it started."""
         running = _Running()
         try:
             return await asyncio.to_thread(self._run_powershell, command, env, running)
@@ -170,15 +171,15 @@ class Alerts:
             running.kill()
 
     def _run_powershell(self, command: str, env: dict[str, str], running: "_Running") -> "Outcome":
-        script = base64.b64encode((POWERSHELL_PRELUDE + command + POWERSHELL_POSTLUDE).encode("utf-16-le")).decode("ascii")
+        script = (POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n").encode("utf-8")     # (one line: PowerShell runs what it reads line by line)
         try:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            proc = subprocess.Popen([*POWERSHELL, script], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
+            proc = subprocess.Popen(list(POWERSHELL), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
         except Exception as e:                                   # (nothing a command does may stop the daemon)
             return Outcome(problem=f"the alert command could not run: {e}")
         running.set(proc)
         try:
-            out, err = proc.communicate(timeout=self.timeout_sec)
+            out, err = proc.communicate(script, timeout=self.timeout_sec)
         except subprocess.TimeoutExpired:
             running.kill()
             proc.communicate()

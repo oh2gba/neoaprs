@@ -1,7 +1,6 @@
 """The runner of the message alert (neoaprs/services/alerts.py) where a real command does not reach: the Windows way (PowerShell, started by a thread) on a fake `subprocess`, the ways a run goes wrong (it cannot start,
 runs out of time, the wait for it fails), ending a process and what it started, and the answer of the test button when there is nothing to run. The runs of real commands through the shell are tests/test_alerts.py."""
 
-import base64
 import logging
 import subprocess
 from dataclasses import replace
@@ -34,9 +33,11 @@ class FakeProc:
         self.pid = 4242
         self.killed = 0
         self.timeouts: list[float | None] = []
+        self.inputs: list[bytes | None] = []
 
-    def communicate(self, timeout: float | None = None) -> tuple[bytes, bytes]:
+    def communicate(self, input: bytes | None = None, timeout: float | None = None) -> tuple[bytes, bytes]:  # noqa: A002  (Popen's name)
         self.timeouts.append(timeout)
+        self.inputs.append(input)
         answer = self.answers.pop(0) if self.answers else (b"", b"")
         if isinstance(answer, BaseException):
             raise answer
@@ -91,22 +92,21 @@ def windows(monkeypatch: pytest.MonkeyPatch, fake: FakeSubprocess) -> Alerts:
     return Alerts(lambda: config, FixedClock(), timeout_sec=7.0)
 
 
-async def test_the_windows_run_gives_powershell_the_line_as_an_encoded_script_and_the_environment(
+async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_the_environment_with_no_encoded_command_and_no_bypass(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """A windowless program that starts PowerShell with an encoded command and the execution policy bypassed is what malware does: Windows Defender's guess took NeoAPRS for a trojan (4 Nov 2026)."""
     proc = FakeProc([(b"hello\n", b"")])
     fake = FakeSubprocess([proc])
     alerts = windows(monkeypatch, fake)
     assert await alerts.test() == (True, "ran")
     [(argv, kwargs)] = fake.started
-    assert (
-        tuple(argv[:-1]) == POWERSHELL
-        and base64.b64decode(argv[-1]).decode("utf-16-le")
-        == POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE
-    )
+    assert tuple(argv) == POWERSHELL and argv[-2:] == ["-Command", "-"]
+    assert not {"-EncodedCommand", "-ExecutionPolicy", "Bypass"} & set(argv)
+    assert proc.inputs == [(POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE + "\n").encode("utf-8")]
     assert (
         kwargs["env"]["NEOAPRS_FROM"] == "NEOAPRS"
-        and kwargs["stdin"] == subprocess.DEVNULL
+        and kwargs["stdin"] == subprocess.PIPE
     )
     assert proc.timeouts == [7.0] and proc.killed == 0 and fake.taskkills == [], (
         "a run that ended is not killed"
