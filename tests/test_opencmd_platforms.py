@@ -31,6 +31,7 @@ def test_on_windows_the_daemon_is_the_windowless_program_and_is_started_detached
     monkeypatch.setattr(servicecmd, "appimage_file", lambda: None)
     argv = opencmd.daemon_argv(tmp_path)
     assert argv == ["C:/NeoAPRS/neoaprsw.exe", "run", "--data", str(tmp_path)]
+    assert opencmd.daemon_argv(tmp_path, encryption=True) == [*argv, "--encryption"], "the app started with --encryption passes it on (OH2GAX, 4 Nov 2026)"
     spawned = Spawned(monkeypatch)
     opencmd.spawn(argv, tmp_path / "data")
     [(started, options)] = spawned.calls

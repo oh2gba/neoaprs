@@ -27,6 +27,7 @@ class World:
         self.browser: list[str] = []
         self.said: list[str] = []
         self.sessions: list[Path] = []
+        self.encryption: list[tuple[str, bool]] = []                     # (what was asked with --encryption: the session's daemon, the start at sign-in)
         self.owned = True
         self.page_fails = False
         self.choice = FAKE
@@ -35,12 +36,13 @@ class World:
         monkeypatch.setattr(cmd.webbrowser, "open", lambda url: self.browser.append(url) or True)
         monkeypatch.setattr(cmd, "open_session", self.open_session)
         monkeypatch.setattr(cmd.shell, "choose", lambda: self.choice)
-        monkeypatch.setattr(cmd, "autostart_for", lambda data: None)
+        monkeypatch.setattr(cmd, "autostart_for", lambda data, encryption=False: self.encryption.append(("autostart", encryption)))
         monkeypatch.setattr(cmd.opencmd, "tell_the_user", self.said.append)
         monkeypatch.setattr(cmd, "say", self.said.append)
 
-    def open_session(self, data: Path, timeout: float = 60.0) -> Session:
+    def open_session(self, data: Path, timeout: float = 60.0, encryption: bool = False) -> Session:
         self.sessions.append(data)
+        self.encryption.append(("daemon", encryption))
         if self.page_fails:
             raise NoPage("no page came up")
         return Session(data, PAGE, self.owned)
@@ -52,6 +54,13 @@ class World:
 @pytest.fixture
 def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
     return World(tmp_path, monkeypatch)
+
+
+def test_the_app_started_with_encryption_starts_its_daemon_so_and_start_at_sign_in_too(world: World) -> None:
+    world.choice = Choice(None, False)
+    assert world.run("--tray") == 0 and world.encryption == [("daemon", False), ("autostart", False)]
+    world.encryption.clear()
+    assert world.run("--tray", "--encryption") == 0 and world.encryption == [("daemon", True), ("autostart", True)], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
 
 
 def test_with_no_shell_the_page_goes_to_the_browser_and_the_daemon_is_left_running(world: World, capsys: pytest.CaptureFixture[str]) -> None:

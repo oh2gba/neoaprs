@@ -33,6 +33,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--quit", action="store_true", help="end the app that is running on the data folder (and the daemon too, if the app started it), wait until it has, and exit")
     p.add_argument("--timeout", type=float, default=60.0, metavar="SEC", help="how long to wait for the daemon's page; default %(default)s")
     p.add_argument("--debug", action="store_true", help="log more")
+    p.add_argument("--encryption", action="store_true", help="a daemon the app starts allows encrypted messages (the daemon's --encryption), and so does start at sign-in once it is ticked in the tray menu")
     return p
 
 
@@ -87,14 +88,14 @@ def run(args: argparse.Namespace) -> int:
             single.tell_the_other("show")
         return 0
     try:
-        session = open_session(data, timeout=args.timeout)
+        session = open_session(data, timeout=args.timeout, encryption=args.encryption)
     except NoPage as e:
         single.close()
         opencmd.tell_the_user(f"app: NeoAPRS did not come up: {e}. The log is {data / LOG_NAME}")
         return 1
     choice = shell.choose()
     log.info("NeoAPRS app on %s, page %s, %s daemon; %s", data, session.url, "its own" if session.owned else "a running", choice.describe())
-    ctx = ShellContext(session, args.tray, choice.window, autostart_for(data), single)
+    ctx = ShellContext(session, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single)
     try:
         if choice.module is None:
             single.close()

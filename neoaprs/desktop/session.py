@@ -31,8 +31,8 @@ class Session:
     owned: bool                                   # the app started the daemon: Quit stops it, and its end is the app's end
 
 
-def _start_detached(data: Path) -> "subprocess.Popen[bytes]":
-    return opencmd.spawn(opencmd.daemon_argv(data), data)
+def _start_detached(data: Path, encryption: bool = False) -> "subprocess.Popen[bytes]":
+    return opencmd.spawn(opencmd.daemon_argv(data, encryption), data)
 
 
 @dataclass
@@ -45,9 +45,9 @@ class Daemon:
     restarting: Callable[[Path], bool] = stopfile.restarting
 
 
-def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC) -> Session:
+def open_session(data: Path, daemon: Daemon | None = None, timeout: float = START_TIMEOUT_SEC, encryption: bool = False) -> Session:
     """Attach to the daemon of the data folder, or start one. Raises NoPage when no page comes up. A daemon that someone else started while ours was starting wins the lock: ours ends at once, and the app does not own the one it shows."""
-    daemon = daemon or Daemon()
+    daemon = daemon or Daemon(start=lambda folder: _start_detached(folder, encryption))       # (a daemon the app starts has encrypted messages when the app was started with --encryption)
     child = None
     if daemon.running(data):
         log.info("a daemon runs on %s: attaching", data)

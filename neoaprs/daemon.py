@@ -184,6 +184,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     log.info(START_FORMAT, PROGRAM, VERSION, data_dir)
     install = detect_here(data_dir)
     log.info("running on %s, %s, Python %s, installed as %s, pid %d", system_description(), platform.machine(), platform.python_version(), install.kind, os.getpid())
+    log.info("encrypted messages: %s", "allowed (--encryption)" if args.encryption else "off (the daemon was started without --encryption)")      # (a support report says which)
     restore = uncaught.install(log)
     asyncio.get_running_loop().set_exception_handler(uncaught.loop_handler(log))
 

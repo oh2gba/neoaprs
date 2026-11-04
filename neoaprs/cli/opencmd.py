@@ -28,18 +28,19 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def daemon_argv(data: Path) -> list[str]:
-    """The command that runs the daemon on `data`: the windowless program on Windows, the AppImage file in an AppImage (the daemon outlives this process, and the folder the AppImage is mounted at does not),
+def daemon_argv(data: Path, encryption: bool = False) -> list[str]:
+    """The command that runs the daemon on `data` (with `--encryption` when `encryption`: the app started with it passes it on): the windowless program on Windows, the AppImage file in an AppImage (the daemon outlives this process, and the folder the AppImage is mounted at does not),
     else this interpreter (or, in a frozen program, itself)."""
     gui, pythonw = servicecmd.windowless_programs()
     plan = servicecmd.Plan(os.path.abspath(sys.executable), data, None, False, gui, pythonw, servicecmd.appimage_file())
+    extra = ["--encryption"] if encryption else []
     if sys.platform == "win32":
-        return servicewindows.launch_argv(plan)
+        return [*servicewindows.launch_argv(plan), *extra]
     elif plan.appimage:
-        return [plan.appimage, "run", "--data", str(data)]
+        return [plan.appimage, "run", "--data", str(data), *extra]
     else:
         frozen = getattr(sys, "frozen", False)
-        return [plan.python, "run", "--data", str(data)] if frozen else [plan.python, "-m", "neoaprs", "run", "--data", str(data)]
+        return [plan.python, "run", "--data", str(data), *extra] if frozen else [plan.python, "-m", "neoaprs", "run", "--data", str(data), *extra]
 
 
 def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":

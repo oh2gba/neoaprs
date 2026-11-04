@@ -1,6 +1,7 @@
 """The Windows shell against stand-ins for pywebview, pystray and Pillow (`sys.modules` gets them, so this runs on any system and CI): what the shell asks of each toolkit, the closing of the window that
 hides it, the tray menu made from the data of the actions, the page's script that sends other sites to the browser, and the way on without a window when WebView2 cannot start. What the real toolkits do with
 those calls is what only a Windows desktop can say."""
+import inspect
 import ctypes
 import logging
 import sys
@@ -173,6 +174,10 @@ class FakeMenu:
 
 class FakeMenuItem:
     def __init__(self, text: str, action: Any, checked: Any = None, default: bool = False) -> None:
+        # pystray 0.19.5 (MenuItem._assert_action) takes an action of 0, 1 or 2 parameters, counting those with a default, and refuses any other with ValueError: the tray menu of every Windows start
+        # failed so from 26 Oct to 4 Nov 2026 (OH2GAX's app log), an action `lambda _icon, _item, key=...` having three.
+        if callable(action) and action.__code__.co_argcount - (1 if inspect.ismethod(action) else 0) > 2:
+            raise ValueError(action)
         self.text, self.action, self.checked, self.default = text, action, checked, default
 
 

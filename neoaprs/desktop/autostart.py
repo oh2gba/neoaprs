@@ -27,7 +27,7 @@ class AutoStart(Protocol):
 
 
 def app_command(data: Path, platform: str | None = None, frozen: bool | None = None, executable: str | None = None, which: Callable[[str], str | None] = shutil.which,
-                appimage: Callable[[], str | None] = servicecmd.appimage_file) -> list[str]:
+                appimage: Callable[[], str | None] = servicecmd.appimage_file, encryption: bool = False) -> list[str]:
     """The program and arguments that start the app in the tray: in an AppImage the AppImage file with `app` (the interpreter is in a folder that is gone when it ends), else the installed program `neoaprs-app`
     (next to this Python; in a frozen app its own windowless program, beside whichever one of the folder is running), else this Python with `-m neoaprs app` (`pythonw` on Windows: no console window).
     `--data` is given only when the folder is not the default one."""
@@ -35,7 +35,7 @@ def app_command(data: Path, platform: str | None = None, frozen: bool | None = N
     frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
     here = (PureWindowsPath if platform == "win32" else PurePosixPath)(sys.executable if executable is None else executable)
     suffix = ".exe" if platform == "win32" else ""
-    tail = ["--tray"] if data.resolve() == default_data_dir().resolve() else ["--tray", "--data", str(data)]
+    tail = (["--tray"] if data.resolve() == default_data_dir().resolve() else ["--tray", "--data", str(data)]) + (["--encryption"] if encryption else [])
     image = appimage() if platform.startswith("linux") else None
     if image:
         return [image, "app", *tail]
@@ -107,11 +107,11 @@ class DesktopFileAutoStart:
             raise AutoStartError(f"{self.path} could not be removed: {e}") from e
 
 
-def autostart_for(data: Path, platform: str | None = None) -> AutoStart | None:
+def autostart_for(data: Path, platform: str | None = None, encryption: bool = False) -> AutoStart | None:
     """The start at sign-in of this system, or None where the app has none to offer (macOS)."""
     platform = sys.platform if platform is None else platform
     if platform == "win32":
-        return RunKeyAutoStart(app_command(data, platform))
+        return RunKeyAutoStart(app_command(data, platform, encryption=encryption))
     if platform.startswith("linux"):
-        return DesktopFileAutoStart(app_command(data, platform))
+        return DesktopFileAutoStart(app_command(data, platform, encryption=encryption))
     return None

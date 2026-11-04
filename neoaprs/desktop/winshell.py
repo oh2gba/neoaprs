@@ -10,6 +10,7 @@ import threading
 import webbrowser
 from importlib import resources
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 from . import appstate
@@ -93,15 +94,25 @@ class WinFrame:
 
 
 def tray_menu(pystray: Any, actions: AppActions) -> Any:
-    """The tray menu from the data of `actions.items()`, made again whenever pystray asks for the items; the Open item is the default one (the click on the icon)."""
+    """The tray menu from the data of `actions.items()`, made again whenever pystray asks for the items; the Open item is the default one (the click on the icon). pystray takes an action of at most two
+    parameters, and counts one with a default too: each action and each check mark is a closure of its own (`_run`, `_shows`), not a lambda that keeps its key in a default."""
     def entries() -> Any:
         for item in actions.items():
             if item.separator:
                 yield pystray.Menu.SEPARATOR
                 continue
-            checked = None if item.checked is None else (lambda _menu_item, state=item.checked: state)
-            yield pystray.MenuItem(item.label, lambda _icon, _item, key=item.key: actions.run(key), checked=checked, default=item.key == OPEN)
+            yield pystray.MenuItem(item.label, _run(actions, item.key), checked=None if item.checked is None else _shows(item.checked), default=item.key == OPEN)
     return pystray.Menu(entries)
+
+
+def _run(actions: AppActions, key: str) -> Callable[[Any, Any], None]:
+    """The action of the item `key`, as pystray calls it: with the icon and the item."""
+    return lambda _icon, _item: actions.run(key)
+
+
+def _shows(state: bool) -> Callable[[Any], bool]:
+    """The check mark of an item, as pystray asks for it: with the item."""
+    return lambda _item: state
 
 
 def make_icon(frame: WinFrame, actions: AppActions) -> Any:

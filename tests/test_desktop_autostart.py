@@ -33,6 +33,7 @@ def test_without_the_script_it_is_this_python_with_the_module(tmp_path: Path) ->
 def test_in_the_frozen_app_it_is_its_own_windowless_program_whichever_one_of_the_folder_runs() -> None:
     for running in ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe"):
         assert app_command(default_data_dir(), "win32", True, rf"C:\Program Files\NeoAPRS\{running}")[1:] == ["--tray"]
+    assert app_command(default_data_dir(), "win32", True, r"C:\software\NeoAPRS\neoaprs-app.exe", encryption=True)[1:] == ["--tray", "--encryption"], "the app started with --encryption starts so at sign-in"
     first = app_command(default_data_dir(), "win32", True, r"C:\Program Files\NeoAPRS\neoaprs.exe")[0]
     assert first.replace("\\", "/").endswith("NeoAPRS/neoaprs-app.exe")
 
