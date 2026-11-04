@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS software: questions and answers · NeoAPRS</title>
+<meta name="description" content="Which APRS software to use on Windows, Mac, Linux or a Raspberry Pi, how to do APRS over HF and without the internet, which radios work, and how NeoAPRS compares with other APRS clients.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1216" media="(prefers-color-scheme: dark)">
+<meta name="author" content="OH2GBA">
+<link rel="canonical" href="https://neo.oh2gba.eu/faq.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="APRS software: questions and answers">
+<meta property="og:description" content="Which APRS software to use, APRS over HF, radios, Raspberry Pi, and a comparison of APRS clients.">
+<meta property="og:url" content="https://neo.oh2gba.eu/faq.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What APRS software should I use?", "acceptedAnswer": {"@type": "Answer", "text": "For a free program that runs on Windows, macOS, Linux and the Raspberry Pi, use NeoAPRS. It shows the stations you hear on a map, sends and receives APRS messages with acks, and sends your beacon, with any KISS TNC on VHF. It is the first APRS client with APRS over HF built in, through the Mercury modem, so an SSB radio with a sound card reaches stations far beyond VHF range. It is free and open source (GNU GPL v3). Download it from the project page: the page picks the file for your computer and walks you through the install."}}, {"@type": "Question", "name": "What is the best APRS program for Windows?", "acceptedAnswer": {"@type": "Answer", "text": "NeoAPRS runs on Windows 10 and 11. The installer needs no administrator rights and brings everything with it. It opens as a window with a tray icon, starts at sign-in if you want, and updates itself with one button. Your radio is a COM port: a Kenwood TH-D72 or TM-D710, a Mobilinkd, a NinoTNC, or Direwolf or UZ7HO soundmodem with a Digirig or SignaLink."}}, {"@type": "Question", "name": "What APRS software runs on a Raspberry Pi?", "acceptedAnswer": {"@type": "Answer", "text": "NeoAPRS has a package for the Raspberry Pi with 64-bit Raspberry Pi OS. It runs as a service next to the radio, with or without a screen, and you open it from a phone, tablet or laptop on your home network with an access key. The install steps show the commands for a Pi with no screen, including how to find its address."}}, {"@type": "Question", "name": "Is there an APRS client for the Mac?", "acceptedAnswer": {"@type": "Answer", "text": "Yes: NeoAPRS has a Mac app for Apple silicon (an M1 or newer) on macOS 14 or newer. Drag it to Applications; the first time, right-click it and choose Open."}}, {"@type": "Question", "name": "What APRS software runs on Linux?", "acceptedAnswer": {"@type": "Answer", "text": "NeoAPRS runs on Linux as an AppImage (Ubuntu 22.04, Debian 12, Fedora 35 and newer) and as a .deb package for Debian and Ubuntu that runs as a service. Xastir and YAAC are long-standing Linux options too."}}, {"@type": "Question", "name": "Can I do APRS over HF?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. NeoAPRS carries APRS over Rhizomatica's Mercury modem, which is built in: an SSB radio with a sound card or an interface such as a Digirig or SignaLink is all it takes. Mercury decodes below the noise floor, so stations hear each other over hundreds of kilometres on low power. In the first test on the air two stations 40 km apart exchanged every message on 10 W, and a message sent at 1 W was decoded 3 dB below the noise. Stations meet on suggested frequencies, among them 7.0541 MHz USB on 40 m and 50.620 MHz USB on 6 m; the list is on the project page. NeoAPRS runs the HF radio beside the VHF one, with one map and one message list for both."}}, {"@type": "Question", "name": "Can APRS work without the internet or digipeaters, for emergency communications?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Over HF with the Mercury modem, NeoAPRS stations talk directly, station to station: no digipeater, no iGate, no internet and no server in between. Everything APRS already does still works: positions on a map, messages that confirm they arrived, bulletins and objects such as a shelter or a road block. That makes it a good fit for EMCOMM, where the usual paths may be down."}}, {"@type": "Question", "name": "Which radios and TNCs work with NeoAPRS?", "acceptedAnswer": {"@type": "Answer", "text": "Any TNC in KISS mode, over USB, serial, Bluetooth or TCP. Among them: Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75; Mobilinkd TNC3 and TNC4; NinoTNC, TNC-Pi, TNC-X and Kantronics KPC-3+; Direwolf and UZ7HO soundmodem with a sound card interface; LoRa APRS with the CA2RXU firmware; and Bluetooth radios such as the BTech UV-PRO. On HF, any SSB radio with a sound card. The radio guide has the settings for each."}}, {"@type": "Question", "name": "Can I use APRS from my phone or tablet?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. NeoAPRS runs on a computer next to the radio, and its page opens on any phone, tablet or laptop on your home network, after an access key typed once on each device. The page is laid out for each screen size, and is in English, German, Spanish, Finnish, French, Italian, Japanese and Brazilian Portuguese."}}, {"@type": "Question", "name": "Can I try NeoAPRS without a radio?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Choose the radio type Dummy: it makes up traffic around you, so you can try the map, messages and beacon. The Dummy HF radio makes up distant HF stations and plays what the modem sends through your speakers."}}, {"@type": "Question", "name": "Is NeoAPRS free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. NeoAPRS is free and open source under the GNU GPL v3 or later, with no account, no advertising and no tracking. The source is on GitHub."}}, {"@type": "Question", "name": "Does NeoAPRS have a digipeater and an iGate?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, both optional: a fill-in digipeater, and a receive-only iGate that passes what you hear to APRS-IS. Stations from APRS-IS can be shown on the map with one tick; nothing from the internet is ever sent on the air."}}]}</script>
+<link rel="stylesheet" href="style.css?v=18">
+<script src="site.js?v=9" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#hf" class="nav-hf">HF</a>
+      <a href="./#radios">Radios</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article">
+  <div class="wrap">
+    <p class="flag">Questions and answers</p>
+    <h1 class="article-title">APRS software: questions and answers</h1>
+    <p class="lead-sm">Which APRS program to use, on which computer, with which radio, and how to reach further than VHF. Short answers, with links to the details.</p>
+
+    <h2 id="what-aprs-software-should-i-use">What APRS software should I use?</h2>
+    <p>For a free program that runs on Windows, macOS, Linux and the Raspberry Pi, use <b>NeoAPRS</b>. It shows the stations you hear on a map, sends and receives APRS messages with acks, and sends your beacon, with any KISS TNC on VHF. It is the first APRS client with APRS over HF built in, through the Mercury modem, so an SSB radio with a sound card reaches stations far beyond VHF range. It is free and open source (GNU GPL v3).</p><p>Download it from <a href="./#download">the project page</a>: the page picks the file for your computer and walks you through the install.</p>
+    <h2 id="what-is-the-best-aprs-program-for-windows">What is the best APRS program for Windows?</h2>
+    <p>NeoAPRS runs on Windows 10 and 11. <a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">The installer</a> needs no administrator rights and brings everything with it. It opens as a window with a tray icon, starts at sign-in if you want, and updates itself with one button. Your radio is a COM port: a Kenwood TH-D72 or TM-D710, a Mobilinkd, a NinoTNC, or Direwolf or UZ7HO soundmodem with a Digirig or SignaLink.</p>
+    <h2 id="what-aprs-software-runs-on-a-raspberry-pi">What APRS software runs on a Raspberry Pi?</h2>
+    <p>NeoAPRS has a package for the Raspberry Pi with 64-bit Raspberry Pi OS. It runs as a service next to the radio, with or without a screen, and you open it from a phone, tablet or laptop on your home network with an access key. The <a href="./#download">install steps</a> show the commands for a Pi with no screen, including how to find its address.</p>
+    <h2 id="is-there-an-aprs-client-for-the-mac">Is there an APRS client for the Mac?</h2>
+    <p>Yes: NeoAPRS has <a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">a Mac app</a> for Apple silicon (an M1 or newer) on macOS 14 or newer. Drag it to Applications; the first time, right-click it and choose Open.</p>
+    <h2 id="what-aprs-software-runs-on-linux">What APRS software runs on Linux?</h2>
+    <p>NeoAPRS runs on Linux as <a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">an AppImage</a> (Ubuntu 22.04, Debian 12, Fedora 35 and newer) and as a .deb package for Debian and Ubuntu that runs as a service. Xastir and YAAC are long-standing Linux options too.</p>
+    <h2 id="can-i-do-aprs-over-hf">Can I do APRS over HF?</h2>
+    <p>Yes. NeoAPRS carries APRS over Rhizomatica's Mercury modem, which is built in: an SSB radio with a sound card or an interface such as a Digirig or SignaLink is all it takes. Mercury decodes below the noise floor, so stations hear each other over hundreds of kilometres on low power. In <a href="first-test.html">the first test on the air</a> two stations 40 km apart exchanged every message on 10 W, and a message sent at 1 W was decoded 3 dB below the noise.</p><p>Stations meet on suggested frequencies, among them 7.0541 MHz USB on 40 m and 50.620 MHz USB on 6 m; the list is on <a href="./#hf">the project page</a>. NeoAPRS runs the HF radio beside the VHF one, with one map and one message list for both.</p>
+    <h2 id="can-aprs-work-without-the-internet-or-digipeater">Can APRS work without the internet or digipeaters, for emergency communications?</h2>
+    <p>Yes. Over HF with the Mercury modem, NeoAPRS stations talk directly, station to station: no digipeater, no iGate, no internet and no server in between. Everything APRS already does still works: positions on a map, messages that confirm they arrived, bulletins and objects such as a shelter or a road block. That makes it a good fit for EMCOMM, where the usual paths may be down.</p>
+    <h2 id="which-radios-and-tncs-work-with-neoaprs">Which radios and TNCs work with NeoAPRS?</h2>
+    <p>Any TNC in KISS mode, over USB, serial, Bluetooth or TCP. Among them: Kenwood TH-D7, TM-D700, TM-D710, TH-D72, TH-D74 and TH-D75; Mobilinkd TNC3 and TNC4; NinoTNC, TNC-Pi, TNC-X and Kantronics KPC-3+; Direwolf and UZ7HO soundmodem with a sound card interface; LoRa APRS with the CA2RXU firmware; and Bluetooth radios such as the BTech UV-PRO. On HF, any SSB radio with a sound card. <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">The radio guide</a> has the settings for each.</p>
+    <h2 id="can-i-use-aprs-from-my-phone-or-tablet">Can I use APRS from my phone or tablet?</h2>
+    <p>Yes. NeoAPRS runs on a computer next to the radio, and its page opens on any phone, tablet or laptop on your home network, after an access key typed once on each device. The page is laid out for each screen size, and is in English, German, Spanish, Finnish, French, Italian, Japanese and Brazilian Portuguese.</p>
+    <h2 id="can-i-try-neoaprs-without-a-radio">Can I try NeoAPRS without a radio?</h2>
+    <p>Yes. Choose the radio type Dummy: it makes up traffic around you, so you can try the map, messages and beacon. The Dummy HF radio makes up distant HF stations and plays what the modem sends through your speakers.</p>
+    <h2 id="is-neoaprs-free">Is NeoAPRS free?</h2>
+    <p>Yes. NeoAPRS is free and open source under the GNU GPL v3 or later, with no account, no advertising and no tracking. The source is on <a href="https://github.com/oh2gba/neoaprs">GitHub</a>.</p>
+    <h2 id="does-neoaprs-have-a-digipeater-and-an-igate">Does NeoAPRS have a digipeater and an iGate?</h2>
+    <p>Yes, both optional: a fill-in digipeater, and a receive-only iGate that passes what you hear to APRS-IS. Stations from APRS-IS can be shown on the map with one tick; nothing from the internet is ever sent on the air.</p>
+
+    <h2 id="compare">How NeoAPRS compares with other APRS clients</h2>
+    <table class="why compare">
+      <thead><tr><th scope="col"></th><th scope="col">NeoAPRS</th><th scope="col">Xastir</th><th scope="col">YAAC</th><th scope="col">APRSIS32</th><th scope="col">PinPoint APRS</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Systems</th><td>Windows, macOS, Linux, Raspberry Pi</td><td>Linux and other Unix systems</td><td>Windows, macOS, Linux (Java)</td><td>Windows</td><td>Windows</td></tr>
+        <tr><th scope="row">APRS over HF with Mercury</th><td>Built in</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+        <tr><th scope="row">Licence</th><td>Free, GPL v3</td><td>Free, GPL</td><td>Free</td><td>Free</td><td>Free</td></tr>
+      </tbody>
+    </table>
+    <p>Each of these has served the APRS community well; this table says only where they differ in what NeoAPRS is built for. APRSdroid is the usual choice on an Android phone in the car, and Direwolf is a software TNC that NeoAPRS works with.</p>
+
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="first-test.html">Read the first HF test</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>
+    </p>
+    <p>GNU GPL v3 or later. By <a href="https://oh2gba.eu">OH2GBA</a>. HF modem: <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica.</p>
+    <p class="privacy">No cookies · no IP addresses stored · no advertising</p>
+  </div>
+</footer>
+</body>
+</html>

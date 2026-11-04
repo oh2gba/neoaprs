@@ -255,6 +255,11 @@ footer p { margin: 0; }
 .why td:nth-child(2) { width: 30%; color: var(--muted); }
 .why td:nth-child(3) { color: var(--ink); font-weight: 550; }
 .why td small { display: block; margin-top: 2px; font-size: 0.82rem; font-weight: 400; color: var(--muted); }
+.compare tbody th { width: 22%; }
+.compare td, .compare td:nth-child(2), .compare td:nth-child(3) { width: auto; color: var(--ink-2); font-weight: 400; }
+.compare td:nth-child(2) { color: var(--ink); font-weight: 650; }
+.compare thead th:last-child { color: var(--muted); }
+.compare thead th:nth-child(2) { color: var(--blue); }
 @media (max-width: 720px) {
   .why thead { display: none; }
   .why, .why tbody, .why tr, .why th, .why td { display: block; width: auto; }
