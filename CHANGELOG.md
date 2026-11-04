@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.18.2
+
 - **Fixed:** on a phone the page could show old messages after the phone had slept, until it was reloaded. It now catches up as soon as it is on the screen again, and whenever it has heard nothing from NeoAPRS for half a minute.
 - **Fixed:** with the HF radio alone, the log said "the beacon is due and the TNC is not connected" at every beacon time, about the FM radio that was switched off. The HF beacon went out all along; the FM one now rests while its radio is off.
 
