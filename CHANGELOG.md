@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Fixed:** on Windows, an HF sound card that Mercury could not open was said only when Mercury ended, which could be many minutes later, and the HF radio showed connected until then. Now it is said at once, as on Linux.
+- **Fixed:** the desktop app no longer leaves a warning about a missing icon in the log at every start.
 
 ## 0.17.4
 

@@ -20,6 +20,7 @@ HINT = "run scripts/build-page and commit neoaprs/page/"
 SHIPPED = (
     "symbols/primary.png", "symbols/alternate.png", "symbols/overlay.png", "symbols/SOURCE.txt", "symbols/COPYRIGHT.txt",
     "fonts/NotoSans-Regular/0-255.pbf", "fonts/NotoSans-Medium/0-255.pbf", "fonts/OFL.txt",
+    "favicon.ico",             # the desktop app's window asks for it at every start: without it the log said 404 each time
     "manifest.webmanifest", "sw.js", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
 )
 

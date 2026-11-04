@@ -52,7 +52,7 @@ async def test_the_manifest_and_the_worker_are_served_for_the_browser_to_check_a
 async def test_the_manifest_and_the_worker_answer_only_to_a_host_name_of_ours(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
-    for path in ("/sw.js", "/manifest.webmanifest", "/icons/icon-512.png"):
+    for path in ("/sw.js", "/manifest.webmanifest", "/icons/icon-512.png", "/favicon.ico"):          # (the desktop app's window asks for favicon.ico at every start)
         assert (await e.fetch(path)).code == 200, path
         assert (await e.fetch(path, headers={"Host": "evil.example"})).code == 403, path
 
