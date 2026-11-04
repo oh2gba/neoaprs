@@ -53,7 +53,7 @@
     <p>To our knowledge, this was the first exchange of APRS traffic over the Mercury modem between two stations on the air.</p>
 
     <h2>About NeoAPRS</h2>
-    <p>NeoAPRS is a free and open-source APRS client: a map of the stations around you, messaging with acknowledgements, bulletins, objects and your own beacon. It runs on Windows, macOS, Linux and the Raspberry Pi, as a desktop app or in any browser, so the same station can be used from a phone or a laptop. It works with any KISS TNC on VHF and, since version 0.16, with the Mercury modem on an SSB radio.</p>
+    <p>NeoAPRS is a free and open-source APRS client: a map of the stations around you, messaging, bulletins, objects and your own beacon. It runs on Windows, macOS, Linux and the Raspberry Pi, as a desktop app or in any browser, so the same station can be used from a phone or a laptop. It works with any KISS TNC on VHF and, since version 0.16, with the Mercury modem on an SSB radio.</p>
 
     <h2>About Mercury</h2>
     <p>Mercury is a free and open-source HF data modem developed by Rhizomatica. It uses the data modes of the FreeDV project: OFDM, several carriers sent side by side, with a strong LDPC error-correcting code. NeoAPRS builds Mercury in and hands it APRS frames, so an SSB radio with a sound card becomes an APRS station without a separate modem program.</p>
@@ -74,7 +74,7 @@
         <tr><th scope="row">OH2GAX</th><td>45, 10, 5 and 1 W</td></tr>
       </tbody>
     </table>
-    <p>At full power OH2GAX's signal was 6 to 7 dB above the noise. At 5 W, and at 1 W, it was 2 to 3 dB <em>below</em> the noise, and his messages were still decoded and acknowledged. This is the margin the Mercury modem is designed for.</p>
+    <p>At full power OH2GAX's signal was 6 to 7 dB above the noise. At 5 W, and at 1 W, it was 2 to 3 dB <em>below</em> the noise, and his messages still came through. This is the margin the Mercury modem is designed for.</p>
 
     <h2>Results</h2>
     <table class="facts">
@@ -82,17 +82,17 @@
         <tr><th scope="row">Distance</th><td>40.8 km</td></tr>
         <tr><th scope="row">Band</th><td>6 m, 50.620 MHz, upper sideband</td></tr>
         <tr><th scope="row">Modem</th><td>Mercury, built into NeoAPRS, mode DATAC3</td></tr>
-        <tr><th scope="row">Messages from OH2GBA</th><td>9, all acknowledged; 7 on the first try</td></tr>
-        <tr><th scope="row">Messages from OH2GAX</th><td>12 received, each acknowledged on the first try</td></tr>
+        <tr><th scope="row">Messages from OH2GBA</th><td>9, all delivered; 7 on the first try</td></tr>
+        <tr><th scope="row">Messages from OH2GAX</th><td>12, all received on the first try</td></tr>
         <tr><th scope="row">Time on the air per message</th><td>About 4 seconds</td></tr>
         <tr><th scope="row">Weakest signal decoded</th><td>3 dB below the noise, from 1 W</td></tr>
       </tbody>
     </table>
-    <p>Two of the messages from OH2GBA needed more than one attempt. One was acknowledged on the second attempt; the other, sent while the power was being reduced to 5 W, on the fourth.</p>
+    <p>Two of the messages from OH2GBA needed more than one attempt. One got through on the second attempt; the other, sent while the power was being reduced to 5 W, on the fourth.</p>
 
     <h2>Findings</h2>
     <ul class="article-list">
-      <li><b>Large link margin.</b> Messages were decoded and acknowledged at 2 to 3 dB below the noise, far below what plain 300-baud packet needs.</li>
+      <li><b>Large link margin.</b> Messages were still decoded at 2 to 3 dB below the noise, far below what plain 300-baud packet needs.</li>
       <li><b>Clean channel sharing.</b> Every reply waited until the other station's frame had ended. No frame was lost to two stations transmitting at once.</li>
       <li><b>One conversation, two radios.</b> The exchange moved from 2 m to the Mercury radio and continued in the same conversation, in the same program.</li>
     </ul>
@@ -100,7 +100,7 @@
     <h2>For emergency communications</h2>
     <p>The test itself followed an emergency pattern: the usual path failed, and the traffic moved to another band without losing the conversation. That combination suits EMCOMM work well.</p>
     <ul class="article-list">
-      <li><b>Everything APRS already does.</b> Positions on a map, messages with acknowledgements, bulletins to everyone, and objects such as a shelter or a road block. Operators already know how to use it.</li>
+      <li><b>Everything APRS already does.</b> Positions on a map, messages that confirm they arrived, bulletins to everyone, and objects such as a shelter or a road block. Operators already know how to use it.</li>
       <li><b>A modern modem underneath.</b> Mercury decodes messages below the noise, at low power, on a simple antenna, where older HF packet fails.</li>
       <li><b>No infrastructure needed.</b> Mercury works station to station, with no digipeaters, no internet and no servers. A radio, a sound card and a computer are enough.</li>
       <li><b>Two radios in one program.</b> The local 2 m network and the longer path over Mercury share one map and one message list, and the operator picks the radio for each station.</li>
