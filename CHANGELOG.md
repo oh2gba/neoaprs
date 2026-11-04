@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.17.3
+
 - **New:** the app takes `--encryption` and starts NeoAPRS with encrypted messages allowed; on Windows a shortcut to `neoaprs-app.exe --encryption` does it every time, and Start at sign-in, ticked in the tray menu of an app started so, starts it so too. Before, only a NeoAPRS started by hand could allow them, and the app started its own without.
 - **Fixed:** on Windows the tray icon's menu (Open, Start at sign-in, Quit and the rest) failed at every start.
 - **Fixed:** the log says at the start whether encrypted messages are allowed, so that a support report shows it.
