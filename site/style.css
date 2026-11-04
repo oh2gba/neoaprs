@@ -137,23 +137,34 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .lead-sm { max-width: 60em; margin: 0 0 24px; color: var(--ink-2); font-size: 1.05rem; }
 .aside { margin: 16px 0 0; color: var(--muted); font-size: 0.95rem; }
 
-/* ---- downloads */
-.files { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
-.files th, .files td { padding: 14px 18px; text-align: left; vertical-align: top; border-top: 1px solid var(--rule); }
-.files tr:first-child th, .files tr:first-child td { border-top: 0; }
-.files th { width: 18%; font-weight: 650; }
-.files td:nth-child(2) { width: 26%; font-family: var(--mono); font-size: 0.88rem; overflow-wrap: anywhere; }
-.files td:nth-child(3) { color: var(--ink-2); font-size: 0.95rem; }
-.files .for { font-family: var(--font); font-size: 0.95rem; }
-.files .steps { margin: 0; padding-left: 1.3em; }
-.files .steps li + li { margin-top: 6px; }
-.files .steps code { overflow-wrap: anywhere; }
-@media (max-width: 720px) {
-  .files, .files tbody, .files tr, .files th, .files td { display: block; width: auto; }
-  .files th, .files td, .files td:nth-child(2) { border: 0; padding: 2px 16px; width: auto; }
-  .files tr { padding: 12px 0; border-top: 1px solid var(--rule); }
-  .files tr:first-child { border-top: 0; }
-}
+/* ---- downloads: one chooser, the steps for the computer chosen (radio buttons and :has, so it works without the script; the script preselects the reader's system) */
+.dl { padding: 22px clamp(16px, 3vw, 28px); background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; }
+.choose { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; min-width: 0; }
+.choose legend { width: 100%; margin-bottom: 6px; padding: 0; color: var(--muted); font-size: 0.9rem; }
+.choose input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.choose label { padding: 8px 16px; border: 1.5px solid var(--rule); border-radius: 999px; background: var(--surface-2); font-weight: 600; cursor: pointer; }
+.choose label:hover { border-color: var(--blue); }
+.choose input:checked + label { background: var(--blue); border-color: var(--blue); color: #fff; }
+.choose input:focus-visible + label { outline: 3px solid var(--blue); outline-offset: 3px; }
+@media (prefers-color-scheme: dark) { .choose input:checked + label { color: #08182a; } }
+.dl-steps { margin: 20px 0 0; padding-left: 1.5em; }
+.dl-steps li { margin-top: 14px; padding-left: 4px; }
+.dl-steps li::marker { font-weight: 700; color: var(--blue); }
+.dl-steps .btn { margin: 0 12px 4px 0; }
+.dl-note { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+.cmd { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.cmd code { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 8px; background: var(--surface-2); font-size: 0.88rem; overflow-wrap: anywhere; }
+.copy { flex: none; padding: 7px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink-2); font: 600 0.85rem var(--font); cursor: pointer; }
+.copy:hover { border-color: var(--blue); color: var(--blue); }
+.copy[data-done] { color: var(--blue); }
+.dl:has(#os-win:checked) .use, .dl:has(#os-mac:checked) .use { display: none; }
+.dl:has(input:checked) .dl-steps { display: none; }
+.dl:has(#os-win:checked) .dl-steps.win,
+.dl:has(#os-mac:checked) .dl-steps.mac,
+.dl:has(#os-linux:checked):has(#use-app:checked) .dl-steps.linux-app,
+.dl:has(#os-linux:checked):has(#use-srv:checked) .dl-steps.linux-srv,
+.dl:has(#os-pi:checked):has(#use-app:checked) .dl-steps.pi-app,
+.dl:has(#os-pi:checked):has(#use-srv:checked) .dl-steps.pi-srv { display: block; }
 
 /* ---- HF: a band of its own */
 .band { margin-top: clamp(48px, 6vw, 88px); padding-bottom: clamp(40px, 5vw, 64px); background: linear-gradient(180deg, var(--hf-soft), transparent 85%); border-top: 3px solid var(--hf); }

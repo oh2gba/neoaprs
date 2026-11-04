@@ -1,4 +1,4 @@
-// The project page's only script: the copy buttons, the lightbox of the screenshots, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
+// The project page's only script: the copy buttons, the Download chooser's first choice, the lightbox of the screenshots, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
 (() => {
   "use strict";
 
@@ -30,6 +30,19 @@
         delete button.dataset.done;
       }, 1800);
     });
+  }
+
+  // The Download chooser starts on the reader's own system (Windows without the script): a Raspberry Pi's browser says Linux on ARM. A phone or tablet keeps the default.
+  {
+    const ua = navigator.userAgent;
+    const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    let os = "";
+    if (/Android|iPhone|iPad/i.test(ua)) os = "";
+    else if (/Win/i.test(platform)) os = "os-win";
+    else if (/Mac/i.test(platform)) os = "os-mac";
+    else if (/Linux/i.test(platform)) os = /aarch64|arm/i.test(platform + " " + ua) ? "os-pi" : "os-linux";
+    const radio = os && document.getElementById(os);
+    if (radio instanceof HTMLInputElement) radio.checked = true;
   }
 
   // A view: the page says it rendered, once, to its own host, after load. Only on the site itself (the mirror on GitHub Pages has no endpoint); nothing is kept in the browser and no cookie is set (what is recorded: the

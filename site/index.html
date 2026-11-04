@@ -27,8 +27,8 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=14">
-<script src="site.js?v=8" defer></script>
+<link rel="stylesheet" href="style.css?v=16">
+<script src="site.js?v=9" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -82,24 +82,62 @@
 <section class="sec" id="download">
   <div class="wrap">
     <h2>Download</h2>
-    <table class="files">
-      <tbody>
-        <tr><th scope="row">Windows</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">NeoAPRS-Setup.exe</a></td><td>No administrator rights needed. If SmartScreen warns: More info, Run anyway.</td></tr>
-        <tr><th scope="row">macOS</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">NeoAPRS-arm64.dmg</a></td><td>Apple silicon, macOS 14 or newer. The first time: right-click, Open.</td></tr>
-        <tr><th scope="row">Linux</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">NeoAPRS-x86_64.AppImage</a></td><td><code>chmod +x NeoAPRS-*-x86_64.AppImage</code> and run it.</td></tr>
-        <tr><th scope="row">Raspberry Pi, Debian, Ubuntu</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_…_arm64.deb</a> <span class="for">for a Raspberry Pi</span><br><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_…_amd64.deb</a> <span class="for">for a PC</span></td><td>
-          <ol class="steps">
-            <li>Download the file for your computer from the release page. Raspberry Pi OS must be the 64-bit one.</li>
-            <li>Install it: <code>sudo apt install ./neoaprs_*.deb</code></li>
-            <li>To use it from your phone or laptop: <code>neoaprs db set web/network true</code></li>
-            <li>Start it, now and at every boot: <code>neoaprs service install --linger</code></li>
-            <li>Open <code>http://NAME.local:7303</code> with the name of the computer, and type the key that <code>neoaprs db get web/key</code> shows.</li>
-          </ol>
-        </td></tr>
-        <tr><th scope="row">Source</th><td><a href="https://github.com/oh2gba/neoaprs">github.com/oh2gba/neoaprs</a></td><td>Python and Vue, GPL v3 or later.</td></tr>
-      </tbody>
-    </table>
-    <p class="aside">The first start asks for your call, position, symbol and radio. No radio at hand: choose the radio type Dummy.</p>
+    <div class="dl">
+      <fieldset class="choose"><legend>Your computer</legend>
+        <input type="radio" name="dl-os" id="os-win" checked><label for="os-win">Windows</label>
+        <input type="radio" name="dl-os" id="os-mac"><label for="os-mac">Mac</label>
+        <input type="radio" name="dl-os" id="os-linux"><label for="os-linux">Linux PC</label>
+        <input type="radio" name="dl-os" id="os-pi"><label for="os-pi">Raspberry Pi</label>
+      </fieldset>
+      <fieldset class="choose use"><legend>Local: on its own screen · Remote: from another computer or phone</legend>
+        <input type="radio" name="dl-use" id="use-app" checked><label for="use-app">Local</label>
+        <input type="radio" name="dl-use" id="use-srv"><label for="use-srv">Remote</label>
+      </fieldset>
+      <ol class="dl-steps win">
+        <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">Download for Windows</a><span class="dl-note">NeoAPRS-Setup.exe · no administrator rights needed</span></li>
+        <li>Open the downloaded file. If Windows says <q>Windows protected your PC</q>, choose <b>More info</b>, then <b>Run anyway</b>.</li>
+        <li>Go through the installer. On its last page, <b>Open NeoAPRS now</b> starts it. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+      <ol class="dl-steps mac">
+        <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">Download for Mac</a><span class="dl-note">NeoAPRS-arm64.dmg · Apple silicon (M1 or newer), macOS 14 or newer</span></li>
+        <li>Open the downloaded file and drag <b>NeoAPRS</b> to <b>Applications</b>.</li>
+        <li>The first time, right-click NeoAPRS in Applications and choose <b>Open</b>. If the Mac says it could not be verified: System Settings, Privacy &amp; Security, <b>Open Anyway</b>.</li>
+        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+      <ol class="dl-steps linux-app">
+        <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">Download for Linux</a><span class="dl-note">NeoAPRS-x86_64.AppImage · Ubuntu 22.04, Debian 12, Fedora 35 and newer</span></li>
+        <li>Open a terminal and make it a program.<div class="cmd"><code>chmod +x ~/Downloads/NeoAPRS-x86_64.AppImage</code><button class="copy" type="button" data-text="chmod +x ~/Downloads/NeoAPRS-x86_64.AppImage" hidden>Copy</button></div></li>
+        <li>Start it. From then on a double-click on the file starts it too.<div class="cmd"><code>~/Downloads/NeoAPRS-x86_64.AppImage</code><button class="copy" type="button" data-text="~/Downloads/NeoAPRS-x86_64.AppImage" hidden>Copy</button></div></li>
+        <li>NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+      <ol class="dl-steps pi-app">
+        <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb">Download for Raspberry Pi</a><span class="dl-note">neoaprs_arm64.deb · 64-bit Raspberry Pi OS</span></li>
+        <li>Open a terminal and install it. It asks for your password.<div class="cmd"><code>sudo apt install ~/Downloads/neoaprs_arm64.deb</code><button class="copy" type="button" data-text="sudo apt install ~/Downloads/neoaprs_arm64.deb" hidden>Copy</button></div></li>
+        <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
+        <li>Open <a href="http://localhost:7303">http://localhost:7303</a> in the browser. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+      <ol class="dl-steps linux-srv">
+        <li>Open a terminal on the Linux PC that will run NeoAPRS: on its own screen, or with SSH from another computer (<code>ssh YOU@NAME.local</code>).</li>
+        <li>Download NeoAPRS.<div class="cmd"><code>wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb</code><button class="copy" type="button" data-text="wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb" hidden>Copy</button></div></li>
+        <li>Install it. It asks for your password.<div class="cmd"><code>sudo apt install ./neoaprs_amd64.deb</code><button class="copy" type="button" data-text="sudo apt install ./neoaprs_amd64.deb" hidden>Copy</button></div></li>
+        <li>Let other computers and phones open it.<div class="cmd"><code>neoaprs db set web/network true</code><button class="copy" type="button" data-text="neoaprs db set web/network true" hidden>Copy</button></div></li>
+        <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
+        <li>Only if you have turned on a firewall: let the page through. Raspberry Pi OS and Ubuntu come with it off, so most can skip this.<div class="cmd"><code>sudo ufw allow 7303/tcp</code><button class="copy" type="button" data-text="sudo ufw allow 7303/tcp" hidden>Copy</button></div></li>
+        <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
+        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+      <ol class="dl-steps pi-srv">
+        <li>Open a terminal on the Raspberry Pi that will run NeoAPRS: on its own screen, or with SSH from another computer (<code>ssh YOU@NAME.local</code>). Raspberry Pi OS must be the 64-bit one.</li>
+        <li>Download NeoAPRS.<div class="cmd"><code>wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb</code><button class="copy" type="button" data-text="wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb" hidden>Copy</button></div></li>
+        <li>Install it. It asks for your password.<div class="cmd"><code>sudo apt install ./neoaprs_arm64.deb</code><button class="copy" type="button" data-text="sudo apt install ./neoaprs_arm64.deb" hidden>Copy</button></div></li>
+        <li>Let other computers and phones open it.<div class="cmd"><code>neoaprs db set web/network true</code><button class="copy" type="button" data-text="neoaprs db set web/network true" hidden>Copy</button></div></li>
+        <li>Start NeoAPRS, now and every time the computer starts.<div class="cmd"><code>neoaprs service install --linger</code><button class="copy" type="button" data-text="neoaprs service install --linger" hidden>Copy</button></div></li>
+        <li>Only if you have turned on a firewall: let the page through. Raspberry Pi OS and Ubuntu come with it off, so most can skip this.<div class="cmd"><code>sudo ufw allow 7303/tcp</code><button class="copy" type="button" data-text="sudo ufw allow 7303/tcp" hidden>Copy</button></div></li>
+        <li>Show the computer's name and its address, and the key the other computer or phone will ask for.<div class="cmd"><code>hostname; hostname -I; neoaprs db get web/key</code><button class="copy" type="button" data-text="hostname; hostname -I; neoaprs db get web/key" hidden>Copy</button></div></li>
+        <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
+      </ol>
+    </div>
+    <p class="aside">Every file is on the <a href="https://github.com/oh2gba/neoaprs/releases/latest">release page</a>. The source code is on <a href="https://github.com/oh2gba/neoaprs">GitHub</a>: Python and Vue, GPL v3 or later.</p>
   </div>
 </section>
 
