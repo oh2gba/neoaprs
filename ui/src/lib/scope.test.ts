@@ -70,10 +70,11 @@ describe("the rows of the waterfall", () => {
     expect(addRow([row(1), row(2)], row(3), 2).map((r) => r.bins[0])).toEqual([3, 1]);
   });
 
-  it("are as strong as the bin over the floor: nothing at the floor and under it, full at the top of the range and over it, more than in proportion between", () => {
+  it("are as strong as the bin over the floor: nothing at the floor and under it, full at the top of the range and over it, less than in proportion between, so that the noise stays dark", () => {
     expect([-5, 0].map(strength)).toEqual([0, 0]);
     expect([DRAW_RANGE_DB, DRAW_RANGE_DB + 20].map(strength)).toEqual([1, 1]);
-    expect(strength(DRAW_RANGE_DB / 2)).toBeGreaterThan(0.5);
+    expect(strength(DRAW_RANGE_DB / 2)).toBeLessThan(0.5);
+    expect(strength(6)).toBeLessThan(0.15);
     expect(strength(5)).toBeLessThan(strength(10));
   });
 });

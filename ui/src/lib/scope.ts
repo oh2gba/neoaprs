@@ -8,8 +8,8 @@ const BIN_HZ = (hiHz - loHz) / BINS;
 /** The first and the one past the last bin of the signal band of a frame (1.2 to 1.8 kHz above the dial). */
 export const SIGNAL_BINS: readonly [number, number] = [Math.round((signalLoHz - loHz) / BIN_HZ), Math.round((signalHiHz - loHz) / BIN_HZ)];
 /** How strong a bin is drawn in full colour, in dB over the floor: a stronger one is drawn the same. */
-export const DRAW_RANGE_DB = 30;
-/** How tall a row of the waterfall is, in CSS pixels: one picture (a fifth of a second), so that the 72 pixels of the box hold the last seven seconds or so. */
+export const DRAW_RANGE_DB = 36;
+/** How tall a row of the waterfall is, in CSS pixels: one picture (a fifth of a second), so that the 120 pixels of the box hold the last twelve seconds or so. */
 export const ROW_PX = 2;
 /** How many rows are kept: more than the box shows, so that a taller one would be filled too. */
 export const KEPT_ROWS = 64;
@@ -57,9 +57,9 @@ export function addRow(rows: readonly Row[], row: Row, keep = KEPT_ROWS): Row[] 
   return [row, ...rows.slice(0, Math.max(0, keep - 1))];
 }
 
-/** How strongly a bin is drawn, 0 (the floor, nothing) to 1 (DRAW_RANGE_DB over it and more), its place on the colour scale: a little more than in proportion at the weak end, so that a weak frame shows over the noise. */
+/** How strongly a bin is drawn, 0 (the floor, nothing) to 1 (DRAW_RANGE_DB over it and more), its place on the colour scale: less than in proportion at the weak end, so that the band's noise stays dark, as on a rig, and a signal lights up over it. */
 export function strength(db: number): number {
-  return Math.pow(Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB, 0.75);
+  return Math.pow(Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB, 1.3);
 }
 
 type Rgb = readonly [number, number, number];

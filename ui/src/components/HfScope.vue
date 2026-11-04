@@ -67,7 +67,7 @@ const good = computed(() => ({ left: `${GOOD_PERCENT[0]}%`, width: `${GOOD_PERCE
 .scope-canvas {
   display: block;
   width: 100%;
-  height: 72px;
+  height: 120px;
   margin-bottom: 8px;
   background: var(--waterfall-0); /* the floor's colour before the first row: no light box flashes before the picture */
   border: 1px solid var(--border);

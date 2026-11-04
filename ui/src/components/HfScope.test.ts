@@ -169,7 +169,7 @@ describe("the picture and the receive level", () => {
     const cells = () => calls.filter((c) => c === "fillRect(4)").length;
     calls.length = 0;
     await tell(daemon, { hfScope: picture() });
-    expect(cells()).toBe(2 + 48); // (the background, the 48 cells of the row and the band over them)
+    expect(cells()).toBe(2 + 12); // (the background, the 12 cells of the frame in the row, and the band over them: the noise at 2 dB is the background)
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     fold.element.open = false;
     await fold.trigger("toggle");
