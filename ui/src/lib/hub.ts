@@ -1,6 +1,6 @@
 // The page's end of the conversation with the daemon (PROTOCOL.md): one WebSocket to /ws on the page's own host, `hello`, then the `state` of every topic and `patch` after it. Plain code with
 // no Vue: what the messages say is handed to a `Store`, which the composable (composables/useDaemon.ts) makes reactive; the socket and the timers can be replaced, so the tests drive it.
-// The socket is opened again by itself when it closes (1, 2, 4 ... 30 seconds), and a topic whose revision skips is asked for again with `subscribe`.
+// The socket is opened again by itself when it closes (1, 2, 4 ... 30 seconds), at once when the daemon has said nothing on it for 25 s or the page is woken (`wake`: a phone that slept may never see the close), and a topic whose revision skips is asked for again with `subscribe`.
 import type {
   AlertResultMessage,
   BulletinRow,
@@ -33,6 +33,9 @@ import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
+/** The daemon tells every page its status every 10 s (neoaprs/web/api.py STATUS_EVERY_SEC): an open socket that has said nothing for this long is gone though no close came (a phone that slept, a network that changed). */
+export const QUIET_MS = 25000;
+const CHECK_MS = 5000;
 /** The messages that answer a command, by the method of the store that keeps each. */
 const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
@@ -176,8 +179,11 @@ export class Hub {
   private socket: SocketLike | null = null;
   private delay = FIRST_DELAY_MS;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private watch: ReturnType<typeof setInterval> | undefined;
   private wanted = false;
   private live = false;
+  /** When the daemon last said anything on the socket that is open. */
+  private heardAt = 0;
   private readonly revs = new Map<TopicName, number>();
   /** The topics asked for again, whose state has not come yet: one ask each. */
   private readonly asked = new Set<TopicName>();
@@ -187,15 +193,29 @@ export class Hub {
     private readonly options: HubOptions,
   ) {}
 
-  /** Opens the socket and keeps it open: a closed one is opened again after a wait that doubles. */
+  /** Opens the socket and keeps it open: a closed one is opened again after a wait that doubles, and one that has gone quiet at once. */
   open(): void {
     this.wanted = true;
+    clearInterval(this.watch);
+    this.watch = setInterval(() => this.dropQuiet(), CHECK_MS);
     this.connect();
+  }
+
+  /** The page is in front again, or the network is back: a socket that has gone quiet is opened again, and a wait for the next try ends now. */
+  wake(): void {
+    if (!this.wanted) return;
+    if (this.socket === null) {
+      this.delay = FIRST_DELAY_MS;
+      this.connect();
+    } else {
+      this.dropQuiet();
+    }
   }
 
   close(): void {
     this.wanted = false;
     clearTimeout(this.timer);
+    clearInterval(this.watch);
     const socket = this.socket;
     this.socket = null;
     socket?.close();
@@ -223,6 +243,7 @@ export class Hub {
     this.live = false;
     socket.onmessage = (event: MessageEvent) => {
       if (this.socket !== socket || typeof event.data !== "string") return;
+      this.heardAt = Date.now();
       if (!this.live) this.up();
       this.handle(event.data);
     };
@@ -245,6 +266,17 @@ export class Hub {
     this.revs.clear();
     this.asked.clear();
     this.store.connection("open");
+  }
+
+  /** An open socket the daemon has said nothing on for QUIET_MS is let go (its late close is ignored) and a new one opened at once. */
+  private dropQuiet(): void {
+    const socket = this.socket;
+    if (socket === null || !this.live || Date.now() - this.heardAt < QUIET_MS) return;
+    this.socket = null;
+    this.live = false;
+    socket.close();
+    this.store.connection("closed");
+    this.connect();
   }
 
   private retry(): void {

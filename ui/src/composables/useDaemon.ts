@@ -147,6 +147,7 @@ export function useDaemon(url: () => string = socketUrl) {
 
   onMounted(() => hub.open());
   onBeforeUnmount(() => hub.close());
+  wakeWithThePage(hub);
   usePageErrorReport(hub, connection);
 
   return {
@@ -171,4 +172,18 @@ export function useDaemon(url: () => string = socketUrl) {
     ...answers.refs,
     send,
   };
+}
+
+/** A phone that slept, or a network that came back: the page in front again looks at its socket at once (OH2GAX: the phone showed old messages until it was reloaded). */
+function wakeWithThePage(hub: Hub): void {
+  const wake = (): void => {
+    if (document.visibilityState === "visible") hub.wake();
+  };
+  const events: [EventTarget, string][] = [
+    [document, "visibilitychange"],
+    [window, "online"],
+    [window, "pageshow"],
+  ];
+  onMounted(() => events.forEach(([target, name]) => target.addEventListener(name, wake)));
+  onBeforeUnmount(() => events.forEach(([target, name]) => target.removeEventListener(name, wake)));
 }

@@ -45,6 +45,15 @@ async def test_a_beacon_goes_out_on_both_radios_and_each_neighbour_hears_the_sta
     assert frames_of(a.radio)[0].path and not frames_of(a.hf_radio)[0].path, "the FM beacon by its path, the HF one direct"
 
 
+async def test_each_beacon_runs_while_its_radio_is_on_and_not_otherwise(tmp_path: Path) -> None:
+    """A beacon of a radio that is off would only say, at every due time, that the radio is not there (OH2GAX's log, HF alone: 31 times)."""
+    w = await two_radios(tmp_path)
+    a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]
+    assert a.ctl.beacon.running and a.ctl.hf_beacon.running
+    assert b.ctl.beacon.running and not b.ctl.hf_beacon.running
+    assert not c.ctl.beacon.running and c.ctl.hf_beacon.running
+
+
 async def test_a_message_goes_out_on_the_radio_the_station_was_heard_on_and_the_ack_comes_back_the_same_way(tmp_path: Path) -> None:
     w = await two_radios(tmp_path)
     a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]

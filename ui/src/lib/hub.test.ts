@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
+import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, QUIET_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
 import { PROTOCOL } from "@/protocol/lists";
 import type {
   AlertResultMessage,
@@ -492,6 +492,55 @@ describe("Hub", () => {
     FakeSocket.last().say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
     FakeSocket.last().hangUp();
     expect(refused).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the socket again at once when the daemon has said nothing on it for 25 s though no close came, and lets the old one go", () => {
+    const { seen, socket } = opened();
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+    vi.advanceTimersByTime(QUIET_MS - 5000);
+    expect(FakeSocket.all).toHaveLength(1);
+    vi.advanceTimersByTime(10000);
+    expect(FakeSocket.all).toHaveLength(2);
+    expect(socket.closed).toBe(true);
+    expect(seen.connection.slice(-2)).toEqual(["closed", "connecting"]);
+    socket.hangUp(); // its late close changes nothing
+    vi.advanceTimersByTime(FIRST_DELAY_MS * 4);
+    expect(FakeSocket.all).toHaveLength(2);
+  });
+
+  it("keeps a socket the daemon tells its status on every 10 s", () => {
+    const { socket } = opened();
+    for (let i = 0; i < 12; i++) {
+      socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+      vi.advanceTimersByTime(10000);
+    }
+    expect(FakeSocket.all).toHaveLength(1);
+  });
+
+  it("when woken, opens a quiet socket again at once and ends a wait for the next try, and leaves a live socket alone", () => {
+    const { hub, socket } = opened();
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+    hub.wake();
+    expect(FakeSocket.all).toHaveLength(1);
+    vi.setSystemTime(Date.now() + QUIET_MS); // the phone slept: no timer ran
+    hub.wake();
+    expect(FakeSocket.all).toHaveLength(2);
+    for (let i = 0; i < 4; i++) {
+      FakeSocket.last().hangUp();
+      vi.advanceTimersByTime(MAX_DELAY_MS);
+    }
+    FakeSocket.last().hangUp();
+    const before = FakeSocket.all.length;
+    hub.wake();
+    expect(FakeSocket.all).toHaveLength(before + 1);
+  });
+
+  it("is not woken after close()", () => {
+    const { hub } = opened();
+    hub.close();
+    hub.wake();
+    vi.advanceTimersByTime(QUIET_MS * 2);
+    expect(FakeSocket.all).toHaveLength(1);
   });
 
   it("waits no longer than 30 seconds", () => {

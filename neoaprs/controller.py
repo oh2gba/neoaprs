@@ -75,8 +75,7 @@ class Controller(Services):
         self.running = True
         await self.bulletins.start()
         await self.gps.start()
-        await self.beacon.start()
-        await self._hf_beacon_as_set()
+        await self._beacons_as_set()
         await self.igate.start()
         await self.ownobjects.start()
         await self.ownbulletins.start()
@@ -162,6 +161,8 @@ class Controller(Services):
             await self.tnc.start()
         else:
             log.info("the FM radio is off in the settings")
+        if self.running:
+            await self._beacons_as_set()
 
     async def _restart_hf_radio(self, previous: "asyncio.Task[None] | None") -> None:
         if previous is not None:
@@ -180,14 +181,12 @@ class Controller(Services):
         if self.config.hf_enabled:
             await self.hf.start()
         if self.running:
-            await self._hf_beacon_as_set()
+            await self._beacons_as_set()
 
-    async def _hf_beacon_as_set(self) -> None:
-        """The HF beacon runs while the HF radio is on and not otherwise (a beacon service of a radio that is off would only say, at every tick, why nothing goes)."""
-        if self.config.hf_enabled:
-            await self.hf_beacon.start()
-        else:
-            await self.hf_beacon.stop()
+    async def _beacons_as_set(self) -> None:
+        """Each radio's beacon runs while that radio is on and not otherwise (a beacon service of a radio that is off would only say, at every due time, why nothing goes)."""
+        for beacon, on in ((self.beacon, self.config.fm_enabled), (self.hf_beacon, self.config.hf_enabled)):
+            await (beacon.start() if on else beacon.stop())
 
     def _configure_tnc(self) -> None:
         """The radios, which are stopped, take the settings as they are now."""

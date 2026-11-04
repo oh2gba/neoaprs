@@ -259,6 +259,11 @@ class Beacon:
             self._plan(self.interval_min)
 
     @property
+    def running(self) -> bool:
+        """The timer is started (the controller runs a radio's beacon while that radio is on)."""
+        return self._started is not None
+
+    @property
     def interval_min(self) -> int:
         return self._config().beacon_interval()
 
