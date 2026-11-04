@@ -16,8 +16,8 @@ from tests.support.fakemercury import Air
 from tests.support.storedb import store_at
 
 ROOT = Path(__file__).resolve().parent.parent
-FILE = b'{"frequencies": [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]}'
-TWO = [Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB")]
+FILE = b'{"frequencies": [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.620 MHz USB"}]}'
+TWO = [Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("6 m", "50.620 MHz USB")]      # (the name is older than 6 m: the project's list as shipped)
 BUILT_IN = [Frequency(band, dial) for band, dial in mercury.SUGGESTED]
 
 
@@ -54,7 +54,7 @@ def service(server: Server, clock: Clock | None = None, environ: dict[str, str] 
 def test_the_file_of_the_site_is_a_list_the_daemon_understands_and_the_site_checks_the_same_two_forms() -> None:
     body = (ROOT / "site" / "frequencies.json").read_bytes()
     assert parse_frequencies(body) == TWO
-    assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [(40, dict(mercury.FREQUENCIES)[40]), (20, dict(mercury.FREQUENCIES)[20])], "the file ships the dials of FREQUENCIES"
+    assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [(b, dict(mercury.FREQUENCIES)[b]) for b in (40, 20, 6)], "the file ships the dials of FREQUENCIES"
 
 
 def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_three_at_most() -> None:
@@ -109,7 +109,7 @@ async def test_the_server_is_asked_a_minute_after_the_start_and_the_list_is_told
         await made.start()
         await until(lambda: made.listed == TWO)
     assert told == [TWO] and server.asked == [(FREQUENCIES_URL, "0.17.0", "linux", 8192)] and made.asked == 1
-    assert any("the project suggests the frequencies 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB (was none)" in r.getMessage() for r in caplog.records), "a change of the list is a line at INFO"
+    assert any("the project suggests the frequencies 40 m 7.0541 MHz USB, 20 m 14.1070 MHz USB, 6 m 50.620 MHz USB (was none)" in r.getMessage() for r in caplog.records), "a change of the list is a line at INFO"
 
 
 async def test_a_page_that_shows_the_box_asks_at_most_every_fifteen_minutes_however_many_pages_there_are() -> None:
@@ -212,7 +212,7 @@ async def test_the_hf_topic_has_the_list_and_a_page_that_shows_the_box_asks_for_
     page = await e.ws()
     await page.send({"cmd": "subscribe", "topics": ["hf"]})
     await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
-    assert page.topics["hf"]["modem"]["frequencies"] == [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}], "the built-in two until something better is known"
+    assert page.topics["hf"]["modem"]["frequencies"] == [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.620 MHz USB"}], "the built-in three until something better is known"
     assert "dial" not in page.topics["hf"]["modem"]
     server.answers = [json.dumps({"frequencies": [{"band": "30 m", "dial": "10.1462 MHz USB"}]}).encode()]
     await page.send({"cmd": "hf_frequencies"})

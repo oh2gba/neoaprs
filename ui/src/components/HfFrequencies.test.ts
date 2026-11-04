@@ -48,9 +48,9 @@ describe("the suggested frequencies row", () => {
     expect(wrapper.find("#hf-frequencies").exists()).toBe(true);
   });
 
-  it("keeps the room of two lines whatever the list, so that nothing moves when it changes", () => {
+  it("keeps the room of three lines, the most the list has, so that nothing moves when it changes", () => {
     const source = readFileSync(join(HERE, "HfFrequencies.vue"), "utf-8");
-    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 3em;[^}]*line-height: 1\.5;/);
+    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 4.5em;[^}]*line-height: 1\.5;/);
     expect(source).toMatch(/\.freq \{\s*display: block;/);
   });
 });

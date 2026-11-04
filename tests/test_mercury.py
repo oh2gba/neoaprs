@@ -38,8 +38,8 @@ def test_the_one_mode_is_datac3_and_its_frame_carries_123_bytes_of_a_packet_in_u
         profile_of("mercury")
 
 
-def test_the_frequencies_are_three_dials_in_the_region_1_digimode_segments_and_not_the_300_baud_one() -> None:
-    assert [band for band, _ in mercury.FREQUENCIES] == [30, 40, 20]
+def test_the_hf_dials_are_in_the_region_1_digimode_segments_and_not_the_300_baud_one() -> None:
+    assert [band for band, _ in mercury.FREQUENCIES] == [30, 40, 20, 6], "and 6 m, where the first test on the air ran (4 Nov 2026)"
     dials = {band: float(dial) for band, dial in mercury.FREQUENCIES}
     assert 10.130 <= dials[30] + 0.0012 and dials[30] + 0.0018 <= 10.150, "30 m: inside 10130-10150 kHz with the 1.2 to 1.8 kHz of audio above the dial"
     assert 7.050 <= dials[40] + 0.0012 and dials[40] + 0.0018 <= 7.060
@@ -48,7 +48,7 @@ def test_the_frequencies_are_three_dials_in_the_region_1_digimode_segments_and_n
 
 
 def test_the_manuals_table_of_frequencies_is_the_constant_and_the_dial_of_the_page_is_the_forty_metre_one() -> None:
-    """docs/RADIOS.md prints the dials of FREQUENCIES (30, 40 and 20 m) and the page says the one of DIAL_BAND, with its mode spelled out: a number changed in one place and not the other fails here."""
+    """docs/RADIOS.md prints the dials of FREQUENCIES (30, 40, 20 and 6 m) and the page says the one of DIAL_BAND, with its mode spelled out: a number changed in one place and not the other fails here."""
     manual = (Path(__file__).resolve().parent.parent / "docs" / "RADIOS.md").read_text(encoding="utf-8")
     assert [(int(band), dial) for band, dial in re.findall(r"^\| (\d+) m \| ([\d.]+) MHz \|$", manual, re.MULTILINE)] == list(mercury.FREQUENCIES)
     assert mercury.DIAL_BAND == 40 and mercury.DIAL_TEXT == "7.0541 MHz USB"

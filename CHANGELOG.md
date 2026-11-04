@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Changed:** 6 m, 50.620 MHz USB, is among the suggested frequencies, where the first test on the air ran; the HF box keeps room for its three lines.
 - **Changed:** Send logs in the Help group is now **Send feedback**: the same note and logs, for a problem or for any feedback.
 
 ## 0.17.3
