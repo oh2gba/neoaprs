@@ -6,16 +6,18 @@ import io
 import json
 import logging
 import socket
+import sys
 import zipfile
 from pathlib import Path
 
 import pytest
 
 from neoaprs import VERSION
+from neoaprs.mercuryhelper import list_sound_cards
 from neoaprs.updatefetch import multipart, post_form
 from neoaprs.versions import SUPPORT_URL
 from neoaprs.web import access as web_access
-from neoaprs.web import supportsend
+from neoaprs.web import supportsend, supportstate
 from neoaprs.web.supportsend import MAX_NOTE, answer_of, support_url
 from tests.support.env import Env, until
 from tests.support.fakesupportserver import FakeSupportServer, parse_form, support_server
@@ -232,3 +234,26 @@ async def test_a_device_that_has_not_logged_in_sends_nothing_and_a_script_of_ano
     assert (await send(e, headers={"Cookie": cookie, "Origin": "http://evil.example.com"}))[0] == 403
     assert (await send(e, headers={"Cookie": cookie, "Host": "evil.example.com"}))[0] == 403
     assert await send(e, headers={"Cookie": cookie}) == (200, {"ok": True, "ref": REF}) and len(fake.requests) == 1
+
+
+@pytest.mark.expects_errors
+async def test_the_logs_are_sent_when_the_sound_cards_cannot_be_listed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    monkeypatch.setattr(supportstate, "hf_is_mercury", lambda c: True)
+
+    def undecodable() -> list[object]:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+    monkeypatch.setattr(e.ctl.mercury, "sound_cards", undecodable)
+    code, answer = await send(e)
+    assert code == 200 and answer["ok"] and fake.requests, "a nice-to-have of the report does not sink it"
+
+
+def test_a_sound_card_list_the_locale_cannot_decode_is_read_all_the_same() -> None:
+    script = "import sys; sys.stdout.buffer.write(b\"capture devices:\\ndevice: name: '\\xff\\xfe'  id: 'plughw:1,0'\\n\")"
+    assert [c.id for c in list_sound_cards([sys.executable, "-c", script])] == ["plughw:1,0"]
+
+
+async def test_a_note_with_half_of_an_emoji_is_sent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    e, fake = await served(tmp_path, monkeypatch)
+    code, answer = await send(e, body='{"page": %s, "note": "hi \\ud83d"}' % json.dumps(PAGE))
+    assert code == 200 and answer["ok"] and fake.requests, f"{answer}: it reached the server, and the operator is not told there is no internet"

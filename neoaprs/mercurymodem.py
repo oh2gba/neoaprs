@@ -150,7 +150,7 @@ class Mercury(Channel, Tuning, Scoping):
         await asyncio.to_thread(self._program.stop)
         self.attached = ""
         self.speaker = False
-        self.keyed = self.busy = False
+        self._clear_channel()
         self.snr = None
         self._set("stopped", "")
 
@@ -243,7 +243,7 @@ class Mercury(Channel, Tuning, Scoping):
         if control is not None:
             self._tasks.spawn(control.stop(), "mercury-control-stop")
         self.speaker_line.close()
-        self.keyed = self.busy = False
+        self._clear_channel()
         self.test = ""
         self._set("waiting", problem, reason)
         self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation), "mercury-restart")
@@ -267,7 +267,7 @@ class Mercury(Channel, Tuning, Scoping):
             self.backoff.connected()
             self._set("running", "")
         else:
-            self.keyed = self.busy = False
+            self._clear_channel()
             self.test = ""                                           # (a tone under way ends by Mercury's own deadline at the latest; we cannot say any more)
             if self.state == "running":
                 log.info("Mercury's control port: %s", why)
@@ -282,7 +282,7 @@ class Mercury(Channel, Tuning, Scoping):
         if control is not None:
             await control.stop()
         await asyncio.to_thread(self._program.stop)
-        self.keyed = self.busy = False
+        self._clear_channel()
         self._set("waiting", OPEN_TO_NETWORK, "network")
 
     def _write(self, line: str) -> bool:

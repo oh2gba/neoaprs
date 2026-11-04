@@ -3,6 +3,7 @@
 
 `live_state` runs on the loop, where the parts are read; the ports are listed in a thread."""
 import asyncio
+import logging
 import os
 import threading
 from dataclasses import asdict
@@ -21,6 +22,8 @@ from .processmeter import resident_mb
 from .secureside import SecureSide
 from .updatewire import UpdateState
 from .views import gps_state, tnc_state
+
+log = logging.getLogger("neoaprs.web")
 
 
 class LiveHost(Protocol):
@@ -75,6 +78,10 @@ async def hf_state(ctl: Controller) -> dict[str, Any]:
     """The HF radio: its settings, its Tnc and, while it is the Mercury modem, every sound card Mercury lists (name, directions, id), so that a report says which device is the radio's even when the setting
     names one (the daemon lists them only when it chooses: OH2GAX's reports of 3 Nov 2026 had ids and no names)."""
     c = ctl.config
-    cards = await asyncio.to_thread(ctl.mercury.sound_cards) if hf_is_mercury(c) else []
+    try:
+        cards = await asyncio.to_thread(ctl.mercury.sound_cards) if hf_is_mercury(c) else []
+    except Exception:                                    # (a nice-to-have of the report: the bundle goes without it)
+        log.exception("the sound cards could not be listed for the support report")
+        cards = []
     return {"enabled": c.hf_enabled, "profile": c.hf_profile, "sound_card": c.mercury_sound_card, "keying": c.mercury_keying, "tnc": tnc_state(ctl.hf),
             "sound_cards": [{"name": s.name, "id": s.id, "records": s.capture, "plays": s.playback, "default": s.default} for s in cards]}

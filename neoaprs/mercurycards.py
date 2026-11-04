@@ -25,6 +25,7 @@ _DEVICE = re.compile(r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id
 PAIR = "|"
 WASAPI_PLAYBACK, WASAPI_CAPTURE = "{0.0.0.", "{0.0.1."
 _ENDPOINT_NAME = re.compile(r"^(?P<kind>.+?) \((?P<card>.+)\)$")
+_UNNUMBERED = re.compile(r"^\d+- ")              # the number Windows puts before a device name it has seen before ("2- USB Audio CODEC")
 
 
 def endpoints(card: str) -> tuple[str, str]:
@@ -42,30 +43,64 @@ def endpoints(card: str) -> tuple[str, str]:
 
 def pair_directions(cards: Sequence[SoundCard]) -> list[SoundCard]:
     """The cards with the recording and the playing device of one card made one (Windows: see PAIR), in the place of the first of them; a card with a recording and a playing device each is named after the card,
-    one with several has one pair for each, named with the devices' own names. Cards that record and play already, and devices with no partner, are as they were."""
+    one with several has one pair for each, named with the devices' own names. Windows numbers a device whose name another of its kind had before ("Speakers (2- USB Audio CODEC)"), each kind on its own, so the two
+    devices of one radio may carry different numbers: a recording and a playing device that are left with no partner are one card when they are the only two of that name without the number. Cards that record
+    and play already, and devices with no partner, are as they were."""
+    groups, named = _join_numbered(_by_card(cards))
+    out: list[SoundCard] = []
+    placed: set[int] = set()
+    for c in cards:
+        card = _card_of(c)
+        group = groups.get(card, []) if card else []
+        if not _whole(group):
+            out.append(c)
+        elif id(group) not in placed:
+            placed.add(id(group))
+            out += _pairs(group, named[card])
+    return out
+
+
+def _whole(group: Sequence[SoundCard]) -> bool:
+    """Whether the devices are a recording and a playing one at least."""
+    return any(g.capture for g in group) and any(g.playback for g in group)
+
+
+def _card_of(device: SoundCard) -> str:
+    """The card a Windows device of one direction belongs to ("USB Audio CODEC" of "Microphone (USB Audio CODEC)"); "" for anything else."""
+    m = _ENDPOINT_NAME.match(device.name)
+    return m.group("card") if m and device.playback != device.capture else ""
+
+
+def _by_card(cards: Sequence[SoundCard]) -> dict[str, list[SoundCard]]:
+    """The Windows devices of one direction, by the card they belong to."""
     groups: dict[str, list[SoundCard]] = {}
     for c in cards:
-        m = _ENDPOINT_NAME.match(c.name)
-        if m and c.playback != c.capture:
-            groups.setdefault(m.group("card"), []).append(c)
-    out: list[SoundCard] = []
-    placed: set[str] = set()
-    for c in cards:
-        m = _ENDPOINT_NAME.match(c.name)
-        group = groups.get(m.group("card"), []) if m and c.playback != c.capture else []
-        captures, playbacks = [g for g in group if g.capture], [g for g in group if g.playback]
-        if not captures or not playbacks:
-            out.append(c)
-            continue
-        card = m.group("card") if m else c.name
-        if card in placed:
-            continue
-        placed.add(card)
-        for rec in captures:
-            for play in playbacks:
-                name = card if len(captures) == 1 and len(playbacks) == 1 else f"{card} ({_kind(rec)}, {_kind(play)})"
-                out.append(SoundCard(f"{rec.id}{PAIR}{play.id}", name, True, True, rec.default and play.default))
-    return out
+        if card := _card_of(c):
+            groups.setdefault(card, []).append(c)
+    return groups
+
+
+def _join_numbered(groups: dict[str, list[SoundCard]]) -> tuple[dict[str, list[SoundCard]], dict[str, str]]:
+    """The groups with the lone devices of one name without its number joined, where they are one recording and one playing device ("Speakers (2- USB Audio CODEC)" and "Microphone (USB Audio CODEC)"), and the name
+    each group's pair is given: the card's, or for the joined ones the name without the number."""
+    lone = {card: group for card, group in groups.items() if not _whole(group)}
+    unnumbered: dict[str, list[str]] = {}
+    for card in lone:
+        unnumbered.setdefault(_UNNUMBERED.sub("", card), []).append(card)
+    joined, named = dict(groups), {card: card for card in groups}
+    for name, cards_of in unnumbered.items():
+        devices = [g for card in cards_of for g in lone[card]]
+        if len(cards_of) > 1 and sum(g.capture for g in devices) == 1 and sum(g.playback for g in devices) == 1:
+            for card in cards_of:
+                joined[card], named[card] = devices, name
+    return joined, named
+
+
+def _pairs(group: Sequence[SoundCard], card: str) -> list[SoundCard]:
+    """The pairs of one card's devices: one named after the card for one of each, else one for each way, named with the devices' own names."""
+    captures, playbacks = [g for g in group if g.capture], [g for g in group if g.playback]
+    alone = len(captures) == 1 and len(playbacks) == 1
+    return [SoundCard(f"{rec.id}{PAIR}{play.id}", card if alone else f"{card} ({_kind(rec)}, {_kind(play)})", True, True, rec.default and play.default) for rec in captures for play in playbacks]
 
 
 def _kind(card: SoundCard) -> str:

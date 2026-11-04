@@ -32,6 +32,11 @@ class Channel:
         self._keyed_since = self._busy_since = 0.0                   # when the PTT ON / BUSY ON that is under way came (for the log's "for 3.8 s")
         self._told_long: set[str] = set()                            # "keyed" / "busy": the hold has said it gives up on a state that lasts too long (once for each)
 
+    def _clear_channel(self) -> None:
+        """The program is gone or not heard (stopped, ended, refused, its control line down): nothing it said holds what comes next, not its keying, not its detector's BUSY, not the spectrum it fed."""
+        self.keyed = self.busy = self._mercury_busy = False
+        self._auto_at = 0.0
+
     def _event(self, event: ControlEvent) -> None:
         now = time.monotonic()
         if event.kind == "ptt":

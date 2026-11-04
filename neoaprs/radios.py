@@ -38,6 +38,7 @@ class Radios:
         self._config = config
         self._book = book
         self._remember, self._wait_written = remember, flush                     # keep the operator's choices of a radio by station (the state row MESSAGE_RADIOS: the composition root writes it), and wait for it
+        self._choices: dict[str, str] = {}                                        # the choices in force, by call: what the row says (a station the book lets go takes its choice with it)
 
     def __iter__(self) -> Iterator[Tnc]:
         """Every radio, enabled or not (the page's topics, the wiring of the packets: a radio that is off emits nothing)."""
@@ -82,13 +83,28 @@ class Radios:
         if station is None or (kind and kind not in KINDS):
             return False
         station.message_radio = kind
+        if kind:
+            self._choices[station.call] = kind
+        else:
+            self._choices.pop(station.call, None)
         self._book.changed.emit(station)
         self._remember(self.choices_text())
         return True
 
+    def forget(self, call: str) -> None:
+        """The book let the station go (Forget, the daily prune): its choice goes too, from the row as well, so that a restart does not bring it back to a station heard again meanwhile."""
+        if self._choices.pop(call, None) is not None:
+            self._remember(self.choices_text())
+
+    def forget_all(self) -> None:
+        """The book let every station go (Forget all)."""
+        if self._choices:
+            self._choices.clear()
+            self._remember(self.choices_text())
+
     def choices_text(self) -> str:
         """The choices of the stations in the book, as the state row keeps them."""
-        return json.dumps({s.call: s.message_radio for s in self._book.stations() if s.message_radio}, sort_keys=True)
+        return json.dumps(self._choices, sort_keys=True)
 
     async def flush(self) -> None:
         """Waits until a choice being written is written (the stop)."""
@@ -104,7 +120,7 @@ class Radios:
         for call, kind in (kept.items() if isinstance(kept, dict) else ()):
             station = self._book.get(str(call))
             if station is not None and kind in KINDS:
-                station.message_radio = kind
+                station.message_radio = self._choices[station.call] = kind
 
     def for_packet(self, packet: Packet) -> Tnc:
         """The radio to answer a packet on: the one it came on, while it is enabled; else the default. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""

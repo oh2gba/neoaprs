@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The dialog of Send feedback / logs (SettingsHelp opens it), in the middle of the page over a dimmed one as the path builder's is, and with its keys (useDialogFocus: the focus in the text, Tab going round, Esc closing): one text, "What happened?", of a few lines
-// and at most NOTE_MAX characters, Send and Cancel. Send hands the words to the group (an empty text is fine) and closes the dialog, and the group does the sending and tells the outcome; Cancel, the cross, Esc and a press beside the dialog close it
+// and at most NOTE_MAX characters, Send and Cancel. Send hands the words to the group (an empty text is fine) and closes the dialog, and the group does the sending and tells the outcome; it starts from the group's `draft` and tells the group every change (`draft`), so that words not sent are there again at the next opening; Cancel, the cross, Esc and a press beside the dialog close it
 // and send nothing. Under the text the logs file is shown attached, as a mail program shows an attachment (its name as the daemon makes it, without the time it is made at). The one (i) in the header says
 // what goes and that nothing goes before Send; no other line explains anything.
-import { computed, ref, useId } from "vue";
+import { computed, ref, useId, watch } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useDialogFocus } from "@/composables/useDialogFocus";
@@ -16,13 +16,17 @@ const props = defineProps<{
   opener: HTMLElement | null;
   /** our call, which names the logs file (neoaprs/cli/supportbundle.py, bundle_name: `nocall` without one) */
   call?: string | null;
+  /** the words written at an earlier opening and not sent */
+  draft?: string;
 }>();
-const emit = defineEmits<{ send: [note: string]; close: [] }>();
+const emit = defineEmits<{ send: [note: string]; draft: [text: string]; close: [] }>();
 
 const titleId = useId();
 const noteId = useId();
 const dialog = ref<HTMLElement | null>(null);
-const note = ref("");
+/** The words written, from the group's draft: the group keeps them until they were sent. */
+const note = ref(props.draft ?? "");
+watch(note, (text) => emit("draft", text), { flush: "sync" }); // (at once: Send closes the dialog in the same tick)
 const attached = computed(() => `neoaprs-support-${props.call || "nocall"}.zip`);
 const keys = useDialogFocus(dialog, () => emit("close"), {
   first: () => dialog.value?.querySelector<HTMLElement>("textarea") ?? null,
