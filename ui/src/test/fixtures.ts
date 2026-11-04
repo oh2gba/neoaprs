@@ -88,6 +88,8 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     bearing_deg: 45,
     is_me: false,
     can_message: true,
+    may_not_message: false,
+    message_radio: "",
     own: false,
     weather: null,
     weather_at: null,

@@ -10,7 +10,7 @@ from datetime import timedelta
 from typing import NamedTuple
 
 from .app import Services
-from .config import Config
+from .config import MESSAGE_RADIOS, Config
 from .dummyline import DUMMY_PATH
 from .mercury import BROADCAST_PORT as MERCURY_PORT, DIAL_BAND, SUGGESTED
 from .mercurymodem import HOST as MERCURY_HOST
@@ -221,6 +221,7 @@ async def seed_station_book(parts: Services) -> None:
     book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))      # (the newest first, as the window gives them: the routes are read oldest first)
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
     book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
+    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS))     # (the operator's radio by station, on the stations just seeded)
 
 
 async def _seed_weather(parts: Services) -> None:

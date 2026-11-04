@@ -93,6 +93,13 @@ export const messages = {
 
   "route.button": "Route",
   "messages.hf_tag_title": "Messages to this station go over the HF radio: direct, no path",
+  "messages.radio_label": "The radio the messages go over",
+  "messages.radio_fm_title": "Send the messages to this station over the FM radio",
+  "messages.radio_hf_title": "Send the messages to this station over the HF radio",
+  "messages.may_not_message": "This station may not take messages",
+  "messages.may_not_message_label": "Why it may not",
+  "messages.may_not_message_help":
+    "Its last position was sent by a radio or a program that says it does not take messages, and it has never sent one. A message can still go: if nothing reads it there, it gets no ack.",
   "route.changed": "Route: not the default",
   "route.path": "Path",
   "route.calls_hint": "Calls separated by commas, at most {max}",

@@ -215,15 +215,13 @@ async def test_query_to_a_station_that_is_not_in_the_book_is_refused(tmp_path: P
     assert page.topics["messages"] == {} and page.topics["packets"] == {}
 
 
-async def test_query_to_a_station_that_takes_no_messages_is_refused(tmp_path: Path) -> None:
+async def test_a_station_whose_position_takes_no_messages_can_still_be_asked_and_is_marked(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
     await hear_station(e, page, "OH2PLN", b"!6010.00N/02456.00E>x")                       # (a position with no messaging)
-    assert page.topics["stations"]["OH2PLN"]["can_message"] is False
+    row = page.topics["stations"]["OH2PLN"]
+    assert row["can_message"] is True and row["may_not_message"] is True, "the operator may write; the page says it may not be read (John, 4 Nov 2026)"
     await page.send({"cmd": "query", "call": "OH2PLN", "kind": "status"})
-    error = await page.expect("error")
-    assert (error["code"], error["params"]) == ("query.not_capable", {"call": "OH2PLN"})
-    await page.quiet(0.2)
-    assert page.topics["messages"] == {} and on_the_air(page) == []
+    await page.until(lambda: on_the_air(page) != [])
 
 
 async def test_query_to_ourselves_or_to_an_object_is_refused(tmp_path: Path) -> None:

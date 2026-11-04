@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | HfScopeMessage;
 
@@ -1194,6 +1194,13 @@ export interface SetConfigCommand {
   values: { [key: string]: string };
 }
 
+/** Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not known (`station.unknown`). */
+export interface SetMessageRadioCommand {
+  cmd: "message_radio";
+  call: string;
+  radio: "" | "fm" | "hf";
+}
+
 /** The item at `key` is `value` (the whole item, new or changed). */
 export interface SetOp {
   op: "set";
@@ -1412,8 +1419,12 @@ export interface StationRow {
   is_me: boolean;
   /** an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row */
   own: boolean;
-  /** a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only */
+  /** a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`) */
   can_message: boolean;
+  /** the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there */
+  may_not_message: boolean;
+  /** the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard on HF alone) */
+  message_radio: "" | "fm" | "hf";
   /** the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed */
   track: [string, number, number][];
 }

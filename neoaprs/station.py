@@ -98,6 +98,7 @@ class Station:
     hour_is: HourCount = field(default_factory=HourCount, repr=False, compare=False)    # ... those of them that came from the internet
     radio: RadioPlace | None = field(default=None, repr=False, compare=False)    # where the packets that were not from the internet put it, once it has been heard from the internet too (not kept in the cache: read again from the packets at the start)
     sent_message: bool = False                  # it has sent a message or an ack to a station (overheard or not): it does messages (not kept in the cache: it is read again from the packet log at the start)
+    message_radio: str = ""                     # the radio the operator chose for messages to it while both are on (`fm`, `hf`), "" for the daemon's choice (radios.py); kept in the state row MESSAGE_RADIOS, not in the cache
     position_messaging: bool | None = None      # its latest position says whether it takes messages (`=` and `@`, or Mic-E but the type code `'`); None until a position is heard (not kept in the cache either)
     track: Track = field(default_factory=list)  # (time, lat, lon), the latest TRACK_MAX positions, oldest first
     is_me: bool = False
@@ -125,11 +126,15 @@ class Station:
 
     @property
     def can_message(self) -> bool:
-        """Whether a message to it makes sense. Never for an object or an item, not for us, and not for a station known only from the internet (this program sends nothing but by radio). A station that has sent a message or an ack does messages, whatever its positions say; else its latest
-        position says (`=` and `@` yes, `!` and `/` no, Mic-E yes unless its comment starts with the type code `'` of a radio without messaging); a station with neither is not hidden."""
-        if self.kind != "station" or self.is_me or self.internet_only:
-            return False
-        return self.sent_message or self.position_messaging is not False
+        """Whether a message to it can go out: never to an object or an item, not to us, and not to a station known only from the internet (this program sends nothing but by radio). A station whose position
+        says it takes no messages can still be written to (the operator knows better than the position: John, 4 Nov 2026); `may_not_message` says so beside the conversation."""
+        return self.kind == "station" and not self.is_me and not self.internet_only
+
+    @property
+    def may_not_message(self) -> bool:
+        """Its latest position says it takes no messages (`!` and `/`, or Mic-E with the type code `'` of a radio without messaging) and it has never sent a message or an ack: a message may not be read there.
+        A station that has sent one does messages, whatever its position says."""
+        return self.kind == "station" and not self.sent_message and self.position_messaging is False
 
     @property
     def last_direct_at(self) -> datetime | None:

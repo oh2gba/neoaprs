@@ -94,6 +94,13 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "route.button": "経路",
   "messages.hf_tag_title": "この局へのメッセージはHF無線機で送られます：直接、パスなし",
+  "messages.radio_label": "メッセージを送る無線機",
+  "messages.radio_fm_title": "この局へのメッセージをFM無線機で送る",
+  "messages.radio_hf_title": "この局へのメッセージをHF無線機で送る",
+  "messages.may_not_message": "この局はメッセージを受信できない可能性があります",
+  "messages.may_not_message_label": "その理由",
+  "messages.may_not_message_help":
+    "最後の位置情報は、メッセージを受信しないと示す無線機またはプログラムから送られており、この局はメッセージを送ったことがありません。それでもメッセージは送れます。相手側で誰も読まなければ、確認応答は返りません。",
   "route.changed": "経路: 既定と異なります",
   "route.path": "パス",
   "route.calls_hint": "コールサインをカンマで区切ります(最大{max}個)",

@@ -451,3 +451,18 @@
 .compose-lock.pressed {
   color: var(--accent);
 }
+/* FM and HF before Send while both radios are on (MessageCompose): the radio the messages to the station go over is pressed (the path builder's buttons) */
+.compose-radio {
+  display: inline-flex;
+  gap: 4px;
+}
+.compose-radio .btn {
+  min-width: 40px;
+}
+/* a station whose position says it takes no messages: one line above the box to write in, with the (i) that says why */
+.convo-maynot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 8px;
+}

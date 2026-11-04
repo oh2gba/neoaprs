@@ -16,6 +16,8 @@ describe("the radio a station is messaged on", () => {
     const heard = (fm: number, hf: number) => stationRadio(station("OH2XYZ", { heard_fm: fm, heard_hf: hf }));
     expect([heard(3, 0), heard(0, 2), heard(3, 2), heard(0, 0)]).toEqual(["fm", "hf", "fm", "fm"]);
     expect([stationRadio(null), stationRadio(undefined)]).toEqual(["fm", "fm"]);
+    expect(stationRadio(station("OH2GAX-2", { heard_fm: 40, heard_hf: 21, message_radio: "hf" }))).toBe("hf");
+    expect(stationRadio(station("OH2FAR", { heard_fm: 0, heard_hf: 3, message_radio: "fm" }))).toBe("fm");
   });
 });
 

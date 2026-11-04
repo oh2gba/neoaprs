@@ -5,6 +5,7 @@
 import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
+import InfoTip from "@/components/InfoTip.vue";
 import KeyMenu from "@/components/KeyMenu.vue";
 import MessageCompose from "@/components/MessageCompose.vue";
 import RouteMenu from "@/components/RouteMenu.vue";
@@ -13,7 +14,7 @@ import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { conversationName, isOverheard, overheardPair, replyTo } from "@/lib/messages";
-import { hasPaths, radioFor } from "@/lib/radiosides";
+import { fmOn, hasPaths, hfOn, radioFor, type RadioKind } from "@/lib/radiosides";
 import type { MessageRow } from "@/protocol/protocol";
 
 const props = defineProps<{
@@ -30,7 +31,20 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations } = useDaemonContext();
+const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations, send } = useDaemonContext();
+/** The station's row; null for a call nothing is known of. */
+const row = computed(() => stations.value.get(props.selected) ?? null);
+/** The radio the messages go over, for FM and HF before Send: only while both radios are on and the station is known (the daemon keeps the choice with the station); "" otherwise. */
+const radio = computed<RadioKind | "">(() => {
+  const values = config.value?.values ?? {};
+  return fmOn(values) && hfOn(values) && row.value !== null ? radioFor(row.value, values) : "";
+});
+/** The operator chose the other radio for the messages to this station. */
+function chooseRadio(kind: RadioKind): void {
+  send({ cmd: "message_radio", call: props.selected, radio: kind });
+}
+/** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
+const mayNot = computed(() => row.value?.may_not_message === true);
 /** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
 const routable = computed(() => hasPaths(config.value?.values ?? {}, stations.value.get(props.selected) ?? null));
 /** Whether the messages to the station go over the HF radio (no path, no RF only: the header says it in Route's place with a tag). */
@@ -62,7 +76,7 @@ onMounted(() => {
         <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
-      <TagMark v-if="!heard && overHf" tone="hf" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
+      <TagMark v-if="!heard && overHf && !radio" tone="hf" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
       <RouteMenu
         v-if="!heard && routable"
         :key="selected"
@@ -92,13 +106,19 @@ onMounted(() => {
       @cancel="emit('cancel', $event)"
       @delete="emit('delete', $event)"
     />
+    <p v-if="!heard && mayNot" class="convo-maynot problem" role="note">
+      {{ t("messages.may_not_message") }}
+      <InfoTip :label="t('messages.may_not_message_label')">{{ t("messages.may_not_message_help") }}</InfoTip>
+    </p>
     <MessageCompose
       v-if="!heard"
       v-model:text="text"
       :to="[replyTo(selected)]"
       :connected="connected"
       :lockable="lockable"
+      :radio="radio"
       @send="(to, body, locked) => emit('send', to, body, locked)"
+      @radio="chooseRadio"
     />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </section>

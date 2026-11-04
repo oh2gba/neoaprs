@@ -154,6 +154,7 @@ STATE_WORDS = {
     cfg.STATUS_SENT: "when the status report last went out",
     cfg.STATUS_TEXT: "the text of that status report, so that an unchanged status is not sent again",
     cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
+    cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
 }
 

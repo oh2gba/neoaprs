@@ -6,7 +6,8 @@ on). While the HF radio is not enabled every choice falls to the FM radio and no
 
 The slots are enabled by the settings `fm/enabled` and `hf/enabled`; a radio that is not enabled stays stopped (the controller starts and stops each on its own settings) and is never chosen. Both `Tnc` objects
 always exist, so that the page's topics and the tests have them whatever the settings."""
-from collections.abc import Callable, Iterator
+import json
+from collections.abc import Awaitable, Callable, Iterator
 
 from . import ax25
 from .config import Config
@@ -31,10 +32,12 @@ def hf_is_dummy(config: Config) -> bool:
 
 
 class Radios:
-    def __init__(self, fm: Tnc, hf: Tnc, config: Callable[[], Config], book: StationBook) -> None:
+    def __init__(self, fm: Tnc, hf: Tnc, config: Callable[[], Config], book: StationBook, remember: Callable[[str], None] = lambda text: None,
+                 flush: Callable[[], Awaitable[None]] | None = None) -> None:
         self.fm, self.hf = fm, hf
         self._config = config
         self._book = book
+        self._remember, self._wait_written = remember, flush                     # keep the operator's choices of a radio by station (the state row MESSAGE_RADIOS: the composition root writes it), and wait for it
 
     def __iter__(self) -> Iterator[Tnc]:
         """Every radio, enabled or not (the page's topics, the wiring of the packets: a radio that is off emits nothing)."""
@@ -62,12 +65,46 @@ class Radios:
         return self.of("fm") or self.of("hf") or self.fm
 
     def for_station(self, call: str) -> Tnc:
-        """The radio a message of ours to the station goes out on: the FM radio unless the station was heard on HF alone (or FM is off); a station never heard goes on the default radio."""
+        """The radio a message of ours to the station goes out on: the one the operator chose for it (`choose`), else the FM radio unless the station was heard on HF alone (or FM is off); a station never
+        heard goes on the default radio. Every attempt of a message asks again, so a choice made between two attempts holds for the next."""
         fm, hf = self.of("fm"), self.of("hf")
         if fm is None or hf is None:
             return self.default
         station = self._book.get(call)
+        if station is not None and station.message_radio in KINDS:
+            return fm if station.message_radio == "fm" else hf
         return hf if station is not None and station.heard_hf > 0 and station.heard_fm == 0 else fm
+
+    def choose(self, call: str, kind: str) -> bool:
+        """The radio messages to the station go out on from now on (`fm`, `hf`; "" gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a station
+        that is not in the book."""
+        station = self._book.get(call)
+        if station is None or (kind and kind not in KINDS):
+            return False
+        station.message_radio = kind
+        self._book.changed.emit(station)
+        self._remember(self.choices_text())
+        return True
+
+    def choices_text(self) -> str:
+        """The choices of the stations in the book, as the state row keeps them."""
+        return json.dumps({s.call: s.message_radio for s in self._book.stations() if s.message_radio}, sort_keys=True)
+
+    async def flush(self) -> None:
+        """Waits until a choice being written is written (the stop)."""
+        if self._wait_written is not None:
+            await self._wait_written()
+
+    def restore(self, text: str | None) -> None:
+        """The choices kept in the state row, on the stations of the book (at the start, once the book is seeded); a row that is not one is no choice."""
+        try:
+            kept = json.loads(text or "{}")
+        except ValueError:
+            return
+        for call, kind in (kept.items() if isinstance(kept, dict) else ()):
+            station = self._book.get(str(call))
+            if station is not None and kind in KINDS:
+                station.message_radio = kind
 
     def for_packet(self, packet: Packet) -> Tnc:
         """The radio to answer a packet on: the one it came on, while it is enabled; else the default. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""

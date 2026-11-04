@@ -1,9 +1,10 @@
-"""The commands of the HF radio's Tune and keying test (neoaprs/web/tncwire.py: `hf_tune`, `hf_key_test`), answered by the modem part (neoaprs/mercurymodem.py) through Mercury's own TUNE command. Registered with the
+"""The commands of the HF radio's Tune and keying test (neoaprs/web/tncwire.py: `hf_tune`, `hf_key_test`), and the choice of the radio a station's messages go over while both are on (`message_radio`), answered by the modem part (neoaprs/mercurymodem.py) through Mercury's own TUNE command. Registered with the
 dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there."""
 from neoaprs.coded import CodedError
 from neoaprs.config import can_transmit
 
 from .dispatch import Ctx, UserError, command
+from .messagewire import SetMessageRadio
 from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfTune
 
 
@@ -50,3 +51,9 @@ async def hf_scope(ctx: Ctx, cmd: HfScope) -> None:
 async def hf_frequencies(ctx: Ctx, cmd: HfFrequencies) -> None:
     """The page shows the HF radio's box: the project's list of frequencies is asked for again if it is time (the service keeps the 15 minutes between two questions)."""
     ctx.ctl.frequencies.wanted()
+
+
+@command(SetMessageRadio)
+async def message_radio(ctx: Ctx, cmd: SetMessageRadio) -> None:
+    if not ctx.ctl.radios.choose(cmd.call, cmd.radio):
+        raise UserError(f"{cmd.cmd}: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})

@@ -314,6 +314,13 @@ export const de: Catalogue = {
 
   "route.button": "Weg",
   "messages.hf_tag_title": "Nachrichten an diese Station gehen über das KW-Funkgerät: direkt, ohne Pfad",
+  "messages.radio_label": "Das Funkgerät, über das die Nachrichten gehen",
+  "messages.radio_fm_title": "Nachrichten an diese Station über das FM-Funkgerät senden",
+  "messages.radio_hf_title": "Nachrichten an diese Station über das HF-Funkgerät senden",
+  "messages.may_not_message": "Diese Station empfängt vielleicht keine Nachrichten",
+  "messages.may_not_message_label": "Warum vielleicht nicht",
+  "messages.may_not_message_help":
+    "Ihre letzte Position kam von einem Funkgerät oder Programm, das angibt, keine Nachrichten zu empfangen, und sie hat nie eine Nachricht gesendet. Eine Nachricht kann trotzdem gesendet werden: Liest sie dort niemand, kommt keine Bestätigung.",
   "route.changed": "Weg: nicht der Standard",
   "route.path": "Pfad",
   "route.calls_hint": "Rufzeichen durch Kommas getrennt, höchstens {max}",

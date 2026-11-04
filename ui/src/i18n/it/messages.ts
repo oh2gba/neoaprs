@@ -97,6 +97,13 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
 
   "route.button": "Percorso",
   "messages.hf_tag_title": "I messaggi a questa stazione vanno sulla radio HF: in diretta, senza percorso",
+  "messages.radio_label": "La radio su cui passano i messaggi",
+  "messages.radio_fm_title": "Invia i messaggi a questa stazione con la radio FM",
+  "messages.radio_hf_title": "Invia i messaggi a questa stazione con la radio HF",
+  "messages.may_not_message": "Questa stazione potrebbe non ricevere messaggi",
+  "messages.may_not_message_label": "Perché potrebbe non riceverli",
+  "messages.may_not_message_help":
+    "La sua ultima posizione è stata inviata da una radio o da un programma che dichiara di non ricevere messaggi, e non ne ha mai inviato uno. Un messaggio può comunque partire: se lì nessuno lo legge, non arriva la conferma.",
   "route.changed": "Percorso: non quello predefinito",
   "route.path": "Via",
   "route.calls_hint": "Nominativi separati da virgole, al massimo {max}",

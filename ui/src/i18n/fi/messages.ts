@@ -99,6 +99,13 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "route.button": "Reitti",
   "messages.hf_tag_title": "Viestit tälle asemalle kulkevat HF-radion kautta: suoraan, ilman polkua",
+  "messages.radio_label": "Radio, jota viestit käyttävät",
+  "messages.radio_fm_title": "Lähetä viestit tälle asemalle FM-radiolla",
+  "messages.radio_hf_title": "Lähetä viestit tälle asemalle HF-radiolla",
+  "messages.may_not_message": "Tämä asema ei ehkä vastaanota viestejä",
+  "messages.may_not_message_label": "Miksi ei ehkä",
+  "messages.may_not_message_help":
+    "Sen viimeisimmän sijainnin lähetti radio tai ohjelma, joka ilmoittaa, ettei se vastaanota viestejä, eikä asema ole koskaan lähettänyt viestiä. Viestin voi silti lähettää: jos kukaan ei lue sitä siellä, kuittausta ei tule.",
   "route.changed": "Reitti: ei oletus",
   "route.path": "Polku",
   "route.calls_hint": "Kutsut pilkuilla erotettuina, enintään {max}",

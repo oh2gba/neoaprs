@@ -2,6 +2,7 @@
 
 A message is a row of the message table (`MessageRecord`): one we sent (direction "out") or one that was sent to us (direction "in", state "received"). `id` is the number the database gave it; `msg_id` is
 the APRS message id, the 1 to 5 characters after the "{" that the acknowledgement quotes (the ones we give are two, `MSG_IDS`). Every datetime is timezone-aware UTC."""
+import random
 import re
 import string
 from dataclasses import dataclass
@@ -196,6 +197,14 @@ def schedule_sec(attempts_max: int) -> tuple[int, ...]:
     for n in range(1, attempts_max):
         at.append(at[-1] + int(wait_after(n, attempts_max).total_seconds()))
     return tuple(at)
+
+
+def retry_pause(record: MessageRecord, jitter_sec: int) -> timedelta:
+    """The pause added before the next attempt of the message, from 0 to `jitter_sec` seconds; none before the first attempt or after the last, and none on a radio without one (FM). It is the same for the
+    same message and attempt every time it is asked (the schedule asks again and again), and another for the other station of a collision, whose message has another addressee and number."""
+    if jitter_sec <= 0 or record.attempts == 0 or record.attempts >= record.attempts_max:
+        return timedelta(0)
+    return timedelta(seconds=random.Random(f"{record.to_call}/{record.id}/{record.attempts}").uniform(0, jitter_sec))
 
 
 def due_at(record: MessageRecord) -> datetime | None:

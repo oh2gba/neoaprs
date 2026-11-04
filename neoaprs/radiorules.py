@@ -18,6 +18,8 @@ FM_BEACON_MIN_MIN = 20
 HF_BEACON_MIN_MIN = 30                 # the floor of beacon/interval_min while the HF radio is on (the FM radio's alone: FM_BEACON_MIN_MIN)
 HF_BEACON_JITTER_SEC = 300             # measured: the smallest pause that puts stations started together within a point of the random-phase floor (the docstring above; docs/mercury.md)
 HF_MAX_FRAME = 123
+HF_RETRY_JITTER_SEC = 20              # the longest pause added before each retry of a message on HF: two stations that sent at the same moment collided, and their retries, 32 s and 64 s later to the second,
+                                      # collided again (John and OH2GAX, 4 Nov 2026); a frame keys the radio for about 4 s and the channel-busy check needs about a second to see another station start
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,8 @@ class RadioRules:
     beacon_min_min: int            # the shortest beacon interval the radio takes (the one setting beacon/interval_min is raised to it while the radio is on)
     beacon_jitter_sec: int         # the longest random pause added to each timed beacon; 0: none
     max_frame: int | None          # the longest AX.25 frame the radio carries whole; None: AX.25's limit alone
+    retry_jitter_sec: int = 0      # the longest pause added before each retry of a message (message.retry_pause); 0: none
 
 
 FM = RadioRules("fm", True, True, True, FM_BEACON_MIN_MIN, 0, None)
-HF = RadioRules("hf", False, False, False, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_MAX_FRAME)
+HF = RadioRules("hf", False, False, False, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_MAX_FRAME, HF_RETRY_JITTER_SEC)

@@ -1,5 +1,6 @@
-"""Which stations the page offers a Message button: the station book's `can_message`, from the data type identifier of a position (`=` and `@` take messages, `!` and `/` do not), Mic-E, a message
-or an ack heard from the station, and the kind of the row; carried on the wire as `can_message`, and found again at the start from the packet log."""
+"""Which stations take messages as far as we know: the station book's `can_message` (a message can go out at all: not to an object, an item, ourselves or a station of the internet only) and
+`may_not_message` (the data type identifier of a position says no: `!` and `/`, and Mic-E with the type code `'`; a message or an ack heard from the station says yes), carried on the wire as both, and
+found again at the start from the packet log. The page offers the Message button for `can_message` and says beside the conversation when `may_not_message`."""
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25
+from neoaprs.station import Station
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.clock import utc
 from neoaprs.packet import Packet, channel_of
@@ -31,12 +33,17 @@ def heard(info: str | bytes, source: str = "OH2AAA", destination: str = "APRS", 
     return Packet(at, direction, ax25.encode(frame), source, destination, (), data, decoded, third_party, channel_of(third_party))  # type: ignore[arg-type]
 
 
+def takes(station: Station) -> bool:
+    """A message can go to it and nothing says it is not read there."""
+    return station.can_message and not station.may_not_message
+
+
 def can_message(book: StationBook, call: str = "OH2AAA") -> bool:
     station = book.get(call)
     assert station is not None
     row = StationRow.model_validate_json(json.dumps(station_row(book, station)))
-    assert row.can_message is station.can_message
-    return row.can_message
+    assert row.can_message is station.can_message and row.may_not_message is station.may_not_message
+    return row.can_message and not row.may_not_message
 
 
 @pytest.mark.parametrize(("identifier", "expected"), [("=", True), ("@092345z", True), ("!", False), ("/092345z", False)])
@@ -124,7 +131,7 @@ def test_our_own_station_is_none_to_message() -> None:
 
 def test_a_change_is_signalled_so_that_the_page_hears_of_it() -> None:
     book, seen = StationBook(), []
-    book.changed.connect(lambda s: seen.append(s.can_message))
+    book.changed.connect(lambda s: seen.append(takes(s)))
     book.take(heard("!" + POSITION))
     book.take(heard(":OH2BBB   :hello"))
     assert seen == [False, True]
@@ -141,7 +148,7 @@ async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
         log.append(later)
     for station in book.stations():
         log.save_station(station)
-    expected = {s.call: s.can_message for s in book.stations()}
+    expected = {s.call: takes(s) for s in book.stations()}
     assert expected == {"OH2NO": False, "OH2YES": True, "OH2TLK": True, "OH2MIC": True, "OH2NON": True, "FIRE": False}
     for _ in range(100):                                                  # (more packets than the other things the book starts from read)
         log.append(heard(">noise", "OH2NSE"))
@@ -149,6 +156,6 @@ async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
 
     fresh = StationBook()
     fresh.seed(await log.stations())
-    assert fresh.get("OH2NO").can_message is True                        # type: ignore[union-attr]  (nothing but the cache: it knows nothing yet)
+    assert takes(fresh.get("OH2NO")) is True                        # type: ignore[arg-type]  (nothing but the cache: it knows nothing yet)
     fresh.seed_messaging(await log.messaging_evidence(30))
-    assert {s.call: s.can_message for s in fresh.stations()} == expected
+    assert {s.call: takes(s) for s in fresh.stations()} == expected

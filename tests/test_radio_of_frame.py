@@ -9,7 +9,8 @@ from pathlib import Path
 from neoaprs import ax25
 from neoaprs.config import Config
 from neoaprs.interlock import Interlock
-from neoaprs.message import MessageRecord
+from neoaprs.message import MessageRecord, retry_pause
+from neoaprs.radiorules import HF
 from neoaprs.ownlog import OwnLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.beacon import Beacon
@@ -63,7 +64,7 @@ def record(number: int, to: str, at: datetime, attempts: int = 1) -> MessageReco
 def test_the_ticker_attempts_a_message_on_hf_while_the_fm_radio_is_away_and_flushes_the_acks_that_wait() -> None:
     radios = StubRadios(hf_stations=("OH2C",))
     clock = FixedClock()
-    at = clock() - timedelta(seconds=40)                                    # (both messages had their first attempt 40 s ago: the retry at 32 s is due)
+    at = clock() - timedelta(seconds=60)                                    # (both messages had their first attempt 60 s ago: the retry at 32 s is due, on HF after its pause of at most 20 s too)
     host = Host(radios, [record(1, "OH2B", at), record(2, "OH2C", at)])
     flushed: list[int] = []
     retries = Retries(host, radios, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0, lambda: flushed.append(1))
@@ -87,11 +88,12 @@ def test_the_time_a_radio_was_away_moves_on_the_waits_of_that_radio_alone_and_no
     retries.tick()                                                          # (the FM radio is away from now)
     clock.advance(10)
     retries.tick()                                                          # (... and still at +10)
-    clock.advance(32)                                                       # (it came back somewhere in these 32 s, which nobody saw: the jump is not its time away)
+    clock.advance(52)                                                       # (it came back somewhere in these 52 s, which nobody saw: the jump is not its time away)
     radios.fm.state = Source.State.CONNECTED
     retries.tick()
-    assert retries._due[1] == at + timedelta(seconds=32 + 10) and retries._due[2] == at + timedelta(seconds=32), "FM's wait moved on by the 10 s seen away, HF's not at all"
-    assert host.attempted == [1, 2], "both retries were due by +42 and went: the jump moved neither on"
+    hf_pause = retry_pause(record(2, "OH2C", at), HF.retry_jitter_sec)            # (of the message as it was planned, with its one attempt)
+    assert retries._due[1] == at + timedelta(seconds=32 + 10) and retries._due[2] == at + timedelta(seconds=32) + hf_pause, "FM's wait moved on by the 10 s seen away, HF's not at all (it has its pause)"
+    assert host.attempted == [1, 2], "both retries were due by +62 and went: the jump moved neither on"
 
 
 # ---- the sender and our objects

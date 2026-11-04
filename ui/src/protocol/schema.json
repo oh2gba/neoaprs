@@ -4627,6 +4627,36 @@
       "title": "SetConfigCommand",
       "type": "object"
     },
+    "SetMessageRadio": {
+      "additionalProperties": false,
+      "description": "Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds\nfrom the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not\nknown (`station.unknown`).",
+      "properties": {
+        "cmd": {
+          "const": "message_radio",
+          "type": "string"
+        },
+        "call": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "radio": {
+          "enum": [
+            "",
+            "fm",
+            "hf"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "radio"
+      ],
+      "title": "SetMessageRadioCommand",
+      "type": "object"
+    },
     "SetOp": {
       "additionalProperties": false,
       "description": "The item at `key` is `value` (the whole item, new or changed).",
@@ -5483,8 +5513,21 @@
           "type": "boolean"
         },
         "can_message": {
-          "description": "a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only",
+          "description": "a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`)",
           "type": "boolean"
+        },
+        "may_not_message": {
+          "description": "the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there",
+          "type": "boolean"
+        },
+        "message_radio": {
+          "description": "the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard on HF alone)",
+          "enum": [
+            "",
+            "fm",
+            "hf"
+          ],
+          "type": "string"
         },
         "track": {
           "description": "the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed",
@@ -5569,6 +5612,8 @@
         "is_me",
         "own",
         "can_message",
+        "may_not_message",
+        "message_radio",
         "track"
       ],
       "title": "StationRow",
@@ -6960,6 +7005,7 @@
           "message_cancel": "#/$defs/MessageCancel",
           "message_delete": "#/$defs/MessageDelete",
           "message_key_new": "#/$defs/NewMessageKey",
+          "message_radio": "#/$defs/SetMessageRadio",
           "message_retry": "#/$defs/MessageRetry",
           "object_kill": "#/$defs/ObjectKill",
           "object_set": "#/$defs/ObjectSet",
@@ -7047,6 +7093,9 @@
         },
         {
           "$ref": "#/$defs/SendMessage"
+        },
+        {
+          "$ref": "#/$defs/SetMessageRadio"
         },
         {
           "$ref": "#/$defs/SendKey"

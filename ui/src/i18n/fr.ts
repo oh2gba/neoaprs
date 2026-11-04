@@ -306,6 +306,13 @@ export const fr: Catalogue = {
 
   "route.button": "Trajet",
   "messages.hf_tag_title": "Les messages à cette station passent par la radio HF : en direct, sans chemin",
+  "messages.radio_label": "La radio par laquelle passent les messages",
+  "messages.radio_fm_title": "Envoyer les messages à cette station par la radio FM",
+  "messages.radio_hf_title": "Envoyer les messages à cette station par la radio HF",
+  "messages.may_not_message": "Cette station ne reçoit peut-être pas les messages",
+  "messages.may_not_message_label": "Pourquoi peut-être pas",
+  "messages.may_not_message_help":
+    "Sa dernière position a été envoyée par une radio ou un programme qui indique ne pas recevoir de messages, et elle n'en a jamais envoyé. Un message peut tout de même partir : si personne ne le lit là-bas, il n'aura pas d'accusé de réception.",
   "route.changed": "Trajet : pas celui par défaut",
   "route.path": "Chemin",
   "route.calls_hint": "Indicatifs séparés par des virgules, {max} au plus",

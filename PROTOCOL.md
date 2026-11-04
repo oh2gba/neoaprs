@@ -106,7 +106,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-52 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+53 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -239,6 +239,17 @@ When the TNC is not connected the message is kept and its first attempt waits fo
 | `to` | string |  | (max 64 chars, min 1 chars) |
 | `text` | string |  | (max 512 chars) |
 | `locked` | boolean | optional | true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`) (default `false`) |
+
+### `message_radio`
+
+Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds
+from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not
+known (`station.unknown`).
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | (max 64 chars, min 1 chars) |
+| `radio` | "" \| "fm" \| "hf" |  |  |
 
 ### `send_key`
 
@@ -876,7 +887,9 @@ row has a new distance and bearing, and the topic is told whole again.
 | `bearing_deg` | number \| null |  | the direction from our position, degrees from north; null as the distance is |
 | `is_me` | boolean |  | our own station: the row of the call in the settings, at the position in the settings |
 | `own` | boolean |  | an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row |
-| `can_message` | boolean |  | a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only |
+| `can_message` | boolean |  | a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`) |
+| `may_not_message` | boolean |  | the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never sent a message or an ack: the conversation says a message may not be read there |
+| `message_radio` | "" \| "fm" \| "hf" |  | the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard on HF alone) |
 | `track` | [time, number, number][] |  | the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed (max 50 items) |
 
 ### PacketRow

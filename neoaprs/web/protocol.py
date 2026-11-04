@@ -30,7 +30,7 @@ from .historywire import PacketHistory, PacketHistoryMsg, SpeedSeries, SpeedSeri
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
-from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
+from .messagewire import AlertResultMsg, AlertTest, SetMessageRadio, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow, StationTraffic, StationTrafficMsg
 from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
@@ -46,7 +46,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfFrequencies, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfFrequencies, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SetMessageRadio, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 

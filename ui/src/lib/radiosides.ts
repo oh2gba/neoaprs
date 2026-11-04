@@ -3,7 +3,7 @@
 import type { StationRow } from "@/protocol/protocol";
 
 type Values = Readonly<Record<string, string>>;
-type HeardOn = Pick<StationRow, "heard_fm" | "heard_hf">;
+type HeardOn = Pick<StationRow, "heard_fm" | "heard_hf"> & Partial<Pick<StationRow, "message_radio">>;
 
 /** The radios, by the word the wire and the settings use. */
 export type RadioKind = "fm" | "hf";
@@ -14,8 +14,9 @@ export const fmOn = (values: Values): boolean => values["fm/enabled"] !== "false
 /** Whether the HF radio is on in these settings. */
 export const hfOn = (values: Values): boolean => values["hf/enabled"] === "true";
 
-/** The radio a station is messaged on: HF when it was heard on HF alone, else FM (also for a station nothing was heard of, or none known: null). */
+/** The radio a station is messaged on: the one the operator chose for it (`message_radio`), else HF when it was heard on HF alone, else FM (also for a station nothing was heard of, or none known: null). */
 export function stationRadio(row: HeardOn | null | undefined): RadioKind {
+  if (row?.message_radio === "fm" || row?.message_radio === "hf") return row.message_radio;
   return row != null && row.heard_hf > 0 && row.heard_fm === 0 ? "hf" : "fm";
 }
 

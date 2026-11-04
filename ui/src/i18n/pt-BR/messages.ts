@@ -94,6 +94,13 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "route.button": "Rota",
   "messages.hf_tag_title": "As mensagens para esta estação vão pelo rádio HF: direto, sem caminho",
+  "messages.radio_label": "O rádio pelo qual as mensagens vão",
+  "messages.radio_fm_title": "Enviar as mensagens para esta estação pelo rádio FM",
+  "messages.radio_hf_title": "Enviar as mensagens para esta estação pelo rádio HF",
+  "messages.may_not_message": "Esta estação talvez não receba mensagens",
+  "messages.may_not_message_label": "Por que talvez não",
+  "messages.may_not_message_help":
+    "Sua última posição foi enviada por um rádio ou programa que indica não receber mensagens, e ela nunca enviou uma. A mensagem pode ser enviada mesmo assim: se ninguém a ler lá, não haverá confirmação.",
   "route.changed": "Rota: não é a padrão",
   "route.path": "Caminho",
   "route.calls_hint": "Indicativos separados por vírgulas, no máximo {max}",

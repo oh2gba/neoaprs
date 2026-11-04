@@ -128,9 +128,12 @@ class StationRow(_Model):
     bearing_deg: float | None = Field(description="the direction from our position, degrees from north; null as the distance is")
     is_me: bool = Field(description="our own station: the row of the call in the settings, at the position in the settings")
     own: bool = Field(description="an object or an item of ours, which we send (the topic `own_objects` has its values and its schedule): the map marks it as ours and the card has Edit and Kill in place of Forget; false for any other row")
-    can_message: bool = Field(description="a message to the station makes sense, and the card has a Message button: false for an object or an item and for our own station; for a station true when it has sent a message or an ack (heard, overheard too) "
-                                          "or its latest position began with `=` or `@` or was a Mic-E one, false when that began with `!` or `/` or was a Mic-E one whose comment begins with the type code `'` (no messaging); true for a station of which nothing of that is known; "
-                                          "false for a station known only from the internet (`heard_is` > 0 and nothing on the radio): a message goes out by radio only")
+    can_message: bool = Field(description="a message can go to the station, and the card has a Message button: false for an object or an item, for our own station and for a station known only from the "
+                                          "internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`)")
+    may_not_message: bool = Field(description="the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never "
+                                              "sent a message or an ack: the conversation says a message may not be read there")
+    message_radio: Literal["", "fm", "hf"] = Field(description="the radio the operator chose for messages to the station while both are on; empty for the daemon's choice (the FM radio unless the station was heard "
+                                                   "on HF alone)")
     track: list[tuple[Iso, float, float]] = Field(max_length=50, description="the latest 50 positions, oldest first, as [time, lat, lon]; a new one only when the station moved more than 10 m or 5 minutes passed")
 
 

@@ -12,7 +12,7 @@ from . import VERSION, stopfile
 from .aprsis import AprsIs
 from .bulletinlog import BulletinLog
 from .clock import Clock, utcnow
-from .config import DEFAULTS, Config
+from .config import DEFAULTS, MESSAGE_RADIOS, Config
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
@@ -27,6 +27,7 @@ from .serialprobe import search_pattern
 from .services.alerts import Alerts
 from .services.aloha import Aloha
 from .services.beacon import HF_BEACON_MEMORY, Beacon
+from .services.memory import Remembered
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
 from .services.generalask import GeneralAsk
@@ -91,7 +92,8 @@ class Services:
             radio.where = lambda: self.config.station_position          # the Dummy radio's traffic is made round it
             radio.interlock = interlock
         self.stationbook = StationBook(clock)                           # who was heard, where, and on which radio
-        self.radios = Radios(self.tnc, self.hf, lambda: self.config, self.stationbook)       # the two as one: the default radio for what addresses no station, the choice by station or by packet for what answers one (neoaprs/radios.py)
+        kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radios.py)
+        self.radios = Radios(self.tnc, self.hf, lambda: self.config, self.stationbook, lambda text: kept.put({MESSAGE_RADIOS: text}), kept.flush)       # the two as one: the default radio for what addresses no station, the choice by station or by packet for what answers one (neoaprs/radios.py)
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate

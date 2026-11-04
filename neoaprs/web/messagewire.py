@@ -62,6 +62,15 @@ class SendMessage(_Command):
     locked: bool = Field(default=False, description="true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`)")
 
 
+class SetMessageRadio(_Command):
+    """Chooses the radio messages to a station go out on while both radios are on: `fm`, `hf`, or empty to leave it to the daemon again (the FM radio unless the station was heard on HF alone). It holds
+    from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`). Answered by the station's row, or by an `error` for a station that is not
+    known (`station.unknown`)."""
+    cmd: Literal["message_radio"]
+    call: Call
+    radio: Literal["", "fm", "hf"]
+
+
 class SendKey(_Command):
     """Sends our public key to a station as an ordinary message (`seal` `key`), so that it can encrypt to us; our key pair is made the first time it is needed. Nothing is ever announced by itself: a station that is to read our
     locked messages gets our key this way, by hand, and we read its when it has sent its key the same way. Refused while the daemon was started without `--encryption` (`lock.off`). Answered as `send_message` is."""

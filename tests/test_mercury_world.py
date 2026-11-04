@@ -8,7 +8,8 @@ from datetime import timedelta
 from pathlib import Path
 
 from neoaprs import ax25
-from neoaprs.message import FINAL_WAIT_SEC, FIRST_WAIT_SEC
+from neoaprs.message import FINAL_WAIT_SEC, FIRST_WAIT_SEC, retry_pause
+from neoaprs.radiorules import HF
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeaprsis import FakeAprsIs
 from tests.support.mercuryworld import World
@@ -70,7 +71,7 @@ async def test_two_stations_that_key_at_the_same_moment_lose_both_frames_and_the
     await idle_for(0.2)
     assert a.ctl.messaging.get(record.id).attempts == 1, "the retry waits for its time, nothing goes out before"              # type: ignore[union-attr]
     await w.settled("OH2A")
-    w.pass_time(FIRST_WAIT_SEC + 1)
+    w.pass_time(FIRST_WAIT_SEC + HF.retry_jitter_sec + 1)              # (past the longest pause of a retry on HF)
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 15.0)       # type: ignore[union-attr]
     assert a.ctl.messaging.get(record.id).attempts == 2 and w.air.collisions == 2 and len(w.air.delivered) == 2        # type: ignore[union-attr]
 
@@ -176,7 +177,7 @@ async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_m
     await idle_for(0.2)
     assert a.ctl.messaging.get(record.id).state == "sending" and a.ctl.messaging.get(record.id).attempts == 1 and len(w.air.delivered) == 1       # type: ignore[union-attr]
     await w.settled("OH2A")
-    w.pass_time(FIRST_WAIT_SEC + 1)
+    w.pass_time(FIRST_WAIT_SEC + HF.retry_jitter_sec + 1)              # (past the longest pause of a retry on HF)
     await w.until(lambda: a.ctl.messaging.get(record.id).state == "acked", 15.0)                   # type: ignore[union-attr]
     assert a.ctl.messaging.get(record.id).attempts == 2 and b.ctl.mercury.frames_keyed == 2, "the copy was acked again"        # type: ignore[union-attr]
     assert [m.text for m in b.ctl.messaging.records() if m.direction == "in"] == ["lost ack"], "kept once"
@@ -189,10 +190,12 @@ async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_
     await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     record = await a.ctl.messaging.send("OH2Z", "anybody there?")                                  # (nobody of that name on the air)
-    for n, wait in enumerate((32, 32, 64), 2):                                                     # (the attempts at 0, 32, 64 and 128 s: schedule_sec)
+    for n, wait in enumerate((32, 32, 64), 2):                                                     # (the attempts at 0, 32, 64 and 128 s: schedule_sec, each retry after HF's pause of its own)
         await w.until(lambda n=n: len(w.air.delivered) == n - 1, 15.0)                             # type: ignore[misc]  (the attempt is on the air)
         await w.settled("OH2A")                                                                    # (and the radio is free again, which the clock must not move before: `settled` says why)
-        w.pass_time(wait - 2)
+        pause = retry_pause(a.ctl.messaging.get(record.id), HF.retry_jitter_sec).total_seconds()  # type: ignore[arg-type]
+        assert 0 <= pause <= HF.retry_jitter_sec
+        w.pass_time(wait + pause - 2)
         await idle_for(0.15)
         assert a.ctl.messaging.get(record.id).attempts == n - 1, f"attempt {n} waits its {wait} s"              # type: ignore[union-attr]
         w.pass_time(3)
@@ -227,7 +230,7 @@ async def test_a_daemon_started_again_with_a_message_on_its_way_goes_on_from_its
     kept = again.ctl.messaging.get(record.id)
     assert kept is not None and kept.state == "sending" and kept.attempts == 1 and kept.last_attempt_at == first_sent, "the message as the database kept it"
     await w.settled("OH2A")
-    w.pass_time(FIRST_WAIT_SEC + 1)
+    w.pass_time(FIRST_WAIT_SEC + retry_pause(kept, HF.retry_jitter_sec).total_seconds() + 1)
     await w.until(lambda: again.ctl.messaging.get(record.id).state == "acked", 15.0)              # type: ignore[union-attr]
     assert again.ctl.messaging.get(record.id).attempts == 2 and len(w.air.delivered) == 3 and b.ctl.mercury.frames_keyed == 2, "the retry and its ack, after the first attempt (the first ack reached nobody)"      # type: ignore[union-attr]
     assert [m.text for m in b.ctl.messaging.records() if m.direction == "in"] == ["across a restart"]

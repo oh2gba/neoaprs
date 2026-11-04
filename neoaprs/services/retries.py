@@ -17,7 +17,7 @@ from typing import Protocol
 from neoaprs.clock import Clock
 from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
-from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at
+from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at, retry_pause
 from neoaprs.services.common import ConfigSource, Radio, radios_on
 from neoaprs.tasks import every
 
@@ -65,7 +65,8 @@ class Retries:
         if due is None:
             self._due.pop(record.id, None)
         else:
-            self._due[record.id] = due
+            radio = self._host.radio_of(record)
+            self._due[record.id] = due + retry_pause(record, radio.rules.retry_jitter_sec if radio is not None else 0)
 
     def forget(self, number: int) -> None:
         self._due.pop(number, None)

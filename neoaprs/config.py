@@ -159,10 +159,10 @@ BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)
 BEACON_SENT = "beacon/last_sent_at"          # the rows the beacons and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 HF_BEACON_SENT = "hf/beacon_last_sent_at"    # the HF beacon's (neoaprs/radios.py: the two beacons share the interval and have each their own last send)
-STATUS_SENT = "status/last_sent_at"
-STATUS_TEXT = "status/last_text"
+STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
-STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO, HF_BEACON_SENT)
+MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON ({"OH2GAX-2": "hf"}; neoaprs/radios.py)
+STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO, HF_BEACON_SENT, MESSAGE_RADIOS)
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 HF_DIAL = "update/hf_dial"                   # the HF dial the version page named last ("7.0541 MHz USB"; services/updatecheck.py): the frequency the group meets on moves with the page, not with a release; empty: the built-in one (mercury.DIAL_TEXT)
 
