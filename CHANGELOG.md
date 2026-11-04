@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed:** on Windows, Update now brought NeoAPRS back without encrypted messages when it ran with `--encryption`, and the start at sign-in lost the option. Both keep it now, and so does an update installed by hand.
+
 ## 0.18.0
 
 - **New:** the **Spectrum** in the HF radio's box is a waterfall: the radio's audio from 300 to 2700 Hz scrolls down from the top, the last twelve seconds or so in view, so that a station's carrier shows as a line and a frame as a block in the marked band where frames sit. It is drawn in the colours of a rig's waterfall, from dark blue through cyan and yellow to red as a signal gets stronger, your own transmissions too. The receive level bar under it is as it was.

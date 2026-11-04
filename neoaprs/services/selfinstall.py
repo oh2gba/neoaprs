@@ -54,10 +54,12 @@ class Installer(Protocol):
         ...
 
 
-def installer_argv(installer: Path, data_dir: Path, restart: Literal["app", "daemon"], log_file: Path) -> list[str]:
+def installer_argv(installer: Path, data_dir: Path, restart: Literal["app", "daemon"], log_file: Path, encryption: bool = False) -> list[str]:
     """The installer's command line for an update with nobody at the keyboard: no window, no question, no restart of Windows. The daemon and the app are ended by the installer's own code, before it replaces a
-    file (so Windows' Restart Manager is not asked to close them), and `NEOAPRSRESTART` and `NEOAPRSDATA` say what it starts again after (packaging/windows/neoaprs.iss)."""
-    return [str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCLOSEAPPLICATIONS", "/CURRENTUSER", "/SP-", f"/LOG={log_file}", f"/NEOAPRSRESTART={restart}", f"/NEOAPRSDATA={data_dir}"]
+    file (so Windows' Restart Manager is not asked to close them), and `NEOAPRSRESTART` and `NEOAPRSDATA` say what it starts again after (packaging/windows/neoaprs.iss); `NEOAPRSENCRYPTION=1`, for a daemon
+    started with `--encryption`, has the installer start it again with it and keep it in the start at sign-in (without it OH2GAX's update to 0.18.0 came back without encrypted messages, 4 Nov 2026)."""
+    return [str(installer), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCLOSEAPPLICATIONS", "/CURRENTUSER", "/SP-", f"/LOG={log_file}", f"/NEOAPRSRESTART={restart}", f"/NEOAPRSDATA={data_dir}",
+            *(["/NEOAPRSENCRYPTION=1"] if encryption else [])]
 
 
 def launch_detached(argv: list[str]) -> None:
@@ -70,8 +72,9 @@ def launch_detached(argv: list[str]) -> None:
 
 
 class WindowsSetup:
-    def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None) -> None:
+    def __init__(self, data_dir: Path, launch: Callable[[list[str]], None] = launch_detached, app_running: Callable[[Path], bool] | None = None, encryption: bool = False) -> None:
         self.data_dir = data_dir
+        self.encryption = encryption                                 # the daemon runs with --encryption: so does the one the installer starts again
         self._folder = data_dir / UPDATE_FOLDER
         self._launch = launch
         self._app_running = app_running or (lambda data: is_held(data, APP_LOCK_NAME))
@@ -94,7 +97,7 @@ class WindowsSetup:
 
     def command(self, installer: Path) -> list[str]:
         restart: Literal["app", "daemon"] = "app" if self._app_running(self.data_dir) else "daemon"
-        return installer_argv(installer, self.data_dir, restart, self._folder / "install.log")
+        return installer_argv(installer, self.data_dir, restart, self._folder / "install.log", self.encryption)
 
     def install(self, file: Path, name: str, version: str) -> None:
         installer = self._folder / name
@@ -152,12 +155,14 @@ class Rehearsal:
         file.unlink(missing_ok=True)
 
 
-def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, environ: Mapping[str, str] = os.environ, argv: list[str] | None = None, platform: str = sys.platform) -> Installer | None:
-    """The installer of this copy, None where the page shows the steps instead."""
+def installer_for(install: InstallInfo, data_dir: Path, restart: Restart, environ: Mapping[str, str] = os.environ, argv: list[str] | None = None, platform: str = sys.platform,
+                  encryption: bool = False) -> Installer | None:
+    """The installer of this copy, None where the page shows the steps instead. `encryption`: the daemon runs with `--encryption`, which the Windows installer keeps (the AppImage starts again with its own
+    command line, which has it)."""
     if environ.get(ENV_KIND):
         return Rehearsal(data_dir) if install.kind in SELF_UPDATING else None
     if install.kind == "windows-installer" and platform == "win32":
-        return WindowsSetup(data_dir)
+        return WindowsSetup(data_dir, encryption=encryption)
     if install.kind == "appimage" and install.appimage and platform.startswith("linux"):
         return AppImageSwap(Path(install.appimage), sys.argv[1:] if argv is None else argv, restart)
     return None

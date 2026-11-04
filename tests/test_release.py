@@ -117,12 +117,27 @@ def test_the_installer_script_is_per_user_and_does_what_the_manual_says() -> Non
 
 def test_the_installer_starts_again_what_ran_after_the_silent_update_of_update_now() -> None:
     run = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
-    assert 'Filename: "{app}\\neoaprs-app.exe"; Parameters: "{code:DataArgs}"; Flags: nowait; Check: RestartWanted(\'app\')' in run
-    assert 'Filename: "{app}\\neoaprsw.exe"; Parameters: "run {code:DataArgs}"; Flags: nowait runhidden; Check: RestartWanted(\'daemon\')' in run
+    assert 'Filename: "{app}\\neoaprs-app.exe"; Parameters: "{code:DataArgs}{code:EncryptionArg}"; Flags: nowait; Check: RestartWanted(\'app\')' in run
+    assert 'Filename: "{app}\\neoaprsw.exe"; Parameters: "run {code:DataArgs}{code:EncryptionArg}"; Flags: nowait runhidden; Check: RestartWanted(\'daemon\')' in run
     code = INSTALLER.split("[Code]", 1)[1]
     assert "function RestartWanted(What: String): Boolean;" in code and "WizardSilent and" in code and "{param:NEOAPRSRESTART|}" in code
     assert "function DataArgs(Param: String): String;" in code and "{param:NEOAPRSDATA|}" in code
     assert "Trim('--quit ' + DataArgs(''))" in code and "Trim('stop ' + DataArgs(''))" in code, "the app and the daemon of that data folder are the ones ended"
+
+
+def test_the_installer_keeps_encrypted_messages_through_an_update_in_the_restart_the_start_at_sign_in_and_open_neoaprs_now() -> None:
+    """Update now of 0.18.0 brought OH2GAX's NeoAPRS back without --encryption, and the installer wrote the start at sign-in without it (4 Nov 2026)."""
+    code = INSTALLER.split("[Code]", 1)[1]
+    setup = code[code.index("function InitializeSetup(): Boolean;"):code.index("function EncryptionArg(")]
+    assert "{param:NEOAPRSENCRYPTION|}" in setup, "Update now says so"
+    assert "RegQueryStringValue(HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Run', 'NeoAPRS'" in setup and "Pos('--encryption', SignIn) > 0" in setup, "an update by hand finds it in the start at sign-in"
+    arg = code[code.index("function EncryptionArg("):]
+    assert "Result := ' --encryption';" in arg.split("end;", 1)[0]
+    registry = INSTALLER.split("[Registry]", 1)[1].split("[Run]", 1)[0]
+    assert '"{app}\\neoaprs-app.exe"" --tray{code:EncryptionArg}"' in registry
+    run = INSTALLER.split("[Run]", 1)[1].split("[UninstallRun]", 1)[0]
+    assert 'Parameters: "{code:EncryptionArg}"; Description: "Open NeoAPRS now"' in run
+    assert run.count("{code:EncryptionArg}") == 3, "Open NeoAPRS now, and the restart of the app or of the daemon"
 
 
 def test_the_frozen_app_has_three_programs_whose_names_differ_for_a_system_that_ignores_case() -> None:

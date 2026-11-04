@@ -155,11 +155,20 @@ def test_once_the_new_version_runs_the_old_appimage_goes(tmp_path: Path) -> None
     assert not selfreplace.restore(image)
 
 
+def test_a_daemon_with_encrypted_messages_asks_the_installer_to_keep_them(tmp_path: Path) -> None:
+    """OH2GAX's update to 0.18.0 came back without --encryption (4 Nov 2026): the installer is told, and starts it again with it (packaging/windows/neoaprs.iss)."""
+    installer, log_file = tmp_path / "update" / "NeoAPRS-Setup-0.9.0.exe", tmp_path / "update" / "install.log"
+    assert installer_argv(installer, tmp_path, "app", log_file, encryption=True)[-1] == "/NEOAPRSENCRYPTION=1"
+    assert "/NEOAPRSENCRYPTION=1" not in installer_argv(installer, tmp_path, "app", log_file)
+    assert WindowsSetup(tmp_path, lambda argv: None, app_running=lambda data: True, encryption=True).command(installer) == installer_argv(installer, tmp_path, "app", log_file, encryption=True)
+
+
 def test_each_kind_gets_its_installer_on_its_own_system_and_the_others_none(tmp_path: Path) -> None:
     restart = lambda argv: None                    # noqa: E731
     windows = installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="win32")
     assert isinstance(windows, WindowsSetup) and windows.folder == tmp_path / "update"
     assert installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="linux") is None
+    assert not windows.encryption and installer_for(InstallInfo("windows-installer"), tmp_path, restart, {}, platform="win32", encryption=True).encryption  # type: ignore[union-attr]
     image = installer_for(InstallInfo("appimage", "/home/ham/NeoAPRS.AppImage"), tmp_path, restart, {}, ["app"], platform="linux")
     assert isinstance(image, AppImageSwap) and image.appimage == Path("/home/ham/NeoAPRS.AppImage") and image.argv == ["app"]
     assert installer_for(InstallInfo("appimage", ""), tmp_path, restart, {}, platform="linux") is None

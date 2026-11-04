@@ -60,13 +60,13 @@ Name: "{autodesktop}\NeoAPRS"; Filename: "{app}\neoaprs-app.exe"; Tasks: desktop
 
 [Registry]
 ; the same value that `neoaprs service install` writes for the daemon: one start at sign-in, and the app's own checkbox in the tray menu reads and writes it too
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NeoAPRS"; ValueData: """{app}\neoaprs-app.exe"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NeoAPRS"; ValueData: """{app}\neoaprs-app.exe"" --tray{code:EncryptionArg}"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\neoaprs-app.exe"; Description: "Open NeoAPRS now"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:EncryptionArg}"; Description: "Open NeoAPRS now"; Flags: postinstall nowait skipifsilent
 ; after a silent update that NeoAPRS started itself: what was running starts again, the app (which starts the daemon) or the daemon alone
-Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:DataArgs}"; Flags: nowait; Check: RestartWanted('app')
-Filename: "{app}\neoaprsw.exe"; Parameters: "run {code:DataArgs}"; Flags: nowait runhidden; Check: RestartWanted('daemon')
+Filename: "{app}\neoaprs-app.exe"; Parameters: "{code:DataArgs}{code:EncryptionArg}"; Flags: nowait; Check: RestartWanted('app')
+Filename: "{app}\neoaprsw.exe"; Parameters: "run {code:DataArgs}{code:EncryptionArg}"; Flags: nowait runhidden; Check: RestartWanted('daemon')
 
 [UninstallRun]
 ; the app first (it stops the daemon it started), then whatever daemon is left (one that was running before the app), then the start at sign-in of a daemon that `neoaprs service install` made
@@ -75,6 +75,29 @@ Filename: "{app}\neoaprs.exe"; Parameters: "stop"; Flags: runhidden waituntilter
 Filename: "{app}\neoaprs.exe"; Parameters: "service remove"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveStartAtSignIn"
 
 [Code]
+var
+  Encryption: Boolean;
+
+// Whether NeoAPRS runs with encrypted messages (`--encryption`, for exceptional circumstances only), read before anything is written: Update now says so (/NEOAPRSENCRYPTION=1), and an update by hand
+// finds it in the start at sign-in that this installer or the app's tray wrote. Without it an update came back without encrypted messages, and the start at sign-in lost the flag (OH2GAX, 4 Nov 2026).
+function InitializeSetup(): Boolean;
+var
+  SignIn: String;
+begin
+  Encryption := ExpandConstant('{param:NEOAPRSENCRYPTION|}') = '1';
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'NeoAPRS', SignIn) and (Pos('--encryption', SignIn) > 0) then
+    Encryption := True;
+  Result := True;
+end;
+
+// ` --encryption` when NeoAPRS ran with encrypted messages, else nothing: for the restart, the start at sign-in and Open NeoAPRS now.
+function EncryptionArg(Param: String): String;
+begin
+  Result := '';
+  if Encryption then
+    Result := ' --encryption';
+end;
+
 // `--data "folder"` for the data folder Update now named (/NEOAPRSDATA), else nothing: the default folder.
 function DataArgs(Param: String): String;
 begin
