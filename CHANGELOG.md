@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.18.0
+
 - **New:** the **Spectrum** in the HF radio's box is a waterfall: the radio's audio from 300 to 2700 Hz scrolls down from the top, the last twelve seconds or so in view, so that a station's carrier shows as a line and a frame as a block in the marked band where frames sit. It is drawn in the colours of a rig's waterfall, from dark blue through cyan and yellow to red as a signal gets stronger, your own transmissions too. The receive level bar under it is as it was.
 - **Fixed:** on Windows, an HF sound card that Mercury could not open was said only when Mercury ended, which could be many minutes later, and the HF radio showed connected until then. Now it is said at once, as on Linux.
 - **Fixed:** the desktop app no longer leaves a warning about a missing icon in the log at every start.
