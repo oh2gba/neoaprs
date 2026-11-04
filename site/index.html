@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 <script src="site.js?v=9" defer></script>
 </head>
 <body>
@@ -89,9 +89,9 @@
         <input type="radio" name="dl-os" id="os-linux"><label for="os-linux">Linux PC</label>
         <input type="radio" name="dl-os" id="os-pi"><label for="os-pi">Raspberry Pi</label>
       </fieldset>
-      <fieldset class="choose use"><legend>Local: on its own screen · Remote: from another computer or phone</legend>
-        <input type="radio" name="dl-use" id="use-app" checked><label for="use-app">Local</label>
-        <input type="radio" name="dl-use" id="use-srv"><label for="use-srv">Remote</label>
+      <fieldset class="choose cards use"><legend>How you use it</legend>
+        <input type="radio" name="dl-use" id="use-app" checked><label for="use-app"><svg class="sp" viewBox="0 0 200 110" aria-hidden="true"><rect class="sp-solid" x="40" y="6" width="120" height="76" rx="6"/><rect class="sp-map" x="47" y="13" width="106" height="62" rx="2"/><path class="sp-road" d="M47 51.4L153 36.6M84.1 13L100.0 75"/><path class="sp-flow" d="M64.0 61.4L78.8 47.1L72.4 32.8"/><circle class="sp-fill" cx="72.4" cy="32.8" r="4.3"/><circle class="sp-fill" cx="117.0" cy="50.2" r="4.3"/><circle class="sp-fill" cx="131.8" cy="29.1" r="4.3"/><path d="M92 82L88 98M108 82L112 98M74 99H126"/></svg><b>As an application</b><span>on a computer with a screen</span></label>
+        <input type="radio" name="dl-use" id="use-srv"><label for="use-srv"><svg class="sp" viewBox="0 0 200 110" aria-hidden="true"><rect class="sp-solid" x="8" y="36" width="58" height="38" rx="4"/><rect x="16" y="45" width="15" height="15" rx="1.5"/><rect x="38" y="47" width="10" height="10" rx="1"/><path class="sp-dim" d="M14 40.5H60M54 64v4M59 64v4"/><path class="sp-flow" d="M72 52L143 28.0M138.1 27.1L143 28.0L139.6 31.7M72 60L121 80.0M117.8 76.1L121 80.0L116.0 80.6"/><rect class="sp-solid" x="150" y="6" width="26" height="44" rx="4"/><rect class="sp-map" x="153" y="9" width="20" height="38" rx="2"/><path class="sp-road" d="M153 32.6L173 23.4M160.0 9L163.0 47"/><path class="sp-flow" d="M156.2 38.6L159.0 29.9L157.8 21.2"/><circle class="sp-fill" cx="157.8" cy="21.2" r="2"/><circle class="sp-fill" cx="166.2" cy="31.8" r="2"/><circle class="sp-fill" cx="169.0" cy="18.9" r="2"/><rect class="sp-solid" x="128" y="64" width="62" height="32" rx="4"/><rect class="sp-map" x="131" y="67" width="56" height="26" rx="2"/><path class="sp-road" d="M131 83.1L187 76.9M150.6 67L159.0 93"/><path class="sp-flow" d="M140.0 87.3L147.8 81.3L144.4 75.3"/><circle class="sp-fill" cx="144.4" cy="75.3" r="2"/><circle class="sp-fill" cx="168.0" cy="82.6" r="2"/><circle class="sp-fill" cx="175.8" cy="73.8" r="2"/><path d="M122 100H196"/></svg><b>As a service</b><span>no screen: used from another computer or phone</span></label>
       </fieldset>
       <ol class="dl-steps win">
         <li><a class="btn" href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">Download for Windows</a><span class="dl-note">NeoAPRS-Setup.exe · no administrator rights needed</span></li>
@@ -117,7 +117,7 @@
         <li>Open <a href="http://localhost:7303">http://localhost:7303</a> in the browser. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
       </ol>
       <ol class="dl-steps linux-srv">
-        <li>Open a terminal on the Linux PC that will run NeoAPRS: on its own screen, or with SSH from another computer (<code>ssh YOU@NAME.local</code>).</li>
+        <li>From another computer, log in to the Linux PC with SSH, the way you set it up (<code>ssh YOU@NAME.local</code>).</li>
         <li>Download NeoAPRS.<div class="cmd"><code>wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb</code><button class="copy" type="button" data-text="wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_amd64.deb" hidden>Copy</button></div></li>
         <li>Install it. It asks for your password.<div class="cmd"><code>sudo apt install ./neoaprs_amd64.deb</code><button class="copy" type="button" data-text="sudo apt install ./neoaprs_amd64.deb" hidden>Copy</button></div></li>
         <li>Let other computers and phones open it.<div class="cmd"><code>neoaprs db set web/network true</code><button class="copy" type="button" data-text="neoaprs db set web/network true" hidden>Copy</button></div></li>
@@ -127,7 +127,7 @@
         <li>On the other computer or phone, open <code>http://NAME.local:7303</code> with the name in place of NAME. If it does not open, use the address instead, the first number, such as <code>http://192.168.1.20:7303</code>. Type the key. NeoAPRS asks for your call, your position and your radio. No radio at hand: choose the radio type Dummy.</li>
       </ol>
       <ol class="dl-steps pi-srv">
-        <li>Open a terminal on the Raspberry Pi that will run NeoAPRS: on its own screen, or with SSH from another computer (<code>ssh YOU@NAME.local</code>). Raspberry Pi OS must be the 64-bit one.</li>
+        <li>From another computer, log in to the Raspberry Pi with SSH, the way you set it up (<code>ssh YOU@NAME.local</code>). Raspberry Pi OS must be the 64-bit one.</li>
         <li>Download NeoAPRS.<div class="cmd"><code>wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb</code><button class="copy" type="button" data-text="wget https://github.com/oh2gba/neoaprs/releases/latest/download/neoaprs_arm64.deb" hidden>Copy</button></div></li>
         <li>Install it. It asks for your password.<div class="cmd"><code>sudo apt install ./neoaprs_arm64.deb</code><button class="copy" type="button" data-text="sudo apt install ./neoaprs_arm64.deb" hidden>Copy</button></div></li>
         <li>Let other computers and phones open it.<div class="cmd"><code>neoaprs db set web/network true</code><button class="copy" type="button" data-text="neoaprs db set web/network true" hidden>Copy</button></div></li>

@@ -147,6 +147,18 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .choose input:checked + label { background: var(--blue); border-color: var(--blue); color: #fff; }
 .choose input:focus-visible + label { outline: 3px solid var(--blue); outline-offset: 3px; }
 @media (prefers-color-scheme: dark) { .choose input:checked + label { color: #08182a; } }
+.choose.cards label { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1 1 8rem; max-width: 15rem; padding: 12px 14px 10px; border-radius: 12px; text-align: center; font-weight: 400; }
+.choose.cards label b { font-weight: 650; }
+.choose.cards label span { color: var(--muted); font-size: 0.88rem; line-height: 1.35; }
+.choose.cards input:checked + label { background: var(--blue-soft); border-color: var(--blue); color: var(--ink); }
+@media (prefers-color-scheme: dark) { .choose.cards input:checked + label { color: var(--ink); } }
+.sp { display: block; width: 100%; max-width: 180px; height: auto; margin-bottom: 6px; color: var(--ink-2); fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sp-solid { fill: var(--surface); stroke: var(--muted); }
+.sp-map { fill: var(--bg); stroke: none; }
+.sp-road { stroke: var(--rule); stroke-width: 3; }
+.sp-flow { stroke: var(--blue); }
+.sp-fill { fill: var(--blue); stroke: none; }
+.sp-dim { stroke: var(--muted); }
 .dl-steps { margin: 20px 0 0; padding-left: 1.5em; }
 .dl-steps li { margin-top: 14px; padding-left: 4px; }
 .dl-steps li::marker { font-weight: 700; color: var(--blue); }
