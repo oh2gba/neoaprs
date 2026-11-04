@@ -128,6 +128,14 @@ def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_th
     assert "no firewall rule" in text.lower() or "firewall rule to stand in" in text, "the patch says that no firewall rule stands in for it any more"
 
 
+def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build: types.ModuleType) -> None:
+    """On Windows Mercury's log lines on stderr came only when the program ended (its C runtime buffers a pipe): the sound card error reached the daemon 20 minutes late on a test station (3 Nov 2026)."""
+    text = (ROOT / "packaging" / "mercury" / "flush.patch").read_text(encoding="utf-8")
+    assert "--- a/common/hermes_log.c" in text and "+        fflush(stderr);" in text and [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))] == ["+        fflush(stderr);"], "one line added, nothing else"
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert "apply_patch(tree, FLUSH_PATCH)" in script and "LOG_FLUSH not in" in script, "the build applies it on every system and looks for the flush after it"
+
+
 def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive_is_at_hand(build: types.ModuleType, tmp_path: Path) -> None:
     archive = build.cache_dir() / f"mercury-{mercury.VERSION}-{mercury.SOURCE_COMMIT[:8]}.tar.gz"
     if not archive.is_file() or build.sha256(archive) != mercury.SOURCE_SHA256 or sys.platform == "win32":
@@ -138,6 +146,9 @@ def test_the_patches_apply_to_the_pinned_source_for_windows_too_when_the_archive
     assert "INADDR_ANY" not in (tree / build.LISTENERS_FILE).read_text(encoding="utf-8")
     assert "audio:tx_leadin_ms" in (tree / build.LEADIN_FILE).read_text(encoding="utf-8")
     assert 'LoadLibraryW(L"dsound.dll")' in (tree / build.DSOUND_FILE).read_text(encoding="utf-8") and "-ldsound" not in (tree / "Makefile").read_text(encoding="utf-8"), "DirectSound is loaded on first use, not linked"
+    log_writer = (tree / build.LOG_FILE).read_text(encoding="utf-8")
+    entry = log_writer[log_writer.index("static void print_entry"):log_writer.index("static void *log_worker")]
+    assert entry.count('fprintf(stderr, "%s %s [%s] [%s] %s\\n"') == 1 and entry.count("fflush(stderr);") == 1, "each line on stderr is flushed: Windows buffers a pipe"
     assert "pulse_stub" not in (tree / "audioio" / "ffaudio" / "ffaudio" / "pulse.c").read_text(encoding="utf-8"), "the stub over PulseAudio is for Linux only"
     assert (tree / build.HIDAPI_DIR / "src" / "hid.c").is_file() and (tree / build.HIDAPI_DIR / "LICENSE.txt").is_file(), "the vendored hidapi and its licence are in the source"
 
@@ -186,7 +197,7 @@ def test_the_windows_folder_holds_the_program_the_licences_and_the_source_offer_
     folder = build.stage_windows(tree, tmp_path / "out", 0.0)
     assert sorted(path.name for path in folder.iterdir()) == ["LICENSE", "LICENSE-freedv", "LICENSE-hidapi-bsd.txt", "LICENSE-hidapi.txt", "SOURCE.txt", "mercury.exe"]
     offer = (folder / "SOURCE.txt").read_text(encoding="utf-8")
-    for fact in (mercury.SOURCE_URL, mercury.SOURCE_COMMIT, mercury.SOURCE_SHA256, f"Mercury {mercury.VERSION}", "OS=Windows_NT", "x86_64-w64-mingw32-gcc", "loopback.patch", "leadin.patch", "hidapi", "winpthreads"):
+    for fact in (mercury.SOURCE_URL, mercury.SOURCE_COMMIT, mercury.SOURCE_SHA256, f"Mercury {mercury.VERSION}", "OS=Windows_NT", "x86_64-w64-mingw32-gcc", "loopback.patch", "leadin.patch", "dsound.patch", "flush.patch", "hidapi", "winpthreads"):
         assert fact in offer, fact
     assert "hamlib and OpenSSL are not in this build" in offer
     assert "watterson" not in offer, "the simulator is not part of the Windows folder"

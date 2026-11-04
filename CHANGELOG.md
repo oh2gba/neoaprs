@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed:** on Windows, an HF sound card that Mercury could not open was said only when Mercury ended, which could be many minutes later, and the HF radio showed connected until then. Now it is said at once, as on Linux.
+
 ## 0.17.4
 
 - **Changed:** 6 m, 50.620 MHz USB, is among the suggested frequencies, where the first test on the air ran; the HF box keeps room for its three lines.
