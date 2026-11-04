@@ -57,28 +57,44 @@ export function addRow(rows: readonly Row[], row: Row, keep = KEPT_ROWS): Row[] 
   return [row, ...rows.slice(0, Math.max(0, keep - 1))];
 }
 
-/** How strongly a bin is drawn, 0 (the floor, nothing) to 1 (DRAW_RANGE_DB over it and more): a little more than in proportion at the weak end, so that a weak frame shows over the noise. */
+/** How strongly a bin is drawn, 0 (the floor, nothing) to 1 (DRAW_RANGE_DB over it and more), its place on the colour scale: a little more than in proportion at the weak end, so that a weak frame shows over the noise. */
 export function strength(db: number): number {
   return Math.pow(Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB, 0.75);
 }
 
-/** The colours the waterfall is drawn with, read from the page's tokens. */
-export interface ScopeColours {
-  received: string;
-  sent: string;
-  band: string;
-  rule: string;
+/** The colour scale of the waterfall, the way a rig's waterfall looks: navy at the floor (the background), then blue, cyan, yellow and red as a bin rises over it, by strength 0 to 1. Fixed, not the
+ * page's tokens: the picture is dark in the light theme too, as on a rig, so that the weak signals show. */
+export const HEAT: readonly (readonly [number, readonly [number, number, number]])[] = [
+  [0, [0, 8, 40]],
+  [0.25, [8, 52, 190]],
+  [0.5, [0, 170, 255]],
+  [0.75, [255, 226, 0]],
+  [1, [255, 40, 16]],
+];
+/** The frame's band over the picture, and its two dotted rules: light, on the dark picture. */
+const BAND = "rgba(255, 255, 255, 0.07)";
+const RULE = "rgba(255, 255, 255, 0.45)";
+
+/** The colour of a received bin of strength 0 to 1 on the scale, as `rgb(r, g, b)`. */
+export function heat(s: number): string {
+  const x = Math.min(1, Math.max(0, s));
+  const upper = HEAT.findIndex(([at]) => at >= x);
+  const [hiAt, hi] = HEAT[Math.max(0, upper)];
+  const [loAt, lo] = HEAT[Math.max(0, upper - 1)];
+  const f = hiAt === loAt ? 0 : (x - loAt) / (hiAt - loAt);
+  const mix = (i: number): number => Math.round(lo[i] + (hi[i] - lo[i]) * f);
+  return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
 }
 
-/** Reads the colours of the waterfall from the tokens of the page (styles/tokens.css) in effect on `element`: the accent for what is received, the warning colour for our own transmission, the quiet text's colour for the rules of the band. */
-export function scopeColours(element: Element): ScopeColours {
-  const style = getComputedStyle(element);
-  const token = (name: string): string => style.getPropertyValue(name).trim() || "currentColor";
-  return { received: token("--accent"), sent: token("--warn"), band: token("--accent-soft-bg"), rule: token("--muted") };
+/** The colour of a bin of our own transmission of strength 0 to 1: grey to white, apart from the scale of what is received. */
+export function sentHeat(s: number): string {
+  const v = Math.round(40 + 195 * Math.min(1, Math.max(0, s)));
+  return `rgb(${v}, ${v}, ${v})`;
 }
 
-/** Draws the waterfall on the canvas: the signal band of a frame as a faint block between two dotted rules, and the rows, the newest at the top, each bin a cell of the row's colour as strong as the bin (over the canvas's own background, so that the floor is the background in either theme). A bin under a few per cent is not drawn. */
-export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[], colours: ScopeColours): void {
+/** Draws the waterfall on the canvas: the background at the floor's colour, the rows, the newest at the top, each bin a cell in the colour of its strength (a bin at the floor is left as the background), and the
+ * signal band of a frame as a faint block between two dotted rules over them. */
+export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[]): void {
   const ratio = window.devicePixelRatio || 1;
   const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
   const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
@@ -87,28 +103,27 @@ export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[], c
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, width, height);
+  context.fillStyle = heat(0);
+  context.fillRect(0, 0, width, height);
   const step = width / BINS;
   const edge = (bin: number): number => Math.round(bin * step);
   const [bandFrom, bandTo] = [edge(SIGNAL_BINS[0]), edge(SIGNAL_BINS[1])];
-  context.fillStyle = colours.band;
-  context.globalAlpha = 0.5;
-  context.fillRect(bandFrom, 0, bandTo - bandFrom, height);
   const rowHeight = ROW_PX * ratio;
   for (let r = 0; r < rows.length; r++) {
     const top = Math.round(r * rowHeight);
     if (top >= height) break;
     const bottom = Math.min(height, Math.round((r + 1) * rowHeight));
     const row = rows[r];
-    context.fillStyle = row.tx ? colours.sent : colours.received;
     for (let b = 0; b < BINS; b++) {
-      const alpha = strength(row.bins[b] ?? 0);
-      if (alpha < 0.03) continue;
-      context.globalAlpha = alpha;
+      const s = strength(row.bins[b] ?? 0);
+      if (s < 0.03) continue;
+      context.fillStyle = row.tx ? sentHeat(s) : heat(s);
       context.fillRect(edge(b), top, edge(b + 1) - edge(b), bottom - top);
     }
   }
-  context.globalAlpha = 1;
-  context.strokeStyle = colours.rule;
+  context.fillStyle = BAND;
+  context.fillRect(bandFrom, 0, bandTo - bandFrom, height);
+  context.strokeStyle = RULE;
   context.lineWidth = ratio;
   context.setLineDash([2 * ratio, 3 * ratio]);
   for (const x of [bandFrom, bandTo]) {

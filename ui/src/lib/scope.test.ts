@@ -14,7 +14,9 @@ import {
   gainText,
   levelPercent,
   levelZone,
-  scopeColours,
+  heat,
+  sentHeat,
+  HEAT,
   strength,
   type Row,
 } from "@/lib/scope";
@@ -96,64 +98,68 @@ function fakeCanvas(width = 300, height = 72) {
 }
 
 describe("drawWaterfall", () => {
-  const colours = { received: "blue", sent: "amber", band: "pale", rule: "grey" };
-  const cells = (calls: string[]) => calls.filter((c) => c.startsWith("fillRect(")).slice(1);
+  const cells = (calls: string[]) => calls.filter((c) => c.startsWith("fillRect(")).slice(1, -1);
   const row = (bins: number[], tx = false): Row => ({ bins, tx });
+  const band = `fillRect(${Math.round((18 * 300) / 48)},0,${Math.round((30 * 300) / 48) - Math.round((18 * 300) / 48)},72)`;
 
-  it("sizes the canvas to the room it has, marks the signal band with a faint block between two dotted rules, and draws nothing else while there are no rows", () => {
+  it("sizes the canvas to the room it has, fills it with the floor's navy, marks the signal band with a faint light block between two dotted rules, and draws nothing else while there are no rows", () => {
     const { canvas, calls } = fakeCanvas(300, 72);
-    drawWaterfall(canvas, [], colours);
+    drawWaterfall(canvas, []);
     expect(canvas.width).toBe(300);
     expect(canvas.height).toBe(72);
     const text = calls.join("\n");
     expect(text).toContain("clearRect(0,0,300,72)");
-    expect(calls.filter((c) => c.startsWith("fillRect("))).toEqual([
-      `fillRect(${Math.round((18 * 300) / 48)},0,${Math.round((30 * 300) / 48) - Math.round((18 * 300) / 48)},72)`,
-    ]);
-    expect(text).toContain("fillStyle=pale");
+    expect(calls.filter((c) => c.startsWith("fillRect("))).toEqual(["fillRect(0,0,300,72)", band]);
+    expect(calls.filter((c) => c.startsWith("fillStyle="))).toEqual([`fillStyle=${heat(0)}`, "fillStyle=rgba(255, 255, 255, 0.07)"]);
     expect(calls.filter((c) => c.startsWith("stroke("))).toHaveLength(2);
-    expect(text).toContain("strokeStyle=grey");
+    expect(text).toContain("strokeStyle=rgba(255, 255, 255, 0.45)");
   });
 
-  it("draws each row as a strip of cells, the newest at the top, in the colour of what was received or of our own transmission, as strong as the bin", () => {
+  it("draws each row as a strip of cells, the newest at the top, received ones on the colour scale and our own transmission grey to white, the band over them", () => {
     const { canvas, calls } = fakeCanvas(96, 72);
     const strong = new Array<number>(SCOPE_BINS).fill(DRAW_RANGE_DB);
-    drawWaterfall(canvas, [row(strong, true), row(strong)], colours);
+    drawWaterfall(canvas, [row(strong, true), row(strong)]);
     const drawn = cells(calls);
     expect(drawn).toHaveLength(2 * SCOPE_BINS);
     expect(drawn[0]).toBe(`fillRect(0,0,2,${ROW_PX})`);
     expect(drawn[SCOPE_BINS]).toBe(`fillRect(0,${ROW_PX},2,${ROW_PX})`);
     expect(drawn.at(-1)).toBe(`fillRect(94,${ROW_PX},2,${ROW_PX})`);
     const styles = calls.filter((c) => c.startsWith("fillStyle="));
-    expect(styles).toEqual(["fillStyle=pale", "fillStyle=amber", "fillStyle=blue"]);
-    expect(calls).toContain("globalAlpha=1");
+    expect(styles[1]).toBe(`fillStyle=${sentHeat(1)}`);
+    expect(styles[1 + SCOPE_BINS]).toBe(`fillStyle=${heat(1)}`);
+    expect(styles.at(-1)).toBe("fillStyle=rgba(255, 255, 255, 0.07)");
   });
 
   it("leaves a bin at the floor undrawn, so that the noise is the background, and draws only the rows that fit", () => {
     const { canvas, calls } = fakeCanvas(96, 5);
     const one = [...new Array<number>(SCOPE_BINS - 1).fill(0), DRAW_RANGE_DB / 2];
-    drawWaterfall(canvas, [row(one), row(one), row(one), row(one)], colours);
-    const drawn = cells(calls);
-    expect(drawn).toEqual([`fillRect(94,0,2,${ROW_PX})`, `fillRect(94,${ROW_PX},2,${ROW_PX})`, `fillRect(94,${2 * ROW_PX},2,1)`]);
-    expect(calls).toContain(`globalAlpha=${strength(DRAW_RANGE_DB / 2)}`);
+    drawWaterfall(canvas, [row(one), row(one), row(one), row(one)]);
+    expect(cells(calls)).toEqual([`fillRect(94,0,2,${ROW_PX})`, `fillRect(94,${ROW_PX},2,${ROW_PX})`, `fillRect(94,${2 * ROW_PX},2,1)`]);
+    expect(calls).toContain(`fillStyle=${heat(strength(DRAW_RANGE_DB / 2))}`);
   });
 
   it("does nothing on a canvas that has no context", () => {
     const canvas = document.createElement("canvas");
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
-    expect(() => drawWaterfall(canvas, [row([1, 2, 3])], colours)).not.toThrow();
+    expect(() => drawWaterfall(canvas, [row([1, 2, 3])])).not.toThrow();
   });
 });
 
-describe("scopeColours", () => {
-  it("reads the page's tokens, the accent for what is received and the warning colour for our own signal", () => {
-    const element = document.createElement("div");
-    element.style.setProperty("--accent", "#111");
-    element.style.setProperty("--warn", "#222");
-    element.style.setProperty("--accent-soft-bg", "#333");
-    element.style.setProperty("--muted", "#555");
-    document.body.append(element);
-    expect(scopeColours(element)).toEqual({ received: "#111", sent: "#222", band: "#333", rule: "#555" });
-    element.remove();
+describe("the colour scale", () => {
+  it("runs as a rig's waterfall, navy at the floor through blue, cyan and yellow to red, and holds at the ends", () => {
+    expect(heat(0)).toBe("rgb(0, 8, 40)");
+    expect(heat(0.25)).toBe("rgb(8, 52, 190)");
+    expect(heat(0.5)).toBe("rgb(0, 170, 255)");
+    expect(heat(0.75)).toBe("rgb(255, 226, 0)");
+    expect(heat(1)).toBe("rgb(255, 40, 16)");
+    expect(heat(0.125)).toBe("rgb(4, 30, 115)");
+    expect(heat(-1)).toBe(heat(0));
+    expect(heat(2)).toBe(heat(1));
+    expect(HEAT.map(([at]) => at)).toEqual([0, 0.25, 0.5, 0.75, 1]);
+  });
+
+  it("draws our own transmission grey to white, apart from the scale", () => {
+    expect(sentHeat(0)).toBe("rgb(40, 40, 40)");
+    expect(sentHeat(1)).toBe("rgb(235, 235, 235)");
   });
 });

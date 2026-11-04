@@ -169,7 +169,7 @@ describe("the picture and the receive level", () => {
     const cells = () => calls.filter((c) => c === "fillRect(4)").length;
     calls.length = 0;
     await tell(daemon, { hfScope: picture() });
-    expect(cells()).toBe(1 + 48);
+    expect(cells()).toBe(2 + 48); // (the background, the 48 cells of the row and the band over them)
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     fold.element.open = false;
     await fold.trigger("toggle");
@@ -178,7 +178,7 @@ describe("the picture and the receive level", () => {
     await flushPromises();
     calls.length = 0;
     await tell(daemon, { hfScope: picture({ bins: new Array<number>(48).fill(0) }) });
-    expect(cells()).toBe(1);
+    expect(cells()).toBe(2); // (the background and the band: a row at the floor draws nothing)
   });
 
   it("shows the good range as a part of the bar", async () => {
