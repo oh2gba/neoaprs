@@ -2,13 +2,15 @@
 
 ## Unreleased
 
+- **Changed:** Send logs in the Help group is now **Send feedback**: the same note and logs, for a problem or for any feedback.
+
 ## 0.17.3
 
-- **New:** the app takes `--encryption` and starts NeoAPRS with encrypted messages allowed; on Windows a shortcut to `neoaprs-app.exe --encryption` does it every time, and Start at sign-in, ticked in the tray menu of an app started so, starts it so too. Before, only a NeoAPRS started by hand could allow them, and the app started its own without.
+- **New:** while both radios are on, FM and HF stand before Send in a conversation: the one the messages to that station go over is pressed, and pressing the other sends them over it from then on, also the retries of a message on its way. NeoAPRS keeps the choice for the station across a restart. Before, a station heard on both radios was always written to over FM.
+- **New:** for exceptional circumstances only: the app takes `--encryption` and passes it to the NeoAPRS it starts and to Start at sign-in. Without it, nothing changes.
+- **Changed:** a station whose position says it takes no messages can be written to. The conversation says the station may not take messages, with an (i) that says why; if nothing reads the message there, it gets no ack.
 - **Fixed:** on Windows the tray icon's menu (Open, Start at sign-in, Quit and the rest) failed at every start.
 - **Fixed:** the log says at the start whether encrypted messages are allowed, so that a support report shows it.
-- **New:** while both radios are on, FM and HF stand before Send in a conversation: the one the messages to that station go over is pressed, and pressing the other sends them over it from then on, also the retries of a message on its way. NeoAPRS keeps the choice for the station across a restart. Before, a station heard on both radios was always written to over FM.
-- **Changed:** a station whose position says it takes no messages can be written to. The conversation says the station may not take messages, with an (i) that says why; if nothing reads the message there, it gets no ack.
 - **Fixed:** on HF two stations that sent at the same moment and collided retried at the same moments again, 32 and 64 seconds later to the second, and collided again. A retry on HF now waits a pause of its own of up to 20 seconds.
 - **Fixed:** on Linux the HF radio could end up on another radio's sound card after a reboot or after plugging in a USB device: the setting kept the card's number, and Linux numbers the cards in the order it finds them. The Sound card field now keeps the card by its name, which does not change. A card chosen before is taken as the card that number means now; check that it is your radio's.
 

@@ -39,7 +39,7 @@ describe("the Help group", () => {
   it("is one line with the address as the e-mail link, the two plain buttons with their one (i), and nothing else", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("Help");
-    expect(wrapper.get("p").text()).toBe("Problem? Send the logs, or e-mail them to neoaprs@oh2gba.eu.");
+    expect(wrapper.get("p").text()).toBe("Feedback or a problem? Send it from here, or e-mail neoaprs@oh2gba.eu.");
     const link = wrapper.get("p a");
     expect(link.text()).toBe("neoaprs@oh2gba.eu");
     const url = new URL(link.attributes("href") ?? "");
@@ -48,7 +48,7 @@ describe("the Help group", () => {
     expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
     expect(url.searchParams.get("body")).toBe(["What I did:", "", "What I expected:", "", "What happened:", "", "When (roughly):", ""].join("\r\n").trimEnd());
     expect(wrapper.findAll("a")).toHaveLength(1);
-    expect(wrapper.findAll("button.btn").map((b) => b.text())).toEqual(["Download logs", "Send logs"]);
+    expect(wrapper.findAll("button.btn").map((b) => b.text())).toEqual(["Download logs", "Send feedback"]);
     const button = wrapper.get("button.btn");
     expect(button.text()).toBe("Download logs");
     expect(button.classes()).toEqual(["btn"]);

@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=13">
 <script src="site.js?v=8" defer></script>
 </head>
 <body>
@@ -46,6 +46,10 @@
   </div>
 </header>
 
+<a class="newsbar" href="first-test.html">
+  <span class="wrap"><span class="newsbar-tag">On the air</span><span class="newsbar-text">First test of APRS over Mercury: 40 km on 10 W, every message delivered</span><span class="newsbar-go">Read the report &rarr;</span></span>
+</a>
+
 <main id="main">
 
 <section class="open" id="top">
@@ -57,7 +61,7 @@
         <p class="lead">A map, APRS messaging and your beacon, in a browser or as a desktop app. Any KISS TNC on VHF, and now APRS over HF with the Mercury modem built in. Free and open source.</p>
         <p class="cta"><a class="btn" href="#download">Download</a><a class="btn ghost" href="#hf">APRS over HF</a></p>
       </div>
-      <a class="stamp" href="#hf" aria-label="A first: APRS over HF with the Mercury modem">
+      <a class="stamp" href="first-test.html" aria-label="A first: APRS over HF with the Mercury modem, the first test on the air">
         <span class="s-top">A first</span>
         <span class="s-big">APRS over HF</span>
         <span class="s-bot">with Mercury · 2026</span>
@@ -95,6 +99,7 @@
   <div class="wrap">
     <p class="flag">New</p>
     <h2>APRS over HF, with Mercury</h2>
+    <p class="newslink"><a href="first-test.html">Read the first test on the air: 40 km on 10 W, every message delivered &rarr;</a></p>
     <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica. NeoAPRS puts APRS on it, as a second radio beside the FM one: an SSB radio with a sound card. HF stations are on the same map and in the same messages, tagged HF.</p>
     <table class="why">
       <thead><tr><th scope="col"></th><th scope="col">Old HF packet, 300 baud</th><th scope="col">Mercury in NeoAPRS</th></tr></thead>

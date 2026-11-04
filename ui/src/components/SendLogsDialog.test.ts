@@ -50,12 +50,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("the Send logs button", () => {
+describe("the Send feedback button", () => {
   it("stands beside Download logs in the one row, before the one (i), and sends nothing by itself", () => {
     const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
     make();
     const control = wrapper.get(".help-logs .field-control").element;
-    expect([...control.children].map((c) => c.textContent?.trim())).toEqual(["Download logs", "Send logs", expect.any(String)]);
+    expect([...control.children].map((c) => c.textContent?.trim())).toEqual(["Download logs", "Send feedback", expect.any(String)]);
     expect(control.lastElementChild?.classList.contains("infotip")).toBe(true);
     expect(wrapper.get("#set-help-send").classes()).toEqual(["btn"]);
     expect(wrapper.findAll(".action-row")).toHaveLength(1);
@@ -64,16 +64,16 @@ describe("the Send logs button", () => {
 });
 
 describe("the dialog", () => {
-  it("opens over the page with one text, What happened?, a few lines and at most 2000 characters, and Send and Cancel; the focus is in the text", async () => {
+  it("opens over the page with one text, Your message, a few lines and at most 2000 characters, and Send and Cancel; the focus is in the text", async () => {
     make();
     expect(dialog()).toBeNull();
     await open();
     const box = dialog();
     expect(box?.getAttribute("role")).toBe("dialog");
     expect(box?.getAttribute("aria-modal")).toBe("true");
-    expect(box?.querySelector("h2")?.textContent).toBe("Send logs");
+    expect(box?.querySelector("h2")?.textContent).toBe("Send feedback");
     const label = box?.querySelector("label");
-    expect(label?.textContent).toBe("What happened?");
+    expect(label?.textContent).toBe("Your message");
     expect(label?.getAttribute("for")).toBe(area().id);
     expect(Number(area().getAttribute("rows"))).toBeGreaterThanOrEqual(4);
     expect(area().getAttribute("maxlength")).toBe("2000");
@@ -98,7 +98,7 @@ describe("the dialog", () => {
     (dialog()?.querySelector(".infotip button") as HTMLButtonElement).click();
     await flushPromises();
     expect([...(dialog()?.querySelectorAll(".info-line") ?? [])].map((line) => line.textContent)).toEqual([
-      "Sends the logs, the settings without the access key and the packets heard and sent to the project, with your words.",
+      "Sends your message to the project, with the logs, the settings without the access key and the packets heard and sent.",
       "Nothing is sent before you press Send.",
     ]);
   });
@@ -167,7 +167,7 @@ describe("sending", () => {
     expect(wrapper.get(".help-result").text()).toBe("");
     answer(new Response(JSON.stringify({ ok: true, ref: REF }), { status: 200 }));
     await flushPromises();
-    expect(send.text()).toBe("Send logs");
+    expect(send.text()).toBe("Send feedback");
     expect(send.attributes("disabled")).toBeUndefined();
     expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
   });
@@ -208,7 +208,7 @@ describe("sending", () => {
     await typeAndSend("x");
     expect(wrapper.get(".help-result .field-error").text()).toBe(text);
     expect(wrapper.find(".help-result .muted").exists()).toBe(false);
-    expect(wrapper.get("#set-help-send").text()).toBe("Send logs");
+    expect(wrapper.get("#set-help-send").text()).toBe("Send feedback");
     expect(wrapper.get("#set-help-send").attributes("disabled")).toBeUndefined();
   });
 

@@ -253,3 +253,28 @@ footer p { margin: 0; }
 @media (max-width: 720px) {
   .why.vs td:nth-child(2)::before { content: "VARA: "; }
 }
+
+/* an article (first-test.html): the text in a readable column, its tables and list as on the front page */
+.article .wrap { max-width: 1400px; }
+.article .lead-sm { max-width: none; font-size: 1.15rem; }
+.article-title { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 16px; }
+.article h2 { margin-top: 36px; font-size: clamp(1.3rem, 2.6vw, 1.7rem); }
+.article p { margin: 0 0 14px; }
+.article q { font-style: italic; }
+.facts { width: 100%; margin: 6px 0 18px; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
+.facts th, .facts td { padding: 10px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--rule); }
+.facts tr:first-child th, .facts tr:first-child td { border-top: 0; }
+.facts th { width: 38%; font-weight: 650; }
+.article-list { margin: 0 0 14px; padding-left: 1.2em; }
+.article-list li { margin: 0 0 8px; }
+.article .cta { margin-top: 24px; }
+.newslink { margin: -4px 0 26px; }
+.newslink a { display: inline-block; padding: 10px 16px; border: 1.5px solid var(--hf); border-radius: 10px; background: var(--hf-soft); color: var(--hf); font-weight: 700; text-decoration: none; }
+.newslink a:hover { background: var(--hf); color: #fff; }
+/* the banner under the masthead: the latest news, in the HF colour, on every width */
+.newsbar { display: block; background: var(--hf); color: #fff; text-decoration: none; }
+.newsbar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-top: 10px; padding-bottom: 10px; }
+.newsbar-tag { padding: 2px 9px; border: 1.5px solid rgba(255, 255, 255, 0.85); border-radius: 999px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.newsbar-text { font-weight: 650; }
+.newsbar-go { margin-left: auto; font-weight: 700; white-space: nowrap; }
+.newsbar:hover .newsbar-go, .newsbar:focus-visible .newsbar-go { text-decoration: underline; }
