@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.18.1
+
 - **Fixed:** Windows Defender could take NeoAPRS for a trojan and remove it, usually right after an update: NeoAPRS then vanished, or stopped without a word. The programs now say what they are, are built in a way that no other program shares, and the message alert no longer runs PowerShell in the way malware does.
 - **Fixed:** on Windows, Update now brought NeoAPRS back without encrypted messages when it ran with `--encryption`, and the start at sign-in lost the option. Both keep it now, and so does an update installed by hand.
 
