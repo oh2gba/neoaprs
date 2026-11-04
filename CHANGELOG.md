@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Changed:** the HF radio's **Spectrum** is a waterfall: each picture of the radio's audio is a new row at the top and the older ones move down, so that a station shows as a trace and a frame as a block in the marked band, with the last seven seconds or so in view. Our own transmissions are in amber. The receive level bar under it is as it was.
+- **New:** the **Spectrum** in the HF radio's box is a waterfall: the radio's audio from 300 to 2700 Hz scrolls down from the top, the last seven seconds or so in view, so that a station's carrier shows as a line and a frame as a block in the marked band where frames sit. Your own transmissions are in amber. The receive level bar under it is as it was.
 
 ## 0.17.4
 
