@@ -167,12 +167,13 @@ def test_bundled_dir_is_bin_next_to_the_executable_of_a_frozen_program(monkeypat
     assert pmtilestool.bundled_dir() == (tmp_path / "NeoAPRS").resolve() / "bin"
 
 
-def test_the_release_has_the_installer_the_appimage_and_the_macos_app_under_fixed_names_too() -> None:
-    """The project page links to releases/latest/download/NeoAPRS-Setup.exe, NeoAPRS-x86_64.AppImage and NeoAPRS-arm64.dmg: one click, the newest, nothing between."""
+def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packages_under_fixed_names_too() -> None:
+    """The project page links to releases/latest/download/NeoAPRS-Setup.exe, NeoAPRS-x86_64.AppImage, NeoAPRS-arm64.dmg, neoaprs_arm64.deb and neoaprs_amd64.deb: one click, the newest, nothing between."""
     assemble = WORKFLOW.split("name: SHA256SUMS and the notes", 1)[1].split("uses: actions/upload-artifact", 1)[0]
     assert 'cp -- "NeoAPRS-Setup-$version.exe" NeoAPRS-Setup.exe' in assemble and 'cp -- "NeoAPRS-$version-x86_64.AppImage" NeoAPRS-x86_64.AppImage' in assemble and 'cp -- "NeoAPRS-$version-arm64.dmg" NeoAPRS-arm64.dmg' in assemble
+    assert 'cp -- "neoaprs_${version}_amd64.deb" neoaprs_amd64.deb' in assemble and 'cp -- "neoaprs_${version}_arm64.deb" neoaprs_arm64.deb' in assemble
     assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
-    assert '[ "$(ls | wc -l)" = 11 ]' in assemble, "the eight files (the wheel and install.sh among them) and the three fixed names, before SHA256SUMS"
+    assert '[ "$(ls | wc -l)" = 13 ]' in assemble, "the eight files (the wheel and install.sh among them) and the five fixed names, before SHA256SUMS"
 
 
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
@@ -225,8 +226,8 @@ def test_the_wheel_and_the_sdist_are_named_by_the_pep_440_form_of_the_version_an
     assert 'dist/neoaprs-$wheel_version-py3-none-any.whl' in wheel_job and 'dist/neoaprs-$wheel_version.tar.gz' in wheel_job
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     assert "rm -f -- neoaprs-*.whl" not in assemble and "packaging/install.sh.in > install.sh" in assemble, "the wheel and install.sh stay files of the release: the update of a copy installed with the install line before 0.16 runs it"
-    assert '"neoaprs-$wheel_version.tar.gz" "neoaprs-$wheel_version-py3-none-any.whl" install.sh "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"' in assemble, "the eight; with the three fixed names and SHA256SUMS, twelve"
-    assert '[ "$(ls | wc -l)" = 11 ]' in assemble
+    assert '"neoaprs-$wheel_version.tar.gz" "neoaprs-$wheel_version-py3-none-any.whl" install.sh "NeoAPRS-Setup-$version.exe" "NeoAPRS-$version-x86_64.AppImage" "NeoAPRS-$version-arm64.dmg" "neoaprs_${version}_amd64.deb" "neoaprs_${version}_arm64.deb"' in assemble, "the eight; with the five fixed names and SHA256SUMS, fourteen"
+    assert '[ "$(ls | wc -l)" = 13 ]' in assemble
 
 
 def job(name: str) -> str:
