@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fixed:** on a phone the page could show old messages after the phone had slept, until it was reloaded. It now catches up as soon as it is on the screen again, and whenever it has heard nothing from NeoAPRS for half a minute.
+- **Fixed:** with the HF radio alone, the log said "the beacon is due and the TNC is not connected" at every beacon time, about the FM radio that was switched off. The HF beacon went out all along; the FM one now rests while its radio is off.
+
 ## 0.18.1
 
 - **Fixed:** Windows Defender could take NeoAPRS for a trojan and remove it, usually right after an update: NeoAPRS then vanished, or stopped without a word. The programs now say what they are, are built in a way that no other program shares, and the message alert no longer runs PowerShell in the way malware does.
