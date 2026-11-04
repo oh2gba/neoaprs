@@ -464,6 +464,8 @@ def test_the_thread_keeps_the_pace_of_the_clock_and_delivers(make) -> None:
             rig.drain(name)
     finally:
         rig.channel.stop()
+    for name in "AB":
+        rig.drain(name)                         # (a block the thread wrote between the read above and the stop is counted in `blocks`: it is read too, or the count and the samples differ by one)
     elapsed = time.monotonic() - started
     blocks = rig.channel.blocks
     assert elapsed / 0.02 - 4 <= blocks <= elapsed / 0.02 + 1, (blocks, elapsed)

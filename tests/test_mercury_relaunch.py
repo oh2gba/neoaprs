@@ -18,7 +18,7 @@ from tests.support.env import Env, until
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each test asks the modem for free ports from a base of its own, so that two tests side by side (pytest-xdist) do not both find 8100 free between the probe and the bind."""
-    base = random.randrange(20000, 60000, 500)
+    base = random.randrange(20000, 40000, 500)             # (every port of the pair, and the UI port 2000 above, stays under 49152: Windows hands out and reserves the ports above it, and a base there found no free pair on CI's Windows runner)
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
 
 

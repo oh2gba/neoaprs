@@ -55,6 +55,7 @@ async def test_a_message_is_acked_within_one_frame_each_way_and_the_first_wait_o
     message, ack = (ax25.decode(p) for _, _, p in w.air.delivered)
     assert message.info == b":OH2B     :Moi Pekka, kuuluuko?{01}" and ack.info == b":OH2A     :ack01}"
     assert 2 * w.air.frame_sec <= took < 5.0 and a.ctl.messaging.get(record.id).attempts == 1, "two frames on the air and the polls between them (longer on a slow machine), never a retry: on the air the ack of a first attempt comes in about 10 s, a third of the first wait of 32 s (docs/mercury.md)"       # type: ignore[union-attr]
+    await w.until(lambda: any(m.direction == "in" for m in b.ctl.messaging.records()))     # (B acks at once and keeps the message as it is told: on a slow runner the ack can come first)
     received = [m for m in b.ctl.messaging.records() if m.direction == "in"]
     assert len(received) == 1 and received[0].text == "Moi Pekka, kuuluuko?"
     assert w.air.collisions == 0 and a.ctl.mercury.frames_keyed == 1 and b.ctl.mercury.frames_keyed == 1
