@@ -286,3 +286,39 @@ def test_a_spectrum_that_stops_without_a_word_is_given_up_after_a_second() -> No
     assert m.hold() == CHANNEL_BUSY
     m._auto_at = time.monotonic() - 2.0
     assert m.hold() == "" and not m.busy and m._auto_at == 0.0, "its busy state is not believed once nothing feeds it: Mercury's (clear) is"
+
+
+async def test_what_a_stopped_program_said_of_the_channel_holds_nothing_after_a_restart(tmp_path: Path) -> None:
+    m = Mercury(tmp_path)
+    now = time.monotonic()
+    m.auto_busy(False, now)                 # the spectrum is read: clear
+    m._on_busy(True, now)                   # Mercury's own detector says BUSY ON (a step in the noise): kept, not believed
+    assert not m.busy
+    await m.stop()                          # the settings were saved: the modem stops, and is started again
+    m._auto_at -= 2.0                       # (were anything kept: the restart took over a second, the new link not yet up)
+    assert m.hold() == "" and not m.busy, "the old program's BUSY does not hold the frames of the new one"
+
+
+async def test_a_page_that_turns_the_scope_off_and_on_in_one_tick_leaves_one_picture_loop(tmp_path: Path) -> None:
+    from neoaprs.mercuryui import MercuryUi
+    m = Mercury(tmp_path)
+    m._ui = MercuryUi("127.0.0.1", 9, lambda t: None, lambda b: None, lambda s: None)
+    m._ui.connected = True
+
+    def loops() -> int:
+        return len([t for t in m._tasks._tasks if t.get_name() == "mercury-scope" and not t.done()])
+    try:
+        m.want_scope(True)
+        await asyncio.sleep(0.01)
+        m.want_scope(False)
+        m.want_scope(True)                  # (two command tasks of a page, run in the same tick)
+        await asyncio.sleep(0.01)
+        assert m._scope_task is not None and loops() == 1
+        m._ui.connected = False
+        m._ui_state(False)
+        m._ui.connected = True
+        m._ui_state(True)                   # the link dropped and came back
+        await asyncio.sleep(0.01)
+        assert loops() == 1, "one loop, five pictures a second, not two"
+    finally:
+        await m._tasks.cancel_all()

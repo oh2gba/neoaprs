@@ -457,3 +457,19 @@ def test_the_lines_that_say_the_sound_card_could_not_be_opened_are_known_and_the
     assert mercury.audio_open_error("[ERR] [audio-play] Error in audio->init(): PulseAudio is not in this build")
     for line in ("[WRN] [modem-rx] decoder ring full (mode=12): dropped 100 samples so far", "[INF] [audio-play] opened plughw:1,0", "[ERR] [tcp-ctl] Control recv returned 0 (err=0), closing", "[ERR] [audio-play] Failed to allocate playback buffers"):
         assert not mercury.audio_open_error(line), line
+
+
+def test_a_windows_radio_whose_two_devices_carry_different_numbers_is_one_card_and_two_alike_radios_stay_two() -> None:
+    def listed(playing: list[str], recording: list[str]) -> str:
+        return ("playback devices:\n" + "".join(f"device: name: '{name}'  id: '{{0.0.0.00000000}}.{{p{i}}}'\n" for i, name in enumerate(playing))
+                + "capture devices:\n" + "".join(f"device: name: '{name}'  id: '{{0.0.1.00000000}}.{{r{i}}}'\n" for i, name in enumerate(recording)))
+    realtek = ["Speakers (Realtek High Definition Audio)", "Headphones (Realtek High Definition Audio)"]
+    cards = mercury.parse_sound_cards(listed([*realtek, "Speakers (2- USB Audio CODEC)"], ["Microphone (Realtek High Definition Audio)", "Microphone (USB Audio CODEC)"]))
+    radio = [c for c in cards if "USB Audio CODEC" in c.name]
+    assert [(c.name, c.id) for c in radio] == [("USB Audio CODEC", "{0.0.1.00000000}.{r1}|{0.0.0.00000000}.{p2}")], "a radio moved to another USB port: its devices numbered apart"
+    assert mercury.choose_sound_card(cards) == radio[0].id, "the radio, not the computer's own headphones"
+    two = mercury.parse_sound_cards(listed(["Speakers (USB Audio CODEC)", "Speakers (2- USB Audio CODEC)"], ["Microphone (2- USB Audio CODEC)", "Microphone (USB Audio CODEC)"]))
+    assert [(c.name, c.id) for c in two] == [("USB Audio CODEC", "{0.0.1.00000000}.{r1}|{0.0.0.00000000}.{p0}"), ("2- USB Audio CODEC", "{0.0.1.00000000}.{r0}|{0.0.0.00000000}.{p1}")], \
+        "two radios of the same codec: each by its own name"
+    unsure = mercury.parse_sound_cards(listed(["Speakers (2- USB Audio CODEC)", "Speakers (3- USB Audio CODEC)"], ["Microphone (USB Audio CODEC)"]))
+    assert all(not (c.playback and c.capture) for c in unsure), "which playing device goes with the microphone nobody can tell: each stays alone"

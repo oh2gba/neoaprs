@@ -15,11 +15,14 @@ const { call, connection, version, panel } = useDaemonContext();
 const logs = useSupportLogs({ call, connection, daemonVersion: version, panelWidth: panel.width });
 const sendLabel = computed(() => (logs.sending.value ? t("settings.help.sending") : t("settings.help.send")));
 const asking = ref(false);
+/** The words of the dialog, kept until they were sent: a send that failed does not take them. */
+const draft = ref("");
 const sendButton = ref<HTMLElement | null>(null);
 
-function send(note: string): void {
+async function send(note: string): Promise<void> {
   asking.value = false;
-  void logs.send(note);
+  await logs.send(note);
+  if (logs.sentRef.value !== null) draft.value = "";
 }
 </script>
 
@@ -48,7 +51,7 @@ function send(note: string): void {
       </template>
     </ActionRow>
     <Teleport v-if="asking" to="body">
-      <SendLogsDialog :opener="sendButton" :call="call" @send="send" @close="asking = false" />
+      <SendLogsDialog :draft="draft" :opener="sendButton" :call="call" @draft="draft = $event" @send="send" @close="asking = false" />
     </Teleport>
   </SettingsGroup>
 </template>

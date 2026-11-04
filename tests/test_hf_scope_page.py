@@ -1,6 +1,7 @@
 """The scope and the transmit level as the page has them (neoaprs/web/scopefeed.py, tncwire.py): `hf_scope` makes a page one of those that are sent the pictures and tells the modem whether any page wants them, a page that leaves
 or stops asking is forgotten, the pictures go to the pages that asked and to no other, the topic `hf` says whether the scope is there, the gain and the peak, the setting of the gain reaches the modem, and it restarts the modem
 only where nothing could set it live."""
+import asyncio
 from dataclasses import replace
 from pathlib import Path
 
@@ -64,3 +65,25 @@ async def test_the_setting_of_the_gain_reaches_the_modem_and_the_topic_and_a_mod
     e.ctl.mercury._ui = None
     await e.stop()
     await air.aclose()
+
+
+async def test_a_page_that_asks_for_the_scope_and_leaves_in_the_same_moment_is_not_kept(tmp_path: Path) -> None:
+    air = Air(frame_sec=0.2)
+    e = Env(tmp_path, radio=air.station(), web=True)
+    await e.start()
+    try:
+        api = e.server.api
+
+        class Page:
+            def send_json(self, text: str) -> None: ...
+            def buffered(self) -> int:
+                return 0
+        page = Page()
+        api.attach(page)
+        api.on_command(page, '{"cmd": "hf_scope", "on": true}')
+        api.detach(page)                    # (the command and the close came in one read: the command runs after)
+        await asyncio.sleep(0.1)            # (the command's task has run)
+        assert api.topics.scope.pages == 0 and not e.ctl.mercury._wanted, "no pictures are made for a page that has left"
+    finally:
+        await e.stop()
+        await air.aclose()

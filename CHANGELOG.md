@@ -5,6 +5,13 @@
 - **New:** the **Spectrum** in the HF radio's box is a waterfall: the radio's audio from 300 to 2700 Hz scrolls down from the top, the last seven seconds or so in view, so that a station's carrier shows as a line and a frame as a block in the marked band where frames sit. It is drawn in the colours of a rig's waterfall, from dark blue through cyan and yellow to red as a signal gets stronger, and your own transmissions in grey. The receive level bar under it is as it was.
 - **Fixed:** on Windows, an HF sound card that Mercury could not open was said only when Mercury ended, which could be many minutes later, and the HF radio showed connected until then. Now it is said at once, as on Linux.
 - **Fixed:** the desktop app no longer leaves a warning about a missing icon in the log at every start.
+- **Fixed:** after a change of the HF radio's settings our frames could wait up to 20 seconds and the HF box said the channel was busy: what the modem said of the channel before the change still held the radio after it.
+- **Fixed:** on Windows a radio whose speaker and microphone carry different numbers ("Speakers (2- USB Audio CODEC)" beside "Microphone (USB Audio CODEC)", as after moving the radio to another USB port) was offered as two separate devices, and NeoAPRS proposed the computer's own headphones and microphone for the HF radio. The two are one card again, named after the radio.
+- **Fixed:** with the spectrum scope open, the HF radio's pictures could come twice as often as they should, or go on being made for a page that had already been closed.
+- **Fixed:** a station you forgot got its old radio for messages back after a restart, although it was messaged on FM again meanwhile. Forgetting a station, or every station, now forgets its radio too.
+- **Fixed:** Send feedback / logs and Download logs failed with "The file could not be made (error 500)" on a computer whose sound card names the system could not read; the HF radio did not start there either. Both work now.
+- **Fixed:** a note to Send feedback / logs with half of an emoji in it (some programs paste one) was not sent, and the Help group said there was no internet connection.
+- **Fixed:** the words written in Send feedback / logs were gone when the send failed; they are there again when you open it, until a send works.
 
 ## 0.17.4
 

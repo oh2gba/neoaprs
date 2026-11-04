@@ -105,3 +105,19 @@ async def test_the_page_chooses_the_radio_of_a_station_and_its_row_says_it(tmp_p
     await page.send({"cmd": "message_radio", "call": "OH2NOBODY", "radio": "hf"})
     error = await page.expect("error")
     assert error["code"] == "station.unknown"
+
+
+def test_a_station_the_book_lets_go_takes_its_radio_along_and_a_restart_does_not_bring_it_back() -> None:
+    kept = Kept()
+    r, book, fm, _ = radios(kept)
+    book.removed.connect(r.forget)                                       # (as wiring.py connects them)
+    book.cleared.connect(r.forget_all)
+    assert r.choose("OH2GAX-2", "hf") and r.choose("OH2FAR", "fm")
+    assert book.forget("OH2GAX-2"), "the operator forgets the station (Forget on its card)"
+    book.seed([station("OH2GAX-2", fm=1)])                                 # heard again: no choice, messaged on FM
+    assert r.for_station("OH2GAX-2") is fm and json.loads(kept.rows[MESSAGE_RADIOS]) == {"OH2FAR": "fm"}
+    again, book2, _, _ = radios()                                        # the daemon restarted
+    again.restore(kept.rows[MESSAGE_RADIOS])
+    assert book2.get("OH2GAX-2").message_radio == "" and book2.get("OH2FAR").message_radio == "fm"      # type: ignore[union-attr]
+    book.forget_all()
+    assert json.loads(kept.rows[MESSAGE_RADIOS]) == {}, "Forget all forgets the choices too"

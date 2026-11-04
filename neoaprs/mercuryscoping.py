@@ -152,7 +152,8 @@ class Scoping:
                 if frame is not None:
                     self.scope_frame.emit(frame, self.keyed)
         finally:
-            self._scope_task = None
+            if self._scope_task is asyncio.current_task():      # (a loop cancelled and replaced in the same tick, off and on, must not clear its successor)
+                self._scope_task = None
 
     # ---- the transmit gain
     def set_tx_gain(self, db: float) -> None:

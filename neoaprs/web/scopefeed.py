@@ -16,7 +16,9 @@ class ScopeFeed:
         return len(self._pages)
 
     def ask(self, conn: Connection, on: bool) -> None:
-        """This page wants the pictures (or no more of them)."""
+        """This page wants the pictures (or no more of them). A page that has left meanwhile is not taken (its command ran after it closed: the command is a task, and the close came in the same read)."""
+        if on and conn.closed:
+            return
         (self._pages.add if on else self._pages.discard)(conn)
         self._modem.want_scope(bool(self._pages))
 

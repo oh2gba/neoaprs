@@ -91,7 +91,7 @@ class SupportSend(SupportBundle):
         note = body.get("note", "")
         if not isinstance(note, str):
             raise tornado.web.HTTPError(400, reason="Bad Request: the note is text")
-        note = note.strip()[:MAX_NOTE]
+        note = note.strip()[:MAX_NOTE].encode("utf-8", "replace").decode("utf-8")       # (JSON lets a lone surrogate through, a half of an emoji, which no form can carry: it is a "?")
         bundler = self.server.bundles
         if bundler.busy or bundler.sending:
             self.too_busy()

@@ -150,6 +150,8 @@ def wire(parts: Services) -> None:
     parts.config_changed.connect(parts.stationalerts.settings_changed)
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
+    parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radios.py)
+    parts.stationbook.cleared.connect(parts.radios.forget_all)
     parts.mercury.ports_changed.connect(parts.repoint_hf)                                # (a modem started again on other ports, the old pair taken meanwhile: the HF Tnc follows it)
     parts.updatecheck.dial_changed.connect(lambda dial: _show_frequencies(parts))        # (the frequencies the HF box suggests come from the project's file or the version page: a move needs no release)
     parts.frequencies.changed.connect(lambda: _show_frequencies(parts))

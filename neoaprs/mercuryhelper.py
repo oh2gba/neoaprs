@@ -196,7 +196,7 @@ def alsa_card_names(root: Path | None = None) -> dict[int, str]:
 def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) -> list[SoundCard]:
     """The sound cards Mercury lists (`-z`): run in the calling thread (not on the loop). None, with a line in the log, when the program cannot be run or says nothing a list is made of."""
     try:
-        done = subprocess.run([*command, "-z"], capture_output=True, text=True, timeout=timeout_sec, env=environment(command), creationflags=HIDDEN_WINDOW, check=False)
+        done = subprocess.run([*command, "-z"], capture_output=True, text=True, errors="replace", timeout=timeout_sec, env=environment(command), creationflags=HIDDEN_WINDOW, check=False)
     except (OSError, subprocess.TimeoutExpired) as e:
         log.warning("mercury -z could not be run: %s", e)
         return []

@@ -224,4 +224,18 @@ describe("sending", () => {
     expect(wrapper.find(".help-result .field-error").exists()).toBe(false);
     expect(wrapper.get(".help-result .muted").text()).toContain(REF);
   });
+
+  it("keeps the words written when they were not sent, and forgets them once they were", async () => {
+    daemonSays(() => json({ ok: false, reason: "offline" }));
+    make();
+    await open();
+    await typeAndSend("The beacon stopped at 10:15.");
+    await open();
+    expect(area().value).toBe("The beacon stopped at 10:15.");
+    daemonSays(() => json({ ok: true, ref: REF }));
+    button("Send").click();
+    await flushPromises();
+    await open();
+    expect(area().value).toBe("");
+  });
 });
