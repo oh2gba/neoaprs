@@ -242,7 +242,9 @@ def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_wh
     aplay.write_text("")
     aplay.chmod(0o755)
     monkeypatch.setenv("NEOAPRS_PLAYER_PATH", str(tmp_path))
-    assert player_command() == [str(aplay), "-q", "-t", "raw", "-f", "S32_LE", "-r", "8000", "-c", "1", "-"]
+    found = player_command()
+    assert found is not None and os.path.samefile(found[0], aplay), "(Windows names the file in its own case: the same file, not the same text)"
+    assert found[1:] == ["-q", "-t", "raw", "-f", "S32_LE", "-r", "8000", "-c", "1", "-"]
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
