@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Changed:** the HF radio's **Spectrum** is a waterfall: each picture of the radio's audio is a new row at the top and the older ones move down, so that a station shows as a trace and a frame as a block in the marked band, with the last seven seconds or so in view. Our own transmissions are in amber. The receive level bar under it is as it was.
+
 ## 0.17.4
 
 - **Changed:** 6 m, 50.620 MHz USB, is among the suggested frequencies, where the first test on the air ran; the HF box keeps room for its three lines.

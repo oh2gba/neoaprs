@@ -1251,7 +1251,7 @@ export const fr: Catalogue = {
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Fréquences suggérées",
   "settings.scope.title": "Spectre",
-  "settings.scope.aria": "Le spectre de l'audio de la radio de 300 à 2 700 Hz ; le bloc est l'endroit où se trouve une trame.",
+  "settings.scope.aria": "L'audio de la radio de 300 à 2 700 Hz en chute d'eau, le plus récent en haut ; le bloc est l'endroit où se trouve une trame.",
   "settings.scope.level": "Niveau de réception",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "À propos du niveau de réception",
@@ -1709,7 +1709,7 @@ export const fr: Catalogue = {
   "help.picture.mercury":
     "Votre station et une station lointaine, très éloignées ; le signal monte et redescend entre elles : seule une station avec le même modem l'entend.",
   "help.picture.scope":
-    "Une station lointaine émet ; le spectre montre sa trame comme un bloc de barres au-dessus du bruit faible, et la barre du niveau de réception reste dans sa bonne plage.",
+    "Une station lointaine émet ; la chute d'eau montre sa trame comme un bloc dans la bande marquée, le plus récent en haut, et la barre du niveau de réception reste dans sa bonne plage.",
   "help.picture.tworadios":
     "Votre station avec deux radios : la radio FM atteint la voiture et le digipeater proches au ras du sol, la radio HF atteint une station lointaine par le signal qui monte et redescend.",
   "help.picture.dummy":

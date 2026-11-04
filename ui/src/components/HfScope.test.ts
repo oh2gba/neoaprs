@@ -1,5 +1,5 @@
 // The scope in the HF radio's box (HfScope.vue, composables/useHfScope.ts) and the Transmit level row (HfLevelRow.vue): the fold, folded at first and remembered in the browser; the pictures asked of the daemon only while it is open, this page is in
-// front and the modem has the interface; the canvas drawn from the pictures; the receive level as a bar with its zones; the gain buttons and the peak that turns red.
+// front and the modem has the interface; the waterfall drawn from the pictures, started again when they are; the receive level as a bar with its zones; the gain buttons and the peak that turns red.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
@@ -152,7 +152,7 @@ describe("the picture and the receive level", () => {
     expect(box.find(".levelvalue").text()).toBe("– dBFS");
     calls.length = 0;
     await tell(daemon, { hfScope: picture() });
-    await vi.waitFor(() => expect(calls.some((c) => c.startsWith("fill("))).toBe(true));
+    await vi.waitFor(() => expect(calls.filter((c) => c === "fillRect(4)").length).toBeGreaterThan(1));
     expect(box.find(".levelvalue").text()).toBe("-38 dBFS");
     expect(box.find(".levelfill").classes()).toContain("good");
     expect(box.find<HTMLElement>(".levelfill").element.style.width).toBe(`${((90 - 38) / 90) * 100}%`);
@@ -162,6 +162,23 @@ describe("the picture and the receive level", () => {
     expect(box.find(".levelfill").classes()).toContain("clip");
     await tell(daemon, { hfScope: picture({ level: -18 }) });
     expect(box.find(".levelfill").classes()).toContain("high");
+  });
+
+  it("draws each picture as a row of the waterfall and starts it again when the fold is opened again", async () => {
+    const { box, daemon } = await open();
+    const cells = () => calls.filter((c) => c === "fillRect(4)").length;
+    calls.length = 0;
+    await tell(daemon, { hfScope: picture() });
+    expect(cells()).toBe(1 + 48);
+    const fold = box.find<HTMLDetailsElement>("details.hf-scope");
+    fold.element.open = false;
+    await fold.trigger("toggle");
+    fold.element.open = true;
+    await fold.trigger("toggle");
+    await flushPromises();
+    calls.length = 0;
+    await tell(daemon, { hfScope: picture({ bins: new Array<number>(48).fill(0) }) });
+    expect(cells()).toBe(1);
   });
 
   it("shows the good range as a part of the bar", async () => {

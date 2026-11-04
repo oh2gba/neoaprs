@@ -150,7 +150,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testaa",
   "settings.hf_frequencies.label": "Ehdotetut taajuudet",
   "settings.scope.title": "Spektri",
-  "settings.scope.aria": "Radion äänen spektri 300–2700 Hz; lohko on kohta, jossa kehys on.",
+  "settings.scope.aria": "Radion ääni 300–2700 Hz vesiputouksena, uusin ylimpänä; lohko on kohta, jossa kehys on.",
   "settings.scope.level": "Vastaanottotaso",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Tietoa vastaanottotasosta",

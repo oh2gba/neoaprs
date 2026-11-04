@@ -31,7 +31,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.picture.channels": "Uma estação ouvida pelo rádio, com ondas, leva RF; uma que veio da nuvem, APRS-IS, tem contorno pontilhado e etiqueta própria.",
   "help.picture.mercury": "Sua estação e uma distante, muito afastadas; o sinal sobe e volta a descer entre elas: só uma estação com o mesmo modem o ouve.",
   "help.picture.scope":
-    "Uma estação distante transmite; o espectro mostra seu quadro como um bloco de barras sobre o ruído baixo, e a barra do nível de recepção fica na faixa boa.",
+    "Uma estação distante transmite; a cascata mostra seu quadro como um bloco na banda marcada, o mais recente no alto, e a barra do nível de recepção fica na faixa boa.",
   "help.picture.tworadios":
     "Sua estação com dois rádios: o rádio FM alcança o carro e o digipeater próximos rente ao chão, o rádio HF alcança uma estação distante pelo sinal que sobe e volta a descer.",
   "help.picture.dummy": "Estações inventadas num quadro tracejado respondem à sua estação, e o que ela envia não sai: as ondas estão riscadas.",

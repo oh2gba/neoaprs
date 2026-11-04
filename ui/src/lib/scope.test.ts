@@ -1,18 +1,22 @@
-// The scope's own logic (lib/scope.ts): the zones of the receive level, the bar, the text of the numbers, the ease of a picture toward the next, and the drawing of the spectrum on a canvas.
+// The scope's own logic (lib/scope.ts): the zones of the receive level, the bar, the text of the numbers, the rows of the waterfall, and the drawing of the waterfall on a canvas.
 import { describe, expect, it, vi } from "vitest";
 import {
   DRAW_RANGE_DB,
   GOOD_PERCENT,
+  KEPT_ROWS,
+  ROW_PX,
   SCOPE_BINS,
   SIGNAL_BINS,
+  addRow,
   clips,
   dbText,
-  drawScope,
-  ease,
+  drawWaterfall,
   gainText,
   levelPercent,
   levelZone,
   scopeColours,
+  strength,
+  type Row,
 } from "@/lib/scope";
 import { LIMITS } from "@/protocol/lists";
 
@@ -52,27 +56,23 @@ describe("the numbers as text", () => {
   });
 });
 
-describe("ease", () => {
-  it("takes a part of the way to the target at each step and comes to rest on it within half a dB", () => {
-    let shown = [0, 40, 10];
-    const target = [20, 0, 10];
-    const first = ease(shown, target);
-    expect(first.values[0]).toBeCloseTo(6);
-    expect(first.values[1]).toBeCloseTo(28);
-    expect(first.values[2]).toBe(10);
-    expect(first.moving).toBe(true);
-    shown = first.values;
-    for (let i = 0; i < 60; i++) {
-      const step = ease(shown, target);
-      shown = step.values;
-      if (!step.moving) break;
-    }
-    expect(shown).toEqual(target);
-    expect(ease(shown, target).moving).toBe(false);
+describe("the rows of the waterfall", () => {
+  const row = (db: number, tx = false): Row => ({ bins: new Array<number>(SCOPE_BINS).fill(db), tx });
+
+  it("put the newest picture on top and let the oldest go past the ones kept", () => {
+    let rows: Row[] = [];
+    for (let i = 0; i < KEPT_ROWS + 5; i++) rows = addRow(rows, row(i));
+    expect(rows).toHaveLength(KEPT_ROWS);
+    expect(rows[0].bins[0]).toBe(KEPT_ROWS + 4);
+    expect(rows.at(-1)?.bins[0]).toBe(5);
+    expect(addRow([row(1), row(2)], row(3), 2).map((r) => r.bins[0])).toEqual([3, 1]);
   });
 
-  it("starts a bin that was not shown yet at its target", () => {
-    expect(ease([], [5, 6])).toEqual({ values: [5, 6], moving: false });
+  it("are as strong as the bin over the floor: nothing at the floor and under it, full at the top of the range and over it, more than in proportion between", () => {
+    expect([-5, 0].map(strength)).toEqual([0, 0]);
+    expect([DRAW_RANGE_DB, DRAW_RANGE_DB + 20].map(strength)).toEqual([1, 1]);
+    expect(strength(DRAW_RANGE_DB / 2)).toBeGreaterThan(0.5);
+    expect(strength(5)).toBeLessThan(strength(10));
   });
 });
 
@@ -95,36 +95,53 @@ function fakeCanvas(width = 300, height = 72) {
   return { canvas, calls };
 }
 
-describe("drawScope", () => {
-  const colours = { line: "red", wash: "pink", band: "blue", grid: "grey" };
+describe("drawWaterfall", () => {
+  const colours = { received: "blue", sent: "amber", band: "pale", rule: "grey" };
+  const cells = (calls: string[]) => calls.filter((c) => c.startsWith("fillRect(")).slice(1);
+  const row = (bins: number[], tx = false): Row => ({ bins, tx });
 
-  it("sizes the canvas to the room it has, marks the signal band, rules every 10 dB and draws the bins as a filled line", () => {
+  it("sizes the canvas to the room it has, marks the signal band with a faint block between two dotted rules, and draws nothing else while there are no rows", () => {
     const { canvas, calls } = fakeCanvas(300, 72);
-    drawScope(canvas, new Array<number>(SCOPE_BINS).fill(DRAW_RANGE_DB / 2), colours);
+    drawWaterfall(canvas, [], colours);
     expect(canvas.width).toBe(300);
     expect(canvas.height).toBe(72);
     const text = calls.join("\n");
     expect(text).toContain("clearRect(0,0,300,72)");
-    expect(text).toContain(`fillRect(${(18 * 300) / 48},0,${(12 * 300) / 48},72)`);
-    expect(calls.filter((c) => c.startsWith("stroke(")).length).toBe(3 + 1);
-    expect(calls.filter((c) => c.startsWith("lineTo(")).length).toBe(3 + (SCOPE_BINS + 1) + (SCOPE_BINS - 1));
-    expect(text).toContain("fillStyle=pink");
-    expect(text).toContain("strokeStyle=red");
-    expect(calls.filter((c) => c === "fill()")).toHaveLength(1);
+    expect(calls.filter((c) => c.startsWith("fillRect("))).toEqual([
+      `fillRect(${Math.round((18 * 300) / 48)},0,${Math.round((30 * 300) / 48) - Math.round((18 * 300) / 48)},72)`,
+    ]);
+    expect(text).toContain("fillStyle=pale");
+    expect(calls.filter((c) => c.startsWith("stroke("))).toHaveLength(2);
+    expect(text).toContain("strokeStyle=grey");
   });
 
-  it("cuts a signal off at the top of the picture and a negative bin at the floor", () => {
-    const { canvas, calls } = fakeCanvas(96, 41);
-    drawScope(canvas, [...new Array<number>(SCOPE_BINS - 2).fill(0), 500, -9], colours);
-    const tops = calls.filter((c) => c.startsWith("lineTo(")).map((c) => Number(c.slice(7, -1).split(",")[1]));
-    expect(Math.min(...tops)).toBe(2);
-    expect(Math.max(...tops)).toBe(40);
+  it("draws each row as a strip of cells, the newest at the top, in the colour of what was received or of our own transmission, as strong as the bin", () => {
+    const { canvas, calls } = fakeCanvas(96, 72);
+    const strong = new Array<number>(SCOPE_BINS).fill(DRAW_RANGE_DB);
+    drawWaterfall(canvas, [row(strong, true), row(strong)], colours);
+    const drawn = cells(calls);
+    expect(drawn).toHaveLength(2 * SCOPE_BINS);
+    expect(drawn[0]).toBe(`fillRect(0,0,2,${ROW_PX})`);
+    expect(drawn[SCOPE_BINS]).toBe(`fillRect(0,${ROW_PX},2,${ROW_PX})`);
+    expect(drawn.at(-1)).toBe(`fillRect(94,${ROW_PX},2,${ROW_PX})`);
+    const styles = calls.filter((c) => c.startsWith("fillStyle="));
+    expect(styles).toEqual(["fillStyle=pale", "fillStyle=amber", "fillStyle=blue"]);
+    expect(calls).toContain("globalAlpha=1");
+  });
+
+  it("leaves a bin at the floor undrawn, so that the noise is the background, and draws only the rows that fit", () => {
+    const { canvas, calls } = fakeCanvas(96, 5);
+    const one = [...new Array<number>(SCOPE_BINS - 1).fill(0), DRAW_RANGE_DB / 2];
+    drawWaterfall(canvas, [row(one), row(one), row(one), row(one)], colours);
+    const drawn = cells(calls);
+    expect(drawn).toEqual([`fillRect(94,0,2,${ROW_PX})`, `fillRect(94,${ROW_PX},2,${ROW_PX})`, `fillRect(94,${2 * ROW_PX},2,1)`]);
+    expect(calls).toContain(`globalAlpha=${strength(DRAW_RANGE_DB / 2)}`);
   });
 
   it("does nothing on a canvas that has no context", () => {
     const canvas = document.createElement("canvas");
     vi.spyOn(canvas, "getContext").mockReturnValue(null);
-    expect(() => drawScope(canvas, [1, 2, 3], colours)).not.toThrow();
+    expect(() => drawWaterfall(canvas, [row([1, 2, 3])], colours)).not.toThrow();
   });
 });
 
@@ -134,11 +151,9 @@ describe("scopeColours", () => {
     element.style.setProperty("--accent", "#111");
     element.style.setProperty("--warn", "#222");
     element.style.setProperty("--accent-soft-bg", "#333");
-    element.style.setProperty("--warn-soft-bg", "#444");
-    element.style.setProperty("--border", "#555");
+    element.style.setProperty("--muted", "#555");
     document.body.append(element);
-    expect(scopeColours(element, false)).toEqual({ line: "#111", wash: "#333", band: "#333", grid: "#555" });
-    expect(scopeColours(element, true)).toEqual({ line: "#222", wash: "#444", band: "#333", grid: "#555" });
+    expect(scopeColours(element)).toEqual({ received: "#111", sent: "#222", band: "#333", rule: "#555" });
     element.remove();
   });
 });

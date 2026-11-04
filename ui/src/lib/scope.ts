@@ -1,5 +1,5 @@
-// The HF radio's scope, the parts that are not a component: where the frame's signal band is among the bins, the zones of the receive level, the gain and the peak as text, how a picture eases toward the next, and the drawing of the
-// spectrum on a canvas. Every number (the bins, the band, the zones) is the daemon's, through LIMITS (neoaprs/mercuryscope.py).
+// The HF radio's scope, the parts that are not a component: where the frame's signal band is among the bins, the zones of the receive level, the gain and the peak as text, the rows of the waterfall kept from the pictures, and the
+// drawing of the waterfall on a canvas. Every number (the bins, the band, the zones) is the daemon's, through LIMITS (neoaprs/mercuryscope.py).
 import { LIMITS } from "@/protocol/lists";
 
 const { bins: BINS, loHz, hiHz, signalLoHz, signalHiHz, levelMinDbfs, levelMaxDbfs, levelGoodDbfs, peakClipDbfs } = LIMITS.scope;
@@ -7,8 +7,12 @@ const BIN_HZ = (hiHz - loHz) / BINS;
 
 /** The first and the one past the last bin of the signal band of a frame (1.2 to 1.8 kHz above the dial). */
 export const SIGNAL_BINS: readonly [number, number] = [Math.round((signalLoHz - loHz) / BIN_HZ), Math.round((signalHiHz - loHz) / BIN_HZ)];
-/** How tall the spectrum is drawn, in dB over the floor: a signal taller than this is cut off at the top. */
-export const DRAW_RANGE_DB = 40;
+/** How strong a bin is drawn in full colour, in dB over the floor: a stronger one is drawn the same. */
+export const DRAW_RANGE_DB = 30;
+/** How tall a row of the waterfall is, in CSS pixels: one picture (a fifth of a second), so that the 72 pixels of the box hold the last seven seconds or so. */
+export const ROW_PX = 2;
+/** How many rows are kept: more than the box shows, so that a taller one would be filled too. */
+export const KEPT_ROWS = 64;
 export const SCOPE_BINS = BINS;
 
 export type Zone = "low" | "good" | "high" | "clip";
@@ -42,41 +46,39 @@ export function gainText(db: number): string {
 /** Whether a transmission peaking at this many dBFS clips in the sound card. */
 export const clips = (peak: number | null): boolean => peak !== null && peak >= peakClipDbfs;
 
-/** One step of the ease from the picture shown toward the one told: a part of the way each time, and the end itself when it is within half a dB (so that it comes to rest). Returns the new values and whether any is still moving. */
-export function ease(shown: readonly number[], target: readonly number[], part = 0.3): { values: number[]; moving: boolean } {
-  let moving = false;
-  const values = target.map((to, i) => {
-    const from = shown[i] ?? to;
-    const gap = to - from;
-    if (Math.abs(gap) < 0.5) return to;
-    moving = true;
-    return from + gap * part;
-  });
-  return { values, moving };
+/** One row of the waterfall: the bins of a picture, in dB over the floor, and whether it is of our own transmission. */
+export interface Row {
+  bins: readonly number[];
+  tx: boolean;
 }
 
-/** The colours the spectrum is drawn with, read from the page's tokens. */
+/** The rows with a new one on top, the newest first, and the oldest let go past `keep`. */
+export function addRow(rows: readonly Row[], row: Row, keep = KEPT_ROWS): Row[] {
+  return [row, ...rows.slice(0, Math.max(0, keep - 1))];
+}
+
+/** How strongly a bin is drawn, 0 (the floor, nothing) to 1 (DRAW_RANGE_DB over it and more): a little more than in proportion at the weak end, so that a weak frame shows over the noise. */
+export function strength(db: number): number {
+  return Math.pow(Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB, 0.75);
+}
+
+/** The colours the waterfall is drawn with, read from the page's tokens. */
 export interface ScopeColours {
-  line: string;
-  wash: string;
+  received: string;
+  sent: string;
   band: string;
-  grid: string;
+  rule: string;
 }
 
-/** Reads the colours of the spectrum from the tokens of the page (styles/tokens.css) in effect on `element`: the accent for what is received, the warning colour for our own transmission. */
-export function scopeColours(element: Element, transmitting: boolean): ScopeColours {
+/** Reads the colours of the waterfall from the tokens of the page (styles/tokens.css) in effect on `element`: the accent for what is received, the warning colour for our own transmission, the quiet text's colour for the rules of the band. */
+export function scopeColours(element: Element): ScopeColours {
   const style = getComputedStyle(element);
   const token = (name: string): string => style.getPropertyValue(name).trim() || "currentColor";
-  return {
-    line: token(transmitting ? "--warn" : "--accent"),
-    wash: token(transmitting ? "--warn-soft-bg" : "--accent-soft-bg"),
-    band: token("--accent-soft-bg"),
-    grid: token("--border"),
-  };
+  return { received: token("--accent"), sent: token("--warn"), band: token("--accent-soft-bg"), rule: token("--muted") };
 }
 
-/** Draws the spectrum on the canvas: the signal band of a frame as a faint block, a line of dotted rules every 10 dB, and the bins as a filled line over the floor. `heights` are dB over the floor, one for each bin. */
-export function drawScope(canvas: HTMLCanvasElement, heights: readonly number[], colours: ScopeColours): void {
+/** Draws the waterfall on the canvas: the signal band of a frame as a faint block between two dotted rules, and the rows, the newest at the top, each bin a cell of the row's colour as strong as the bin (over the canvas's own background, so that the floor is the background in either theme). A bin under a few per cent is not drawn. */
+export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[], colours: ScopeColours): void {
   const ratio = window.devicePixelRatio || 1;
   const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
   const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
@@ -86,33 +88,34 @@ export function drawScope(canvas: HTMLCanvasElement, heights: readonly number[],
   if (!context) return;
   context.clearRect(0, 0, width, height);
   const step = width / BINS;
-  const base = height - 1;
-  const top = (db: number): number => base - (Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB) * (base - 2);
+  const edge = (bin: number): number => Math.round(bin * step);
+  const [bandFrom, bandTo] = [edge(SIGNAL_BINS[0]), edge(SIGNAL_BINS[1])];
   context.fillStyle = colours.band;
   context.globalAlpha = 0.5;
-  context.fillRect(SIGNAL_BINS[0] * step, 0, (SIGNAL_BINS[1] - SIGNAL_BINS[0]) * step, height);
+  context.fillRect(bandFrom, 0, bandTo - bandFrom, height);
+  const rowHeight = ROW_PX * ratio;
+  for (let r = 0; r < rows.length; r++) {
+    const top = Math.round(r * rowHeight);
+    if (top >= height) break;
+    const bottom = Math.min(height, Math.round((r + 1) * rowHeight));
+    const row = rows[r];
+    context.fillStyle = row.tx ? colours.sent : colours.received;
+    for (let b = 0; b < BINS; b++) {
+      const alpha = strength(row.bins[b] ?? 0);
+      if (alpha < 0.03) continue;
+      context.globalAlpha = alpha;
+      context.fillRect(edge(b), top, edge(b + 1) - edge(b), bottom - top);
+    }
+  }
   context.globalAlpha = 1;
-  context.strokeStyle = colours.grid;
+  context.strokeStyle = colours.rule;
   context.lineWidth = ratio;
   context.setLineDash([2 * ratio, 3 * ratio]);
-  for (let db = 10; db < DRAW_RANGE_DB; db += 10) {
+  for (const x of [bandFrom, bandTo]) {
     context.beginPath();
-    context.moveTo(0, top(db));
-    context.lineTo(width, top(db));
+    context.moveTo(x + ratio / 2, 0);
+    context.lineTo(x + ratio / 2, height);
     context.stroke();
   }
   context.setLineDash([]);
-  context.beginPath();
-  context.moveTo(0, base);
-  heights.forEach((h, i) => context.lineTo((i + 0.5) * step, top(h)));
-  context.lineTo(width, base);
-  context.closePath();
-  context.fillStyle = colours.wash;
-  context.fill();
-  context.strokeStyle = colours.line;
-  context.lineWidth = 1.5 * ratio;
-  context.lineJoin = "round";
-  context.beginPath();
-  heights.forEach((h, i) => (i === 0 ? context.moveTo(0.5 * step, top(h)) : context.lineTo((i + 0.5) * step, top(h))));
-  context.stroke();
 }

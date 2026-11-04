@@ -150,7 +150,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "Testar",
   "settings.hf_frequencies.label": "Frequências sugeridas",
   "settings.scope.title": "Espectro",
-  "settings.scope.aria": "O espectro do áudio do rádio de 300 a 2700 Hz; o bloco é onde fica um quadro.",
+  "settings.scope.aria": "O áudio do rádio de 300 a 2700 Hz em cascata, o mais recente no alto; o bloco é onde fica um quadro.",
   "settings.scope.level": "Nível de recepção",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Sobre o nível de recepção",
