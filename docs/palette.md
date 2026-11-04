@@ -38,6 +38,15 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--neutral-soft-fg` | `#454f58` | `#b6c0c9` | the neutral tag: the text (AA at 11 px) |
 | `--hf-soft-bg` | `#eadcf8` | `#3a2958` | the HF tag (the HF radio's channel mark, beside the FM radio's neutral one): the background |
 | `--hf-soft-fg` | `#5b2a91` | `#d5bff5` | the HF tag: the text (AA at 11 px) |
+| `--waterfall-0` | `#000828` | `#000828` | the HF waterfall: the floor and its background (a rig's scale, the same in both themes: the picture is dark in the light theme too) |
+| `--waterfall-1` | `#0834be` | `#0834be` | the HF waterfall: a weak signal |
+| `--waterfall-2` | `#00aaff` | `#00aaff` | the HF waterfall: halfway up |
+| `--waterfall-3` | `#ffe200` | `#ffe200` | the HF waterfall: a strong signal |
+| `--waterfall-4` | `#ff2810` | `#ff2810` | the HF waterfall: the strongest |
+| `--waterfall-sent-0` | `#282828` | `#282828` | the HF waterfall: our own transmission, weak (grey to white, apart from the scale) |
+| `--waterfall-sent-1` | `#ebebeb` | `#ebebeb` | the HF waterfall: our own transmission, strong |
+| `--waterfall-band` | `rgba(255, 255, 255, 0.07)` | `rgba(255, 255, 255, 0.07)` | the HF waterfall: the faint block where a frame sits |
+| `--waterfall-rule` | `rgba(255, 255, 255, 0.45)` | `rgba(255, 255, 255, 0.45)` | the HF waterfall: the dotted edges of that block |
 | `--scrim` | `rgba(0, 0, 0, 0.45)` | `rgba(0, 0, 0, 0.45)` | the veil behind a dialog |
 | `--map-label` | `#1d2125` | `#e3e6e8` | the map: text |
 | `--map-halo` | `rgba(255, 255, 255, 0.9)` | `rgba(20, 23, 26, 0.9)` | the map: the halo of text |

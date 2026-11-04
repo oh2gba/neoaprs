@@ -5,7 +5,8 @@
    - One accent, the blue: --accent and the --accent-text that is read on it (a primary button, the selected tab).
    - Four meanings, ok (green), warn (amber), bad (red) and info (teal), each in a STRONG form (--ok, --warn, --bad, --info: a line, a word, a loud fill with --on-strong on it, as Daemon offline) and a SOFT pair for a tag
      (--ok-soft-bg with --ok-soft-fg, and so on, low in saturation and AA-readable at 11 px), and the accent and the neutral have a soft pair too (--accent-soft-*, --neutral-soft-*), and so has the HF radio's tag (--hf-soft-*, a violet: the FM radio's tag is the neutral grey, and the blue, green, amber, red and teal mean something else).
-   - What the map draws with: --map-* and --wx-*. */
+   - What the map draws with: --map-* and --wx-*.
+   - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the strongest, the same in both themes. */
 :root {
   color-scheme: light dark;
   --bg: #f4f5f3;
@@ -40,6 +41,15 @@
   --neutral-soft-fg: #454f58;
   --hf-soft-bg: #eadcf8;
   --hf-soft-fg: #5b2a91;
+  --waterfall-0: #000828;
+  --waterfall-1: #0834be;
+  --waterfall-2: #00aaff;
+  --waterfall-3: #ffe200;
+  --waterfall-4: #ff2810;
+  --waterfall-sent-0: #282828;
+  --waterfall-sent-1: #ebebeb;
+  --waterfall-band: rgba(255, 255, 255, 0.07);
+  --waterfall-rule: rgba(255, 255, 255, 0.45);
   --scrim: rgba(0, 0, 0, 0.45);
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   --map-label: #1d2125;

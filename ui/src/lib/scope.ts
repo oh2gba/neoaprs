@@ -62,39 +62,49 @@ export function strength(db: number): number {
   return Math.pow(Math.min(DRAW_RANGE_DB, Math.max(0, db)) / DRAW_RANGE_DB, 0.75);
 }
 
-/** The colour scale of the waterfall, the way a rig's waterfall looks: navy at the floor (the background), then blue, cyan, yellow and red as a bin rises over it, by strength 0 to 1. Fixed, not the
- * page's tokens: the picture is dark in the light theme too, as on a rig, so that the weak signals show. */
-export const HEAT: readonly (readonly [number, readonly [number, number, number]])[] = [
-  [0, [0, 8, 40]],
-  [0.25, [8, 52, 190]],
-  [0.5, [0, 170, 255]],
-  [0.75, [255, 226, 0]],
-  [1, [255, 40, 16]],
-];
-/** The frame's band over the picture, and its two dotted rules: light, on the dark picture. */
-const BAND = "rgba(255, 255, 255, 0.07)";
-const RULE = "rgba(255, 255, 255, 0.45)";
+type Rgb = readonly [number, number, number];
 
-/** The colour of a received bin of strength 0 to 1 on the scale, as `rgb(r, g, b)`. */
-export function heat(s: number): string {
-  const x = Math.min(1, Math.max(0, s));
-  const upper = HEAT.findIndex(([at]) => at >= x);
-  const [hiAt, hi] = HEAT[Math.max(0, upper)];
-  const [loAt, lo] = HEAT[Math.max(0, upper - 1)];
-  const f = hiAt === loAt ? 0 : (x - loAt) / (hiAt - loAt);
-  const mix = (i: number): number => Math.round(lo[i] + (hi[i] - lo[i]) * f);
-  return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
+/** The colours of the waterfall, the page's --waterfall-* tokens (styles/tokens.css): a rig's colour scale from the floor (also the background) to the strongest, the two ends of our own transmission (grey to
+ * white, apart from the scale), the faint block where a frame sits and its dotted edges. The same in both themes: the picture is dark in the light theme too, as on a rig, so that the weak signals show. */
+export interface WaterfallColours {
+  scale: readonly Rgb[];
+  sent: readonly [Rgb, Rgb];
+  band: string;
+  rule: string;
 }
 
-/** The colour of a bin of our own transmission of strength 0 to 1: grey to white, apart from the scale of what is received. */
-export function sentHeat(s: number): string {
-  const v = Math.round(40 + 195 * Math.min(1, Math.max(0, s)));
-  return `rgb(${v}, ${v}, ${v})`;
+/** A colour of the tokens as its three channels; a token that is not `#rrggbb` is black. */
+function channels(hex: string): Rgb {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  return m ? [parseInt(m[1] ?? "0", 16), parseInt(m[2] ?? "0", 16), parseInt(m[3] ?? "0", 16)] : [0, 0, 0];
+}
+
+/** Reads the colours of the waterfall from the tokens in effect on `element`. */
+export function waterfallColours(element: Element): WaterfallColours {
+  const style = getComputedStyle(element);
+  const token = (name: string): string => style.getPropertyValue(name).trim();
+  return {
+    scale: [0, 1, 2, 3, 4].map((i) => channels(token(`--waterfall-${i}`))),
+    sent: [channels(token("--waterfall-sent-0")), channels(token("--waterfall-sent-1"))],
+    band: token("--waterfall-band") || "transparent",
+    rule: token("--waterfall-rule") || "currentColor",
+  };
+}
+
+const hex = (c: Rgb): string => "#" + c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+const between = (lo: Rgb, hi: Rgb, f: number): Rgb => [lo[0] + (hi[0] - lo[0]) * f, lo[1] + (hi[1] - lo[1]) * f, lo[2] + (hi[2] - lo[2]) * f];
+
+/** The colour of a bin of strength 0 to 1 on a scale of colours spaced evenly from 0 to 1, as `#rrggbb`. */
+export function heat(s: number, scale: readonly Rgb[]): string {
+  if (scale.length === 0) return hex([0, 0, 0]);
+  const x = Math.min(1, Math.max(0, s)) * (scale.length - 1);
+  const i = Math.min(scale.length - 2, Math.floor(x));
+  return scale.length === 1 ? hex(scale[0] as Rgb) : hex(between(scale[i] as Rgb, scale[i + 1] as Rgb, x - i));
 }
 
 /** Draws the waterfall on the canvas: the background at the floor's colour, the rows, the newest at the top, each bin a cell in the colour of its strength (a bin at the floor is left as the background), and the
  * signal band of a frame as a faint block between two dotted rules over them. */
-export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[]): void {
+export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[], colours: WaterfallColours): void {
   const ratio = window.devicePixelRatio || 1;
   const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
   const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
@@ -103,7 +113,7 @@ export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[]): 
   const context = canvas.getContext("2d");
   if (!context) return;
   context.clearRect(0, 0, width, height);
-  context.fillStyle = heat(0);
+  context.fillStyle = heat(0, colours.scale);
   context.fillRect(0, 0, width, height);
   const step = width / BINS;
   const edge = (bin: number): number => Math.round(bin * step);
@@ -117,13 +127,13 @@ export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[]): 
     for (let b = 0; b < BINS; b++) {
       const s = strength(row.bins[b] ?? 0);
       if (s < 0.03) continue;
-      context.fillStyle = row.tx ? sentHeat(s) : heat(s);
+      context.fillStyle = row.tx ? heat(s, colours.sent) : heat(s, colours.scale);
       context.fillRect(edge(b), top, edge(b + 1) - edge(b), bottom - top);
     }
   }
-  context.fillStyle = BAND;
+  context.fillStyle = colours.band;
   context.fillRect(bandFrom, 0, bandTo - bandFrom, height);
-  context.strokeStyle = RULE;
+  context.strokeStyle = colours.rule;
   context.lineWidth = ratio;
   context.setLineDash([2 * ratio, 3 * ratio]);
   for (const x of [bandFrom, bandTo]) {

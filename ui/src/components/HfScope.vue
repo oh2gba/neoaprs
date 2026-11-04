@@ -8,15 +8,14 @@ import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useHfScope } from "@/composables/useHfScope";
 import { t } from "@/i18n";
-import { GOOD_PERCENT, addRow, dbText, drawWaterfall, heat, levelPercent, levelZone, type Row } from "@/lib/scope";
+import { GOOD_PERCENT, addRow, dbText, drawWaterfall, levelPercent, levelZone, waterfallColours, type Row } from "@/lib/scope";
 
 const scope = useHfScope();
 const canvas = ref<HTMLCanvasElement | null>(null);
 let rows: Row[] = [];
-const FLOOR = heat(0); // the background before the first row, the colour of the floor: no light box flashes before the picture
 
 function paint(): void {
-  if (canvas.value) drawWaterfall(canvas.value, rows);
+  if (canvas.value) drawWaterfall(canvas.value, rows, waterfallColours(canvas.value));
 }
 
 watch(scope.picture, (picture) => {
@@ -70,7 +69,7 @@ const good = computed(() => ({ left: `${GOOD_PERCENT[0]}%`, width: `${GOOD_PERCE
   width: 100%;
   height: 72px;
   margin-bottom: 8px;
-  background: v-bind(FLOOR);
+  background: var(--waterfall-0); /* the floor's colour before the first row: no light box flashes before the picture */
   border: 1px solid var(--border);
   border-radius: 4px;
 }
