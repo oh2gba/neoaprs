@@ -300,6 +300,20 @@ footer p { margin: 0; }
 .article-list { margin: 0 0 14px; padding-left: 1.2em; }
 .article-list li { margin: 0 0 8px; }
 .article .cta { margin-top: 24px; }
+/* a technical note: a byline, tables of measurements that scroll on their own on a phone, commands and references */
+.tech .byline { margin: -6px 0 24px; color: var(--muted); font-size: 0.92rem; }
+.tech p, .tech .article-list { max-width: 62em; }
+.tablewrap { max-width: 100%; overflow-x: auto; margin: 4px 0 18px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+.data { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.data th, .data td { padding: 9px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--rule); }
+.data tr:first-child th, .data tr:first-child td { border-top: 0; }
+.data thead th { background: var(--surface-2); color: var(--muted); font-size: 0.82rem; font-weight: 650; white-space: nowrap; }
+.data tbody th { font-weight: 650; min-width: 12em; }
+.data.num td { font-family: var(--mono); font-size: 0.88rem; text-align: right; white-space: nowrap; }
+.data.num thead th:not(:first-child) { text-align: right; }
+.tech pre { max-width: 100%; overflow-x: auto; margin: 4px 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--surface-2); font-size: 0.9rem; line-height: 1.6; }
+.tech pre code { font-size: inherit; }
+.refs li { font-size: 0.95rem; }
 .newslink { margin: -4px 0 26px; }
 .newslink a { display: inline-block; padding: 10px 16px; border: 1.5px solid var(--hf); border-radius: 10px; background: var(--hf-soft); color: var(--hf); font-weight: 700; text-decoration: none; }
 .newslink a:hover { background: var(--hf); color: #fff; }

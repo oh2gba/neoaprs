@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS over HF with the Mercury modem: design and measurements · NeoAPRS</title>
+<meta name="description" content="How NeoAPRS carries APRS over Rhizomatica's Mercury modem on HF, and what was measured: frames decoded against SNR on flat and fading channels, ack times, channel access, VOX.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1216" media="(prefers-color-scheme: dark)">
+<meta name="author" content="OH2GBA">
+<link rel="canonical" href="https://neo.oh2gba.eu/aprs-over-hf-mercury.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="APRS over HF with the Mercury modem: design and measurements">
+<meta property="og:description" content="Frames decoded against SNR on flat and fading HF channels, ack times, channel access and VOX, measured with the real Mercury modem, and the first test on the air.">
+<meta property="og:url" content="https://neo.oh2gba.eu/aprs-over-hf-mercury.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<meta property="article:published_time" content="2026-11-04">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"APRS over HF with the Mercury modem: design and measurements","datePublished":"2026-11-04","dateModified":"2026-11-04","author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu"},"publisher":{"@type":"Organization","name":"NeoAPRS","url":"https://neo.oh2gba.eu/"},"mainEntityOfPage":"https://neo.oh2gba.eu/aprs-over-hf-mercury.html","image":"https://neo.oh2gba.eu/shots/og.png","about":["APRS","HF digital modes","Mercury modem","OFDM","amateur radio"],"proficiencyLevel":"Expert"}</script>
+<link rel="stylesheet" href="style.css?v=19">
+<script src="site.js?v=9" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#hf" class="nav-hf">HF</a>
+      <a href="./#radios">Radios</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article tech">
+  <div class="wrap">
+    <p class="flag">Technical note · 4 November 2026</p>
+    <h1 class="article-title">APRS over HF with the Mercury modem: design and measurements</h1>
+    <p class="byline">OH2GBA · NeoAPRS 0.18, Mercury 1.9.21 · measurements of 2 and 3 November 2026, first test on the air 4 November 2026</p>
+
+    <h2 id="summary">Summary</h2>
+    <p>NeoAPRS carries APRS over the broadcast mode of Rhizomatica's Mercury modem, using its DATAC3 OFDM waveform: one APRS packet of up to 123 bytes per modem frame, 3.8 s on the air, sent direct from station to station with no digipeater. Measured with the real modem on a simulated HF channel, a frame is decoded every time down to −2 dB signal-to-noise ratio in 3 kHz on a flat channel, and 39 of 50 times at 0 dB on the CCIR poor fading channel (2 ms, 1 Hz), every time from 6 dB up. A message and its ack take about 10 s. In the first test on the air, two stations 40.8 km apart on 6 m exchanged 21 messages, all delivered, at powers from 100 W down to 1 W; frames sent at 1 W were decoded with Mercury reporting −3 dB.</p>
+    <p>This note sets out how APRS is mapped onto the modem, the measurements behind each choice, and what is not yet known. Every number can be made again with the scripts in <a href="https://github.com/oh2gba/neoaprs">the NeoAPRS source</a>; the full tables are in <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/mercury.md"><code>docs/mercury.md</code></a>.</p>
+
+    <h2 id="background">Background</h2>
+    <p>On VHF, APRS runs at 1200 baud AFSK on FM through a network of digipeaters and internet gateways. On HF it has traditionally used 300 baud AFSK packet. Both send each packet as one block with a checksum: a single wrong bit loses the packet, and on HF, where noise, fading and multipath are the normal state of the channel, that limits what gets through.</p>
+    <p>Mercury is a free HF modem by Rhizomatica, built on the OFDM data modes of the FreeDV project (codec2). Its DATAC modes spread a frame over several carriers and protect it with an LDPC error-correcting code, so a frame survives noise and fading that would destroy a packet sent as plain AFSK. Mercury has a broadcast mode with a KISS interface over TCP: frames sent there are heard by every station on the same mode and frequency, with no connection and no ack at the modem level. That is the shape of APRS, and it is what NeoAPRS uses.</p>
+
+    <h2 id="mode">The modem's mode and frame</h2>
+    <p>Every NeoAPRS station uses DATAC3. It is the narrowest of Mercury's modes whose frame carries a whole APRS packet: DATAC4 carries 51 bytes, DATAC15 27, and the MFSK modes 95. The mode is fixed, since a station on another mode hears nothing, and nothing on the air says which mode a station is on.</p>
+    <div class="tablewrap">
+    <table class="data">
+      <tbody>
+        <tr><th scope="row">Waveform</th><td>OFDM, 9 carriers at 62.5 symbols per second</td></tr>
+        <tr><th scope="row">Bandwidth</th><td>562 Hz by Mercury's figure, 500 Hz by codec2's; it occupies 1219 to 1781 Hz of the audio</td></tr>
+        <tr><th scope="row">Frame</th><td>126 bytes: 3 for Mercury's header and length, 123 for the APRS packet (a longer packet is cut by Mercury)</td></tr>
+        <tr><th scope="row">Preamble and postamble</th><td>110 ms each: 5 OFDM symbols of 22 ms; the receiver can decode from either</td></tr>
+        <tr><th scope="row">Audio of one frame</th><td>3.41 s (27280 samples at 8 kHz)</td></tr>
+        <tr><th scope="row">Time on the air</th><td>3.80 s from PTT on to PTT off, measured over six frames, whatever the packet's length</td></tr>
+        <tr><th scope="row">Delivery</th><td>3.68 s on average from the frame handed to the modem to the packet at the far station, 3.78 s at the slowest</td></tr>
+        <tr><th scope="row">Audio level</th><td>peak −6.4 dBFS, RMS −13.1 dBFS: a crest factor of 6.7 dB at the modem's gain of 0 dB</td></tr>
+        <tr><th scope="row">Payload rate</th><td>123 bytes in 3.8 s, about 260 bit/s of APRS on a channel that one frame occupies at a time</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The far station decodes a frame 0.26 s before the sender's PTT goes off, while the postamble and the tail are still on the air. An ack made at once would therefore collide with the sender's own tail; NeoAPRS holds acks until the channel is free.</p>
+
+    <h2 id="mapping">How APRS is mapped onto it</h2>
+    <ul class="article-list">
+      <li><b>One packet, one frame.</b> Each AX.25 frame of APRS goes as one broadcast frame of Mercury, through its KISS port.</li>
+      <li><b>Direct, no path.</b> Every frame goes station to station. There is no digipeating over HF: on a channel every station hears, a repeat doubles the load, and a path costs bytes of a frame that carries 123.</li>
+      <li><b>Listen before transmit.</b> NeoAPRS holds its frames while the channel is busy, judged by its own detector on the modem's spectrum (below), for at most 20 s, so that traffic is never stranded by a detector that misreads the noise.</li>
+      <li><b>Beacons.</b> At least 30 minutes between position reports, each followed by a random pause of up to 300 s (below). No SmartBeaconing over HF: a moving station sends its timed beacon with its fix.</li>
+      <li><b>Messages.</b> The same retry schedule as on VHF (attempts at 0, 32, 64 and 128 s), with a pace of 10 s between two transmissions of a station. A retry on HF waits an extra random time, so that two stations whose messages collided do not collide again.</li>
+      <li><b>Two radios, one station.</b> The HF radio runs beside the VHF one, with one map and one message list. The operator chooses the radio for each station; NeoAPRS chooses HF on its own only for a station heard on HF alone.</li>
+    </ul>
+    <p>NeoAPRS builds Mercury from its pinned source with four small patches: its network ports listen on the computer itself only (Mercury 1.9.21 listens on every interface with no password, which would let any host on the LAN key the radio); a lead-in tone for radios keyed by VOX (below); its log lines are flushed as they are written; and on Windows its DirectSound backend is loaded on first use.</p>
+
+    <h2 id="channel">The simulated channel</h2>
+    <p>The measurements run real Mercury instances, one per station, on one computer, joined by a simulated channel (<code>tests/support/hfchannel.py</code>) in place of the radios. Each station hears the sum of the others through a gain, a delay and its own noise.</p>
+    <ul class="article-list">
+      <li><b>Signal-to-noise ratio</b> is counted as codec2's channel simulator counts it: the signal's power against the noise in 3 kHz, with the measured RMS of a DATAC3 frame as the reference.</li>
+      <li><b>Fading</b> is the Watterson model of ITU-R F.1487 as Mercury's own simulator implements it: two paths of equal power, each with a Gaussian Doppler spectrum, the second delayed. The presets are CCIR Report 520-2's; the "poor" channel used here has 2 ms of delay and 1 Hz of Doppler spread.</li>
+      <li><b>Check against codec2.</b> DATAC3 on the poor channel at 0 dB delivered 19 of 24 frames (79 percent) in the simulation, where codec2's own table gives 74 of 100; Mercury's notes put the flat channel's cliff between −3.8 and −4.8 dB, where the measurement below finds it too.</li>
+    </ul>
+
+    <h2 id="decoding">Frames decoded against signal-to-noise ratio</h2>
+    <p>Frames delivered of 50 sent, one station to another, at each SNR in 3 kHz (<code>scripts/mercury-measure decode</code>):</p>
+    <div class="tablewrap">
+    <table class="data num">
+      <thead><tr><th scope="col">SNR in 3 kHz</th><th scope="col">−6 dB</th><th scope="col">−4 dB</th><th scope="col">−2 dB</th><th scope="col">0 dB</th><th scope="col">2 dB</th><th scope="col">3 dB</th><th scope="col">4 dB</th><th scope="col">6 dB</th><th scope="col">9 dB</th><th scope="col">12 dB</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Flat channel</th><td>0</td><td>43</td><td>50</td><td>50</td><td>50</td><td></td><td>50</td><td>50</td><td></td><td></td></tr>
+        <tr><th scope="row">Poor fading channel</th><td></td><td></td><td></td><td>39</td><td></td><td>48</td><td></td><td>50</td><td>50</td><td>50</td></tr>
+        <tr><th scope="row">SNR Mercury reports, flat</th><td></td><td>−3.3</td><td>−2.2</td><td>−0.7</td><td>1.1</td><td></td><td>2.9</td><td>4.7</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>On a flat channel the cliff lies between −4 and −6 dB. On the poor fading channel a fifth of the frames are lost at 0 dB and none from 6 dB up. The SNR that Mercury reports for a decoded frame reads 1 to 2 dB under the true value between 0 and 10 dB, near the cliff it reads slightly high (−3.3 at a true −4 dB), and it stops rising at about 12 dB, so a reported "11 dB" means 11 dB or more.</p>
+
+    <h2 id="messages">Message and ack times</h2>
+    <p>Twenty messages each way between two stations (<code>scripts/mercury-measure acks</code>). On a flat channel every message was acked on its first attempt, the ack arriving 9.6 to 10.6 s after the message was sent (median 10.2 s). On the poor fading channel at 6 dB, 18 of 20 were acked on the first attempt in 9.2 to 11.2 s; the other two on a retry, at 51 and 94 s. The slowest first-attempt ack came at 35 percent of the first retry's wait of 32 s, so the VHF schedule fits HF without change. A wait that runs while the station's own radio is transmitting is extended by that time.</p>
+
+    <h2 id="access">Channel access: when is the channel busy?</h2>
+    <p>Mercury has a busy detector: it compares bands of 150 Hz across 300 to 2700 Hz with a noise floor that follows the noise slowly. It reports busy 0.48 s after another station keys up and free 1.55 s after it stops. NeoAPRS turns it on at a threshold of 14 dB, the highest at which a frame at 6 dB SNR is still seen and which ignores a carrier 12 dB over its band and a 10 dB step in the noise (Mercury's default of 10 dB stayed busy for two minutes after such a step).</p>
+    <p>A fixed threshold has two weaknesses: frames weaker than about 6 dB, which DATAC3 still decodes, are not seen at all, and a step in the noise or a carrier beside the signal reads as busy. NeoAPRS therefore reads the modem's spectrum itself and asks a different question of it: is there a signal as wide as a frame? A band counts when it stands 4 dB over the quiet bands of the same moment; three adjacent bands, 450 Hz, make a signal (a frame is 562 Hz wide, a carrier a few hertz). Measured on six receivers with 20 kinds of interference (<code>scripts/mercury-measure autobusy</code>):</p>
+    <div class="tablewrap">
+    <table class="data">
+      <thead><tr><th scope="col"></th><th scope="col">Mercury's detector, 14 dB</th><th scope="col">NeoAPRS's detector</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Frames at 3 dB SNR and under seen</th><td>42 of 180, only where something else already kept it busy</td><td>144 of 180: all at 3 dB, all but one at 0 dB, some at −3 dB</td></tr>
+        <tr><th scope="row">Busy with no frame: carriers 12 to 15 dB over their band</th><td>150 s of 150</td><td>0 s</td></tr>
+        <tr><th scope="row">Busy with no frame: a 20 dB step in the noise</th><td>118 s of 150</td><td>0 s</td></tr>
+        <tr><th scope="row">Busy with no frame: bursts of static 15 dB over the noise</th><td>2 s</td><td>0 s</td></tr>
+        <tr><th scope="row">Delay from the other station's key-up to busy</th><td>0.5 s on average</td><td>0.7 s on average</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Both see a voice-like signal 12 dB over the noise as busy, as they should. NeoAPRS's detector is used whenever the spectrum can be read, and Mercury's at 14 dB is the fallback. A signal narrower than 450 Hz, such as RTTY, PSK31 or FT8, is not seen by either, so a station on one of those can still be transmitted over.</p>
+
+    <h2 id="vox">Radios keyed by VOX</h2>
+    <p>A radio keyed by VOX starts to transmit only after it has heard audio for its attack time, so the start of the frame, the preamble the receiver locks on to, is not on the air. Measured with the sender's first N milliseconds muted, 20 frames for each point (<code>scripts/mercury-measure vox</code>):</p>
+    <div class="tablewrap">
+    <table class="data num">
+      <thead><tr><th scope="col">First N ms lost</th><th scope="col">0</th><th scope="col">60</th><th scope="col">80</th><th scope="col">100</th><th scope="col">150</th><th scope="col">200</th><th scope="col">250</th><th scope="col">300</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Flat 20 dB, as Mercury is</th><td>20</td><td>20</td><td>17</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><th scope="row">Flat 20 dB, 150 ms lead-in</th><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td><td>0</td><td>0</td></tr>
+        <tr><th scope="row">Flat 10 dB, as Mercury is</th><td>20</td><td>20</td><td>19</td><td>10</td><td>8</td><td>8</td><td>7</td><td>3</td></tr>
+        <tr><th scope="row">Flat 10 dB, 150 ms lead-in</th><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td><td>20</td><td>12</td><td>5</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>With Mercury as it is, a radio that loses more than 60 ms of each transmission starts to lose frames, and one that loses 100 ms loses every strong one. NeoAPRS's build of Mercury plays a 150 ms tone of 1 kHz, below the band the frame occupies, ahead of the preamble when the radio is keyed by VOX; with it nothing is lost up to 200 ms. It costs 150 ms of each 3.8 s frame, and only for VOX. (That a weak signal survives a lost preamble better than a strong one is what was measured; it was not investigated further.)</p>
+
+    <h2 id="beacons">Beacon collisions</h2>
+    <p>Fixed stations with stable clocks that start together would key up together at every interval. A Monte Carlo simulation over 20,000 station-hours per point, on the 30-minute interval, for stations that started within a minute of each other (<code>scripts/mercury-measure beacons</code>), gives the share of beacons lost to collisions:</p>
+    <div class="tablewrap">
+    <table class="data num">
+      <thead><tr><th scope="col">Stations</th><th scope="col">No pause</th><th scope="col">Pause up to 120 s</th><th scope="col">Pause up to 300 s</th><th scope="col">Pause up to 600 s</th><th scope="col">Random start times</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">2</th><td>14 %</td><td>1.3 %</td><td>0.8 %</td><td>0.6 %</td><td>0.4 %</td></tr>
+        <tr><th scope="row">3</th><td>23 %</td><td>2.5 %</td><td>1.4 %</td><td>1.1 %</td><td>0.8 %</td></tr>
+        <tr><th scope="row">5</th><td>43 %</td><td>5.0 %</td><td>2.7 %</td><td>2.1 %</td><td>1.6 %</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>A random pause of up to 300 s after each interval brings the loss within a point of what stations with random timing lose by chance, and a longer pause gains little more.</p>
+
+    <h2 id="on-air">The first test on the air</h2>
+    <p>On 4 November 2026 OH2GBA and OH2GAX, 40.8 km apart, moved a running message exchange from 2 m to NeoAPRS's Mercury radio on 50.620 MHz USB, in the 6 m band, for about twenty minutes. Both stations reduced power in steps while the exchange went on: OH2GBA from 100 W to 25, 10 and 5 W, OH2GAX from 45 W to 10, 5 and 1 W. (<a href="first-test.html">The full report</a>.)</p>
+    <div class="tablewrap">
+    <table class="data">
+      <tbody>
+        <tr><th scope="row">Messages from OH2GBA</th><td>9, all delivered: 7 on the first attempt, one on the second, one on the fourth (sent while the power was being reduced to 5 W)</td></tr>
+        <tr><th scope="row">Messages from OH2GAX</th><td>12, all received on the first attempt</td></tr>
+        <tr><th scope="row">SNR reported by Mercury, OH2GAX's signal</th><td>6 to 7 dB at full power; −2 to −3 dB at 5 W and at 1 W</td></tr>
+        <tr><th scope="row">Time on the air per message</th><td>about 4 s</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>In the calibration above, Mercury reports −3.3 dB at a true −4 dB and −2.2 dB at a true −2 dB on a flat channel, so a reported −3 dB stands for a true SNR between about −4 and −2 dB in 3 kHz: at the edge where the simulation still decodes most frames, which is what was seen on the air. Every reply waited for the other station's frame to end; no frame was lost to two stations transmitting at once.</p>
+
+    <h2 id="limits">What is not yet known</h2>
+    <ul class="article-list">
+      <li><b>The channels are simulated.</b> Steady noise with steps, carriers, static and a voice-like signal, and the CCIR fading presets; not recordings of a real band. A real 40 m channel may hold shapes that none of them has.</li>
+      <li><b>One test on the air.</b> One path of 40.8 km on 6 m, two stations, twenty minutes. Longer paths on 40 m and 20 m, more stations sharing a frequency, and NVIS paths have not been tried.</li>
+      <li><b>Small capacity.</b> One frame holds the channel for 3.8 s, about 260 bit/s of APRS. That suits messages and beacons every half hour, not a busy VHF-style network.</li>
+      <li><b>One mode, one frequency.</b> Only stations on DATAC3 on the same frequency hear each other. Suggested frequencies are 7.0541 MHz USB on 40 m, 14.1070 MHz USB on 20 m and 50.620 MHz USB on 6 m, to be confirmed on the air.</li>
+      <li><b>The modem's version.</b> All of this is Mercury 1.9.21. Mercury 1.9.22 (3 November 2026) leaves the waveform unchanged.</li>
+    </ul>
+
+    <h2 id="reproduce">Making the numbers again</h2>
+    <p>Each table comes from a script in the NeoAPRS source, run against the Mercury that NeoAPRS builds (<code>scripts/build-mercury --install</code>):</p>
+    <pre><code>scripts/mercury-measure frame
+scripts/mercury-measure decode --snr -6,-4,-2,0,2,4 --fading poor
+scripts/mercury-measure acks --messages 20 --fading poor --snr-one 6
+scripts/mercury-measure autobusy
+scripts/mercury-measure vox --snr 10 --attack-ms 0,40,80,100,150,200 --leadin-ms 150
+scripts/mercury-measure beacons</code></pre>
+    <p>The constants they justify are in <code>neoaprs/mercury.py</code>, <code>neoaprs/radiorules.py</code> and <code>neoaprs/channelbusy.py</code>; <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/mercury.md"><code>docs/mercury.md</code></a> has every table in full, with the source of each value. Reports from stations on the air, especially on 40 m and 20 m, are welcome: <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>, or Send feedback / logs in NeoAPRS's settings.</p>
+
+    <h2 id="references">References</h2>
+    <ul class="article-list refs">
+      <li>Rhizomatica, <a href="https://github.com/Rhizomatica/mercury">Mercury HF modem</a>, version 1.9.21, source and documentation (its <code>docs</code> folder: MODES, TNC).</li>
+      <li>D. Rowe et al., <a href="https://github.com/drowe67/codec2">codec2</a>: the FreeDV data modes (DATAC0 to DATAC15) and the channel simulator <code>ch</code>.</li>
+      <li>ITU-R F.1487, Testing of HF modems with bandwidths of up to about 12 kHz using ionospheric channel simulators.</li>
+      <li>CCIR Report 520-2, Use of high frequency ionospheric channel simulators.</li>
+      <li>C. C. Watterson, J. R. Juroshek and W. D. Bensema, Experimental confirmation of an HF channel model, IEEE Transactions on Communication Technology, 1970.</li>
+      <li>APRS Protocol Reference, version 1.0, and the messaging and acknowledgement rules of the APRS specification.</li>
+    </ul>
+
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="first-test.html">The first test on the air</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>
+    </p>
+    <p>GNU GPL v3 or later. By <a href="https://oh2gba.eu">OH2GBA</a>. HF modem: <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica.</p>
+    <p class="privacy">No cookies · no IP addresses stored · no advertising</p>
+  </div>
+</footer>
+</body>
+</html>
