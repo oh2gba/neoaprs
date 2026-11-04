@@ -99,7 +99,7 @@ export function heat(s: number, scale: readonly Rgb[]): string {
   if (scale.length === 0) return hex([0, 0, 0]);
   const x = Math.min(1, Math.max(0, s)) * (scale.length - 1);
   const i = Math.min(scale.length - 2, Math.floor(x));
-  return scale.length === 1 ? hex(scale[0] as Rgb) : hex(between(scale[i] as Rgb, scale[i + 1] as Rgb, x - i));
+  return scale.length === 1 ? hex(scale[0]) : hex(between(scale[i], scale[i + 1], x - i));
 }
 
 /** Draws the waterfall on the canvas: the background at the floor's colour, the rows, the newest at the top, each bin a cell in the colour of its strength (a bin at the floor is left as the background), and the
