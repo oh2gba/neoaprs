@@ -167,7 +167,7 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 | 30 m | 10.1462 MHz |
 | 40 m | 7.0541 MHz |
 | 20 m | 14.1070 MHz |
-| 6 m | 50.620 MHz |
+| 6 m | 50.6200 MHz |
 
 10.1476 MHz is the 300 baud HF APRS frequency, not this one.
 

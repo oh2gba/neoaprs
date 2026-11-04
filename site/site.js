@@ -79,13 +79,20 @@
           .slice(0, 3);
         const body = dial.querySelector("tbody");
         if (!good.length || !body) return;
+        // padded with no-break spaces in the mono font, so that the bands end and the decimal points stand one under another
+        const pad = (text, left, right) => " ".repeat(Math.max(0, left)) + text + " ".repeat(Math.max(0, right));
+        const aligned = (text) => {
+          const [mhz, rest] = text.split(" MHz ");
+          const [whole, frac] = mhz.split(".");
+          return pad(`${whole}.${frac}`, 2 - whole.length, 4 - frac.length) + " MHz " + rest;
+        };
         body.replaceChildren(...good.map((f) => {
           const row = document.createElement("tr");
           const band = document.createElement("th");
           band.scope = "row";
-          band.textContent = f.band;
+          band.textContent = pad(f.band, 4 - f.band.length, 0);
           const freq = document.createElement("td");
-          freq.textContent = f.dial;
+          freq.textContent = aligned(f.dial);
           row.append(band, freq);
           return row;
         }));

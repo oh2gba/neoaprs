@@ -1,23 +1,23 @@
-/* The project page: one stylesheet, a system font stack, no external file. It wears the app's look (ui/src/styles/tokens.css): its palette in light and
-   dark, its blue, the purple of its HF tag, its 4-px controls, 6-px groups and small tags; laid out in calm full-width bands with light headings, a strip
-   of numbers and line icons. The dark bands (.night: the opening, HF) take the app's dark palette in their own scope, whatever the system's theme. A red
-   rubber stamp marks the first APRS over HF. */
+/* The project page: one stylesheet, a system font stack, no external file. The app's shapes (ui/src/styles/tokens.css: 4-px controls, 6-px groups,
+   small tags) in the colours of a product page John chose (Vaisala's): petrol, white and grey, mint, sky and lime, and orange for the stamp; no colour
+   that is not on that page (a rule or a shadow is one of them at a lower alpha). Calm full-width bands with light headings, a strip of numbers and line
+   icons; the dark bands (.night: the opening, HF) are petrol whatever the system's theme, and the app sits in a laptop on a mint panel. */
 :root {
   color-scheme: light dark;
-  --bg: #f4f5f3;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #e9ecee;
-  --ink: #1d2125;
-  --ink-2: #454f58;
-  --muted: #5d6670;
-  --rule: #d3d7da;
-  --blue: #1565c0;
-  --blue-soft: #dce8f8;
+  --surface-2: #eff0f2;
+  --ink: #0a2a3d;
+  --ink-2: #182a34;
+  --muted: #5d5d5d;
+  --rule: rgba(10, 42, 61, 0.16);
+  --blue: #2972a3;
+  --blue-soft: #bbdaed;
   --accent-text: #ffffff;
-  --hf: #5b2a91;
-  --hf-soft: #eadcf8;
-  --stamp: #c8102e;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --hf: #0a2a3d;
+  --hf-soft: #a6d7d4;
+  --stamp: #e54615;
+  --shadow: 0 2px 8px rgba(10, 42, 61, 0.12);
   --radius: 4px;
   --radius-box: 6px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif;
@@ -28,43 +28,44 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14171a;
-    --surface: #1c2024;
-    --surface-2: #2a3036;
-    --ink: #e3e6e8;
-    --ink-2: #b6c0c9;
-    --muted: #98a2ab;
-    --rule: #343a40;
-    --blue: #6aa9ee;
-    --blue-soft: #1c3555;
-    --accent-text: #0b1a2b;
-    --hf: #d5bff5;
-    --hf-soft: #3a2958;
-    --stamp: #ff4d5e;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    --bg: #0e1f2c;
+    --surface: #0a2a3d;
+    --surface-2: #182a34;
+    --ink: #ffffff;
+    --ink-2: #eff0f2;
+    --muted: #91c1b9;
+    --rule: rgba(255, 255, 255, 0.14);
+    --blue: #60addb;
+    --blue-soft: #182a34;
+    --accent-text: #0e1f2c;
+    --hf: #a6d7d4;
+    --hf-soft: #182a34;
+    --stamp: #fb6432;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
 }
 
-/* a band in the app's dark palette, whatever the system's theme: everything inside takes it from the tokens */
+/* a dark band, petrol whatever the system's theme: the tokens are redefined so that everything inside follows */
 .night {
   color-scheme: dark;
-  --bg: #14171a;
-  --surface: #1c2024;
-  --surface-2: #2a3036;
-  --ink: #e3e6e8;
-  --ink-2: #b6c0c9;
-  --muted: #98a2ab;
-  --rule: #343a40;
-  --blue: #6aa9ee;
-  --blue-soft: #1c3555;
-  --accent-text: #0b1a2b;
-  --hf: #d5bff5;
-  --hf-soft: #3a2958;
-  --stamp: #ff4d5e;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --bg: #0a2a3d;
+  --surface: #0e1f2c;
+  --surface-2: #182a34;
+  --ink: #ffffff;
+  --ink-2: #eff0f2;
+  --muted: #91c1b9;
+  --rule: rgba(255, 255, 255, 0.16);
+  --blue: #a6d7d4;
+  --blue-soft: #182a34;
+  --accent-text: #0a2a3d;
+  --hf: #a6d7d4;
+  --hf-soft: #182a34;
+  --stamp: #fb6432;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   background: var(--bg);
   color: var(--ink);
 }
+.night .btn:not(.ghost) { background: #dbf93a; border-color: #dbf93a; color: #0a2a3d; }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 64px; -webkit-text-size-adjust: 100%; }
@@ -76,7 +77,7 @@ a:hover { text-decoration-thickness: 2px; }
 :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 code { font-family: var(--mono); font-size: 0.86em; }
 .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
-.skip { position: absolute; left: 12px; top: -60px; background: var(--blue); color: #fff; padding: 8px 14px; z-index: 30; border-radius: 6px; }
+.skip { position: absolute; left: 12px; top: -60px; background: var(--blue); color: var(--accent-text); padding: 8px 14px; z-index: 30; border-radius: 6px; }
 .skip:focus { top: 12px; }
 
 /* ---- the masthead */
@@ -153,9 +154,19 @@ h1 span { color: var(--blue); }
 @media (max-width: 1000px) { .highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .highlights { grid-template-columns: minmax(0, 1fr); } }
 
-.big { margin: clamp(28px, 4vw, 44px) 0 0; }
-.night .big .zoom { border-color: var(--rule); }
-.big .zoom { display: block; border: 1px solid var(--rule); border-radius: var(--radius-box); overflow: hidden; box-shadow: var(--shadow); line-height: 0; cursor: zoom-in; }
+/* the app in a laptop on a mint panel: the black bezel gives the screen an edge whatever its colours and the page's; on a phone, a phone */
+.big { margin: clamp(28px, 4vw, 44px) 0 0; padding: clamp(24px, 5vw, 64px) clamp(12px, 6vw, 96px) clamp(28px, 4vw, 52px); border-radius: var(--radius-box); background: #a6d7d4; }
+.laptop { max-width: 1180px; margin: 0 auto; }
+.laptop .screen { padding: clamp(6px, 1vw, 13px) clamp(6px, 1vw, 13px) clamp(8px, 1.3vw, 17px); background: #000000; border-radius: clamp(10px, 1.4vw, 18px) clamp(10px, 1.4vw, 18px) 3px 3px; box-shadow: 0 0 0 1px #182a34, 0 28px 50px -26px rgba(10, 42, 61, 0.7); }
+.laptop .base { position: relative; height: clamp(10px, 1.3vw, 17px); margin: 0 -6.5%; border-radius: 2px 2px 50% 50% / 2px 2px 100% 100%; background: linear-gradient(180deg, #ffffff 0%, #eff0f2 45%, #5d5d5d 100%); box-shadow: 0 16px 22px -14px rgba(10, 42, 61, 0.6); }
+.laptop .base::before { content: ""; position: absolute; left: 50%; top: 0; width: 13%; height: 42%; transform: translateX(-50%); border-radius: 0 0 9px 9px; background: #5d5d5d; }
+.big .zoom { display: block; overflow: hidden; border-radius: 2px; line-height: 0; cursor: zoom-in; }
+@media (max-width: 640px) {
+  .laptop { max-width: 300px; }
+  .laptop .screen { padding: 9px; border-radius: 30px; }
+  .laptop .screen .zoom { border-radius: 22px; }
+  .laptop .base { display: none; }
+}
 
 /* ---- the numbers: the facts at a glance */
 .numbers { list-style: none; margin: 0; padding: clamp(32px, 4vw, 52px) 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px clamp(16px, 3vw, 48px); text-align: center; border-bottom: 1px solid var(--rule); }
@@ -208,6 +219,8 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 /* ---- HF: a band of its own */
 .band { margin-top: clamp(48px, 6vw, 88px); padding-bottom: clamp(40px, 5vw, 64px); }
 .flag { display: inline-block; margin: 0 0 12px; padding: 0 8px; height: 20px; border-radius: 10px; background: var(--hf-soft); color: var(--hf); font: 600 0.75rem/20px var(--font); }
+/* the tag of the first test on the air: Vaisala's bright orange */
+.flag.air { background: #fb6432; color: #0a2a3d; }
 .hfgrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 32px clamp(24px, 4vw, 56px); align-items: start; }
 .merc { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .merc li { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--hf); border-radius: var(--radius-box); padding: 12px 16px; }
@@ -217,7 +230,7 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .freqs caption { caption-side: top; text-align: left; padding: 0 0 6px; font-weight: 650; }
 .freqs th, .freqs td { padding: 8px 18px; border-top: 1px solid var(--rule); text-align: left; }
 .freqs tr:first-child th, .freqs tr:first-child td { border-top: 0; }
-.freqs th { font: 400 0.95rem/1.3 var(--mono); color: var(--muted); }
+.freqs th { font: 400 0.95rem/1.3 var(--mono); color: var(--muted); white-space: pre; }
 .freqs td { font: 700 1.25rem/1.3 var(--mono); white-space: nowrap; }
 .hfshots { display: grid; gap: 16px; }
 @media (max-width: 1100px) { .hfgrid { grid-template-columns: minmax(0, 1fr); } .hfshots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -229,7 +242,9 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .walk .txt p { margin: 0; color: var(--ink-2); font-size: 0.97rem; }
 .pic { display: block; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); line-height: 0; cursor: zoom-in; }
 .pic img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; }
-.hfshots .pic { box-shadow: var(--shadow); }
+/* the HF screenshots as the opening's: each in a black bezel, on a mint panel */
+.hfshots { padding: clamp(14px, 2.4vw, 28px); border-radius: var(--radius-box); background: #a6d7d4; }
+.hfshots .pic { border: clamp(4px, 0.6vw, 7px) solid #000000; border-radius: 10px; background: #000000; box-shadow: 0 18px 32px -20px rgba(10, 42, 61, 0.7); }
 .pic.tall { width: min(100%, 140px); justify-self: center; }
 .pic.tall img { aspect-ratio: auto; }
 @media (max-width: 1000px) { .walk { grid-template-columns: minmax(0, 1fr); } }
@@ -245,12 +260,12 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 @media (max-width: 720px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- the lightbox */
-dialog { border: 0; padding: 0; background: transparent; color: #fff; max-width: none; max-height: none; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; }
-dialog::backdrop { background: rgba(6, 10, 16, 0.9); }
+dialog { border: 0; padding: 0; background: transparent; color: #ffffff; max-width: none; max-height: none; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; }
+dialog::backdrop { background: rgba(14, 31, 44, 0.94); }
 .lb { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 56px 64px 20px; gap: 12px; }
 .lb img { display: block; max-width: 100%; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); object-fit: contain; border-radius: var(--radius); background: var(--surface); }
-.lb p { margin: 0; font-size: 0.95rem; text-align: center; color: #dbe4ee; }
-.lb button { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.14); color: #fff; font: 400 1.7rem/1 var(--font); cursor: pointer; }
+.lb p { margin: 0; font-size: 0.95rem; text-align: center; color: #eff0f2; }
+.lb button { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.14); color: #ffffff; font: 400 1.7rem/1 var(--font); cursor: pointer; }
 .lb button:hover { background: rgba(255, 255, 255, 0.26); }
 .lb .close { top: 12px; right: 14px; }
 .lb .prev, .lb .next { top: 50%; margin-top: -22px; }
@@ -364,7 +379,7 @@ footer p { margin: 0; }
 .cite { max-width: 62em; padding: 14px 18px; border-left: 3px solid var(--blue); background: var(--surface); font-size: 0.95rem; }
 .newslink { margin: -4px 0 26px; }
 .newslink a { display: inline-block; padding: 10px 16px; border: 1.5px solid var(--hf); border-radius: var(--radius-box); background: var(--hf-soft); color: var(--hf); font-weight: 700; text-decoration: none; }
-.newslink a:hover { background: var(--hf); color: #fff; }
+.newslink a:hover { background: var(--hf); color: var(--hf-soft); }
 /* the banner under the masthead: the latest news, in the HF colour, on every width */
 .newsbar { display: block; background: var(--hf-soft); color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
 .newsbar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-top: 10px; padding-bottom: 10px; }

@@ -7,8 +7,8 @@
 <meta name="description" content="Technical note: the DATAC3 OFDM waveform of the Mercury modem, its use as the HF radio of NeoAPRS, channel access on a shared APRS frequency, and the first test on the air.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f4f5f3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#14171a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1f2c" media="(prefers-color-scheme: dark)">
 <meta name="author" content="John, OH2GBA; Otso, OH2GAX">
 <link rel="canonical" href="https://neo.oh2gba.eu/aprs-over-hf-mercury.html">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -32,8 +32,8 @@
 <meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
 <meta property="article:published_time" content="2026-11-04">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "APRS over HF with the Mercury Modem", "alternativeHeadline": "The DATAC3 OFDM waveform, its use as the HF radio of NeoAPRS, and the channel-access rules of a shared APRS frequency", "abstract": "APRS has been sent over HF since the early 1990s, almost entirely as uncoded 300-baud AFSK packet. That waveform has no error correction and symbols of 3.3 ms, so a single bit error, a few milliseconds of multipath delay spread or a short fade loses the whole packet. NeoAPRS, an open-source APRS client, now has a second radio for HF. It sends ordinary AX.25 APRS frames through Mercury, the HF modem of Rhizomatica’s HERMES project, in the FreeDV/codec2 data mode DATAC3. DATAC3 is coherent OFDM: 9 QPSK carriers 62.5 Hz apart in 562 Hz of audio, a 6 ms cyclic prefix, one row of BPSK pilots in every five symbols, and a rate-1/2 LDPC code of length 2048. Each burst carries 126 bytes in 3.19 s, a payload rate of 316 bit/s (321 bit/s counting the CRC). This note explains how the waveform is built and decoded, the bit and time budget of one frame, and how NeoAPRS fits APRS onto it. That includes a 123-byte frame limit, carrier sense built from the modem’s own spectrum, ack and retry timing measured on a simulated channel, and a beacon interval with a random pause chosen by Monte Carlo simulation. We rebuilt the codec2 tools of the pinned Mercury source and reproduced the AWGN decoding cliff at −4 to −5 dB SNR in 3 kHz. The note ends with the first exchange of APRS messages over Mercury between two stations on the air (4 November 2026). That test ran on 6 m over 40.8 km, and messages sent with 1 W were decoded at a reported SNR of −3 dB.", "author": [{"@type": "Person", "name": "John, OH2GBA", "url": "https://oh2gba.eu"}, {"@type": "Person", "name": "Otso, OH2GAX"}], "datePublished": "2026-11-04", "version": "1.0", "inLanguage": "en", "url": "https://neo.oh2gba.eu/aprs-over-hf-mercury.html", "mainEntityOfPage": "https://neo.oh2gba.eu/aprs-over-hf-mercury.html", "publisher": {"@type": "Organization", "name": "NeoAPRS project", "url": "https://neo.oh2gba.eu/"}, "encoding": {"@type": "MediaObject", "encodingFormat": "application/pdf", "contentUrl": "https://neo.oh2gba.eu/aprs-over-hf-mercury.pdf"}, "about": ["APRS", "HF digital modes", "Mercury modem", "DATAC3", "OFDM", "LDPC", "amateur radio"], "image": "https://neo.oh2gba.eu/shots/og.png"}</script>
-<link rel="stylesheet" href="style.css?v=22">
-<script src="site.js?v=9" defer></script>
+<link rel="stylesheet" href="style.css?v=28">
+<script src="site.js?v=10" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -44,8 +44,7 @@
     <nav aria-label="Page">
       <a href="./#download">Download</a>
       <a href="./#features">Features</a>
-      <a href="./#hf" class="nav-hf">HF</a>
-      <a href="./#radios">Radios</a>
+      <a href="./#radios">FM and HF</a>
       <a href="faq.html">FAQ</a>
       <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
     </nav>
