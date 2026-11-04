@@ -151,7 +151,8 @@ class WebServer:
         remove_page(self.controller.data_dir)                       # (what an earlier run left is over, whether this one has a page or not)
         failure = listen_near(server, self.address, c.web_port)
         if failure is not None:
-            log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure)
+            log.error("the web server cannot listen on %s:%d: %s; NeoAPRS goes on without the page", self.address or "every interface", c.web_port, failure,
+                      exc_info=failure)                       # (with where it came from: an EINVAL that named the program file, seen once on Windows right after an update, 3 Nov 2026)
             self._server = None
             await self.api.stop()
             return False
