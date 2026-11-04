@@ -28,6 +28,11 @@ os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
 os.environ["NEOAPRS_ALSA_ROOT"] = "/nonexistent/neoaprs-test-asound"
 
 
+# No test may play sound on the developer's speakers: a daemon a test starts on the Dummy HF radio plays what it sends as Mercury's real audio through the system's player (neoaprs/mercuryspeaker.py), which John heard
+# from his speakers as the beacons of the suite (4 Nov 2026). The players are looked for in a folder that is not there; a test of the speaker gives its own player.
+os.environ["NEOAPRS_PLAYER_PATH"] = "/nonexistent/neoaprs-test-players"
+
+
 # No test may reach the developer's desktop: a daemon a test starts that gets a message runs the default alert command (notify-send, else kdialog's pop-up, and a sound), which showed John a stream of pop-ups while the suite and
 # the simulators ran (3 Nov 2026). Without the session's display and message bus the command finds no desktop and does nothing visible; a test of the alert command gives its own command.
 for _name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY"):

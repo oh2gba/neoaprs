@@ -21,7 +21,7 @@ from neoaprs.dummyhfscene import ACK_AFTER_SEC, FIRST_BEACONS_SEC, HELLO, STATIO
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.geo import distance_km
 from neoaprs.mercury import DELIVERY_SEC
-from neoaprs.mercuryspeaker import BLOCK_BYTES, SILENCE, SpeakerAudio
+from neoaprs.mercuryspeaker import BLOCK_BYTES, SILENCE, SpeakerAudio, player_command
 from neoaprs.packet import Position
 from neoaprs.radiorules import HF_BEACON_JITTER_SEC
 from neoaprs.radios import hf_is_mercury
@@ -233,6 +233,16 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
     finally:
         audio.stop()
     assert out.read_bytes() == b"\x01\x02\x03\x04" * 400 and not audio.capture.exists() and not audio.playback.exists()
+
+
+def test_no_daemon_of_the_tests_finds_a_player_and_the_players_are_looked_for_where_neoaprs_player_path_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A daemon of the tests on the Dummy HF radio played its beacons out of John's speakers (4 Nov 2026): tests/conftest.py points NEOAPRS_PLAYER_PATH at a folder that is not there."""
+    assert player_command() is None
+    aplay = tmp_path / ("aplay.exe" if sys.platform == "win32" else "aplay")
+    aplay.write_text("")
+    aplay.chmod(0o755)
+    monkeypatch.setenv("NEOAPRS_PLAYER_PATH", str(tmp_path))
+    assert player_command() == [str(aplay), "-q", "-t", "raw", "-f", "S32_LE", "-r", "8000", "-c", "1", "-"]
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes: POSIX")
