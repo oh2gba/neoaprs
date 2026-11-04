@@ -144,6 +144,10 @@ h3 { margin: 0 0 4px; font-size: 1.12rem; }
 .files th { width: 18%; font-weight: 650; }
 .files td:nth-child(2) { width: 26%; font-family: var(--mono); font-size: 0.88rem; overflow-wrap: anywhere; }
 .files td:nth-child(3) { color: var(--ink-2); font-size: 0.95rem; }
+.files .for { font-family: var(--font); font-size: 0.95rem; }
+.files .steps { margin: 0; padding-left: 1.3em; }
+.files .steps li + li { margin-top: 6px; }
+.files .steps code { overflow-wrap: anywhere; }
 @media (max-width: 720px) {
   .files, .files tbody, .files tr, .files th, .files td { display: block; width: auto; }
   .files th, .files td, .files td:nth-child(2) { border: 0; padding: 2px 16px; width: auto; }

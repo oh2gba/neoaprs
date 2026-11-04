@@ -27,7 +27,7 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <script src="site.js?v=8" defer></script>
 </head>
 <body>
@@ -87,7 +87,15 @@
         <tr><th scope="row">Windows</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-Setup.exe">NeoAPRS-Setup.exe</a></td><td>No administrator rights needed. If SmartScreen warns: More info, Run anyway.</td></tr>
         <tr><th scope="row">macOS</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-arm64.dmg">NeoAPRS-arm64.dmg</a></td><td>Apple silicon, macOS 14 or newer. The first time: right-click, Open.</td></tr>
         <tr><th scope="row">Linux</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest/download/NeoAPRS-x86_64.AppImage">NeoAPRS-x86_64.AppImage</a></td><td><code>chmod +x NeoAPRS-*-x86_64.AppImage</code> and run it.</td></tr>
-        <tr><th scope="row">Raspberry Pi, Debian, Ubuntu</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_&lt;version&gt;_arm64.deb</a></td><td><code>sudo apt install ./neoaprs_*.deb &amp;&amp; neoaprs service install --linger</code> (amd64 for a PC)</td></tr>
+        <tr><th scope="row">Raspberry Pi, Debian, Ubuntu</th><td><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_…_arm64.deb</a> <span class="for">for a Raspberry Pi</span><br><a href="https://github.com/oh2gba/neoaprs/releases/latest">neoaprs_…_amd64.deb</a> <span class="for">for a PC</span></td><td>
+          <ol class="steps">
+            <li>Download the file for your computer from the release page. Raspberry Pi OS must be the 64-bit one.</li>
+            <li>Install it: <code>sudo apt install ./neoaprs_*.deb</code></li>
+            <li>To use it from your phone or laptop: <code>neoaprs db set web/network true</code></li>
+            <li>Start it, now and at every boot: <code>neoaprs service install --linger</code></li>
+            <li>Open <code>http://NAME.local:7303</code> with the name of the computer, and type the key that <code>neoaprs db get web/key</code> shows.</li>
+          </ol>
+        </td></tr>
         <tr><th scope="row">Source</th><td><a href="https://github.com/oh2gba/neoaprs">github.com/oh2gba/neoaprs</a></td><td>Python and Vue, GPL v3 or later.</td></tr>
       </tbody>
     </table>
