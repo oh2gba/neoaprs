@@ -1,60 +1,29 @@
-import { flushPromises, mount } from "@vue/test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import { en } from "@/i18n/en";
 import { LOCALES } from "@/i18n/locales";
-import { pageErrors } from "@/lib/pageerrors";
 import { fakeDaemon, withDaemon } from "@/test/context";
-
-const ZIP = { "Content-Type": "application/zip", "Content-Disposition": 'attachment; filename="neoaprs-support-OH2GBA-20261021-123456Z.zip"' };
-
-/** The fetch of the page: `answer` is what the daemon says to the next request, kept with what was asked. */
-function daemonSays(answer: () => Promise<Response>) {
-  const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => answer());
-  vi.stubGlobal("fetch", fetcher);
-  return fetcher;
-}
-
-const downloads: { href: string; download: string }[] = [];
-
-beforeEach(() => {
-  downloads.length = 0;
-  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:support"), revokeObjectURL: vi.fn() }));
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-    downloads.push({ href: this.href, download: this.download });
-  });
-});
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
 
 function make(over = {}) {
   return mount(SettingsHelp, { global: withDaemon(fakeDaemon({ call: "OH2GBA", version: "0.9.0", ...over })) });
 }
 
 describe("the Help group", () => {
-  it("is one line with the address as the e-mail link, the two plain buttons with their one (i), and nothing else", () => {
+  it("is one line, the one primary button Send feedback / logs with its (i), and nothing else", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("Help");
-    expect(wrapper.get("p").text()).toBe("Feedback or a problem? Send it from here, or e-mail neoaprs@oh2gba.eu.");
-    const link = wrapper.get("p a");
-    expect(link.text()).toBe("neoaprs@oh2gba.eu");
-    const url = new URL(link.attributes("href") ?? "");
-    expect(url.protocol).toBe("mailto:");
-    expect(url.pathname).toBe("neoaprs@oh2gba.eu");
-    expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
-    expect(url.searchParams.get("body")).toBe(["What I did:", "", "What I expected:", "", "What happened:", "", "When (roughly):", ""].join("\r\n").trimEnd());
-    expect(wrapper.findAll("a")).toHaveLength(1);
-    expect(wrapper.findAll("button.btn").map((b) => b.text())).toEqual(["Download logs", "Send feedback"]);
-    const button = wrapper.get("button.btn");
-    expect(button.text()).toBe("Download logs");
-    expect(button.classes()).toEqual(["btn"]);
-    expect(button.attributes("disabled")).toBeUndefined();
-    const tip = wrapper.getComponent(InfoTip);
-    expect(tip.props("label")).toBe("About the logs");
+    expect(wrapper.get("p").text()).toBe("Feedback, an idea or a problem? This is the fastest way to reach the developer.");
+    expect(wrapper.findAll("a")).toHaveLength(0);
+    const buttons = wrapper.findAll("button.btn");
+    expect(buttons.map((b) => b.text())).toEqual(["Send feedback / logs"]);
+    expect(buttons[0]?.attributes("id")).toBe("set-help-send");
+    expect(buttons[0]?.classes()).toEqual(["btn", "primary"]);
+    expect(buttons[0]?.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find("#set-help-logs").exists()).toBe(false);
+    expect(wrapper.getComponent(InfoTip).props("label")).toBe("About the logs");
     expect(wrapper.findAll("p")).toHaveLength(1);
     expect(wrapper.find(".help-result").text()).toBe("");
   });
@@ -66,126 +35,6 @@ describe("the Help group", () => {
       "The log, the settings without the access key, the packets heard and sent. They can be saved as a file or sent to the project.",
       "NeoAPRS sends nothing by itself.",
     ]);
-  });
-
-  it("reads Collecting… and is disabled while the file is made, and asks only once", async () => {
-    let finish: (response: Response) => void = () => undefined;
-    const fetcher = daemonSays(() => new Promise<Response>((resolve) => (finish = resolve)));
-    const wrapper = make();
-    await wrapper.get("#set-help-logs").trigger("click");
-    expect(wrapper.get("#set-help-logs").text()).toBe("Collecting…");
-    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeDefined();
-    expect(wrapper.get("#set-help-send").attributes("disabled")).toBeDefined();
-    await wrapper.get("#set-help-logs").trigger("click");
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    finish(new Response("PK", { status: 200, headers: ZIP }));
-    await flushPromises();
-    expect(wrapper.get("#set-help-logs").text()).toBe("Download logs");
-    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
-  });
-
-  it("posts the page's info as {page: ...} beside the page, with the ring of errors in it", async () => {
-    pageErrors.record(new Error("seen before the press"), "window");
-    const fetcher = daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
-    const wrapper = make({ connection: "open" });
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    const [url, init] = fetcher.mock.calls[0] ?? [];
-    expect(url).toBe("http://127.0.0.1:7303/support/bundle");
-    expect(init).toMatchObject({ method: "POST", credentials: "same-origin" });
-    const body = JSON.parse(typeof init?.body === "string" ? init.body : "") as { page: Record<string, unknown> };
-    expect(Object.keys(body)).toEqual(["page"]);
-    expect(Object.keys(body.page).sort()).toEqual(
-      [
-        "build",
-        "connection",
-        "daemonVersion",
-        "darkScheme",
-        "errors",
-        "language",
-        "panelWidth",
-        "serviceWorkerControlled",
-        "sizeClass",
-        "standalone",
-        "time",
-        "timeMs",
-        "timeZone",
-        "userAgent",
-        "viewport",
-      ].sort(),
-    );
-    expect(body.page).toMatchObject({ daemonVersion: "0.9.0", connection: "open" });
-    expect(JSON.stringify(body.page["errors"])).toContain("seen before the press");
-    expect(typeof body.page["timeMs"]).toBe("number");
-    expect(String(body.page["time"])).toMatch(/Z$/);
-  });
-
-  it("saves the zip under the daemon's name, says so quietly and adds the reminder to attach it to the e-mail", async () => {
-    daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
-    const wrapper = make();
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(downloads).toEqual([{ href: "blob:support", download: "neoaprs-support-OH2GBA-20261021-123456Z.zip" }]);
-    expect(wrapper.get(".help-result .muted").text()).toBe("Saved neoaprs-support-OH2GBA-20261021-123456Z.zip.");
-    expect(wrapper.find(".help-result a").exists()).toBe(false);
-    expect(wrapper.findAll("a")).toHaveLength(1);
-    const write = wrapper.get("p a");
-    expect(write.text()).toBe("neoaprs@oh2gba.eu");
-    const url = new URL(write.attributes("href") ?? "");
-    expect(url.protocol).toBe("mailto:");
-    expect(url.pathname).toBe("neoaprs@oh2gba.eu");
-    expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
-    expect(url.searchParams.get("body")).toBe(
-      [
-        "What I did:",
-        "",
-        "What I expected:",
-        "",
-        "What happened:",
-        "",
-        "When (roughly):",
-        "",
-        "Remember to attach neoaprs-support-OH2GBA-20261021-123456Z.zip.",
-      ].join("\r\n"),
-    );
-    expect(wrapper.find(".field-error").exists()).toBe(false);
-  });
-
-  it("makes a name from the call and the time when the daemon gave none", async () => {
-    daemonSays(() => Promise.resolve(new Response("PK", { status: 200 })));
-    const wrapper = make();
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(downloads[0]?.download).toMatch(/^neoaprs-support-OH2GBA-\d{8}-\d{6}Z\.zip$/);
-  });
-
-  it.each([
-    [403, "No access: reload the page, enter the access key and try again."],
-    [401, "No access: reload the page, enter the access key and try again."],
-    [429, "Another file is being made. Try again in a minute."],
-    [500, "The file could not be made (error 500)."],
-  ])("says in plain words what a %i means, and no file is named", async (status, text) => {
-    daemonSays(() => Promise.resolve(new Response(null, { status })));
-    const wrapper = make();
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(wrapper.get(".help-result .field-error").text()).toBe(text);
-    expect(wrapper.find(".help-result .muted").exists()).toBe(false);
-    expect(downloads).toEqual([]);
-    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
-  });
-
-  it("says the daemon cannot be reached when there is no answer, and takes the words back at the next try", async () => {
-    daemonSays(() => Promise.reject(new TypeError("network")));
-    const wrapper = make();
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(wrapper.get(".help-result").text()).toBe("The daemon could not be reached.");
-    daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(wrapper.find(".field-error").exists()).toBe(false);
-    expect(wrapper.get(".help-result .muted").text()).toContain("Saved");
   });
 });
 
@@ -215,7 +64,8 @@ describe("the words of the group in every language", () => {
         const text = String(messages[id]);
         const source = String(english[id]);
         expect(text, id).not.toBe("undefined");
-        expect(text, id).not.toBe(source);
+        // the word is borrowed as it is in German, Italian and Portuguese
+        if (!(id === "settings.help.label" && ["de", "it", "pt-BR"].includes(locale.code))) expect(text, id).not.toBe(source);
         for (const name of source.match(/\{\w+\}/g) ?? []) expect(text, id).toContain(name);
       }
     });

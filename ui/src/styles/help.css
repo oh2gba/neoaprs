@@ -238,3 +238,27 @@
 .httpsguide-print {
   margin-top: 8px;
 }
+/* the logs file shown attached under the note, as a mail program shows an attachment */
+.logsdialog-attached {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.logsdialog-file {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the last line of About: saving the logs as a file, quieter than the group's text */
+.about-download {
+  font-size: 12px;
+}

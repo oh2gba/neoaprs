@@ -3,7 +3,8 @@
 ## Unreleased
 
 - **Changed:** 6 m, 50.620 MHz USB, is among the suggested frequencies, where the first test on the air ran; the HF box keeps room for its three lines.
-- **Changed:** Send logs in the Help group is now **Send feedback**: the same note and logs, for a problem or for any feedback.
+- **Changed:** Send logs in the Help group is now **Send feedback / logs**, the one button of the group: the same note and logs, for a problem or for any feedback, and the window shows the logs file it sends attached. Download logs moved to the last line of About.
+- **Changed:** About names the version of the Mercury modem built in.
 
 ## 0.17.3
 

@@ -1,33 +1,33 @@
 # Getting help
 
-When something does not work, NeoAPRS can collect what it knows into one file and send it to the project with a few words from you, with one button. Or you can save the file and e-mail it yourself. The file is made on your computer and goes nowhere by itself: nothing is sent unless you press Send, and you can open the file and read every part before you send it.
+When something does not work, or you have an idea or any other feedback, NeoAPRS sends your words to the project with one button, and the logs with them, so that the developer sees what happened. Or you can save the file and e-mail it yourself. The file is made on your computer and goes nowhere by itself: nothing is sent unless you press Send, and you can save the file and read every part of it first.
 
-To e-mail it, send it to **neoaprs@oh2gba.eu**. Whichever way it goes, it helps most to say:
+It helps most to say:
 
 - what you did,
 - what you expected,
 - what happened instead,
 - and roughly when (the time lets the developer find it in the log).
 
-## From the page
+## Send feedback / logs
 
-Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder. The (i) beside the button says what the file holds.
+Open the **Settings** tab and scroll down to the group **Help**, above About. Press **Send feedback / logs**. A small window opens with one text, "What happened?", for your words, and under it the logs file it sends with them, shown attached. The (i) beside the button says what the file holds.
 
-Under the button the page says "Saved" and the name of the file, which holds your call and the time in UTC. The address **neoaprs@oh2gba.eu** in the line above the button is a link that opens your mail program with a subject that starts with "NeoAPRS" and its version, and a form to fill in: what you did, what you expected, what happened and when; once the file is saved, the form also reminds you to attach it. Attach the file yourself; a page cannot do that for you. Without a mail program, send the file from any other.
+**Send** makes the file and sends it, with your words, your call, the version and the kind of system, over a secure connection to the project's server. The server keeps the file for the developer and tells him that a new one has come; it does not keep your network address. Nothing is sent before you press Send, and **Cancel** closes the window and sends nothing.
 
-If the button cannot make the file, it says why:
+While the file is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many files came from your connection in the last hour (five at most). Saving the file and e-mailing it still works then.
+
+## Saving the file
+
+The last line of the About group, under Help, is **Download logs**. The button reads "Collecting…" while the file is made, and your browser then saves a zip like any download, in its download folder; the line then says "Saved" and the name of the file, which holds your call and the time in UTC. E-mail it to **neoaprs@oh2gba.eu** with a few words, or open an issue on GitHub; both are links in the line above it.
+
+If the file cannot be made, the line says why:
 
 - **No access:** this device is not let in. Reload the page and enter the access key ([network.md](network.md)).
 - **Another file is being made:** the daemon makes one at a time. Try again in a minute.
 - **The daemon could not be reached:** use the command below.
 
 The page also tells the daemon when it fails itself, and the file carries those errors.
-
-## Send logs
-
-Beside Download logs, **Send logs** opens a small window with one text, "What happened?": what you did, what you expected and roughly when. **Send** makes the same file as Download logs and sends it, with your words, your call, the version and the kind of system, over a secure connection to the project's server. The server keeps the file for the developer and tells him that a new one has come; it does not keep your network address. Nothing is sent before you press Send, and **Cancel** closes the window and sends nothing.
-
-While the file is sent the button reads "Sending…". Then the page says "Sent" with a short reference such as NEO-20261103-1015-7F3A; quote it if you write about the problem. If it could not be sent, the page says why: there is no internet connection, the server refused it, or too many files came from your connection in the last hour (five at most). Download logs and the e-mail still work then.
 
 ## Without a working page
 
@@ -63,7 +63,7 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 - **Your messages as the program keeps them,** and **the database file itself.** They are yours, and a fault is found without them. `database.txt` says what is in the database.
 - **The base map.** It is large and a fault is not in it.
 
-Know what is in it before you send it; Send logs sends exactly this file. The log and `packets.txt` have the packets heard and sent, which on APRS are public, with the texts of messages to and from other stations and their calls. The log also has the addresses of the devices that opened the page, and `settings.json` the position your beacon sends.
+Know what is in it before you send it; Send feedback / logs sends exactly this file. The log and `packets.txt` have the packets heard and sent, which on APRS are public, with the texts of messages to and from other stations and their calls. The log also has the addresses of the devices that opened the page, and `settings.json` the position your beacon sends.
 
 ## Feedback
 

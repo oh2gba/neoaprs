@@ -1,4 +1,4 @@
-// Send logs of the Help group: the button beside Download logs, the dialog it opens (one text, Send and Cancel, the page's dialog keys), what goes to the daemon (the page's info and the note, only when Send is pressed), the button in progress, and the one quiet
+// Send feedback / logs of the Help group: the group's one button, the dialog it opens (with the logs file shown attached) (one text, Send and Cancel, the page's dialog keys), what goes to the daemon (the page's info and the note, only when Send is pressed), the button in progress, and the one quiet
 // line after it: the reference, or why it was not sent.
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,13 +51,14 @@ afterEach(() => {
 });
 
 describe("the Send feedback button", () => {
-  it("stands beside Download logs in the one row, before the one (i), and sends nothing by itself", () => {
+  it("is the group's one button, the primary one, before the one (i), and sends nothing by itself; Download logs is About's", () => {
     const fetcher = daemonSays(() => json({ ok: true, ref: REF }));
     make();
     const control = wrapper.get(".help-logs .field-control").element;
-    expect([...control.children].map((c) => c.textContent?.trim())).toEqual(["Download logs", "Send feedback", expect.any(String)]);
+    expect([...control.children].map((c) => c.textContent?.trim())).toEqual(["Send feedback / logs", expect.any(String)]);
     expect(control.lastElementChild?.classList.contains("infotip")).toBe(true);
-    expect(wrapper.get("#set-help-send").classes()).toEqual(["btn"]);
+    expect(wrapper.get("#set-help-send").classes()).toEqual(["btn", "primary"]);
+    expect(wrapper.find("#set-help-logs").exists()).toBe(false);
     expect(wrapper.findAll(".action-row")).toHaveLength(1);
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -71,7 +72,7 @@ describe("the dialog", () => {
     const box = dialog();
     expect(box?.getAttribute("role")).toBe("dialog");
     expect(box?.getAttribute("aria-modal")).toBe("true");
-    expect(box?.querySelector("h2")?.textContent).toBe("Send feedback");
+    expect(box?.querySelector("h2")?.textContent).toBe("Send feedback / logs");
     const label = box?.querySelector("label");
     expect(label?.textContent).toBe("Your message");
     expect(label?.getAttribute("for")).toBe(area().id);
@@ -91,10 +92,12 @@ describe("the dialog", () => {
     expect(box?.querySelector(".logsdialog-foot .btn.primary")?.textContent).toBe("Send");
   });
 
-  it("has an (i) that says what goes and that nothing goes before Send, and no other line of explanation", async () => {
+  it("shows the logs file attached under the text, and has an (i) that says what goes and that nothing goes before Send, and no line of explanation", async () => {
     make();
     await open();
-    expect(dialog()?.querySelectorAll("p")).toHaveLength(0);
+    const lines = [...(dialog()?.querySelectorAll("p") ?? [])];
+    expect(lines.map((line) => [line.className, line.textContent?.trim()])).toEqual([["logsdialog-attached", "neoaprs-support-OH2GBA.zip"]]);
+    expect(lines[0]?.getAttribute("aria-label")).toBe("Attached");
     (dialog()?.querySelector(".infotip button") as HTMLButtonElement).click();
     await flushPromises();
     expect([...(dialog()?.querySelectorAll(".info-line") ?? [])].map((line) => line.textContent)).toEqual([
@@ -144,7 +147,7 @@ describe("the dialog", () => {
 });
 
 describe("sending", () => {
-  it("posts the page's info and the note to the daemon, and the button reads Sending… in its place until the answer, with both buttons off", async () => {
+  it("posts the page's info and the note to the daemon, and the button reads Sending… in its place and is off until the answer", async () => {
     let answer: (response: Response) => void = () => undefined;
     const fetcher = daemonSays(() => new Promise<Response>((resolve) => (answer = resolve)));
     make({ connection: "open" });
@@ -162,14 +165,11 @@ describe("sending", () => {
     const send = wrapper.get("#set-help-send");
     expect(send.text()).toBe("Sending…");
     expect(send.attributes("disabled")).toBeDefined();
-    expect(wrapper.get("#set-help-logs").text()).toBe("Download logs");
-    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeDefined();
     expect(wrapper.get(".help-result").text()).toBe("");
     answer(new Response(JSON.stringify({ ok: true, ref: REF }), { status: 200 }));
     await flushPromises();
-    expect(send.text()).toBe("Send feedback");
+    expect(send.text()).toBe("Send feedback / logs");
     expect(send.attributes("disabled")).toBeUndefined();
-    expect(wrapper.get("#set-help-logs").attributes("disabled")).toBeUndefined();
   });
 
   it("says Sent with the reference in one quiet line", async () => {
@@ -208,11 +208,11 @@ describe("sending", () => {
     await typeAndSend("x");
     expect(wrapper.get(".help-result .field-error").text()).toBe(text);
     expect(wrapper.find(".help-result .muted").exists()).toBe(false);
-    expect(wrapper.get("#set-help-send").text()).toBe("Send feedback");
+    expect(wrapper.get("#set-help-send").text()).toBe("Send feedback / logs");
     expect(wrapper.get("#set-help-send").attributes("disabled")).toBeUndefined();
   });
 
-  it("takes the words of an earlier outcome back at the next try, and a download takes the sent line back", async () => {
+  it("takes the words of an earlier outcome back at the next try", async () => {
     daemonSays(() => json({ ok: false, reason: "offline" }));
     make();
     await open();
@@ -223,11 +223,5 @@ describe("sending", () => {
     await typeAndSend("y");
     expect(wrapper.find(".help-result .field-error").exists()).toBe(false);
     expect(wrapper.get(".help-result .muted").text()).toContain(REF);
-    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:support"), revokeObjectURL: vi.fn() }));
-    daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: { "Content-Disposition": 'attachment; filename="f.zip"' } })));
-    await wrapper.get("#set-help-logs").trigger("click");
-    await flushPromises();
-    expect(wrapper.get(".help-result .muted").text()).toBe("Saved f.zip.");
-    expect(wrapper.text()).not.toContain(REF);
   });
 });

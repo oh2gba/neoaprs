@@ -43,7 +43,7 @@ On HF: an SSB radio with a USB sound card or an interface (a DigiRig, a SignaLin
 
 ## Getting help
 
-In the page, *Settings*, *Help*, **Download logs** makes one file to e-mail to neoaprs@oh2gba.eu with a few words on what happened ([Getting help](docs/manual/support.md)). Nothing is sent by itself.
+In the page, *Settings*, *Help*, **Send feedback / logs** sends your words and the logs to the project with one press ([Getting help](docs/manual/support.md)). Nothing is sent before you press Send.
 
 Feedback and ideas: [GitHub issues](https://github.com/oh2gba/neoaprs/issues) (preferred) or [neoaprs@oh2gba.eu](mailto:neoaprs@oh2gba.eu).
 

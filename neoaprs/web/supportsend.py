@@ -1,4 +1,4 @@
-"""`POST /support/send`: Send logs of the Help group. The body is `{"page": {...}, "note": "..."}` (the page's facts as for `/support/bundle`, and what the person wrote, at most 2000 characters); the daemon makes the support bundle exactly as Download logs does and posts it with the
+"""`POST /support/send`: Send feedback / logs of the Help group. The body is `{"page": {...}, "note": "..."}` (the page's facts as for `/support/bundle`, and what the person wrote, at most 2000 characters); the daemon makes the support bundle exactly as Download logs does and posts it with the
 note, the call, the version and the platform to the project's server (`SUPPORT_URL`, `neoaprs/versions.py`), over https, in a thread. The answer is JSON, `{"ok": true, "ref": "NEO-20261103-1015-7F3A"}` (the reference the person can quote) or `{"ok": false, "reason": CODE}`.
 Nothing is sent but by this request, which the page makes only when the person presses Send in its dialog; the route is behind the same login and Host gate as the bundle's.
 

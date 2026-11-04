@@ -170,7 +170,7 @@ async def test_an_ack_lost_on_its_way_back_is_sent_again_for_the_retry_and_the_m
     a, b = await w.add("OH2A"), await w.add("OH2B", lat=61.5, lon=23.8)
     await w.start()
     record = await a.ctl.messaging.send("OH2B", "lost ack")
-    await w.until(lambda: len(w.air.delivered) == 1 and b.ctl.messaging.records() != [])          # (the message reached B)
+    await w.until(lambda: len(w.air.delivered) == 1)                                             # (the message reached B; B keeps it a moment later, after its ack is made: on a slow runner the ack could be on the air before)
     assert a.hf_radio is not None
     a.hf_radio.keyed = True                                                                        # (A's radio keyed by hand: it hears nothing of B's ack)
     await w.until(lambda: b.ctl.mercury.frames_keyed == 1 and not w.air.transmitting, 3.0)        # (B's ack went into the void)

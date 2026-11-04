@@ -1126,8 +1126,7 @@ describe("SettingsForm", () => {
         "Test pop-up",
         "Enable pop-ups…",
         "Check now",
-        "Download logs",
-        "Send feedback",
+        "Send feedback / logs",
       ]);
       expect(
         make({}, "beacon")

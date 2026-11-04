@@ -186,13 +186,3 @@ export function saveFile(blob: Blob, filename: string, doc: Document = document,
   link.remove();
   setTimeout(() => urls.revokeObjectURL(url), 1000);
 }
-
-/** The e-mail to the project: the subject starts with the daemon's version (the page has none of its own), for the person to finish, and the body is a form to fill in. `labels` are the words of the page's language, in the order of the form; `attach` is the line that reminds of the file, left out (null) before there is one. */
-export function mailtoLink(labels: readonly string[], attach: string | null, version: string): string {
-  const body = labels
-    .flatMap((label) => [label, ""])
-    .concat(attach === null ? [] : [attach])
-    .join("\r\n")
-    .trimEnd();
-  return `mailto:${SUPPORT_ADDRESS}?subject=${encodeURIComponent(`NeoAPRS ${version}: `)}&body=${encodeURIComponent(body)}`;
-}

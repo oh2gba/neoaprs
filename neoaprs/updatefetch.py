@@ -1,6 +1,6 @@
 """One request of the update check: a GET of the version page with the program's version and platform and the number of this installation (when there is one) in the query and nothing else, in a thread of its own so that it works on every event loop (and a request that hangs does not hold up the
 program's end). A failure of any kind is None: the check is asked again the next day. `fetch_url` is the same GET of any https address (the changelog of the latest release, for What's new), with a limit of its own. `post_form` is the one POST of the
-program, multipart/form-data, for Send logs of the Help group: it answers the status and the body of whatever the server said (a refusal carries its reason in the body), and None only when the server could not be reached."""
+program, multipart/form-data, for Send feedback / logs of the Help group: it answers the status and the body of whatever the server said (a refusal carries its reason in the body), and None only when the server could not be reached."""
 import http.client
 import logging
 import secrets

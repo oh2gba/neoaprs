@@ -1,10 +1,10 @@
-// The two buttons of the Help group. Download logs asks the daemon for the support file with the facts of this page in the request (lib/support.ts), saves the answer as a download and keeps what the group says after it: the name of the file, or why there is none.
-// Send logs asks the daemon to send the same file to the project, with the words the person wrote in the dialog, and keeps the reference the project answers with, or why it was not sent. Only the dialog's Send does it; nothing is sent by itself. The group says
-// the outcome of the latest of the two and nothing of the other, and both buttons wait while either works (the daemon makes one file at a time). It also makes the e-mail the address of the group opens.
-import { computed, ref, shallowRef, type Ref } from "vue";
+// The two ways out of the support file. Download logs (About's last line) asks the daemon for the file with the facts of this page in the request (lib/support.ts), saves the answer as a download and keeps what the line says after it: the name of the file, or why there is none.
+// Send feedback / logs (the Help group) asks the daemon to send the same file to the project, with the words the person wrote in the dialog, and keeps the reference the project answers with, or why it was not sent. Only the dialog's Send does it; nothing is sent by itself. Each
+// says the outcome of its latest try, and waits while it works (the daemon makes one file at a time, and says so to a second one).
+import { ref, shallowRef, type Ref } from "vue";
 import { pageErrors } from "@/lib/pageerrors";
 import type { Connection } from "@/lib/hub";
-import { mailtoLink, pageInfo, requestBundle, requestSend, saveFile, type SendProblem } from "@/lib/support";
+import { pageInfo, requestBundle, requestSend, saveFile, type SendProblem } from "@/lib/support";
 import { t } from "@/i18n";
 
 /** What the group needs of the page. */
@@ -82,14 +82,5 @@ export function useSupportLogs(given: SupportGiven, fetcher: typeof fetch = (...
     }
   }
 
-  /** The e-mail to the project: with the line to attach the file once there is one. */
-  const mail = computed(() =>
-    mailtoLink(
-      [t("settings.help.mail.did"), t("settings.help.mail.expected"), t("settings.help.mail.happened"), t("settings.help.mail.when")],
-      saved.value === null ? null : t("settings.help.mail.attach", { file: saved.value }),
-      given.daemonVersion.value,
-    ),
-  );
-
-  return { running, sending, saved, sentRef, problem, mail, collect, send };
+  return { running, sending, saved, sentRef, problem, collect, send };
 }

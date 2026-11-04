@@ -5,7 +5,6 @@ import {
   bodyOf,
   filenameOf,
   madeName,
-  mailtoLink,
   NOTE_MAX,
   pageInfo,
   requestBundle,
@@ -225,21 +224,5 @@ describe("saveFile", () => {
     vi.advanceTimersByTime(1000);
     expect(urls.revokeObjectURL).toHaveBeenCalledWith("blob:abc");
     click.mockRestore();
-  });
-});
-
-describe("mailtoLink", () => {
-  it("is to the project, with the daemon's version in the subject and a form in the body", () => {
-    const link = mailtoLink(["What I did:", "What I expected:"], "Remember to attach f.zip.", "0.9.0");
-    const url = new URL(link);
-    expect(url.protocol).toBe("mailto:");
-    expect(url.pathname).toBe("neoaprs@oh2gba.eu");
-    expect(url.searchParams.get("subject")).toBe("NeoAPRS 0.9.0: ");
-    expect(url.searchParams.get("body")).toBe("What I did:\r\n\r\nWhat I expected:\r\n\r\nRemember to attach f.zip.");
-  });
-
-  it("leaves the reminder out before there is a file", () => {
-    const url = new URL(mailtoLink(["What I did:", "What I expected:"], null, "0.9.0"));
-    expect(url.searchParams.get("body")).toBe("What I did:\r\n\r\nWhat I expected:");
   });
 });

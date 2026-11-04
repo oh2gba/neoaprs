@@ -1,4 +1,4 @@
-// The rule of the Settings tab: an action button that is a row of its own (Download map, Check now, Download logs) sits in the control column of a labelled row, first, with its (i) after it and the quiet lines of its outcome under it.
+// The rule of the Settings tab: an action button that is a row of its own (Download map, Check now, Send feedback / logs) sits in the control column of a labelled row, first, with its (i) after it and the quiet lines of its outcome under it.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ActionRow from "@/components/ActionRow.vue";
@@ -27,7 +27,7 @@ describe("the action rows of the Settings tab", () => {
   it.each([
     ["Detailed map", "Download map"],
     ["New version", "Check now"],
-    ["Logs", "Download logs"],
+    ["Feedback", "Send feedback / logs"],
   ])("%s has its button, %s, first in the control column of its own row, with an (i) after it", (label, button) => {
     const row = form()
       .findAll(".field.action-row")
@@ -41,6 +41,6 @@ describe("the action rows of the Settings tab", () => {
 
   it("has no other button of a row of its own: the rest sit beside the field they belong to (the Test of the command, Refresh of the port)", () => {
     const rows = form().findAll(".field.action-row");
-    expect(rows.map((r) => r.get("label").text())).toEqual(["Detailed map", "New version", "Logs"]);
+    expect(rows.map((r) => r.get("label").text())).toEqual(["Detailed map", "New version", "Feedback"]);
   });
 });
