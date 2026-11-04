@@ -64,11 +64,10 @@ export function strength(db: number): number {
 
 type Rgb = readonly [number, number, number];
 
-/** The colours of the waterfall, the page's --waterfall-* tokens (styles/tokens.css): a rig's colour scale from the floor (also the background) to the strongest, the two ends of our own transmission (grey to
- * white, apart from the scale), the faint block where a frame sits and its dotted edges. The same in both themes: the picture is dark in the light theme too, as on a rig, so that the weak signals show. */
+/** The colours of the waterfall, the page's --waterfall-* tokens (styles/tokens.css): a rig's colour scale from the floor (also the background) to the strongest, for what is received and for our
+ * own transmission alike (a strong signal goes red, as on a rig), and the faint block where a frame sits and its dotted edges. The same in both themes: the picture is dark in the light theme too. */
 export interface WaterfallColours {
   scale: readonly Rgb[];
-  sent: readonly [Rgb, Rgb];
   band: string;
   rule: string;
 }
@@ -85,7 +84,6 @@ export function waterfallColours(element: Element): WaterfallColours {
   const token = (name: string): string => style.getPropertyValue(name).trim();
   return {
     scale: [0, 1, 2, 3, 4].map((i) => channels(token(`--waterfall-${i}`))),
-    sent: [channels(token("--waterfall-sent-0")), channels(token("--waterfall-sent-1"))],
     band: token("--waterfall-band") || "transparent",
     rule: token("--waterfall-rule") || "currentColor",
   };
@@ -127,7 +125,7 @@ export function drawWaterfall(canvas: HTMLCanvasElement, rows: readonly Row[], c
     for (let b = 0; b < BINS; b++) {
       const s = strength(row.bins[b] ?? 0);
       if (s < 0.03) continue;
-      context.fillStyle = row.tx ? heat(s, colours.sent) : heat(s, colours.scale);
+      context.fillStyle = heat(s, colours.scale);
       context.fillRect(edge(b), top, edge(b + 1) - edge(b), bottom - top);
     }
   }

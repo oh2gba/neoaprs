@@ -107,10 +107,6 @@ describe("drawWaterfall", () => {
       [255, 226, 0],
       [255, 40, 16],
     ],
-    sent: [
-      [40, 40, 40],
-      [235, 235, 235],
-    ],
     band: "pale",
     rule: "grey",
   };
@@ -131,7 +127,7 @@ describe("drawWaterfall", () => {
     expect(text).toContain("strokeStyle=grey");
   });
 
-  it("draws each row as a strip of cells, the newest at the top, received ones on the scale and our own transmission grey to white, the band over them", () => {
+  it("draws each row as a strip of cells, the newest at the top, our own transmission on the same scale as what is received, the band over them", () => {
     const { canvas, calls } = fakeCanvas(96, 72);
     const strong = new Array<number>(SCOPE_BINS).fill(DRAW_RANGE_DB);
     drawWaterfall(canvas, [row(strong, true), row(strong)], colours);
@@ -141,7 +137,7 @@ describe("drawWaterfall", () => {
     expect(drawn[SCOPE_BINS]).toBe(`fillRect(0,${ROW_PX},2,${ROW_PX})`);
     expect(drawn.at(-1)).toBe(`fillRect(94,${ROW_PX},2,${ROW_PX})`);
     const styles = calls.filter((c) => c.startsWith("fillStyle="));
-    expect(styles[1]).toBe("fillStyle=#ebebeb");
+    expect(styles[1]).toBe("fillStyle=#ff2810"); // (our own, strong: red, as on a rig)
     expect(styles[1 + SCOPE_BINS]).toBe("fillStyle=#ff2810");
     expect(styles.at(-1)).toBe("fillStyle=pale");
   });
@@ -179,7 +175,7 @@ describe("the colour scale", () => {
     expect(heat(0.5, [])).toBe("#000000");
   });
 
-  it("reads the page's --waterfall-* tokens: a rig's scale, and grey to white for our own transmission", () => {
+  it("reads the page's --waterfall-* tokens: a rig's scale", () => {
     const element = document.createElement("div");
     [
       ["0", "#000828"],
@@ -187,18 +183,12 @@ describe("the colour scale", () => {
       ["2", "#00aaff"],
       ["3", "#ffe200"],
       ["4", "#ff2810"],
-      ["sent-0", "#282828"],
-      ["sent-1", "#ebebeb"],
     ].forEach(([name, value]) => element.style.setProperty(`--waterfall-${name}`, value ?? ""));
     element.style.setProperty("--waterfall-band", "pale");
     element.style.setProperty("--waterfall-rule", "grey");
     document.body.append(element);
     expect(waterfallColours(element)).toEqual({
       scale,
-      sent: [
-        [40, 40, 40],
-        [235, 235, 235],
-      ],
       band: "pale",
       rule: "grey",
     });

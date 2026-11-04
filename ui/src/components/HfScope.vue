@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The scope of the HF radio's box, folded away under one row (the page's fold, DisclosureBox, remembered in this browser): a waterfall of the radio's audio from 300 to 2700 Hz on a canvas, the signal band of a frame (1.2 to 1.8 kHz above
 // the dial) marked as a faint block, and under it the receive level as a bar with its good range, and the number. A picture arrives five times a second and becomes the top row, the older ones moving down, so that a signal is a trace down the
-// picture and a frame a block; while the radio transmits the rows are of our own signal (drawn grey to white, apart from the colour scale of what is received) and the level stays at the last one received. The rows start again each time the pictures do (the fold opened, the socket
+// picture and a frame a block; while the radio transmits the rows are of our own signal (on the same colour scale, red when strong, as on a rig) and the level stays at the last one received. The rows start again each time the pictures do (the fold opened, the socket
 // open anew). The pictures are asked of the daemon only while the fold is open (composables/useHfScope.ts); a modem without the interface has no scope, and this is not there.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";

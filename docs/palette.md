@@ -43,8 +43,6 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--waterfall-2` | `#00aaff` | `#00aaff` | the HF waterfall: halfway up |
 | `--waterfall-3` | `#ffe200` | `#ffe200` | the HF waterfall: a strong signal |
 | `--waterfall-4` | `#ff2810` | `#ff2810` | the HF waterfall: the strongest |
-| `--waterfall-sent-0` | `#282828` | `#282828` | the HF waterfall: our own transmission, weak (grey to white, apart from the scale) |
-| `--waterfall-sent-1` | `#ebebeb` | `#ebebeb` | the HF waterfall: our own transmission, strong |
 | `--waterfall-band` | `rgba(255, 255, 255, 0.07)` | `rgba(255, 255, 255, 0.07)` | the HF waterfall: the faint block where a frame sits |
 | `--waterfall-rule` | `rgba(255, 255, 255, 0.45)` | `rgba(255, 255, 255, 0.45)` | the HF waterfall: the dotted edges of that block |
 | `--scrim` | `rgba(0, 0, 0, 0.45)` | `rgba(0, 0, 0, 0.45)` | the veil behind a dialog |
