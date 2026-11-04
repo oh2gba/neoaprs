@@ -1,49 +1,31 @@
 <script setup lang="ts">
-// The scope of the HF radio's box, folded away under one row (the page's fold, DisclosureBox, remembered in this browser): the spectrum of the radio's audio from 300 to 2700 Hz on a canvas, the signal band of a frame (1.2 to 1.8 kHz above the dial) marked as a faint
-// block, and under it the receive level as a bar with its good range, and the number. A picture arrives five times a second and the drawing eases toward it, so that it moves smoothly; while the radio transmits the spectrum is of our own signal
-// (drawn in the warning colour) and the level stays at the last one received. The pictures are asked of the daemon only while the fold is open (composables/useHfScope.ts); a modem without the interface has no scope, and this is not there.
+// The scope of the HF radio's box, folded away under one row (the page's fold, DisclosureBox, remembered in this browser): a waterfall of the radio's audio from 300 to 2700 Hz on a canvas, the signal band of a frame (1.2 to 1.8 kHz above
+// the dial) marked as a faint block, and under it the receive level as a bar with its good range, and the number. A picture arrives five times a second and becomes the top row, the older ones moving down, so that a signal is a trace down the
+// picture and a frame a block; while the radio transmits the rows are of our own signal (drawn in the warning colour) and the level stays at the last one received. The rows start again each time the pictures do (the fold opened, the socket
+// open anew). The pictures are asked of the daemon only while the fold is open (composables/useHfScope.ts); a modem without the interface has no scope, and this is not there.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useHfScope } from "@/composables/useHfScope";
 import { t } from "@/i18n";
-import { GOOD_PERCENT, SCOPE_BINS, dbText, drawScope, ease, levelPercent, levelZone, scopeColours } from "@/lib/scope";
+import { GOOD_PERCENT, addRow, dbText, drawWaterfall, levelPercent, levelZone, scopeColours, type Row } from "@/lib/scope";
 
 const scope = useHfScope();
 const { dark } = useDaemonContext();
 const canvas = ref<HTMLCanvasElement | null>(null);
-const flat = (): number[] => new Array<number>(SCOPE_BINS).fill(0);
-let shown = flat();
-let target = flat();
-let frame = 0;
-const quiet = (): boolean => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const next = (run: () => void): number => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(run) : window.setTimeout(run, 16));
-const stop = (id: number): void => (typeof cancelAnimationFrame === "function" ? cancelAnimationFrame(id) : window.clearTimeout(id));
+let rows: Row[] = [];
 
 function paint(): void {
-  if (canvas.value) drawScope(canvas.value, shown, scopeColours(canvas.value, scope.transmitting.value));
-}
-
-function step(): void {
-  frame = 0;
-  const eased = ease(shown, target);
-  shown = eased.values;
-  paint();
-  if (eased.moving) frame = next(step);
+  if (canvas.value) drawWaterfall(canvas.value, rows, scopeColours(canvas.value));
 }
 
 watch(scope.picture, (picture) => {
-  target = picture === null ? flat() : picture.bins.slice();
-  if (quiet()) {
-    shown = target.slice();
-    paint();
-  } else if (frame === 0) {
-    frame = next(step);
-  }
+  rows = picture === null ? [] : addRow(rows, { bins: picture.bins.slice(), tx: picture.tx });
+  paint();
 });
 // a fold that was closed has no width: it is drawn when it opens, and again when the colours change or the box is resized
-watch([scope.open, dark, scope.transmitting], async () => {
+watch([scope.open, dark], async () => {
   await nextTick();
   paint();
 });
@@ -55,10 +37,7 @@ onMounted(() => {
     observer.observe(canvas.value);
   }
 });
-onBeforeUnmount(() => {
-  if (frame !== 0) stop(frame);
-  observer?.disconnect();
-});
+onBeforeUnmount(() => observer?.disconnect());
 
 const level = computed(() => scope.level.value);
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));

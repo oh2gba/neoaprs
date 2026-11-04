@@ -147,7 +147,7 @@ export const settings = {
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Suggested frequencies",
   "settings.scope.title": "Spectrum",
-  "settings.scope.aria": "The spectrum of the radio's audio from 300 to 2700 Hz; the block is where a frame sits.",
+  "settings.scope.aria": "The radio's audio from 300 to 2700 Hz as a waterfall, the newest at the top; the block is where a frame sits.",
   "settings.scope.level": "Receive level",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "About the receive level",

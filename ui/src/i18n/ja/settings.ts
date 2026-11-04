@@ -150,7 +150,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.keying.test": "テスト",
   "settings.hf_frequencies.label": "推奨周波数",
   "settings.scope.title": "スペクトラム",
-  "settings.scope.aria": "無線機の音声の300〜2700 Hzのスペクトラム。ブロックはフレームの位置です。",
+  "settings.scope.aria": "無線機の音声の300〜2700 Hzのウォーターフォール。新しいものが上です。ブロックはフレームの位置です。",
   "settings.scope.level": "受信レベル",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "受信レベルについて",

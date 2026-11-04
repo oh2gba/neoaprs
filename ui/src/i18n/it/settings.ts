@@ -150,7 +150,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.keying.test": "Prova",
   "settings.hf_frequencies.label": "Frequenze suggerite",
   "settings.scope.title": "Spettro",
-  "settings.scope.aria": "Lo spettro dell’audio della radio da 300 a 2700 Hz; il blocco è dove si trova un frame.",
+  "settings.scope.aria": "L’audio della radio da 300 a 2700 Hz a cascata, il più recente in alto; il blocco è dove si trova un frame.",
   "settings.scope.level": "Livello di ricezione",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Informazioni sul livello di ricezione",

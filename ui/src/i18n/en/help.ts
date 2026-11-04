@@ -30,7 +30,7 @@ export const help = {
   "help.picture.mercury":
     "Your station and a distant one, far apart, with the signal going up and coming down between them: only a station with the same modem hears it.",
   "help.picture.scope":
-    "A distant station sends; the spectrum shows its frame as a block of bars over the low noise, and the receive level bar below stands in its good range.",
+    "A distant station sends; the waterfall shows its frame as a block in the marked band, the newest at the top, and the receive level bar below stands in its good range.",
   "help.picture.tworadios":
     "Your station with two radios: the FM radio reaches the car and the digipeater nearby along the ground, the HF radio reaches a distant station by the signal that goes up and comes down.",
   "help.picture.dummy": "Made-up stations in a dashed frame answer your station, and what your station sends does not go out: the waves are crossed out.",

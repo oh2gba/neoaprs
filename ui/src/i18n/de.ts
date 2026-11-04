@@ -1263,7 +1263,7 @@ export const de: Catalogue = {
   "settings.keying.test": "Test",
   "settings.hf_frequencies.label": "Vorgeschlagene Frequenzen",
   "settings.scope.title": "Spektrum",
-  "settings.scope.aria": "Das Spektrum des Funkaudios von 300 bis 2700 Hz; der Block zeigt, wo ein Frame liegt.",
+  "settings.scope.aria": "Das Funkaudio von 300 bis 2700 Hz als Wasserfall, das Neueste oben; der Block zeigt, wo ein Frame liegt.",
   "settings.scope.level": "Empfangspegel",
   "settings.scope.value": "{value} dBFS",
   "settings.scope.tip_label": "Über den Empfangspegel",
@@ -1722,7 +1722,7 @@ export const de: Catalogue = {
   "help.picture.mercury":
     "Deine Station und eine ferne, weit auseinander; das Signal steigt auf und kommt zwischen ihnen wieder herunter: nur eine Station mit demselben Modem hört es.",
   "help.picture.scope":
-    "Eine ferne Station sendet; das Spektrum zeigt ihren Frame als Block aus Balken über dem niedrigen Rauschen, und der Empfangspegel liegt unten im guten Bereich.",
+    "Eine ferne Station sendet; der Wasserfall zeigt ihren Frame als Block im markierten Band, das Neueste oben, und der Empfangspegel liegt unten im guten Bereich.",
   "help.picture.tworadios":
     "Deine Station mit zwei Funkgeräten: das FM-Funkgerät erreicht das Auto und den Digipeater in der Nähe am Boden entlang, das KW-Funkgerät eine ferne Station durch das Signal, das aufsteigt und wieder herunterkommt.",
   "help.picture.dummy":
