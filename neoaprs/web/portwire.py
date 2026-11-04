@@ -18,8 +18,9 @@ class PortRow(_Model):
 
 class SoundCardRow(_Model):
     """A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type."""
-    id: str = Field(description="the name to give as `mercury/sound_card`: `plughw:1,0` on Linux; on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner)")
+    id: str = Field(description="the name to give as `mercury/sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux (by the card's name, which a reboot does not change); on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner)")
     name: str = Field(description="what the system calls it, such as `USB Audio CODEC`")
+    numbered: str = Field(default="", description="the same card by its number (`plughw:3,0`), as a setting made before named it; empty where the id is not by name")
     default: bool = Field(description="whether it is the system's default device, which the empty setting means")
     pick: bool = Field(description="whether it is the card the daemon proposes for the radio (the one it would choose itself, else the system's default, else the first that records and plays): the page preselects it and stores it as `mercury/sound_card` while that is empty; at most one row has it")
 

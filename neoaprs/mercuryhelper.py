@@ -177,6 +177,22 @@ def foreign_listeners(ports: Iterable[int]) -> list[str]:
     return [f"{address}:{port}" for port, addresses in sorted(_listeners(tables, ports).items()) for address in sorted(addresses) if address not in LOOPBACK_HEX]
 
 
+def alsa_card_names(root: Path | None = None) -> dict[int, str]:
+    """The name ALSA knows each sound card by (/proc/asound/cardN/id), by its number; empty where there is no ALSA (Windows, macOS) or it cannot be read. NEOAPRS_ALSA_ROOT names another folder (the tests
+    point it at none: no test reads the machine's cards)."""
+    root = root or Path(os.environ.get("NEOAPRS_ALSA_ROOT") or "/proc/asound")
+    names: dict[int, str] = {}
+    try:
+        for folder in root.glob("card[0-9]*"):
+            if folder.name[4:].isdigit():
+                name = (folder / "id").read_text(encoding="utf-8", errors="replace").strip()
+                if name:
+                    names[int(folder.name[4:])] = name
+    except OSError:
+        return names
+    return names
+
+
 def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) -> list[SoundCard]:
     """The sound cards Mercury lists (`-z`): run in the calling thread (not on the loop). None, with a line in the log, when the program cannot be run or says nothing a list is made of."""
     try:
@@ -184,7 +200,7 @@ def list_sound_cards(command: Command, timeout_sec: float = LIST_TIMEOUT_SEC) ->
     except (OSError, subprocess.TimeoutExpired) as e:
         log.warning("mercury -z could not be run: %s", e)
         return []
-    cards = parse_sound_cards(done.stdout)
+    cards = parse_sound_cards(done.stdout, alsa_card_names())
     if not cards:
         log.info("mercury -z listed no sound card (exit %d): %s", done.returncode, (done.stdout or done.stderr).strip()[-300:])
     return cards

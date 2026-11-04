@@ -74,6 +74,17 @@ describe("the sound cards as a plain choice", () => {
     expect(soundCardWith(windows, "")).toBe("");
     expect(soundCardWith(null, "{0.0.0.00000000}.{spk}")).toBe("");
     expect(soundCardWith(ports, "plughw:1,0")).toBe("");
+    const linux: PortsMessage = {
+      ...ports,
+      sound_cards: [
+        { id: "plughw:CARD=Device,DEV=0", name: "USB Audio Device", numbered: "plughw:0,0", default: false, pick: false },
+        { id: "plughw:CARD=CODEC,DEV=0", name: "USB AUDIO  CODEC", numbered: "plughw:3,0", default: false, pick: true },
+      ],
+    };
+    expect(soundCardWith(linux, "plughw:3,0")).toBe("plughw:CARD=CODEC,DEV=0");
+    expect(soundCardWith(linux, "plughw:0,0")).toBe("plughw:CARD=Device,DEV=0");
+    expect(soundCardWith(linux, "plughw:CARD=CODEC,DEV=0")).toBe("");
+    expect(soundCardWith(linux, "plughw:5,0")).toBe("");
   });
 
   it("have the daemon's proposal, the one marked, and none before the list is there", () => {

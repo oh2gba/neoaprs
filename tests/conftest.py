@@ -24,6 +24,10 @@ os.environ["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-test-no-such-port*"
 os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
 
 
+# No test may read the sound cards of the machine it runs on (neoaprs/mercuryhelper.py, alsa_card_names): the cards' names come from a folder that is not there. A test of the names gives its own folder.
+os.environ["NEOAPRS_ALSA_ROOT"] = "/nonexistent/neoaprs-test-asound"
+
+
 # No test may reach the developer's desktop: a daemon a test starts that gets a message runs the default alert command (notify-send, else kdialog's pop-up, and a sound), which showed John a stream of pop-ups while the suite and
 # the simulators ran (3 Nov 2026). Without the session's display and message bus the command finds no desktop and does nothing visible; a test of the alert command gives its own command.
 for _name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHORITY"):

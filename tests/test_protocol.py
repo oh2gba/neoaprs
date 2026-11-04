@@ -144,7 +144,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "pong": [{"type": "pong", "now": NOW}],
     "ports": [{"type": "ports", "search": False, "find": True, "ports": [{"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001 SER=A1", "vid": 1027, "pid": 24577},
                                                            {"device": "COM4", "description": "Standard Serial over Bluetooth link (COM4)", "hwid": "BTHENUM\\{00001101}", "vid": None, "pid": None}], "sound_cards": [], "keying": ""},
-              {"type": "ports", "search": True, "find": True, "ports": [], "sound_cards": [{"id": "plughw:1,0", "name": "USB Audio CODEC", "default": False, "pick": True}], "keying": "vox"}],
+              {"type": "ports", "search": True, "find": True, "ports": [], "sound_cards": [{"id": "plughw:CARD=CODEC,DEV=0", "name": "USB Audio CODEC", "numbered": "plughw:1,0", "default": False, "pick": True}], "keying": "vox"}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
     "station_traffic": [{"type": "station_traffic", "call": "OH2RDK-7", "packets": [{**PACKET, "decoded": {**PACKET["decoded"], "telemetry": None}}]}, {"type": "station_traffic", "call": "OH2NONE", "packets": []}],

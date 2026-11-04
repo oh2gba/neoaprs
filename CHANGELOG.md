@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed:** on Linux the HF radio could end up on another radio's sound card after a reboot or after plugging in a USB device: the setting kept the card's number, and Linux numbers the cards in the order it finds them. The Sound card field now keeps the card by its name, which does not change. A card chosen before is taken as the card that number means now; check that it is your radio's.
+
 ## 0.17.2
 
 - **Fixed:** on Windows the HF radio's sound card could not be set right: Windows lists every sound card twice, as a speaker and as a microphone, and whichever of the two you chose was used to record and to play, so one of them always failed ("the sound card could not be opened"). The Sound card field now offers each card once, named after the card, and the modem records from its microphone and plays to its speaker. A card chosen before is taken as the whole card.

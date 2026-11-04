@@ -111,7 +111,7 @@ async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
     cards = await asyncio.to_thread(ctx.ctl.mercury.sound_cards) if hf_is_mercury(ctx.ctl.config) else []        # (the Mercury program is run for its list: only while it is the HF radio)
     pick, keying = proposal(cards, ports, ctx.ctl.config)
     ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid} for p in ports],
-                   "sound_cards": [{"id": c.id, "name": c.name, "default": c.default, "pick": c.id == pick} for c in cards], "keying": keying})
+                   "sound_cards": [{"id": c.id, "name": c.name, "numbered": c.numbered, "default": c.default, "pick": c.id == pick} for c in cards], "keying": keying})
 
 
 @command(FindRadio)

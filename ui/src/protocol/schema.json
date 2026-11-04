@@ -4748,11 +4748,16 @@
       "description": "A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type.",
       "properties": {
         "id": {
-          "description": "the name to give as `mercury/sound_card`: `plughw:1,0` on Linux; on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner)",
+          "description": "the name to give as `mercury/sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux (by the card's name, which a reboot does not change); on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner)",
           "type": "string"
         },
         "name": {
           "description": "what the system calls it, such as `USB Audio CODEC`",
+          "type": "string"
+        },
+        "numbered": {
+          "default": "",
+          "description": "the same card by its number (`plughw:3,0`), as a setting made before named it; empty where the id is not by name",
           "type": "string"
         },
         "default": {

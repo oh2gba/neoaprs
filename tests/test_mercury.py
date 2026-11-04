@@ -280,6 +280,24 @@ def test_the_two_devices_of_a_windows_card_are_one_card_that_records_from_the_on
     assert vm == [mercury.SoundCard("{0.0.1.00000000}.{9507}|{0.0.0.00000000}.{a62b}", "High Definition Audio Device", True, True, True)], "John's Windows VM"
 
 
+def test_a_linux_card_is_kept_by_its_name_as_a_reboot_renumbers_the_cards(tmp_path: Path) -> None:
+    text = ("playback devices:\ndevice: name: 'USB Audio Device USB Audio'  id: 'plughw:0,0'\ndevice: name: 'USB AUDIO  CODEC USB Audio'  id: 'plughw:3,0'\n"
+            "capture devices:\ndevice: name: 'USB Audio Device USB Audio'  id: 'plughw:0,0'\ndevice: name: 'USB AUDIO  CODEC USB Audio'  id: 'plughw:3,0'\n")
+    cards = mercury.parse_sound_cards(text, {0: "Device", 3: "CODEC"})
+    assert [(c.id, c.numbered) for c in cards] == [("plughw:CARD=Device,DEV=0", "plughw:0,0"), ("plughw:CARD=CODEC,DEV=0", "plughw:3,0")], "John's FTX-1 and FTdx101D, 4 Nov 2026"
+    assert all(c.playback and c.capture for c in cards)
+    assert [c.id for c in mercury.parse_sound_cards(text)] == ["plughw:0,0", "plughw:3,0"], "no names known: the numbers as listed"
+    assert mercury.stable_alsa_id("hw:1,0", {1: "PCH"}) == "hw:CARD=PCH,DEV=0" and mercury.stable_alsa_id("default", {0: "x"}) == "default"
+    argv = mercury.command(["mercury"], "m.ini", "plughw:CARD=CODEC,DEV=0", mercury.Keying("vox"))
+    assert argv[argv.index("-i") + 1] == argv[argv.index("-o") + 1] == "plughw:CARD=CODEC,DEV=0"
+    from neoaprs.mercuryhelper import alsa_card_names
+    for number, name in ((0, "Device"), (3, "CODEC")):
+        (tmp_path / f"card{number}").mkdir()
+        (tmp_path / f"card{number}" / "id").write_text(name + "\n")
+    (tmp_path / "cards").write_text("")
+    assert alsa_card_names(tmp_path) == {0: "Device", 3: "CODEC"} and alsa_card_names(tmp_path / "none") == {}
+
+
 def test_a_setting_that_names_one_device_of_a_windows_card_starts_mercury_on_both(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
     from neoaprs import mercuryhelper
     listed: list[int] = []

@@ -1,7 +1,7 @@
 """The sound cards of the Mercury HF modem: what `mercury -z` lists, read into cards, with the two devices of a Windows card made one (its recording and its playing device, each with an id of its own),
 and the devices a card setting gives Mercury to record from and to play to."""
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 
@@ -13,6 +13,7 @@ class SoundCard:
     playback: bool = False
     capture: bool = False
     default: bool = False
+    numbered: str = ""                    # the id by the card's number (`plughw:3,0`), where `id` is by its name: a setting made before names it so
 
 
 _DEVICE = re.compile(r"^device(?: #\d+)?: (?:name: '(?P<name>.*?)'\s+id: '(?P<id>.*?)'|(?P<name2>.*?)\s+id=(?P<id2>\S+))(?P<default>\s+\(system (?:default|route)\))?\s*$")
@@ -77,7 +78,19 @@ def card_with(cards: Sequence[SoundCard], device: str) -> str:
     return next((c.id for c in cards if PAIR in c.id and device in c.id.split(PAIR)), "")
 
 
-def parse_sound_cards(text: str) -> list[SoundCard]:
+# Linux numbers its sound cards in the order they are found, so `plughw:0,0` is another card after a reboot or a replug (John's station, 4 Nov 2026: the FTdx101D's codec, card 0 on 2 Nov, was card 3,
+# and the setting gave Mercury the FTX-1's). ALSA also knows each card by a name of its own (/proc/asound/cardN/id: CODEC, Device), which a device string takes as CARD=: that is the id kept.
+_ALSA_NUMBERED = re.compile(r"^(?P<plug>plughw|hw):(?P<card>\d+),(?P<dev>\d+)$")
+
+
+def stable_alsa_id(ident: str, card_names: Mapping[int, str]) -> str:
+    """`plughw:3,0` as `plughw:CARD=CODEC,DEV=0` when the name of card 3 is known; anything else as it is."""
+    m = _ALSA_NUMBERED.match(ident)
+    name = card_names.get(int(m.group("card"))) if m else None
+    return f"{m.group('plug')}:CARD={name},DEV={m.group('dev')}" if m and name else ident
+
+
+def parse_sound_cards(text: str, card_names: Mapping[int, str] | None = None) -> list[SoundCard]:
     """The sound cards of `mercury -z` (Mercury 1.9.21: "playback devices:" and "capture devices:" each followed by `device: name: 'USB Audio CODEC'  id: 'plughw:1,0'  (system default)` lines, or `device #1: Default (system route)
     id=default` where the backend lists none). A card that is in both lists is one card, which is what a radio's sound card is."""
     cards: dict[str, SoundCard] = {}
@@ -90,9 +103,10 @@ def parse_sound_cards(text: str) -> list[SoundCard]:
         m = _DEVICE.match(stripped)
         if m is None or not section:
             continue
-        ident = m.group("id") or m.group("id2") or ""
+        listed = m.group("id") or m.group("id2") or ""
+        ident = stable_alsa_id(listed, card_names or {})
         name = (m.group("name") or m.group("name2") or ident).strip()
         before = cards.get(ident, SoundCard(ident, name))
         default = m.group("default") is not None or "(system route)" in name or "(system default)" in name
-        cards[ident] = SoundCard(ident, before.name or name, before.playback or section == "playback", before.capture or section == "capture", before.default or default)
+        cards[ident] = SoundCard(ident, before.name or name, before.playback or section == "playback", before.capture or section == "capture", before.default or default, listed if listed != ident else "")
     return pair_directions(list(cards.values()))

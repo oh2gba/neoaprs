@@ -21,6 +21,7 @@ from .mercurycards import (  # (the sound cards are read in mercurycards.py; the
     endpoints as endpoints,
     pair_directions as pair_directions,
     parse_sound_cards as parse_sound_cards,
+    stable_alsa_id as stable_alsa_id,
 )
 
 # The one Mercury NeoAPRS ships: every release carries this version, built from this source on every system (scripts/build-mercury: natively on Linux and on a Mac, cross-compiled with MinGW-w64 for Windows), so that what
