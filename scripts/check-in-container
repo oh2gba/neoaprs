@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""Runs the suite in a container the size of GitHub's runner, so that it can be run here as it runs there: the system, the user, the tools and the number of threads of the CI's Linux job, on a copy of this tree.
+
+  scripts/check-in-container                   the commands of the CI's Linux job in order, stopping at the first that fails
+  scripts/check-in-container --starved         the same on half a runner, where the tests that depend on time show themselves
+  scripts/check-in-container -- COMMAND...     this command instead, in the copy of the tree (it makes its own environment: `uv sync` first, or `uv run`)
+  scripts/check-in-container --image-only      builds the image when it is not there, prints its name and stops
+
+The image is packaging/ci/Dockerfile (Ubuntu 24.04, the CI job's libraries, git, PHP, a compiler, the pinned uv and node, the user `runner`). It is built when it is missing or the Dockerfile has
+changed, and no file of the project is in it. The tree goes in as it is on disk, the tracked files and the untracked ones that are not ignored (`git ls-files -co --exclude-standard`), packed here
+before anything is started and unpacked inside the container as a repository of one commit. An untracked file that an ignore rule names stays on this machine, and so does a file of access tokens (`.secrets` and
+whatever follows that name, in any folder) whatever git says of it; every other untracked file goes in, so a key or a token under another name is kept out by a line in .gitignore. No variable of
+this machine's environment is passed on. The working tree is never mounted: nothing a run does reaches it, and the .venv and the node_modules a run makes are the container's own. uv's and npm's
+caches are the volumes neoaprs-ci-uv and neoaprs-ci-npm, which make the second run fast (`docker volume rm` them to start cold).
+
+The runner's size is four threads, two cores with their siblings as /sys/devices/system/cpu names them, and 16 GB with no swap; --starved is two threads of one core and 7 GB. The threads are given
+as a CPU set, because a quota would leave `pytest -n auto` starting a worker for every thread of the machine. Runs side by side each take cores that no other run holds, and each container has its
+own loopback, so their ports cannot meet. Inside, NEOAPRS_UPDATE_CHECK=0, NEOAPRS_NO_DEVICES=1 and UV_FROZEN=1 are set, and there is no display and no terminal.
+
+The output streams through and the exit code is the command's (of the first that failed): 125 when docker could not build the image or start the container, 2 when docker, git or the list of the
+machine's cores is missing, when the folder of this script is not the working tree of a git repository, and when a file of the tree cannot be read or a folder of it not listed; the last two are
+said in one line before the image is asked for or a container started. Needs Linux, docker and git.
+"""
+import argparse
+import contextlib
+import fcntl
+import hashlib
+import io
+import os
+import shlex
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+from collections import Counter
+from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from types import FrameType
+from typing import IO
+
+ROOT = Path(__file__).resolve().parent.parent
+DOCKERFILE = ROOT / "packaging" / "ci" / "Dockerfile"
+SYS_CPU = Path("/sys/devices/system/cpu")
+
+IMAGE = "neoaprs-ci"                                   # the tag after it is the Dockerfile's digest (image_tag)
+WORK = "/home/runner/work"                             # the folder of the image the tree is unpacked in, as `neoaprs/`
+TREE = "neoaprs"
+TRACKED = "tracked"                                    # the member of the tar beside the tree that lists its tracked files
+NEVER_PACKED = ".secrets"                              # how the name of a file of access tokens begins (.gitignore): it stays on this machine even where no ignore rule names it
+VOLUMES = {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm"}          # the caches all runs share (uv and npm each lock their own)
+CPUS_LABEL = "eu.oh2gba.neoaprs.check-cpus"            # on every container of this script: the threads it holds, which is how a run started beside it knows them
+SHM = "1g"                                             # docker's 64 MB of /dev/shm is too little for the Qt web engine's tests
+NOT_SET_UP, DOCKER_FAILED = 2, 125                     # (125 is what `docker run` itself says when it could not run the container)
+CREATE_PATIENCE_SEC = 60.0                             # how long the next run is kept waiting for this run's container to be there
+
+
+@dataclass(frozen=True)
+class Size:
+    """How much of the machine a container gets."""
+    threads: int
+    memory_gb: int
+
+
+RUNNER = Size(threads=4, memory_gb=16)                 # GitHub's Linux runner of a public repository
+STARVED = Size(threads=2, memory_gb=7)                 # half of it, the size of GitHub's smaller runners: where a test that counts on time fails
+
+# The commands of the job `python` of .github/workflows/ci.yml as it runs on Linux, in its order (tests/test_check_in_container.py compares them with the workflow).
+CI_COMMANDS = (
+    "uv sync --frozen --extra app --extra ble",
+    "env -u UV_FROZEN uv lock --check",
+    "uv run ruff check .",
+    "uv run mypy",
+    "uv run mypy --platform win32",
+    "uv run pytest -n auto",
+)
+
+# What is set inside: the workflow's own two (no daemon asks the version page, uv never changes the lock), the switch that keeps every daemon from the machine's devices, and uv told that its cache is
+# on another file system than the tree (a volume), where it copies instead of linking and would say so at every package. Under UV_FROZEN `uv lock --check` reads uv.lock and does not compare it with
+# pyproject.toml, here as on GitHub: the comparing is the stage `lock` of scripts/check, which takes the variable away for it.
+ENVIRONMENT = {"NEOAPRS_UPDATE_CHECK": "0", "UV_FROZEN": "1", "NEOAPRS_NO_DEVICES": "1", "UV_LINK_MODE": "copy"}
+
+# What runs inside the container, in WORK, with the tar on its input and the commands as its arguments: the tree unpacked, made a repository whose one commit is the tracked files (the tests ask git
+# which files are tracked and what is ignored, as they do after the CI's checkout), then each command with nothing to read, until one fails. Every git command names the unpacked tree, and no GIT_
+# variable of the caller is left to name another: the text is also run outside a container (by its test), where a commit into the repository of whoever started it must be impossible. A tracked file
+# is added whatever the ignore rules say, since it is tracked here.
+INSIDE = f"""set -eu
+unset ${{!GIT_*}}
+tar -xf -
+tree="$PWD/{TREE}"
+git init --quiet --initial-branch=master "$tree"
+[ ! -s {TRACKED} ] || git -C "$tree" --literal-pathspecs add --force --pathspec-from-file="$PWD/{TRACKED}" --pathspec-file-nul
+git -C "$tree" -c user.name=runner -c user.email=runner@localhost -c commit.gpgsign=false commit --quiet --allow-empty --message="The tree as it was on disk"
+rm {TRACKED}
+cd "$tree"
+for line in "$@"; do
+    echo "check-in-container: $line" >&2
+    started=$SECONDS
+    code=0
+    bash -c "$line" </dev/null || code=$?
+    echo "check-in-container: exit $code after $((SECONDS - started)) s: $line" >&2
+    [ "$code" = 0 ] || exit "$code"
+done
+"""
+
+
+def say(text: str) -> None:
+    print(f"check-in-container: {text}", file=sys.stderr, flush=True)
+
+
+# ---- the threads a run gets ----
+
+def parse_cpu_list(text: str) -> tuple[int, ...]:
+    """The kernel's list of threads ("0,16", "0-3", "0-1,8-9") as their numbers."""
+    threads: list[int] = []
+    for part in text.strip().split(","):
+        first, _, last = part.partition("-")
+        if first.strip():
+            threads.extend(range(int(first), int(last or first) + 1))
+    return tuple(threads)
+
+
+def read_cores(folder: Path = SYS_CPU) -> list[tuple[int, ...]]:
+    """The cores of this machine, each as the threads the kernel says are siblings, in the order of their first thread. A thread that is switched off has no such file and is not there."""
+    cores = set()
+    for file in folder.glob("cpu[0-9]*/topology/thread_siblings_list"):
+        with contextlib.suppress(OSError, ValueError):
+            cores.add(parse_cpu_list(file.read_text(encoding="ascii")))
+    return sorted(core for core in cores if core)
+
+
+def choose_cpus(cores: Sequence[tuple[int, ...]], threads: int, taken: Iterable[int] = ()) -> list[int]:
+    """The CPU set of a run: whole cores with their siblings until there are `threads` threads (two cores of two threads for four, four cores on a machine without siblings), fewer when the machine
+    has fewer. `taken` is the threads other runs hold, a thread once for each run: the cores nobody holds come first, then the ones held least, in the machine's order among equals."""
+    held = Counter(taken)
+    chosen: list[int] = []
+    for core in sorted(cores, key=lambda siblings: sum(held[thread] for thread in siblings)):
+        chosen.extend(core[: threads - len(chosen)])
+        if len(chosen) >= threads:
+            break
+    return chosen
+
+
+def taken_cpus() -> list[int]:
+    """The threads the containers of this script hold now, made or running, as their labels say; nothing when docker does not answer."""
+    done = subprocess.run(["docker", "ps", "--all", "--filter", f"label={CPUS_LABEL}", "--filter", "status=created", "--filter", "status=running", "--format", f'{{{{.Label "{CPUS_LABEL}"}}}}'],
+                          capture_output=True, text=True)
+    threads: list[int] = []
+    for line in done.stdout.split() if done.returncode == 0 else []:
+        with contextlib.suppress(ValueError):
+            threads.extend(parse_cpu_list(line))
+    return threads
+
+
+@contextlib.contextmanager
+def start_lock() -> Iterator[None]:
+    """One run at a time from reading which threads are held to its own container being there to be read: two runs started in the same moment would otherwise choose the same cores. The file is the
+    one name all runs of a user share, on purpose; a run that cannot open it goes on without."""
+    path = Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / "neoaprs-check-in-container.lock"
+    try:
+        handle = path.open("a")
+    except OSError:
+        yield
+        return
+    with handle:                                        # (closing the file lets the lock go)
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
+
+
+# ---- the tree that goes in ----
+
+class NotPacked(Exception):
+    """Why the tree cannot go in, as the words the user is told."""
+
+
+def git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    """git asked about the tree at `root` and no other: a GIT_ variable of the caller (the GIT_DIR and the index of a hook this script is started from) would name another repository."""
+    environment = {name: value for name, value in os.environ.items() if not name.startswith("GIT_")}
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, env=environment)
+
+
+def last_line(output: bytes) -> str:
+    return (output.decode(errors="replace").strip().splitlines() or ["git said nothing"])[-1]
+
+
+def check_repository(root: Path) -> None:
+    """`root` must be the top of a repository's working tree: in a folder that is none git has no list, and in a folder inside another repository the list would be that one's."""
+    done = git(root, "rev-parse", "--show-toplevel")
+    top = os.fsdecode(done.stdout.removesuffix(b"\n"))
+    if done.returncode != 0 or not top or Path(top).resolve() != root.resolve():
+        raise NotPacked(f"{root} is not the working tree of a git repository (the tree that goes in is the one git lists)")
+
+
+def listed(root: Path, *flags: str) -> list[str]:
+    """What `git ls-files` with these flags lists in the tree, from its root: the files and links that are there on disk. A tracked file that was deleted is not, neither is a folder git names as
+    one entry (a repository of its own inside the tree), and neither is a file of access tokens or anything in a folder of that name. A list git gives with a warning is no list: where it could
+    not open a folder, files are missing from it, and where it could not read a file of ignore rules, ignored files are in it."""
+    done = git(root, "ls-files", "-z", *flags)
+    if done.returncode != 0 or done.stderr.strip():
+        raise NotPacked(f"git could not list the files of {root} ({last_line(done.stderr)})")
+    names = sorted({os.fsdecode(name) for name in done.stdout.split(b"\0") if name})
+    return [name for name in names if not holds_tokens(name) and on_disk(root, name)]
+
+
+def on_disk(root: Path, name: str) -> bool:
+    """Whether `name` is a file or a link in the tree now. One that is gone is not; one that cannot be looked at (it lies in a folder that may not be entered) is NotPacked."""
+    try:
+        if (root / name).parent.resolve(strict=True) != (root.resolve() / name).parent:
+            return False                                # (a folder of the path is a link now: for git the file is gone, and what the link names may lie outside the tree)
+        mode = (root / name).lstat().st_mode
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError as error:
+        raise NotPacked(f"{name} could not be packed ({error.strerror or error})") from error
+    return stat.S_ISLNK(mode) or stat.S_ISREG(mode)
+
+
+def holds_tokens(name: str) -> bool:
+    return any(part.startswith(NEVER_PACKED) for part in Path(name).parts)
+
+
+def packed_files(root: Path) -> list[str]:
+    """The tree as it is on disk: the tracked files and the untracked ones that are not ignored."""
+    return listed(root, "--cached", "--others", "--exclude-standard")
+
+
+def tracked_files(root: Path) -> list[str]:
+    return listed(root, "--cached")
+
+
+def plain(member: tarfile.TarInfo) -> tarfile.TarInfo:
+    """A member without the name and the number of its owner here (inside, everything is the runner's) and with its time in whole seconds, which needs no extended header."""
+    member.uid = member.gid = 0
+    member.uname = member.gname = ""
+    member.mtime = int(member.mtime)
+    return member
+
+
+def pack(root: Path, out: IO[bytes]) -> None:
+    """Writes the tar the container unpacks: the files of the tree under `neoaprs/`, and beside them `tracked`, the tracked ones among them as a NUL-separated list for the repository made inside.
+    A file that goes away while the tree is read is left out of both. A folder that is no repository and a file that cannot be read are NotPacked: the tree goes in whole or not at all."""
+    check_repository(root)
+    packed: set[str] = set()
+    with tarfile.open(fileobj=out, mode="w|") as archive:
+        for name in packed_files(root):
+            try:
+                archive.add(root / name, arcname=f"{TREE}/{name}", recursive=False, filter=plain)
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                raise NotPacked(f"{name} could not be packed ({error.strerror or error})") from error
+            packed.add(name)
+        listing = b"".join(os.fsencode(name) + b"\0" for name in tracked_files(root) if name in packed)
+        member = tarfile.TarInfo(TRACKED)
+        member.size, member.mtime = len(listing), int(time.time())
+        archive.addfile(member, io.BytesIO(listing))
+
+
+# ---- docker ----
+
+def image_tag(dockerfile: Path = DOCKERFILE) -> str:
+    """The image's name. Its tag is the digest of the Dockerfile, so a changed Dockerfile is an image that is not there yet."""
+    return f"{IMAGE}:{hashlib.sha256(dockerfile.read_bytes()).hexdigest()[:12]}"
+
+
+def docker_build(tag: str) -> list[str]:
+    """The build, with the Dockerfile on its input and no folder as its context: no file of the project can get into the image."""
+    return ["docker", "build", "--tag", tag, "-"]
+
+
+def docker_run(tag: str, size: Size, cpus: Sequence[int], commands: Sequence[str], cidfile: Path) -> list[str]:
+    """The command line of a run: a container that is removed when it ends, on these threads and this much memory with no swap beyond it, with an init that reaps what the tests leave, the tar on its
+    input. It has no name and publishes no port, so any number run side by side; `cidfile` is where docker writes its id. An image that has gone since it was looked for is an error: the name
+    exists on this machine only, and no registry is asked for it."""
+    cpu_set, memory = ",".join(str(cpu) for cpu in cpus), f"{size.memory_gb}g"
+    line = ["docker", "run", "--rm", "--interactive", "--init", "--pull", "never", "--cidfile", str(cidfile), "--label", f"{CPUS_LABEL}={cpu_set}",
+            "--cpuset-cpus", cpu_set, "--memory", memory, "--memory-swap", memory, "--shm-size", SHM, "--workdir", WORK]
+    for name, value in ENVIRONMENT.items():
+        line += ["--env", f"{name}={value}"]
+    for volume, path in VOLUMES.items():
+        line += ["--volume", f"{volume}:{path}"]
+    return [*line, tag, "bash", "-c", INSIDE, "check-in-container", *commands]
+
+
+def ensure_image() -> str | None:
+    """The image's name, built first when docker has none of that name; None, and said, when the build failed (docker has said why)."""
+    tag = image_tag()
+    if subprocess.run(["docker", "image", "inspect", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+        say(f"building {tag} from {DOCKERFILE.relative_to(ROOT)}")
+        with DOCKERFILE.open("rb") as dockerfile:
+            if subprocess.run(docker_build(tag), stdin=dockerfile, stdout=sys.stderr).returncode != 0:
+                say("the image could not be built")
+                return None
+    return tag
+
+
+class Container:
+    """The container of this run and the docker client that started it. A signal that ends the script ends the container at once: the client alone would leave it running, and what runs inside is
+    a shell that does not pass a signal on to its command."""
+
+    def __init__(self, cidfile: Path) -> None:
+        self.cidfile = cidfile
+        self.client: subprocess.Popen[bytes] | None = None
+        self.stopped_by: int | None = None
+
+    def made(self) -> bool:
+        with contextlib.suppress(OSError):
+            return bool(self.cidfile.read_text(encoding="ascii").strip())
+        return False
+
+    def remove(self) -> None:
+        """Ends and removes the container when docker has made it; else ends the client that was about to."""
+        if self.made():
+            subprocess.run(["docker", "rm", "--force", self.cidfile.read_text(encoding="ascii").strip()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif self.client is not None and self.client.poll() is None:
+            self.client.terminate()
+
+    def stop(self, number: int, frame: FrameType | None) -> None:
+        self.stopped_by = number
+        self.remove()
+
+    def start(self, line: Sequence[str], tar: IO[bytes]) -> None:
+        """Starts the client with the packed tree as its input, in a session of its own (a Ctrl+C reaches this script alone, which ends the container), and waits until docker has made the container
+        or the client has given up."""
+        for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            signal.signal(number, self.stop)
+        self.client = subprocess.Popen(line, stdin=tar, start_new_session=True)
+        deadline = time.monotonic() + CREATE_PATIENCE_SEC
+        while not self.made() and self.client.poll() is None and self.stopped_by is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if self.stopped_by is not None:
+            self.remove()                               # (a signal that came before there was a client to end)
+
+    def wait(self) -> int:
+        """The exit code of the run: the command's, as the client passes it on; 128 and the signal's number when a signal ended it."""
+        assert self.client is not None
+        code = self.client.wait()
+        if self.stopped_by is not None:
+            self.remove()                               # (a container that was made in the moment the client was ended)
+            return 128 + self.stopped_by
+        return code if code >= 0 else 128 - code
+
+
+def run(tag: str, size: Size, cores: Sequence[tuple[int, ...]], commands: Sequence[str], tar: IO[bytes]) -> int:
+    """One container from its start to its exit code. `tar` is the packed tree, a file at its beginning."""
+    with tempfile.TemporaryDirectory(prefix="check-in-container-") as scratch:
+        container = Container(Path(scratch) / "container-id")
+        with start_lock():
+            cpus = choose_cpus(cores, size.threads, taken_cpus())
+            say(f"{tag} on threads {','.join(str(cpu) for cpu in cpus)} with {size.memory_gb} GB")
+            container.start(docker_run(tag, size, cpus, commands, container.cidfile), tar)
+        return container.wait()
+
+
+# ---- the command ----
+
+def split_command(argv: Sequence[str]) -> tuple[list[str], list[str]]:
+    """The script's own arguments and, after the first `--`, the command for the container."""
+    if "--" not in argv:
+        return list(argv), []
+    at = list(argv).index("--")
+    return list(argv[:at]), list(argv[at + 1:])
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    own, command = split_command(sys.argv[1:] if argv is None else argv)
+    parser = argparse.ArgumentParser(prog="check-in-container", usage="scripts/check-in-container [--starved] [--image-only] [-- COMMAND...]", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--starved", action="store_true", help="half a runner: two threads of one core and 7 GB")
+    parser.add_argument("--image-only", action="store_true", help="build the image when it is missing, print its name and stop")
+    args = parser.parse_args(own)
+    for tool in ("docker", "git"):
+        if shutil.which(tool) is None:
+            say(f"{tool} is not installed")
+            return NOT_SET_UP
+    if args.image_only:
+        tag = ensure_image()
+        if tag is not None:
+            print(tag)
+        return DOCKER_FAILED if tag is None else 0
+    # The tree is packed whole into a file without a name (gone with this script, however it ends) before docker is asked for anything: what is wrong with the tree is said while nothing runs yet.
+    with tempfile.TemporaryFile(prefix="check-in-container-") as tar:
+        try:
+            pack(ROOT, tar)
+        except NotPacked as error:
+            say(f"nothing was run: {error}")
+            return NOT_SET_UP
+        tar.seek(0)
+        tag = ensure_image()
+        if tag is None:
+            return DOCKER_FAILED
+        cores = read_cores()
+        if not cores:
+            say(f"the cores of this machine are not listed in {SYS_CPU}: without them the container would get every thread")
+            return NOT_SET_UP
+        return run(tag, STARVED if args.starved else RUNNER, cores, [shlex.join(command)] if command else list(CI_COMMANDS), tar)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:                           # (a Ctrl+C while the image is built, before there is a container to end)
+        sys.exit(128 + signal.SIGINT)

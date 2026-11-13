@@ -6,6 +6,9 @@
 *.key
 .env
 .env.*
+# A file of access tokens (server/deploy.sh and support-fetch.sh look for `.secrets` here first, then upwards): never committed, wherever it lies and whatever follows its name.
+.secrets
+.secrets*
 
 # Environments: uv's .venv, the folders a deploy sets aside (.venv-<stamp>), the page's node_modules.
 .venv/
@@ -58,8 +61,14 @@ test-results/
 /.gitconfig
 /.ripgreprc
 /.gitmodules
-/.idea/
-/.vscode/
+/.idea
+/.vscode
+/.mcp.json
+
+# The developer's own folders in the checkout: scratch work (among it a virtual machine's test key) and working notes. Never committed.
+/work/
+/aprs-reference/
+/neoaprs_hf_mercury.pdf
 
 # The start logs usage-report.sh fetches from the version page, and the support files support-fetch.sh fetches from the Send logs endpoint.
 /server/logs/
