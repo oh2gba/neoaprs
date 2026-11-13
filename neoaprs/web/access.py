@@ -129,7 +129,7 @@ class _Answer(Secured):
         if self._finished:
             return
         origin = self.request.headers.get("Origin")
-        if self.request.method == "POST" and origin is not None and not origin_is_host(origin, self.request.headers.get("Host", "")):
+        if self.request.method not in ("GET", "HEAD", "OPTIONS") and origin is not None and not origin_is_host(origin, self.request.headers.get("Host", "")):
             raise tornado.web.HTTPError(403)
 
     @property

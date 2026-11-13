@@ -100,7 +100,7 @@ class Beacon:
         self._planned_min = 0                                   # the interval next_due was planned for
         self._planned_mobile = False                            # whether it was planned for a mobile station
         self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page
-        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)       # the random pause of an HF beacon, in seconds, drawn up to `most` (a test gives its own)
+        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)       # the random pause of an HF beacon, in seconds, drawn up to `most` (a test gives its own)  # noqa: S311  (a pause on the air, no secret)
         self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")  # the frame of every beacon that went out on the radio (the iGate puts a moving station's position on APRS-IS with it)
         self._no_fix_told = False
         self._skip_told = False

@@ -87,6 +87,8 @@ markers = [
     "expects_errors: the test makes the code log an ERROR on purpose (any other test that does fails, see tests/support/guards.py)",
 ]
 filterwarnings = ["error::DeprecationWarning:neoaprs.*"]
+# A test that is still running after two minutes has the stack of every thread written to stderr (the standard library's faulthandler; the test goes on): a test that hangs then says where, instead of only costing the job its half hour.
+faulthandler_timeout = 120
 
 # scripts/coverage runs the suite under coverage.py. Branches count; the daemons and commands the tests start as processes are measured too (patch = subprocess), and every process writes its own data file (parallel),
 # which the script combines. Nothing is excluded: a line that is not covered shows in the table.
@@ -110,15 +112,44 @@ files = ["neoaprs", "tests/support"]   # the test support layer is typed like th
 [tool.ruff]
 target-version = "py313"
 extend-exclude = ["ui", "neoaprs/page"]
+# The tools that are Python and have no .py in their name: ruff knows a Python file by its ending and would pass these by, the release script among them. The list is exact: tests/test_lint_scope.py finds a tool
+# that begins with a python line and is not here, and an entry whose file is gone or is not Python; the spec of the Windows build has no such line and is named there (NO_FIRST_LINE).
+extend-include = [
+    "scripts/build-mercury",
+    "scripts/check-in-container",
+    "scripts/doc-arch",
+    "scripts/doc-settings",
+    "scripts/mercury-bench",
+    "scripts/mercury-measure",
+    "scripts/mercury-sim",
+    "scripts/release",
+    "scripts/security-check",
+    "scripts/security-tools",
+    "packaging/windows/neoaprs.spec",
+]
 
 [tool.ruff.lint]
-# Lint only (no formatter: the code base keeps its own long-line style). pycodestyle errors and warnings and pyflakes, plus flake8-bugbear for real bugs.
-select = ["E", "F", "W", "B"]
+# Lint only (no formatter: the code base keeps its own long-line style). pycodestyle errors and warnings and pyflakes, plus flake8-bugbear for real bugs and the security rules (S, the rules of bandit).
+# A security rule is switched off below only where it cannot tell what it looks for from what this code does all the time; a single line that is right as it is says so itself (`# noqa: S310  (why)`).
+select = ["E", "F", "W", "B", "S"]
 ignore = [
     "E501",   # line length: the house style allows long lines
     "E741",   # `l` for a line in a comprehension or a lambda is how the tests and the parsers read
     "B905",   # zip() without strict=: a zip pairs a column list with a row of the same table, and strict= would turn an old database with an extra column into a crash
+    "S101",   # assert: in neoaprs/ an assert tells mypy that a value is there (`assert self._app is not None`); none of them checks what came from outside, which is what the rule is for
+    "S603",   # every start of a program from a list of arguments, whatever the arguments are: the rule cannot tell a constant from a stranger's text. A shell line stays reported where ruff knows it: subprocess with shell=True (S602), any other call with shell=True (S604), os.system, os.popen and subprocess.getoutput (S605); a start through os.exec, os.spawn or os.startfile too (S606). asyncio.create_subprocess_shell and the event loop's subprocess_shell are known to no rule of ruff: SHELL_LINES of tests/test_architecture.py holds them, and REACHES_OUT there lists the modules that start a program at all
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# The homes of SQL (tests/test_architecture.py, SQL_HOMES) put a statement together from the column lists and the conditions written in the same module, and bind every value (`?`); the rule sees an f-string and cannot tell a column list from a value. Everywhere else it stays on.
+"neoaprs/*sql.py" = ["S608"]
+"neoaprs/migrationsteps*.py" = ["S608"]
+# The tests are not what runs at an operator's: they assert, make up keys and addresses, listen on what they like, start the commands and seed a database with SQL of their own.
+"tests/**" = ["S"]
+# A developer's tool and a build's own check find the system's programs (git, tasklist, netstat) on the PATH, as the shell they are run from does; in neoaprs/ each such start says why (`# noqa: S607`).
+"scripts/**" = ["S607"]
+"packaging/**" = ["S607"]
+"packaging/windows/neoaprs.spec" = ["F821"]       # the names the Windows build's tool gives a spec file (Analysis, PYZ, EXE, COLLECT, SPECPATH)
 
 [tool.uv]
 # pyobjc (bleak's on macOS) held at the version the 0.16 macOS app shipped with: a relock for another package would otherwise move it, and a fix release changes only what it fixes

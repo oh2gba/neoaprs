@@ -44,7 +44,7 @@ NOISE = 1 << 20                  # the amplitude of the noise under the signal, 
 
 def noise(count: int) -> bytes:
     """`count` samples of noise, s32le."""
-    return struct.pack(f"<{count}i", *(random.randint(-NOISE, NOISE) for _ in range(count)))
+    return struct.pack(f"<{count}i", *(random.randint(-NOISE, NOISE) for _ in range(count)))  # noqa: S311  (noise under a test signal: nothing is kept secret with it)
 
 
 class Pacer(threading.Thread):

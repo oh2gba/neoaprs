@@ -8,6 +8,39 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import vueParser from "vue-eslint-parser";
 
+// What a station sends (a comment, a status, a message, a name) is text and must stay text on the page: it reaches the DOM as textContent or through a template's {{ }}, never as markup and never as code.
+// v-html is refused by its own rule below; these are the other ways in, refused wherever they are written (the page's code, a template, the service worker). The tests read what a component rendered and keep their use.
+// What is only known when the page runs is beyond a rule: an object bound whole (`v-bind="attributes"`) has its keys read where the script writes them, and a name held in a variable (`:[name]="text"`, `element[name] = text`) is read by nothing.
+// src/lib/lintrules.test.ts runs these rules on made-up sources, so that a way in that is no longer refused fails a test.
+const AS_TEXT = "It would make markup of a text: build the element and set its textContent, or bind the text in the template.";
+const HTML_PROPERTIES = ["innerHTML", "outerHTML", "insertAdjacentHTML", "srcdoc", "createContextualFragment", "setHTMLUnsafe"];
+const noHtmlProperties = [
+  ...HTML_PROPERTIES.map((property) => ({ property, message: AS_TEXT })),
+  ...["write", "writeln"].map((property) => ({ object: "document", property, message: AS_TEXT })),
+];
+// (Vue takes a leading "." off a key and sets the property, and a leading "^" sets the attribute: ".innerHTML" is innerHTML)
+const HTML_KEY = `/^[.^]?(${HTML_PROPERTIES.join("|")})$/`;
+const noHtmlSyntax = [
+  // the same names as the key of an object (h("div", { innerHTML: text }), Object.assign(element, { innerHTML: text }), { [`innerHTML`]: text }) and as an attribute set by name
+  {
+    selector: `Property[key.name=${HTML_KEY}], Property[key.value=${HTML_KEY}], Property > TemplateLiteral.key > TemplateElement[value.cooked=${HTML_KEY}]`,
+    message: AS_TEXT,
+  },
+  { selector: "CallExpression[callee.property.name=/^setAttribute(NS)?$/] > Literal[value=/^srcdoc$/i]", message: AS_TEXT },
+  { selector: "MemberExpression[property.name=/^writeln?$/][object.property.name='document']", message: AS_TEXT },
+];
+const noHtmlBinding = [{ argument: "/^(inner-?h-?t-?m-?l|outer-?h-?t-?m-?l|srcdoc)$/i", message: AS_TEXT }];
+// In a template the plain rules above see nothing, so the same is refused there by the plugin's own rule: the object of a binding (v-bind="{ innerHTML: text }"), a name written between brackets (:[`innerHTML`]="text"),
+// which the rule for a binding's name does not read, and a property set or called in a handler (@click="$el.innerHTML = text").
+const noHtmlTemplate = [
+  ...noHtmlSyntax,
+  { selector: "VDirectiveKey > VExpressionContainer TemplateElement[value.cooked=/^(innerHTML|outerHTML|srcdoc)$/i]", message: AS_TEXT },
+  {
+    selector: `MemberExpression[property.name=${HTML_KEY}], MemberExpression[property.value=${HTML_KEY}], MemberExpression > TemplateLiteral.property > TemplateElement[value.cooked=${HTML_KEY}]`,
+    message: AS_TEXT,
+  },
+];
+
 export default tseslint.config(
   { ignores: ["dist/**", "coverage/**", "node_modules/**", "public/**", "src/protocol/protocol.ts"] },
 
@@ -47,6 +80,14 @@ export default tseslint.config(
       "no-console": "warn",
       eqeqeq: ["error", "always", { null: "ignore" }], // `x == null` is the one idiom that stays: null or undefined
       "vue/no-v-html": "error",
+      "vue/no-restricted-v-bind": ["error", ...noHtmlBinding],
+      // a bare ":" or "." with an object is v-bind of that object, which the template's parser reads as a plain attribute of that name
+      "vue/no-restricted-static-attribute": ["error", { key: "srcdoc", message: AS_TEXT }, { key: "/^[:.]$/", message: AS_TEXT }],
+      "no-restricted-properties": ["error", ...noHtmlProperties],
+      "no-restricted-syntax": ["error", ...noHtmlSyntax],
+      "vue/no-restricted-syntax": ["error", ...noHtmlTemplate],
+      "no-eval": "error", // text run as code: eval, new Function, and a string given to a timer (which the typed rule of typescript-eslint refuses in the page's own files)
+      "no-new-func": "error",
       "vue/block-lang": ["error", { script: { lang: "ts" } }],
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports", fixStyle: "inline-type-imports" }],
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
@@ -75,6 +116,17 @@ export default tseslint.config(
     // tests are long by nature: a describe block holds many cases
     files: ["**/*.test.ts", "src/test/**"],
     rules: { "max-lines": "off", "max-lines-per-function": "off", "@typescript-eslint/unbound-method": "off", "vue/one-component-per-file": "off" },
+  },
+  {
+    // a test reads the markup a component made (innerHTML, outerHTML) to say what is on the page, and writes a document of its own to stand a component in; the test of the service worker runs the worker's
+    // script as a function, with fakes for a worker's globals. Nothing of a station is shown to anybody
+    files: ["**/*.test.ts", "src/test/**"],
+    rules: { "no-restricted-properties": "off", "no-restricted-syntax": "off", "no-new-func": "off" },
+  },
+  {
+    // the service worker is linted without type information (above), so the typed rule against a string given to a timer does not see it: the plain one does
+    files: ["sw/sw.js"],
+    rules: { "no-implied-eval": "error" },
   },
 
   {

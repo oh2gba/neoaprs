@@ -54,7 +54,7 @@ def installed(plan: Plan) -> tuple[bool, str]:
 
 def launchctl(*args: str) -> int:
     try:
-        return subprocess.run(["launchctl", *args], check=False).returncode
+        return subprocess.run(["launchctl", *args], check=False).returncode  # noqa: S607  (the system's launchctl, found by the PATH of the terminal the user typed `neoaprs service` in)
     except FileNotFoundError:
         print("launchctl was not found: this is not macOS")
         return -1
@@ -62,7 +62,7 @@ def launchctl(*args: str) -> int:
 
 def loaded() -> bool:
     try:
-        return subprocess.run(["launchctl", "print", f"{domain()}/{LABEL}"], capture_output=True, check=False).returncode == 0
+        return subprocess.run(["launchctl", "print", f"{domain()}/{LABEL}"], capture_output=True, check=False).returncode == 0  # noqa: S607  (the same launchctl)
     except FileNotFoundError:
         return False
 

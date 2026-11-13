@@ -82,7 +82,7 @@ def installed(plan: Plan) -> tuple[bool, str]:
 def systemctl(*args: str) -> int:
     """`systemctl --user ...`; its output goes to the terminal. -1 when there is no systemctl."""
     try:
-        return subprocess.run(["systemctl", "--user", *args], check=False).returncode
+        return subprocess.run(["systemctl", "--user", *args], check=False).returncode  # noqa: S607  (systemctl is in /usr/bin on one distribution and in /bin on another: the PATH of the user's terminal finds it)
     except FileNotFoundError:
         print("systemctl was not found: this computer does not run systemd, so there is no user service to set up; run `neoaprs run` from your session's autostart instead")
         return -1
@@ -133,7 +133,7 @@ def after_install(plan: Plan) -> None:
     user = user_name()
     if plan.linger:
         try:
-            enabled = subprocess.run(["loginctl", "enable-linger", user], check=False).returncode == 0
+            enabled = subprocess.run(["loginctl", "enable-linger", user], check=False).returncode == 0  # noqa: S607  (loginctl, found as systemctl is)
         except FileNotFoundError:
             enabled = False
         if not enabled:

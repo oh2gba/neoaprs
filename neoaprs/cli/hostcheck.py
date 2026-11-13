@@ -109,7 +109,7 @@ class FlatpakFirefox:
 
 def run_flatpak(args: list[str]) -> tuple[int, str]:
     try:
-        done = subprocess.run(["flatpak", *args], capture_output=True, text=True, timeout=FLATPAK_WAIT_SEC, check=False)
+        done = subprocess.run(["flatpak", *args], capture_output=True, text=True, timeout=FLATPAK_WAIT_SEC, check=False)  # noqa: S607  (flatpak is where the distribution put it, which the PATH knows; the answer is only read)
     except (OSError, subprocess.SubprocessError):
         return 1, ""
     return done.returncode, done.stdout

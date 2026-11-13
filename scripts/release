@@ -451,7 +451,7 @@ class Release:
 def link_problem(url: str) -> str:
     """Why a download link does not answer, or empty when it does (a HEAD request that follows the redirect to the file)."""
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as answer:
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30) as answer:  # noqa: S310  (the download link of a file of our own release, an https address of GitHub as `gh release view` gave it; only asked whether it answers)
             return "" if answer.status == 200 else f"status {answer.status}"
     except urllib.error.HTTPError as e:
         return f"status {e.code}"

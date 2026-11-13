@@ -623,7 +623,7 @@ def measure_beacons(args: argparse.Namespace) -> dict[str, Any]:
     """Fixed stations on one interval of `interval_min` minutes, each started at a random moment of the first interval (the start of a daemon is a random phase already) and adding a random pause of up to J seconds
     after every interval (the pause of radiorules.HF_BEACON_JITTER_SEC): over `hours` of simulated time, how many beacons were lost to an overlap (two frames on the air within FRAME_SEC of each other are both lost,
     as Mercury's broadcast plane has no carrier sense), for each J. Also the case the pause is for: every station started in the same minute (a net that switched on together, or clocks that agree)."""
-    rng = random.Random(args.seed)
+    rng = random.Random(args.seed)  # noqa: S311  (the chances of a simulation, the same again for the same seed: nothing is kept secret with it)
     sizes = [int(v) for v in args.stations.split(",")]
     pauses = [0, 30, 60, 120, 180, 300, 600]
     interval = args.interval_min * 60

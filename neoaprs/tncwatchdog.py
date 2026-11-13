@@ -110,7 +110,7 @@ class Watchdog:
 
     def _restart(self) -> None:
         self._heard_at = asyncio.get_running_loop().time()
-        self._extra = random.uniform(0.0, TNC_CHECK_JITTER) * self.sec
+        self._extra = random.uniform(0.0, TNC_CHECK_JITTER) * self.sec  # noqa: S311  (the random part of a waiting time, no secret)
 
     async def run(self, alive: Callable[[], bool], check_first: bool = False) -> None:
         """Waits and looks while `alive()` (the line this was started for is still the Tnc's). `check_first`: a line that was just opened has not shown yet that the radio is there, so the first check is made at once,

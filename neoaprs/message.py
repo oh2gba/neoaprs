@@ -204,7 +204,7 @@ def retry_pause(record: MessageRecord, jitter_sec: int) -> timedelta:
     same message and attempt every time it is asked (the schedule asks again and again), and another for the other station of a collision, whose message has another addressee and number."""
     if jitter_sec <= 0 or record.attempts == 0 or record.attempts >= record.attempts_max:
         return timedelta(0)
-    return timedelta(seconds=random.Random(f"{record.to_call}/{record.id}/{record.attempts}").uniform(0, jitter_sec))
+    return timedelta(seconds=random.Random(f"{record.to_call}/{record.id}/{record.attempts}").uniform(0, jitter_sec))  # noqa: S311  (a pause on the air that has to come out the same each time it is asked; no secret)
 
 
 def due_at(record: MessageRecord) -> datetime | None:

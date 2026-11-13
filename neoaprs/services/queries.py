@@ -204,7 +204,7 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 class Queries:
     def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[Radio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
-                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,
+                 clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None) -> None:
         self._config = config
         self._tnc = tnc

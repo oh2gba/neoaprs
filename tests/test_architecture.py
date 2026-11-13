@@ -11,8 +11,13 @@
 Every violation that exists today is in ALLOWED with the reason it is there. The list can only shrink: a violation that is not in it fails the test, and so does an entry that is no
 longer a violation (delete the line). A new module of neoaprs/ must be given its layer in LAYERS first. The checks are functions of a *tree* (path -> source), so the second half of
 this file shows each rule failing on a made-up tree: a rule that has never been seen failing is a guess.
+
+The last table is not about imports: REACHES_OUT is the list of the modules that start a program, run a shell line, put another program in the place of this one, open a URL or the system's browser, or hand a string to
+pyserial, each with why it may. It is exact, so that a new way out of the process is looked at by a person the day it is written.
 """
+import ast
 import sys
+from fnmatch import fnmatchcase
 
 import pytest
 
@@ -21,7 +26,7 @@ from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbi
 LAYERS: dict[str, list[str]] = {
     "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "units", "recent", "callsign", "geo", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "reach", "chain", "mapstate", "radiosearch", "serialboards", "versions", "updateasset", "releasenotes", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyhfscene", "dummyqru", "igaterules", "cipher", "mercury", "mercurycards", "mercuryscope", "channelbusy", "radiorules", "bundled"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "configvalues", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin", "qrutext"],
-    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilestool", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem", "mercurychannel", "mercuryscoping", "mercuryui", "websocketclient", "mercuryspeaker", "mercurytune", "httpstrust"],
+    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilestool", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem", "mercurychannel", "mercuryscoping", "mercuryui", "websocketclient", "mercuryspeaker", "mercurytune", "httpstrust", "nodevices"],
     "persistence": ["store", "migrations", "migrationlog", "migrationsteps1to11", "migrationsteps12to21", "migrationsteps22on", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql"],
     "services": [],
     "app": ["controller", "app", "wiring", "radios"],
@@ -37,7 +42,7 @@ MAY_IMPORT: dict[str, set[str]] = {
     "delivery": {"foundation", "domain", "adapters", "persistence", "services", "app", "delivery"},
 }
 # Inside the adapters layer a feed may use the base every feed shares, and the few siblings named here; any other adapter-to-adapter import is a violation.
-ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks"}
+ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks", "neoaprs.nodevices"}      # (nodevices: the switch every adapter that opens a device or a connection asks first)
 ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tncreader"), ("neoaprs.tncreader", "neoaprs.tncentry"), ("neoaprs.tncreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncfollow"), ("neoaprs.tncfollow", "neoaprs.serialprobe"), ("neoaprs.tncfollow", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tnc", "neoaprs.tncport"), ("neoaprs.tnc", "neoaprs.dummyline"), ("neoaprs.tncport", "neoaprs.callbackport"), ("neoaprs.gpsfeed", "neoaprs.callbackport"), ("neoaprs.callbackport", "neoaprs.serialport"), ("neoaprs.dummyline", "neoaprs.tncport"), ("neoaprs.dummyline", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.gpsfeed", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired"), ("neoaprs.worldmap", "neoaprs.pmtilestool"), ("neoaprs.updatefetch", "neoaprs.updatedownload"), ("neoaprs.mercurymodem", "neoaprs.mercuryhelper"), ("neoaprs.mercurymodem", "neoaprs.mercurycontrol"), ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"), ("neoaprs.mercuryhelper", "neoaprs.childenv"), ("neoaprs.mercurymodem", "neoaprs.serialprobe"), ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"), ("neoaprs.mercurymodem", "neoaprs.mercurytune"), ("neoaprs.mercurymodem", "neoaprs.mercurychannel"), ("neoaprs.mercurymodem", "neoaprs.mercuryscoping"), ("neoaprs.mercuryscoping", "neoaprs.mercuryui"), ("neoaprs.mercuryui", "neoaprs.websocketclient"), ("neoaprs.mercurymodem", "neoaprs.mercuryallow"), ("neoaprs.mercuryfirewall", "neoaprs.winelevate"), ("neoaprs.updatefetch", "neoaprs.httpstrust"), ("neoaprs.updatedownload", "neoaprs.httpstrust"), ("neoaprs.pmtilestool", "neoaprs.httpstrust")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
 DELIVERY_PACKAGES = ("neoaprs.web", "neoaprs.cli", "neoaprs.desktop")
 WIRE_ASSEMBLERS = {"neoaprs.web.protocol"}
@@ -83,6 +88,117 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
 # Everything else that still imports sqlite3 or calls execute, with how many calls: (imports sqlite3, calls of execute, why). The numbers are exact: a file that does less than its entry says
 # fails until the entry is lowered or deleted, so the list only shrinks. A new entry is not the way to get a change through: the statement belongs in a function of storesql.py or a module beside it.
 SQL_ELSEWHERE: dict[str, tuple[bool, int, str]] = {}
+
+# The ways out of the process, by kind: what a file names (through whatever name it imported it by) to start a program, to give a line to a shell, to put another program in the place of this one, to open a URL, to hand
+# an address to the system's browser, or to hand a string to pyserial, which opens whatever kind of port the string names. A name that is only a type (`process: subprocess.Popen[str]`) starts nothing and is not counted.
+# A plain connection to a host and a port (asyncio.open_connection: APRS-IS, gpsd, rigctld, the Mercury modem) is not a kind here: this list does not hold the modules that make one.
+REACH: dict[str, tuple[str, ...]] = {
+    "program": ("subprocess.run", "subprocess.Popen", "subprocess.call", "subprocess.check_call", "subprocess.check_output", "asyncio.create_subprocess_exec", "asyncio.subprocess.create_subprocess_exec",
+                "os.spawn*", "os.posix_spawn*", "os.startfile", "pty.spawn", "tornado.process.*"),
+    "shell": ("asyncio.create_subprocess_shell", "asyncio.subprocess.create_subprocess_shell", "os.system", "os.popen", "subprocess.getoutput", "subprocess.getstatusoutput"),
+    "exec": ("os.exec*",),
+    "url": ("urllib.request.urlopen", "urllib.request.urlretrieve", "urllib.request.build_opener", "urllib.request.OpenerDirector", "http.client.HTTPConnection", "http.client.HTTPSConnection", "tornado.httpclient.*"),
+    "browser": ("webbrowser.*",),
+    "serial": ("serial.serial_for_url", "serial.Serial"),
+}
+REACH_METHODS = {"subprocess_exec": "program", "subprocess_shell": "shell"}          # the event loop's own two, which are methods of an object and have no module to be known by
+# Every file of neoaprs/ that names one of them: (the kinds, in the order of REACH; why it may). Exact both ways: a file that reaches out and is not here fails the test, and so does an entry that says more or other than its
+# file does. A new entry is the moment to ask what the place starts or opens, and whether a text from the air, from the page or from a setting can get into it.
+REACHES_OUT: dict[str, tuple[str, str]] = {
+    "neoaprs/btpaired.py": ("program", "asks BlueZ which devices are paired, with busctl or bluetoothctl: two commands written in the module, whose answer is only read"),
+    "neoaprs/cli/daemonstate.py": ("url", "a command asks whether the daemon's page answers, at the loopback address the daemon wrote into its data folder, past any proxy"),
+    "neoaprs/cli/hostcheck.py": ("program", "`neoaprs doctor` asks flatpak about a Firefox installed that way; the arguments are written in the module and the answer is only read"),
+    "neoaprs/cli/opencmd.py": ("program browser", "`neoaprs open`: starts the daemon as a process of its own, from this program's own path and the data folder, and hands the page's loopback address to the system's browser"),
+    "neoaprs/cli/servicelaunchd.py": ("program", "`neoaprs service` on macOS: launchctl, with the label and the file this program wrote"),
+    "neoaprs/cli/servicesystemd.py": ("program", "`neoaprs service` on Linux: systemctl --user and loginctl, with the unit this program wrote and the user's own name"),
+    "neoaprs/cli/servicewindows.py": ("program", "`neoaprs service` on Windows: starts the daemon now, detached, with the command it also writes for the start at login"),
+    "neoaprs/cli/supportgather.py": ("program", "the support bundle reads the service's lines of the user's journal with journalctl, a command written in the module"),
+    "neoaprs/cli/supportmake.py": ("program", "shows the finished support bundle in the system's file manager (explorer, open, xdg-open), at a path this program made"),
+    "neoaprs/cli/worldcmd.py": ("program", "a developer's command: asks the pinned pmtiles tool for its version before the world map is cut with it"),
+    "neoaprs/desktop/cmd.py": ("browser", "the app where no window can be made: the daemon's page, a loopback address, in the system's browser"),
+    "neoaprs/desktop/links.py": ("browser", "a link of the page to somebody else's site goes to the system's browser, after `route` has let only http, https and mailto through"),
+    "neoaprs/desktop/menu.py": ("browser", "the tray's Open in browser: the daemon's page, a loopback address"),
+    "neoaprs/desktop/qtshell.py": ("browser", "the Qt shell without a web engine: the daemon's page, a loopback address, in the system's browser"),
+    "neoaprs/desktop/winshell.py": ("browser", "the Windows shell without a window: the daemon's page, a loopback address, in the system's browser"),
+    "neoaprs/mercuryhelper.py": ("program", "starts the Mercury modem that ships with the program, from a list of arguments, asks it for the sound cards, and on Windows ends its process tree with taskkill"),
+    "neoaprs/mercuryspeaker.py": ("program", "the Dummy HF radio's sound: the system's player (pw-play, paplay or aplay) with arguments written in the module, fed through its standard input"),
+    "neoaprs/pmtilestool.py": ("program url", "runs the pinned pmtiles tool that cuts the map; fetches that tool from its release on GitHub, kept only with the pinned SHA-256, and asks build.protomaps.com which daily build is there"),
+    "neoaprs/selfreplace.py": ("exec", "Update now for an AppImage: the new file, whose checksum was checked, is started in the place of this process with the arguments the daemon had"),
+    "neoaprs/serialport.py": ("serial", "the one place a port is made: the address of the radio's or the GPS's port goes to pyserial here and nowhere else"),
+    "neoaprs/services/alerts.py": ("program shell", "the alert command: the operator's own line, given to the shell (on Windows to PowerShell, a program that reads the line from its standard input), with what came from the air in environment variables only; taskkill ends its tree on Windows"),
+    "neoaprs/services/selfinstall.py": ("program", "Update now on Windows: runs the downloaded installer, whose checksum was checked, silently and detached from the daemon"),
+    "neoaprs/updatedownload.py": ("url", "the downloads of Update now: https and GitHub's hosts only, every redirect checked against the same rule"),
+    "neoaprs/updatefetch.py": ("url", "the update check, the changelog, the suggested frequencies and Send logs: http or https only, to the project's server or to the address of update/url"),
+}
+SHELL_LINES = {"neoaprs/services/alerts.py": 1}         # the places a shell is given a line to run, with how many: the alert command and nothing else, ever
+
+
+def _imported_names(module: ast.Module) -> dict[str, str]:
+    """What each name the file imported stands for: `import urllib.request` gives urllib, `import subprocess as sp` gives sp for subprocess, `from os import execv as go` gives go for os.execv. An import inside a function counts."""
+    names: dict[str, str] = {}
+    for node in ast.walk(module):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                names[alias.asname or alias.name.split(".")[0]] = alias.name if alias.asname else alias.name.split(".")[0]
+        elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+            for alias in node.names:
+                names[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+    return names
+
+
+def _full_name(node: ast.AST, names: dict[str, str]) -> str:
+    """`sp.Popen` as subprocess.Popen: the dotted name with the import it begins with written out; "" for anything that does not begin with an imported name."""
+    if isinstance(node, ast.Name):
+        return names.get(node.id, "")
+    if isinstance(node, ast.Attribute):
+        base = _full_name(node.value, names)
+        return f"{base}.{node.attr}" if base else ""
+    return ""
+
+
+def _type_notes(module: ast.Module) -> set[int]:
+    """The nodes that are part of an annotation."""
+    notes = [node.annotation for node in ast.walk(module) if isinstance(node, (ast.arg, ast.AnnAssign)) and node.annotation is not None]
+    notes += [node.returns for node in ast.walk(module) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns is not None]
+    return {id(part) for note in notes for part in ast.walk(note)}
+
+
+def _reach_of(node: ast.AST, names: dict[str, str]) -> str | None:
+    """The kind of way out the node names, if any. A name counts wherever it stands, called or not: `start: Callable[..., object] = subprocess.Popen` starts a program two lines later."""
+    if isinstance(node, ast.keyword):
+        return "shell" if node.arg == "shell" and not (isinstance(node.value, ast.Constant) and node.value.value is False) else None
+    if not isinstance(node, (ast.Name, ast.Attribute)):
+        return None
+    full = _full_name(node, names)
+    known = next((kind for kind, patterns in REACH.items() if any(fnmatchcase(full, pattern) for pattern in patterns)), None)
+    return known or (REACH_METHODS.get(node.attr) if isinstance(node, ast.Attribute) else None)
+
+
+def reaches_out(tree: Tree) -> dict[str, dict[str, int]]:
+    """Per file that has any: how many times it names a way out of the process, by kind (REACH). `shell=True` (anything but `shell=False`) on any call is a shell line too."""
+    found: dict[str, dict[str, int]] = {}
+    for rel, source in tree.items():
+        module = ast.parse(source)
+        names, notes = _imported_names(module), _type_notes(module)
+        counts: dict[str, int] = {}
+        for node in ast.walk(module):
+            kind = None if id(node) in notes else _reach_of(node, names)
+            if kind is not None:
+                counts[kind] = counts.get(kind, 0) + 1
+        if counts:
+            found[rel] = counts
+    return found
+
+
+def reach_not_as_listed(found: dict[str, dict[str, int]]) -> dict[str, str]:
+    """Every file whose ways out are not what REACHES_OUT says of it, with what it does and what the list says; a listed file that no longer reaches out is among them."""
+    does = {rel: " ".join(kind for kind in REACH if kind in counts) for rel, counts in found.items()}
+    listed = {rel: kinds for rel, (kinds, _why) in REACHES_OUT.items()}
+    return {rel: f"does: {does.get(rel) or 'nothing'}; REACHES_OUT says: {listed.get(rel) or 'nothing (it is not listed)'}" for rel in sorted({*does, *listed}) if does.get(rel) != listed.get(rel)}
+
+
+def shell_lines(found: dict[str, dict[str, int]]) -> dict[str, int]:
+    return {rel: counts["shell"] for rel, counts in found.items() if "shell" in counts}
 
 
 def sql_outside_the_homes(sites: dict[str, tuple[bool, int]]) -> dict[str, str]:
@@ -261,6 +377,15 @@ def test_signals_are_connected_in_the_composition_root_only(real_tree: Tree) -> 
     assert elsewhere == expected, "Signal.connect outside the composition root (move the wiring there; the allowlist CONNECTS only shrinks and its counts are exact):\n" + repr(elsewhere)
 
 
+def test_the_ways_out_of_the_process_are_the_listed_ones_and_only_the_alert_command_is_a_shell_line(real_tree: Tree) -> None:
+    found = reaches_out(real_tree)
+    changed = reach_not_as_listed(found)
+    assert changed == {}, "a module starts a program, runs a shell line, replaces the process, opens a URL or the system's browser, or hands a string to pyserial, and REACHES_OUT does not say so (or says what the module no longer does). " + \
+        "Look at what the place starts or opens, and whether a text from the air, from the page or from a setting can get into it; then make the entry say it:\n" + "\n".join(f"  {rel}: {what}" for rel, what in changed.items())
+    assert shell_lines(found) == SHELL_LINES, "a shell is given a line somewhere else than in the alert command (neoaprs/services/alerts.py), or a second time there: start the program from a list of arguments"
+    assert all(len(why) > 30 for _kinds, why in REACHES_OUT.values())
+
+
 # ---- every rule fails on a violation ------------------------------------------------------------------------------------------------------------------------
 
 def tree_of(**files: str) -> Tree:
@@ -424,6 +549,21 @@ def test_a_statement_written_outside_the_homes_is_found_and_prose_is_not(monkeyp
     strings = sql_strings(tree)
     assert strings == {"neoaprs/stationbook.py": [2, 3], "neoaprs/stationsql.py": [2], "neoaprs/tool.py": [1]}
     assert sql_text_outside_the_homes(strings) == {"neoaprs/stationbook.py": [2, 3]}                   # stationsql.py is a home, tool.py is a listed file that touches SQL
+
+
+def test_a_way_out_of_the_process_is_found_under_any_name_and_a_type_or_a_file_that_left_the_list_is_told_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    tree = {"neoaprs/a.py": "import subprocess as sp\nfrom os import execv as go\nimport asyncio\n\ndef f(start=sp.Popen):\n    go('/bin/x', ['x'])\n\nasync def g(line):\n    await asyncio.create_subprocess_shell(line)\n",
+            "neoaprs/b.py": "import subprocess\n\ndef f(process: subprocess.Popen[str], wait: float = subprocess.PIPE) -> subprocess.Popen[str]:\n    raise subprocess.TimeoutExpired('x', 1)\n",
+            "neoaprs/c.py": "import urllib.request\nimport serial\n\ndef f(url):\n    import webbrowser\n    webbrowser.open(url)\n    serial.serial_for_url(url)\n    return urllib.request.build_opener().open(url)\n",
+            "neoaprs/d.py": "from subprocess import run\n\ndef f(line, loop):\n    run(line, shell=True)\n    run(['ls'], shell=False)\n    loop.subprocess_exec(None, 'ls')\n",
+            "neoaprs/e.py": "def f(os, subprocess):\n    return os.path.join(subprocess.run, 'b')\n"}
+    found = reaches_out(tree)
+    assert found == {"neoaprs/a.py": {"program": 1, "exec": 1, "shell": 1}, "neoaprs/c.py": {"browser": 1, "serial": 1, "url": 1}, "neoaprs/d.py": {"program": 3, "shell": 1}}      # b.py names a type, a constant and an error; e.py imported nothing
+    assert shell_lines(found) == {"neoaprs/a.py": 1, "neoaprs/d.py": 1}
+    monkeypatch.setattr(sys.modules[__name__], "REACHES_OUT", {"neoaprs/a.py": ("program shell exec", "a made-up file that is listed with all it does"), "neoaprs/c.py": ("url serial", "a made-up file that began to open the browser after it was listed"),
+                                                               "neoaprs/gone.py": ("program", "a made-up file that starts nothing any more")})
+    assert reach_not_as_listed(found) == {"neoaprs/c.py": "does: url browser serial; REACHES_OUT says: url serial", "neoaprs/d.py": "does: program shell; REACHES_OUT says: nothing (it is not listed)",
+                                          "neoaprs/gone.py": "does: nothing; REACHES_OUT says: program"}
 
 
 def test_a_flush_and_a_before_write_are_found_wherever_they_hide() -> None:

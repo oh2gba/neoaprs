@@ -59,7 +59,7 @@ def webview2_runtime(registry: Any = None) -> bool:
                 version, _kind = winreg.QueryValueEx(key, "pv")
         except OSError:
             continue
-        if str(version).strip() not in ("", "0.0.0.0"):
+        if str(version).strip() not in ("", "0.0.0.0"):  # noqa: S104  (a version number, which in this key says that the runtime is not installed; no address)
             return True
     return False
 

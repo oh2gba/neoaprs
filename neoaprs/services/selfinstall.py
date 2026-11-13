@@ -128,7 +128,7 @@ class AppImageSwap:
 
     def install(self, file: Path, name: str, version: str) -> None:
         try:
-            os.chmod(file, 0o755)
+            os.chmod(file, 0o755)  # noqa: S103  (an AppImage is a program: anyone may read and run it, only its owner may write it)
             keep_old(self.appimage)
             os.replace(file, self.appimage)
         except OSError as e:

@@ -157,7 +157,7 @@ def fetch_source() -> Path:
     last: Exception | None = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(SOURCE_URL, headers={"User-Agent": "neoaprs-build-mercury"}), timeout=60) as reply, part.open("wb") as out:
+            with urllib.request.urlopen(urllib.request.Request(SOURCE_URL, headers={"User-Agent": "neoaprs-build-mercury"}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (SOURCE_URL, the https address of the pinned source as neoaprs/mercury.py writes it; what arrives is kept only with the pinned SHA-256)
                 shutil.copyfileobj(reply, out)
             last = None
             break

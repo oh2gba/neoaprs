@@ -60,7 +60,7 @@ class HfScene:
     def __init__(self, centre: tuple[float, float] | None, now: datetime, seed: int = 1) -> None:
         self.centre = centre                   # (where we are is of no account to stations hundreds of kilometres away; kept so that the scene is made as the Dummy radio's is)
         self.started = now
-        self._rng = random.Random(seed)
+        self._rng = random.Random(seed)  # noqa: S311  (the made-up stations of the Dummy radio, the same for the same seed: nothing secret is drawn)
         self._queue: list[tuple[datetime, int, ax25.Frame]] = []
         self._count = 0
         self._ids = 0

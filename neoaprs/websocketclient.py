@@ -21,7 +21,7 @@ class WebSocketError(Exception):
 
 def accept_of(key: str) -> str:
     """The `Sec-WebSocket-Accept` a server answers the key with."""
-    return base64.b64encode(hashlib.sha1((key + GUID).encode("ascii")).digest()).decode("ascii")
+    return base64.b64encode(hashlib.sha1((key + GUID).encode("ascii"), usedforsecurity=False).digest()).decode("ascii")      # (the SHA-1 is the protocol's, RFC 6455: it shows that the server read the key, and protects nothing)
 
 
 def frame(opcode: int, payload: bytes, mask: bytes | None = None) -> bytes:

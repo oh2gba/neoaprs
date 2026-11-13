@@ -292,7 +292,7 @@ def end_stale(pid_file: Path) -> bool:
 def _end_tree(process: subprocess.Popen[str]) -> None:
     """Windows: the process and every child of it ended (`taskkill /T /F`, the system's own tool: there is no tree in the Win32 API), then the process waited for; the process alone when taskkill is not there."""
     try:
-        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=STOP_WAIT_SEC, check=False, creationflags=HIDDEN_WINDOW)
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=STOP_WAIT_SEC, check=False, creationflags=HIDDEN_WINDOW)  # noqa: S607  (taskkill by its bare name: Windows looks in the program's own folder and in the working folder before System32, so a taskkill.exe in either would be run; its full path under %SystemRoot%\System32 closes that)
     except (OSError, subprocess.TimeoutExpired) as e:
         log.debug("taskkill could not end the Mercury tree: %s", e)
     try:
