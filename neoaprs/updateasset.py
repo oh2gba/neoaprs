@@ -1,16 +1,29 @@
-"""Which file of a release updates this copy, at which address, and whether a downloaded file is the one the release's SHA256SUMS names: the decisions of Update now that need no I/O.
+"""Which file of a release updates this copy, at which address, and whether the release's SHA256SUMS is signed by the project and names a downloaded file: the decisions of Update now that need no I/O.
 
 The address is built here from the version alone: the release page of the project on github.com, the tag `v<version>`, the file's name. Nothing of the version page's answer but the version is used, and a version that is
 not plainly one (digits and dots, an optional `-rc1`) builds no address. The download may be redirected only to GitHub's own hosts of release files, over https.
+
+SHA256SUMS is believed only with its signature (`signed_checksum`): SHA256SUMS.sig is the base64 of the 64-byte Ed25519 signature, made by `scripts/release` with the project's key, which is on the maintainer's machine
+and not on GitHub; PUBLIC_KEY is its public half, and the only place the program has it. What is signed is `signed_message`: the line `NeoAPRS SHA256SUMS v<version>` and the list as it is. The version is bound there
+and not in the list, so that the list stays what `sha256sum --check --strict` and the programs from before the signature read, and the version the check holds it to is the one Update now asked for: it is never read
+out of the bytes that came with the download, so a signed list of an older release offered as a newer one does not hold.
 """
+import base64
+import binascii
 import re
 from urllib.parse import urlsplit
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from neoaprs.versions import InstallKind
 
 RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"
 ALLOWED_HOSTS = frozenset({"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"})       # the release page and where GitHub keeps the files it redirects to
 CHECKSUMS = "SHA256SUMS"
+SIGNATURE = "SHA256SUMS.sig"
+PUBLIC_KEY = "y+tv2daKD9MoQhAL7NBZrNMl1/RvvCRoMU0QN8NwZyc="                     # the public half of the project's Ed25519 key, raw 32 bytes in base64
+SIGNED_PREFIX = "NeoAPRS SHA256SUMS v"
 SELF_UPDATING: frozenset[InstallKind] = frozenset({"windows-installer", "appimage"})        # the kinds whose update the daemon can do itself (neoaprs/services/selfinstall.py)
 _RELEASE_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?", re.ASCII)
 _PRE_RELEASE = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)-(alpha|a|beta|b|rc|c|preview|pre|dev)\.?([0-9]*)", re.ASCII)
@@ -69,11 +82,76 @@ def url_allowed(url: str) -> bool:
     return parts.scheme == "https" and (parts.hostname or "").lower() in ALLOWED_HOSTS and port in (None, 443) and parts.username is None
 
 
-def checksum_for(sums: bytes, name: str) -> str | None:
-    """The SHA-256 (lower case hex) that the text of SHA256SUMS gives the file `name`, or None when it names it not at all, or twice with two sums."""
-    found: set[str] = set()
-    for line in sums.decode("utf-8", errors="replace").splitlines():
+class Unverified(Exception):
+    """SHA256SUMS cannot be believed, or does not name the file once: the text says why, for the log."""
+
+
+def public_key(text: str = PUBLIC_KEY) -> Ed25519PublicKey:
+    """The Ed25519 public key of the base64 of its 32 raw bytes; ValueError for text that is not one."""
+    try:
+        raw = base64.b64decode(text.strip(), validate=True)
+    except binascii.Error:
+        raise ValueError("a public key is the base64 of 32 bytes") from None
+    if len(raw) != 32:
+        raise ValueError(f"a public key is 32 bytes, not {len(raw)}")
+    return Ed25519PublicKey.from_public_bytes(raw)
+
+
+def signed_message(sums: bytes, version: str) -> bytes:
+    """What the signature of SHA256SUMS of the release `version` is made over: the line that names the release, then the list unchanged."""
+    if not release_version(version):
+        raise ValueError(f"{version!r} is not a version of a release")
+    return f"{SIGNED_PREFIX}{version}\n".encode("ascii") + sums
+
+
+def sign(sums: bytes, version: str, seed: bytes) -> str:
+    """The text of SHA256SUMS.sig for the list `sums` of the release `version`: the base64 of the Ed25519 signature with the key whose 32-byte seed is `seed` (scripts/release, at the moment it signs)."""
+    if len(seed) != 32:
+        raise ValueError(f"the signing key is a 32-byte seed, not {len(seed)} bytes")
+    return base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).sign(signed_message(sums, version))).decode("ascii") + "\n"
+
+
+def check_signature(sums: bytes, signature: bytes, version: str, key: Ed25519PublicKey) -> None:
+    """Unverified unless `signature` (the text of SHA256SUMS.sig) is the signature of `sums` as the list of the release `version`, made with the key whose public half is `key`."""
+    try:
+        raw = base64.b64decode(signature.strip(), validate=True)
+    except (binascii.Error, ValueError):
+        raise Unverified(f"{SIGNATURE} is not base64") from None
+    if len(raw) != 64:
+        raise Unverified(f"{SIGNATURE} is {len(raw)} bytes, not the 64 of a signature")
+    try:
+        key.verify(raw, signed_message(sums, version))
+    except InvalidSignature:
+        raise Unverified(f"{SIGNATURE} is not the project's signature of this {CHECKSUMS} as the list of v{version}") from None
+
+
+def checksums(sums: bytes) -> dict[str, str]:
+    """Every line of a signed SHA256SUMS, the file's name to its SHA-256 (lower case hex); Unverified for an empty list, a line that is not a checksum line and a name that is there twice."""
+    try:
+        text = sums.decode("utf-8")
+    except UnicodeDecodeError:
+        raise Unverified(f"{CHECKSUMS} is not UTF-8") from None
+    found: dict[str, str] = {}
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
         match = _SUM_LINE.match(line.strip())
-        if match and match.group(2).strip() == name:
-            found.add(match.group(1).lower())
-    return found.pop() if len(found) == 1 else None
+        if match is None:
+            raise Unverified(f"line {number} of {CHECKSUMS} is not a checksum and a file name")
+        name = match.group(2).strip()
+        if name in found:
+            raise Unverified(f"{CHECKSUMS} names {name} twice")
+        found[name] = match.group(1).lower()
+    if not found:
+        raise Unverified(f"{CHECKSUMS} is empty")
+    return found
+
+
+def signed_checksum(sums: bytes, signature: bytes, version: str, name: str, key: Ed25519PublicKey) -> str:
+    """The SHA-256 (lower case hex) that the signed SHA256SUMS of the release `version` gives the file `name`; Unverified when the signature does not hold for that version with `key`, the list is not one, or it
+    does not name the file."""
+    check_signature(sums, signature, version, key)
+    sha = checksums(sums).get(name)
+    if sha is None:
+        raise Unverified(f"the signed {CHECKSUMS} of v{version} names no {name}")
+    return sha

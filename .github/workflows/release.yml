@@ -34,8 +34,9 @@ jobs:
       contents: read
       actions: read          # gh run list: the runs of ci.yml
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false     # (no later step uses git with the job's token)
           fetch-depth: 0     # (the whole history with master: the tag's commit must be on it)
       - name: The tag, VERSION and CHANGELOG.md agree
         run: |
@@ -48,7 +49,7 @@ jobs:
           grep -q '^## Unreleased' CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## Unreleased' heading (add an empty one above the section of this version)"; exit 1; }
           awk '/^## Unreleased/ { inside = 1; next } /^## / { inside = 0 } inside && NF { print; found = 1 } END { exit found }' CHANGELOG.md \
             || { echo "::error::CHANGELOG.md still has notes under '## Unreleased' (above): move them into the section of this version"; exit 1; }
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -81,8 +82,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
@@ -98,7 +101,7 @@ jobs:
           uv venv "$RUNNER_TEMP/smoke-venv"
           uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
           "$RUNNER_TEMP/smoke-venv/bin/python" scripts/smoke.py --command "$RUNNER_TEMP/smoke-venv/bin/neoaprs"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/*
@@ -115,33 +118,34 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
       - name: The version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
-      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow; PyInstaller is installed here and nowhere else)
+      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
         # PyInstaller from its source with the bootloader compiled here (the runner's MSVC), not the bootloader of the wheel, which every program packed with it shares, malware included: Windows
         # Defender's guess took NeoAPRS for a trojan (4 Nov 2026)
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: |
           uv build --wheel --out-dir dist-wheel
-          uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o build-requirements.txt
+          uv export --frozen --no-dev --no-emit-project --extra app --group pyinstaller -o build-requirements.txt
           uv venv build-venv
-          uv pip install --python build-venv/Scripts/python.exe -r build-requirements.txt
+          uv pip install --python build-venv/Scripts/python.exe --require-hashes --no-binary pyinstaller -r build-requirements.txt
           uv pip install --python build-venv/Scripts/python.exe --no-deps dist-wheel/*.whl
-          uv pip install --python build-venv/Scripts/python.exe --no-binary pyinstaller pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
           build-venv/Scripts/python.exe -c "import PyInstaller, pathlib; run = pathlib.Path(PyInstaller.__file__).parent / 'bootloader' / 'Windows-64bit-intel' / 'run.exe'; print('the bootloader', run, run.stat().st_size, 'bytes')"
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
       - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
         run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mercury-windows
           path: dist-mercury
@@ -324,7 +328,7 @@ jobs:
           foreach ($f in 'install.log', 'uninstall.log') { if (Test-Path $f) { "--- $f"; Get-Content $f -Tail 60 } }
       - name: The logs of Update now's test
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: update-e2e-windows-logs
           path: |
@@ -332,7 +336,7 @@ jobs:
             !${{ runner.temp }}/update-e2e/**/*.exe
           if-no-files-found: ignore
           overwrite: true
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-installer
           path: dist-installer/NeoAPRS-Setup-*.exe
@@ -354,7 +358,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends build-essential python3 ca-certificates git patch file gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
       - name: Build Mercury for Windows from the pinned source
         run: python3 scripts/build-mercury --windows --tar --out dist-mercury-windows
       - name: It is the pinned version and one folder of plain files (the build has read the program's import table, 64-bit and no DLL of MinGW)
@@ -367,7 +373,7 @@ jobs:
           [ "$(ls dist-mercury-windows/mercury | wc -l)" = 6 ]
           file dist-mercury-windows/mercury/mercury.exe
           grep -qaF "$version" dist-mercury-windows/mercury/mercury.exe
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mercury-windows
           path: dist-mercury-windows/mercury-*-windows-*.tar.gz
@@ -396,7 +402,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libasound2-data python3 ca-certificates git patch
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
       - name: Build Mercury from the pinned source
         run: python3 scripts/build-mercury --tar --out dist-mercury
       - name: It starts, and it is the pinned version (with the ALSA configuration it brought)
@@ -408,7 +416,7 @@ jobs:
           echo "$said" | grep -qF "$version"
           [ -f "dist-mercury/mercury-$version-linux-$(uname -m).tar.gz" ] && [ "$(ls dist-mercury/*.tar.gz | wc -l)" = 1 ]
           ls -l dist-mercury dist-mercury/mercury
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mercury-${{ matrix.arch }}
           path: dist-mercury/mercury-*-linux-*.tar.gz
@@ -425,21 +433,23 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
       # the tools the build scripts fetch (the CPython of python-build-standalone, appimagetool and its runtime), kept between runs for as long as their pins in the scripts stay
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
           key: neoaprs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-appimage', 'scripts/build-deb') }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mercury-amd64
           path: dist-mercury
@@ -458,7 +468,7 @@ jobs:
           uv venv "$RUNNER_TEMP/smoke-venv"
           uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
           scripts/smoke-appimage dist-appimage/NeoAPRS-*.AppImage --python "$RUNNER_TEMP/smoke-venv/bin/python"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: appimage
           path: dist-appimage/NeoAPRS-*.AppImage
@@ -474,20 +484,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
           key: neoaprs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-appimage', 'scripts/build-deb') }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: appimage
           path: dist-appimage
@@ -514,7 +526,7 @@ jobs:
           "$RUNNER_TEMP/e2e-venv/bin/python" scripts/update-e2e.py appimage "$old" "$new" --work "$RUNNER_TEMP/update-e2e/extract-and-run" --extract-and-run
       - name: The logs of Update now's test
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: update-e2e-appimage-logs
           path: |
@@ -534,16 +546,18 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
           key: neoaprs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-macos-app') }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
@@ -564,7 +578,7 @@ jobs:
           uv venv "$RUNNER_TEMP/smoke-venv"
           uv pip install --python "$RUNNER_TEMP/smoke-venv/bin/python" dist/*.whl
           scripts/smoke-macos-app dist-macos/NeoAPRS-*.dmg --python "$RUNNER_TEMP/smoke-venv/bin/python"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-app
           path: dist-macos/NeoAPRS-*.dmg
@@ -587,20 +601,22 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13"
           enable-cache: true
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
           key: neoaprs-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-appimage', 'scripts/build-deb') }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mercury-${{ matrix.arch }}
           path: dist-mercury
@@ -675,7 +691,7 @@ jobs:
           sudo apt remove -y neoaprs
           [ ! -e /opt/neoaprs ] && [ ! -e /usr/bin/neoaprs ] && ! dpkg -s neoaprs 2>/dev/null | grep -q 'Status: install ok installed'
           [ "$(cat "$RUNNER_TEMP/keep/neoaprs.sqlite")" = data ]
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: deb-${{ matrix.arch }}
           path: dist-deb/neoaprs_*.deb
@@ -689,9 +705,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
       # the files of the release and nothing else: not the logs a failed update test left in an earlier attempt of this run
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: "{dist,windows-installer,appimage,macos-app,deb-amd64,deb-arm64}"
           path: release-files
@@ -722,9 +740,9 @@ jobs:
           cd ..
           if [ "${GITHUB_REF_TYPE}" = tag ]; then notes_for="$version"; else notes_for=""; fi
           python3 scripts/release-notes.py $notes_for > notes.md
-          printf '\nThe files are checked by SHA256SUMS and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. macOS (Apple silicon, macOS 14 or newer): open NeoAPRS-%s-arm64.dmg and drag NeoAPRS to Applications; the first time, right-click it and choose Open (the app is not signed by Apple). Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`.\n' "$version" "$version" "$version" "$version" >> notes.md
+          printf '\nThe files are checked by SHA256SUMS, which is signed (SHA256SUMS.sig, checked by Update now), and carry build provenance (`gh attestation verify FILE --repo oh2gba/neoaprs`). Windows: run NeoAPRS-Setup-%s.exe (SmartScreen may warn about an unsigned installer: More info, Run anyway). Linux: make NeoAPRS-%s-x86_64.AppImage executable and run it. macOS (Apple silicon, macOS 14 or newer): open NeoAPRS-%s-arm64.dmg and drag NeoAPRS to Applications; the first time, right-click it and choose Open (the app is not signed by Apple). Raspberry Pi, Debian, Ubuntu: `sudo apt install ./neoaprs_%s_arm64.deb` (amd64 for a PC), then `neoaprs service install --linger`.\n' "$version" "$version" "$version" "$version" >> notes.md
           head -c 600 notes.md
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-files
           path: |
@@ -733,8 +751,9 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # Only a tag publishes anything: one pushed, or one the workflow is run on by hand. The release is made as a draft and published once every file is on it, so that no half of one is ever seen; a run on a tag
-  # whose release exists (a run before it got this far) writes the files and the notes over again, so that a failed run is simply run again.
+  # Only a tag makes a release: one pushed, or one the workflow is run on by hand. The release is made as a draft and stays one: scripts/release signs its SHA256SUMS with the project's key, which is not on
+  # GitHub, uploads SHA256SUMS.sig and publishes it, so that no half of one and no unsigned one is ever seen. A run on a tag whose draft exists (a run before it got this far) writes the files and the notes over
+  # again and deletes a SHA256SUMS.sig that is no longer the signature of the new SHA256SUMS, so that a failed run is simply run again; a release that is published is never written over.
   release:
     needs: assemble
     if: ${{ startsWith(github.ref, 'refs/tags/v') && !failure() && !cancelled() }}
@@ -745,14 +764,14 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-files
           path: files
-      - uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: files/release-files/*
-      - name: Create the release as a draft (or write over the files of the one that is there), then publish it
+      - name: Create the release as a draft (or write over the files of the draft that is there), for scripts/release to sign and publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -760,10 +779,14 @@ jobs:
           prerelease=false
           case "$version" in *-*) prerelease=true ;; esac          # 1.0.0-rc1 is a pre-release: never "latest", so the project page's links and the version page do not offer it to everyone
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "the release $GITHUB_REF_NAME is there already: its files and notes are written over"
+            if [ "$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" != true ]; then
+              echo "::error::the release $GITHUB_REF_NAME is published: it is never written over"; exit 1
+            fi
+            echo "the draft $GITHUB_REF_NAME is there already: its files and notes are written over, and its signature deleted"
             gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber files/release-files/*
+            gh release delete-asset "$GITHUB_REF_NAME" SHA256SUMS.sig --repo "$GITHUB_REPOSITORY" --yes 2> /dev/null || true
           else
             gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$prerelease" --title "NeoAPRS $version" --notes-file files/notes.md files/release-files/*
           fi
-          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease="$prerelease" --title "NeoAPRS $version" --notes-file files/notes.md
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease="$prerelease" --title "NeoAPRS $version" --notes-file files/notes.md
           gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json url,isDraft,isPrerelease,assets --jq '"\(.url) draft=\(.isDraft) prerelease=\(.isPrerelease) \(.assets | length) files"'

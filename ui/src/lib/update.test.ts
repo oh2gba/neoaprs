@@ -137,6 +137,7 @@ describe("the progress of Update now", () => {
     expect(problemText("checksum")).toBe("The download is not the release's file, so it was deleted and nothing was installed. Try again.");
     expect(problemText("download")).toContain("download it from the project page");
     expect(problemText("no_restart")).toContain("Quit NeoAPRS and start it again");
+    expect(problemText("unverified")).toBe("This update could not be checked, so nothing was installed. Download it from the project page.");
   });
 
   it("is running from the download to the restart", () => {

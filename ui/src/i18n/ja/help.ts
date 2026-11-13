@@ -109,7 +109,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting_installer": "インストール中… NeoAPRS はまもなく再起動します",
   "help.update.reconnecting": "NeoAPRS を再起動しています。このページは自動で再接続します。",
   "help.update.problem.download": "更新をダウンロードできませんでした。もう一度試すか、プロジェクトのページからダウンロードしてください。",
-  "help.update.problem.no_checksum": "このファイルのチェックサムがリリースにないため、何もインストールしませんでした。手動で更新してください。",
+  "help.update.problem.unverified": "この更新を確認できなかったため、何もインストールしませんでした。プロジェクトのページからダウンロードしてください。",
   "help.update.problem.checksum":
     "ダウンロードしたファイルがリリースのものと一致しないため、削除しました。何もインストールしていません。もう一度試してください。",
   "help.update.problem.install": "更新をインストールできませんでした。手動で更新してください。",

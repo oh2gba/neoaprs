@@ -124,7 +124,7 @@ export function progressText(state: UpdateState, kind: InstallInfo["kind"] | und
 
 const PROBLEMS = {
   download: "help.update.problem.download",
-  no_checksum: "help.update.problem.no_checksum",
+  unverified: "help.update.problem.unverified",
   checksum: "help.update.problem.checksum",
   install: "help.update.problem.install",
   no_restart: "help.update.problem.no_restart",

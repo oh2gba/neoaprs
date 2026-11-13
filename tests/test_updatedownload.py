@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import io
 import threading
+import urllib.error
 import urllib.request
 from email.message import Message
 from pathlib import Path
@@ -92,6 +93,22 @@ def test_an_address_that_is_not_allowed_is_not_asked() -> None:
         open_url("http://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS", url_allowed)
     with pytest.raises(DownloadError, match="not one of GitHub's addresses"):
         open_url("https://evil.example/SHA256SUMS", url_allowed)
+
+
+def test_an_answer_that_is_not_200_carries_its_status_and_a_failed_connection_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    url = "https://github.com/oh2gba/neoaprs/releases/download/v0.7.0/SHA256SUMS.sig"
+    failure: list[Exception] = []
+
+    class Opener:
+        def open(self, request: urllib.request.Request, timeout: float) -> None:
+            raise failure[0]
+    monkeypatch.setattr("neoaprs.updatedownload.nodevices.check_url", lambda url: None)
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *handlers: Opener())
+    for error, status in ((urllib.error.HTTPError(url, 404, "Not Found", Message(), None), 404), (urllib.error.HTTPError(url, 503, "Unavailable", Message(), None), 503), (TimeoutError("timed out"), None)):
+        failure[:] = [error]
+        with pytest.raises(DownloadError) as raised:
+            open_url(url, url_allowed)
+        assert raised.value.status == status
 
 
 @pytest.mark.parametrize("target", ["https://evil.example/x", "http://objects.githubusercontent.com/x", "https://github.com.evil.example/x"])

@@ -1,12 +1,13 @@
 """Update now's decisions that need no I/O (neoaprs/updateasset.py): the file of the release for each kind of install and architecture, its address built from the version alone, the hosts a download may go
-to, and the line of SHA256SUMS that names the file."""
+to, and the line of SHA256SUMS that names the file as the programs from before the signature read it (tests/test_updatesign.py has the signed list)."""
 import hashlib
 
 import pytest
 
 from packaging.version import Version
 
-from neoaprs.updateasset import RELEASES, asset_name, asset_url, checksum_for, release_version, url_allowed, wheel_version
+from neoaprs.updateasset import RELEASES, asset_name, asset_url, release_version, url_allowed, wheel_version
+from tests.support.fakerelease import old_checksum_for as checksum_for
 
 
 @pytest.mark.parametrize(("kind", "arch", "name"), [

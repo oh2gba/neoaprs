@@ -54,29 +54,32 @@ def test_the_real_changelog_has_notes_for_its_newest_section_that_is_not_an_empt
     assert done.returncode == 0 and done.stdout.strip(), done.stderr
 
 
-def test_every_action_of_the_workflow_is_pinned_by_major_version_and_only_the_release_job_writes() -> None:
-    uses = re.findall(r"^\s+- uses: (\S+)$", WORKFLOW, re.M)
-    assert uses and all(re.fullmatch(r"[\w./-]+@v\d+", u) for u in uses), uses
+def test_every_action_of_the_workflow_is_pinned_by_commit_and_only_the_release_job_writes() -> None:
+    uses = re.findall(r"^\s+(?:- )?uses: (\S+)(?: # (\S+))?$", WORKFLOW, re.M)
+    assert uses and all(re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", action) and re.fullmatch(r"v\d+\.\d+\.\d+", tag) for action, tag in uses), uses
     assert WORKFLOW.count("contents: write") == 1
     release_job = WORKFLOW.split("\n  release:\n", 1)[1]
     assert "contents: write" in release_job and "attestations: write" in release_job and "id-token: write" in release_job
     assert re.search(r"^permissions:\n  contents: read$", WORKFLOW, re.M), "read-only by default"
     assert "startsWith(github.ref, 'refs/tags/v')" in release_job and "gh release create" in release_job and "--verify-tag" in release_job
     assert "workflow_dispatch" in WORKFLOW and 'tags: ["v*"]' in WORKFLOW
-    assert "pyinstaller==" in WORKFLOW and "pyinstaller" not in (ROOT / "pyproject.toml").read_text(encoding="utf-8").lower()
+    assert "--group pyinstaller" in WORKFLOW and "pyinstaller==" not in WORKFLOW, "PyInstaller comes from the lock, not from a version of the workflow's own"
+    assert re.search(r"^pyinstaller = \[$", (ROOT / "pyproject.toml").read_text(encoding="utf-8"), re.M), "the group of the lock that holds PyInstaller"
 
 
 def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
-    """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until every file is on it, a run on a tag
-    whose release exists writes over its files, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
-    uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@v\d+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
+    """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until scripts/release has signed it, a run on a
+    tag whose draft exists writes over its files and deletes its signature, a published release is never written over, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
+    uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@[0-9a-f]{40} # v[\d.]+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
     assert len(uploads) == 10 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
     assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "macos-app", "deb-amd64", "deb-arm64"}, "the release's six artifacts and no other"
     release_job = WORKFLOW.split("\n  release:\n", 1)[1]
-    assert "--draft " in release_job and "--draft=false" in release_job, "a draft until every file is on it"
-    assert "gh release view" in release_job and "--clobber" in release_job, "a release that is there is written over, not refused"
+    assert "--draft " in release_job and "--draft=false" not in release_job, "a draft, which only scripts/release publishes once SHA256SUMS is signed"
+    assert "gh release view" in release_job and "--clobber" in release_job, "a draft that is there is written over, not refused"
+    assert "--json isDraft" in release_job and "is never written over" in release_job, "a published release is never written over: its signature would no longer hold"
+    assert "delete-asset" in release_job and "SHA256SUMS.sig" in release_job, "a draft written over loses its signature, which held for the SHA256SUMS before"
     assert 'case "$version" in *-*) prerelease=true' in release_job and '--prerelease="$prerelease"' in release_job
     assert "github.ref_type == 'tag'" in WORKFLOW.split("\n  verify:\n", 1)[1].split("\n  wheel:\n", 1)[0], "a tag run by hand is verified and published like a pushed one"
 
@@ -331,7 +334,7 @@ def test_the_windows_programs_do_not_look_like_malware_to_a_virus_scanners_guess
     """Windows Defender's machine-learning guess took NeoAPRS for a trojan (Trojan:Win32/Bearfoos!ml, 3 and 4 Nov 2026): the programs are packed with a bootloader compiled for them, not the one of
     PyInstaller's wheel that every packed program shares, and each says what it is in its file properties. (The alert's PowerShell is in tests/test_alerts_runner.py.)"""
     build = WORKFLOW.split("Build environment, from the wheel", 1)[1].split("- name:", 1)[0]
-    assert 'PYINSTALLER_COMPILE_BOOTLOADER: "1"' in build and "--no-binary pyinstaller pyinstaller==" in build
+    assert 'PYINSTALLER_COMPILE_BOOTLOADER: "1"' in build and "--no-binary pyinstaller" in build and "pyinstaller==" not in build
     spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
     for name in ("neoaprs", "neoaprsw", "neoaprs-app"):
         assert f'name="{name}"' in spec and f'version=version_file("{name}"' in spec, name
@@ -339,3 +342,29 @@ def test_the_windows_programs_do_not_look_like_malware_to_a_virus_scanners_guess
         assert f'("{field}"' in spec, field
     assert "upx=False" in spec, "no packer over the programs"
 
+
+
+def test_every_action_of_every_workflow_is_pinned_by_commit_with_its_tag_beside_it_and_dependabot_proposes_the_moves() -> None:
+    """A tag is a name its owner can move to other code, among them the action that runs in every build; a commit is not. The comment says which release the commit is, which is what Dependabot rewrites."""
+    for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        text = workflow.read_text(encoding="utf-8")
+        lines = [line.strip() for line in text.splitlines() if re.match(r"\s+(- )?uses:", line)]
+        assert lines, workflow.name
+        assert all(re.fullmatch(r"(- )?uses: [\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+", line) for line in lines), (workflow.name, lines)
+    dependabot = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert re.search(r'package-ecosystem: "github-actions"\n\s+directory: "/"', dependabot)
+
+
+def test_the_installers_are_built_from_the_lock_with_every_hash_required() -> None:
+    """The lock holds the hash of every file; an installer is built only from files that have it, so a package that PyPI serves changed cannot get into the program."""
+    scripts = {name: (ROOT / "scripts" / name).read_text(encoding="utf-8") for name in ("build-appimage", "build-deb", "build-macos-app")}
+    for name, text in scripts.items():
+        exports = re.findall(r"uv export .*", text)
+        installs = [line for line in re.findall(r"uv pip install .*", text) if " -r " in line]
+        assert exports and installs, name
+        assert all("--frozen" in line and "--no-hashes" not in line for line in exports), (name, exports)
+        assert all("--require-hashes" in line for line in installs), (name, installs)
+    assert "--no-hashes" not in WORKFLOW
+    installs = [line for line in re.findall(r"uv pip install .*", WORKFLOW) if " -r " in line]
+    assert installs and all("--require-hashes" in line for line in installs), installs
+    assert not [line for line in re.findall(r"uv pip install .*", WORKFLOW) if "-r " not in line and "--no-deps" not in line and "smoke-venv" not in line and "e2e-venv" not in line], "a build installs only with the lock's hashes"

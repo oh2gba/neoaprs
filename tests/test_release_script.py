@@ -1,10 +1,14 @@
 """scripts/release makes a release in one command and can be run again after any failure. It is run here for real, on a clone of a made-up repository whose origin is a bare repository in a temporary folder, with a fake `gh`
-(a program that keeps the state of the runs and of the release in a file and logs every call), fake `scripts/check`, `scripts/build-page` and `server/deploy.sh`, and a loopback server for the download links: the
-order of the steps, the dry run, the resume after a failure at each step, and the cases it refuses. Nothing here touches GitHub."""
+(a program that keeps the state of the runs and of the release in a file and logs every call), a fake `bws` that hands out a signing key the test made (the copy of neoaprs/updateasset.py in the clone carries its
+public half), fake `scripts/check`, `scripts/build-page` and `server/deploy.sh`, and a loopback server for the download links: the order of the steps, the dry run, the resume after a failure at each step, and the
+cases it refuses. Nothing here touches GitHub or Bitwarden; tests/test_release_sign.py has the signing step's own cases."""
+import base64
+import hashlib
 import http.server
 import json
 import os
 import re
+import secrets
 import shutil
 import stat
 import subprocess
@@ -16,6 +20,10 @@ from typing import Any
 
 import pytest
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+from neoaprs.updateasset import PUBLIC_KEY
 from tests.support.ptyline import posix_only
 
 pytestmark = posix_only      # (bash scripts and a script with a shebang: a development tool, not the product)
@@ -24,7 +32,10 @@ ROOT = Path(__file__).resolve().parent.parent
 VERSION = "0.9.1"
 TAG = f"v{VERSION}"
 ASSETS = sorted([f"neoaprs-{VERSION}.tar.gz", f"neoaprs-{VERSION}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{VERSION}.exe", f"NeoAPRS-{VERSION}-x86_64.AppImage", f"NeoAPRS-{VERSION}-arm64.dmg", f"neoaprs_{VERSION}_amd64.deb", f"neoaprs_{VERSION}_arm64.deb",
-                 "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])
+                 "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg", "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])      # what the release run uploads to the draft
+SIGNED = sorted([*ASSETS, "SHA256SUMS.sig"])                                                                                          # and the release once it is signed
+SUMS = "".join(f"{hashlib.sha256(name.encode()).hexdigest()}  {name}\n" for name in ASSETS if name != "SHA256SUMS")
+SECRET_ID = "00000000-0000-4000-8000-000000000001"          # (made up: the form of an id, nothing of a real one)
 
 FAKE_GH = '''#!{python}
 """A gh that keeps the state of the runs and of the release in {state} and logs every call to {log}."""
@@ -74,6 +85,19 @@ if args[:2] == ["run", "view"]:
     print(json.dumps(run)); sys.exit(0)
 if args[:2] == ["run", "rerun"]:
     run = find(args[2]); run["attempt"] += 1; run["status"] = "queued"; run["conclusion"] = ""; save(); sys.exit(0)
+if args[:2] == ["release", "download"]:
+    name = flag("--pattern")
+    if not s["release"]["made"] or name not in s["release"]["files"] or flag("--output") != "-":
+        fail("no assets match the file pattern")
+    sys.stdout.buffer.write(s["release"]["files"][name].encode()); sys.exit(0)
+if args[:2] == ["release", "upload"]:
+    path = args[3]; name = path.rsplit("/", 1)[-1]
+    s["release"]["files"][name] = open(path, encoding="ascii").read()
+    if name not in s["release"]["assets"]:
+        s["release"]["assets"] = sorted(s["release"]["assets"] + [name])
+    save(); sys.exit(0)
+if args[:2] == ["release", "edit"] and "--draft=false" in args:
+    s["release"]["draft"] = False; save(); sys.exit(0)
 if args[:2] == ["release", "view"]:
     if not s["release"]["made"]:
         fail("release not found")
@@ -81,6 +105,16 @@ if args[:2] == ["release", "view"]:
     print(json.dumps({{"tagName": args[2], "isDraft": s["release"]["draft"], "isPrerelease": False, "url": "https://github.invalid/releases/" + args[2],
                       "assets": [{{"name": n, "url": s["base"] + "/download/" + n}} for n in names]}})); sys.exit(0)
 fail("fake gh: no such command: " + " ".join(args), 2)
+'''
+
+FAKE_BWS = '''#!{python}
+"""A bws that logs its arguments to {log} and gives the secret {secret_id}, the seed in {seed_file}, as `bws secret get` does."""
+import json, sys
+args = sys.argv[1:]
+open("{log}", "a").write("bws " + " ".join(args) + "\\n")
+if args[:3] != ["secret", "get", "{secret_id}"]:
+    sys.stderr.write("Error: 404 Resource not found\\n"); sys.exit(1)
+print(json.dumps({{"id": "{secret_id}", "key": "neoaprs_update_signing_key", "value": open("{seed_file}").read().strip(), "note": ""}}))
 '''
 
 SCRIPT = '#!/usr/bin/env bash\necho "{name}" >> "{log}"\n{body}\n'
@@ -115,15 +149,22 @@ class Rig:
         self.work = tmp / "work"
         self.bin = tmp / "bin"
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        self.seed = secrets.token_bytes(32)
+        self.seed_file = tmp / "bws-seed"                             # (where the fake bws keeps the secret, outside the clone)
+        self.seed_file.write_text(base64.b64encode(self.seed).decode(), encoding="ascii")
+        self.env = {k: v for k, v in self.env.items() if not k.startswith("BWS_") and k != "NEOAPRS_SIGNING_SECRET_ID"}
+        self.env.update(NEOAPRS_SIGNING_SECRET_ID=SECRET_ID, BWS_SERVER_URL="https://vault.bitwarden.invalid")
         self.env.update(PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", HOME=str(tmp / "home"), GIT_AUTHOR_NAME="John", GIT_AUTHOR_EMAIL="john@example.invalid", GIT_COMMITTER_NAME="John", GIT_COMMITTER_EMAIL="john@example.invalid",
                         GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, LC_ALL="C.UTF-8",
                         PYTHONDONTWRITEBYTECODE="1")        # the clone has no .gitignore: a __pycache__ the script's import of neoaprs/ would leave is no stray file of the tree
         (tmp / "home").mkdir()
         self.state: dict[str, Any] = {"auth": True, "appear_after": 1, "looks": {}, "runs": [], "rate_limited": 0, "base": base, "log": "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:00Z FAILED tests/test_flaky.py::test_it - assert 1 == 2\n"
                                       "python (ubuntu-latest)\tpytest\t2026-10-26T08:00:01Z 1 failed, 3000 passed\npython (ubuntu-latest)\tpytest\t2026-10-26T08:00:02Z uploading cache",
-                                      "ci.yml": {"plan": ["success"]}, "release.yml": {"plan": ["success"]}, "release": {"made": False, "draft": False, "assets": ASSETS}}
+                                      "ci.yml": {"plan": ["success"]}, "release.yml": {"plan": ["success"]}, "release": {"made": False, "draft": True, "assets": ASSETS,
+                                                                                                                    "files": {"SHA256SUMS": SUMS}}}
         self.save_state()
         make_executable(self.bin / "gh", FAKE_GH.format(python=sys.executable, state=self.state_file, log=self.log))
+        make_executable(self.bin / "bws", FAKE_BWS.format(python=sys.executable, log=self.log, secret_id=SECRET_ID, seed_file=self.seed_file))
         subprocess.run(["git", "init", "-q", "--bare", "-b", "master", str(self.remote)], check=True, env=self.env)
         hook = f'#!/usr/bin/env bash\nwhile read old new ref; do\n  echo "push $ref" >> "{self.log}"\n  case "$ref" in\n    refs/tags/*) [ -e "{tmp}/reject-tags" ] && {{ echo "tag refused" >&2; exit 1; }} ;;\n    *) [ -e "{tmp}/reject-heads" ] && {{ echo "push refused" >&2; exit 1; }} ;;\n  esac\ndone\nexit 0\n'
         make_executable(self.remote / "hooks" / "pre-receive", hook)
@@ -134,6 +175,9 @@ class Rig:
         for module in ("updateasset.py", "versions.py"):               # (the script names the wheel as the package does)
             (self.work / "neoaprs").mkdir(exist_ok=True)
             shutil.copy(ROOT / "neoaprs" / module, self.work / "neoaprs" / module)
+        mine = base64.b64encode(Ed25519PrivateKey.from_private_bytes(self.seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode()
+        asset = self.work / "neoaprs" / "updateasset.py"
+        asset.write_text(asset.read_text(encoding="utf-8").replace(PUBLIC_KEY, mine), encoding="utf-8")      # (the clone's program carries the test's public key)
         make_executable(self.work / "scripts" / "check", SCRIPT.format(name="check", log=self.log, body=f'[ -e "{tmp}/check-fails" ] && {{ echo "check: pytest failed"; exit 1; }}\nexit 0'))
         make_executable(self.work / "scripts" / "build-page", SCRIPT.format(name="build-page", log=self.log, body=f'[ -e "{tmp}/page-differs" ] && echo "built differently" > neoaprs/page/index.html\nexit 0'))
         make_executable(self.work / "server" / "deploy.sh", SCRIPT.format(name="deploy", log=self.log, body=f'[ -e "{tmp}/deploy-fails" ] && exit 1\nexit 0'))
@@ -211,6 +255,12 @@ class Rig:
                 out.append("rerun")
             elif line.startswith("gh release view"):
                 out.append("release view")
+            elif line.startswith("gh release download"):
+                out.append("download " + line.split("--pattern ")[1].split()[0])
+            elif line.startswith(("gh release upload", "gh release edit")):
+                out.append(line.split()[2])
+            elif line.startswith("bws "):
+                out.append("bws")
             elif not line.startswith("gh "):
                 out.append(line.replace("push refs/heads/", "push ").replace("push refs/tags/", "push tag "))
         return out
@@ -237,7 +287,9 @@ def rig(tmp_path: Path, downloads: str) -> Rig:
     return Rig(tmp_path, downloads)
 
 
-FULL_RUN = ["check", "push master", "list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", "release view"]
+SIGN = ["release view", "download SHA256SUMS", "bws", "upload", "download SHA256SUMS", "download SHA256SUMS.sig", "edit"]
+VERIFY = ["release view", "download SHA256SUMS", "download SHA256SUMS.sig"]
+FULL_RUN = ["check", "push master", "list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", *SIGN, *VERIFY]
 
 
 def assert_released(rig: Rig) -> None:
@@ -258,8 +310,8 @@ def test_a_release_goes_through_the_steps_in_order_and_leaves_one_commit_and_one
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.kinds() == FULL_RUN
     assert_released(rig)
-    steps = re.findall(r"^\[(\d+)/12\] (\w+):", done.stdout, flags=re.M)
-    assert [name for _, name in steps] == ["checks", "version", "changelog", "page", "check", "commit", "push", "ci", "tag", "release", "verify", "deploy"]
+    steps = re.findall(r"^\[(\d+)/13\] (\w+):", done.stdout, flags=re.M)
+    assert [name for _, name in steps] == ["checks", "version", "changelog", "page", "check", "commit", "push", "ci", "tag", "release", "sign", "verify", "deploy"]
     assert "ui/ has not changed since v0.9.0" in done.stdout and "release 0.9.1 is done" in done.stdout and "the notes begin: A new thing the release brings." in done.stdout
     assert "server/deploy.sh" in done.stdout and "deploy" not in rig.kinds()
 
@@ -294,7 +346,7 @@ def test_a_dry_run_prints_the_steps_and_changes_nothing(rig: Rig) -> None:
     done = rig.release("--dry-run")
     assert done.returncode == 0, done.stdout + done.stderr
     assert rig.changed() == before and rig.calls() == [], "no commit, no push, no gh, no check"
-    for word in ("would write VERSION", "would rename", "would run scripts/check", "would commit", "would push master", "would wait for the ci.yml run", "would tag v0.9.1", "would wait for the release.yml run", "would check that v0.9.1 is published", "dry run: nothing was changed"):
+    for word in ("would write VERSION", "would rename", "would run scripts/check", "would commit", "would push master", "would wait for the ci.yml run", "would tag v0.9.1", "would wait for the release.yml run", "would sign SHA256SUMS of the draft v0.9.1", "would check that v0.9.1 is published", "dry run: nothing was changed"):
         assert word in done.stdout, word
     assert (rig.work / "CHANGELOG.md").read_text(encoding="utf-8").count("## 0.9.1") == 0
 
@@ -303,7 +355,7 @@ def test_a_dry_run_says_what_a_finished_release_has_done_already(rig: Rig) -> No
     assert rig.release().returncode == 0
     done = rig.release("--dry-run")
     assert done.returncode == 0, done.stdout
-    assert "skipped: VERSION is written already" in done.stdout and "skipped" in done.stdout.split("[7/12]")[1] and "is on origin/master" in done.stdout and f"{TAG} is on" in done.stdout
+    assert "skipped: VERSION is written already" in done.stdout and "skipped" in done.stdout.split("[7/13]")[1] and "is on origin/master" in done.stdout and f"{TAG} is on" in done.stdout
 
 
 def test_deploy_runs_the_deploy_script_at_the_end_only_when_asked(rig: Rig) -> None:
@@ -398,7 +450,7 @@ def test_a_dry_run_names_what_a_real_run_would_refuse_and_goes_on_with_the_steps
     rig.git("switch", "-q", "-c", "feature")
     rig.write("README.md", "dirty")
     done = rig.release("--dry-run")
-    assert done.returncode == 1 and "WOULD REFUSE: not on master (on feature)" in done.stdout and "[12/12] deploy" in done.stdout and "the dry run found" in done.stdout
+    assert done.returncode == 1 and "WOULD REFUSE: not on master (on feature)" in done.stdout and "[13/13] deploy" in done.stdout and "the dry run found" in done.stdout
 
 
 # ---- run again after a failure at each step ----
@@ -495,20 +547,11 @@ def test_a_failed_release_run_is_shown_and_run_again_with_rerun_and_the_tag_is_n
     assert_released(rig)
 
 
-def test_a_release_that_is_a_draft_or_short_of_files_or_has_a_dead_link_stops_the_run_and_nothing_before_is_done_again(rig: Rig, downloads: str) -> None:
-    rig.state["release"]["draft"] = True
-    rig.save_state()
-    assert "still a draft" in rig.release().stdout
-    rig.state = rig.load_state()
-    rig.state["release"].update(draft=False, assets=[a for a in ASSETS if a != "SHA256SUMS"])
-    rig.save_state()
-    short = rig.release()
-    assert short.returncode == 1 and "missing ['SHA256SUMS']" in short.stdout
-    rig.state = rig.load_state()
+def test_a_draft_short_of_files_or_a_release_with_a_dead_link_stops_the_run_and_nothing_before_is_done_again(rig: Rig, downloads: str) -> None:
     rig.state["release"]["assets"] = [a for a in ASSETS if a != "NeoAPRS-Setup.exe"]
     rig.save_state()
-    unnamed = rig.release()
-    assert unnamed.returncode == 1 and "missing ['NeoAPRS-Setup.exe']" in unnamed.stdout
+    short = rig.release()
+    assert short.returncode == 1 and "the draft v0.9.1 has no ['NeoAPRS-Setup.exe']" in short.stdout and "bws" not in rig.kinds(), "nothing is signed for a draft that is short of a file"
     rig.state = rig.load_state()
     rig.state["release"]["assets"] = ASSETS
     rig.save_state()
@@ -516,9 +559,18 @@ def test_a_release_that_is_a_draft_or_short_of_files_or_has_a_dead_link_stops_th
     dead = rig.release()
     assert dead.returncode == 1 and f"the download link of NeoAPRS-Setup-{VERSION}.exe does not answer" in dead.stdout and "status 404" in dead.stdout
     Downloads.missing = set()
+    rig.state = rig.load_state()
+    rig.state["release"]["assets"] = [a for a in SIGNED if a != "NeoAPRS-arm64.dmg"]
+    rig.save_state()
+    unnamed = rig.release()
+    assert unnamed.returncode == 1 and "missing ['NeoAPRS-arm64.dmg']" in unnamed.stdout
+    rig.state = rig.load_state()
+    rig.state["release"]["assets"] = SIGNED
+    rig.save_state()
     done = rig.release()
     assert done.returncode == 0, done.stdout
     assert rig.kinds().count("check") == 1 and rig.kinds().count("push master") == 1 and rig.kinds().count(f"push tag {TAG}") == 1 and rig.kinds().count("watch ci.yml") == 1 and rig.kinds().count("watch release.yml") == 1
+    assert rig.kinds().count("bws") == 1 and rig.kinds().count("edit") == 1, "signed once, published once"
     assert_released(rig)
 
 
@@ -594,7 +646,7 @@ def test_a_fix_after_a_failed_ci_run_makes_head_the_release_and_the_tag_goes_on_
     done = rig.release()
     assert done.returncode == 0, done.stdout + done.stderr
     assert "the release is HEAD: 1 commit after the release commit" in done.stdout and "same version" in done.stdout
-    assert rig.kinds() == ["list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", "release view"], "no second check, no second commit, no push of master"
+    assert rig.kinds() == ["list ci.yml", "list ci.yml", "watch ci.yml", f"push tag {TAG}", "release view", "list release.yml", "list release.yml", "watch release.yml", *SIGN, *VERIFY], "no second check, no second commit, no push of master"
     assert set(commit_args(rig)) == {head}, "CI is looked for by the full sha of HEAD"
     assert rig.git("rev-parse", f"{TAG}^{{commit}}") == head == rig.git("rev-parse", f"{TAG}^{{commit}}", cwd=rig.remote), "the tag is on HEAD, not on the release commit"
     assert rig.git("rev-list", "--count", f"{release_commit}..{TAG}") == "1" and rig.commit_of_release() == release_commit

@@ -73,6 +73,7 @@ The Mercury that every release carries is the four constants at the head of `neo
 `scripts/release-notes.py` prints it as GitHub will show it; overlapping lines merged and only the final behaviour kept):
 
     scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy]
+    scripts/release 0.9.2 --verify
 
 It uses your own `gh` (`gh auth login` once): the anonymous API of a sandbox hit GitHub's rate limit, so the script refuses to start without a login and waits and asks again when GitHub answers with 403 and its rate limit.
 Each step says in one line what it does, and every one is skipped when it is done already, so after any failure the same command goes on where it stopped:
@@ -88,14 +89,20 @@ Each step says in one line what it does, and every one is skipped when it is don
 7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.
    **A fix after the release commit** (its CI run failed, the fix is on `master` and pushed, no tag yet): run the same command; when `HEAD` has the same `VERSION` and the same section of the changelog (nothing under `Unreleased`), `HEAD` is the release, and steps 6 and 7 are about it (the output says "the release is HEAD"; `--dry-run` shows it). A `HEAD` that changed either is refused, and a tag that exists is never moved.
 8. **release**: waits for the release run the same way (`--rerun` for its failed jobs). `.github/workflows/release.yml` builds, smoke-tests and publishes; its first job, `verify`, stops in seconds a tag whose number is not `VERSION`,
-   a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and published
-   when every file is on it.
-9. **verify**: the release is published, not a draft, has its 14 files (the Windows installer, the AppImage, the macOS app, the two packages, the five again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage`, `NeoAPRS-arm64.dmg`, `neoaprs_amd64.deb` and `neoaprs_arm64.deb`, the source tarball, the wheel and `install.sh` for the copies installed with the install line before 0.16, and `SHA256SUMS`) and every download link answers.
-10. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
+   a changelog with notes still under `## Unreleased`, a committed page that is not what `ui/` builds, a commit that is not on `master`, and a commit whose CI run is red or missing. The release is made as a draft and stays one:
+   it is not published by the workflow.
+9. **sign**: the draft must have its 14 files and a `SHA256SUMS` that names each of them once. The signing key is read at that moment from Bitwarden Secrets Manager by `bws secret get`, into memory only: the secret
+   whose id `NEOAPRS_SIGNING_SECRET_ID` names, with bws's token in `BWS_ACCESS_TOKEN` and the server in `BWS_SERVER_URL` (`https://vault.bitwarden.eu` for the project's account). A key whose public half is not
+   `PUBLIC_KEY` of `neoaprs/updateasset.py` signs nothing. bws is the only program the script hands those two variables to: `scripts/check`, git and its hooks, gh and `server/deploy.sh` run without them. `SHA256SUMS.sig` is uploaded, checked with the program's public key, and then the release is published. A draft signed already is only published; a
+   published release is never signed after the fact. Run it outside a sandbox: bws needs the network ([Update now](development.md#update-now) has what is signed).
+10. **verify**: the release is published, not a draft, has its 15 files (the Windows installer, the AppImage, the macOS app, the two packages, the five again under the names `NeoAPRS-Setup.exe`, `NeoAPRS-x86_64.AppImage`, `NeoAPRS-arm64.dmg`, `neoaprs_amd64.deb` and `neoaprs_arm64.deb`, the source tarball, the wheel and `install.sh` for the copies installed with the install line before 0.16, `SHA256SUMS` and `SHA256SUMS.sig`), the signature holds with the program's public key and every download link answers.
+    `scripts/release <version> --verify` does this step alone, for a release published earlier, and changes nothing.
+11. **deploy**: with `--deploy`, `server/deploy.sh` uploads the version page (it needs the operator's Bitwarden session; without the flag the command is printed). The version page names the new release by itself within
     ten minutes (`curl 'https://neo.oh2gba.eu/version.php?v=0.0.1&os=linux'` says the new version), and a copy of the new version does not offer itself.
 
 `--dry-run` prints the steps and what is done already, names what a real run would refuse, and changes nothing (it does not ask GitHub). `scripts/release` has tests with a fake `gh` and a fake origin
-(`tests/test_release_script.py`): the order of the steps, the dry run, the resume after a failure at each step and the refusals.
+(`tests/test_release_script.py`): the order of the steps, the dry run, the resume after a failure at each step and the refusals; the step sign and `--verify` with a fake `bws` and a key the test makes
+(`tests/test_release_sign.py`).
 
 Around the script, by hand: the project page and the screenshots brought up to date (above), the screenshots retaken only when the page changed since they were last taken (they show no version: `update.png` alone names
 one, the made-up next version and the installed one in its dialog, so a release with no change to the page leaves them as they are), the download links of the README, the project page and the announcement tried once, and
@@ -109,7 +116,8 @@ the announcement post.
 2. `scripts/check` green, commit, push `master` (the tag's workflow waits for this commit's CI run, so the tag may follow at once).
 3. A tag `v<version>` on that commit, pushed. Watch the run with `gh run watch`, then open the release and read the notes. A run that failed for a reason outside the code (a runner, a download, a flaky test) is run
    again with *Re-run failed jobs* (`gh run rerun RUN_ID --failed`); one that needs a change in the code gets the change and a tag of the next number. **A tag is never moved.**
-   `gh workflow run release.yml --ref v<version>` runs the tag's workflow again by hand, which publishes the release (or writes its files over) without a new tag.
+   `gh workflow run release.yml --ref v<version>` runs the tag's workflow again by hand, which makes the draft (or writes its files over) without a new tag.
+   The draft is signed and published by `scripts/release <version>` (the steps before sign are skipped as done); by hand there is no signing, since the key is read into memory by the script alone.
 4. Every download link of the README, the project page and the announcement tried once.
 5. `server/deploy.sh` if `server/version.php` changed; the version page names the new release (curl as above).
 

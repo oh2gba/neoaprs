@@ -81,8 +81,8 @@ wheel_version="$("$python" -I -c 'import sys; sys.path.insert(0, sys.argv[2]); f
 case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build-macos-app: $wheel is not the wheel of $version" >&2; exit 1 ;; esac
 
 # The locked dependencies of the extra `app` for macOS, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (the launcher runs `python -m neoaprs`)
-(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o "$work/requirements.txt")
-uv pip install --python "$python" --break-system-packages --no-config -r "$work/requirements.txt"
+(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra app -o "$work/requirements.txt")
+uv pip install --python "$python" --break-system-packages --no-config --require-hashes -r "$work/requirements.txt"
 uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
 find "$res/bin" -type f ! -name 'python3*' -delete
 find "$res/bin" -type l ! -exec test -e {} \; -delete                     # (the links to what went; BSD find refuses -delete under -L)

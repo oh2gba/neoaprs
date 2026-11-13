@@ -115,8 +115,8 @@ python="$app/usr/bin/python3"
 "$python" --version
 
 # The locked dependencies of the extra `app` for Linux, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (AppRun runs `python -m neoaprs`)
-(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --no-hashes --extra app -o "$work/requirements.txt")
-uv pip install --python "$python" --break-system-packages --no-config -r "$work/requirements.txt"
+(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra app -o "$work/requirements.txt")
+uv pip install --python "$python" --break-system-packages --no-config --require-hashes -r "$work/requirements.txt"
 uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
 find "$app/usr/bin" -type f ! -name 'python3*' -delete
 find "$app/usr/bin" -xtype l -delete

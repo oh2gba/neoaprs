@@ -60,6 +60,11 @@ dev = [
     "coverage==7.16.2",
     "pytest-xdist==3.8.0",
 ]
+# The Windows app is frozen with PyInstaller, built from its source (the bootloader compiled on the runner); the lock holds the hash of the source and of every package it needs.
+pyinstaller = [
+    "pyinstaller==6.22.3",
+    "pyinstaller-hooks-contrib==2026.8",
+]
 
 # The wheel is the package neoaprs/ with everything in it that is not Python: the built page (neoaprs/page/, committed, so building needs no node), the placeholder page, the unit template. The sdist is the
 # package, the licence and the build's own files.

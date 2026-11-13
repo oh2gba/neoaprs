@@ -1693,7 +1693,7 @@ export interface UpdateInfo {
   message: string;
 }
 
-/** Starts Update now to `version`, which must be the version the update check announced (the `update` of `status`): the daemon fetches the file for this copy and SHA256SUMS from the GitHub release of exactly that version, checks the file's SHA-256 and installs it, and NeoAPRS restarts. The progress is the topic `update`. An `error` when this copy cannot update itself (`update.unsupported`, `update.blocked`), the version is not the one announced (`update.not_announced`) or an update is running (`update.busy`). */
+/** Starts Update now to `version`, which must be the version the update check announced (the `update` of `status`): the daemon fetches SHA256SUMS, its signature and the file for this copy from the GitHub release of exactly that version, checks the signature and the file's SHA-256 and installs it, and NeoAPRS restarts. The progress is the topic `update`. An `error` when this copy cannot update itself (`update.unsupported`, `update.blocked`), the version is not the one announced (`update.not_announced`) or an update is running (`update.busy`). */
 export interface UpdateNowCommand {
   cmd: "update_now";
   version: string;
@@ -1714,7 +1714,7 @@ export interface UpdateResultMessage {
 export interface UpdateState {
   /** this copy can update itself (the Windows installer, an AppImage in a folder its user can write): the page offers Update now; else it shows the steps */
   supported: boolean;
-  /** `idle`: no update is running. `downloading`: SHA256SUMS and then the file of the release are fetched (`percent`). `verifying`: the file's SHA-256 is held to SHA256SUMS. `installing`: the file is put in place. `restarting`: NeoAPRS ends and starts again as the new version (the page loses its socket and finds the new daemon). `error`: the update failed, `problem` says how */
+  /** `idle`: no update is running. `downloading`: SHA256SUMS, its signature and then the file of the release are fetched (`percent`). `verifying`: the file's SHA-256 is held to the signed SHA256SUMS. `installing`: the file is put in place. `restarting`: NeoAPRS ends and starts again as the new version (the page loses its socket and finds the new daemon). `error`: the update failed, `problem` says how */
   state: "idle" | "downloading" | "verifying" | "installing" | "restarting" | "error";
   /** the version being installed; empty while idle */
   version: string;
@@ -1724,8 +1724,8 @@ export interface UpdateState {
   downloaded: number;
   /** the size of the file in bytes, when the server said it */
   total: number | null;
-  /** for `error`: `download` (the file or SHA256SUMS could not be fetched), `no_checksum` (SHA256SUMS does not name the file), `checksum` (the file's SHA-256 is not the one SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise */
-  problem: "" | "download" | "no_checksum" | "checksum" | "install" | "no_restart";
+  /** for `error`: `download` (the file or SHA256SUMS could not be fetched), `unverified` (SHA256SUMS could not be checked: its signature could not be fetched or does not hold with the project's key for this version, or the list does not name the file once; nothing was downloaded), `checksum` (the file's SHA-256 is not the one the signed SHA256SUMS gives it: it was deleted), `install` (it could not be put in place, or the installer could not be started), `no_restart` (it was installed but NeoAPRS did not restart); empty otherwise */
+  problem: "" | "download" | "unverified" | "checksum" | "install" | "no_restart";
   /** the English sentence of the problem, for the log and the page's details; empty when all is well */
   detail: string;
 }

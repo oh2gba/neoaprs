@@ -114,7 +114,7 @@ export const help: Readonly<Record<keyof typeof en, Message>> = {
   "help.update.restarting_installer": "Instalando… NeoAPRS se reinicia en un momento",
   "help.update.reconnecting": "NeoAPRS se está reiniciando. Esta página se vuelve a conectar sola.",
   "help.update.problem.download": "No se pudo descargar la actualización. Vuelve a intentarlo o descárgala desde la página del proyecto.",
-  "help.update.problem.no_checksum": "La versión publicada no tiene suma de comprobación para este archivo, así que no se instaló nada. Actualiza a mano.",
+  "help.update.problem.unverified": "No se pudo comprobar esta actualización, así que no se instaló nada. Descárgala desde la página del proyecto.",
   "help.update.problem.checksum": "La descarga no es el archivo de la versión publicada: se borró y no se instaló nada. Vuelve a intentarlo.",
   "help.update.problem.install": "No se pudo instalar la actualización. Actualiza a mano.",
   "help.update.problem.no_restart": "La actualización está instalada, pero NeoAPRS no se reinició. Cierra NeoAPRS y vuelve a abrirlo.",

@@ -11,11 +11,11 @@ from neoaprs.services.selfupdate import TELL_SEC, SelfUpdate, UpdateNowError
 from neoaprs.updateasset import RELEASES, url_allowed
 from neoaprs.versions import InstallInfo
 from tests.support.env import until
-from tests.support.fakerelease import BODY, NAME, FakeInstaller, FakeRelease
+from tests.support.fakerelease import BODY, NAME, FakeInstaller, FakeRelease, public
 
 def service(tmp_path: Path, release: FakeRelease, installer: FakeInstaller | None = None, latest: str | None = "0.7.0", grace: float = 30.0) -> tuple[SelfUpdate, list[str]]:
     job = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), installer if installer is not None else FakeInstaller(tmp_path),
-                     lambda: latest, (RELEASES, url_allowed), release.fetch_sums, release.fetch, restart_grace_sec=grace)
+                     lambda: latest, (RELEASES, url_allowed), release.fetch_sums, release.fetch, restart_grace_sec=grace, key=public())
     states: list[str] = []
     job.changed.connect(lambda: states.append(job.status().state) if not states or states[-1] != job.status().state else None)
     return job, states
@@ -30,7 +30,7 @@ async def test_the_update_downloads_checks_installs_and_waits_for_the_restart(tm
     await until(lambda: job.status().state == "restarting")
     assert states == ["downloading", "verifying", "installing", "restarting"]
     assert installer.installed == [(BODY, NAME, "0.7.0")]
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/{NAME}"]
+    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig", f"{RELEASES}/v0.7.0/{NAME}"]
     status = job.status()
     assert (status.version, status.percent, status.downloaded, status.total, status.problem) == ("0.7.0", 100, len(BODY), len(BODY), "")
     assert not (tmp_path / f"{NAME}.part").exists()
@@ -41,7 +41,7 @@ async def test_the_daemon_is_ended_only_after_the_page_has_been_told_it_restarts
     release = FakeRelease()
     seen: list[str] = []
     job = SelfUpdate(InstallInfo("appimage", str(tmp_path / "NeoAPRS-0.6.7-x86_64.AppImage")), FakeInstaller(tmp_path), lambda: "0.7.0", (RELEASES, url_allowed), release.fetch_sums, release.fetch,
-                     restart_grace_sec=30.0, end=lambda: seen.append(job.status().state))
+                     restart_grace_sec=30.0, end=lambda: seen.append(job.status().state), key=public())
     job.begin("0.7.0")
     await until(lambda: job.status().state == "restarting")
     told = asyncio.get_running_loop().time()
@@ -80,14 +80,27 @@ async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_update_busy(
     await job.stop()
 
 
-async def test_a_file_that_sha256sums_does_not_name_is_not_even_downloaded(tmp_path: Path) -> None:
+async def test_a_file_that_the_signed_sha256sums_does_not_name_is_not_even_downloaded(tmp_path: Path) -> None:
     release = FakeRelease(sums=f"{hashlib.sha256(BODY).hexdigest()}  NeoAPRS-Setup-0.7.0.exe\n".encode())
     installer = FakeInstaller(tmp_path)
     job, _ = service(tmp_path, release, installer)
     job.begin("0.7.0")
     await until(lambda: job.status().state == "error")
-    assert job.status().problem == "no_checksum" and f"names no {NAME}" in job.status().detail
-    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS"] and installer.installed == []
+    assert job.status().problem == "unverified" and f"names no {NAME}" in job.status().detail
+    assert release.asked == [f"{RELEASES}/v0.7.0/SHA256SUMS", f"{RELEASES}/v0.7.0/SHA256SUMS.sig"] and installer.installed == []
+
+
+async def test_a_signature_that_could_not_be_fetched_is_a_download_to_try_again_and_one_not_there_is_unverified(tmp_path: Path) -> None:
+    release = FakeRelease(signature_fails="SHA256SUMS.sig could not be fetched: timed out")
+    job, _ = service(tmp_path, release)
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "error")
+    assert (job.status().problem, job.status().detail) == ("download", "SHA256SUMS.sig could not be fetched: timed out")
+    assert not any(url.endswith(NAME) for url in release.asked)
+    job, _ = service(tmp_path, FakeRelease(signature=b""))
+    job.begin("0.7.0")
+    await until(lambda: job.status().state == "error")
+    assert job.status().problem == "unverified" and "404 Not Found" in job.status().detail
 
 
 async def test_a_download_that_fails_or_an_install_that_fails_is_an_error_that_says_why(tmp_path: Path) -> None:

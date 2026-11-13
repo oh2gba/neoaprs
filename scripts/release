@@ -2,35 +2,48 @@
 """Makes a release in one command, and can be run again after any failure: what is done is seen and skipped, what is not is done. Read docs/MAINTAINING.md, "A release", for what each step is and for the manual way.
 
   scripts/release VERSION [--dry-run] [--rerun] [--deploy] [--interval SECONDS]
+  scripts/release VERSION --verify
 
 On master, with a clean tree that is up to date with origin and has notes under `## Unreleased` in CHANGELOG.md, it: writes VERSION and the changelog section, builds the page to compare it with the committed one only when ui/
 changed since the last tag, runs scripts/check, commits, pushes, waits for the CI run of that commit, tags v<VERSION> on that commit and pushes the tag (when a fix came after the release commit and no tag is made yet, HEAD is the release: its CI run, the tag on it, if it
-has the same VERSION and changelog section; a tag is never moved), waits for the release run, checks that the release is published (not a
-draft, its 14 files, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
+has the same VERSION and changelog section; a tag is never moved), waits for the release run, which leaves the release a draft, signs its SHA256SUMS (the key is read from Bitwarden Secrets Manager by `bws` at that moment, into memory only),
+uploads SHA256SUMS.sig, checks it with the program's public key and publishes the release, checks that the release is published (not a draft, its 15 files, the signature holding, every download link answering), and with --deploy uploads the version page (server/deploy.sh, which needs the operator's Bitwarden session; without it the command is printed).
 
   --dry-run   print the steps, what is done already and what would refuse, and change nothing (nothing is asked of GitHub; origin is asked with `git ls-remote`)
   --rerun     a run of CI or of the release that failed gets its failed jobs run again, once (a flaky test); the tag is never moved or made again
   --deploy    upload the version page at the end
   --interval  seconds between two looks at GitHub (default 15), and the first wait after an answer of GitHub's rate limit, which doubles at each of five tries
+  --verify    only check the published release: its files, the signature of its SHA256SUMS with the program's public key (neoaprs/updateasset.py, PUBLIC_KEY) and its download links
+
+The signing key is the secret whose id NEOAPRS_SIGNING_SECRET_ID names, read with `bws secret get` (bws takes its access token from BWS_ACCESS_TOKEN and its server from BWS_SERVER_URL); it is never printed,
+written to a file or put in a command line, and bws is the only program the script gives BWS_ACCESS_TOKEN and NEOAPRS_SIGNING_SECRET_ID: scripts/check, git and its hooks, gh and server/deploy.sh run without them.
 
 The script uses the operator's own `gh` (gh auth login): the anonymous API of a sandbox hits GitHub's rate limit at once. A failed CI or release run is shown with its failed jobs and the lines of its failed tests, and the script
 stops; fix it and run the same command again.
 """
 import argparse
+import base64
+import binascii
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from neoaprs.updateasset import wheel_version  # noqa: E402
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
+
+from neoaprs.updateasset import CHECKSUMS, PUBLIC_KEY, SIGNATURE, Unverified, check_signature, checksums, public_key, sign, wheel_version  # noqa: E402
 
 INIT = ROOT / "neoaprs" / "__init__.py"
 CHANGELOG = ROOT / "CHANGELOG.md"
@@ -43,6 +56,9 @@ BACKOFF_TRIES = 5
 WAIT_FOR_RUN_TRIES = 40                                                # looks for a run that has not been started yet: 40 intervals
 FAILED_LINES_SHOWN = 30
 COMMAND = "scripts/release"
+SIGNING_KEY_ID_VARIABLE = "NEOAPRS_SIGNING_SECRET_ID"                           # the id of the signing key's secret in Bitwarden Secrets Manager
+BWS_SEC = 60
+SIGNING_VARIABLES = ("BWS_ACCESS_TOKEN", SIGNING_KEY_ID_VARIABLE)                # what reads the signing key: bws alone is given them, no other program the script starts
 
 
 class Refusal(Exception):
@@ -50,12 +66,49 @@ class Refusal(Exception):
 
 
 def assets_of(version: str) -> list[str]:
-    """The 14 files of a release: the installer, the AppImage, the macOS app's disk image and the two packages, the five again under fixed names, the source tarball (unadvertised, for packagers), the wheel and
-    install.sh (for the copies installed with the install line before 0.16, whose update runs it) and SHA256SUMS (.github/workflows/release.yml, "SHA256SUMS and the notes")."""
+    """The 15 files of a release: the installer, the AppImage, the macOS app's disk image and the two packages, the five again under fixed names, the source tarball (unadvertised, for packagers), the wheel and
+    install.sh (for the copies installed with the install line before 0.16, whose update runs it), SHA256SUMS (.github/workflows/release.yml, "SHA256SUMS and the notes") and SHA256SUMS.sig (the step sign)."""
     wheel = wheel_version(version)                  # the build names the sdist by the PEP 440 form: 1.0.0rc1 for 1.0.0-rc1
     return sorted([f"neoaprs-{wheel}.tar.gz", f"neoaprs-{wheel}-py3-none-any.whl", "install.sh", f"NeoAPRS-Setup-{version}.exe", f"NeoAPRS-{version}-x86_64.AppImage", f"NeoAPRS-{version}-arm64.dmg",
                    f"neoaprs_{version}_amd64.deb", f"neoaprs_{version}_arm64.deb", "NeoAPRS-Setup.exe", "NeoAPRS-x86_64.AppImage", "NeoAPRS-arm64.dmg",
-                   "neoaprs_amd64.deb", "neoaprs_arm64.deb", "SHA256SUMS"])
+                   "neoaprs_amd64.deb", "neoaprs_arm64.deb", CHECKSUMS, SIGNATURE])
+
+
+def signing_seed(environ: Mapping[str, str] = os.environ) -> bytes:
+    """The 32-byte seed of the signing key, read from Bitwarden Secrets Manager by `bws secret get` into memory: the secret whose id SIGNING_KEY_ID_VARIABLE names, on the server of BWS_SERVER_URL when it is set, with bws's
+    own access token (BWS_ACCESS_TOKEN). The value is never printed, written to a file or put in a command line; a refusal says what failed and never what bws answered on its output."""
+    secret_id = environ.get(SIGNING_KEY_ID_VARIABLE, "").strip()
+    if not secret_id:
+        raise Refusal(f"{SIGNING_KEY_ID_VARIABLE} names no secret: set it to the id of the signing key's secret in Bitwarden Secrets Manager, and BWS_ACCESS_TOKEN for bws")
+    argv = ["bws", "secret", "get", secret_id, "--output", "json"]
+    if environ.get("BWS_SERVER_URL"):
+        argv += ["--server-url", environ["BWS_SERVER_URL"]]
+    try:
+        done = subprocess.run(argv, capture_output=True, timeout=BWS_SEC, check=False, env=dict(environ))
+    except FileNotFoundError:
+        raise Refusal("bws is not installed: the signing key is read with it") from None
+    except subprocess.TimeoutExpired:
+        raise Refusal(f"bws did not answer within {BWS_SEC} s") from None
+    if done.returncode != 0:
+        raise Refusal(f"bws could not read the secret {secret_id} (exit code {done.returncode}): {done.stderr.decode('utf-8', errors='replace').strip()[:300]}")
+    try:
+        seed = base64.b64decode(json.loads(done.stdout)["value"].strip(), validate=True)
+    except (ValueError, KeyError, TypeError, AttributeError, binascii.Error):
+        raise Refusal(f"the secret {secret_id} is not the base64 of the signing key's seed") from None
+    if len(seed) != 32:
+        raise Refusal(f"the secret {secret_id} is not the base64 of a 32-byte seed")
+    return seed
+
+
+def child_environment(environ: Mapping[str, str] = os.environ) -> dict[str, str]:
+    """The environment of every program the script starts but bws: the script's own without SIGNING_VARIABLES, so that no install script of `npm ci`, test, tool, hook or deploy that scripts/check, git push or
+    server/deploy.sh runs can read the signing key with them."""
+    return {key: value for key, value in environ.items() if key not in SIGNING_VARIABLES}
+
+
+def public_half(seed: bytes) -> str:
+    """The base64 of the raw public key of the seed, as PUBLIC_KEY is written."""
+    return base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode("ascii")
 
 
 def parse(version: str) -> tuple[int, int, int, tuple[int, str]]:
@@ -86,7 +139,7 @@ class Release:
     # ---- the tools: git, gh, the shell
     def run(self, *args: str, check: bool = True, capture: bool = True, **kw: Any) -> subprocess.CompletedProcess[str]:
         try:
-            done = subprocess.run(list(args), cwd=ROOT, text=True, capture_output=capture, **kw)
+            done = subprocess.run(list(args), cwd=ROOT, text=True, capture_output=capture, env=child_environment(), **kw)
         except FileNotFoundError:
             raise Refusal(f"{args[0]} is not installed") from None
         if check and done.returncode != 0:
@@ -421,22 +474,86 @@ class Release:
             return f"skipped: the release {self.tag} is published"
         return self.wait_for("release.yml", self.tag, branch=self.tag)
 
+    # ---- the signature of SHA256SUMS
+    def release_file(self, name: str) -> bytes:
+        """The file `name` of the release (a draft too), its bytes as they are."""
+        try:
+            done = subprocess.run(["gh", "release", "download", self.tag, "--pattern", name, "--output", "-"], cwd=ROOT, capture_output=True, timeout=300, check=False, env=child_environment())
+        except FileNotFoundError:
+            raise Refusal("gh is not installed") from None
+        if done.returncode != 0:
+            raise Refusal(f"{name} of {self.tag} could not be downloaded: {done.stderr.decode('utf-8', errors='replace').strip()[:400]}")
+        return done.stdout
+
+    def signature_problem(self) -> str:
+        """Why SHA256SUMS.sig of the release is not the signature of its SHA256SUMS with the program's public key, or SHA256SUMS does not name every file of the release once; empty when all holds."""
+        sums = self.release_file(CHECKSUMS)
+        try:
+            check_signature(sums, self.release_file(SIGNATURE), self.version, public_key())
+            named = set(checksums(sums))
+        except Unverified as e:
+            return str(e)
+        wanted = set(assets_of(self.version)) - {CHECKSUMS, SIGNATURE}
+        if named != wanted:
+            return f"{CHECKSUMS} does not name the files of the release: missing {sorted(wanted - named)}, extra {sorted(named - wanted)}"
+        return ""
+
+    def step_sign(self) -> str:
+        if self.dry_run:
+            return f"would sign {CHECKSUMS} of the draft {self.tag} with the key read by bws, upload {SIGNATURE}, check it with the program's public key and publish the release"
+        release = self.published()
+        if release is None:
+            raise Refusal(f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)")
+        names = {a["name"] for a in release["assets"]}
+        if SIGNATURE in names and not self.signature_problem():
+            if release["isDraft"]:
+                self.gh("release", "edit", self.tag, "--draft=false")
+                return f"skipped: {SIGNATURE} holds already; the release is published"
+            return f"skipped: {SIGNATURE} holds already"
+        if not release["isDraft"]:
+            raise Refusal(f"the release {self.tag} is published and its {SIGNATURE} does not hold: a published release is not signed after the fact; take the next version")
+        missing = sorted(set(assets_of(self.version)) - {SIGNATURE} - names)
+        if missing:
+            raise Refusal(f"the draft {self.tag} has no {missing}: the release run did not upload every file; run it again (--rerun) and then the same command")
+        sums = self.release_file(CHECKSUMS)
+        try:
+            checksums(sums)
+        except Unverified as e:
+            raise Refusal(f"the draft's {CHECKSUMS} is not signed: {e}") from None
+        seed = signing_seed()
+        if public_half(seed) != PUBLIC_KEY:
+            raise Refusal("the key read from Bitwarden is not the one whose public half the program carries (neoaprs/updateasset.py, PUBLIC_KEY): nothing is signed")
+        signature = sign(sums, self.version, seed)
+        del seed
+        with tempfile.TemporaryDirectory(prefix="neoaprs-sign-") as folder:
+            path = Path(folder) / SIGNATURE
+            path.write_text(signature, encoding="ascii")
+            self.gh("release", "upload", self.tag, str(path), "--clobber")
+        problem = self.signature_problem()
+        if problem:
+            raise Refusal(f"the {SIGNATURE} uploaded to the draft {self.tag} does not hold: {problem}; the release stays a draft")
+        self.gh("release", "edit", self.tag, "--draft=false")
+        return f"done: {CHECKSUMS} of {self.tag} is signed, the signature holds with the program's public key, and the release is published"
+
     def step_verify(self) -> str:
         if self.dry_run:
-            return f"would check that {self.tag} is published, not a draft, has {len(assets_of(self.version))} files and that every download link answers"
+            return f"would check that {self.tag} is published, not a draft, has {len(assets_of(self.version))} files, that its {SIGNATURE} holds and that every download link answers"
         release = self.published()
         if release is None:
             raise Refusal(f"the release {self.tag} does not exist: the release run did not make it; look at its jobs and run the same command again (with --rerun for a failed job)")
         if release["isDraft"]:
-            raise Refusal(f"the release {self.tag} is still a draft: the last job of the release run did not publish it")
+            raise Refusal(f"the release {self.tag} is still a draft: the step sign publishes it once {CHECKSUMS} is signed")
         names = sorted(a["name"] for a in release["assets"])
         if names != assets_of(self.version):
             raise Refusal(f"the release has the files {names}, not {assets_of(self.version)}: missing {sorted(set(assets_of(self.version)) - set(names))}, extra {sorted(set(names) - set(assets_of(self.version)))}")
+        signed = self.signature_problem()
+        if signed:
+            raise Refusal(f"the signature of the release {self.tag} does not hold: {signed}")
         for asset in release["assets"]:
             problem = link_problem(asset["url"])
             if problem:
                 raise Refusal(f"the download link of {asset['name']} does not answer: {asset['url']} ({problem})")
-        return f"done: {release['url']}, {len(names)} files, every link answers"
+        return f"done: {release['url']}, {len(names)} files, {SIGNATURE} holds with the program's public key, every link answers"
 
     def step_deploy(self) -> str:
         if not self.deploy:
@@ -478,7 +595,8 @@ def steps(r: Release) -> list[tuple[str, str, Callable[[], str]]]:
         ("ci", "wait for the CI run of the release commit", r.step_ci),
         ("tag", f"tag {r.tag} on the release commit and push the tag (a tag is never moved)", r.step_tag),
         ("release", f"wait for the release run of {r.tag}", r.step_release_run),
-        ("verify", "the release is published, not a draft, has its 14 files, every download link answers", r.step_verify),
+        ("sign", f"sign {CHECKSUMS} of the draft with the key from Bitwarden, check {SIGNATURE} with the program's public key, publish the release", r.step_sign),
+        ("verify", f"the release is published, not a draft, has its 15 files, {SIGNATURE} holds, every download link answers", r.step_verify),
         ("deploy", "deploy the version page (server/deploy.sh), with --deploy", r.step_deploy),
     ]
 
@@ -490,10 +608,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rerun", action="store_true", help="run the failed jobs of a failed CI or release run again, once")
     parser.add_argument("--deploy", action="store_true", help="upload the version page at the end (server/deploy.sh)")
     parser.add_argument("--interval", type=float, default=15.0, metavar="SECONDS", help="seconds between two looks at GitHub (default %(default)s)")
+    parser.add_argument("--verify", action="store_true", help="only check the published release: its files, the signature of SHA256SUMS and the download links")
     args = parser.parse_args(argv)
-    r = Release(args.version, args.dry_run, args.rerun, args.deploy, args.interval)
+    r = Release(args.version, args.dry_run and not args.verify, args.rerun, args.deploy, args.interval)
     try:
         parse(r.version)
+        if args.verify:
+            say(f"verify the release {r.version} ({r.tag})")
+            say(f"  {r.step_verify()}")
+            return 0
         table = steps(r)
         say(f"{'dry run of the release' if r.dry_run else 'release'} {r.version} ({r.tag})")
         for number, (name, what, do) in enumerate(table, 1):

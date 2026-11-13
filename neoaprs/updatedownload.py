@@ -27,7 +27,11 @@ Progress = Callable[[int, int | None], None]          # (bytes so far, the size 
 
 
 class DownloadError(Exception):
-    """The file could not be fetched; the text says why."""
+    """The file could not be fetched; the text says why. `status` is the HTTP status of a server that answered with one that is not 200 (404: the file is not there), and None for any other failure."""
+
+    def __init__(self, text: str, status: int | None = None) -> None:
+        super().__init__(text)
+        self.status = status
 
 
 class Cancelled(Exception):
@@ -67,7 +71,7 @@ def open_url(url: str, allowed: Allowed) -> Response:
         nodevices.check_url(url)                       # (under the no-devices switch a server that is not on this computer is not there)
         response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed), *nodevices.direct()).open(request, timeout=TIMEOUT_SEC)
     except urllib.error.HTTPError as e:
-        raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}") from None
+        raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}", e.code) from None
     except (OSError, ValueError, http.client.HTTPException) as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]} could not be fetched: {e}") from None
     if not allowed(response.geturl()):

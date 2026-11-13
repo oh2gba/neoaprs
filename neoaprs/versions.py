@@ -16,7 +16,7 @@ _DIAL = re.compile(r"^\d{1,2}\.\d{3,4} MHz (USB|LSB)$")      # an HF dial as the
 _BAND = re.compile(r"^\d{1,3} m$")                              # the band of a suggested frequency: "40 m" (site/site.js checks the same two forms)
 MAX_FREQUENCIES = 3                                            # the most the list keeps; the box keeps room for three lines
 _VERSION = re.compile(r"^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$")
-_PART_SEPARATORS = re.compile(r"[.\-+]")
+_PART = re.compile(r"\d+|[^\d.\-+]+")                             # a part of a version: a run of digits, or of what is not a digit or a separator ("rc10" is "rc" and 10)
 _ARM_MACHINES = ("aarch64", "arm64", "armv7l", "armv6l", "armv8l")        # a Raspberry Pi
 _DEB_ARCHITECTURES = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}          # `platform.machine()` to the name of the .deb that runs on it
 _MAC_ARCHITECTURES = {"arm64": "arm64", "aarch64": "arm64"}                                             # `platform.machine()` to the name in the macOS app's .dmg, which is built for Apple silicon alone
@@ -32,11 +32,11 @@ class Update:
 
 
 def _parts(version: str) -> list[str]:
-    return [part for part in _PART_SEPARATORS.split(version.strip()) if part]
+    return _PART.findall(version.strip())
 
 
 def compare_versions(a: str, b: str) -> int:
-    """-1, 0 or 1 as `a` is older than, the same as or newer than `b`. "0.10.0" is newer than "0.9.0", a missing part counts as 0 ("1.0" is "1.0.0"), and "1.0.0-rc1" is older than "1.0.0"."""
+    """-1, 0 or 1 as `a` is older than, the same as or newer than `b`. "0.10.0" is newer than "0.9.0", a missing part counts as 0 ("1.0" is "1.0.0"), "1.0.0-rc1" is older than "1.0.0", and the number of a suffix counts as a number ("1.0.0-rc2" is older than "1.0.0-rc10")."""
     left, right = _parts(a), _parts(b)
     for i in range(max(len(left), len(right))):
         x, y = left[i] if i < len(left) else "0", right[i] if i < len(right) else "0"

@@ -1,0 +1,10 @@
+# Dependabot proposes the moves of the actions the workflows use. Each is pinned to a commit with its release in the comment beside it (tests/test_release.py); a proposal moves both.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

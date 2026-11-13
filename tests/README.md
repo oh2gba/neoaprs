@@ -137,9 +137,17 @@
 * `test_updateasset.py`, `test_updatedownload.py`, `test_selfupdate.py`, `test_selfinstall.py`, `test_selfupdate_wire.py`: Update now. The file of the release for
   each kind and architecture, its address built from the announced version alone and the hosts a download may go to, the line of SHA256SUMS; the downloads
   with a stand-in opener (progress, cancel, a file cut short or too large, a redirect away from GitHub); the job with a fake release and installer
-  (`support/fakerelease.py`): the steps, a SHA-256 that is wrong or missing from SHA256SUMS, a cancel, the refusals, no restart; the Windows installer's command
+  (`support/fakerelease.py`, its SHA256SUMS signed with a key the test makes): the steps, a SHA-256 that is wrong or missing from the signed SHA256SUMS, a cancel, the refusals, no restart; the Windows installer's command
   line (built, never run) and the AppImage renamed over the old one on temporary files, its exec and the old file put back, the simulated kinds; and through the
   daemon's socket the topic `update` and the commands `update_now` and `update_cancel`. No test reaches the network or replaces a file of the machine.
+* `test_updatesign.py`: the signature of SHA256SUMS (`neoaprs/updateasset.py`): the project's public key pinned and in one place of the program; a list signed
+  for its version gives the file's sum; a list that names only another file or a name twice, a signature over another list, a truncated one, an empty list, a
+  line that is no checksum line, a signed list of an older release offered as the newer one and another key are each refused; through Update now each is the
+  one problem `unverified` with the file never downloaded, and the project's key is the one believed by default; `NEOAPRS_UPDATE_KEY` taken only with the
+  fake release; and a release's list read by the reader of the programs from before the signature (`support/fakerelease.py`, `old_checksum_for`) as before.
+* `test_verify_download.py`: `scripts/verify-download.py` loaded with the test's own public key: a file of a signed release passes, a changed file, a list
+  signed for another version, a file whose name carries no version without --version (the signed list of an older release), a version given that is not the list's and a missing signature do not; run as a program it believes the
+  project's key alone.
 * `test_alerts.py`: the message alert (`neoaprs/services/alerts.py`) with a shell line that writes its environment to a file of the test: the four variables,
   text that is data and not shell, the few names of the environment, alert off and an empty command, queries, a failing command told once an hour, a command
   that cannot start or runs out of time (killed with what it started), at most 5 at once; and in the whole daemon the first copy only, nothing for a bulletin, a
@@ -254,7 +262,11 @@
 * `test_page_snapshot.py`: the daemon serves the page it started with (`neoaprs/web/pagesnapshot.py`): the files read into memory without the hidden ones and the source maps, a folder swapped in the middle of a read read
   again, a page rebuilt on disk while the daemon runs changing nothing until it is started again, the ETag, `304`, `HEAD` and byte ranges of the snapshot, and the shipped page small enough to keep in memory.
 * `test_release_script.py`: `scripts/release` run for real on a clone of a made-up repository with a bare origin, a fake `gh`, a fake `scripts/check` and a loopback server for the download links: the order of the steps, the
-  dry run, the resume after a failure at each step (check, push, CI, tag, release run, the published release), `--rerun` once, the rate limit, and the refusals (branch, dirty tree, origin ahead, no notes, the version, a tag on another commit).
+  dry run, the resume after a failure at each step (check, push, CI, tag, release run, the signing, the published release), `--rerun` once, the rate limit, and the refusals (branch, dirty tree, origin ahead, no notes, the version, a tag on another commit).
+* `test_release_sign.py`: the step sign of `scripts/release` and `--verify` on the same made-up repository, with a fake `bws` that hands out a key the test makes (the clone's `neoaprs/updateasset.py` carries its public
+  half): the draft signed and then published, the secret never in the output, the log of calls or a file, bws the only program given its access token and the secret's id; a key that is not the program's, a secret bws cannot read or none named, a secret that is no seed and a list
+  that names a file twice sign nothing; a draft signed already is only published, one whose signature does not hold is signed again, a published release is never signed after the fact; `--verify` changes nothing
+  and refuses a list or a signature that was changed, a signature for another version, a truncated one, a draft and a list short of a file.
 * `ui/src/**/*.test.ts`: the page's own tests, run by vitest (`scripts/check --stage ui-tests`, or `cd ui && npx vitest run`): the socket client against a fake
   socket (state, patches, a missed revision, the reconnect backoff), the symbol sprites, the table's sorting and filtering, the map style, the settings form
   logic, the view composables of `App.vue` (the panel, the station picked, the Messages tab, the Email tab and its list of addressees, the Bulletins tab), the

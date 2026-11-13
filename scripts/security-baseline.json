@@ -1,73 +1,17 @@
 {
  "shellcheck": {},
  "zizmor": {
-  ".github/workflows/ci.yml unpinned-uses actions/checkout@v7": {
-   "count": 4,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/ci.yml unpinned-uses actions/setup-node@v7": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/ci.yml unpinned-uses actions/upload-artifact@v7": {
-   "count": 2,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/ci.yml unpinned-uses astral-sh/setup-uv@v7": {
-   "count": 4,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/pages.yml unpinned-uses actions/checkout@v7": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/pages.yml unpinned-uses actions/deploy-pages@v5": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/pages.yml unpinned-uses actions/upload-pages-artifact@v5": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml cache-poisoning uses: actions/cache@v6": {
+  ".github/workflows/release.yml cache-poisoning uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9": {
    "count": 4,
    "reason": "a known fault: the workflow that builds the release files restores caches that another run could have filled. It ends when those jobs build without a cache; until then the count may only go down"
   },
-  ".github/workflows/release.yml cache-poisoning uses: actions/setup-node@v7": {
+  ".github/workflows/release.yml cache-poisoning uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1": {
    "count": 1,
    "reason": "a known fault: the workflow that builds the release files restores caches that another run could have filled. It ends when those jobs build without a cache; until then the count may only go down"
   },
-  ".github/workflows/release.yml cache-poisoning uses: astral-sh/setup-uv@v7": {
+  ".github/workflows/release.yml cache-poisoning uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78": {
    "count": 6,
    "reason": "a known fault: the workflow that builds the release files restores caches that another run could have filled. It ends when those jobs build without a cache; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/attest-build-provenance@v4": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/cache@v6": {
-   "count": 4,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/checkout@v7": {
-   "count": 10,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/download-artifact@v8": {
-   "count": 10,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/setup-node@v7": {
-   "count": 1,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses actions/upload-artifact@v7": {
-   "count": 10,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
-  },
-  ".github/workflows/release.yml unpinned-uses astral-sh/setup-uv@v7": {
-   "count": 6,
-   "reason": "a known fault: every action is named by a tag, which its owner can move. It ends when each is pinned to a commit; until then the count may only go down"
   }
  }
 }

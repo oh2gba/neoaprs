@@ -56,16 +56,16 @@ export function noteBlocks(text: string): NoteBlock[] {
 }
 
 const VERSION = /^\d+(\.\d+){0,3}([-+][0-9A-Za-z.]+)?$/;
-const SEPARATORS = /[.\-+]/;
+const PART = /\d+|[^\d.\-+]+/g;
 const DIGITS = /^\d+$/;
 
 /** A version as the daemon names one ("0.12.0", "1.0.0-rc1"), not an empty or a made-up text. */
 export const isVersion = (text: string): boolean => VERSION.test(text.trim());
 
-/** -1, 0 or 1 as `a` is older than, the same as or newer than `b`, the daemon's way (neoaprs/versions.py): "0.10.0" is newer than "0.9.0", a missing part counts as 0, and "1.0.0-rc1" is older than "1.0.0". */
+/** -1, 0 or 1 as `a` is older than, the same as or newer than `b`, the daemon's way (neoaprs/versions.py): "0.10.0" is newer than "0.9.0", a missing part counts as 0, "1.0.0-rc1" is older than "1.0.0", and "1.0.0-rc2" older than "1.0.0-rc10". */
 export function compareVersions(a: string, b: string): number {
-  const left = a.trim().split(SEPARATORS).filter(Boolean);
-  const right = b.trim().split(SEPARATORS).filter(Boolean);
+  const left = a.trim().match(PART) ?? [];
+  const right = b.trim().match(PART) ?? [];
   for (let i = 0; i < Math.max(left.length, right.length); i++) {
     const x = left[i] ?? "0";
     const y = right[i] ?? "0";

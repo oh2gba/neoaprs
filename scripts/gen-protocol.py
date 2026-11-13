@@ -531,7 +531,7 @@ ROUTE_ELEMENTS = ["WIDE1-1", "WIDE2-2", "WIDE", "WIDE1", "WIDE3-3", "WIDE12-1", 
                   "WIDE1-1*", "TCPIP", "TCPIP*", "TCPXX", "NOGATE", "RFONLY", "NOTCP", "qAR", "qAO", "qAC", "qA", "q", "qB", "Qar", "NOGATE*", "XTCPIP", "RFONLYX", ""]
 VERSION_PAIRS = [("0.10.0", "0.9.0"), ("0.9.0", "0.10.0"), ("1.0", "1.0.0"), ("1.0.0", "1.0"), ("1.0.0-rc1", "1.0.0"), ("1.0.0", "1.0.0-rc1"), ("1.0.0-rc1", "1.0.0-rc2"), ("1.0.0-RC1", "1.0.0-rc1"), ("1.0.0-rc.2", "1.0.0-rc.10"),
                  ("1.0.0-alpha", "1.0.0-beta"), ("1.0.0-beta", "1.0.0-alpha"), ("0.14.0", "0.14.0"), ("0.14.1", "0.14.0"), ("0.14.0", "0.14.0.1"), ("1.2.3.4", "1.2.3.5"), ("2", "1.9.9"), ("0.10.0-dev4", "0.10.0"),
-                 (" 1.0.0 ", "1.0.0"), ("1.0.0+build5", "1.0.0"), ("1.0.0", "1.0.0+build5"), ("1.0.0-rc1", "1.0.0-c1"), ("01.0.0", "1.0.0"), ("1.0.0-9", "1.0.0-10"), ("1.0.0-a", "1.0.0-9")]
+                 (" 1.0.0 ", "1.0.0"), ("1.0.0+build5", "1.0.0"), ("1.0.0", "1.0.0+build5"), ("1.0.0-rc1", "1.0.0-c1"), ("01.0.0", "1.0.0"), ("1.0.0-9", "1.0.0-10"), ("1.0.0-a", "1.0.0-9"), ("0.20.0-rc2", "0.20.0-rc10"), ("0.20.0-rc10", "0.20.0-rc2")]
 BEACONS = [{}, {"beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "beacon/antenna_direction": "NE", "station/comment": "Home"}, {"station/comment": ""}, {"station/call": "oh2gba-7"},
            {"station/call": ""}, {"station/lat": ""}, {"station/lat": "91"}, {"station/lon": "181"},
            {"station/symbol_table": "Z", "station/symbol_code": "~"}, {"station/symbol_table": "a"}, {"station/symbol_code": " "}, {"beacon/path": ""}, {"beacon/path": "", "station/symbol_code": ">"}, {"beacon/path": "", "station/symbol_table": "\\", "station/symbol_code": "s"},

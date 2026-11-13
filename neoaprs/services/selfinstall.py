@@ -8,7 +8,8 @@
 Anything else gets no installer and the page shows the steps instead. The macOS app (`macos-app`) is among them for now: its .dmg is named (neoaprs/updateasset.py) and offered as a download, but swapping the running
 app bundle under a daemon that imports its modules lazily from it, and restarting the app through launchd, has not been tried on a Mac, so the page says to quit, drag the new app over the old one and start it again. `NEOAPRS_INSTALL_KIND` (a simulated kind, for development: neoaprs/cli/installkind.py) gets a rehearsal: every step but the last, the file
 deleted instead of installed. `NEOAPRS_UPDATE_FROM` (the release folder of a fake server on the loopback) is used instead of GitHub only together with a simulated kind, or with `NEOAPRS_UPDATE_TEST=1`, the switch of the
-end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used."""
+end-to-end test of the release workflow, which updates a real install from it (scripts/update-e2e.py); an address that is not http(s) on 127.0.0.1 or localhost is never used. With that fake server, and only then, `NEOAPRS_UPDATE_KEY` (the base64 of a
+public key the test made) stands in for the project's key, since a test cannot sign with it; from GitHub only the project's key is believed (`release_key`)."""
 import logging
 import os
 import subprocess
@@ -20,7 +21,9 @@ from urllib.parse import urlsplit
 
 from neoaprs.instancelock import APP_LOCK_NAME, is_held
 from neoaprs.selfreplace import keep_old
-from neoaprs.updateasset import RELEASES, SELF_UPDATING, url_allowed
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from neoaprs.updateasset import RELEASES, SELF_UPDATING, public_key, url_allowed
 from neoaprs.versions import InstallInfo
 
 log = logging.getLogger("neoaprs.update")
@@ -30,6 +33,7 @@ DETACHED = 0x00000008 | 0x00000200 | 0x08000000      # DETACHED_PROCESS, CREATE_
 BREAKAWAY = 0x01000000                          # CREATE_BREAKAWAY_FROM_JOB: the installer outlives a job the daemon may be part of
 ENV_KIND = "NEOAPRS_INSTALL_KIND"
 ENV_FROM = "NEOAPRS_UPDATE_FROM"
+ENV_KEY = "NEOAPRS_UPDATE_KEY"                   # the public key of a test's own fake release, taken only together with NEOAPRS_UPDATE_FROM
 ENV_TEST = "NEOAPRS_UPDATE_TEST"                 # "1": a real install may be updated from NEOAPRS_UPDATE_FROM (the end-to-end test only)
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost"})
 Restart = Callable[[list[str]], None]           # the daemon ends and this command line is run in its place
@@ -184,9 +188,29 @@ def loopback_folder(text: str) -> str:
 def release_source(environ: Mapping[str, str] = os.environ) -> tuple[str, Callable[[str], bool]]:
     """Where the release's files are (the folder that holds a folder `v<version>` for each release) and the addresses a download may go to: GitHub; or the folder of `NEOAPRS_UPDATE_FROM` alone, for a simulated kind
     or with `NEOAPRS_UPDATE_TEST=1`, and only when it is on this computer."""
-    wanted = bool(environ.get(ENV_KIND)) or environ.get(ENV_TEST) == "1"
-    base = loopback_folder(environ.get(ENV_FROM, "")) if wanted else ""
+    base = _fake_release(environ)
     if base:
         log.warning("Update now downloads from %s, not from GitHub (%s)", base, ENV_TEST if environ.get(ENV_TEST) == "1" else ENV_KIND)
         return base, lambda url: url.startswith(base + "/")
     return RELEASES, url_allowed
+
+
+def _fake_release(environ: Mapping[str, str]) -> str:
+    """The folder of `NEOAPRS_UPDATE_FROM` when it is in effect (with a simulated kind or `NEOAPRS_UPDATE_TEST=1`, on this computer); else empty."""
+    wanted = bool(environ.get(ENV_KIND)) or environ.get(ENV_TEST) == "1"
+    return loopback_folder(environ.get(ENV_FROM, "")) if wanted else ""
+
+
+def release_key(environ: Mapping[str, str] = os.environ) -> Ed25519PublicKey:
+    """The key the signature of SHA256SUMS must hold with: the project's (neoaprs/updateasset.py, PUBLIC_KEY); `NEOAPRS_UPDATE_KEY` only while Update now downloads from the fake server of `NEOAPRS_UPDATE_FROM`,
+    and never a key that is not one."""
+    text = environ.get(ENV_KEY, "")
+    if text and _fake_release(environ):
+        try:
+            key = public_key(text)
+        except ValueError as e:
+            log.warning("%s is not taken: %s", ENV_KEY, e)
+        else:
+            log.warning("Update now believes the signature of the key of %s, not the project's", ENV_KEY)
+            return key
+    return public_key()

@@ -106,7 +106,7 @@ A click opens a window in the middle of the page: **NeoAPRS <version> is availab
 Where NeoAPRS can update itself, the window has an **Update now** button. NeoAPRS then:
 
 1. downloads the file of exactly the announced version from the project's release page on GitHub, and the release's list of checksums (`SHA256SUMS`), showing how far the download is (**Cancel** stops it);
-2. checks that the file's SHA-256 checksum is the one the list gives it. A file that does not match is deleted and nothing is installed;
+2. checks that the list is signed by the project, so that only a release of the project is ever installed, and that the file's SHA-256 checksum is the one the list gives it. A file that does not match is deleted and nothing is installed;
 3. installs it and starts again:
    - **Windows:** the installer runs without a window. It ends the app and the daemon, replaces the program and starts again what was running (the app, or the daemon alone), on the same data folder. The page says *Installing… NeoAPRS restarts in a moment* and connects again by itself;
    - **AppImage:** the new file takes the place of the old one, under the old file's name, so that a service or a start at login finds it. The old file is kept beside it as `<name>.old` until the new version has started. NeoAPRS then starts the file again with the same arguments.

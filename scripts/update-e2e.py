@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The end-to-end test of Update now, with the real files of a release: the old version is installed (the Windows installer, run silently) or put in a folder (the AppImage), its daemon runs on a data folder of
-its own against a fake KISS TNC, a fake version page announces the new version and a fake release server on the loopback serves its file and SHA256SUMS the way GitHub does (`v<version>/<file>`). Over the
+its own against a fake KISS TNC, a fake version page announces the new version and a fake release server on the loopback serves its file, SHA256SUMS and SHA256SUMS.sig the way GitHub does (`v<version>/<file>`), signed with a key the test makes and hands to the daemon as
+`NEOAPRS_UPDATE_KEY`, which the daemon takes only together with the fake server. Over the
 page's WebSocket, as the page does it, the test asks the update check, sends `update_now` and follows the topic `update`; then the new daemon must come up by itself on the same data folder.
 
   scripts/update-e2e.py windows OLD/NeoAPRS-Setup-A.exe NEW/NeoAPRS-Setup-B.exe [--work DIR]
@@ -8,7 +9,7 @@ page's WebSocket, as the page does it, the test asks the update check, sends `up
 
 The versions are read from the names of the files, and B must be newer than A. The daemon gets `NEOAPRS_UPDATE_TEST=1` and `NEOAPRS_UPDATE_FROM` (the fake server: CONVENTIONS.md), so that it updates for real
 from the loopback; nothing leaves the loopback and no radio or serial device is used. What is asserted:
-  both     the hello of A says A and the install kind; the update check finds B; update_now goes through the steps and never to `error`; SHA256SUMS and then the file of B were fetched; a daemon comes up by
+  both     the hello of A says A and the install kind; the update check finds B; update_now goes through the steps and never to `error`; SHA256SUMS, its signature and then the file of B were fetched; a daemon comes up by
            itself on the same data folder, says B in its hello, connects to the same fake TNC on the same page port (the settings are read from the data folder), and keeps the packets; the settings are
            still there after it is stopped; the log has A's start, A's end and B's start, and ends with `NeoAPRS ended`
   windows  the installer of B ran silently (its log in `update/` of the data folder: the command line of Update now, `Installation process succeeded`), A's daemon ended with exit code 0, the installed
@@ -21,6 +22,7 @@ Exit code 0: all is well; 1: the first thing that was not, said on stderr; the w
 """
 import argparse
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -39,6 +41,11 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from smoke import FIXTURE, Failure, FakeTnc, apply  # noqa: E402
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: E402
+
+from neoaprs.updateasset import sign  # noqa: E402  (the wheel of the release, installed in the Python this runs with)
 
 WINDOWS = sys.platform == "win32"
 LOG = "neoaprs.log"
@@ -104,12 +111,15 @@ def read_log(data: Path) -> str:
 
 
 class Release:
-    """The version page and the release folder of GitHub on one port of the loopback: `/version.php` names the new version, `/v<version>/<file>` and `/v<version>/SHA256SUMS` are its files."""
+    """The version page and the release folder of GitHub on one port of the loopback: `/version.php` names the new version, `/v<version>/<file>`, `/v<version>/SHA256SUMS` and `/v<version>/SHA256SUMS.sig` are its files, the list signed with a key of the test's own."""
 
     def __init__(self, version: str, file: Path) -> None:
         self.version = version
         self.file = file
         self.sums = f"{hashlib.sha256(b'other').hexdigest()}  install.sh\n{sha256(file)}  {file.name}\n".encode()
+        seed = os.urandom(32)
+        self.signature = sign(self.sums, version, seed).encode()
+        self.public_key = base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode()
         self.requests: list[str] = []
         release = self
 
@@ -121,6 +131,8 @@ class Release:
                     self._send(json.dumps({"version": release.version, "url": "https://github.com/oh2gba/neoaprs/releases", "message": ""}).encode(), "application/json")
                 elif path == f"/v{release.version}/SHA256SUMS":
                     self._send(release.sums, "text/plain")
+                elif path == f"/v{release.version}/SHA256SUMS.sig":
+                    self._send(release.signature, "text/plain")
                 elif path == f"/v{release.version}/{release.file.name}":
                     self.send_response(200)
                     self.send_header("Content-Type", "application/octet-stream")
@@ -437,7 +449,7 @@ class AppImageInstall(Install):
 
 def daemon_env(release: Release) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG", "NEOAPRS_INSTALL_KIND")}
-    env.update(NEOAPRS_UPDATE_TEST="1", NEOAPRS_UPDATE_FROM=release.url, NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1", NEOAPRS_SERIAL_PATTERN="/dev/neoaprs-update-e2e-no-such-port*")
+    env.update(NEOAPRS_UPDATE_TEST="1", NEOAPRS_UPDATE_FROM=release.url, NEOAPRS_UPDATE_KEY=release.public_key, NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1", NEOAPRS_SERIAL_PATTERN="/dev/neoaprs-update-e2e-no-such-port*")
     return env
 
 
@@ -475,9 +487,9 @@ async def update(install: Install, data: Path, web_port: int, old_version: str, 
     if "restarting" not in states:
         raise Failure(f"the update went {states}, never to restarting")
     asked = [r for r in release.requests if r.startswith(f"/v{new_version}/")]
-    if asked != [f"/v{new_version}/SHA256SUMS", f"/v{new_version}/{install.new.name}"]:
-        raise Failure(f"the release server was asked for {asked}, not SHA256SUMS and then {install.new.name}")
-    say(f"the update went {' -> '.join(states)}; SHA256SUMS and {install.new.name} were fetched from the fake release")
+    if asked != [f"/v{new_version}/SHA256SUMS", f"/v{new_version}/SHA256SUMS.sig", f"/v{new_version}/{install.new.name}"]:
+        raise Failure(f"the release server was asked for {asked}, not SHA256SUMS, SHA256SUMS.sig and then {install.new.name}")
+    say(f"the update went {' -> '.join(states)}; SHA256SUMS, its signature and {install.new.name} were fetched from the fake release")
     install.old_ended(daemon, data)
     return packets
 

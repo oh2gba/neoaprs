@@ -113,7 +113,7 @@ export const help: Record<keyof typeof source, Message> = {
   "help.update.restarting_installer": "Asennetaan… NeoAPRS käynnistyy uudelleen hetken kuluttua",
   "help.update.reconnecting": "NeoAPRS käynnistyy uudelleen. Tämä sivu yhdistää itse uudelleen.",
   "help.update.problem.download": "Päivitystä ei voitu ladata. Yritä uudelleen tai lataa se projektin sivulta.",
-  "help.update.problem.no_checksum": "Julkaisussa ei ole tämän tiedoston tarkistussummaa, joten mitään ei asennettu. Päivitä käsin.",
+  "help.update.problem.unverified": "Tätä päivitystä ei voitu tarkistaa, joten mitään ei asennettu. Lataa se projektin sivulta.",
   "help.update.problem.checksum": "Lataus ei ole julkaisun tiedosto, joten se poistettiin eikä mitään asennettu. Yritä uudelleen.",
   "help.update.problem.install": "Päivitystä ei voitu asentaa. Päivitä käsin.",
   "help.update.problem.no_restart": "Päivitys on asennettu, mutta NeoAPRS ei käynnistynyt uudelleen. Sulje NeoAPRS ja käynnistä se uudelleen.",

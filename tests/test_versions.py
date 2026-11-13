@@ -8,7 +8,7 @@ from neoaprs.versions import MAX_MESSAGE, Update, compare_versions, parse_update
 
 @pytest.mark.parametrize("a, b, order", [
     ("0.2.0", "0.1.0", 1), ("0.1.0", "0.2.0", -1), ("0.1.0", "0.1.0", 0), ("0.10.0", "0.9.0", 1), ("1.0", "1.0.0", 0), ("1.0.1", "1.0", 1), ("1.0.0-rc1", "1.0.0", -1), ("1.0.0", "1.0.0-rc1", 1),
-    ("1.0.0-rc2", "1.0.0-rc1", 1), ("1.0.0-RC1", "1.0.0-rc1", 0), (" 2.0 ", "1.9.9", 1), ("1.2.3.4", "1.2.3", 1)])
+    ("1.0.0-rc2", "1.0.0-rc1", 1), ("0.20.0-rc2", "0.20.0-rc10", -1), ("0.20.0-rc10", "0.20.0-rc2", 1), ("1.0.0-RC1", "1.0.0-rc1", 0), (" 2.0 ", "1.9.9", 1), ("1.2.3.4", "1.2.3", 1)])
 def test_versions_compare_by_their_numbers(a: str, b: str, order: int) -> None:
     assert compare_versions(a, b) == order
 
