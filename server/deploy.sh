@@ -3,10 +3,12 @@
 #
 #   server/deploy.sh          # the version page (version.php, latest.php, log/.htaccess) to both of its places:
 #                             #   neo.oh2gba.eu/version.php, which the copies from 0.16 on ask, and oh2gba.eu/neoaprs/version.php, which the copies before ask
-#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as it is: the .htaccess, the page-view endpoint, the Send logs endpoint support/send.php with its .user.ini, and private/.htaccess) to neo.oh2gba.eu
+#   server/deploy.sh --site   # the same, and the project page (site/ as it is, and server/neo/ as it is: the .htaccess, the page-view endpoint, the Send logs endpoint support/send.php with its .user.ini, the sked board's endpoint api/v1/skeds.php, and private/.htaccess) to neo.oh2gba.eu
 #   server/deploy.sh --list   # show what would be uploaded, don't touch the network
 #
-# Only these files, and of the folders only what git tracks (`git ls-files`): a file that is not tracked or is ignored is never uploaded, and the ones skipped are named. Nothing else of either folder is touched, and message.txt and the logs, which live on the server only, are never uploaded or removed.
+# Only these files, and of the folders only what git tracks (`git ls-files`): a file that is not tracked or is ignored is never uploaded, and the ones skipped are named. Nothing else of either folder is touched,
+# and message.txt, the logs, the stored support files and skeds, and the sked board skeds.json, which live on the server only, are never uploaded or removed (a skeds.json in site/ would be uploaded over the
+# live board, so the upload refuses to start while there is one).
 # Credentials come from Bitwarden Secrets Manager (ftp_server/ftp_login/ftp_pw). The machine-account token is the first line of a .secrets file: SECRETS_FILE, else the first one found searching upwards
 # from here, else ../../oh2gba/.secrets. Nothing secret is stored in this repository or printed.
 case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
@@ -64,6 +66,7 @@ case "${1:-}" in
   "") ;;
   *) echo "deploy.sh: unknown option $1" >&2; exit 2 ;;
 esac
+[ ! -e "$SITE/skeds.json" ] || { echo "deploy.sh: site/skeds.json would be uploaded over the live sked board; remove it" >&2; exit 1; }
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
 [ -f "$ENVFILE" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"

@@ -91,4 +91,10 @@ export function monthShort(date: Date): string {
   return new Intl.DateTimeFormat(tag(), { month: "short" }).format(date);
 }
 
+/** A day as the language writes it with its weekday, "Sat 14 Nov": in UTC, or in the viewer's own time. English is written day first, "14 Nov". */
+export function dayText(date: Date, utc: boolean): string {
+  const options: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short", ...(utc ? { timeZone: "UTC" } : {}) };
+  return new Intl.DateTimeFormat(tag() === SOURCE ? "en-GB" : tag(), options).format(date).replaceAll(",", "");
+}
+
 startLocale();

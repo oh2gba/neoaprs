@@ -54,7 +54,7 @@ describe("the sizes of the buttons", () => {
   });
 
   it("are small only inside a line of text or a list row: the components listed here; every other button is the normal height", () => {
-    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "ObjectsQru"]); // (message rows, the groups in a server's row, a copy beside a command)
+    const allowed = new Set(["ConversationThread", "EmailRow", "CopyField", "PopupHelp", "UpdateSteps", "ObjectsQru", "SkedsPane"]); // (message rows, the groups in a server's row, a copy beside a command, the Join of a sked's row)
     const small = files(resolve(SRC, "components"), ".vue")
       .filter((file) => /class="btn small/.test(readFileSync(file, "utf8")))
       .map((file) => file.replace(/^.*\//, "").replace(/\.vue$/, ""));

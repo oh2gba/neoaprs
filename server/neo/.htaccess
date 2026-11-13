@@ -3,12 +3,17 @@ RewriteEngine On
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
-# The page-view endpoint, at the path the page's script posts to. The file behind it, version.php and support/send.php (Send logs of the program: the support file, stored in private/) are the only PHP on this site.
+# The page-view endpoint, at the path the page's script posts to. The file behind it, version.php, support/send.php (Send logs of the program: the support file, stored in private/) and api/v1/skeds.php (the
+# sked board: each sked stored in private/, the board written to skeds.json in this folder, which Apache serves as it serves frequencies.json) are the only PHP on this site.
 RewriteRule ^api/v1/view$ /api/v1/view.php [L]
 
-# The stored support files are in private/ (and refused there by its own .htaccess too), and PHP's settings for the support endpoint in .user.ini; neither is ever served.
+# The stored support files and skeds are in private/ (and refused there by its own .htaccess too), and PHP's settings for the support endpoint in .user.ini; neither is ever served. Nor is a board half written
+# (skeds.json.part, renamed over skeds.json once it is whole).
 RewriteRule ^private(/|$) - [F,L]
 <FilesMatch "^\.user\.ini$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.part$">
   Require all denied
 </FilesMatch>
 
@@ -16,7 +21,8 @@ Options -Indexes
 
 AddType image/webp .webp
 
-# What every response carries (oh2gba/SHARED-HOST.md). The page's own Content-Security-Policy is the same as the meta tag in index.html: own files only, and a POST to its own host for the view.
+# What every response carries (oh2gba/SHARED-HOST.md). The page's own Content-Security-Policy is the same as the meta tag in index.html: own files only (frequencies.json and skeds.json among them), and a POST to
+# its own host for the view.
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=86400"
   Header always set X-Content-Type-Options "nosniff"
@@ -26,7 +32,7 @@ AddType image/webp .webp
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-  # The page, its stylesheet, its script and the frequencies are never kept by the browser (they are small: every visit loads them whole, so nobody needs Ctrl+F5); the pictures may be kept a day.
+  # The page, its stylesheet, its script, the frequencies and the sked board are never kept by the browser (they are small: every visit loads them whole, so nobody needs Ctrl+F5); the pictures may be kept a day.
   <FilesMatch "\.(html|php|css|js|json|txt|xml)$">
     Header set Cache-Control "no-store, max-age=0"
   </FilesMatch>

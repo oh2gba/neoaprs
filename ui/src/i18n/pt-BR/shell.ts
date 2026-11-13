@@ -54,12 +54,14 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "unread.not_seen": { one: "{n} mensagem não vista", other: "{n} mensagens não vistas" },
   "unread.new_bulletins": { one: "{n} boletim novo", other: "{n} boletins novos" },
+  "unread.new_skeds": { one: "{n} sked novo", other: "{n} skeds novos" },
 
   "tab.messages": "Mensagens",
   "tab.stations": "Estações",
   "tab.nearby": "Por perto",
   "tab.email": "E-mail",
   "tab.bulletins": "Boletins",
+  "tab.skeds": "Skeds",
   "tab.objects": "Objetos",
   "tab.beacon": "Minha estação",
   "tab.packets": "Pacotes",

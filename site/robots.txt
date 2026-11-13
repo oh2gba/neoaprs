@@ -2,6 +2,7 @@ User-agent: *
 Disallow: /version.php
 Disallow: /latest.php
 Disallow: /api/
+Disallow: /skeds.json
 Disallow: /log/
 
 Sitemap: https://neo.oh2gba.eu/sitemap.xml

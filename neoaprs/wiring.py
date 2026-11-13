@@ -176,6 +176,7 @@ def _show_frequencies(parts: Services) -> None:
     built_in = [Frequency(band, dial) for band, dial in SUGGESTED]
     now = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
     parts.mercury.frequencies = now
+    parts.skeds.changed.emit()                              # (the Skeds tab offers the same dials)
     parts.mercury.changed.emit()
 
 

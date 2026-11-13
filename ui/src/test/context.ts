@@ -49,6 +49,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     igate: part(over.igate, null),
     qru: part(over.qru, null),
     general: part(over.general, null),
+    skeds: part(over.skeds, null),
     map,
     selfUpdate: part(over.selfUpdate, null),
     ports,

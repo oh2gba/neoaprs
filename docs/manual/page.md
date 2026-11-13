@@ -2,12 +2,12 @@
 
 NeoAPRS serves a page at `http://127.0.0.1:7303/` (the port is `web/port`). The [desktop app](desktop.md) shows the same page in a window. The colours follow the system's light or dark scheme.
 
-The page has a **map** of the area round your station and, at its right, a **panel** with nine tabs: Messages, Stations, Nearby, Email, Bulletins, Objects, Beacon, Packets and Settings. A new page opens on Messages.
+The page has a **map** of the area round your station and, at its right, a **panel** with ten tabs: Messages, Stations, Nearby, Email, Bulletins, Skeds, Objects, Beacon, Packets and Settings. A new page opens on Messages.
 
 ## The panel and its tabs
 
-- The tabs are in one row as far as they fit the width the panel has. This is measured, not a breakpoint, because the panel beside the map can be narrow on a wide screen. At the default width of a wide screen (760 px) all nine are in the row. The tab on show is not bold or wider, so none moves when you switch.
-- The tabs are kept in the order above, the ones you come for first at the left. When they do not all fit, the first ones that do stay in the row and the others are under one button, **More**, at the end of the row. It carries the number of everything that has a badge among the tabs under it: messages and mail not seen, and new bulletins. It opens a menu of those tabs in their order, each with its badge. A pick closes the menu, and so do Esc and a click outside. The arrow keys, Home and End move in it, and Enter picks.
+- The tabs are in one row as far as they fit the width the panel has. This is measured, not a breakpoint, because the panel beside the map can be narrow on a wide screen. At the default width of a wide screen (760 px) all ten are in the row, until counts on the tabs take their room. The tab on show is not bold or wider, so none moves when you switch.
+- The tabs are kept in the order above, the ones you come for first at the left. When they do not all fit, the first ones that do stay in the row and the others are under one button, **More**, at the end of the row. It carries the number of everything that has a badge among the tabs under it: messages and mail not seen, new bulletins and skeds not seen. It opens a menu of those tabs in their order, each with its badge. A pick closes the menu, and so do Esc and a click outside. The arrow keys, Home and End move in it, and Enter picks.
 - The tab on show is always in the row. When you pick a tab from **More**, it takes the place of the last tab in the row, and that one goes under **More**; the other tabs keep their order, and a wider panel brings them back. On a phone the **Map** button is first in the bar and the same rule fills the rest of it.
 - The panel can be folded away and dragged to another width (from 280 px up to 80 % of the window, the map keeping at least 360 px, so on a narrow window the most is less). A remembered width that is too much for the window is shown clamped.
 
@@ -18,6 +18,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Nearby** | what is around you: Ask around, then the digipeaters, voice frequencies, iGates and stations heard direct |
 | **Email** | mail through the gateway ([email.md](email.md)) |
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
+| **Skeds** | when stations will be on the air, and the box to post your own ([skeds.md](skeds.md)) |
 | **Objects** | your objects and items, and Local info, where you ask the stations near you for theirs ([objects.md](objects.md)) |
 | **Beacon** | the state of the beacon with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |

@@ -1,6 +1,6 @@
 // When the user can be said to have seen what came, and how the count of what was not is shown. A message counts as seen only while its conversation is open (useConversations) and the Messages tab is the
 // tab on show, the panel is not folded away and the page itself is visible (a page in a background browser tab, or a minimised window, keeps counting); a message from the email gateway is seen while the Email tab is on show in the same way (useEmail); a bulletin is seen while the Bulletins tab is
-// on show (useBulletins). The rest of the rules (which message is unread) are in lib/messages.ts, `conversations`.
+// on show (useBulletins), and a sked is seen while the Skeds tab is on show (useSkeds). The rest of the rules (which message is unread) are in lib/messages.ts, `conversations`.
 import { t } from "@/i18n";
 import type { TabId } from "@/lib/layout";
 
@@ -26,7 +26,7 @@ export function unreadText(unread: number): string {
   return t("unread.not_seen", { n: unread });
 }
 
-/** What the badge of a tab says: the messages not seen, or the bulletins that are new since the tab was last on show. */
+/** What the badge of a tab says: the messages not seen, the bulletins that are new since the tab was last on show, or the skeds not seen. */
 export function badgeText(tab: TabId, count: number): string {
-  return tab === "bulletins" ? t("unread.new_bulletins", { n: count }) : unreadText(count);
+  return tab === "bulletins" ? t("unread.new_bulletins", { n: count }) : tab === "skeds" ? t("unread.new_skeds", { n: count }) : unreadText(count);
 }

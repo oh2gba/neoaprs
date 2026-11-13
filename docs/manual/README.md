@@ -22,6 +22,7 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
+| [`skeds.md`](skeds.md) | the Skeds tab: when stations will be on the air, the board on the project page, posting and joining a sked |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |
 | [`weather.md`](weather.md) | weather stations, the graphs and what else NeoAPRS reads |
 | [`notifications.md`](notifications.md) | being told of a new message |

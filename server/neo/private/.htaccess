@@ -1,2 +1,2 @@
-# The stored support files (support/send.php) and their logs are never served.
+# The stored support files (support/send.php), the stored skeds (api/v1/skeds.php) and their logs are never served.
 Require all denied

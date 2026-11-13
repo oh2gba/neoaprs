@@ -3,7 +3,18 @@ import { TAB_IDS, type TabId } from "@/lib/layout";
 import { splitTabs, type TabSizes } from "@/lib/tabsplit";
 
 // The widths of the tabs, made up: 580 px in all, the More button 50 px and 24 px more with a count on it.
-const tabs: Record<TabId, number> = { messages: 80, stations: 70, nearby: 60, email: 50, bulletins: 70, objects: 60, beacon: 60, packets: 60, settings: 70 };
+const tabs: Record<TabId, number> = {
+  messages: 80,
+  stations: 70,
+  nearby: 60,
+  email: 50,
+  bulletins: 70,
+  skeds: 50,
+  objects: 50,
+  beacon: 50,
+  packets: 50,
+  settings: 50,
+};
 const sizes: TabSizes = { tabs, more: 50, moreCount: 24 };
 const split = (room: number, open: TabId = "messages", counts: Partial<Record<TabId, number>> = {}) => splitTabs(sizes, room, open, counts);
 
@@ -14,8 +25,8 @@ describe("which tabs stay in the row", () => {
   });
 
   it("keeps the first ones that fit with the More button, in the order of the tabs, when they do not", () => {
-    expect(split(579)).toEqual({ shown: TAB_IDS.slice(0, 8), hidden: ["settings"] }); // 510 + the More button of 50 is 560
-    expect(split(400)).toEqual({ shown: TAB_IDS.slice(0, 5), hidden: ["objects", "beacon", "packets", "settings"] });
+    expect(split(579)).toEqual({ shown: TAB_IDS.slice(0, 8), hidden: ["packets", "settings"] }); // 480 + the More button of 50 is 530, and the packets make 580
+    expect(split(400)).toEqual({ shown: TAB_IDS.slice(0, 5), hidden: ["skeds", "objects", "beacon", "packets", "settings"] });
     expect(split(160)).toEqual({ shown: ["messages"], hidden: TAB_IDS.slice(1) });
   });
 
@@ -27,7 +38,7 @@ describe("which tabs stay in the row", () => {
   it("has the tab on show in the row: it takes the place of the last one that fits, the others keep their order", () => {
     expect(split(400, "settings")).toEqual({
       shown: ["messages", "stations", "nearby", "email", "settings"],
-      hidden: ["bulletins", "objects", "beacon", "packets"],
+      hidden: ["bulletins", "skeds", "objects", "beacon", "packets"],
     });
     expect(split(400, "packets").shown).toEqual(["messages", "stations", "nearby", "email", "packets"]);
     expect(split(400, "email").shown).toEqual(TAB_IDS.slice(0, 5)); // already there: nothing moves
@@ -39,7 +50,7 @@ describe("which tabs stay in the row", () => {
   });
 
   it("keeps the tab on show even when nothing else fits", () => {
-    expect(split(100, "settings")).toEqual({ shown: ["settings"], hidden: TAB_IDS.slice(0, 8) });
+    expect(split(100, "settings")).toEqual({ shown: ["settings"], hidden: TAB_IDS.slice(0, 9) });
     expect(split(0, "messages").shown).toEqual(["messages"]);
   });
 

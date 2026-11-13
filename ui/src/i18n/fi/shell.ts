@@ -54,12 +54,14 @@ export const shell: Record<keyof typeof source, Message> = {
 
   "unread.not_seen": { one: "{n} viesti vielä näkemättä", other: "{n} viestiä vielä näkemättä" },
   "unread.new_bulletins": { one: "{n} uusi tiedote", other: "{n} uutta tiedotetta" },
+  "unread.new_skeds": { one: "{n} uusi skedi", other: "{n} uutta skediä" },
 
   "tab.messages": "Viestit",
   "tab.stations": "Asemat",
   "tab.nearby": "Lähellä",
   "tab.email": "Sähköposti",
   "tab.bulletins": "Tiedotteet",
+  "tab.skeds": "Skedit",
   "tab.objects": "Kohteet",
   "tab.beacon": "Oma asema",
   "tab.packets": "Paketit",

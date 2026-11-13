@@ -14,6 +14,7 @@ import { packets } from "@/i18n/es/packets";
 import { settings } from "@/i18n/es/settings";
 import { setup } from "@/i18n/es/setup";
 import { shell } from "@/i18n/es/shell";
+import { skeds } from "@/i18n/es/skeds";
 import { stations } from "@/i18n/es/stations";
 import { symbols } from "@/i18n/es/symbols";
 import { time } from "@/i18n/es/time";
@@ -26,6 +27,7 @@ export const es: Catalogue = {
   ...messages,
   ...email,
   ...bulletins,
+  ...skeds,
   ...objects,
   ...stations,
   ...nearby,

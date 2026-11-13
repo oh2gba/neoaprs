@@ -14,6 +14,7 @@ import { packets } from "@/i18n/pt-BR/packets";
 import { settings } from "@/i18n/pt-BR/settings";
 import { setup } from "@/i18n/pt-BR/setup";
 import { shell } from "@/i18n/pt-BR/shell";
+import { skeds } from "@/i18n/pt-BR/skeds";
 import { stations } from "@/i18n/pt-BR/stations";
 import { symbols } from "@/i18n/pt-BR/symbols";
 import { time } from "@/i18n/pt-BR/time";
@@ -26,6 +27,7 @@ export const ptBR: Catalogue = {
   ...messages,
   ...email,
   ...bulletins,
+  ...skeds,
   ...objects,
   ...stations,
   ...nearby,

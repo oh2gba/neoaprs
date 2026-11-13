@@ -17,6 +17,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, the radius and the server, and advanced use as an iGate |
 | `docs/manual/email.md` | email through the APRS gateway |
 | `docs/manual/bulletins.md` | the message board and posting to it |
+| `docs/manual/skeds.md` | the Skeds tab: when stations will be on the air, the board on the project page, posting and joining a sked |
 | `docs/manual/objects.md` | objects and items of your own, the QRU server |
 | `docs/manual/weather.md` | weather stations and what else NeoAPRS reads |
 | `docs/manual/notifications.md` | the alert command, the alert in the browser, pop-ups |

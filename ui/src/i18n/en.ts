@@ -13,6 +13,7 @@ import { packets } from "@/i18n/en/packets";
 import { settings } from "@/i18n/en/settings";
 import { setup } from "@/i18n/en/setup";
 import { shell } from "@/i18n/en/shell";
+import { skeds } from "@/i18n/en/skeds";
 import { stats } from "@/i18n/en/stats";
 import { stations } from "@/i18n/en/stations";
 import { symbols } from "@/i18n/en/symbols";
@@ -27,6 +28,7 @@ export const en = {
   ...messages,
   ...email,
   ...bulletins,
+  ...skeds,
   ...objects,
   ...stations,
   ...nearby,

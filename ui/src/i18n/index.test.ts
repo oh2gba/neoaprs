@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLocale, startLocale, monthShort, t, weekdayShort } from "@/i18n";
+import { availableLocales, detectLocale, formatNumber, hasMessage, locale, setLocale, startLocale, dayText, monthShort, t, weekdayShort } from "@/i18n";
 import type { Catalogue } from "@/i18n/catalogue";
 import { LOCALES, type LocaleInfo } from "@/i18n/locales";
 
@@ -131,6 +131,17 @@ describe("numbers and weekdays", () => {
     expect(monthShort(new Date(2026, 9, 19))).toBe("Oct");
     setLocale("de");
     expect(monthShort(new Date(2026, 9, 19))).toBe("Okt");
+    setLocale("en");
+  });
+});
+
+describe("dayText", () => {
+  it("writes the weekday, the day and the month, day first in English, in UTC or in the viewer's time", () => {
+    setLocale("en");
+    expect(dayText(new Date("2026-11-14T23:30:00Z"), true)).toBe("Sat 14 Nov");
+    expect(dayText(new Date(2026, 10, 14, 12), false)).toBe("Sat 14 Nov");
+    setLocale("de");
+    expect(dayText(new Date("2026-11-14T00:30:00Z"), true)).toMatch(/^Sa\.? 14\. Nov/);
     setLocale("en");
   });
 });

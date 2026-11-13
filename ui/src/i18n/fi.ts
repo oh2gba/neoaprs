@@ -14,6 +14,7 @@ import { packets } from "@/i18n/fi/packets";
 import { settings } from "@/i18n/fi/settings";
 import { setup } from "@/i18n/fi/setup";
 import { shell } from "@/i18n/fi/shell";
+import { skeds } from "@/i18n/fi/skeds";
 import { stations } from "@/i18n/fi/stations";
 import { symbols } from "@/i18n/fi/symbols";
 import { time } from "@/i18n/fi/time";
@@ -26,6 +27,7 @@ export const fi: Catalogue = {
   ...messages,
   ...email,
   ...bulletins,
+  ...skeds,
   ...objects,
   ...stations,
   ...nearby,

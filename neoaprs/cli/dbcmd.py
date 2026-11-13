@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, can_open, copies, restore, stamp as copy_stamp
+from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, STATE_KEYS, Config
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
@@ -27,6 +28,7 @@ from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir
+from neoaprs.skeds import SKED_TOKEN
 from neoaprs.store import DB_NAME, Store
 
 from .output import say
@@ -67,6 +69,8 @@ def kept_note(key: str) -> str:
         return "kept by the daemon (when it last sent, how the map stands), not a setting"
     if key == HF_DIAL:
         return "kept by the daemon (the HF dial the version page named last), not a setting"
+    if key == SKED_TOKEN:
+        return "kept by the daemon (the secret that goes with the skeds of this installation), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
 
 
@@ -86,7 +90,7 @@ async def show_settings(store: Any, only: str | None) -> int:
     for key in defaults:
         print(f"{key:<{width}}  {shown[key]:<18}  {'stored' if key in rows else 'default'}")
     for key in sorted(set(rows) - set(defaults)):
-        print(f"{key:<{width}}  {rows[key]:<18}  {kept_note(key)}")
+        print(f"{key:<{width}}  {shown_value(key, rows[key]):<18}  {kept_note(key)}")
     return 0
 
 

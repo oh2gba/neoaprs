@@ -6,7 +6,7 @@ the place that would open it:
 
 * no serial device is opened, listed or searched for (the radio's port, the GPS receiver's, a keying line), and no Bluetooth port: `check_port` in the one place a port is opened, `refused` where the ports are listed;
 * the Mercury modem program is not started and its sound cards are not listed (`refused`);
-* no connection leaves this computer: to APRS-IS, a KISS TCP server, a gpsd, a rigctld or a Mercury on another host (`check_host`), for the update check, the suggested frequencies, Send logs, Update now and the
+* no connection leaves this computer: to APRS-IS, a KISS TCP server, a gpsd, a rigctld or a Mercury on another host (`check_host`), for the update check, the suggested frequencies, the sked board, Send logs, Update now and the
   map (`check_url`, `url_refused`);
 * the default alert command, which shows a notification on the desktop and plays a sound, is not run, and the Dummy HF radio's audio is not played (`refused`).
 

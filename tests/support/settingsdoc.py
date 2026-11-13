@@ -18,6 +18,7 @@ from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.updatecheck import EVERY_SEC as UPDATE_EVERY_SEC
+from neoaprs.skeds import SKED_TOKEN
 from neoaprs.smartbeacon import PRESETS
 from neoaprs.tncprofile import PROFILES
 
@@ -156,12 +157,13 @@ STATE_WORDS = {
     cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
     cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
+    SKED_TOKEN: "the secret of this installation that goes with each sked it posts, so that only it can delete them; never shown in the log or the support bundle",
 }
 
 
 def state() -> str:
-    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS` and the update check's number)."""
-    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID)) + "\n"
+    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS`, the update check's number and the sked token)."""
+    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, SKED_TOKEN)) + "\n"
 
 
 MAKERS = {"settings": settings, "fixed": fixed, "state": state}

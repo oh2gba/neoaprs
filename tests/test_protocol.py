@@ -226,6 +226,8 @@ COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
     "bulletin_post": {"cmd": "bulletin_post", "slot": "BLN3HAMS", "text": "Net tonight at 20:00"}, "bulletin_unpost": {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
     "map_estimate": {"cmd": "map_estimate"}, "map_fetch": {"cmd": "map_fetch"}, "map_wanted": {"cmd": "map_wanted"}, "map_cancel": {"cmd": "map_cancel"},
     "update_now": {"cmd": "update_now", "version": "0.7.0"}, "update_cancel": {"cmd": "update_cancel"},
+    "skeds_wanted": {"cmd": "skeds_wanted"}, "sked_post": {"cmd": "sked_post", "from": "2026-11-14T18:00:00Z", "to": "2026-11-14T20:00:00Z", "dial": "7.0541 MHz USB", "note": "Mercury, 10 W"},
+    "sked_delete": {"cmd": "sked_delete", "id": "7f3a9c21d4e0"},
     "page_error": {"cmd": "page_error", "message": "x is undefined", "stack": "at render (Map.vue:10:5)", "source": "vue", "at": "2026-10-21T12:00:00Z", "build": "index-abc123.js"},
 }
 
@@ -339,10 +341,11 @@ def test_a_command_with_an_extra_field_or_a_missing_one_or_a_wrong_type_is_refus
             continue
         broken += [{**example, field: "7" if isinstance(example[field], int) else 7}]       # (a wrong type: text for a number, a number for the rest)
         without = {k: v for k, v in example.items() if k != field}
-        if model.model_fields[field].is_required():
+        info = next(f for name, f in model.model_fields.items() if (f.alias or name) == field)         # (a field is told by its alias when it has one: `from` of a sked)
+        if info.is_required():
             broken += [without]
         else:                           # (a field the command may leave out, added after the command was out: packet_history's call, qru_ask's path and rf_only, release_notes' since; a page of before means its default)
-            assert getattr(COMMANDS.validate_python(without), field) == model.model_fields[field].get_default(call_default_factory=True)
+            assert getattr(COMMANDS.validate_python(without), field) == info.get_default(call_default_factory=True)
     for command in broken:
         with pytest.raises(ValidationError):
             COMMANDS.validate_python(command)

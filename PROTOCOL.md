@@ -106,7 +106,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-53 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+56 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -560,6 +560,33 @@ is not the one announced (`update.not_announced`) or an update is running (`upda
 
 Ends the download of Update now; nothing of it is left. An `error` (`update.not_running`) when no download is running: an install that has begun is not stopped.
 
+### `skeds_wanted`
+
+The page shows the Skeds tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came.
+
+### `sked_post`
+
+Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF
+box and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose
+rows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no
+room (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`.
+
+| field | type | | description |
+|---|---|---|---|
+| `from` | time |  | UTC, ISO 8601 with a Z; the field is called `from` on the wire |
+| `to` | time |  | UTC, ISO 8601 with a Z |
+| `dial` | string |  |  |
+| `note` | string |  | at most 80 characters once cleaned; empty for none (max 320 chars) |
+
+### `sked_delete`
+
+Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the
+board is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  |  |
+
 ### `page_error`
 
 An error that happened in the page itself (the browser's script, not a refusal of the daemon): the daemon writes it to its log as a warning, `page error (vue) on page BUILD: MESSAGE | FIRST LINE OF THE STACK`, and keeps the latest 100 for
@@ -817,6 +844,7 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `gps` | GpsState | the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second |
 | `igate` | IgateState | the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second |
 | `qru` | QruState | local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes |
+| `skeds` | SkedsState | the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes |
 | `general` | GeneralState | asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes |
 
 ## Objects
@@ -1625,6 +1653,40 @@ One route a packet of a station came by, which the map draws (a line, or none fo
 | `at` | time |  | when the packet was heard |
 | `lat` | number \| null |  | where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now |
 | `lon` | number \| null |  |  |
+
+### SkedFrequency
+
+A dial the project suggests for the HF radio.
+
+| field | type | | description |
+|---|---|---|---|
+| `band` | string |  | the band, `40 m` |
+| `dial` | string |  | the dial with its mode, `7.0541 MHz USB` |
+
+### SkedRow
+
+A sked on the board: a call on the air at a dial from one instant to another. Every row was checked again by the daemon; the note is one line of at most 80 characters of letters, digits, punctuation and plain spaces.
+
+| field | type | | description |
+|---|---|---|---|
+| `id` | string |  | the sked's id, 12 lowercase hex characters, which `sked_delete` names |
+| `call` | string |  | the call that will be on the air, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`) |
+| `from` | time |  | when it begins (the field is called `from` on the wire) |
+| `to` | time |  | when it ends, after `from` by 24 hours at most; a sked that has ended by the daemon's clock is not told |
+| `dial` | string |  | the dial with its mode, `7.0541 MHz USB` |
+| `note` | string |  | a short note, may be empty (`Mercury, 10 W`); the page shows it as text (max 80 chars) |
+| `ours` | boolean |  | this installation posted it, so `sked_delete` takes it off the board; no other row can be deleted from here |
+
+### SkedsState
+
+The sked board: where it stands, the dials the project suggests, and the skeds to come, the nearest first. The value of the topic `skeds`, told whole as it changes (a read of the board, a post, a delete, a sked that ends).
+
+| field | type | | description |
+|---|---|---|---|
+| `state` | "ok" \| "offline" \| "off" \| "closed" |  | `ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form |
+| `fetched_at` | time \| null |  | when the board was last read from the server (or when the one kept from the last run was); null before the first |
+| `frequencies` | SkedFrequency[] |  | the dials the project suggests for the HF radio, one to three, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state) (max 3 items) |
+| `rows` | SkedRow[] |  | the skeds to come by the daemon's clock, the nearest start first; empty when there are none (max 100 items) |
 
 ### SoundCardRow
 

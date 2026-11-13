@@ -12,6 +12,8 @@ import type {
   OwnObjectRow,
   PacketRow,
   QruState,
+  SkedRow,
+  SkedsState,
   StationRow,
   HelloMessage,
   StatusMessage,
@@ -249,6 +251,35 @@ export function bulletin(slot: string, extra: Partial<BulletinRow> = {}): Bullet
     first_heard: ago(60),
     last_heard: ago(60),
     times_heard: 1,
+    ...extra,
+  };
+}
+
+/** A sked on the board: OH2XYZ on 7.0541 MHz USB from two hours after the fixtures' time for two hours, not ours. */
+export function sked(id: string, extra: Partial<SkedRow> = {}): SkedRow {
+  return {
+    id,
+    call: "OH2XYZ",
+    from: new Date(NOW + 2 * 3_600_000).toISOString().slice(0, 19) + "Z",
+    to: new Date(NOW + 4 * 3_600_000).toISOString().slice(0, 19) + "Z",
+    dial: "7.0541 MHz USB",
+    note: "",
+    ours: false,
+    ...extra,
+  };
+}
+
+/** The topic `skeds` as the daemon tells it: the board read, the three suggested dials, the rows given. */
+export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}): SkedsState {
+  return {
+    state: "ok",
+    fetched_at: ago(60),
+    frequencies: [
+      { band: "40 m", dial: "7.0541 MHz USB" },
+      { band: "20 m", dial: "14.1070 MHz USB" },
+      { band: "6 m", dial: "50.6200 MHz USB" },
+    ],
+    rows,
     ...extra,
   };
 }

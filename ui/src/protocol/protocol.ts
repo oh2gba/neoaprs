@@ -1,7 +1,7 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand;
 
 export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | HfScopeMessage;
 
@@ -1236,6 +1236,67 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
+/** Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the board is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board. */
+export interface SkedDeleteCommand {
+  cmd: "sked_delete";
+  id: string;
+}
+
+/** A dial the project suggests for the HF radio. */
+export interface SkedFrequency {
+  /** the band, `40 m` */
+  band: string;
+  /** the dial with its mode, `7.0541 MHz USB` */
+  dial: string;
+}
+
+/** Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF box and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose rows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no room (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`. */
+export interface SkedPostCommand {
+  cmd: "sked_post";
+  /** UTC, ISO 8601 with a Z; the field is called `from` on the wire */
+  from: string;
+  /** UTC, ISO 8601 with a Z */
+  to: string;
+  dial: string;
+  /** at most 80 characters once cleaned; empty for none */
+  note: string;
+}
+
+/** A sked on the board: a call on the air at a dial from one instant to another. Every row was checked again by the daemon; the note is one line of at most 80 characters of letters, digits, punctuation and plain spaces. */
+export interface SkedRow {
+  /** the sked's id, 12 lowercase hex characters, which `sked_delete` names */
+  id: string;
+  /** the call that will be on the air, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`) */
+  call: string;
+  /** when it begins (the field is called `from` on the wire) */
+  from: string;
+  /** when it ends, after `from` by 24 hours at most; a sked that has ended by the daemon's clock is not told */
+  to: string;
+  /** the dial with its mode, `7.0541 MHz USB` */
+  dial: string;
+  /** a short note, may be empty (`Mercury, 10 W`); the page shows it as text */
+  note: string;
+  /** this installation posted it, so `sked_delete` takes it off the board; no other row can be deleted from here */
+  ours: boolean;
+}
+
+/** The sked board: where it stands, the dials the project suggests, and the skeds to come, the nearest first. The value of the topic `skeds`, told whole as it changes (a read of the board, a post, a delete, a sked that ends). */
+export interface SkedsState {
+  /** `ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form */
+  state: "ok" | "offline" | "off" | "closed";
+  /** when the board was last read from the server (or when the one kept from the last run was); null before the first */
+  fetched_at: string | null;
+  /** the dials the project suggests for the HF radio, one to three, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state) */
+  frequencies: SkedFrequency[];
+  /** the skeds to come by the daemon's clock, the nearest start first; empty when there are none */
+  rows: SkedRow[];
+}
+
+/** The page shows the Skeds tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came. */
+export interface SkedsWantedCommand {
+  cmd: "skeds_wanted";
+}
+
 /** A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type. */
 export interface SoundCardRow {
   /** the name to give as `mercury/sound_card`: `plughw:CARD=CODEC,DEV=0` on Linux (by the card's name, which a reboot does not change); on Windows the card's recording device and its playing device, joined by `|` (one of them alone for a device with no partner) */
@@ -1668,6 +1729,8 @@ export interface TopicValues {
   igate: IgateState;
   /** local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes */
   qru: QruState;
+  /** the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes */
+  skeds: SkedsState;
   /** asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes */
   general: GeneralState;
 }

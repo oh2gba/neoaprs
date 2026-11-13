@@ -8,7 +8,18 @@ import { stubWidth } from "@/test/width";
 
 // Fake measurements: the width of what the probe holds (the tabs, the More button and the More button with a count; jsdom lays nothing out) and, by stubWidth, the width of the bar. The tabs add up to 580 px, the More button is 50 px and 74 with a count;
 // the room is the width of the bar less the 1 px the page keeps back (and the Map button of a phone, whose offsetWidth is 0 here unless a test says another).
-const TABS: Record<TabId, number> = { messages: 80, stations: 70, nearby: 60, email: 50, bulletins: 70, objects: 60, beacon: 60, packets: 60, settings: 70 };
+const TABS: Record<TabId, number> = {
+  messages: 80,
+  stations: 70,
+  nearby: 60,
+  email: 50,
+  bulletins: 70,
+  skeds: 50,
+  objects: 50,
+  beacon: 50,
+  packets: 50,
+  settings: 50,
+};
 const originalRect = Element.prototype.getBoundingClientRect;
 const WIDTHS = { ...TABS };
 beforeEach(() => {
@@ -53,7 +64,7 @@ const opened = async (wrapper: Wrapper) => {
 };
 
 describe("the tabs in a row, and the ones that do not fit under More", () => {
-  it("has all nine in the row when they fit, to the pixel, and no More button", async () => {
+  it("has all ten in the row when they fit, to the pixel, and no More button", async () => {
     const wrapper = await make(581);
     expect(wrapper.find(".tabmenu").exists()).toBe(false);
     expect(row(wrapper)).toEqual([...TAB_IDS]);
@@ -93,7 +104,7 @@ describe("the tabs in a row, and the ones that do not fit under More", () => {
     width?.set(700);
     await nextTick();
     expect(wrapper.find(".tabmenu").exists()).toBe(false);
-    expect(row(wrapper)).toHaveLength(9);
+    expect(row(wrapper)).toHaveLength(10);
     width?.set(250);
     await nextTick();
     expect(row(wrapper)).toEqual(TAB_IDS.slice(0, 2));
@@ -101,7 +112,7 @@ describe("the tabs in a row, and the ones that do not fit under More", () => {
 
   it("goes with the badges: more digits in a tab take room, and one tab goes under More", async () => {
     const wrapper = await make(591);
-    expect(row(wrapper)).toHaveLength(9);
+    expect(row(wrapper)).toHaveLength(10);
     TABS.messages = 110;
     await wrapper.setProps({ badges: { messages: 12 } });
     await flushPromises();
@@ -123,13 +134,13 @@ describe("the tab on show", () => {
     expect(wrapper.find("#tab-packets").classes()).toContain("active");
     expect(button(wrapper).classes()).not.toContain("active");
     await opened(wrapper);
-    expect(listed(wrapper)).toEqual(["Bulletins", "Objects", "My station", "Settings"]);
+    expect(listed(wrapper)).toEqual(["Bulletins", "Skeds", "Objects", "My station", "Settings"]);
   });
 
   it("is brought into the row when it is picked from the menu, the row keeping its order otherwise", async () => {
     const wrapper = await make(400);
     await opened(wrapper);
-    await items(wrapper)[3]?.trigger("click"); // Settings
+    await items(wrapper)[4]?.trigger("click"); // Settings
     expect(wrapper.emitted("update:tab")).toEqual([["settings"]]);
     await wrapper.setProps({ tab: "settings" });
     expect(row(wrapper)).toEqual(["messages", "stations", "nearby", "email", "settings"]);
@@ -163,7 +174,7 @@ describe("the More button", () => {
     await opened(wrapper);
     expect(button(wrapper).attributes("aria-expanded")).toBe("true");
     expect(wrapper.find("[role='menu']").attributes("id")).toBe(button(wrapper).attributes("aria-controls"));
-    expect(items(wrapper).map((i) => i.text())).toEqual(["Email", "Bulletins 2", "Objects", "My station", "Packets", "Settings"]);
+    expect(items(wrapper).map((i) => i.text())).toEqual(["Email", "Bulletins 2", "Skeds", "Objects", "My station", "Packets", "Settings"]);
     expect(items(wrapper)[1]?.find(".badge").attributes("title")).toBe("2 new bulletins");
     expect(items(wrapper).some((i) => i.attributes("aria-current"))).toBe(false);
   });
@@ -229,23 +240,23 @@ describe("the More button", () => {
     const focused = () => items(wrapper).findIndex((i) => i.element === document.activeElement);
     await button(wrapper).trigger("keydown", { key: "ArrowDown" });
     await nextTick();
-    expect(items(wrapper)).toHaveLength(4);
+    expect(items(wrapper)).toHaveLength(5);
     expect(focused()).toBe(0);
     await key(wrapper, "[role='menu']", "ArrowDown");
     expect(focused()).toBe(1);
     await key(wrapper, "[role='menu']", "ArrowUp");
     await key(wrapper, "[role='menu']", "ArrowUp");
-    expect(focused()).toBe(3);
+    expect(focused()).toBe(4);
     await key(wrapper, "[role='menu']", "ArrowDown");
     expect(focused()).toBe(0);
     await key(wrapper, "[role='menu']", "End");
-    expect(focused()).toBe(3);
+    expect(focused()).toBe(4);
     await key(wrapper, "[role='menu']", "Home");
     expect(focused()).toBe(0);
     await key(wrapper, "[role='menu']", "Escape");
     await button(wrapper).trigger("keydown", { key: "ArrowUp" });
     await nextTick();
-    expect(focused()).toBe(3);
+    expect(focused()).toBe(4);
   });
 
   it("picks the focused item with Enter, as a button does", async () => {
@@ -253,7 +264,7 @@ describe("the More button", () => {
     await button(wrapper).trigger("keydown", { key: "ArrowDown" });
     await nextTick();
     (document.activeElement as HTMLElement).click(); // (a browser clicks the focused button on Enter)
-    expect(wrapper.emitted("update:tab")).toEqual([["objects"]]);
+    expect(wrapper.emitted("update:tab")).toEqual([["skeds"]]);
   });
 
   it("is gone, with its menu, when the tabs fit again", async () => {
@@ -287,7 +298,7 @@ describe("on a phone", () => {
     try {
       const narrow = await make(587, {}, "phone");
       expect(narrow.find(".tabmenu").exists()).toBe(true); // 587 - 40 - 6 - 1 = 540 < 580
-      expect(row(narrow)).toEqual(TAB_IDS.slice(0, 7)); // 540 - 50 = 490: 80 + 70 + 60 + 50 + 70 + 60 + 60 = 450, the packets make 510
+      expect(row(narrow)).toEqual(TAB_IDS.slice(0, 8)); // 540 - 50 = 490: 80 + 70 + 60 + 50 + 70 + 50 + 50 + 50 = 480, the packets make 530
     } finally {
       if (original) Object.defineProperty(HTMLElement.prototype, "offsetWidth", original);
     }

@@ -14,6 +14,7 @@ import { packets } from "@/i18n/ja/packets";
 import { settings } from "@/i18n/ja/settings";
 import { setup } from "@/i18n/ja/setup";
 import { shell } from "@/i18n/ja/shell";
+import { skeds } from "@/i18n/ja/skeds";
 import { stations } from "@/i18n/ja/stations";
 import { symbols } from "@/i18n/ja/symbols";
 import { time } from "@/i18n/ja/time";
@@ -26,6 +27,7 @@ export const ja: Catalogue = {
   ...messages,
   ...email,
   ...bulletins,
+  ...skeds,
   ...objects,
   ...stations,
   ...nearby,

@@ -27,8 +27,8 @@
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=29">
-<script src="site.js?v=10" defer></script>
+<link rel="stylesheet" href="style.css?v=30">
+<script src="site.js?v=11" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
@@ -268,6 +268,15 @@
         <a class="zoom pic" href="shots/stations-hf.png" data-dark="shots/stations-hf-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/stations-hf-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/stations-hf-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/stations-hf.webp"><img src="shots/thumbs/stations-hf.png" width="640" height="400" loading="lazy" decoding="async" alt="The Stations table with APRS stations heard on FM nearby and on HF hundreds of kilometres away"></picture></a>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="sec" id="skeds" hidden>
+  <div class="wrap">
+    <h2>On the air soon</h2>
+    <p class="lead-sm">On HF there are few stations, so two have to agree on a time and a frequency. These stations have said when they will be on the air: tune to the dial and call them.</p>
+    <table class="why skeds" id="sked-board"><thead><tr><th scope="col">Station</th><th scope="col">When, UTC</th><th scope="col">Dial</th></tr></thead><tbody></tbody></table>
+    <p class="aside">Posted from the Skeds tab of NeoAPRS. Post yours there, and anyone who looks here or in the program can come and meet you.</p>
   </div>
 </section>
 </main>

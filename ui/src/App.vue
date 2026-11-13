@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, our objects, the beacon and the settings (which open with the state of the radio link). The state of the daemon and the radio is in the header, as marks.
+// The page: a calm header (the title, a link to the project's page, and the messages not seen), the map filling the page, and at its right a panel with the stations, what is nearby, the packets, the messages, the email, the bulletins, the skeds, our objects, the beacon and the settings (which open with the state of the radio link). The state of the daemon and the radio is in the header, as marks.
 // A daemon of another protocol or another build of the page makes it a notice (`VersionMismatch`) instead of the page.
 // The layout only: the page put together, and what the panes share (the daemon's state, `send`, the settings, the guide, the panel), is `useAppShell`; a pane takes from the context what is the page's as a whole, and as props what is its own (the rows it lists, the one that is open).
 import AppHeader from "@/components/AppHeader.vue";
@@ -11,6 +11,7 @@ import MessagesPane from "@/components/MessagesPane.vue";
 import NearbyPane from "@/components/NearbyPane.vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
+import SkedsPane from "@/components/SkedsPane.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import SetupGuide from "@/components/SetupGuide.vue";
 import SidePanel from "@/components/SidePanel.vue";
@@ -40,6 +41,7 @@ const {
   talk,
   mail,
   board,
+  sked,
   objects,
   picks,
   layout,
@@ -117,7 +119,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
         v-model:width="panel.width.value"
         :size="layout.size.value"
         :view="layout.showing.value"
-        :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value }"
+        :badges="{ messages: talk.unread.value, email: mail.unread.value, bulletins: board.fresh.value, skeds: sked.fresh.value }"
         @update:view="layout.view.value = $event"
       >
         <template #stations>
@@ -171,6 +173,9 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
         </template>
         <template #bulletins>
           <BulletinsPane :bulletins="bulletins" :own-bulletins="ownBulletins" />
+        </template>
+        <template #skeds>
+          <SkedsPane />
         </template>
         <template #objects>
           <ObjectsPane :objects="ownObjects" :form="objects" @select="cards.pickFromTable" />

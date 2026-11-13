@@ -27,6 +27,7 @@ describe("App: the Bulletins tab", () => {
         "Nearby",
         "Email",
         "Bulletins",
+        "Skeds",
         "Objects",
         "My station",
         "Packets",

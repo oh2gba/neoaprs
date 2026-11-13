@@ -1,4 +1,4 @@
-// The project page's only script: the copy buttons, the Download chooser's first choice, the lightbox of the screenshots, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
+// The project page's only script: the copy buttons, the Download chooser's first choice, the lightbox of the screenshots, the board of stations that will be on the air, and one line to say the page was opened. Without it the page reads the same: the buttons stay hidden and a screenshot opens as a file.
 (() => {
   "use strict";
 
@@ -96,6 +96,61 @@
           row.append(band, freq);
           return row;
         }));
+      })
+      .catch(() => {});
+  }
+
+  // The sked board under the HF band: the stations that said when they will be on the air, from the file the board of NeoAPRS writes (skeds.json beside this page). The section is hidden in the page and shown only when a sked to come was
+  // read: the call, the time and the dial of each, never the note (free text from strangers does not go on this page). Every value is checked again here and written as text, never as HTML; skeds with the same times and dial are one row.
+  const board = document.getElementById("skeds");
+  if (board && window.fetch) {
+    fetch("skeds.json", { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const body = board.querySelector("tbody");
+        const instant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+        const now = Date.now();
+        const good = (data && data.v === 1 && Array.isArray(data.skeds) ? data.skeds : [])
+          .filter(
+            (s) =>
+              s &&
+              typeof s.call === "string" && /^[A-Z0-9]{3,6}(-\d{1,2})?$/.test(s.call) &&
+              typeof s.from === "string" && instant.test(s.from) &&
+              typeof s.to === "string" && instant.test(s.to) &&
+              Date.parse(s.to) > now && Date.parse(s.to) > Date.parse(s.from) &&
+              typeof s.dial === "string" && /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/.test(s.dial),
+          )
+          .sort((a, b) => Date.parse(a.from) - Date.parse(b.from) || Date.parse(a.to) - Date.parse(b.to));
+        const rows = new Map();
+        for (const s of good) {
+          const key = `${s.from}|${s.to}|${s.dial}`;
+          if (!rows.has(key)) rows.set(key, { from: s.from, to: s.to, dial: s.dial, calls: [] });
+          const row = rows.get(key);
+          if (!row.calls.includes(s.call)) row.calls.push(s.call);
+        }
+        const shown = [...rows.values()].slice(0, 12);
+        if (!shown.length || !body) return;
+        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const two = (n) => String(n).padStart(2, "0");
+        const day = (d) => `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+        const clock = (d) => `${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`;
+        body.replaceChildren(...shown.map((row) => {
+          const start = new Date(row.from);
+          const end = new Date(row.to);
+          const tr = document.createElement("tr");
+          const call = document.createElement("th");
+          call.scope = "row";
+          call.textContent = row.calls.join(", ");
+          const when = document.createElement("td");
+          when.textContent = `${day(start)} ${clock(start)} to ${day(start) === day(end) ? "" : day(end) + " "}${clock(end)}`;
+          const dial = document.createElement("td");
+          dial.className = "dial";
+          dial.textContent = row.dial;
+          tr.append(call, when, dial);
+          return tr;
+        }));
+        board.hidden = false;
       })
       .catch(() => {});
   }

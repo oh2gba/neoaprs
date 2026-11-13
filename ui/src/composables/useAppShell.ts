@@ -22,6 +22,7 @@ import { usePersistedFlag } from "@/composables/usePersisted";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
 import { useSettings } from "@/composables/useSettings";
+import { useSkeds } from "@/composables/useSkeds";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
 import { useStationActions } from "@/composables/useStationActions";
 import { useStationCards } from "@/composables/useStationCards";
@@ -97,12 +98,13 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
   };
 }
 
-/** The models of the tabs that have messages not seen, and the count of them all: the one of the header, of the folded panel's handle and of the browser tab's title. */
+/** The models of the tabs that have something not seen (messages, email, bulletins, skeds), and the count of them all: the one of the header, of the folded panel's handle and of the browser tab's title. */
 function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof usePanel>) {
   const { messages, send } = daemon;
   const talk = useMessagesView(messages, panel, send);
   const mail = useEmail(messages, panel, send);
   const board = useBulletins(daemon.bulletins, panel);
+  const sked = useSkeds(daemon.skeds, panel, send, computed(() => daemon.connection.value === "open"));
   const alerts = useBrowserAlerts(talk.writeTo);
   usePageAlerts(messages, daemon.messagesLoaded, alerts.announce);
   const unread = computed(() => talk.unread.value + mail.unread.value);
@@ -112,7 +114,7 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
     if (talk.unread.value > 0 || mail.unread.value === 0) talk.openMessages();
     else panel.show("email");
   }
-  return { talk, mail, board, alerts, unread, openUnread };
+  return { talk, mail, board, sked, alerts, unread, openUnread };
 }
 
 /** The windows of an update: the panel with the steps of one, open on purpose and gone when the newer version is, and the notes of the version that runs (useWhatsNew). */

@@ -4791,6 +4791,202 @@
       "title": "SetStationRfOnlyCommand",
       "type": "object"
     },
+    "SkedDelete": {
+      "additionalProperties": false,
+      "description": "Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the\nboard is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board.",
+      "properties": {
+        "cmd": {
+          "const": "sked_delete",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{12}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "id"
+      ],
+      "title": "SkedDeleteCommand",
+      "type": "object"
+    },
+    "SkedFrequency": {
+      "additionalProperties": false,
+      "description": "A dial the project suggests for the HF radio.",
+      "properties": {
+        "band": {
+          "description": "the band, `40 m`",
+          "type": "string"
+        },
+        "dial": {
+          "description": "the dial with its mode, `7.0541 MHz USB`",
+          "type": "string"
+        }
+      },
+      "required": [
+        "band",
+        "dial"
+      ],
+      "title": "SkedFrequency",
+      "type": "object"
+    },
+    "SkedPost": {
+      "additionalProperties": false,
+      "description": "Posts a sked of ours on the board of the project's server: our call (the setting `station/call`), `from` and `to` in UTC (`to` after `from` by 24 hours at most, not past, `from` not more than 30 days ahead), a `dial` in the form of the HF\nbox and a `note` of at most 80 characters (control and invisible characters are made spaces). It goes only on this command, and carries the call, the two times, the dial, the note and this installation's secret token. Answered by the topic `skeds`, whose\nrows then have it with `ours` true. An `error` when no call is set (the interlock's reason; RX only does not matter, nothing is sent by radio), the sked has ended (`sked.past`) or begins more than 30 days ahead by the daemon's or the server's clock (`sked.far`), too many were posted from here lately (`sked.rate`), the board has no\nroom (`sked.full`), or the project's server could not be reached or would not take it (`sked.unreachable`). A board that is closed to the call is no error: the state of the topic says `closed`.",
+      "properties": {
+        "cmd": {
+          "const": "sked_post",
+          "type": "string"
+        },
+        "from": {
+          "description": "UTC, ISO 8601 with a Z; the field is called `from` on the wire",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "to": {
+          "description": "UTC, ISO 8601 with a Z",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "dial": {
+          "pattern": "^\\d{1,2}\\.\\d{3,4} MHz (USB|LSB)$",
+          "type": "string"
+        },
+        "note": {
+          "description": "at most 80 characters once cleaned; empty for none",
+          "maxLength": 320,
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "from",
+        "to",
+        "dial",
+        "note"
+      ],
+      "title": "SkedPostCommand",
+      "type": "object"
+    },
+    "SkedRow": {
+      "additionalProperties": false,
+      "description": "A sked on the board: a call on the air at a dial from one instant to another. Every row was checked again by the daemon; the note is one line of at most 80 characters of letters, digits, punctuation and plain spaces.",
+      "properties": {
+        "id": {
+          "description": "the sked's id, 12 lowercase hex characters, which `sked_delete` names",
+          "pattern": "^[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "call": {
+          "description": "the call that will be on the air, upper case without an SSID of 0 (`OH2GBA`, `OH2GBA-7`)",
+          "type": "string"
+        },
+        "from": {
+          "description": "when it begins (the field is called `from` on the wire)",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "to": {
+          "description": "when it ends, after `from` by 24 hours at most; a sked that has ended by the daemon's clock is not told",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "dial": {
+          "description": "the dial with its mode, `7.0541 MHz USB`",
+          "pattern": "^\\d{1,2}\\.\\d{3,4} MHz (USB|LSB)$",
+          "type": "string"
+        },
+        "note": {
+          "description": "a short note, may be empty (`Mercury, 10 W`); the page shows it as text",
+          "maxLength": 80,
+          "type": "string"
+        },
+        "ours": {
+          "description": "this installation posted it, so `sked_delete` takes it off the board; no other row can be deleted from here",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "call",
+        "from",
+        "to",
+        "dial",
+        "note",
+        "ours"
+      ],
+      "title": "SkedRow",
+      "type": "object"
+    },
+    "SkedsState": {
+      "additionalProperties": false,
+      "description": "The sked board: where it stands, the dials the project suggests, and the skeds to come, the nearest first. The value of the topic `skeds`, told whole as it changes (a read of the board, a post, a delete, a sked that ends).",
+      "properties": {
+        "state": {
+          "description": "`ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off (`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form",
+          "enum": [
+            "ok",
+            "offline",
+            "off",
+            "closed"
+          ],
+          "type": "string"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the board was last read from the server (or when the one kept from the last run was); null before the first"
+        },
+        "frequencies": {
+          "description": "the dials the project suggests for the HF radio, one to three, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state)",
+          "items": {
+            "$ref": "#/$defs/SkedFrequency"
+          },
+          "maxItems": 3,
+          "type": "array"
+        },
+        "rows": {
+          "description": "the skeds to come by the daemon's clock, the nearest start first; empty when there are none",
+          "items": {
+            "$ref": "#/$defs/SkedRow"
+          },
+          "maxItems": 100,
+          "type": "array"
+        }
+      },
+      "required": [
+        "state",
+        "fetched_at",
+        "frequencies",
+        "rows"
+      ],
+      "title": "SkedsState",
+      "type": "object"
+    },
+    "SkedsWanted": {
+      "additionalProperties": false,
+      "description": "The page shows the Skeds tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came.",
+      "properties": {
+        "cmd": {
+          "const": "skeds_wanted",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "title": "SkedsWantedCommand",
+      "type": "object"
+    },
     "SoundCardRow": {
       "additionalProperties": false,
       "description": "A sound card as the Mercury HF modem lists it (`mercury -z`), for the Sound card choice of the Mercury radio type.",
@@ -6485,6 +6681,10 @@
           "$ref": "#/$defs/QruState",
           "description": "local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes"
         },
+        "skeds": {
+          "$ref": "#/$defs/SkedsState",
+          "description": "the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes"
+        },
         "general": {
           "$ref": "#/$defs/GeneralState",
           "description": "asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
@@ -6507,6 +6707,7 @@
         "gps",
         "igate",
         "qru",
+        "skeds",
         "general"
       ],
       "title": "TopicValues",
@@ -7041,6 +7242,9 @@
           "set_station_alert": "#/$defs/SetStationAlert",
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
+          "sked_delete": "#/$defs/SkedDelete",
+          "sked_post": "#/$defs/SkedPost",
+          "skeds_wanted": "#/$defs/SkedsWanted",
           "speed_series": "#/$defs/SpeedSeries",
           "station_traffic": "#/$defs/StationTraffic",
           "status": "#/$defs/AskStatus",
@@ -7210,6 +7414,15 @@
         },
         {
           "$ref": "#/$defs/UpdateCancel"
+        },
+        {
+          "$ref": "#/$defs/SkedsWanted"
+        },
+        {
+          "$ref": "#/$defs/SkedPost"
+        },
+        {
+          "$ref": "#/$defs/SkedDelete"
         },
         {
           "$ref": "#/$defs/PageError"

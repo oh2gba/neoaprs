@@ -125,6 +125,11 @@ class Frequency:
     dial: str
 
 
+def is_dial(text: str) -> bool:
+    """Whether the text is an HF dial as the page names it, `7.0541 MHz USB` (or LSB): the form of the suggested frequencies and of a sked."""
+    return _DIAL.fullmatch(text) is not None
+
+
 def parse_frequencies(body: bytes | str) -> list[Frequency] | None:
     """The list in the project's file, `{"frequencies": [{"band": "40 m", "dial": "7.0541 MHz USB"}, ...]}`: every entry that is not of the two forms is dropped, a band that is there already is dropped, and the first MAX_FREQUENCIES are kept.
     None for a file that is no list or has not one good entry (the last good list stands then)."""

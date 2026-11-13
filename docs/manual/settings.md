@@ -102,6 +102,7 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 - `hf/beacon_last_sent_at`: the same for the HF radio's beacon.
 - `messages/radio_by_station`: the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on.
 - `update/install_id`: the random number of this installation that the update check sends.
+- `update/sked_token`: the secret of this installation that goes with each sked it posts, so that only it can delete them; never shown in the log or the support bundle.
 <!-- /doc-settings -->
 
 ## Rows that mean another setting

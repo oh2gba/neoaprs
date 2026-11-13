@@ -29,6 +29,7 @@ import type {
   PositionHistoryMessage,
   QruState,
   ReleaseNotesMessage,
+  SkedsState,
   SpeedSeriesMessage,
   StationTrafficMessage,
   StationRow,
@@ -61,6 +62,8 @@ export interface DaemonContext {
   qru: Read<QruState | null>;
   /** asking around: the last general query of each kind sent from here and who spoke after it; null until the daemon has told */
   general: Read<GeneralState | null>;
+  /** the sked board: where it stands, the dials the project suggests and the skeds to come; null until the daemon has told */
+  skeds: Read<SkedsState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

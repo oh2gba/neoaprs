@@ -37,6 +37,7 @@ from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSear
 from .qruwire import AskQru, QruState
 from .replaywire import PositionHistory, PositionHistoryMsg
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly, StationAlertMsg, StationPref
+from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
 from .stationwire import ForgetAllStations, ForgetStation, StationRow
 from .supportwire import PageError
 from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfScopeMsg, HfTune, TncState
@@ -46,7 +47,7 @@ from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfFrequencies, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SetMessageRadio, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, PageError]
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfFrequencies, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SetMessageRadio, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, SkedsWanted, SkedPost, SkedDelete, PageError]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
 
@@ -75,6 +76,7 @@ class TopicValues(_Model):
     gps: GpsState = Field(description="the GPS receiver and the moving station's beacon: the latest fix, its state, and when the next beacon by time is due; told whole as it changes, at most once a second")
     igate: IgateState = Field(description="the receive-only iGate: whether it is connected to APRS-IS, the server's name, the packets gated and not gated; told whole as it changes, at most once a second")
     qru: QruState = Field(description="local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes")
+    skeds: SkedsState = Field(description="the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes")
     general: GeneralState = Field(description="asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes")
 
 

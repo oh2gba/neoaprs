@@ -90,6 +90,7 @@ export interface Store {
   replaceIgate(value: TopicValues["igate"]): void;
   replaceQru(value: TopicValues["qru"]): void;
   replaceGeneral(value: TopicValues["general"]): void;
+  replaceSkeds(value: TopicValues["skeds"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setMessage(key: string, row: MessageRow): void;
@@ -127,6 +128,7 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   igate: "replaceIgate",
   qru: "replaceQru",
   general: "replaceGeneral",
+  skeds: "replaceSkeds",
 };
 
 /** What the hub needs of a WebSocket: the browser's has more. */

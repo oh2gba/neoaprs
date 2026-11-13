@@ -27,6 +27,7 @@ from .bulletinwire import BulletinDelete
 from . import historyhandlers  # noqa: F401  (the commands answered from the logs: importing it registers them)
 from . import hfhandlers  # noqa: F401  (Tune and the keying test of the HF radio: importing it registers them)
 from . import confighandlers  # noqa: F401  (set_config and the alert's Test: importing it registers them)
+from . import skedhandlers  # noqa: F401  (the sked board: importing it registers its commands)
 from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe

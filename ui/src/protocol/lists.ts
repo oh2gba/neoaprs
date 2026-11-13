@@ -21,6 +21,7 @@ export const TOPIC_NAMES = [
   "gps",
   "igate",
   "qru",
+  "skeds",
   "general",
 ] as const;
 
