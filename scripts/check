@@ -1,31 +1,69 @@
 #!/usr/bin/env bash
-# The one entry point for "is this tree good": what a pre-push hook and CI run.
+# The one entry point for "is this tree good": what is run before a push, and what scripts/release runs before it commits.
 #
-#   scripts/check                 every stage, in order, stopping at the first failure
+#   scripts/check                 every stage of the default list, most of them at once; every stage runs to its end, whatever the others say
+#   scripts/check --serial        the same stages one after the other in the order of the list, stopping at the first failure (NEOAPRS_TEST_WORKERS=0 implies it): for a machine with few
+#                                 cores, and to read the output of one failing test in order
 #   scripts/check --stage NAME    one stage only (see STAGES below)
 #   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about six minutes, Linux only, and the Mercury built once with
 #                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
+#   scripts/check --stage audit   the packages of both lock files asked of the advisory lists (scripts/security-check --audit), which is not in the default list: it needs the network
 #   scripts/check --list          the stage names
 #
-# One line per stage with its time; the output of a failing stage is printed under its line. Runs from any directory.
-# Python: NEOAPRS_PYTHON, else the uv venv (.venv). Needs `uv sync --frozen` once.
+# One line per stage with its time, in the order of the list; the output of every failing stage is printed under its line; the last line is "all green in Ns", or the exit code is 1.
+# Runs from any directory. Python: NEOAPRS_PYTHON, else the uv venv (.venv). Needs `uv sync --frozen` once, and for the stage security `scripts/security-tools` once.
+# Run it outside a sandbox that keeps uv from its cache (~/.cache/uv): the stages lock and smoke and the package tests of the suite go through uv, and with an empty cache and no network
+# they fail or are skipped for a reason that is the sandbox's and not the tree's.
+#
+# The default run has three steps (--serial and --stage run one stage at a time, and need none of this care):
+#   1. alone, one after the other: lock, then `npm ci` when ui/node_modules is missing (the line npm-ci of the output; it is no stage). npm ci takes ui/node_modules away and writes it
+#      again, and every stage of the page runs from that folder, so it is done once, before they start, and not by each of them.
+#   2. at once: every stage that is not in step 1 or 3. On 32 threads about 28 are busy: 12 workers of pytest, 8 of vitest, the two mypy runs, and one or two for each of the others.
+#   3. alone: smoke. It starts a daemon and gives it real seconds to answer, which a machine busy with step 2 may not leave it.
+# What the stages of step 2 would write into the same place, and how each is kept apart:
+#   - the output: every stage has a log of its own, in a temporary folder that is taken away at the end.
+#   - mypy keeps its cache by folder and Python version, not by platform, so two runs in one folder each throw away what the other wrote: the run for Windows has a folder of its own
+#     (.mypy_cache/win32).
+#   - .pytest_cache (what --lf remembers) belongs to the stage pytest: architecture and page, which are pytest runs too, run without the cache plugin. The temporary folders of the three
+#     runs are numbered apart by pytest itself.
+#   - vite builds twice: the stage ui-build into ui/dist, the page test into a folder of its own (NEOAPRS_OUT). The stage pytest leaves the page test to the stage page, so the suite
+#     builds nothing. Nothing else reads ui/dist: eslint, prettier and jscpd ignore it, vue-tsc and knip read ui/src only.
+#   - the rest only read the tree (ruff and vitest keep caches that no second stage uses).
+# sim and audit run only by name, so alone: sim keeps the pace of a sound card and fails on a machine that is busy with anything else.
+#
+# NEOAPRS_TEST_WORKERS and NEOAPRS_TEST_WORKERS_MAX set the workers of the stage pytest (below). NEOAPRS_CHECK_STAGES is for the tests of this script, which run a copy of it in a folder of their own: a file of
+# stand-ins for the stages (below). In a tree it is refused: the script stops.
+# The stage smoke starts its daemon with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0: it opens no device of this machine and asks nothing of the internet.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-# The stages: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the Python tree (jscpd, from ui/node_modules).
-STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py)
-EXTRA_STAGES=(sim)                     # run only by name (--stage sim): minutes long, Linux only
-ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
+# NEOAPRS_CHECK_STAGES puts stand-ins in the place of every stage (the end of the stages, below), so a run with it says nothing about a tree: all green, and nothing checked. It is taken only by a copy of this
+# script in a folder that has nothing to check, which is what the tests make: neither pyproject.toml nor neoaprs/ beside scripts/. Anywhere else the script stops here, before it reads an argument, so that a
+# variable left in a shell cannot make this run, or the release that asks it, pass.
+is_a_tree() { [ -e pyproject.toml ] || [ -L pyproject.toml ] || [ -e neoaprs ] || [ -L neoaprs ]; }
+if [ -n "${NEOAPRS_CHECK_STAGES:-}" ] && is_a_tree; then
+    echo "check: NEOAPRS_CHECK_STAGES is set, which puts stand-ins in the place of every stage and is for the tests of this script only: unset it and run again" >&2
+    exit 2
+fi
 
-only=""
+# The stages, in the order of their result lines: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the
+# Python tree (jscpd, from ui/node_modules), the security checks that need no network, and the smoke test of the built wheel.
+STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security smoke)
+EXTRA_STAGES=(sim audit)               # run only by name (--stage sim): sim is minutes long and Linux only, audit needs the network
+ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
+ALONE_FIRST=(lock)                     # step 1 of the default run
+ALONE_LAST=(smoke)                     # step 3
+
+only="" serial=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --fast) ;;                                                                                       # (it once left out the browser stages; there are none now: still accepted, it does nothing)
+        --serial) serial=1 ;;
         --stage) shift; only="${1:-}"; [ -n "$only" ] || { echo "check: --stage needs a name (${ALL_STAGES[*]})" >&2; exit 2; } ;;
         --list) printf '%s\n' "${ALL_STAGES[@]}"; exit 0 ;;
-        -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "check: unknown argument $1" >&2; exit 2 ;;
     esac
     shift
@@ -33,6 +71,9 @@ done
 if [ -n "$only" ]; then
     case " ${ALL_STAGES[*]} " in *" $only "*) ;; *) echo "check: no stage called $only (${ALL_STAGES[*]})" >&2; exit 2 ;; esac
 fi
+if [ "${NEOAPRS_TEST_WORKERS:-}" = 0 ]; then serial=1; fi          # (tests one after the other, to read them in order: then the stages too)
+at_once=0                                                          # 1 while the stages of the default list run side by side: a stage reads it to take less of the machine
+if [ "$serial" = 0 ] && [ -z "$only" ]; then at_once=1; fi
 
 python="${NEOAPRS_PYTHON:-}"
 if [ -z "$python" ]; then
@@ -46,52 +87,114 @@ if ! node_ok; then
     newest="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
     [ -n "$newest" ] && PATH="$newest:$PATH"
 fi
+export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but an install itself
 
-log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
+# The threads this run may use (nproc knows the cpuset of a container).
+cores() { nproc 2>/dev/null || getconf _NPROCESSORS_ONLN; }
 
-# --- the stages: each is a function that exits non-zero on failure -------------------------------------------------------------------------------------------
-
-# Careful: a stage runs inside `if`, where bash ignores `set -e`, so every command of a stage that has several ends in `|| return 1`.
-stage_lock() {
-    # uv.lock must be current with pyproject.toml.
-    command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
-    # a sandbox that cannot write ~/.cache/uv gets a cache of its own, so the stage says something about the lock and not about the cache
+# uv is what the stages lock and smoke and the package tests of the suite work with. A sandbox that cannot write ~/.cache/uv gets a cache of its own, so that a stage says something about the tree and not about the cache.
+uv_cache() {
+    command -v uv >/dev/null || return 0
     local cache="${UV_CACHE_DIR:-$HOME/.cache/uv}"
     if ! { mkdir -p "$cache" && [ -w "$cache" ]; } 2>/dev/null; then
         export UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache"
     fi
-    uv lock --check
+}
+
+# The logs of the stages, and what a stage builds only to throw it away. The stages that run at once are each the leader of a process group of its own (`running`), so that a run that is
+# interrupted can end everything they started before the folder goes.
+work="$(mktemp -d)"
+running=()
+finish() {
+    local pid
+    for pid in ${running[@]+"${running[@]}"}; do kill -TERM -- "-$pid" 2>/dev/null || true; done
+    wait 2>/dev/null || true
+    rm -rf "$work"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+# --- the stages: each is a function that returns non-zero on failure ----------------------------------------------------------------------------------------------
+
+# Careful: a stage runs on the left of `||`, where bash ignores `set -e`, so every command of a stage that has several ends in `|| return 1`.
+stage_lock() {
+    # uv.lock must be current with pyproject.toml. Under UV_FROZEN=1 (the CI's setting, and the one of scripts/check-in-container) uv only reads the lock file and does not compare it, so the variable is taken away here.
+    command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
+    env -u UV_FROZEN uv lock --check
 }
 stage_ruff()  { "$python" -m ruff check .; }
-stage_mypy()  { "$python" -m mypy && "$python" -m mypy --platform win32; }        # (both systems, as CI does)
-# The architecture stage is the layers, the wiring rule and the size limits (docs/ARCHITECTURE.md): quick, so it runs before the long suite, which then leaves these two files out.
+# mypy for both systems, as CI does: one tree must type-check for Linux and for Windows. The run for Windows has a cache folder of its own (the top of this file); beside the other stages the two run
+# side by side, and the output of the second is printed after the first's.
+mypy_win32() { echo "mypy --platform win32:"; "$python" -m mypy --platform win32 --cache-dir .mypy_cache/win32; }
+stage_mypy() {
+    if [ "$at_once" = 0 ]; then "$python" -m mypy && mypy_win32; return; fi
+    local status=0
+    mypy_win32 >"$work/mypy-win32.log" 2>&1 &
+    "$python" -m mypy || status=1
+    wait $! || status=1
+    cat "$work/mypy-win32.log"
+    return "$status"
+}
+# The architecture stage is the layers, the wiring rule and the size limits (docs/ARCHITECTURE.md): quick, so it has a line of its own, and the long suite leaves these two files out. The page test is
+# the stage page in the same way. Both run without pytest's cache plugin: .pytest_cache is the suite's.
 ARCHITECTURE_TESTS=(tests/test_architecture.py tests/test_size_ratchet.py)
-stage_architecture() { "$python" -m pytest -q "${ARCHITECTURE_TESTS[@]}"; }
-# The tests run side by side (pytest-xdist): as many workers as the machine has cores, at most NEOAPRS_TEST_WORKERS_MAX (12); NEOAPRS_TEST_WORKERS=N sets the number, 0 runs them
-# one after the other (what to do to read the output of one failing test in order).
+PAGE_TESTS=(tests/test_page_build.py)
+stage_architecture() { "$python" -m pytest -q -p no:cacheprovider "${ARCHITECTURE_TESTS[@]}"; }
+# The tests run side by side (pytest-xdist): as many workers as the machine has cores, at most NEOAPRS_TEST_WORKERS_MAX (12: the ports of the Mercury tests are laid out for twelve workers);
+# NEOAPRS_TEST_WORKERS=N sets the number, 0 runs them one after the other (what to do to read the output of one failing test in order).
 stage_pytest() {
-    local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}")
+    local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}" "${PAGE_TESTS[@]/#/--ignore=}")
     if [ "$workers" = 0 ]; then "$python" -m pytest -q "${common[@]}"; return; fi
     if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
     "$python" -m pytest -q -n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"} "${common[@]}"
 }
 
-# The UI stages are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing. Node is the one on the PATH, else the newest of ~/.nvm (22.12 or newer: what vitest and knip need).
+# The UI stages, and the stage page, are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing: by the stage that finds it missing, or, when the stages run
+# at once, once before they start (the runner below; a stage then only says that it failed). Node is the one on the PATH, else the newest of ~/.nvm (22.12 or newer: what vitest and knip need).
+ui_modules_missing() { [ ! -d ui/node_modules ] && [ ! -L ui/node_modules ]; }         # (never through a symlink: npm ci deletes what it points at)
+ui_install() { (cd ui && npm ci); }
+ui_install_failed=""
 ui_run() {
     [ -d ui ] || { echo "no ui/ in this tree: nothing to do"; return 0; }
     node_ok || { echo "node 22.12 or newer is needed (on the PATH or in ~/.nvm)"; return 1; }
-    export npm_config_update_notifier=false npm_config_fund=false npm_config_audit=false           # npm asks the registry about nothing but the install itself
-    if [ ! -d ui/node_modules ] && [ ! -L ui/node_modules ]; then (cd ui && npm ci) || return 1; fi         # (never through a symlink: npm ci deletes what it points at)
+    [ -z "$ui_install_failed" ] || { echo "ui/node_modules is not installed: npm ci failed (the line npm-ci)"; return 1; }
+    if ui_modules_missing; then ui_install || return 1; fi
     (cd ui && "$@")
 }
 stage_ui_types() { ui_run npx vue-tsc --noEmit; }
 stage_ui_lint() { ui_run npm run --silent lint && ui_run npm run --silent format:check && ui_run npm run --silent knip && ui_run "$python" ../scripts/css-unused.py; }       # (the last: no rule of a class that no source file writes)
-stage_ui_tests() { ui_run npx vitest run; }
+# Beside the other stages vitest has 8 workers at most (fewer on a machine with fewer threads), which with the 12 of pytest leaves the rest their share; alone it takes what it likes.
+stage_ui_tests() {
+    if [ "$at_once" = 0 ]; then ui_run npx vitest run; return; fi
+    local workers
+    workers="$(cores)" || return 1
+    if [ "$workers" -gt 8 ]; then workers=8; fi
+    ui_run npx vitest run --maxWorkers "$workers"
+}
 stage_ui_build() { ui_run npx vite build; }
-stage_page() { "$python" -m pytest -q tests/test_page_build.py; }      # page/ (what the daemon serves) is a fresh build of ui/
+# page/ (what the daemon serves) is a fresh build of ui/. The test that builds is skipped where there is no node or no ui/node_modules, which would be an ok line with nothing compared: the stage asks ui_run
+# for both first, which installs what is missing and fails when it cannot.
+stage_page() { ui_run true && "$python" -m pytest -q -p no:cacheprovider "${PAGE_TESTS[@]}"; }
 stage_dup() { ui_run npm run --silent dup; }                              # jscpd over ui/src: duplicated code over the threshold of ui/.jscpd.json fails
 stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscpd over neoaprs/ (the page's server and the commands are in it; the built page is not) and tests/support/ against scripts/dup-baseline.json
+# The security checks of scripts/security-check: with no argument the ones that ask nobody (it prints seven lines: secret-files, tokens, gitleaks, php-lint, psalm, shellcheck, zizmor), each run by a pinned program that scripts/security-tools has fetched; --audit asks the advisory lists about the
+# packages of both lock files, so it runs only by name.
+stage_security() { "$python" scripts/security-check; }
+stage_audit() { "$python" scripts/security-check --audit; }
+# The wheel as a user gets it, as the CI job `smoke` does it: built, installed into a fresh environment (uv takes what its cache has, and asks the net only when that is not everything), and the installed command run
+# against a fake TNC by scripts/smoke.py. The daemon it starts opens no device of this machine (NEOAPRS_NO_DEVICES) and does not ask the version page (NEOAPRS_UPDATE_CHECK); nothing of the caller's Python reaches it.
+uv_from_cache() { uv "$@" --offline 2>/dev/null || uv "$@"; }
+stage_smoke() {
+    command -v uv >/dev/null || { echo "uv is not installed"; return 1; }
+    local dir="$work/smoke"
+    mkdir -p "$dir" || return 1
+    uv_from_cache build --wheel --out-dir "$dir/dist" || return 1
+    uv venv --python "$python" "$dir/venv" || return 1
+    uv_from_cache pip install --python "$dir/venv/bin/python" "$dir"/dist/*.whl || return 1
+    env -u PYTHONPATH -u VIRTUAL_ENV NEOAPRS_NO_DEVICES=1 NEOAPRS_UPDATE_CHECK=0 "$dir/venv/bin/python" scripts/smoke.py --command "$dir/venv/bin/neoaprs"
+}
 # The simulation of an HF net (docs/development.md, "The simulators"): five real Mercury instances on the suite's channel, a daemon on each, the scenario of scripts/mercury-sim; the report is left in build/mercury-sim.json.
 # Linux only (named pipes); the Mercury of the venv (scripts/build-mercury --install, which needs gcc, make and libasound2-dev) is built when it is not there. Budget: about five minutes.
 stage_sim() {
@@ -101,26 +204,86 @@ stage_sim() {
     "$python" scripts/mercury-sim --report build/mercury-sim.json
 }
 
+# For the tests of the runner (tests/test_check_script.py): NEOAPRS_CHECK_STAGES names a file of shell functions that stand in for the stages, so that the runner below is tried without one real stage. Every stage
+# and the installing of ui/node_modules are taken away before the file is read: what it does not define fails as a command that is not found, and the real one cannot run by mistake. The file is read here, after
+# everything above, so it can replace any other function of this script too. Only a copy of the script outside a tree gets this far with the variable set (the top of this file).
+if [ -n "${NEOAPRS_CHECK_STAGES:-}" ]; then
+    for name in "${ALL_STAGES[@]}"; do unset -f "stage_${name//-/_}"; done
+    unset -f ui_install
+    # shellcheck source=/dev/null
+    source "$NEOAPRS_CHECK_STAGES"
+fi
+
 # --- the runner ----------------------------------------------------------------------------------------------------------------------------------------------
 
+# Careful: nothing from here on is a command substitution, `$(...)`. When a signal comes while bash (5.2) reads one, it cannot read the command of the signal's trap either: the run then ends with exit code 2 and
+# a syntax error instead of the code that names the signal. So a file is read with `read`, a line is made with `printf -v`, and the time is EPOCHSECONDS (tests/test_check_script.py holds it).
+
+# Runs one stage (or, for a line that is no stage, the command after the name) in a shell of its own, so that nothing a stage sets reaches the next, with its output in its log, and leaves its result line beside the
+# log. The time is counted in microseconds: EPOCHREALTIME without its decimal mark, which is a comma in some languages.
 run_stage() {
-    local name="$1" fn="stage_${1//-/_}" start end
-    start=$EPOCHREALTIME
-    if "$fn" >"$log" 2>&1; then
-        end=$EPOCHREALTIME
-        printf 'ok    %-12s %6.1fs\n' "$name" "$(awk -v a="$start" -v b="$end" 'BEGIN { print b - a }')"
-    else
-        end=$EPOCHREALTIME
-        printf 'FAIL  %-12s %6.1fs\n' "$name" "$(awk -v a="$start" -v b="$end" 'BEGIN { print b - a }')"
-        sed 's/^/      | /' "$log"
-        exit 1
-    fi
+    local name="$1" word=ok start="${EPOCHREALTIME/[^0-9]/}" tenths
+    shift
+    [ $# -gt 0 ] || set -- "stage_${name//-/_}"
+    ( "$@" ) >"$work/$name.log" 2>&1 || word=FAIL
+    tenths=$(( (${EPOCHREALTIME/[^0-9]/} - start + 50000) / 100000 ))
+    printf '%-5s %-12s %4d.%ds\n' "$word" "$name" $(( tenths / 10 )) $(( tenths % 10 )) >"$work/$name.line"
 }
 
-total_start=$(date +%s)
-for name in "${ALL_STAGES[@]}"; do
-    if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
-    if [ -z "$only" ]; then case " ${EXTRA_STAGES[*]} " in *" $name "*) continue ;; esac; fi          # (an extra stage runs only when named)
-    run_stage "$name"
-done
-printf 'all green in %ss\n' "$(( $(date +%s) - total_start ))"
+# Prints the result line of a stage that has run and, under it, the output of one that failed; false for one that failed. A stage that left no line (its shell was killed) has failed. awk writes the output
+# because it ends the last line too when the stage did not (a program that was killed in the middle of one): the next result line then begins a line.
+report() {
+    local name="$1" line
+    { IFS= read -r line <"$work/$name.line"; } 2>/dev/null || printf -v line 'FAIL  %-12s' "$name"
+    echo "$line"
+    case "$line" in ok*) return 0 ;; esac
+    awk '{ print "      | " $0 }' "$work/$name.log" 2>/dev/null || true
+    return 1
+}
+
+in_list() { local name="$1"; shift; case " $* " in *" $name "*) return 0 ;; esac; return 1; }
+
+total_start=$EPOCHSECONDS
+uv_cache
+if [ "$at_once" = 0 ]; then
+    # One stage at a time in the order of the list, stopping at the first failure: --serial, and a stage that was named (an extra stage runs only when named).
+    for name in "${ALL_STAGES[@]}"; do
+        if [ -n "$only" ] && [ "$name" != "$only" ]; then continue; fi
+        if [ -z "$only" ] && in_list "$name" "${EXTRA_STAGES[@]}"; then continue; fi
+        run_stage "$name"
+        report "$name" || exit 1
+    done
+else
+    # The three steps of the top of this file. A failure is kept for the end: every stage runs, and the lines come in the order of the list, each as soon as its stage and the ones before it are done.
+    failed=()
+    for name in "${ALONE_FIRST[@]}"; do
+        run_stage "$name"
+        report "$name" || failed+=("$name")
+    done
+    if [ -d ui ] && node_ok && ui_modules_missing; then
+        run_stage npm-ci ui_install
+        report npm-ci || { failed+=(npm-ci); ui_install_failed=1; }
+    fi
+    group=()
+    set -m                             # (job control: each stage started now is the leader of a process group of its own, see `finish`; the stage itself runs without it, so that what it starts stays in its group)
+    for name in "${STAGES[@]}"; do
+        if in_list "$name" "${ALONE_FIRST[@]}" "${ALONE_LAST[@]}"; then continue; fi
+        ( set +m; run_stage "$name" ) </dev/null &
+        group+=("$name"); running+=($!)
+    done
+    set +m
+    for i in "${!group[@]}"; do
+        wait "${running[$i]}" || true
+        report "${group[$i]}" || failed+=("${group[$i]}")
+    done
+    running=()
+    for name in "${ALONE_LAST[@]}"; do
+        run_stage "$name"
+        report "$name" || failed+=("$name")
+    done
+    if [ ${#failed[@]} -gt 0 ]; then
+        printf 'failed in %ss: %s\n' "$(( EPOCHSECONDS - total_start ))" "${failed[*]}"
+        exit 1
+    fi
+fi
+printf 'all green in %ss\n' "$(( EPOCHSECONDS - total_start ))"

@@ -11,6 +11,7 @@ cryptography for the secure connection's certificates, a database actor, a syste
 
 ```bash
 uv sync --frozen            # the venv in .venv, from uv.lock
+scripts/security-tools      # once: the pinned programs of the stage security (needs the network)
 scripts/check               # every stage of the table below: the one gate
 scripts/check --stage mypy  # one stage
 .venv/bin/pytest -q tests/test_store.py
@@ -33,27 +34,92 @@ when they have everything), never a symlink to another checkout.
 
 ## The gate
 
-`scripts/check` runs the stages in this order and stops at the first failure.
+`scripts/check` is the one entry point for "is this tree good": what is run before a push, and what `scripts/release` runs before it commits. It prints one line for each stage with the stage's own time, in the
+order of the table below, and under the line of a stage that failed what that stage wrote. The last line is `all green in Ns`; when a stage failed it is `failed in Ns:` with the names, and the exit code is 1.
+
+```
+ok    lock            0.1s
+FAIL  mypy           21.4s
+      | neoaprs/tnc.py:88: error: Incompatible return value type
+ok    architecture    4.4s
+```
+
+Most of the stages run at once. The default run has three steps:
+
+1. **Alone, one after the other:** `lock`, then `npm ci` when `ui/node_modules` is missing (its line is `npm-ci`; it is no stage). `npm ci` takes the folder away and writes it again, and every stage of the page runs
+   from it, so it is done once, before they start. When it fails, each of those stages (`ui-types` to `dup-py`) fails with one line that says so, and the others still run.
+2. **At once:** every stage from `ruff` to `security`. On 32 threads about 28 are busy: the 12 workers of `pytest`, the 8 of `ui-tests`, the two runs of `mypy`, and one or two for each of the others.
+3. **Alone:** `smoke`. It starts a daemon and gives it real seconds to answer, which a machine busy with step 2 may not leave it.
+
+Every stage runs to its end, whatever the others say, and has a log of its own; the lines still come in the order of the list, each as soon as its stage and the ones before it are done. What two stages of step 2
+would write into the same place is kept apart:
+
+- **mypy** keeps its cache by folder and Python version, not by platform, so the run for Windows has a cache folder of its own (`.mypy_cache/win32`); beside the other stages the two runs go side by side.
+- **`.pytest_cache`** belongs to the stage `pytest`: `architecture` and `page`, which are pytest runs too, run without the cache plugin.
+- **vite** builds twice: the stage `ui-build` into `ui/dist`, the page test into a folder of its own (`NEOAPRS_OUT`). The stage `pytest` leaves `tests/test_page_build.py` to the stage `page`, so the suite builds
+  nothing. Nothing else reads `ui/dist`.
+- **`sim` and `audit`** run only by name, so alone: the simulation keeps the pace of a sound card and fails on a machine that is busy with anything else.
+
+The other ways to run it:
+
+- `scripts/check --serial` runs the same stages one after the other in the order of the list and stops at the first failure, with its output as the end of the run; `NEOAPRS_TEST_WORKERS=0` implies it. It is for a
+  machine with few cores, where step 2 asks for more than there is, and for reading the output of one failing test in order.
+- `scripts/check --stage NAME` runs one stage, `scripts/check --list` prints the names.
+
+A run that is interrupted (Ctrl+C, or a signal that ends it) ends the stages it started and takes its temporary folder away; a TERM sent to the script alone waits for `lock` or `smoke` to end when one of them is running.
+
+Three things it needs of the machine:
+
+- **`uv sync --frozen` once**, and node 22.12 or newer for the stages of the page.
+- **`scripts/security-tools` once** (it needs the network): the stage `security` runs pinned programs that this script fetches into the build cache, and the system's php with its XML extensions for Psalm (Debian
+  and Ubuntu: the package `php-xml`) or, where php lacks them, docker and the php image pinned in `scripts/security-tools`. A check whose program is not there fails: a check that could not run is never a pass.
+- **No sandbox between uv and its cache** (`~/.cache/uv`). The stages `lock` and `smoke` and the package tests of the suite go through uv; with an empty cache and no network they fail or are skipped for a reason
+  that is the sandbox's and not the tree's.
+
+The runner itself is tested without one real stage (`tests/test_check_script.py`): `NEOAPRS_CHECK_STAGES` names a file of shell functions that stand in for the stages. The script takes the variable only as a copy
+in a folder that has nothing to check, neither `pyproject.toml` nor `neoaprs/` beside `scripts/`, which is what the tests make. In a tree a variable that is set stops the script with exit code 2 before
+anything runs, whatever was asked: one left in a shell cannot turn the gate, or the release that asks it, green with nothing checked.
 
 ### The stages of scripts/check
 
 | stage | what it checks |
 |---|---|
 | `lock` | `uv.lock` is current with `pyproject.toml` |
-| `ruff` | `ruff check` over the tree |
-| `mypy` | `mypy --strict` over `neoaprs/` and `tests/support/`, for Linux and again for `--platform win32` |
+| `ruff` | `ruff check` over the tree: pycodestyle, pyflakes, bugbear and the security rules (S), the Python tools of `scripts/` without `.py` included (`extend-include` in `pyproject.toml`, held exact by `tests/test_lint_scope.py`); what is switched off and why is in `pyproject.toml` |
+| `mypy` | `mypy --strict` over `neoaprs/` and `tests/support/`, for Linux and again for `--platform win32`, each run with a cache of its own |
 | `architecture` | the layers and the size limits (`tests/test_architecture.py`, `tests/test_size_ratchet.py`) |
-| `pytest` | the rest of the suite, side by side on the cores of the machine |
+| `pytest` | the rest of the suite (all but the files of `architecture` and `page`), side by side on the cores of the machine, 12 workers at most; a test that still runs after two minutes has the stack of every thread printed (`faulthandler_timeout` in `pyproject.toml`), so that one that hangs says where |
 | `ui-types` | `vue-tsc --noEmit` over `ui/`: TypeScript strict, the types of the protocol from `ui/src/protocol/` only |
-| `ui-lint` | eslint with no warnings, prettier `--check`, knip (nothing unused) over `ui/`, and `scripts/css-unused.py` (no rule in `ui/src/styles/` of a class that no source file writes) |
-| `ui-tests` | vitest: the logic of `ui/src/lib`, the composables, the components |
+| `ui-lint` | eslint with no warnings (it also refuses the ways besides `v-html` to make markup or code of a text, `ui/eslint.config.js`), prettier `--check`, knip (nothing unused) over `ui/`, and `scripts/css-unused.py` (no rule in `ui/src/styles/` of a class that no source file writes) |
+| `ui-tests` | vitest: the logic of `ui/src/lib`, the composables, the components, and the lint rules that keep a station's text a text, run on made-up sources (`ui/src/lib/lintrules.test.ts`); 8 workers at most beside the other stages |
 | `ui-build` | `vite build` into `ui/dist` (the build works) |
-| `page` | `neoaprs/page/`, what the daemon serves, is what `ui/` builds, and lives under the daemon's Content-Security-Policy (`tests/test_page_build.py`) |
+| `page` | `neoaprs/page/`, what the daemon serves, is what `ui/` builds, and lives under the daemon's Content-Security-Policy (`tests/test_page_build.py`); the test skips its build where there is no node or no `ui/node_modules`, so the stage fails there: nothing was compared |
 | `dup` | jscpd over `ui/src`: duplicated code over the threshold of `ui/.jscpd.json` fails |
 | `dup-py` | `scripts/dup-check`: the duplication ratchet of the Python half, jscpd over `neoaprs/` and `tests/support/` against `scripts/dup-baseline.json` (`docs/ARCHITECTURE.md`) |
+| `security` | `scripts/security-check`, the security checks that need a program of their own and ask nobody: no password, token or key gets to GitHub (no file or folder named `.secrets`, or `.secrets` with anything after it, is tracked or left unignored; the script itself looks for the access token of the secrets manager in every commit `origin` does not have yet, in the index and in every tracked file (`--all-history`: in every commit there is); gitleaks reads the commits of the branch, their messages and the tracked files that are changed or staged), `php -l` and Psalm's taint reports over `server/`, shellcheck over the shell scripts and zizmor over the workflows (neither reads a settings file: a tracked one is a finding), the last two against `scripts/security-baseline.json` ([`docs/security-checks.md`](security-checks.md)) |
+| `smoke` | the wheel as a user gets it, as the CI job `smoke` does it: built into a temporary folder, installed into a fresh environment there (uv takes what its cache has, and asks the net only when that is not everything), and `scripts/smoke.py` run against the installed command ([The smoke test](#the-smoke-test)); the daemon it starts opens no device of the machine (`NEOAPRS_NO_DEVICES=1`) and does not ask the version page (`NEOAPRS_UPDATE_CHECK=0`) |
 | `sim` | only by name (`scripts/check --stage sim`, not in the default run): `scripts/mercury-sim`, the HF net with real Mercury instances ([The simulators](#the-simulators)); about six minutes, Linux only, the Mercury of the venv built first when it is not there (`scripts/build-mercury --install`, which needs gcc, make and libasound2-dev); the report is left in `build/mercury-sim.json` |
+| `audit` | only by name (`scripts/check --stage audit`, not in the default run): `scripts/security-check --audit`, osv-scanner asks the advisory lists about every package of `uv.lock` and `ui/package-lock.json`; it needs the network, and `osv-scanner.toml` lists the advisories set aside, each with its reason |
 
-The stages from `ui-types` on need node 22.12 or newer (on the `PATH`, else the newest in `~/.nvm`) and `ui/node_modules`.
+The stages from `ui-types` to `dup-py` need node 22.12 or newer (on the `PATH`, else the newest in `~/.nvm`) and `ui/node_modules`.
+
+### In a container the size of GitHub's runner
+
+`scripts/check-in-container` runs the commands of the CI's Linux job (`uv sync --frozen --extra app --extra ble`, `uv lock --check`, ruff, mypy for both systems, `uv run pytest -n auto`) on a copy of the tree, in a Docker container that has the system, the user, the tools, the threads and the memory of GitHub's runner, so that a test that fails or is skipped there does the same here first. `-- COMMAND...` runs another command in the same place (it makes its own environment: `uv sync` first, or `uv run`), `--starved` gives it half a runner, `--image-only` only builds the image.
+
+- **The machine.** `packaging/ci/Dockerfile`: Ubuntu 24.04 with the system libraries the workflow installs, git, curl, PHP, a compiler and make, uv and node 22 each pinned by version and SHA-256, the Python the workflows name, and the ordinary user `runner` with uid 1001 (as root the tests of file rights are skipped). The image is built when it is missing or the Dockerfile has changed (its tag is the Dockerfile's digest) and without a build context, so no file of the project is in it. The build needs the network.
+- **The size.** Four threads that are two cores with their siblings, read from `/sys/devices/system/cpu` and given as a CPU set, 16 GB with no swap beyond it, an init process, and 1 GB of `/dev/shm` for the Qt web engine's tests. A CPU set and not a quota: under `--cpus` `pytest -n auto` still counts every thread of the machine and starts a worker for each. `--starved` is two threads of one core and 7 GB, where the tests that depend on time fail first.
+- **The tree.** What goes in is the tree as it is on disk, the tracked files and the untracked ones that are not ignored (git's own list), packed here before docker is asked for anything and unpacked inside the container as a repository of one commit (the tests ask git which files are tracked). The working tree is never mounted: a run cannot change it and does not see this machine's `.venv` or `ui/node_modules`; it makes its own from uv's and npm's caches, which are the volumes `neoaprs-ci-uv` and `neoaprs-ci-npm` and make the second run fast.
+- **What stays here.** An untracked file that an ignore rule names is never packed, and neither is a file of access tokens (`.secrets` and whatever follows that name, in any folder), tracked or not and whether an ignore rule names it or not. Every other untracked file goes in, so a key or a token under another name is kept on this machine by a line in `.gitignore` (as `/work/` is). No variable of this machine's environment is passed into the container.
+- **Side by side.** A container has no name, publishes no port and has a loopback of its own, so any number of runs, of one worktree or of several, cannot meet on a port. Each takes cores that no other run holds (a label on the container says which threads it has).
+- **Inside**, `NEOAPRS_UPDATE_CHECK=0`, `NEOAPRS_NO_DEVICES=1` and `UV_FROZEN=1` are set, and there is no display and no terminal. The output streams through, with a line before and after each command that gives its exit code and its seconds. The exit code is that of the first command that failed; 125 means docker could not build the image or start the container, 2 that docker, git or the list of cores is missing, that the folder is not the working tree of a git repository, or that a file of the tree cannot be read or a folder of it not listed; the last two are said in one line (`check-in-container: nothing was run: ...`) before an image is asked for or a container started. A signal that ends the script removes its container.
+
+```bash
+scripts/check-in-container                                                                 # the CI's Linux job
+scripts/check-in-container --starved -- uv run pytest -n auto tests/test_serialport.py     # one file on half a runner
+```
+
+`docker volume rm neoaprs-ci-uv neoaprs-ci-npm` empties the caches. The images of earlier Dockerfiles stay until they are removed (`docker image ls neoaprs-ci`).
 
 ### Local and CI
 
@@ -66,7 +132,7 @@ The stages from `ui-types` on need node 22.12 or newer (on the `PATH`, else the 
 | `page` | Linux | type check, lint, prettier, knip and the page's tests, the two duplication stages (`scripts/check --stage dup` and `dup-py`), and the committed `neoaprs/page/` is what `ui/` builds |
 | `sim` | Linux | the pinned Mercury built from source into the venv (`scripts/build-mercury --install`, as the release's `mercury` job builds it, on the runner's own system), then `scripts/mercury-sim` to the end ([The simulators](#the-simulators)); about six minutes, of which the build is one; the report and the log are the artifact `mercury-sim`, and the folders of the run (the daemons' logs, Mercury's output) are `mercury-sim-folders` when it failed |
 
-What only `scripts/check` runs: the `css-unused` check of `ui-lint`, and the order of the stages. What only CI runs: the Windows halves of `python` and `smoke`. The workflow can also be started by hand
+What only `scripts/check` runs: the `css-unused` check of `ui-lint` and the stage `security`. What only CI runs: the Windows halves of `python` and `smoke`. The workflow can also be started by hand
 on any branch (Actions, ci, *Run workflow*, or `gh workflow run ci.yml --ref BRANCH`).
 
 What only makes sense on a POSIX system is marked `posix_only` (`tests/support/ptyline.py`) and skipped on Windows: pseudo-terminals and device files, `/proc`,
@@ -75,8 +141,10 @@ scripts, the unit files) and the ones that need `git` and `bash`. Everything els
 
 The daemon, when a test starts it as a process, is stopped on Windows with Ctrl+Break in a process group of its own (`tests/support/proc.py`): `terminate()` there is a kill.
 
-`NEOAPRS_TEST_WORKERS` and `NEOAPRS_TEST_WORKERS_MAX` set how many tests the `pytest` stage runs side by side; 0 runs them one after the other, which is what to
-do to read the output of one failing test in order. The table "Environment variables" of `CONVENTIONS.md` lists every variable.
+`NEOAPRS_TEST_WORKERS` and `NEOAPRS_TEST_WORKERS_MAX` set how many tests the `pytest` stage runs side by side (the cores, at most 12: the ports of the Mercury tests are laid out for twelve workers); 0 runs them
+one after the other, and the stages of `scripts/check` too, which is what to do to read the output of one failing test in order. `NEOAPRS_PYTHON` is the Python the gate runs, else the one of `.venv`. The stage
+`smoke` sets `NEOAPRS_NO_DEVICES=1` and `NEOAPRS_UPDATE_CHECK=0` for the daemon it starts, and `NEOAPRS_CHECK_STAGES` is for the tests of the runner only (in a tree it stops the script). The table "Environment variables" of `CONVENTIONS.md`
+lists every variable.
 
 ### Coverage
 
@@ -87,7 +155,7 @@ alone, so it is not a stage of `scripts/check`; nothing is excluded, and there i
 
 ### The smoke test
 
-`scripts/smoke.py` is the check an installer or a package must pass.
+`scripts/smoke.py` is the check an installer or a package must pass. The stage `smoke` of `scripts/check` and the CI job `smoke` run it against the wheel, installed into a fresh environment.
 
 1. It starts a fake KISS TNC on a free TCP port (it plays `tests/fixtures/kiss/thd7-2026-10-21.bin`).
 2. It starts the daemon on a temporary data folder with `--port socket://127.0.0.1:PORT --web-port 0`, and reads the page's port from the log line `web page at`.
@@ -220,7 +288,10 @@ The words of the page are in a catalogue, so that a language is a file and not a
 
 | script | what it is for |
 |---|---|
-| `scripts/check` | the one gate: every stage in order, stopping at the first failure; `--stage NAME`, `--list` |
+| `scripts/check` | the one gate ([The gate](#the-gate)): the stages of the default list, most of them at once, with a line for each in the order of the list; `--serial` one after the other, stopping at the first failure; `--stage NAME`, `--list` |
+| `scripts/check-in-container` | runs the commands of the CI's Linux job (or `-- COMMAND...`) in a Docker container the size of GitHub's runner, on a copy of the tree as it is on disk; `--starved` is half a runner, `--image-only` builds the image of `packaging/ci/Dockerfile` ([In a container the size of GitHub's runner](#in-a-container-the-size-of-githubs-runner)) |
+| `scripts/security-check` | the security checks that need a program of their own, one line each (the stages `security` and `audit` of `scripts/check`): no file or folder named `.secrets`, or `.secrets` with anything after it, tracked or left unignored; the script itself looks for the access token of the secrets manager in every commit `origin` does not have yet, in the index and in every tracked file (`--all-history`: in every commit there is); gitleaks reads the commits of the branch, their messages and the tracked files that are changed or staged; `php -l` and Psalm's taint reports over `server/`, shellcheck over the shell scripts and zizmor over the workflows (neither reads a settings file: a tracked one is a finding), the last two against `scripts/security-baseline.json` (`--update` writes it and never makes it larger unless `--allow-growth`); `--audit` is osv-scanner over both lock files, `--only NAME` one check ([`docs/security-checks.md`](security-checks.md)) |
+| `scripts/security-tools` | fetches the programs of `security-check` (gitleaks, shellcheck, zizmor, osv-scanner, Psalm) from their GitHub releases into the build cache, each pinned by version and SHA-256 in the script; `--list` shows each with its version and whether it is there; nothing is installed on the system |
 | `scripts/coverage` | the Python suite under coverage.py with the table of every module and the total (`-- ARGS` for pytest); `--ui` is the page's vitest coverage ([Coverage](#coverage)) |
 | `scripts/worktree-setup` | makes a fresh git worktree ready for `scripts/check`: `uv sync --frozen --all-extras` and a real `ui/node_modules` (`npm ci`, from the cache when it can), no symlinks |
 | `scripts/install.sh` | a clone's wrapper of `neoaprs service install --data ./data --linger` (`--remove` is `service remove`): installs the daemon as a user service that starts at boot; the code is `neoaprs/cli/servicesystemd.py` |
@@ -535,10 +606,11 @@ in `supportgather.py`, a step in `collect` of `supportmake.py` and a line in `FI
 - `.github/`: the workflows `ci.yml`, `release.yml` and `pages.yml`.
 - `site/`: the project page.
 - `server/`: the version page that the update check asks, on the project's web host: `version.php`, `latest.php` (the latest release), `log/.htaccess` (the logs and the cache are not served),
-  `deploy.sh` (uploads those files and nothing else), `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id) and `support-fetch.sh` (fetches the support files that Send logs stored, `neo/support/send.php`).
-- `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker, the list of what is signed by itself and the microphone sentence in eight languages), `deb/` and `mercury/` (the one C file of the Mercury build).
+  `deploy.sh` (uploads those files and nothing else), `usage-report.sh` (fetches the logs and counts the starts per day, version and system, and the installations by their id), `support-fetch.sh` (fetches the support files that Send logs stored, `neo/support/send.php`) and `psalm.xml` (the settings of Psalm for the stage `security`; not uploaded).
+- `packaging/`: what the release is made from besides the package: `windows/`, `appimage/`, `macos/` (the launcher, `Info.plist.in`, the icon maker, the list of what is signed by itself and the microphone sentence in eight languages), `deb/`, `mercury/` (the one C file of the Mercury build) and `ci/` (the Dockerfile of the container `scripts/check-in-container` runs the suite in).
 - `systemd/`: the notes on the unit (`systemd/README.md`); the unit itself is the template `neoaprs/cli/neoaprs.service`.
 - `.gitattributes`: LF line ends in every checkout (a Windows checkout would otherwise break the tests), the binary files marked.
+- `.gitleaks.toml` and `osv-scanner.toml`: what the security checks set aside, each entry with its reason: the made-up values the secret scan meets in the commits, and the advisories that cannot reach NeoAPRS with the day each entry ends ([`docs/security-checks.md`](security-checks.md)).
 - `LICENSE`: the GNU General Public License, version 3 (`pyproject.toml` says `GPL-3.0-or-later`).
 - `CONVENTIONS.md`, `PROTOCOL.md`, `ROADMAP.md` and `CHANGELOG.md`: how the code is written, the wire protocol (generated), what is planned, and what each
   release changed. `pyproject.toml` and `uv.lock` are the only list of dependencies.
