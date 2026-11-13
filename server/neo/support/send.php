@@ -8,9 +8,14 @@
  * goes to the project with the reference, the call, the version, the platform, the size and the note; the zip itself is not mailed. server/support-fetch.sh brings new ones to the developer's computer.
  *
  * What is kept: the zip, and the call, version, platform and note as cleaned here (a call is letters, digits and dashes, 12 at most; the note is text, 2000 characters at most). The sender's address is
- * never written down: it is hashed under a salt that only this folder knows, for the rate limit (5 files an hour from one address, 60 an hour in all), and the hash is forgotten after the hour.
+ * never written down: it is hashed under a salt that only this folder knows, for the rate limits, and the hash is forgotten after the hour. Only a request that stores a file is counted against the limit that is shared (5 files an hour
+ * from one address, 60 an hour in all); a request that is refused as no bundle is counted against its own address alone (20 an hour), so that nobody can use up the share of the others with requests that store nothing.
  *
- * The rules every application on the account keeps (oh2gba/SHARED-HOST.md): a body over 20 MB is refused before anything is read, the work is a few file operations, and a failure of the mail is
+ * What the folder holds is bounded: a file is 10 MB at the most (a bundle of a real station is a megabyte or two: the logs are cut to 12 MB of text before they are zipped, and 12 MB of the least compressible log lines
+ * weigh 7 MB zipped), the folder 200 MB and 300 bundles, and what is older than 30 days is removed at each upload that is accepted. When the folder is full the answer is `rate` (the program has a word for it: try again later),
+ * the log says why, and one mail tells the project the first time it happens (until a file is stored again). The count and the storing of a file are one step under a lock, so that uploads at the same moment cannot pass the cap together.
+ *
+ * The rules every application on the account keeps (oh2gba/SHARED-HOST.md): a body over 10 MB is refused before anything is read, the work is a few file operations, and a failure of the mail is
  * logged (private/logs/support.log) and never fails the upload. `SUPPORT_DIR` (environment) moves the folder, and a function `support_send_mail` defined before this file runs (the tests' stand-in for mail()) replaces the mail. */
 declare(strict_types=1);
 
@@ -21,12 +26,18 @@ header('X-Content-Type-Options: nosniff');
 
 const SUPPORT_TO       = 'neoaprs@oh2gba.eu';
 const SUPPORT_FROM     = 'NeoAPRS <noreply@oh2gba.eu>';          // the apex, which the domain's SPF record covers (as the status application's mails)
-const MAX_BODY         = 20 * 1024 * 1024;
+const MAX_FILE         = 10 * 1024 * 1024;                        // of the bundle
+const MAX_BODY         = MAX_FILE + 64 * 1024;                    // of the request: the file and the few small fields beside it
+const FOLDER_MAX_BYTES = 200 * 1024 * 1024;                       // of the stored files together
+const FOLDER_MAX_FILES = 300;                                     // bundles
+const KEEP_DAYS        = 30;
 const MAX_NOTE         = 2000;
 const MAX_MEMBERS      = 100;
 const MAX_DIRECTORY    = 256 * 1024;                              // of the zip's list of members
-const RATE_PER_ADDRESS = 5;
+const RATE_PER_ADDRESS = 5;                                        // stored files
 const RATE_IN_ALL      = 60;
+const BAD_PER_ADDRESS  = 20;                                      // refused requests
+const BAD_KEYS_MAX     = 2000;                                    // addresses whose refusals are remembered at once
 const RATE_WINDOW_SEC  = 3600;
 const LOG_MAX_BYTES    = 256 * 1024;                              // of the log (oh2gba/SHARED-HOST.md: each application logs under its own private/logs/, each file capped at 256 KB)
 // The members of a bundle (neoaprs/cli/supportreadme.py FILE_HELP): the files it holds by name, the logs, and the `.error.txt` of a part that could not be made.
@@ -74,33 +85,126 @@ function support_address(): string
     return strlen($raw) === 16 ? substr($raw, 0, 8) : $raw;
 }
 
-/** Counts this request against the address and the whole; false when either has used its share of the last hour. Only hashes are kept, and only for the hour. */
-function support_allowed(string $dir, string $address, int $now): bool
+/** The hash of the address under the salt of the folder. */
+function support_key(string $dir, string $address): string
 {
     $saltFile = "$dir/salt";
     if (!is_file($saltFile)) @file_put_contents($saltFile, bin2hex(random_bytes(16)), LOCK_EX);
-    $key = substr(hash('sha256', trim((string) @file_get_contents($saltFile)) . '|' . $address), 0, 16);
+    return substr(hash('sha256', trim((string) @file_get_contents($saltFile)) . '|' . $address), 0, 16);
+}
+
+/**
+ * The counts of the last hour in rate.json, {"stored": {HASH: [times]}, "bad": {HASH: [times]}}: `$use` gets them with the hour's old times already dropped and returns the counts to keep (null: unchanged, but the dropped times are written back), under one lock.
+ * Only hashes are kept, and only for the hour.
+ *
+ * @param callable(array<string, array<string, list<int>>>): ?array<string, array<string, list<int>>> $use
+ */
+function support_counts(string $dir, int $now, callable $use): void
+{
     $h = @fopen("$dir/rate.json", 'c+');
     if ($h === false) support_refuse(500, 'storage');
     flock($h, LOCK_EX);
     $seen = json_decode((string) stream_get_contents($h), true);
     $seen = is_array($seen) ? $seen : [];
-    $kept = [];
-    $all = 0;
-    foreach ($seen as $k => $times) {
-        if (!is_array($times)) continue;
-        $times = array_values(array_filter($times, fn($t) => is_int($t) && $t > $now - RATE_WINDOW_SEC));
-        if ($times) { $kept[$k] = $times; $all += count($times); }
+    $counts = ['stored' => [], 'bad' => []];
+    $dropped = false;
+    foreach (array_keys($counts) as $kind) {
+        foreach (is_array($seen[$kind] ?? null) ? $seen[$kind] : [] as $k => $times) {
+            if (!is_array($times)) {
+                $dropped = true;
+                continue;
+            }
+            $kept = array_values(array_filter($times, fn($t) => is_int($t) && $t > $now - RATE_WINDOW_SEC));
+            if (count($kept) !== count($times)) $dropped = true;
+            if ($kept) $counts[$kind][(string) $k] = $kept;
+        }
     }
-    $mine = count($kept[$key] ?? []);
-    $ok = $mine < RATE_PER_ADDRESS && $all < RATE_IN_ALL;
-    if ($ok) $kept[$key][] = $now;
-    ftruncate($h, 0);
-    rewind($h);
-    fwrite($h, json_encode($kept));
+    $changed = $use($counts);
+    if ($changed === null && $dropped) $changed = $counts;                // (a read-only use still forgets what has expired)
+    if ($changed !== null) {
+        $changed['bad'] = array_slice($changed['bad'], -BAD_KEYS_MAX, null, true);
+        ftruncate($h, 0);
+        rewind($h);
+        fwrite($h, json_encode($changed));
+    }
     flock($h, LOCK_UN);
     fclose($h);
+}
+
+/** Whether the address may still send requests that are refused (20 an hour): nothing is counted by asking. */
+function support_bad_allowed(string $dir, string $key, int $now): bool
+{
+    $ok = true;
+    support_counts($dir, $now, function (array $counts) use ($key, &$ok): ?array {
+        $ok = count($counts['bad'][$key] ?? []) < BAD_PER_ADDRESS;
+        return null;
+    });
     return $ok;
+}
+
+/** A refused request, counted against its address only. */
+function support_bad_count(string $dir, string $key, int $now): void
+{
+    support_counts($dir, $now, function (array $counts) use ($key, $now): array {
+        $counts['bad'][$key][] = $now;
+        return $counts;
+    });
+}
+
+/** Counts a file that is about to be stored against the address and the whole; false, and nothing counted, when either has used its share of the last hour. */
+function support_allowed(string $dir, string $key, int $now): bool
+{
+    $ok = false;
+    support_counts($dir, $now, function (array $counts) use ($key, $now, &$ok): ?array {
+        $all = 0;
+        foreach ($counts['stored'] as $times) $all += count($times);
+        $ok = count($counts['stored'][$key] ?? []) < RATE_PER_ADDRESS && $all < RATE_IN_ALL;
+        if (!$ok) return null;
+        $counts['stored'][$key][] = $now;
+        return $counts;
+    });
+    return $ok;
+}
+
+/** The lock that is held from counting the folder to the file being stored, so that uploads at the same moment do not all see the room that one of them takes; it is let go when the request ends. */
+function support_store_lock(string $dir): mixed
+{
+    $h = @fopen("$dir/store.lock", 'c');
+    if ($h === false) support_refuse(500, 'storage');
+    flock($h, LOCK_EX);
+    return $h;
+}
+
+/** Removes the stored files that are older than 30 days; what the folder holds afterwards is {bytes, bundles}. Only files of the form of a reference are touched. */
+function support_tidy(string $dir, int $now): array
+{
+    $bytes = 0;
+    $bundles = 0;
+    foreach (@scandir($dir) ?: [] as $name) {
+        if (!preg_match('~^NEO-\d{8}-\d{4}-[0-9A-F]+\.(zip|json|json\.part)$~', $name)) continue;
+        $path = "$dir/$name";
+        $time = @filemtime($path);
+        if ($time !== false && $time < $now - KEEP_DAYS * 86400) {
+            @unlink($path);
+            continue;
+        }
+        $bytes += (int) @filesize($path);
+        if (str_ends_with($name, '.zip')) $bundles++;
+    }
+    return ['bytes' => $bytes, 'bundles' => $bundles];
+}
+
+/** One mail to the project when the folder first has no room for a file (full.flag says it has been told; it is taken away when a file is stored again): whoever fills the folder switches the logs off for the rest of the month, and the developer should know. */
+function support_full_notice(string $dir, int $now): void
+{
+    if (is_file("$dir/full.flag")) return;
+    @file_put_contents("$dir/full.flag", gmdate('Y-m-d\TH:i:s\Z', $now) . "\n");
+    try {
+        $mailed = support_send_mail('NeoAPRS logs: the folder is full', "The folder of the sent logs is full (" . FOLDER_MAX_FILES . " bundles or " . intdiv(FOLDER_MAX_BYTES, 1048576) . " MB), and new files are refused until older ones are fetched and removed or are 30 days old.\n\nserver/support-fetch.sh brings them.\n");
+    } catch (Throwable $e) {
+        $mailed = false;
+    }
+    if (!$mailed) support_log($dir, 'the mail that the folder is full was not sent');
 }
 
 /** The names of the members of the zip at `path`, read from its central directory (no zip extension is needed); null when it is no zip, or when the list is not what a zip of ours has. */
@@ -201,16 +305,39 @@ function support_receive(): never
 
     $now = time();
     $dir = support_dir();
-    if (!support_allowed($dir, support_address(), $now)) support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+    $key = support_key($dir, support_address());
+    if (!support_bad_allowed($dir, $key, $now)) support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
 
     $file = $_FILES['bundle'] ?? null;
-    if (!is_array($file) || !is_string($file['tmp_name'] ?? null)) support_refuse(400, 'bad_request');
-    if (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) support_refuse(413, 'too_large');
-    if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) support_refuse(400, 'bad_request');
-    $size = (int) filesize($file['tmp_name']);
-    if ($size > MAX_BODY) support_refuse(413, 'too_large');
-    $names = support_members($file['tmp_name']);
-    if ($names === null || !support_is_bundle($names)) support_refuse(400, 'not_a_bundle');
+    $names = null;
+    $size = 0;
+    if (!is_array($file) || !is_string($file['tmp_name'] ?? null)) {
+        $refusal = [400, 'bad_request'];
+    } elseif (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+        $refusal = [413, 'too_large'];
+    } elseif ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+        $refusal = [400, 'bad_request'];
+    } elseif (($size = (int) filesize($file['tmp_name'])) > MAX_FILE) {
+        $refusal = [413, 'too_large'];
+    } elseif (($names = support_members($file['tmp_name'])) === null || !support_is_bundle($names)) {
+        $refusal = [400, 'not_a_bundle'];
+    } else {
+        $refusal = null;
+    }
+    if ($refusal !== null) {
+        support_bad_count($dir, $key, $now);
+        support_refuse($refusal[0], $refusal[1]);
+    }
+
+    $lock = support_store_lock($dir);
+    $held = support_tidy($dir, $now);
+    if ($held['bundles'] >= FOLDER_MAX_FILES || $held['bytes'] + $size > FOLDER_MAX_BYTES) {
+        support_log($dir, 'the folder is full (' . $held['bundles'] . ' bundles, ' . intdiv($held['bytes'], 1024) . ' KB): a file was refused');
+        support_full_notice($dir, $now);
+        support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
+    }
+    if (is_file("$dir/full.flag")) @unlink("$dir/full.flag");
+    if (!support_allowed($dir, $key, $now)) support_refuse(429, 'rate', ['Retry-After: ' . RATE_WINDOW_SEC]);
 
     $call     = support_clean($_POST['call'] ?? '', 'A-Za-z0-9-', 12);
     $version  = support_clean($_POST['version'] ?? '', '0-9A-Za-z._+-', 20);
@@ -227,6 +354,8 @@ function support_receive(): never
         support_refuse(500, 'storage');
     }
     @chmod("$dir/$ref.json", 0600);
+    flock($lock, LOCK_UN);
+    fclose($lock);
 
     $subject = 'NeoAPRS logs ' . $ref . ($call !== '' ? ' from ' . $call : '');
     $body = "A NeoAPRS support file was sent.\n\n"

@@ -5,7 +5,7 @@
 #   server/support-fetch.sh --list   # list what the server holds (reference, time, call, version, platform, size), and mark what is already here; downloads nothing
 #
 # The server keeps each file as NEO-YYYYmmdd-HHMM-XXXX.zip with NEO-...json beside it (time, call, version, platform, size, note). They are fetched into server/support/ (not in git), the zip and its json
-# together, and a file already there is never fetched again. Nothing is deleted on the server: remove an old one over SFTP when it is dealt with. To read a file: unzip it and open summary.txt first.
+# together, and a file already there is never fetched again. The server removes a file 30 days after it was sent (at the next upload it accepts): fetch them before. To read a file: unzip it and open summary.txt first.
 #
 # Credentials come from Bitwarden Secrets Manager (ftp_server/ftp_login/ftp_pw); the token is the first line of a .secrets file: SECRETS_FILE, else the first one found searching upwards from here, else
 # ../../oh2gba/.secrets (the same as deploy.sh and usage-report.sh).

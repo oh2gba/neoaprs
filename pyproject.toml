@@ -126,6 +126,7 @@ extend-include = [
     "scripts/release",
     "scripts/security-check",
     "scripts/security-tools",
+    "scripts/site-check",
     "packaging/windows/neoaprs.spec",
 ]
 

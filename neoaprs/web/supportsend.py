@@ -24,7 +24,7 @@ log = logging.getLogger("neoaprs.web")
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 ENV_URL = "NEOAPRS_SUPPORT_URL"                  # development and tests: the address of a fake server on this computer, instead of SUPPORT_URL
 MAX_NOTE = 2000                                  # characters of what the person writes (the dialog holds the same limit; the server cuts at it too)
-MAX_SEND_BYTES = 20 * 1024 * 1024                # what the server takes in one request; a bundle is a megabyte or two
+MAX_SEND_BYTES = 10 * 1024 * 1024                # what the server takes in one request; a bundle is a megabyte or two
 REFERENCE = re.compile(r"^NEO-\d{8}-\d{4}-[0-9A-F]{4,8}$")
 REASONS = ("rate", "too_large")                 # what the server says that the page has a word for; everything else it refuses with is `refused`
 

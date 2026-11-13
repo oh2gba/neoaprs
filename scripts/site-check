@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Compares the live project page with what is committed, and asks the private places whether they are private. It is not a stage of the gate (it needs the network): run it after `server/deploy.sh --site`, and from time to time.
+
+    scripts/site-check https://neo.oh2gba.eu          the page and its private places
+    scripts/site-check URL --root DIR                  the committed files of another checkout (the tests' made-up one)
+
+Every file the last commit (HEAD) has under `site/` is fetched over https and its SHA-256 is compared with the committed one's (and `/` with `index.html`): what is edited on this computer and not committed is not the measure; a file that is missing, changed or answered with a redirect is a finding. Then
+the places that must answer "forbidden" (403) are asked: the stored support files and their log, the settings of PHP, the logs and the cache of the version page, and every `.htaccess` and every PHP file that git
+has under `server/neo/` and that is not one of the endpoints in `PUBLIC_PHP` below (a helper is never called from the web). A file that is on the server and not committed cannot be found by asking, so the list of
+what is committed is the list that is compared. A link or a submodule is no file and is left out; `server/deploy.sh` refuses them.
+
+Only https is used, except for an address on this computer (127.0.0.1, localhost), which is what the tests use. Nothing is sent but GET requests. Exit 0 when the page is what is committed and every private place answers 403, 1 for any
+finding (each is one line on stdout), 2 when it could not ask at all (a wrong address, no answer to the first request).
+"""
+import argparse
+import hashlib
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from urllib.parse import quote, urlsplit
+
+ROOT = Path(__file__).resolve().parent.parent
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
+TIMEOUT_SEC = 30
+WORKERS = 8
+# The PHP that the web calls, by its place under server/neo/: every other PHP file there is a helper, and must answer 403. (version.php and latest.php are one folder up in the repository and are not under neo/.)
+PUBLIC_PHP = ("api/v1/view.php", "support/send.php")
+# Places that must answer 403 whatever the repository holds: the stored support files and their log, PHP's settings, the folder of the version page's log and cache.
+PRIVATE = (
+    "/private/", "/private/support/", "/private/support/rate.json", "/private/support/salt", "/private/logs/support.log", "/private/.htaccess",
+    "/.htaccess", "/.user.ini", "/support/.user.ini", "/log/", "/log/.htaccess", "/log/latest.json",
+)
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect is the answer, not something to follow: a file that has moved is not the committed one."""
+    def redirect_request(self, *args: object, **kwargs: object) -> None:
+        return None
+
+
+def base_of(text: str) -> str:
+    """The address without a closing slash; ValueError for anything but https, or http on this computer."""
+    parts = urlsplit(text)
+    if parts.hostname is None or parts.username or parts.query or parts.fragment or parts.path not in ("", "/"):
+        raise ValueError("the address is the page's own: https://HOST, with no path")
+    if parts.scheme != "https" and not (parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS):
+        raise ValueError("only https is used (http only for 127.0.0.1 and localhost)")
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def tracked(root: Path, folder: str) -> dict[str, str]:
+    """The regular files that the last commit of the checkout `root` has under `folder`, by their names relative to the folder (sorted), with the id of each one's blob; a link and a submodule are left out."""
+    done = subprocess.run(["git", "-C", str(root), "ls-tree", "-r", "-z", "HEAD", "--", folder], capture_output=True, check=True)
+    found: dict[str, str] = {}
+    for entry in done.stdout.decode("utf-8").split("\0"):
+        info, _, path = entry.partition("\t")
+        mode, _, rest = info.partition(" ")
+        if mode in ("100644", "100755") and path.startswith(folder + "/"):
+            found[path[len(folder) + 1:]] = rest.split(" ")[1]
+    return dict(sorted(found.items()))
+
+
+def committed(root: Path, blob: str) -> bytes:
+    """The content of a blob of the checkout."""
+    return subprocess.run(["git", "-C", str(root), "cat-file", "blob", blob], capture_output=True, check=True).stdout
+
+
+def fetch(url: str) -> tuple[int, bytes]:
+    """The status and the body of a GET; the status of an error answer too. OSError when there is no answer."""
+    opener = urllib.request.build_opener(NoRedirect)
+    request = urllib.request.Request(url, headers={"User-Agent": "neoaprs-site-check"})  # noqa: S310  (base_of lets only https and the loopback through)
+    try:
+        with opener.open(request, timeout=TIMEOUT_SEC) as response:
+            return int(response.status), bytes(response.read())
+    except urllib.error.HTTPError as e:
+        with e:
+            return e.code, b""
+
+
+def url_of(base: str, path: str) -> str:
+    return base + "/" + quote(path, safe="/")
+
+
+def compare(base: str, root: Path) -> list[str]:
+    """One line for every file of `site/` that is missing, changed or moved on the live page."""
+    files = tracked(root, "site")
+    wanted = [(f"/{name}", name) for name in files]
+    if "index.html" in files:
+        wanted.append(("/", "index.html"))
+
+    def one(item: tuple[str, str]) -> str | None:
+        path, name = item
+        try:
+            status, body = fetch(url_of(base, path.lstrip("/")))
+        except OSError as e:
+            return f"no answer: {path} ({e})"
+        if status != 200:
+            return f"{'missing' if status == 404 else 'not served'}: {path} (status {status})"
+        if hashlib.sha256(body).digest() != hashlib.sha256(committed(root, files[name])).digest():
+            return f"changed: {path}"
+        return None
+
+    with ThreadPoolExecutor(WORKERS) as pool:
+        return [line for line in pool.map(one, wanted) if line]
+
+
+def private_places(root: Path, today: datetime) -> list[str]:
+    """The places that must answer 403: the fixed ones, the version page's logs of this month and the last, and what git tracks under `server/neo/` of hidden files and helpers."""
+    paths = list(PRIVATE)
+    for when in (today, today.replace(day=1) - timedelta(days=1)):
+        paths.append(f"/log/starts-{when:%Y-%m}.log")
+    for name in tracked(root, "server/neo"):
+        base = name.rsplit("/", 1)[-1]
+        if base == ".htaccess" or (name.endswith(".php") and name not in PUBLIC_PHP):
+            paths.append(f"/{name}")
+    return sorted(set(paths))
+
+
+def forbidden(base: str, root: Path, today: datetime) -> list[str]:
+    lines = []
+    for path in private_places(root, today):
+        try:
+            status, _ = fetch(url_of(base, path.lstrip("/")))
+        except OSError as e:
+            lines.append(f"no answer: {path} ({e})")
+            continue
+        if status != 403:
+            lines.append(f"not forbidden: {path} (status {status}, it must be 403)")
+    return lines
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="the live project page against what is committed, and its private places")
+    parser.add_argument("url", help="the page's address, https://neo.oh2gba.eu")
+    parser.add_argument("--root", type=Path, default=ROOT, help="the checkout whose committed files are the right ones (default: this one)")
+    args = parser.parse_args(argv)
+    try:
+        base = base_of(args.url)
+    except ValueError as e:
+        print(f"site-check: {e}", file=sys.stderr)
+        return 2
+    try:
+        fetch(base + "/")
+    except OSError as e:
+        print(f"site-check: no answer from {base} ({e})", file=sys.stderr)
+        return 2
+    try:
+        findings = compare(base, args.root) + forbidden(base, args.root, datetime.now(UTC))
+    except (subprocess.CalledProcessError, OSError) as e:
+        print(f"site-check: the committed files could not be read from {args.root} ({e})", file=sys.stderr)
+        return 2
+    for line in findings:
+        print(line)
+    count = len(tracked(args.root, "site"))
+    print(f"site-check: {count} files compared, {len(private_places(args.root, datetime.now(UTC)))} private places asked, {len(findings)} findings")
+    return 1 if findings else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
