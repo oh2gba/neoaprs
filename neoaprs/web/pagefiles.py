@@ -212,6 +212,17 @@ class Basemap(Files):
         self.set_header("Cache-Control", "no-cache")
         self.set_header("X-Content-Type-Options", "nosniff")
 
+    def compute_etag(self) -> str | None:
+        """The tag of a map file is its size and the time it was written, not a hash of its content. Tornado's own tag reads the whole file on the loop and keeps the result for the life of the daemon (a map
+        fetched again kept the tag of the old one), and from 6.6 gives no tag to a file over 64 MB and writes an error about it at every start; the detailed map is over a hundred."""
+        if self.absolute_path is None:
+            return None
+        try:
+            status = os.stat(self.absolute_path)
+        except OSError:
+            return None
+        return f'"{status.st_size:x}-{status.st_mtime_ns:x}"'
+
     async def get(self, path: str, include_body: bool = True) -> None:
         if path == WORLD_FILE and self._world is not None:
             found = self._world()

@@ -18,6 +18,7 @@ from tests.support.air import ack_info, message_info, on_air, reject_info
 from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
 from tests.support.wsclient import WsClient
 from neoaprs.web import handlers as web_handlers
+from neoaprs.web import pagefiles
 from neoaprs.web import server as web_server
 from neoaprs.web.pagesnapshot import PageSnapshot
 from neoaprs.web.protocol import TOPIC_NAMES, TOPIC_VALUES
@@ -465,6 +466,25 @@ async def test_the_base_map_is_a_404_without_the_file_and_serves_byte_ranges_wit
     world = await e.fetch("/basemap-world.pmtiles", headers={"Range": "bytes=10-19"})
     assert world.code == 206 and world.body == own[10:20]
     assert (await e.fetch("/basemap-world.pmtiles.part")).code in (403, 404) and (await e.fetch("/neoaprs.sqlite")).code in (403, 404), "no other file of the data folder is reachable"
+
+
+async def test_the_tag_of_a_map_file_is_its_size_and_time_and_the_file_is_never_read_to_make_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """Tornado 6.6 gives no tag to a file over 64 MB and logs an error; the detailed map is over a hundred, and hashing it stopped the loop."""
+    def never(abspath: str) -> str:
+        raise AssertionError(f"the map file {abspath} was read to make its tag")
+    monkeypatch.setattr(pagefiles.Basemap, "get_content_version", classmethod(lambda cls, abspath: never(abspath)))
+    e = Env(tmp_path, web=True)
+    await e.start()
+    file = tmp_path / "basemap.pmtiles"
+    file.write_bytes(bytes(1000))
+    first = await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=0-9"})
+    tag = first.headers["Etag"]
+    assert first.code == 206 and tag.startswith('"') and (await e.fetch("/basemap.pmtiles", headers={"Range": "bytes=10-19"})).headers["Etag"] == tag
+    assert (await e.fetch("/basemap.pmtiles", headers={"If-None-Match": tag})).code == 304
+    file.write_bytes(bytes(1001))                                           # (the map fetched again: another file under the same name)
+    again = await e.fetch("/basemap.pmtiles", headers={"If-None-Match": tag})
+    assert again.code == 200 and again.headers["Etag"] != tag and len(again.body) == 1001
+    assert "static file" not in caplog.text
 
 
 async def test_the_security_headers_are_on_every_answer(tmp_path: Path) -> None:
