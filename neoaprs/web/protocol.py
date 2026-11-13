@@ -40,7 +40,7 @@ from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStat
 from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
 from .stationwire import ForgetAllStations, ForgetStation, StationRow
 from .supportwire import PageError
-from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfScopeMsg, HfTune, TncState
+from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfTune, TncState
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
 from .weatherwire import WeatherSeries, WeatherSeriesMsg
 from .wirebase import _Command, _Message, _Model
@@ -88,7 +88,7 @@ TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow
 
 
 # ---- Server to client
-AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg, HfScopeMsg]
+AnyMessage = Union[Hello, Status, Pong, Error, PortsMsg, StateMsg, PatchMsg, WeatherSeriesMsg, PacketHistoryMsg, PositionHistoryMsg, SpeedSeriesMsg, StationTrafficMsg, AlertResultMsg, UpdateResultMsg, ReleaseNotesMsg, RadioSearchMsg, StationAlertMsg]
 Message = Annotated[AnyMessage, Field(discriminator="type")]
 """Every message the daemon sends."""
 

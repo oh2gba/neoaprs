@@ -78,8 +78,14 @@ class Socket(SecurityHeaders, tornado.websocket.WebSocketHandler):
         return 0 if held is None else len(held)
 
     def send_json(self, text: str) -> None:
+        self._write(text, False)
+
+    def send_binary(self, data: bytes) -> None:
+        self._write(data, True)
+
+    def _write(self, payload: str | bytes, binary: bool) -> None:
         try:
-            written = self.write_message(text)
+            written = self.write_message(payload, binary=binary)
             # the future of a write that fails later (the page left, or was cut off) is looked at, or asyncio logs "exception was never retrieved" for each message in flight
             written.add_done_callback(_looked_at)
         except tornado.websocket.WebSocketClosedError:

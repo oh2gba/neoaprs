@@ -3,7 +3,7 @@
 *This file is generated from the models in `neoaprs/web/protocol.py` and the `neoaprs/web/*wire.py` modules by `scripts/gen-protocol.py`: change the models (their docstrings and field descriptions are the
 text below) or the prose in the script, not this file. `tests/test_protocol.py` fails when it is out of date.*
 
-One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways. Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
+One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways, and binary frames to the page for the waterfall (*Binary frames*). Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
 a position in a list.
 
 The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, how it was installed, the topics), then the **state** of every topic (`state`: its revision
@@ -76,6 +76,24 @@ second. A page that sees a revision other than the one before plus one has misse
 Revisions count up in each topic and start again at 0 when the daemon starts. The packets of a topic `packets` are numbered by the daemon in the order they come in this run (`id`); the 200 the
 daemon starts with are the latest the database holds. The messages of a topic `messages` are numbered by the database (`id`) and kept across runs; the daemon holds all of them
 (a database with more than 10000 gives the latest 10000 at a start); none leaves on its own.
+
+## Binary frames
+
+A page that has asked for the scope (`hf_scope`) is sent **binary frames**: one row of the HF radio's waterfall, at the modem's own resolution, for every 2 spectra
+the modem makes (up to ten a second; about 310 bytes each). The socket's binary type on the page is `arraybuffer`. No other page is sent them, and a page whose socket holds a share of what it has not read is skipped.
+A frame is exactly 310 bytes:
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `1`: a row of the waterfall (a frame of another kind is to be ignored: more may come) |
+| 1 | 1 | flags | bit 0 (`1`): the radio transmits and the row is of our own signal; the other bits are 0 |
+| 2 | 1 | level | the RMS level of the audio in the passband, whole dBFS as a signed byte, -90 for silence (a full-scale sine reads -3) |
+| 3 | 307 | bins | one unsigned byte for each bin of the passband 300 to 2700 Hz, the lowest first |
+
+The bins are those of the modem's own spectrum (512 of 7.8125 Hz from 0 Hz at 8000 Hz): bin `i` of a row is the modem's bin `39 + i`, centred on `(39 + i) * 7.8125` Hz. A byte `b` is
+`-110 + b * 0.5` dB on the modem's own scale (a tone of amplitude 1650 of 32768 reads 0 dB), the mean in power of the row's spectra; a value outside -110 to 17.5 dB is the nearest byte.
+A row is wholly of reception or wholly of our own transmission. The frames carry no time: a row is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
+(`ui/src/lib/waterfallfloor.ts`); the daemon sends the modem's dB and keeps no floor for these frames.
 
 ## Validation
 
@@ -198,13 +216,13 @@ answered; the topic `hf` has the list when it changes.
 
 ### `hf_scope`
 
-The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and with `on` false,
+The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false,
 or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
 `modem.scope`).
 
 | field | type | | description |
 |---|---|---|---|
-| `on` | boolean |  | true starts the pictures for this page, false stops them |
+| `on` | boolean |  | true starts the rows for this page, false stops them |
 
 ### `set_config`
 
@@ -602,7 +620,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-18 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+17 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -810,17 +828,6 @@ An alert set on a station fired (`set_station_alert`): told to every page that i
 | `text` | string |  | the words of the alert command and the log, in English: `OH2XYZ is on the air`, `OH2XYZ is 8.2 km from you`, `OH2XYZ is heard direct` |
 | `at` | time |  | when the packet that fired it was heard (for `within`, when the station's position was, or when ours moved) |
 | `km` | number \| null |  | for `within`, how far the station is, km with one decimal; else null |
-
-### `hf_scope`
-
-One picture of the HF radio's audio, told to the pages that asked for it (`hf_scope`), five a second at most: the spectrum of the passband in 48 bins of 50 Hz from 300 to 2700 Hz, the bins' level over the quiet floor
-of the band, and the level of the passband. The frame's signal band is 1200 to 1800 Hz (bins 18 to 29).
-
-| field | type | | description |
-|---|---|---|---|
-| `bins` | integer[] |  | the level of each 50 Hz bin over the band's quiet floor, whole dB, 0 to 60, the first bin 300 to 350 Hz (max 48 items) |
-| `level` | integer |  | the RMS level of the audio in the passband, whole dBFS, -90 for silence (a full-scale sine reads -3) (>= -90, <= 0) |
-| `tx` | boolean |  | the radio is transmitting: the picture is of our own signal (the tune tone shows as a line at 1000 Hz), and the level is of that |
 
 ## Topics
 

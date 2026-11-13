@@ -7,7 +7,6 @@ import type {
   Command,
   ErrorMessage,
   HelloMessage,
-  HfScopeMessage,
   Message,
   MessageRow,
   OwnBulletinRow,
@@ -30,6 +29,7 @@ import type {
   PositionHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
+import { parseScopeRow, type ScopeRow } from "@/lib/scoperow";
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
@@ -71,8 +71,8 @@ export interface Store {
   radioSearch(message: RadioSearchMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
-  /** a picture of the HF radio's audio, told to a page that asked for the scope (`hf_scope`) */
-  hfScope(message: HfScopeMessage): void;
+  /** a row of the HF radio's waterfall, told to a page that asked for the scope: a binary frame, not a message (PROTOCOL.md) */
+  hfScopeRow(row: ScopeRow): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
@@ -135,6 +135,8 @@ const REPLACERS: Record<TopicName, keyof Store> = {
 export interface SocketLike {
   onopen: ((event: Event) => void) | null;
   onmessage: ((event: MessageEvent) => void) | null;
+  /** how a binary frame is given: the hub asks for `arraybuffer` where the socket has the field */
+  binaryType?: string;
   onclose: ((event: CloseEvent) => void) | null;
   onerror: ((event: Event) => void) | null;
   send(data: string): void;
@@ -243,11 +245,13 @@ export class Hub {
     }
     this.socket = socket;
     this.live = false;
+    socket.binaryType = "arraybuffer";
     socket.onmessage = (event: MessageEvent) => {
-      if (this.socket !== socket || typeof event.data !== "string") return;
+      if (this.socket !== socket) return;
       this.heardAt = Date.now();
       if (!this.live) this.up();
-      this.handle(event.data);
+      if (typeof event.data === "string") this.handle(event.data);
+      else if (event.data instanceof ArrayBuffer) this.row(event.data);
     };
     socket.onclose = () => {
       if (this.socket !== socket) return; // an older socket that closes late
@@ -311,12 +315,15 @@ export class Hub {
       case "station_alert":
         this.store.stationAlert(message);
         break;
-      case "hf_scope":
-        this.store.hfScope(message);
-        break;
       default:
         this.answer(message);
     }
+  }
+
+  /** A binary frame: a row of the waterfall, or a frame of a kind this page does not know, which is let go. */
+  private row(data: ArrayBuffer): void {
+    const row = parseScopeRow(data);
+    if (row !== null) this.store.hfScopeRow(row);
   }
 
   /** The answer to a command (the weather series, the packets by the hour, the ports...), kept by the store under its own name; a pong is nothing to keep. */

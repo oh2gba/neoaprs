@@ -7,6 +7,7 @@ export class FakeSocket implements SocketLike {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onclose: ((event: CloseEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
+  binaryType = "blob";
   sent: unknown[] = [];
   closed = false;
 
@@ -20,6 +21,11 @@ export class FakeSocket implements SocketLike {
 
   close(): void {
     this.closed = true;
+  }
+
+  /** A binary frame, as the browser gives it with `binaryType` "arraybuffer". */
+  sayBytes(bytes: Uint8Array): void {
+    this.onmessage?.(new MessageEvent("message", { data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }));
   }
 
   say(message: object): void {

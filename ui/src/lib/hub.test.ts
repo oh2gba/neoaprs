@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, QUIET_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
 import { PROTOCOL } from "@/protocol/lists";
+import type { ScopeRow } from "@/lib/scoperow";
 import type {
   AlertResultMessage,
   ErrorMessage,
@@ -15,7 +16,6 @@ import type {
   PacketRow,
   PortsMessage,
   RadioSearchMessage,
-  HfScopeMessage,
   StationAlertMessage,
   StationKey,
   StationPref,
@@ -54,7 +54,7 @@ function memory() {
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
     stationAlerts: [] as StationAlertMessage[],
-    scopes: [] as HfScopeMessage[],
+    rows: [] as ScopeRow[],
     updates: [] as UpdateResultMessage[],
     notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
@@ -93,7 +93,7 @@ function memory() {
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
-    hfScope: (m) => seen.scopes.push(m),
+    hfScopeRow: (r) => seen.rows.push(r),
     updateResult: (m) => seen.updates.push(m),
     releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
@@ -292,12 +292,21 @@ describe("Hub", () => {
     expect(seen.stationAlerts).toEqual([fired, fired]);
   });
 
-  it("hands a picture of the HF radio's audio to the store as it comes", () => {
+  it("asks the socket for binary frames as buffers and hands the rows of the waterfall in them to the store, the frames that are no row it lets go", () => {
     const { seen, socket } = opened();
-    const picture = { type: "hf_scope", bins: Array.from({ length: 48 }, (_, i) => i), level: -41, tx: false };
-    socket.say(picture);
-    socket.say({ ...picture, tx: true });
-    expect(seen.scopes).toEqual([picture, { ...picture, tx: true }]);
+    expect(socket.binaryType).toBe("arraybuffer");
+    const frame = new Uint8Array(3 + 307);
+    frame.set([1, 1, 256 - 41, 0, 2, 255], 0);
+    socket.sayBytes(frame);
+    socket.sayBytes(Uint8Array.of(2, 0, 0));
+    socket.sayBytes(frame.subarray(0, 300));
+    expect(seen.rows).toHaveLength(1);
+    expect(seen.rows[0].tx).toBe(true);
+    expect(seen.rows[0].level).toBe(-41);
+    expect(seen.rows[0].db[0]).toBe(-110);
+    expect(seen.rows[0].db[1]).toBe(-109);
+    expect(seen.rows[0].db[2]).toBe(17.5);
+    expect(seen.errors).toEqual([]);
   });
 
   it("follows the message board by sender and slot: a bulletin heard again is set again, one that was deleted is gone", () => {

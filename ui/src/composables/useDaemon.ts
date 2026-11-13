@@ -9,7 +9,6 @@ import type {
   SkedsState,
   GpsState,
   HelloMessage,
-  HfScopeMessage,
   IgateState,
   InstallInfo,
   MapState,
@@ -24,6 +23,7 @@ import type {
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
+import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
@@ -63,8 +63,8 @@ function useWholeTopics() {
     qru: shallowRef<QruState | null>(null),
     general: shallowRef<GeneralState | null>(null),
     skeds: shallowRef<SkedsState | null>(null),
-    hfScope: shallowRef<HfScopeMessage | null>(null), // (not a topic: the latest picture of the HF radio's audio, told to a page that has the scope open, composables/useHfScope.ts)
   };
+  const rows = useScopeRows();
   const handlers: Pick<
     Store,
     | "replaceTnc"
@@ -77,7 +77,7 @@ function useWholeTopics() {
     | "replaceQru"
     | "replaceGeneral"
     | "replaceSkeds"
-    | "hfScope"
+    | "hfScopeRow"
   > = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceHf: (value) => (refs.hf.value = value),
@@ -89,9 +89,9 @@ function useWholeTopics() {
     replaceQru: (value) => (refs.qru.value = value),
     replaceGeneral: (value) => (refs.general.value = value),
     replaceSkeds: (value) => (refs.skeds.value = value),
-    hfScope: (message) => (refs.hfScope.value = message),
+    hfScopeRow: rows.hfScopeRow,
   };
-  return { refs, handlers };
+  return { refs: { ...refs, onScopeRow: rows.onScopeRow }, handlers };
 }
 
 /** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */

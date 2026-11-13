@@ -23,6 +23,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.menu.copy_position": "位置 {place} をコピー",
   "map.menu.copy_locator": "ロケーター {locator} をコピー",
   "map.menu.stats": "統計",
+  "map.menu.monitor": "モニター",
   "map.menu.replay": "リプレイ",
   "map.replay.label": "地図のリプレイ",
   "map.replay.play": "再生",

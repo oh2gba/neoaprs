@@ -17,6 +17,7 @@ import SetupGuide from "@/components/SetupGuide.vue";
 import SidePanel from "@/components/SidePanel.vue";
 import StationCards from "@/components/StationCards.vue";
 import StationMap from "@/components/StationMap.vue";
+import MonitorCard from "@/components/MonitorCard.vue";
 import StatsCard from "@/components/StatsCard.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import FindRadioToast from "@/components/FindRadioToast.vue";
@@ -47,6 +48,9 @@ const {
   layout,
   cards,
   statsOpen,
+  monitorOpen,
+  monitorShown,
+  mapwrap,
   replayOpen,
   guide,
   panel,
@@ -78,7 +82,7 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
       @close="whatsNew.close"
     />
     <main class="main">
-      <div class="mapwrap">
+      <div ref="mapwrap" class="mapwrap">
         <StationMap
           :selected="cards.mapSelected.value"
           :others="cards.mapOthers.value"
@@ -91,9 +95,11 @@ const deleteMessage = (id: number): boolean => send({ cmd: "message_delete", id 
           @move="objects.move"
           @download="panel.show('settings')"
           @stats="statsOpen = true"
+          @monitor="monitorOpen = true"
           @replay="(open) => (replayOpen = open)"
         />
         <StatsCard v-if="statsOpen" :packets="packets" :movable="!layout.phone.value" @close="statsOpen = false" />
+        <MonitorCard v-if="monitorShown" :movable="!layout.phone.value" @close="monitorOpen = false" />
         <SetupGuide />
         <MapPickBar v-if="layout.phone.value && pickingTab" @cancel="picks.cancel" />
         <StationCards

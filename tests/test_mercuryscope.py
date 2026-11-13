@@ -1,5 +1,6 @@
 """What Mercury's UI interface says and the scope made of it (neoaprs/mercuryscope.py): the spectrum frame, the status message, the two commands, the level worked back from the spectrum's own scale (white noise of a known
-RMS), and the meter that turns the stream of spectra into a picture every 0.2 s with a floor kept slowly."""
+RMS), and the rows of the waterfall: the passband at the modem's own bins, two spectra to a row, a byte of dB
+on the modem's scale, and the binary frame the page is sent."""
 import json
 import math
 import random
@@ -8,7 +9,7 @@ import pytest
 
 from neoaprs import mercuryscope as ms
 from neoaprs.mercury import TUNE_LEVEL_DBFS, tune_level
-from neoaprs.mercuryscope import SCOPE_BINS, ScopeMeter, Spectrum, parse_spectrum, parse_status, spectrum_frame
+from neoaprs.mercuryscope import RowMeter, ScopeRow, Spectrum, parse_row, parse_spectrum, parse_status, row_frame, spectrum_frame
 
 BINS = 512
 
@@ -34,6 +35,20 @@ def test_a_frame_that_is_no_spectrum_is_none() -> None:
     assert parse_spectrum(b"\x00" + good[1:]) is None, "the magic"
     assert parse_spectrum(good[:-1]) is None and parse_spectrum(good + b"\x00") is None, "the size must be the header and the floats"
     assert parse_spectrum(ms.SPECTRUM_HEADER.pack(ms.SPECTRUM_MAGIC, 0, 8000)) is None and parse_spectrum(ms.SPECTRUM_HEADER.pack(ms.SPECTRUM_MAGIC, 16, 0) + bytes(64)) is None
+
+
+def test_a_spectrum_with_a_bin_that_is_not_a_number_or_infinitely_high_is_none_and_the_rows_go_on_after_it() -> None:
+    for bad in (math.nan, math.inf):
+        frame = spectrum_frame([-60.0] * (BINS - 1) + [bad])
+        assert parse_spectrum(frame) is None
+    assert parse_spectrum(spectrum_frame([-60.0] * (BINS - 1) + [-math.inf])) is not None, "silence is a bin of minus infinity and stays"
+    meter = RowMeter()
+    made = []
+    for bad in (None, math.nan, None, math.inf, None, None):
+        spectrum = parse_spectrum(spectrum_frame([-60.0] * 100 + [bad if bad is not None else -60.0] + [-60.0] * (BINS - 101)))
+        if spectrum is not None:
+            made.append(meter.feed(spectrum, False))
+    assert [row is not None for row in made] == [False, True, False, True], "a bad spectrum is dropped whole and every later pair still makes its row"
 
 
 def test_the_status_message_gives_the_gain_the_peak_and_the_audio_health_and_anything_else_is_none() -> None:
@@ -73,79 +88,86 @@ def test_the_level_of_white_noise_is_worked_back_to_its_rms_in_the_band(rms: flo
     assert ms.level_dbfs(spectrum, 0, 4000) == pytest.approx(20 * math.log10(rms / 32768), abs=0.01), "the whole spectrum is the noise's own RMS"
 
 
-def test_a_band_is_the_mean_power_of_its_bins() -> None:
-    db = [-60.0] * BINS
-    db[200] = -40.0
-    spectrum = Spectrum(8000, tuple(db))
-    lo, hi = 200 * 7.8125, 205 * 7.8125
-    assert ms.band_db(spectrum, lo, hi) == pytest.approx(10 * math.log10((10 ** -4 + 5 * 10 ** -6) / 6), abs=0.01)
+def test_the_level_of_a_row_is_in_whole_dbfs_between_silence_and_full_scale() -> None:
+    def level(spectrum: Spectrum) -> int:
+        meter = RowMeter()
+        meter.feed(spectrum, False)
+        row = meter.feed(spectrum, False)
+        assert row is not None
+        return row.level
+    assert level(noise_spectrum(3000.0)) == round(20 * math.log10(3000 / 32768) + 10 * math.log10(308 / BINS))
+    assert level(Spectrum(8000, (-200.0,) * BINS)) == ms.LEVEL_MIN_DBFS
+    assert level(noise_spectrum(1e9)) == ms.LEVEL_MAX_DBFS
 
 
-def picture(meter: ScopeMeter, spectra: list[Spectrum], update_floor: bool = True) -> ms.ScopeFrame:
-    for spectrum in spectra:
-        meter.feed(spectrum)
-    frame = meter.take(update_floor)
-    assert frame is not None
-    return frame
+# ---- the rows of the waterfall
+
+def flat(db: float, rate: int = 8000, bins: int = BINS) -> Spectrum:
+    return Spectrum(rate, (db,) * bins)
 
 
-def test_the_meter_has_no_picture_until_a_spectrum_is_fed_and_a_picture_uses_up_what_was_fed() -> None:
-    meter = ScopeMeter()
-    assert meter.take() is None
-    meter.feed(noise_spectrum(300.0))
-    assert meter.take() is not None and meter.take() is None
+def test_the_passband_of_a_row_is_307_bins_of_the_modem_from_the_39th_and_a_byte_is_half_a_db_from_minus_110() -> None:
+    assert ms.ROW_BINS == 307 and ms.ROW_FIRST_BIN == 39
+    assert ms.ROW_FIRST_BIN * 7.8125 >= ms.SCOPE_LO_HZ > (ms.ROW_FIRST_BIN - 1) * 7.8125, "the first bin is the first whole bin inside the passband"
+    assert (ms.ROW_FIRST_BIN + ms.ROW_BINS - 1) * 7.8125 <= ms.SCOPE_HI_HZ < (ms.ROW_FIRST_BIN + ms.ROW_BINS) * 7.8125, "the last is the last whole bin inside it"
+    assert [ms.byte_of_db(db) for db in (-110.0, -109.8, -109.6, 0.0, 17.5)] == [0, 0, 1, 220, 255]
+    assert ms.byte_of_db(-232.0) == 0 and ms.byte_of_db(40.0) == 255, "what the byte cannot hold is the nearest byte"
 
 
-def test_quiet_noise_is_the_floor_and_a_tone_stands_over_it_in_its_own_bin() -> None:
-    random.seed(1)
-    meter = ScopeMeter()
-    quiet = picture(meter, [noise_spectrum(300.0, 0.0) for _ in range(4)])
-    assert len(quiet.bins) == SCOPE_BINS and set(quiet.bins) == {0}, "the floor is the noise: nothing stands over it"
-    db = list(noise_spectrum(300.0).db)
-    tone_bin = round(1500 / 7.8125)
-    db[tone_bin] += 30
-    loud = picture(meter, [Spectrum(8000, tuple(db)) for _ in range(4)])
-    index = (1500 - ms.SCOPE_LO_HZ) // 50
-    assert loud.bins[index] > 15 and max(loud.bins[:index - 1]) == 0 and max(loud.bins[index + 2:]) == 0, "only the 50 Hz bin of the tone"
-    assert loud.level > quiet.level
+def test_a_row_is_two_spectra_averaged_in_power_and_the_bins_are_those_of_the_passband() -> None:
+    meter = RowMeter()
+    low, high = [-60.0] * BINS, [-60.0] * BINS
+    low[100], high[100] = -50.0, -40.0
+    low[38], high[38] = 0.0, 0.0                                         # (a bin under the passband)
+    low[346], high[346] = 0.0, 0.0                                       # (and one over it)
+    assert meter.feed(Spectrum(8000, tuple(low)), False) is None, "one spectrum is half a row"
+    row = meter.feed(Spectrum(8000, tuple(high)), False)
+    assert row is not None and len(row.bins) == ms.ROW_BINS and row.tx is False
+    mean = 10 * math.log10((10 ** -5 + 10 ** -4) / 2)
+    assert row.bins[100 - ms.ROW_FIRST_BIN] == ms.byte_of_db(mean), "the mean of the powers, not of the dB (-50 and -40 make -43.4, not -45)"
+    assert set(row.bins) == {ms.byte_of_db(-60.0), ms.byte_of_db(mean)}, "nothing of the bins beside the passband is in the row"
+    assert meter.feed(flat(-60.0), False) is None and meter.feed(flat(-60.0), False) is not None, "and the next row is the next two"
 
 
-def test_the_level_is_in_whole_dbfs_between_silence_and_full_scale() -> None:
-    meter = ScopeMeter()
-    assert picture(meter, [noise_spectrum(3000.0)]).level == round(20 * math.log10(3000 / 32768) + 10 * math.log10(308 / BINS))
-    assert picture(meter, [Spectrum(8000, (-200.0,) * BINS)]).level == ms.LEVEL_MIN_DBFS
-    assert picture(meter, [noise_spectrum(1e9)]).level == ms.LEVEL_MAX_DBFS
+def test_a_row_says_the_level_of_the_passband_and_whether_the_radio_transmitted() -> None:
+    meter = RowMeter()
+    meter.feed(noise_spectrum(300.0), False)
+    row = meter.feed(noise_spectrum(300.0), False)
+    assert row is not None and row.level == round(ms.level_dbfs(noise_spectrum(300.0))) and -45 < row.level < -35, "the level is the passband's: white noise of RMS 300 of 32768 is -40.8 dBFS over the whole spectrum"
+    loud = RowMeter()
+    loud.feed(flat(100.0), False)
+    row = loud.feed(flat(100.0), False)
+    assert row is not None and row.level == ms.LEVEL_MAX_DBFS and set(row.bins) == {255}
+    silent = RowMeter()
+    silent.feed(flat(-300.0), False)
+    row = silent.feed(flat(-300.0), False)
+    assert row is not None and row.level == ms.LEVEL_MIN_DBFS and set(row.bins) == {0}
 
 
-def test_the_floor_falls_fast_and_rises_slowly_so_that_a_signal_is_not_taken_for_it() -> None:
-    meter = ScopeMeter()
-    picture(meter, [noise_spectrum(300.0)])
-    assert meter.floor is not None
-    before = meter.floor
-    for _ in range(5):
-        picture(meter, [noise_spectrum(3000.0)])                      # a step of 20 dB in all the bins
-    assert meter.floor - before < 10, "five pictures (a second) have moved the floor a fraction of the step"
-    step = picture(meter, [noise_spectrum(3000.0)])
-    assert max(step.bins) >= 10, "and the step still stands over it"
-    for _ in range(200):                                              # (forty seconds)
-        picture(meter, [noise_spectrum(3000.0)])
-    assert meter.floor - before > 15, "in the end the step is the floor"
-    high = meter.floor
-    picture(meter, [noise_spectrum(300.0)])
-    assert meter.floor < high - 5, "and a lower reading is the floor again at once"
+def test_a_row_is_wholly_of_reception_or_wholly_of_our_transmission() -> None:
+    meter = RowMeter()
+    assert meter.feed(flat(-60.0), False) is None
+    assert meter.feed(flat(0.0), True) is None, "the radio keyed between the two: the pair starts again, and the spectrum before it is not in the row"
+    row = meter.feed(flat(0.0), True)
+    assert row is not None and row.tx is True and set(row.bins) == {ms.byte_of_db(0.0)}
+    assert meter.feed(flat(-60.0), False) is None
+    row = meter.feed(flat(-60.0), False)
+    assert row is not None and row.tx is False and set(row.bins) == {ms.byte_of_db(-60.0)}
 
 
-def test_the_floor_stands_still_while_the_radio_transmits() -> None:
-    meter = ScopeMeter()
-    picture(meter, [noise_spectrum(300.0)])
-    floor = meter.floor
-    picture(meter, [noise_spectrum(8000.0)], update_floor=False)
-    assert meter.floor == floor, "the spectrum is of our own signal then"
-
-
-def test_a_new_start_forgets_the_floor() -> None:
-    meter = ScopeMeter()
-    picture(meter, [noise_spectrum(300.0)])
-    meter.feed(noise_spectrum(300.0))
+def test_a_spectrum_that_is_not_mercurys_is_no_part_of_a_row() -> None:
+    meter = RowMeter()
+    assert meter.feed(flat(-60.0, bins=256), False) is None and meter.feed(flat(-60.0, rate=16000), False) is None
+    assert meter.feed(flat(-60.0), False) is None, "the first spectrum of a row is still the first"
     meter.reset()
-    assert meter.floor is None and meter.take() is None
+    assert meter.feed(flat(-60.0), False) is None, "a reset forgets the half row"
+
+
+def test_the_binary_frame_is_the_kind_the_flags_the_signed_level_and_the_bytes_and_comes_back_as_it_was() -> None:
+    bins = bytes(i % 256 for i in range(ms.ROW_BINS))
+    frame = row_frame(ScopeRow(bins, -41, True))
+    assert len(frame) == 310 and frame[:3] == bytes([1, 1, 256 - 41]) and frame[3:] == bins
+    assert parse_row(frame) == ScopeRow(bins, -41, True)
+    assert row_frame(ScopeRow(bins, -90, False))[:3] == bytes([1, 0, 256 - 90]) and parse_row(row_frame(ScopeRow(bins, 0, False))) == ScopeRow(bins, 0, False)
+    assert parse_row(frame[:-1]) is None and parse_row(frame + b"\x00") is None and parse_row(b"") is None, "the size is exact"
+    assert parse_row(b"\x02" + frame[1:]) is None, "a frame of another kind is no row"

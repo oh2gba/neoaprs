@@ -319,6 +319,8 @@ class Socket:
     def send_json(self, text: str) -> None:
         self.frames.append(text)
 
+    def send_binary(self, data: bytes) -> None: ...
+
     def buffered(self) -> int:
         return 0
 

@@ -13,3 +13,12 @@ export function useVisible() {
   onBeforeUnmount(() => document.removeEventListener("visibilitychange", update));
   return visible;
 }
+
+/** Whether the page is visible, for the page's own life: no component to hang the listener on (the counting of who looks at the scope, composables/useScopeLooks.ts). */
+export function pageVisible() {
+  const visible = ref(document.visibilityState !== "hidden");
+  document.addEventListener("visibilitychange", () => {
+    visible.value = document.visibilityState !== "hidden";
+  });
+  return visible;
+}

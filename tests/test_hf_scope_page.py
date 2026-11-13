@@ -1,18 +1,18 @@
-"""The scope and the transmit level as the page has them (neoaprs/web/scopefeed.py, tncwire.py): `hf_scope` makes a page one of those that are sent the pictures and tells the modem whether any page wants them, a page that leaves
-or stops asking is forgotten, the pictures go to the pages that asked and to no other, the topic `hf` says whether the scope is there, the gain and the peak, the setting of the gain reaches the modem, and it restarts the modem
+"""The scope and the transmit level as the page has them (neoaprs/web/scopefeed.py, tncwire.py): `hf_scope` makes a page one of those that are sent the rows of the waterfall and tells the modem whether any page wants them, a page that leaves
+or stops asking is forgotten, the rows go to the pages that asked and to no other, the topic `hf` says whether the scope is there, the gain and the peak, the setting of the gain reaches the modem, and it restarts the modem
 only where nothing could set it live."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
 
-from neoaprs.mercuryscope import SCOPE_BINS, ScopeFrame
+from neoaprs.mercuryscope import ROW_BINS, ScopeRow, parse_row
 from tests.support.env import Env, until
 from tests.support.fakemercury import Air
 
-FRAME = ScopeFrame(tuple(range(SCOPE_BINS)), -41)
+ROW = ScopeRow(bytes(i % 256 for i in range(ROW_BINS)), -41, False)
 
 
-async def test_a_page_asks_for_the_scope_gets_the_pictures_and_the_modem_is_told_whether_any_page_wants_them(tmp_path: Path) -> None:
+async def test_a_page_asks_for_the_scope_gets_the_rows_and_the_modem_is_told_whether_any_page_wants_them(tmp_path: Path) -> None:
     air = Air(frame_sec=0.2)
     station = air.station()
     e = Env(tmp_path, radio=station, web=True)
@@ -27,17 +27,40 @@ async def test_a_page_asks_for_the_scope_gets_the_pictures_and_the_modem_is_told
     assert modem["scope"] is False and modem["tx_gain_db"] == 0 and modem["tx_peak_dbfs"] is None, "a Mercury something else runs: no scope of ours"
     await watching.send({"cmd": "hf_scope", "on": True})
     await until(lambda: wanted == [True])
-    e.ctl.mercury.scope_frame.emit(FRAME, False)
-    message = await watching.expect("hf_scope")
-    assert message["bins"] == list(FRAME.bins) and message["level"] == -41 and message["tx"] is False
-    assert other.of("hf_scope") == [], "a page that did not ask is sent no picture"
+    e.ctl.mercury.scope_row.emit(ROW)
+    assert [parse_row(frame) for frame in await watching.frames(1)] == [ROW]
+    assert other.binary == [], "a page that did not ask is sent no row"
     await other.send({"cmd": "hf_scope", "on": True})
     await watching.send({"cmd": "hf_scope", "on": False})
     await until(lambda: wanted == [True, True, True])                                    # (the other page still wants it: the modem is told it is wanted, not that it is not)
-    e.ctl.mercury.scope_frame.emit(FRAME, True)
-    assert (await other.expect("hf_scope"))["tx"] is True
+    e.ctl.mercury.scope_row.emit(replace(ROW, tx=True))
+    assert [row.tx for row in map(parse_row, await other.frames(1)) if row is not None] == [True]
+    assert len(watching.binary) == 1, "a page that stopped asking is sent no more"
     await other.aclose()
     await until(lambda: wanted[-1] is False)
+    await e.stop()
+    await air.aclose()
+
+
+async def test_the_rows_of_the_waterfall_are_binary_frames_to_the_pages_that_asked_and_not_to_a_page_that_is_behind(tmp_path: Path) -> None:
+    air = Air(frame_sec=0.2)
+    e = Env(tmp_path, radio=air.station(), web=True)
+    await e.start()
+    watching, other = await e.ws(), await e.ws()
+    await watching.send({"cmd": "hf_scope", "on": True})
+    await until(lambda: e.server.api.topics.scope.pages == 1)
+    e.ctl.mercury.scope_row.emit(ROW)
+    frames = await watching.frames(1)
+    assert parse_row(frames[0]) == ROW and len(frames[0]) == 310 and watching.of("hf_scope") == [], "the row is a frame of its own, not a message"
+    assert other.binary == [], "a page that did not ask is sent no row"
+    link = next(c for c in e.server.api.topics.scope._pages)
+    link.client.buffered = lambda: 10 ** 9                                      # type: ignore[method-assign]
+    e.ctl.mercury.scope_row.emit(ScopeRow(bytes(ROW_BINS), -90, True))
+    await asyncio.sleep(0.2)
+    assert len(watching.binary) == 1, "a page whose socket holds what it has not read is sent no more rows"
+    del link.client.buffered
+    e.ctl.mercury.scope_row.emit(ScopeRow(bytes(ROW_BINS), -90, True))
+    assert parse_row((await watching.frames(2))[1]) == ScopeRow(bytes(ROW_BINS), -90, True)
     await e.stop()
     await air.aclose()
 
@@ -76,6 +99,7 @@ async def test_a_page_that_asks_for_the_scope_and_leaves_in_the_same_moment_is_n
 
         class Page:
             def send_json(self, text: str) -> None: ...
+            def send_binary(self, data: bytes) -> None: ...
             def buffered(self) -> int:
                 return 0
         page = Page()

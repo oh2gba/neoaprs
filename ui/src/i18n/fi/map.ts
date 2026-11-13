@@ -23,6 +23,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.menu.copy_position": "Kopioi sijainti {place}",
   "map.menu.copy_locator": "Kopioi lokaattori {locator}",
   "map.menu.stats": "Tilastot",
+  "map.menu.monitor": "Monitori",
   "map.menu.replay": "Uusinta",
 
   "map.replay.label": "Kartan uusinta",

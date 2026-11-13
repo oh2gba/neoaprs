@@ -6,7 +6,7 @@
 // when the daemon makes the files again (`filesKey` changes) the style is set again. One map for the life of the page,
 // opened where we are (zoom 9; on the world while we have no position) or where it was left; the colour scheme follows the system. While the first-run guide asks for the position (`picking`) a click on the map is a place (`pick`), and the place the guide
 // holds (`pin`) has a marker, which the map flies to when it was typed and not clicked. An object or an item of ours (`own`) has a marker that can be dragged: where it is dropped is its new place (`move`).
-// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, and Statistics, which opens the statistics card over the map (`stats`, the page's), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
+// A right-click on the map (a long press on a touch screen) opens a menu where the pointer is (composables/useMapMenu.ts, components/MapMenu.vue): the place under it to copy, Statistics, which opens the statistics card over the map (`stats`, the page's), Monitor, the HF radio's scope as a card (`monitor`, the page's; there only while a radio has a scope), and Replay, which plays back how the stations moved over the last hours, the live markers, tracks and route giving way to it while it is open (`replay`, the page's: composables/useMapReplay.ts, components/ReplayBar.vue). Round our own station runs the ALOHA circle, a thin dashed line under the markers at the radius the daemon worked out (lib/alohacircle.ts); a pointer resting on it gets its radius as the title of the map. The selected station, when it is a digipeater of the Nearby tab that gave
 // a range (PHG or RNG), has a pale circle of that range under the markers too (lib/rangecircles.ts), one at a time; when such a station is picked the map fits itself to the whole circle instead of flying to the point (composables/useMapFollow.ts). While the beacon is mobile and the GPS has a fix, a button Follow me keeps the map centred on the fix (composables/useFollowMe.ts).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
@@ -64,6 +64,7 @@ const emit = defineEmits<{
   pick: [at: Home];
   move: [call: string, lat: number, lon: number];
   stats: [];
+  monitor: [];
   replay: [open: boolean];
 }>();
 const page = useDaemonContext();
@@ -207,7 +208,7 @@ function pickAt(lat: number, lon: number): void {
 }
 
 const mapMenu = useMapMenu(host, () => ({ map, hover }));
-const menuEvents = { close: () => mapMenu.close(), stats: () => emit("stats"), replay: () => emit("replay", true) };
+const menuEvents = { close: () => mapMenu.close(), stats: () => emit("stats"), monitor: () => emit("monitor"), replay: () => emit("replay", true) };
 const replay = useMapReplay(() => ({ map, engine, open: props.replay }));
 
 function showLabels(): void {

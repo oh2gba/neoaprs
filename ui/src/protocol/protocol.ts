@@ -3,7 +3,7 @@
 
 export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage | HfScopeMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -477,22 +477,11 @@ export interface HfKeyTestCommand {
   cmd: "hf_key_test";
 }
 
-/** The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and with `on` false, or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says `modem.scope`). */
+/** The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false, or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says `modem.scope`). */
 export interface HfScopeCommand {
   cmd: "hf_scope";
-  /** true starts the pictures for this page, false stops them */
+  /** true starts the rows for this page, false stops them */
   on: boolean;
-}
-
-/** One picture of the HF radio's audio, told to the pages that asked for it (`hf_scope`), five a second at most: the spectrum of the passband in 48 bins of 50 Hz from 300 to 2700 Hz, the bins' level over the quiet floor of the band, and the level of the passband. The frame's signal band is 1200 to 1800 Hz (bins 18 to 29). */
-export interface HfScopeMessage {
-  type: "hf_scope";
-  /** the level of each 50 Hz bin over the band's quiet floor, whole dB, 0 to 60, the first bin 300 to 350 Hz */
-  bins: number[];
-  /** the RMS level of the audio in the passband, whole dBFS, -90 for silence (a full-scale sine reads -3) */
-  level: number;
-  /** the radio is transmitting: the picture is of our own signal (the tune tone shows as a line at 1000 Hz), and the level is of that */
-  tx: boolean;
 }
 
 /** Tune: with `on`, keys the HF radio through the keying in use and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early. For tuning the antenna, setting the audio level and finding which sound device is the radio. The topic `hf` says `test: "tune"` meanwhile and our frames wait. Answered with an `error` while RX only is ticked (`transmit.off`), while the HF radio is not the Mercury modem running (`hf.not_running`) and while a frame is on the air or the channel is busy (`hf.held`). */

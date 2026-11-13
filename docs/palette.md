@@ -43,8 +43,11 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--waterfall-2` | `#00aaff` | `#00aaff` | the HF waterfall: halfway up |
 | `--waterfall-3` | `#ffe200` | `#ffe200` | the HF waterfall: a strong signal |
 | `--waterfall-4` | `#ff2810` | `#ff2810` | the HF waterfall: the strongest |
-| `--waterfall-band` | `rgba(255, 255, 255, 0.07)` | `rgba(255, 255, 255, 0.07)` | the HF waterfall: the faint block where a frame sits |
-| `--waterfall-rule` | `rgba(255, 255, 255, 0.45)` | `rgba(255, 255, 255, 0.45)` | the HF waterfall: the dotted edges of that block |
+| `--waterfall-rule` | `rgba(255, 255, 255, 0.45)` | `rgba(255, 255, 255, 0.45)` | the HF waterfall: the ticks of the frequency ruler |
+| `--waterfall-ink` | `rgba(255, 255, 255, 0.92)` | `rgba(255, 255, 255, 0.92)` | the HF waterfall: the ruler's numbers, the times and the calls heard |
+| `--waterfall-grid` | `rgba(255, 255, 255, 0.16)` | `rgba(255, 255, 255, 0.16)` | the HF waterfall: the curve's faint dB grid, the floor's line and the line of a quarter of a minute |
+| `--waterfall-rx` | `#3ddc84` | `#3ddc84` | the HF waterfall: the band of a frame on the ruler while we listen |
+| `--waterfall-tx` | `#ff5a47` | `#ff5a47` | the HF waterfall: the band on the ruler and the mark at the edge while we transmit |
 | `--scrim` | `rgba(0, 0, 0, 0.45)` | `rgba(0, 0, 0, 0.45)` | the veil behind a dialog |
 | `--map-label` | `#1d2125` | `#e3e6e8` | the map: text |
 | `--map-halo` | `rgba(255, 255, 255, 0.9)` | `rgba(20, 23, 26, 0.9)` | the map: the halo of text |

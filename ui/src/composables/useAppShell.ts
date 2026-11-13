@@ -7,6 +7,7 @@ import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useBulletins } from "@/composables/useBulletins";
 import { useDaemon } from "@/composables/useDaemon";
 import { useDark } from "@/composables/useDark";
+import { useElementWidth } from "@/composables/useElementWidth";
 import { useEmail } from "@/composables/useEmail";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { useFormEsc } from "@/composables/useFormEsc";
@@ -21,6 +22,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { usePageAlerts } from "@/composables/usePageAlerts";
 import { usePanel } from "@/composables/usePanel";
+import { useScopeLooks } from "@/composables/useScopeLooks";
 import { useSettings } from "@/composables/useSettings";
 import { useSkeds } from "@/composables/useSkeds";
 import { useSetupGuide, type SetupGuide } from "@/composables/useSetupGuide";
@@ -30,6 +32,7 @@ import { useStationAlerts } from "@/composables/useStationAlerts";
 import { useStationKeys } from "@/composables/useStationKeys";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { useTitle } from "@/composables/useTitle";
+import { pageVisible } from "@/composables/useVisible";
 import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
@@ -104,7 +107,12 @@ function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof 
   const talk = useMessagesView(messages, panel, send);
   const mail = useEmail(messages, panel, send);
   const board = useBulletins(daemon.bulletins, panel);
-  const sked = useSkeds(daemon.skeds, panel, send, computed(() => daemon.connection.value === "open"));
+  const sked = useSkeds(
+    daemon.skeds,
+    panel,
+    send,
+    computed(() => daemon.connection.value === "open"),
+  );
   const alerts = useBrowserAlerts(talk.writeTo);
   usePageAlerts(messages, daemon.messagesLoaded, alerts.announce);
   const unread = computed(() => talk.unread.value + mail.unread.value);
@@ -126,15 +134,24 @@ function useUpdateWindows(daemon: ReturnType<typeof useDaemon>) {
   return { updateOpen, newer, whatsNew };
 }
 
-/** What opens over the map from its menu: the statistics card and the replay; closeOverlays closes both (an Esc the station cards pass on) and says whether one was open. */
-function useMapOverlays() {
+/** The width of the map that has room for the monitor card (560 px) and the statistics card (340 px) side by side, with the margins between and beside them (card.css: the monitor card stands 360 px from the right edge). */
+const ROOM_FOR_BOTH_PX = 920;
+
+/** What opens over the map from its menu: the statistics card, the monitor and the replay; closeOverlays closes them (an Esc the station cards pass on) and says whether one was open. Where the map has no room for the two cards
+ * side by side (a phone, a narrow map) opening one closes the other, and a monitor that is remembered open beside a statistics card that is too is not shown until there is room or the statistics card is closed. */
+function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<Ref<boolean>>, mapWidth: Readonly<Ref<number>>) {
   // the statistics card over the map (components/StatsCard.vue): open from the map's menu, closed by its cross or Esc, and remembered by this browser
   const statsOpen = usePersistedFlag("stats", ["open", "closed"], false);
-  const closeStats = (): boolean => {
-    const was = statsOpen.value;
-    statsOpen.value = false;
-    return was;
-  };
+  // the monitor card over the map (components/MonitorCard.vue, the HF radio's scope larger): the statistics card's way, remembered by this browser too
+  const monitorOpen = usePersistedFlag("monitor", ["open", "closed"], false);
+  const roomForBoth = computed(() => !phone.value && (mapWidth.value === 0 || mapWidth.value >= ROOM_FOR_BOTH_PX)); // (a width not yet measured is room)
+  const monitorShown = computed(() => monitorOpen.value && scopeAvailable.value && (roomForBoth.value || !statsOpen.value));
+  watch(statsOpen, (on) => {
+    if (on && !roomForBoth.value && monitorOpen.value && scopeAvailable.value) monitorOpen.value = false;
+  });
+  watch(monitorOpen, (on) => {
+    if (on && !roomForBoth.value) statsOpen.value = false;
+  });
   // the replay of the map (components/StationMap.vue runs it, composables/useMapReplay.ts): open from the map's menu, closed by its cross or Esc, the statistics card's way; not remembered, it is a look back for now
   const replayOpen = ref(false);
   const closeReplay = (): boolean => {
@@ -142,8 +159,13 @@ function useMapOverlays() {
     replayOpen.value = false;
     return was;
   };
-  const closeOverlays = (): boolean => [closeStats(), closeReplay()].some(Boolean);
-  return { statsOpen, replayOpen, closeOverlays };
+  const closeOverlays = (): boolean => {
+    const [stats, monitor] = [statsOpen.value, monitorShown.value]; // (what is shown now: a card that is hidden stays remembered)
+    statsOpen.value = false;
+    if (monitor) monitorOpen.value = false;
+    return [stats, monitor, closeReplay()].some(Boolean);
+  };
+  return { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays };
 }
 
 export function useAppShell() {
@@ -184,7 +206,10 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const { statsOpen, replayOpen, closeOverlays } = useMapOverlays();
+  const scope = useScopeLooks(send, daemon.hf, connection, pageVisible());
+  const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
+  const mapWidth = useElementWidth(mapwrap);
+  const { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays } = useMapOverlays(scope.available, layout.phone, mapWidth);
   const cards = useStationCards(derived.stations, send, layout, escBlocked, daemon.stationsLoaded, closeOverlays);
   // the notices (a toast that is no error), what the menu of a row of the Stations table sends or copies, and the alerts set on stations that fire
   const { notice, say } = useNotice();
@@ -194,6 +219,7 @@ export function useAppShell() {
 
   provideDaemon({
     ...daemon,
+    scope,
     weatherSeries: daemon.weatherSeriesByCall,
     ...derived,
     guide,
@@ -213,6 +239,9 @@ export function useAppShell() {
     layout,
     cards,
     statsOpen,
+    monitorOpen,
+    monitorShown,
+    mapwrap,
     replayOpen,
     guide,
     panel,

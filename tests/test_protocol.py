@@ -163,7 +163,6 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
                      {"type": "radio_search", "state": "found", "port": "bt://AA:BB:CC:DD:EE:FF", "baud": None, "profile": "kiss", "number": 0, "total": 0},
                      {"type": "radio_search", "state": "cancelled", "port": "", "baud": None, "profile": "", "number": 0, "total": 0}],
     "alert_result": [{"type": "alert_result", "ok": True, "text": "ran"}, {"type": "alert_result", "ok": False, "text": "exit code 3: no display"}],
-    "hf_scope": [{"type": "hf_scope", "bins": [0] * 18 + [12] * 12 + [1] * 18, "level": -38, "tx": False}, {"type": "hf_scope", "bins": [3] * 48, "level": -90, "tx": True}],
     "station_alert": [{"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": NOW, "km": None},
                       {"type": "station_alert", "call": "OH2XYZ", "kind": "within", "text": "OH2XYZ is 8.2 km from you", "at": NOW, "km": 8.2}],
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},

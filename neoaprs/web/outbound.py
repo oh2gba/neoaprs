@@ -127,6 +127,13 @@ class Publisher:
         self._check(text)
         conn.client.send_json(text)
 
+    def send_binary(self, conn: Connection, data: bytes) -> None:
+        """A binary frame: not checked against the protocol (it is no JSON), and a failing socket is this page's, as with a broadcast."""
+        try:
+            conn.client.send_binary(data)
+        except Exception:
+            log.exception("a binary frame could not be sent to %s", conn.ip)
+
     def broadcast(self, message: dict[str, Any]) -> None:
         if not self.connections:
             return

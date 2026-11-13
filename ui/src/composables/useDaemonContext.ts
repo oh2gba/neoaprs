@@ -5,6 +5,7 @@ import type { Toast } from "@/composables/useDaemon";
 import type { BrowserAlerts } from "@/composables/useBrowserAlerts";
 import type { FindRadio } from "@/composables/useFindRadio";
 import type { Panel } from "@/composables/usePanel";
+import type { ScopeLooks } from "@/composables/useScopeLooks";
 import type { Settings } from "@/composables/useSettings";
 import type { SetupGuide } from "@/composables/useSetupGuide";
 import type { StationKeys } from "@/composables/useStationKeys";
@@ -13,13 +14,13 @@ import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
 import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
+import type { ScopeRow } from "@/lib/scoperow";
 import type {
   AlertResultMessage,
   Command,
   ConfigValues,
   GeneralState,
   GpsState,
-  HfScopeMessage,
   InstallInfo,
   IgateState,
   MapState,
@@ -52,8 +53,10 @@ export interface DaemonContext {
   hf: Read<TncState | null>;
   /** whether the radios are named on the page: only where there are two, while the HF radio is on (the FM radio's channel tag is "FM" beside "HF", else "RF") */
   radiosNamed: Read<boolean>;
-  /** the latest picture of the HF radio's audio (the scope), told while a pane has asked for it; null until one came */
-  hfScope: Read<HfScopeMessage | null>;
+  /** the rows of the HF radio's waterfall (binary frames), told as they come to a pane that has asked for the scope; the function it gets back stops them */
+  onScopeRow: (listener: (row: ScopeRow) => void) => () => void;
+  /** who looks at the scope (the box in Settings, the monitor card over the map), counted in one place: the rows are asked for only while someone does */
+  scope: ScopeLooks;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */
   gps: Read<GpsState | null>;
   /** the receive-only iGate: connected or not, what it gated; null until the daemon has told */

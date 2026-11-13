@@ -255,8 +255,9 @@ def limits() -> dict[str, Any]:
         "general": {"askEverySec": generalask.ASK_EVERY_SEC, "countSec": round(generalask.COUNT_FOR.total_seconds()), "quietMin": round(generalask.QUIET_BEFORE.total_seconds() / 60), "queries": dict(generalask.QUERIES)},
         "station": {"hours": list(STATION_HOURS), "defaultHours": DEFAULT_STATION_HOURS},
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
-        "scope": {"bins": mercuryscope.SCOPE_BINS, "loHz": mercuryscope.SCOPE_LO_HZ, "hiHz": mercuryscope.SCOPE_HI_HZ, "signalLoHz": mercuryscope.SIGNAL_LO_HZ, "signalHiHz": mercuryscope.SIGNAL_HI_HZ, "rangeDb": mercuryscope.SCOPE_RANGE_DB,
-                  "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS, "everySec": mercuryscope.SCOPE_EVERY_SEC},
+        "scope": {"loHz": mercuryscope.SCOPE_LO_HZ, "hiHz": mercuryscope.SCOPE_HI_HZ, "signalLoHz": mercuryscope.SIGNAL_LO_HZ, "signalHiHz": mercuryscope.SIGNAL_HI_HZ,
+                  "rowBins": mercuryscope.ROW_BINS, "rowFirstBin": mercuryscope.ROW_FIRST_BIN, "rowSpectra": mercuryscope.ROW_SPECTRA, "rowOffsetDb": mercuryscope.ROW_OFFSET_DB, "rowStepDb": mercuryscope.ROW_STEP_DB,
+                  "modemBins": mercuryscope.MODEM_BINS, "modemRate": mercuryscope.MODEM_RATE, "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 
@@ -300,12 +301,37 @@ def lists_text() -> str:
 
 # ---- PROTOCOL.md
 
+def binary_text() -> str:
+    """The section on the binary frames, with the numbers of the daemon's module."""
+    m = mercuryscope
+    return f"""## Binary frames
+
+A page that has asked for the scope (`hf_scope`) is sent **binary frames**: one row of the HF radio's waterfall, at the modem's own resolution, for every {m.ROW_SPECTRA} spectra
+the modem makes (up to ten a second; about {m.ROW_HEADER.size + m.ROW_BINS} bytes each). The socket's binary type on the page is `arraybuffer`. No other page is sent them, and a page whose socket holds a share of what it has not read is skipped.
+A frame is exactly {m.ROW_HEADER.size + m.ROW_BINS} bytes:
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `{m.ROW_KIND}`: a row of the waterfall (a frame of another kind is to be ignored: more may come) |
+| 1 | 1 | flags | bit 0 (`{m.ROW_TX}`): the radio transmits and the row is of our own signal; the other bits are 0 |
+| 2 | 1 | level | the RMS level of the audio in the passband, whole dBFS as a signed byte, {m.LEVEL_MIN_DBFS} for silence (a full-scale sine reads -3) |
+| 3 | {m.ROW_BINS} | bins | one unsigned byte for each bin of the passband {m.SCOPE_LO_HZ} to {m.SCOPE_HI_HZ} Hz, the lowest first |
+
+The bins are those of the modem's own spectrum (512 of {m.MODEM_RATE / 2 / m.MODEM_BINS:g} Hz from 0 Hz at {m.MODEM_RATE} Hz): bin `i` of a row is the modem's bin `{m.ROW_FIRST_BIN} + i`, centred on `({m.ROW_FIRST_BIN} + i) * {m.MODEM_RATE / 2 / m.MODEM_BINS:g}` Hz. A byte `b` is
+`{m.ROW_OFFSET_DB:g} + b * {m.ROW_STEP_DB:g}` dB on the modem's own scale (a tone of amplitude 1650 of 32768 reads 0 dB), the mean in power of the row's spectra; a value outside {m.ROW_OFFSET_DB:g} to {m.ROW_OFFSET_DB + 255 * m.ROW_STEP_DB:g} dB is the nearest byte.
+A row is wholly of reception or wholly of our own transmission. The frames carry no time: a row is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
+(`ui/src/lib/waterfallfloor.ts`); the daemon sends the modem's dB and keeps no floor for these frames.
+
+"""
+
+
+
 PROSE = """# The protocol between the daemon and the page
 
 *This file is generated from the models in `neoaprs/web/protocol.py` and the `neoaprs/web/*wire.py` modules by `scripts/gen-protocol.py`: change the models (their docstrings and field descriptions are the
 text below) or the prose in the script, not this file. `tests/test_protocol.py` fails when it is out of date.*
 
-One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways. Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
+One WebSocket per browser tab at `ws://host:7303/ws`. JSON text frames both ways, and binary frames to the page for the waterfall (*Binary frames*). Every time is UTC ISO 8601 with a `Z`. A station is referred to by its call and a packet by its id, never by
 a position in a list.
 
 The conversation: the page opens the socket and is sent `hello` (the version of this protocol, the version of the daemon, how it was installed, the topics), then the **state** of every topic (`state`: its revision
@@ -379,7 +405,7 @@ Revisions count up in each topic and start again at 0 when the daemon starts. Th
 daemon starts with are the latest the database holds. The messages of a topic `messages` are numbered by the database (`id`) and kept across runs; the daemon holds all of them
 (a database with more than 10000 gives the latest 10000 at a start); none leaves on its own.
 
-## Validation
+@@BINARY@@## Validation
 
 Every frame the page sends is checked against the `Command` union before anything is done. The models are strict: a number is a number (not `"5"`), a flag is `true` or `false` (not `1`), a
 field the model does not know is an error, text has a maximum length, `NaN` and `Infinity` are not JSON. A frame that does not fit is answered with an `error` whose `cmd` is the command, whose `code` is `invalid` and whose `text` is
@@ -477,7 +503,7 @@ def doc_text() -> str:
     # every model the schema reaches that is not a command, a message or the topic values: the curated order first, a model it does not name after it, by name
     reached = [name for name in defs if name not in cmd_defs and name not in msg_defs and name != "TopicValues"]
     objects = [name for name in OBJECT_ORDER if name in reached] + sorted(name for name in reached if name not in OBJECT_ORDER)
-    out = [PROSE.rstrip("\n"), ""]
+    out = [PROSE.replace("@@BINARY@@", binary_text()).rstrip("\n"), ""]
 
     out += ["## Client to server", "",
             f"{len(cmd_defs)} commands, each a JSON object with `\"cmd\"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.", ""]

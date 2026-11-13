@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .wirebase import Iso, _Command, _Message, _Model
+from .wirebase import Iso, _Command, _Model
 
 
 class TncStats(_Model):
@@ -102,20 +102,11 @@ class HfFrequencies(_Command):
 
 
 class HfScope(_Command):
-    """The scope: with `on`, this page is sent `hf_scope` messages (five a second at most) of the spectrum of the HF radio's audio, and with `on` false,
+    """The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false,
     or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
     `modem.scope`)."""
     cmd: Literal["hf_scope"]
-    on: bool = Field(description="true starts the pictures for this page, false stops them")
-
-
-class HfScopeMsg(_Message):
-    """One picture of the HF radio's audio, told to the pages that asked for it (`hf_scope`), five a second at most: the spectrum of the passband in 48 bins of 50 Hz from 300 to 2700 Hz, the bins' level over the quiet floor
-    of the band, and the level of the passband. The frame's signal band is 1200 to 1800 Hz (bins 18 to 29)."""
-    type: Literal["hf_scope"]
-    bins: list[int] = Field(min_length=48, max_length=48, description="the level of each 50 Hz bin over the band's quiet floor, whole dB, 0 to 60, the first bin 300 to 350 Hz")
-    level: int = Field(ge=-90, le=0, description="the RMS level of the audio in the passband, whole dBFS, -90 for silence (a full-scale sine reads -3)")
-    tx: bool = Field(description="the radio is transmitting: the picture is of our own signal (the tune tone shows as a line at 1000 Hz), and the level is of that")
+    on: bool = Field(description="true starts the rows for this page, false stops them")
 
 
 class HfKeyTest(_Command):

@@ -12,7 +12,7 @@ import pytest
 from neoaprs import kiss
 from neoaprs.channelbusy import OccupancyBusy
 from neoaprs.mercuryhelper import find, foreign_listeners
-from neoaprs.mercuryscope import SCOPE_BINS, ScopeMeter, bands_db, parse_spectrum, parse_status
+from neoaprs.mercuryscope import ROW_BINS, ROW_OFFSET_DB, ROW_STEP_DB, RowMeter, bands_db, parse_spectrum, parse_status
 from neoaprs.mercuryui import MercuryUi
 from neoaprs.source import Backoff
 from tests.support.env import until
@@ -20,6 +20,11 @@ from tests.support.hfchannel import Channel
 from tests.support.realmercury import fifo, start_mercury, stop
 
 FIRST_PORT = 19400                      # (this test's own ports: the KISS port, the control port 200 above, the UI port 300 above)
+
+
+def db_of_byte(byte: int) -> float:
+    """A byte of a row as the modem's dB."""
+    return ROW_OFFSET_DB + byte * ROW_STEP_DB
 
 
 async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level_and_the_gain(tmp_path: Path) -> None:
@@ -49,15 +54,19 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
         assert spectra == [], "the ini turned the waterfall off: no spectrum until it is asked for"
         ui.waterfall(True)
         await until(lambda: len(spectra) >= 20, timeout_sec=10.0)
-        meter = ScopeMeter()
+        meter = RowMeter()
+        rows = []
         for spectrum in spectra[-20:]:
             assert spectrum is not None and spectrum.sample_rate == 8000 and len(spectrum.db) == 512
-            meter.feed(spectrum)
-        picture = meter.take()
-        assert picture is not None and len(picture.bins) == SCOPE_BINS
+            row = meter.feed(spectrum, False)
+            if row is not None:
+                rows.append(row)
+        assert len(rows) == 10 and all(len(row.bins) == ROW_BINS for row in rows)
         expected = 20 * math.log10(channel.noise_sigma / 32768) + 10 * math.log10(308 / 512)
-        assert abs(picture.level - expected) <= 1.5, f"the level of the channel's noise: expected {expected:.1f} dBFS, the scope says {picture.level}"
-        assert max(picture.bins) <= 8, "white noise is flat: nothing stands out of the floor"
+        level = sum(row.level for row in rows) / len(rows)
+        assert abs(level - expected) <= 1.5, f"the level of the channel's noise: expected {expected:.1f} dBFS, the rows say {level:.1f}"
+        mean = sorted(10 * math.log10(sum(10 ** (db_of_byte(row.bins[i]) / 10) for row in rows) / len(rows)) for i in range(ROW_BINS))
+        assert mean[ROW_BINS * 9 // 10] - mean[ROW_BINS // 4] <= 8, "white noise is flat: no bin of the passband stands out of the rest"
         ui.waterfall(False)
         await asyncio.sleep(0.5)
         seen = len(spectra)

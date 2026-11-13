@@ -23,6 +23,7 @@ export const map: Record<keyof typeof source, Message> = {
   "map.menu.copy_position": "Copiar a posição {place}",
   "map.menu.copy_locator": "Copiar o locator {locator}",
   "map.menu.stats": "Estatísticas",
+  "map.menu.monitor": "Monitor",
   "map.menu.replay": "Reproduzir",
   "map.replay.label": "Reprodução do mapa",
   "map.replay.play": "Reproduzir",

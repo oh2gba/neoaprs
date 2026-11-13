@@ -6,6 +6,8 @@ import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useFindRadio } from "@/composables/useFindRadio";
 import { usePanel } from "@/composables/usePanel";
+import { useScopeLooks, type ScopeLooks } from "@/composables/useScopeLooks";
+import { pageVisible } from "@/composables/useVisible";
 import { useSettings } from "@/composables/useSettings";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import { useStationKeys } from "@/composables/useStationKeys";
@@ -13,7 +15,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { hfOn, type RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow } from "@/protocol/protocol";
+import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -23,6 +25,11 @@ export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends 
 };
 /** What a test gives: a plain value, or a ref it changes later. */
 export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Readonly<Ref<infer T>> ? T | Ref<T> : DaemonContext[K] };
+
+/** Who looks at the scope: the one a test gave, else the page's own counting over the given parts. */
+function scopeOf(over: Given, send: FakeDaemon["send"], hf: Ref<TncState | null>, connection: Ref<Connection>): ScopeLooks {
+  return over.scope ?? useScopeLooks(send, hf, connection, pageVisible());
+}
 
 /** The context a test mounts a pane in; a part given as a value is put in a ref. */
 export function fakeDaemon(over: Given = {}): FakeDaemon {
@@ -36,14 +43,16 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const connected = part(over.connected, true);
   const sender = (over.send as typeof send | undefined) ?? send;
   const settings = over.settings ?? useSettings(config, lastError, sender);
+  const hf = part(over.hf, null);
+  const connection = part(over.connection, "open" as const);
   const context = {
     send: sender,
     say: over.say ?? vi.fn((_text: string) => undefined),
     config,
     status,
     tnc: part(over.tnc, null),
-    hf: part(over.hf, null),
-    hfScope: part(over.hfScope, null),
+    hf,
+    onScopeRow: over.onScopeRow ?? (() => () => undefined),
     radiosNamed: over.radiosNamed === undefined ? computed(() => hfOn(config.value?.values ?? {})) : part(over.radiosNamed, false),
     gps: part(over.gps, null),
     igate: part(over.igate, null),
@@ -60,7 +69,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     updateResult: part(over.updateResult, null),
     releaseNotes: part(over.releaseNotes, null),
     lastError,
-    connection: part(over.connection, "open" as const),
+    connection,
+    scope: scopeOf(over, sender, hf, connection),
     version: part(over.version, ""),
     install: part(over.install, null),
     local: part(over.local, true),

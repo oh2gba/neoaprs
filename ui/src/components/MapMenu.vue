@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The menu a right-click (a long press on a touch screen) opens on the map itself, where the pointer is: the place under it to copy as decimal degrees ("Copy position 60.17000, 24.94000") or as a Maidenhead locator
-// ("Copy locator KP20le"), and last, under a line, Statistics, which opens the statistics card over the map (components/StatsCard.vue), and Replay, which plays back how the stations moved (components/ReplayBar.vue). A copy puts the text on the clipboard and the page says so in its toast. The menu
-// is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc, a press outside it or an item that was chosen (useContextMenu). The map opens it (components/StationMap.vue) and hears `close`, `stats` and `replay`.
+// ("Copy locator KP20le"), and last, under a line, Statistics, which opens the statistics card over the map (components/StatsCard.vue), Monitor, which opens the HF radio's scope as a card over the map (components/MonitorCard.vue; there only while a radio has a scope), and Replay, which plays back how the stations moved (components/ReplayBar.vue). A copy puts the text on the clipboard and the page says so in its toast. The menu
+// is kept inside the window, takes the focus, is moved in with the arrow keys and closed by Esc, a press outside it or an item that was chosen (useContextMenu). The map opens it (components/StationMap.vue) and hears `close`, `stats`, `monitor` and `replay`.
 import { computed, ref } from "vue";
 import { useContextMenu } from "@/composables/useContextMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
@@ -10,8 +10,8 @@ import { copyAndSay } from "@/components/copyAndSay";
 import { positionToLocator } from "@/lib/locator";
 
 const props = defineProps<{ lat: number; lon: number; x: number; y: number; trigger: HTMLElement | null }>();
-const emit = defineEmits<{ close: []; stats: []; replay: [] }>();
-const { say } = useDaemonContext();
+const emit = defineEmits<{ close: []; stats: []; monitor: []; replay: [] }>();
+const { say, scope } = useDaemonContext();
 
 const list = ref<HTMLElement | null>(null);
 const buttons = ref<HTMLElement[]>([]);
@@ -26,9 +26,14 @@ async function copy(text: string): Promise<void> {
   await copyAndSay(text, say);
 }
 
-function choose(item: "stats" | "replay"): void {
+/** The place of an item among the buttons, for the arrow keys: the two to copy come first (the locator is not always there), then Statistics, Monitor when there is a scope, Replay. */
+const first = computed(() => (locator.value === "" ? 1 : 2));
+const at = computed(() => ({ stats: first.value, monitor: first.value + 1, replay: first.value + (scope.available.value ? 2 : 1) }));
+
+function choose(item: "stats" | "monitor" | "replay"): void {
   menu.done();
   if (item === "stats") emit("stats");
+  else if (item === "monitor") emit("monitor");
   else emit("replay");
 }
 </script>
@@ -72,7 +77,7 @@ function choose(item: "stats" | "replay"): void {
     <li class="ctxmenu-line" role="separator"></li>
     <li role="none">
       <button
-        :ref="(el) => (buttons[locator === '' ? 1 : 2] = el as HTMLElement)"
+        :ref="(el) => (buttons[at.stats] = el as HTMLElement)"
         type="button"
         role="menuitem"
         class="ctxmenu-item"
@@ -83,9 +88,22 @@ function choose(item: "stats" | "replay"): void {
         {{ t("map.menu.stats") }}
       </button>
     </li>
+    <li v-if="scope.available.value" role="none">
+      <button
+        :ref="(el) => (buttons[at.monitor] = el as HTMLElement)"
+        type="button"
+        role="menuitem"
+        class="ctxmenu-item"
+        tabindex="-1"
+        data-item="monitor"
+        @click="choose('monitor')"
+      >
+        {{ t("map.menu.monitor") }}
+      </button>
+    </li>
     <li role="none">
       <button
-        :ref="(el) => (buttons[locator === '' ? 2 : 3] = el as HTMLElement)"
+        :ref="(el) => (buttons[at.replay] = el as HTMLElement)"
         type="button"
         role="menuitem"
         class="ctxmenu-item"

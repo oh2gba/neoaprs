@@ -20,6 +20,7 @@ export const map = {
   "map.menu.copy_position": "Copy position {place}",
   "map.menu.copy_locator": "Copy locator {locator}",
   "map.menu.stats": "Statistics",
+  "map.menu.monitor": "Monitor",
   "map.menu.replay": "Replay",
 
   "map.replay.label": "Replay of the map",

@@ -138,7 +138,7 @@ A marker for every station that has a position shows the APRS symbol with the ca
 - A thin dashed circle round your own station is the ALOHA circle of Bob Bruninga, WB4APR: the distance within which the stations heard on the radio would fill the channel (1200 baud takes about 60 packets a minute), so a packet meant for a station beyond it is hard to receive reliably. The pointer resting on the line shows its radius.
 - NeoAPRS works the circle out every minute from the stations heard in the last hour, nearest first, each by what it sends in half an hour: a moving car 15 packets, a parked one 7, a weather station 6, a digipeater 3, a home station 2, and each digipeater nearer than a station makes the packets of the stations beyond it count once more. The circle ends at the station where the sum reaches 1800. Stations an iGate put on the air from the internet do not count. There is no circle until your position is set and enough stations are heard to fill the channel.
 - A marker dims in four steps on the way to the station's timeout.
-- **A right-click on the map** (a long press on a touch screen) opens a small menu where the pointer is: **Copy position** puts the place under the pointer on the clipboard as decimal degrees ("60.17345, 24.94123"), **Copy locator** its Maidenhead locator ("KP20le"), then **Statistics** opens the statistics card ([below](#the-statistics-card)) and **Replay**, last, plays back how the stations moved ([Replay](#replay)). The page says what it copied. Esc, a click outside the menu or an item closes it.
+- **A right-click on the map** (a long press on a touch screen) opens a small menu where the pointer is: **Copy position** puts the place under the pointer on the clipboard as decimal degrees ("60.17345, 24.94123"), **Copy locator** its Maidenhead locator ("KP20le"), then **Statistics** opens the statistics card ([below](#the-statistics-card)), **Monitor** the HF radio's waterfall as a card ([below](#the-monitor-card)) and **Replay**, last, plays back how the stations moved ([Replay](#replay)). The page says what it copied. Esc, a click outside the menu or an item closes it.
 - A station heard direct within the last hour has a green ring round its marker.
 - A mouse resting on a marker for a quarter of a second shows a small card beside it with the call and the symbol's name, when the station was last heard, its status and comment, the distance and bearing from you, the temperature of a weather station, and how its packets reach you ("heard direct" or "via OH2RCH-2"). Only rows that have something to say are shown, and it is gone when the pointer leaves. A click still opens the full card. A touch screen has no resting pointer, so a tap opens the station as before.
 - The station you pick has its latest route drawn as a solid blue line from the station through each digipeater that has a position to your own station, with a dot and the call on each digipeater, and the route of the packet before it, if that came another way, as a thinner grey dashed line; no others. A moving station's routes start where it was when each packet was heard.
@@ -177,6 +177,12 @@ At the top is a graph of the packets heard in each of the last 24 hours, a bar f
 - **Reach**: the radius of the ALOHA circle, the farthest station heard direct and the farthest heard on the radio, each with its distance, and the three digipeaters that repeated the most packets for you.
 - **Packets**: how many the database holds, how many came in the last hour, the busiest station, and the latest packets the page has (the daemon keeps 200) by kind, by channel, the share heard direct among those on the radio, and the rate a minute over the time they span.
 - **Since the daemon started**: how long it has run, the frames from the TNC with the unreadable ones, the bytes in and out, the frames repeated for other stations by your digipeater, and the packets put on the internet by your iGate, where they are on.
+
+## The monitor card
+
+**Monitor** in the map's menu, beside Statistics, opens a card over the map with the HF radio's waterfall, the frequency scale, the spectrum line and the receive level: the Spectrum of the radio's box in Settings ([Radio](radio.md)), larger. The menu has it only while a radio has a scope.
+
+The card is at the bottom right of the map (beside the statistics card when both are open and the map is at least 920 pixels wide; on a narrower map and on a phone opening one closes the other). Its cross closes it, and so does Esc with the station cards. The browser remembers that it is open and where you left it, as with the statistics card; on a phone it is a card at the bottom of the screen. The pictures are made only while the card or the box in Settings shows them and this page is in front.
 
 ## A station's card
 
@@ -279,7 +285,7 @@ The page speaks English, Deutsch, Español, Suomi, Français, Italiano, 日本�
 
 ## What the page remembers
 
-The panel's width and tab, the map's view, the table's "hide timed out", "direct only" and "heard on RF only", the pinned station cards and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
+The panel's width and tab, the map's view, the table's "hide timed out", "direct only" and "heard on RF only", the pinned station cards and where they stand, whether the statistics and monitor cards are open and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
 
 ## A phone, a tablet and a desktop
 

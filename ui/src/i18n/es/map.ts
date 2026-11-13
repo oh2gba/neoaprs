@@ -22,6 +22,7 @@ export const map: Readonly<Record<keyof typeof en, Message>> = {
   "map.menu.copy_position": "Copiar la posición {place}",
   "map.menu.copy_locator": "Copiar el locator {locator}",
   "map.menu.stats": "Estadísticas",
+  "map.menu.monitor": "Monitor",
   "map.menu.replay": "Reproducir",
   "map.replay.label": "Reproducción del mapa",
   "map.replay.play": "Reproducir",

@@ -46,8 +46,11 @@
   --waterfall-2: #00aaff;
   --waterfall-3: #ffe200;
   --waterfall-4: #ff2810;
-  --waterfall-band: rgba(255, 255, 255, 0.07);
   --waterfall-rule: rgba(255, 255, 255, 0.45);
+  --waterfall-ink: rgba(255, 255, 255, 0.92);
+  --waterfall-grid: rgba(255, 255, 255, 0.16);
+  --waterfall-rx: #3ddc84;
+  --waterfall-tx: #ff5a47;
   --scrim: rgba(0, 0, 0, 0.45);
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   --map-label: #1d2125;

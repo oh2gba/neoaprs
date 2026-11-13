@@ -20,6 +20,7 @@ class WsClient:
     def __init__(self, ws: WebSocketClientConnection) -> None:
         self.ws = ws
         self.messages: list[dict[str, Any]] = []
+        self.binary: list[bytes] = []                      # the binary frames (the rows of the waterfall), which are no messages
         self.topics: dict[str, Any] = {}                     # the page's copy of each topic
         self.revs: dict[str, int] = {}
         self.closed_with: tuple[int | None, str | None] | None = None
@@ -34,6 +35,10 @@ class WsClient:
                 self.closed_with = (self.ws.close_code, self.ws.close_reason)
                 self._arrived.set()
                 return
+            if isinstance(raw, bytes):
+                self.binary.append(raw)
+                self._arrived.set()
+                continue
             message = json.loads(raw)
             self.messages.append(message)
             self._apply(message)
@@ -80,6 +85,16 @@ class WsClient:
             await asyncio.wait_for(self._arrived.wait(), left)
         except asyncio.TimeoutError:
             raise TimeoutError from None
+
+    async def frames(self, count: int, timeout: float = 5.0) -> list[bytes]:
+        """Waits until `count` binary frames have come, and gives all that have."""
+        deadline = asyncio.get_running_loop().time() + timeout
+        while len(self.binary) < count:
+            try:
+                await self._wait(deadline)
+            except TimeoutError:
+                raise AssertionError(f"{len(self.binary)} binary frames came, not {count}") from None
+        return list(self.binary)
 
     async def recv(self, timeout: float = 5.0) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout

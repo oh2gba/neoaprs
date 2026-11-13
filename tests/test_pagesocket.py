@@ -28,6 +28,18 @@ async def test_a_text_frame_is_a_command_and_a_binary_frame_that_is_no_text_is_i
     ws.close()
 
 
+async def test_a_binary_frame_is_written_as_a_binary_frame_and_to_a_closing_socket_it_is_dropped() -> None:
+    host = await page_host()
+    ws, socket = await connected(host)
+    socket.send_binary(b"\x01\x00\xd7abc")
+    socket.send_json('{"type": "pong"}')
+    assert await ws.read_message() == b"\x01\x00\xd7abc" and await ws.read_message() == '{"type": "pong"}', "the one is bytes and the other text, in the order they were written"
+    socket.close()
+    socket.send_binary(b"\x01")
+    assert host.api.detached[:1] == [socket], "as a text frame to a closed socket is"
+    ws.close()
+
+
 async def test_a_push_to_a_socket_that_is_closing_is_dropped_and_the_page_is_forgotten_at_once(caplog: pytest.LogCaptureFixture) -> None:
     host = await page_host()
     ws, socket = await connected(host)

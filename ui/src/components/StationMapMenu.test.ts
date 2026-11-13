@@ -3,7 +3,8 @@ import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeMap, resetFakes } from "@/test/fakemap";
 import { mountStationMap } from "@/test/stationmap";
-import { NOW, station, table } from "@/test/fixtures";
+import { NOW, hfState, station, table } from "@/test/fixtures";
+import { tell } from "@/test/context";
 
 const props = () => ({
   stations: table(station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94 })),
@@ -40,7 +41,7 @@ beforeEach(() => {
 afterEach(() => document.body.replaceChildren());
 
 describe("the menu of the map", () => {
-  it("opens on a right-click where the pointer is, with the place to copy, the locator, then Statistics and Replay", async () => {
+  it("opens on a right-click where the pointer is, with the place to copy, the locator, then Statistics and Replay (no Monitor without a scope)", async () => {
     await mounted();
     const { originalEvent, preventDefault } = rightClick(60.17345, 24.94123);
     await flushPromises();
@@ -52,6 +53,20 @@ describe("the menu of the map", () => {
     expect(menu()?.style.left).toBe("300px");
     expect(menu()?.style.top).toBe("200px");
     expect(document.activeElement).toBe(item("position"));
+  });
+
+  it("has Monitor between Statistics and Replay while the HF radio has a scope, and says so to the page when it is chosen", async () => {
+    const { wrapper, daemon } = await mounted();
+    const state = hfState();
+    await tell(daemon, { hf: { ...state, modem: { ...state.modem!, scope: true } } });
+    rightClick(60.17345, 24.94123);
+    await flushPromises();
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "replay"]);
+    expect(item("monitor")?.textContent?.trim()).toBe("Monitor");
+    item("monitor")?.click();
+    await flushPromises();
+    expect(wrapper.emitted("monitor")).toEqual([[]]);
+    expect(menu()).toBeNull();
   });
 
   it("copies the place as decimal degrees and says so; the locator too", async () => {

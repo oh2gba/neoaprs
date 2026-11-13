@@ -21,6 +21,7 @@ def error_message(text: str, cmd: str = "", code: str = "other", key: str | None
 class Client(Protocol):
     """What the daemon needs of a page's socket: a way to write a text frame, and how much the socket holds that the page has not read."""
     def send_json(self, text: str) -> None: ...
+    def send_binary(self, data: bytes) -> None: ...
     def buffered(self) -> int: ...
 
 
@@ -28,6 +29,7 @@ class Outbound(Protocol):
     """What a connection needs of the publisher that made it."""
     def send(self, conn: "Connection", message: dict[str, Any]) -> None: ...
     def send_frame(self, conn: "Connection", text: str) -> None: ...
+    def send_binary(self, conn: "Connection", data: bytes) -> None: ...
 
 
 @dataclass(eq=False)
@@ -42,6 +44,11 @@ class Connection:
         """One message to this page."""
         if not self.closed:
             self.out.send(self, message)
+
+    def send_binary(self, data: bytes) -> None:
+        """A binary frame to this page (the rows of the waterfall: PROTOCOL.md, Binary frames)."""
+        if not self.closed:
+            self.out.send_binary(self, data)
 
     def error(self, text: str, cmd: str = "", code: str = "other", key: str | None = None, params: Mapping[str, Param] | None = None) -> None:
         self.send(error_message(text, cmd, code, key, params))

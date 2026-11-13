@@ -1,5 +1,6 @@
 """What Mercury's UI interface says, and the scope the page draws from it, as pure values and functions: the `status` message (the transmit gain and the peak of the latest transmission), the binary spectrum frame, the two commands
-NeoAPRS sends (the waterfall on or off, the transmit gain), and the meter that turns the stream of spectra into what the page shows, a few dozen bins over the passband and the level of the passband. No I/O: the link is
+NeoAPRS sends (the waterfall on or off, the transmit gain), and the row meter and the binary frame of the waterfall that turn the stream of spectra into what the page shows (the passband at the modem's own bins, a byte of
+dB on the modem's scale, two spectra to a row, and the level of the passband; the floor under it is the page's, lib/waterfallfloor.ts). No I/O: the link is
 mercuryui.py, and the part of the modem that owns it mercuryscoping.py.
 
 The spectrum (Mercury 1.9.21, `gui_interface/ui_communication.c`, `spectrum_publisher_thread`, and `modem_stats_get_rx_spectrum` in `modem/freedv/modem_stats.c`): a binary frame of the magic 0x4D435259, the number of bins and the sample rate
@@ -22,13 +23,18 @@ SAMPLE_FULL_SCALE_DB = 20 * math.log10(32768)    # the audio is 16-bit: a full-s
 
 SCOPE_LO_HZ = 300                        # the passband of the scope: what a receiver's SSB filter lets through (Mercury's own busy detector listens to the same 300 to 2700 Hz)
 SCOPE_HI_HZ = 2700
-SCOPE_BINS = 48                          # 50 Hz each
 SIGNAL_LO_HZ = 1200                      # the frame's signal band above the dial: DATAC3 is centred on 1500 Hz and 562 Hz wide by Mercury's figure (docs/mercury.md)
 SIGNAL_HI_HZ = 1800
-SCOPE_EVERY_SEC = 0.2                    # the page is sent at most five pictures a second (Mercury makes twenty spectra a second; they are averaged in power over the 0.2 s)
-SCOPE_RANGE_DB = 60                      # the most a bin is told over the floor
-FLOOR_FALL = 0.3                         # the floor moves toward a lower reading by this part of the way at every picture, toward a higher one by FLOOR_RISE (ten seconds or so): a signal or a step in the noise is not taken for the floor
-FLOOR_RISE = 0.02
+ROW_SPECTRA = 2                          # a row of the waterfall is this many of the modem's spectra averaged in power: ten rows a second where the modem makes twenty spectra a second (it makes nearer seventeen on reception, so the rows come every 120 ms then)
+ROW_KIND = 1                             # the first byte of a binary frame to the page says what the frame is: a row of the waterfall
+ROW_HEADER = struct.Struct("<BBb")       # the kind, the flags (ROW_TX) and the level of the passband in whole dBFS; the bytes of the bins follow
+ROW_TX = 1                               # the flag: the radio transmits, the row is of our own signal
+ROW_OFFSET_DB = -110.0                   # a bin of a row is one byte on the modem's own scale: byte b is ROW_OFFSET_DB + b * ROW_STEP_DB dB, from -110 to +17.5 (the noise of a channel reads -58 to -31 dB a bin, a frame -15 at its strongest, our own signal +8): what is lower is the lowest byte, what is higher the highest
+ROW_STEP_DB = 0.5
+MODEM_BINS = 512                         # Mercury's spectrum: 512 bins of 7.8125 Hz at 8 kHz; a row is made of spectra of this shape only
+MODEM_RATE = 8000
+ROW_FIRST_BIN = math.ceil(SCOPE_LO_HZ / (MODEM_RATE / 2 / MODEM_BINS))              # the first modem bin of the passband: 39, 304.7 Hz
+ROW_BINS = int(SCOPE_HI_HZ / (MODEM_RATE / 2 / MODEM_BINS)) - ROW_FIRST_BIN + 1     # the bins of the passband: 307
 LEVEL_MIN_DBFS = -90                     # the level of silence, and of anything quieter
 LEVEL_MAX_DBFS = 0
 LEVEL_GOOD_DBFS = (-55, -25)             # the passband's RMS level that is good: far enough over the sound card's own noise (-98 dBFS in 16 bits) and with headroom for a crash of static (docs/mercury.md): chosen, not measured
@@ -48,13 +54,15 @@ class Spectrum:
 
 
 def parse_spectrum(frame: bytes) -> Spectrum | None:
-    """The spectrum in a binary frame of the UI websocket, or None for one that is not a spectrum frame (the magic, the size and the sample rate are checked)."""
+    """The spectrum in a binary frame of the UI websocket, or None for one that is not a spectrum frame (the magic, the size and the sample rate are checked) and for one with a bin that is not a number or is infinitely high: no
+    power can be made of it, and one such bin would make every row after it fail. A bin of minus infinity is silence and stays."""
     if len(frame) < SPECTRUM_HEADER.size:
         return None
     magic, bins, rate = SPECTRUM_HEADER.unpack_from(frame)
     if magic != SPECTRUM_MAGIC or not 0 < bins <= SPECTRUM_MAX_BINS or rate <= 0 or len(frame) != SPECTRUM_HEADER.size + 4 * bins:
         return None
-    return Spectrum(rate, struct.unpack_from(f"<{bins}f", frame, SPECTRUM_HEADER.size))
+    db = struct.unpack_from(f"<{bins}f", frame, SPECTRUM_HEADER.size)
+    return None if any(math.isnan(v) or v == math.inf for v in db) else Spectrum(rate, db)
 
 
 def spectrum_frame(db: list[float], sample_rate: int = 8000) -> bytes:
@@ -103,13 +111,6 @@ def _bin_of(hz: float, spectrum: Spectrum) -> int:
     return max(0, min(len(spectrum.db) - 1, int(hz / spectrum.hz_per_bin())))
 
 
-def band_db(spectrum: Spectrum, lo_hz: float, hi_hz: float) -> float:
-    """The mean power per bin of the band, in dB (the bins' dB are powers: they are averaged as powers)."""
-    lo, hi = _bin_of(lo_hz, spectrum), _bin_of(hi_hz, spectrum)
-    power = sum(10 ** (spectrum.db[i] / 10) for i in range(lo, hi + 1)) / (hi - lo + 1)
-    return 10 * math.log10(power + 1e-30)
-
-
 def level_dbfs(spectrum: Spectrum, lo_hz: float = SCOPE_LO_HZ, hi_hz: float = SCOPE_HI_HZ) -> float:
     """The RMS level of the audio in the band in dB below a full-scale sample (a full-scale sine reads -3), from the variance each bin of the spectrum stands for (the module's note says how)."""
     lo, hi = _bin_of(lo_hz, spectrum), _bin_of(hi_hz, spectrum)
@@ -118,48 +119,61 @@ def level_dbfs(spectrum: Spectrum, lo_hz: float = SCOPE_LO_HZ, hi_hz: float = SC
 
 
 @dataclass(frozen=True)
-class ScopeFrame:
-    """What the page draws once: the bins in whole dB over the floor (0 to SCOPE_RANGE_DB), from SCOPE_LO_HZ up, SCOPE_BINS of them, and the level of the passband in whole dBFS."""
-    bins: tuple[int, ...]
+class ScopeRow:
+    """One row of the waterfall: the passband's ROW_BINS bins of the modem's spectra as bytes on the modem's own scale (ROW_OFFSET_DB, ROW_STEP_DB), the level of the passband in whole dBFS, and whether the radio transmits."""
+    bins: bytes
     level: int
+    tx: bool
 
 
-class ScopeMeter:
-    """Spectra in, a picture every SCOPE_EVERY_SEC out: the power of every scope bin averaged over the spectra since the last picture, the floor under it kept slowly (the quarter-quietest bin, which a signal
-    narrower than three quarters of the passband does not move), the level of the passband from the same spectra."""
+def byte_of_db(db: float) -> int:
+    """A bin's dB on the modem's scale as the byte that is sent."""
+    return max(0, min(255, round((db - ROW_OFFSET_DB) / ROW_STEP_DB)))
+
+
+class RowMeter:
+    """Spectra in, a row every ROW_SPECTRA of them out: the power of each bin of the passband averaged over the spectra of the row. It keeps no floor: what a bin is over the noise is found by the page, from the rows
+    (ui/src/lib/waterfallfloor.ts), which is the one place of that rule. A row is wholly of reception or wholly of our transmission: when the radio keys or lets go between the two spectra of a pair, the pair starts again."""
 
     def __init__(self) -> None:
-        self._power = [0.0] * SCOPE_BINS
+        self._power = [0.0] * ROW_BINS
         self._level = 0.0
         self._count = 0
-        self.floor: float | None = None
+        self._tx = False
 
-    def feed(self, spectrum: Spectrum) -> None:
-        """One spectrum of the stream."""
-        edge = (SCOPE_HI_HZ - SCOPE_LO_HZ) / SCOPE_BINS
-        for i in range(SCOPE_BINS):
-            lo, hi = SCOPE_LO_HZ + i * edge, SCOPE_LO_HZ + (i + 1) * edge
-            self._power[i] += 10 ** (band_db(spectrum, lo, hi - 1e-6) / 10)
+    def feed(self, spectrum: Spectrum, tx: bool) -> ScopeRow | None:
+        """One spectrum of the stream; the row it completes, if it does. A spectrum of another shape than Mercury's is ignored."""
+        if len(spectrum.db) != MODEM_BINS or spectrum.sample_rate != MODEM_RATE:
+            return None
+        if tx != self._tx:
+            self.reset()
+            self._tx = tx
+        for i in range(ROW_BINS):
+            self._power[i] += 10 ** (spectrum.db[ROW_FIRST_BIN + i] / 10)
         self._level += 10 ** (level_dbfs(spectrum) / 10)
         self._count += 1
-
-    def take(self, update_floor: bool = True) -> ScopeFrame | None:
-        """The picture of the spectra fed since the last one, or None when there were none. The floor follows the picture unless `update_floor` is false (the radio is transmitting: the spectrum is of our own signal)."""
-        if self._count == 0:
+        if self._count < ROW_SPECTRA:
             return None
-        db = [10 * math.log10(p / self._count + 1e-30) for p in self._power]
+        bins = bytes(byte_of_db(10 * math.log10(p / self._count + 1e-30)) for p in self._power)
         level = 10 * math.log10(self._level / self._count + 1e-30)
-        self._power, self._level, self._count = [0.0] * SCOPE_BINS, 0.0, 0
-        quiet = sorted(db)[SCOPE_BINS // 4]
-        if self.floor is None:
-            self.floor = quiet
-        elif update_floor:
-            self.floor += (FLOOR_FALL if quiet < self.floor else FLOOR_RISE) * (quiet - self.floor)
-        floor = self.floor
-        return ScopeFrame(tuple(max(0, min(SCOPE_RANGE_DB, round(v - floor))) for v in db), max(LEVEL_MIN_DBFS, min(LEVEL_MAX_DBFS, round(level))))
+        self.reset()
+        return ScopeRow(bins, max(LEVEL_MIN_DBFS, min(LEVEL_MAX_DBFS, round(level))), tx)
 
     def reset(self) -> None:
-        self._power, self._level, self._count, self.floor = [0.0] * SCOPE_BINS, 0.0, 0, None
+        self._power, self._level, self._count = [0.0] * ROW_BINS, 0.0, 0
+
+
+def row_frame(row: ScopeRow) -> bytes:
+    """The binary frame a page is sent for a row: the header (ROW_HEADER) and the ROW_BINS bytes."""
+    return ROW_HEADER.pack(ROW_KIND, ROW_TX if row.tx else 0, row.level) + row.bins
+
+
+def parse_row(frame: bytes) -> ScopeRow | None:
+    """The row in a binary frame to the page, or None for a frame that is no row (for the tests; the page has its own, ui/src/lib/scoperow.ts)."""
+    if len(frame) != ROW_HEADER.size + ROW_BINS:
+        return None
+    kind, flags, level = ROW_HEADER.unpack_from(frame)
+    return ScopeRow(frame[ROW_HEADER.size:], level, bool(flags & ROW_TX)) if kind == ROW_KIND else None
 
 
 BAND_HZ = 150.0                          # the bands of Mercury's own busy detector (modem/channel_busy.h BUSY_BAND_HZ), 300 to 2700 Hz: 17 of them at 8 kHz, the last of four bins

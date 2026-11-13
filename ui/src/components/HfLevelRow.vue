@@ -8,7 +8,7 @@ import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
-import { clips, dbText, gainText } from "@/lib/scope";
+import { clips, dbText, gainText } from "@/lib/hflevel";
 import { LIMITS } from "@/protocol/lists";
 
 const KEY = "mercury/tx_gain_db";

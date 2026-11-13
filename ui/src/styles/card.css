@@ -242,20 +242,20 @@
 }
 
 /* the statistics card (components/StatsCard.vue): at the bottom right of the map, clear of the station cards at the left, with its sections; dragged by its head (on a tablet and a desktop), it stands where it was put, in the map's pixels */
-.statscard {
+:is(.statscard, .monitorcard) {
   left: auto;
   right: 10px;
 }
-.statscard.moved {
+:is(.statscard, .monitorcard).moved {
   right: auto;
   bottom: auto;
   max-height: calc(100% - 20px);
 }
-.statscard.movable .card-head {
+:is(.statscard, .monitorcard).movable .card-head {
   cursor: grab;
   touch-action: none;
 }
-.statscard.movable .card-head button {
+:is(.statscard, .monitorcard).movable .card-head button {
   cursor: pointer;
 }
 .stats-section {
@@ -277,6 +277,24 @@
 }
 .stats-chart {
   padding: 0 10px 4px;
+}
+/* the monitor card (components/MonitorCard.vue) has the statistics card's place and moving above, wider, with the scope's picture at a height of its own, so that nothing moves while it draws; both open, it stands left of it */
+.monitorcard {
+  width: min(560px, calc(100% - 20px));
+}
+.monitor-picture {
+  height: clamp(200px, 40vh, 380px);
+  margin: 0 10px 8px;
+  overflow: hidden;
+  background: var(--waterfall-0);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.monitorcard .field {
+  margin: 0 10px 10px;
+}
+.app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) .monitorcard:not(.moved) {
+  right: 360px;
 }
 /* the packets of the station by the hour on its card (components/StationPackets.vue), and the speed of a moving one (components/StationSpeed.vue), between the facts and Details */
 .station-packets,

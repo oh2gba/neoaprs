@@ -1,5 +1,5 @@
 """The scope and the transmit level in the modem part (neoaprs/mercuryscoping.py, mercurymodem.py): the ini the daemon writes (the gain, the UI interface on a port of its own with the waterfall off), the link to the program's UI,
-the pictures made only while a page wants them, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
+the rows of the waterfall made only while a page wants them, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
 program is the fake Mercury of the suite (tests/support/fakemercury.py), whose UI is tests/support/fakemercuryui.py; the real Mercury is tests/test_mercury_scope_real.py."""
 import asyncio
 import json
@@ -13,7 +13,7 @@ import pytest
 from neoaprs import mercurychannel  # noqa: F401  (the module that holds the hold)
 from neoaprs import mercuryhelper
 from neoaprs.mercury import CONTROL_OFFSET, UI_OFFSET
-from neoaprs.mercuryscope import SCOPE_BINS, ScopeFrame
+from neoaprs.mercuryscope import ROW_BINS, ROW_FIRST_BIN, ScopeRow, byte_of_db
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
@@ -78,45 +78,33 @@ async def test_a_mercury_something_else_runs_and_the_speaker_of_the_dummy_have_n
     assert s.ui_port == 0
 
 
-async def test_the_feed_is_on_for_the_busy_control_and_pictures_are_made_only_while_a_page_wants_them(tmp_path: Path) -> None:
+async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are_made_only_while_a_page_wants_the_scope_and_say_where_the_tone_is_and_whether_the_radio_transmits(tmp_path: Path) -> None:
     m = modem(tmp_path)
-    frames: list[tuple[ScopeFrame, bool]] = []
-    m.scope_frame.connect(lambda frame, tx: frames.append((frame, tx)))
+    rows: list[ScopeRow] = []
+    m.scope_row.connect(rows.append)
     await m.start(HF)
     try:
         await until(lambda: m.scope, 10.0)
         await until(lambda: "set_waterfall on" in sent(tmp_path))
         await asyncio.sleep(0.5)
-        assert frames == [], "nobody wants the scope: no picture is made (the spectrum is read all the same, by the busy control)"
+        assert rows == [], "nobody wants the scope: no row is made (the spectrum is read all the same, by the busy control)"
         m.want_scope(True)
-        await until(lambda: len(frames) >= 3)
-        frame, tx = frames[-1]
-        assert len(frame.bins) == SCOPE_BINS and tx is False and -90 <= frame.level <= 0
-        tone = (1500 - 300) // 50
-        assert frame.bins[tone] > 10 and frame.bins[tone - 3] == 0, "the fake program's tone at 1500 Hz stands over its noise in its own bin"
+        await until(lambda: len(rows) >= 3)
+        row = rows[-1]
+        tone = round(1500 / 7.8125) - ROW_FIRST_BIN
+        assert len(row.bins) == ROW_BINS and row.tx is False and -90 <= row.level <= 0
+        assert row.bins[tone] > row.bins[tone - 5] + 20 and row.bins[tone] == byte_of_db(-30.0), "the fake program's tone at 1500 Hz stands in its own bin of the modem, 7.8 Hz wide"
+        m.keyed = True
+        mark = len(rows)
+        await until(lambda: len(rows) > mark + 2)
+        assert all(r.tx for r in rows[mark + 2:]), "keyed: the rows are of our own signal"
+        m.keyed = False
         m.want_scope(False)
         await asyncio.sleep(0.3)
-        seen = len(frames)
+        seen = len(rows)
         await asyncio.sleep(0.5)
-        assert len(frames) <= seen + 1
+        assert len(rows) <= seen + 1
         assert "set_waterfall off" not in sent(tmp_path), "the feed stays on: the busy control reads it"
-    finally:
-        await m.stop()
-
-
-async def test_pictures_say_that_the_radio_transmits_and_the_floor_waits(tmp_path: Path) -> None:
-    m = modem(tmp_path)
-    frames: list[tuple[ScopeFrame, bool]] = []
-    m.scope_frame.connect(lambda frame, tx: frames.append((frame, tx)))
-    await m.start(HF)
-    try:
-        await until(lambda: m.scope, 10.0)
-        m.want_scope(True)
-        await until(lambda: len(frames) >= 1)
-        m.keyed = True
-        mark = len(frames)
-        await until(lambda: len(frames) > mark + 1)
-        assert all(tx for _, tx in frames[mark + 1:]), "keyed: the spectrum is of our own signal"
     finally:
         m.keyed = False
         await m.stop()
@@ -297,28 +285,3 @@ async def test_what_a_stopped_program_said_of_the_channel_holds_nothing_after_a_
     await m.stop()                          # the settings were saved: the modem stops, and is started again
     m._auto_at -= 2.0                       # (were anything kept: the restart took over a second, the new link not yet up)
     assert m.hold() == "" and not m.busy, "the old program's BUSY does not hold the frames of the new one"
-
-
-async def test_a_page_that_turns_the_scope_off_and_on_in_one_tick_leaves_one_picture_loop(tmp_path: Path) -> None:
-    from neoaprs.mercuryui import MercuryUi
-    m = Mercury(tmp_path)
-    m._ui = MercuryUi("127.0.0.1", 9, lambda t: None, lambda b: None, lambda s: None)
-    m._ui.connected = True
-
-    def loops() -> int:
-        return len([t for t in m._tasks._tasks if t.get_name() == "mercury-scope" and not t.done()])
-    try:
-        m.want_scope(True)
-        await asyncio.sleep(0.01)
-        m.want_scope(False)
-        m.want_scope(True)                  # (two command tasks of a page, run in the same tick)
-        await asyncio.sleep(0.01)
-        assert m._scope_task is not None and loops() == 1
-        m._ui.connected = False
-        m._ui_state(False)
-        m._ui.connected = True
-        m._ui_state(True)                   # the link dropped and came back
-        await asyncio.sleep(0.01)
-        assert loops() == 1, "one loop, five pictures a second, not two"
-    finally:
-        await m._tasks.cancel_all()

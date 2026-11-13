@@ -353,6 +353,6 @@
     order: 3;
   }
 }
-.app:not(.size-phone) .mapwrap:has(.replaybar) :is(.cardstack, .statscard:not(.moved)) {
+.app:not(.size-phone) .mapwrap:has(.replaybar) :is(.cardstack, .statscard:not(.moved), .monitorcard:not(.moved)) {
   bottom: 70px;
 }
