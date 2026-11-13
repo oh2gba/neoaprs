@@ -222,7 +222,7 @@ def test_the_group_check_reads_the_owner_of_the_devices_it_is_given(tmp_path: Pa
     device.write_text("")
     import grp
     import os
-    mine = grp.getgrgid(os.getgid()).gr_name
+    mine = grp.getgrgid(os.getgid()).gr_name  # type: ignore[attr-defined, unused-ignore]
     if mine == "root":
         pytest.skip("root owns the files it makes: no group to be in")
     check = hostcheck.serial_group_check([str(device)], "someone")

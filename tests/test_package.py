@@ -22,7 +22,7 @@ from tests.conftest import ROOT
 from tests.support.proc import NEW_GROUP, stop
 
 WHEEL_VERSION = VERSION.replace("-rc", "rc")                  # (the wheel's file name and its dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is 0.10.0rc1)
-pytestmark = pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built")
+pytestmark = [pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built"), pytest.mark.xdist_group("package")]      # (one worker: the builds and installs of uv are one at a time, and a runner has the time for that)
 WHEEL_VERSION = wheel_version(VERSION)            # the build writes 0.10.0rc1 for 0.10.0-rc1
 NEEDS_NETWORK = ("error sending request", "failed to fetch", "dns error", "connection refused", "network", "timed out", "tcp connect error", "unable to connect", "name resolution")
 

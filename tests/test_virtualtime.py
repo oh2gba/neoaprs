@@ -10,10 +10,10 @@ async def test_a_long_wait_takes_no_time_and_the_loops_clock_has_moved_by_it() -
     loop = asyncio.get_running_loop()
     began_at, real_began = loop.time(), time.monotonic()
     async with virtual_time() as clock:
-        await asyncio.sleep(3600)
-        assert 3599 < clock.skipped <= 3600          # (the time that really passed is part of the wait)
-        assert loop.time() - began_at >= 3600
-    assert time.monotonic() - real_began < 5
+        await asyncio.sleep(86400)
+        assert 86399 < clock.skipped <= 86400          # (the time that really passed is part of the wait)
+        assert loop.time() - began_at >= 86400
+    assert time.monotonic() - real_began < 600, "a day of waiting took minutes at most: it was not waited for"
 
 
 async def test_timers_run_in_their_order() -> None:

@@ -1,14 +1,13 @@
-// Esc in the Objects tab. A page of an earlier test would take the key too (its listeners are on the document), so the pages are unmounted after each test, in a file of their own.
+// Esc in the Objects tab. A page of an earlier test would take the key too (its listeners are on the document), so the pages are unmounted after each test (src/test/setup.ts does it for every file), in a file of their own.
 import "@/test/mockmap";
-import { afterEach, describe, expect, it } from "vitest";
-import { enableAutoUnmount, flushPromises, type VueWrapper } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import { FakeMap } from "@/test/fakemap";
 import { type FakeSocket } from "@/test/fakesocket";
 import { configValues, ownObject } from "@/test/fixtures";
 import { open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
-enableAutoUnmount(afterEach);
 
 const sent = (socket: ReturnType<typeof FakeSocket.last>, cmd: string) => socket.sent.filter((c) => (c as { cmd?: string }).cmd === cmd);
 const field = (wrapper: VueWrapper, label: string) =>

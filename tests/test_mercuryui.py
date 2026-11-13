@@ -125,7 +125,7 @@ async def test_fragments_are_joined_a_ping_is_answered_a_close_ends_it_and_a_mes
     assert await asyncio.wait_for(client.recv(), 3) == (True, b"abcdef"), "the ping between the fragments is answered and the fragments are one message"
     assert await asyncio.wait_for(client.recv(), 3) == (False, b"ok"), "the long message is skipped"
     assert await asyncio.wait_for(client.recv(), 3) is None and client.closed
-    await asyncio.sleep(0.1)
+    await until(lambda: len(server.received) >= 2)
     assert server.received[:2] == bytes([0x8A, 0x82]), "the pong is a masked frame, as a client's are"
     client.close()
     assert server.server is not None
@@ -259,7 +259,7 @@ async def test_a_handler_that_fails_does_not_end_the_link(caplog: pytest.LogCapt
     try:
         with caplog.at_level(logging.ERROR, logger="neoaprs.mercury"):
             await until(lambda: ui.connected)
-            await asyncio.sleep(0.2)
+            await until(lambda: any("could not be handled" in r.getMessage() for r in caplog.records))
         assert ui.connected and any("could not be handled" in r.getMessage() for r in caplog.records)
     finally:
         await ui.stop()

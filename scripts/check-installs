@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+"""The clean installs of a release, tried here in Docker before a tag: the wheel installed into a fresh environment, the .deb installed with apt in a clean Debian and a clean Ubuntu, the AppImage run on a computer with
+no NeoAPRS, and an upgrade: the last release installed and started with both radios, a station and a message, then this build installed over it, and the daemon must come up as the new version with everything there.
+
+  scripts/check-installs                        every check below, one line each with its time; the output of a check that failed follows its line
+  scripts/check-installs --only deb-debian      only the checks named (wheel, deb-debian, deb-ubuntu, appimage, upgrade; several may be given)
+  scripts/check-installs --no-mercury           the packages are built without Mercury (the .deb and the AppImage are the file of a developer who has none): faster, and the Mercury checks are not made
+  scripts/check-installs --work FOLDER          where the files are built and the logs are kept (default build/installs)
+  scripts/check-installs --pin VERSION          writes packaging/ci/old-release.json for that release: its .deb is fetched from the project's release page and its SHA-256 is written once it equals the one in the
+                                                release's SHA256SUMS (needs the network; run it after a release, so that the upgrade starts from the newest one)
+
+The files come from the build scripts the release workflow runs, run here on this tree: `uv build --wheel`, scripts/build-mercury --tar, scripts/build-deb and scripts/build-appimage (the architecture is this
+machine's, amd64: the arm64 package and the macOS and Windows builds are not tried here). Each check runs in a container that has nothing of NeoAPRS and none of this tree: the built files and the scripts that test
+them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (Ubuntu 24.04
+with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and ubuntu:24.04 as the release workflow's job `deb` has it (the Debian one also proves that Mercury needs no
+library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
+pinned there; an old release that is not pinned is a check that did not run, which is a failure. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
+
+Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and for Mercury gcc, make and libasound2-dev.
+"""
+import argparse
+import hashlib
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+CONTAINER = ROOT / "scripts" / "check-in-container"
+PIN = ROOT / "packaging" / "ci" / "old-release.json"
+CHECKS = ("wheel", "deb-debian", "deb-ubuntu", "appimage", "upgrade")
+DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04"
+RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"          # (the same address neoaprs/updateasset.py has)
+MAX_DOWNLOAD = 200_000_000
+TAIL_LINES = 40                                                           # of the log of a check that failed, as many as the report shows
+ENVIRONMENT = ("--env", "NEOAPRS_UPDATE_CHECK=0", "--env", "NEOAPRS_NO_DEVICES=1")
+FIXTURE = Path("tests") / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
+PROBE_FILES = (Path("scripts") / "smoke.py", Path("scripts") / "install-probe.py", Path("scripts") / "smoke-appimage", Path("neoaprs") / "mercury.py", FIXTURE)      # (what the containers run, in the folder `probe`)
+
+# What runs inside a container. {work} is where the built files are mounted, read-only, and VERSION, MERCURY_VERSION and the like arrive as variables. Each ends with `echo` of what it proved, so that a log says it.
+WHEEL = """set -eu
+venv="$(mktemp -d)/venv"
+uv venv --python 3.13 "$venv"
+uv pip install --python "$venv/bin/python" /work/dist/*.whl
+"$venv/bin/python" /work/probe/scripts/smoke.py --command "$venv/bin/neoaprs"
+"""
+
+APPIMAGE = """set -eu
+venv="$(mktemp -d)/venv"
+uv venv --python 3.13 "$venv"
+uv pip install --python "$venv/bin/python" /work/dist/*.whl
+/work/probe/scripts/smoke-appimage /work/dist-appimage/NeoAPRS-*.AppImage --python "$venv/bin/python" $SMOKE_APPIMAGE_ARGS
+"""
+
+# The .deb as the release workflow's job `deb` has it: installed with apt, the command and the Python of the package, the daemon against a fake TNC, Mercury (when the package carries it) and its libraries,
+# a service install with a systemctl that does nothing, an install over itself and the removal that leaves the data of a user.
+DEB = """set -eu
+apt-get update -qq
+apt-get install -y -qq /work/dist-deb/neoaprs_${VERSION}_amd64.deb
+[ "$(neoaprs --version)" = "NeoAPRS $VERSION" ]
+[ "$(readlink -f /usr/bin/neoaprs)" = /opt/neoaprs/bin/neoaprs ]
+[ -f /usr/share/doc/neoaprs/copyright ]
+/opt/neoaprs/bin/python3 -I -c 'import sys; assert sys.version_info[:2] == (3, 13), sys.version'
+/opt/neoaprs/bin/python3 -I - amd64 <<'PY'
+import sys
+from pathlib import Path
+from neoaprs.cli.installkind import detect_here
+info = detect_here(Path("/nonexistent"))
+assert (info.kind, info.arch) == ("deb", sys.argv[1]), info
+PY
+/opt/neoaprs/bin/python3 -I /work/probe/scripts/smoke.py --command /usr/bin/neoaprs
+if [ -n "${MERCURY_VERSION:-}" ]; then
+    # (a `!` does not stop a script under set -e: the checks are ifs)
+    if dpkg -s libasound2 > /dev/null 2>&1 || dpkg -s libasound2t64 > /dev/null 2>&1; then echo "the ALSA library is installed here: the proof proves nothing"; exit 1; fi
+    bundled=/opt/neoaprs/tools/mercury
+    ldd "$bundled/mercury" | tee /tmp/ldd.txt
+    if grep -q 'not found' /tmp/ldd.txt; then echo "a library of mercury is missing"; exit 1; fi
+    grep -q "$bundled/lib/libasound.so.2" /tmp/ldd.txt
+    export ALSA_CONFIG_PATH="$bundled/share/alsa/alsa.conf"
+    said="$("$bundled/mercury" -V 2>&1 || true)"
+    echo "mercury -V: $said"
+    echo "$said" | grep -qF "$MERCURY_VERSION"
+    status=0
+    "$bundled/mercury" -z > /tmp/z.txt 2>&1 || status=$?
+    cat /tmp/z.txt
+    if [ "$status" -ge 126 ] || grep -q 'error while loading' /tmp/z.txt; then echo "mercury -z did not run (exit $status)"; exit 1; fi
+    [ -f "$bundled/LICENSE" ] && [ ! -e "$bundled/dev" ]
+fi
+mkdir -p /tmp/home /tmp/fakebin
+printf '#!/bin/sh\\nexit 0\\n' > /tmp/fakebin/systemctl
+cp /tmp/fakebin/systemctl /tmp/fakebin/loginctl
+chmod +x /tmp/fakebin/systemctl /tmp/fakebin/loginctl
+HOME=/tmp/home XDG_CONFIG_HOME=/tmp/home/.config PATH="/tmp/fakebin:$PATH" neoaprs service install --data /tmp/servicedata
+grep -n '^ExecStart=/opt/neoaprs/bin/python3 -m neoaprs ' /tmp/home/.config/systemd/user/neoaprs.service
+mkdir -p /tmp/keep
+echo data > /tmp/keep/neoaprs.sqlite
+apt-get install -y --reinstall /work/dist-deb/neoaprs_${VERSION}_amd64.deb 2>&1 | tee /tmp/upgrade.log
+grep -q 'keeps the old version until it is restarted' /tmp/upgrade.log
+neoaprs --version
+apt-get remove -y neoaprs
+if [ -e /opt/neoaprs ] || [ -e /usr/bin/neoaprs ] || dpkg -s neoaprs 2>/dev/null | grep -q 'Status: install ok installed'; then echo "the package is not gone"; exit 1; fi
+[ "$(cat /tmp/keep/neoaprs.sqlite)" = data ]
+"""
+
+# The upgrade: the last release installed, its daemon given something to keep (scripts/install-probe.py seed), this build installed over it with apt, and its daemon must have it all and say it is this build.
+UPGRADE = """set -eu
+apt-get update -qq
+apt-get install -y -qq "/old/$OLD_FILE"
+[ "$(neoaprs --version)" = "NeoAPRS $OLD_VERSION" ]
+mkdir -p /tmp/upgrade
+/opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py seed --command /usr/bin/neoaprs --data /tmp/upgrade/data --out /tmp/upgrade/seen.json
+apt-get install -y -qq /work/dist-deb/neoaprs_${VERSION}_amd64.deb
+[ "$(neoaprs --version)" = "NeoAPRS $VERSION" ]
+/opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py verify --command /usr/bin/neoaprs --data /tmp/upgrade/data --in /tmp/upgrade/seen.json --version "$VERSION"
+"""
+
+
+def say(text: str) -> None:
+    print(f"check-installs: {text}", file=sys.stderr, flush=True)
+
+
+def tree_value(path: str, name: str) -> str:
+    """A pin of the tree, as text: `VERSION = "0.18.2"` of neoaprs/__init__.py or neoaprs/mercury.py."""
+    for line in (ROOT / path).read_text(encoding="utf-8").splitlines():
+        if line.startswith(f"{name} = "):
+            return line.split('"')[1]
+    raise SystemExit(f"check-installs: {path} has no {name}")
+
+
+# ---- the old release ----
+
+class NotPinned(Exception):
+    """Why the old release cannot be used, as the words the user is told."""
+
+
+def load_pin(pin: Path = PIN) -> dict[str, str]:
+    try:
+        data = json.loads(pin.read_text(encoding="utf-8"))
+        version, url, digest = data["version"], data["amd64"]["url"], data["amd64"]["sha256"]
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise NotPinned(f"{pin.relative_to(ROOT) if pin.is_relative_to(ROOT) else pin} cannot be read ({error}): scripts/check-installs --pin VERSION writes it") from None
+    if len(digest) != 64 or any(each not in "0123456789abcdef" for each in digest):
+        raise NotPinned(f"the old release {version} is not pinned by its SHA-256 yet: scripts/check-installs --pin {version} (needs the network) writes the pin")
+    return {"version": version, "url": url, "sha256": digest, "file": Path(url).name}
+
+
+def cache_folder() -> Path:
+    return Path(os.environ.get("NEOAPRS_BUILD_CACHE") or Path.home() / ".cache" / "neoaprs-build") / "old-releases"
+
+
+def download(url: str, target: Path) -> str:
+    """Fetches `url` into `target` (https only, at most MAX_DOWNLOAD bytes) and returns its SHA-256."""
+    if not url.startswith("https://"):
+        raise NotPinned(f"{url} is not an https address")
+    digest, size = hashlib.sha256(), 0
+    target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_name(target.name + ".part")
+    with urllib.request.urlopen(url, timeout=120) as answer, partial.open("wb") as out:       # noqa: S310  (https only: the check above)
+        while chunk := answer.read(1 << 20):
+            size += len(chunk)
+            if size > MAX_DOWNLOAD:
+                raise NotPinned(f"{url} is over {MAX_DOWNLOAD} bytes")
+            digest.update(chunk)
+            out.write(chunk)
+    partial.replace(target)
+    return digest.hexdigest()
+
+
+def old_release(pin: dict[str, str]) -> Path:
+    """The old .deb in the build cache: fetched when it is not there, and in any case only when it is the file the pin names."""
+    target = cache_folder() / pin["file"]
+    if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == pin["sha256"]:
+        return target
+    say(f"fetching {pin['url']}")
+    try:
+        found = download(pin["url"], target)
+    except OSError as error:
+        raise NotPinned(f"{pin['url']} could not be fetched ({error})") from None
+    if found != pin["sha256"]:
+        target.unlink(missing_ok=True)
+        raise NotPinned(f"{pin['file']} has the SHA-256 {found}, not the {pin['sha256']} that is pinned: the file was thrown away")
+    return target
+
+
+def write_pin(version: str) -> int:
+    """Fetches the .deb of a release and its SHA256SUMS, and pins the file by its digest once the two agree."""
+    name = f"neoaprs_{version}_amd64.deb"
+    url = f"{RELEASES}/v{version}/{name}"
+    try:
+        found = download(url, cache_folder() / name)
+        sums = cache_folder() / f"SHA256SUMS-{version}"
+        download(f"{RELEASES}/v{version}/SHA256SUMS", sums)
+    except (OSError, NotPinned) as error:
+        say(f"nothing was pinned: {error}")
+        return 1
+    listed = {parts[1].lstrip("*"): parts[0] for line in sums.read_text(encoding="utf-8").splitlines() if len(parts := line.split()) == 2}
+    if listed.get(name) != found:
+        say(f"nothing was pinned: {name} has the SHA-256 {found}, the release's SHA256SUMS says {listed.get(name)}")
+        return 1
+    PIN.write_text(json.dumps({"version": version, "amd64": {"url": url, "sha256": found}}, indent=2) + "\n", encoding="utf-8")
+    say(f"{PIN.relative_to(ROOT)} pins {name} at {found}")
+    return 0
+
+
+# ---- the files that are tried ----
+
+@dataclass
+class Built:
+    """What the build of the files gave: the folders by name, and why a file could not be made."""
+    work: Path
+    failed: dict[str, str]
+
+
+def build_step(work: Path, name: str, command: Sequence[str]) -> str | None:
+    """One build command with its output in the log of `name`; None when it passed, else why not."""
+    log = work / "logs" / f"build-{name}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    say(f"building {name}: {shlex.join(command)}")
+    with log.open("wb") as out:
+        done = subprocess.run(command, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT, check=False)
+    return None if done.returncode == 0 else f"the build of {name} failed (exit {done.returncode}); its log is {log}"
+
+
+def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
+    """The wheel, then Mercury, the .deb and the AppImage that the checks need, each folder made anew. What could not be built, and why, is in `failed` under the name of the file (the wheel, the .deb, the AppImage);
+    a file that needs another that failed has that one's reason."""
+    built = Built(work, {})
+    folders = {name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage")}
+    deb, appimage = bool(wanted & {"deb-debian", "deb-ubuntu", "upgrade"}), "appimage" in wanted
+    for folder in folders.values():
+        shutil.rmtree(folder, ignore_errors=True)
+
+    def attempt(name: str, command: list[str]) -> bool:
+        reason = build_step(work, name, command)
+        if reason is not None:
+            built.failed[name] = reason
+        return reason is None
+
+    if not attempt("wheel", ["uv", "build", "--wheel", "--out-dir", str(folders["dist"])]):
+        built.failed.update({"deb": built.failed["wheel"], "appimage": built.failed["wheel"]})
+        return built
+    wheel = str(next(iter(sorted(folders["dist"].glob("neoaprs-*.whl"))), ""))
+    mercury = ["--no-mercury"]
+    if with_mercury and (deb or appimage):
+        if attempt("mercury", ["scripts/build-mercury", "--tar", "--out", str(folders["mercury"])]):
+            tars = sorted(folders["mercury"].glob("mercury-*-linux-x86_64.tar.gz"))
+            mercury = ["--mercury", str(tars[-1])] if tars else mercury
+            if not tars:
+                built.failed["mercury"] = "scripts/build-mercury made no mercury-*-linux-x86_64.tar.gz"
+        if "mercury" in built.failed:
+            built.failed.update({"deb": built.failed["mercury"], "appimage": built.failed["mercury"]})
+            return built
+    if deb:
+        attempt("deb", ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, *mercury, "--out", str(folders["dist-deb"])])
+    if appimage:
+        attempt("appimage", ["scripts/build-appimage", "--wheel", wheel, *mercury, "--out", str(folders["dist-appimage"])])
+    return built
+
+
+def make_probe(work: Path) -> None:
+    """The scripts the containers run, in a folder of their own that has the layout of the tree they expect (smoke.py finds its capture by its place)."""
+    shutil.rmtree(work / "probe", ignore_errors=True)
+    for name in PROBE_FILES:
+        (work / "probe" / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / name, work / "probe" / name)
+
+
+# ---- the containers ----
+
+def docker_run(image: str, script: str, work: Path, mounts: Sequence[tuple[Path, str]] = (), environment: Sequence[tuple[str, str]] = (), shm: bool = False) -> list[str]:
+    """One container that is removed when it ends: the work folder (and the mounts) read-only, the variables of `environment`, no published port and no device, and `script` run by sh."""
+    line = ["docker", "run", "--rm", "--init", *ENVIRONMENT, "--volume", f"{work}:/work:ro"]
+    for folder, target in mounts:
+        line += ["--volume", f"{folder}:{target}:ro"]
+    for name, value in environment:
+        line += ["--env", f"{name}={value}"]
+    if shm:
+        line += ["--shm-size", "1g", "--env", "QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox --disable-gpu"]
+    return [*line, image, "sh", "-c", script]
+
+
+def runner_image() -> str:
+    """The image of scripts/check-in-container, built when it is missing."""
+    done = subprocess.run([sys.executable, str(CONTAINER), "--image-only"], capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise NotPinned(f"the image of scripts/check-in-container could not be made: {done.stderr.strip().splitlines()[-1:] or ['no message']}")
+    return done.stdout.strip()
+
+
+def command_of(name: str, work: Path, with_mercury: bool) -> list[str]:
+    """The docker command of the check `name`; NotPinned when something it starts from is missing."""
+    version, mercury = tree_value("neoaprs/__init__.py", "VERSION"), tree_value("neoaprs/mercury.py", "VERSION")
+    deb_environment = [("VERSION", version), ("MERCURY_VERSION", mercury if with_mercury else "")]
+    if name == "wheel":
+        return docker_run(runner_image(), WHEEL, work)
+    if name == "appimage":
+        return docker_run(runner_image(), APPIMAGE, work, environment=[("SMOKE_APPIMAGE_ARGS", "" if with_mercury else "--no-mercury")], shm=True)
+    if name == "deb-debian":
+        return docker_run(DEBIAN, DEB, work, environment=deb_environment)
+    if name == "deb-ubuntu":
+        return docker_run(UBUNTU, DEB, work, environment=deb_environment)
+    pin = load_pin()
+    old = old_release(pin)
+    return docker_run(UBUNTU, UPGRADE, work, mounts=[(old.parent, "/old")], environment=[("OLD_FILE", pin["file"]), ("OLD_VERSION", pin["version"]), ("VERSION", version)])
+
+
+@dataclass
+class Result:
+    name: str
+    ok: bool
+    seconds: float
+    output: str
+
+
+def run_check(name: str, work: Path, built: Built, with_mercury: bool) -> Result:
+    started = time.monotonic()
+    need = {"wheel": "wheel", "appimage": "appimage"}.get(name, "deb")
+    if need in built.failed:
+        return Result(name, False, 0.0, built.failed[need])
+    try:
+        command = command_of(name, work, with_mercury)
+    except NotPinned as error:
+        return Result(name, False, time.monotonic() - started, str(error))
+    log = work / "logs" / f"{name}.log"
+    with log.open("wb") as out:
+        done = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False)
+    lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    return Result(name, done.returncode == 0, time.monotonic() - started, "\n".join(lines[-TAIL_LINES:]) if done.returncode else "")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="check-installs", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--only", action="append", choices=CHECKS, help="one check (may be given several times)")
+    parser.add_argument("--no-mercury", action="store_true", help="build the packages without Mercury")
+    parser.add_argument("--work", type=Path, default=ROOT / "build" / "installs", help="the folder of the built files and the logs")
+    parser.add_argument("--pin", metavar="VERSION", help="write packaging/ci/old-release.json for that release")
+    args = parser.parse_args(argv)
+    if args.pin is not None:
+        return write_pin(args.pin)
+    for tool in ("docker", "uv"):
+        if shutil.which(tool) is None:
+            say(f"{tool} is not installed")
+            return 2
+    if subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
+        say("docker does not answer (is the daemon running, and may this user use it?): nothing was built")
+        return 2
+    wanted = set(args.only or CHECKS)
+    work = args.work.resolve()
+    (work / "logs").mkdir(parents=True, exist_ok=True)
+    built = build(work, wanted, not args.no_mercury)
+    make_probe(work)
+    results = [run_check(name, work, built, not args.no_mercury) for name in CHECKS if name in wanted]
+    for result in results:
+        print(f"{'ok  ' if result.ok else 'FAIL'}  {result.name:<11} {result.seconds:6.1f}s")
+        if not result.ok:
+            print("\n".join(f"      | {line}" for line in result.output.splitlines()))
+    failed = [result.name for result in results if not result.ok]
+    print(f"failed: {' '.join(failed)}" if failed else "all green")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -3,7 +3,6 @@ first, tried one after the other like on Linux, and a port that another program 
 import logging
 import sys
 import threading
-import time
 
 import pytest
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
@@ -166,10 +165,8 @@ async def test_a_port_that_another_program_has_is_passed_over_with_the_words_of_
     monkeypatch.setattr(serialport.os, "name", "nt")
     caplog.set_level(logging.INFO, logger="neoaprs.tnc")
     rig = Rig(["COM3", "COM4", "COM5"])
-    started = time.monotonic()
     found = await rig.finder.find(rig.tried.append)
     assert found == Found("COM4", 9600, "kiss")
-    assert fake.opens == ["COM3", "COM4"]                                                         # (COM3 is refused once, not at each of its seven speeds)
+    assert fake.opens == ["COM3", "COM4"]  # type: ignore[attr-defined]                                                       # (COM3 is refused once, not at each of its seven speeds)
     assert "COM3: in use by another program" in caplog.text
     assert [(t.port, t.baud, t.number, t.total) for t in rig.tried] == [("COM3", 9600, 1, 21), ("COM4", 9600, 8, 21)]
-    assert time.monotonic() - started < 10

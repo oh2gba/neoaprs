@@ -1,0 +1,29 @@
+# The weekly audit: the packages of uv.lock and ui/package-lock.json asked of the advisory lists (osv-scanner, `scripts/check --stage audit`; osv-scanner.toml lists what is set aside, each with its reason and the day it
+# ends). A package gets an advisory without a push, so the check is run by the clock as well as by hand. It is a workflow of its own and not a job of ci.yml: the release asks for a green run of ci.yml by the commit
+# (release.yml, `verify`), and a scheduled run of ci.yml on the head of master would be one. No secrets, nothing is published.
+name: audit
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"          # Mondays, 05:17 UTC (not on the hour, when the runners are busiest)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: The pinned osv-scanner (scripts/security-tools)
+        run: python3 scripts/security-tools osv-scanner
+      - run: scripts/check --stage audit

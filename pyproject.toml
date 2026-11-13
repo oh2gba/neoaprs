@@ -112,7 +112,42 @@ precision = 1
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-files = ["neoaprs", "tests/support"]   # the test support layer is typed like the code; the test files themselves are not
+files = ["neoaprs", "tests"]   # the test support layer is typed like the code; the test files are read with what they use (the overrides below), for both systems, so that a name that one system lacks is found here and not on GitHub
+
+# A test file is read for what is wrong with its names, on each system (--platform win32 too): a function or a constant that Windows does not have, a module that is not there, an attribute that is not. How the doubles of a
+# test are typed is left to the test: no signature is demanded, and the checks of a value's type, which a stand-in always fails, are off. tests/support is typed like the code, as the next section says.
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+disallow_any_generics = false
+disallow_subclassing_any = false
+warn_return_any = false
+warn_unused_ignores = false
+warn_unreachable = false
+implicit_reexport = true
+check_untyped_defs = true
+disable_error_code = ["arg-type", "union-attr", "comparison-overlap", "func-returns-value", "misc", "index", "var-annotated", "assignment", "operator", "return-value", "override", "call-overload"]
+
+[[tool.mypy.overrides]]
+module = "tests.support.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_unreachable = true
+enable_error_code = ["arg-type", "union-attr", "comparison-overlap", "func-returns-value", "misc", "index", "var-annotated", "assignment", "operator", "return-value", "override", "call-overload"]
+
+# The tests patch what a module imported (`monkeypatch.setattr(module.os, ...)`, `module.sys`) and import what another test file imported, which strict mypy calls a name that the module does not export.
+[[tool.mypy.overrides]]
+module = "neoaprs.*"
+implicit_reexport = true
 
 [tool.ruff]
 target-version = "py313"
@@ -123,8 +158,10 @@ extend-include = [
     "scripts/build-mercury",
     "scripts/check-in-container",
     "scripts/check-windows",
+    "scripts/check-installs",
     "scripts/doc-arch",
     "scripts/doc-settings",
+    "scripts/flaky",
     "scripts/mercury-bench",
     "scripts/mercury-measure",
     "scripts/mercury-sim",

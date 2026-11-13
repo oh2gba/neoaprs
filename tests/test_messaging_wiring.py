@@ -74,7 +74,7 @@ async def test_a_message_sent_to_us_is_kept_and_the_ack_is_on_the_line_and_in_th
     assert [p.direction for p in reversed(await e.packets())] == ["in", "out"], "the message, then our ack"
     station = e.ctl.stationbook.get("OH2RDG-7")
     assert station is not None and station.packets == 1
-    e.now.advance(30)                                                        # type: ignore[attr-defined]  (it did not hear the ack: it sends it again, and that is thirty seconds after our ack)
+    e.now.advance(30)                                                        # type: ignore[attr-defined]  # it did not hear the ack: it sends it again, and that is thirty seconds after our ack
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12")))
     await until(lambda: e.tnc.stats.packets == 2)
     assert len(await said(e)) == 1
@@ -293,7 +293,7 @@ async def test_with_eight_digipeaters_already_a_message_to_an_rf_only_station_is
     with pytest.raises(MessagingError, match="path too long for RF only"):
         await e.ctl.messaging.send("OH2RDG", "refused")
     assert [r.text for r in e.ctl.messaging.records()] == ["waits"], "a refused message is not kept"
-    e.now.advance(60)                                                              # type: ignore[attr-defined]  (the second attempt of the first message is due)
+    e.now.advance(60)                                                              # type: ignore[attr-defined]  # the second attempt of the first message is due
     with caplog.at_level(logging.WARNING, "neoaprs.messaging"):
         await idle_for(0.3)
     assert await said(e, 1, 0.2) == [] and e.ctl.messaging.records()[0].attempts == 1 and e.ctl.messaging.records()[0].state == "sending"

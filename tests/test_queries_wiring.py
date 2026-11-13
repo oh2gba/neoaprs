@@ -77,7 +77,7 @@ async def test_aprss_gives_the_status_report_last_sent_and_nothing_before_one_we
     await until(lambda: e.ctl.rigstatus.last_text == "QRV 145.500")
     [sent] = await said(e)
     assert sent.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500", "the status goes out by itself, once"
-    e.now.advance(60)                                                       # type: ignore[attr-defined]  (the same query is answered again after half a minute)
+    e.now.advance(60)                                                       # type: ignore[attr-defined]  # the same query is answered again after half a minute
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSS")))
     await heard(e, 2)
     [frame] = await said(e)

@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+"""Hunts the tests that fail on some runs and not on others: the CI's own command for the tests, run many times in the container the size of GitHub's runner (scripts/check-in-container), and a table of every test that failed
+with how often, in which setting and with its first failing line.
+
+  scripts/flaky                       20 runs, each a container of its own, several side by side (the stage `flaky` of scripts/check: `scripts/check --stage flaky`; it is in no default list)
+  scripts/flaky --runs 8              fewer runs (a multiple of four keeps the four settings even)
+  scripts/flaky --parallel 2          at most two containers at once (default: as many as the machine has groups of four threads, at most four)
+  scripts/flaky --limit-minutes 30    a run that is not over by then is ended and listed as hung (default 45: the CI's job has 30, and the first run of a cold cache has the install to do)
+  scripts/flaky --out FOLDER          where the log of each run and the report are written (default build/flaky)
+
+Every run is `uv sync --frozen --extra app --extra ble` and `scripts/check --stage pytest`, the first and the last line of the CI's job `python` that scripts/check-in-container holds, and nothing else of that job: the
+lock, ruff, mypy and the layers are not what is hunted. Four settings go round, each in a quarter of the runs: the runner's size or half of it (`--starved`: two threads, 7 GB, where a test that counts on time shows
+itself), and the tests in file order or in the order of a seed (tests/support/shuffle.py: the seed is the number of the run, given to pytest in PYTEST_ADDOPTS, which the stage passes on). Nothing else is asked of
+pytest but a width of its output that does not cut a failure's message.
+Each container has cores that no other holds and a loopback of its own, so the runs cannot meet on a port. The image is built once before any run starts.
+
+The report is printed and written to FOLDER/report.txt: one line per run, then the table. A run that was ended for its time is listed with the stack that `faulthandler_timeout` printed, and a run that did not
+get as far as the tests (docker, the install) with the last lines of its log. The exit code is 0 when every run passed, 1 when a test failed or a run hung or did not run, 2 when docker or git is missing.
+"""
+import argparse
+import concurrent.futures
+import importlib.machinery
+import importlib.util
+import re
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from types import FrameType, ModuleType
+
+ROOT = Path(__file__).resolve().parent.parent
+CONTAINER = ROOT / "scripts" / "check-in-container"
+DEFAULT_RUNS, DEFAULT_LIMIT_MINUTES, MOST_PARALLEL = 20, 45.0, 4
+SETTINGS = ("runner/file order", "runner/shuffled", "starved/file order", "starved/shuffled")      # the runs go round them: run n has settings[n % 4]
+WIDTH = "200"                                           # the width pytest writes its summary at: wide enough not to cut a failure's message
+HUNG_GRACE_SEC = 30.0                                   # how long a run that is ended is given to take its container away before it is killed
+STACK_LINES = 40                                        # of the stack that faulthandler_timeout printed, as many as the report shows
+LOG_TAIL_LINES = 12                                     # of the log of a run that did not get to the tests
+
+STAGE_PREFIX = "      | "                                  # what scripts/check puts before every line of the output of a stage that failed
+FAILED = re.compile(r"^(?:      \| )?(?:FAILED|ERROR) ([^\s\[]+(?:\[.*?\])?)(?: - (.*))?$", re.M)          # (a test id may have spaces in its brackets)
+OVER_LIMIT = re.compile(r"^(?:      \| )?(.+?) ran over its time limit of (\S+) s", re.M)
+SUMMARY = re.compile(r"^(?:      \| )?(?:=+ )?((?:\d+ (?:failed|passed|skipped|error|errors|xfailed|xpassed|warnings?|deselected|rerun)(?:, )?)+) in [\d.]+s", re.M)
+
+
+def load_container() -> ModuleType:
+    """scripts/check-in-container as a module: the CI's commands and the cores of this machine are read from it, so that there is one list of each."""
+    loader = importlib.machinery.SourceFileLoader("check_in_container", str(CONTAINER))
+    spec = importlib.util.spec_from_loader("check_in_container", loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def say(text: str) -> None:
+    print(f"flaky: {text}", file=sys.stderr, flush=True)
+
+
+@dataclass(frozen=True)
+class Plan:
+    """What run `number` (from 0) does."""
+    number: int
+    starved: bool
+    seed: int | None                                    # the shuffle's seed, None for the order of the files
+
+    @property
+    def setting(self) -> str:
+        return SETTINGS[self.number % 4]
+
+
+def plan(number: int) -> Plan:
+    """Runs 0, 1, 2, 3 are the four settings in turn: even runs are in file order, and the third and fourth of every four are starved."""
+    return Plan(number, starved=number % 4 >= 2, seed=number if number % 2 else None)
+
+
+def command(run: Plan, ci_commands: Sequence[str]) -> list[str]:
+    """The command inside the container: the first and the last line of the CI's job (the install and the tests), the last with what is asked of it here: the seed of the order, as the options of pytest."""
+    install, tests = ci_commands[0], ci_commands[-1]
+    options = f"PYTEST_ADDOPTS={shlex.quote(f'-p tests.support.shuffle --shuffle-seed {run.seed}')} " if run.seed is not None else ""
+    return ["bash", "-c", f"{install} && COLUMNS={WIDTH} {options}{tests}"]
+
+
+@dataclass
+class Result:
+    run: Plan
+    code: int = 0
+    seconds: float = 0.0
+    hung: bool = False
+    failures: dict[str, str] = field(default_factory=dict)      # test -> its first failing line
+    summary: str = ""                                           # pytest's last line ("2 failed, 9000 passed"), when it got that far
+    log: Path = Path()
+    stack: list[str] = field(default_factory=list)              # what faulthandler_timeout printed, for a run that hung
+    tail: list[str] = field(default_factory=list)               # the end of the log, for a run that did not reach the tests
+
+    @property
+    def word(self) -> str:
+        if self.hung:
+            return "hung"
+        if self.failures:
+            return "failed"
+        if self.code != 0:
+            return "not run" if not self.summary else "failed"
+        return "ok"
+
+
+def read_log(text: str, result: Result) -> None:
+    """What a run's log says: the tests that failed with the first line of each, pytest's last line, and, for a run that hung, the stack of the last time `faulthandler_timeout` fired."""
+    limits = {name: f"ran over its time limit of {seconds} s" for name, seconds in OVER_LIMIT.findall(text)}
+    for name, message in FAILED.findall(text):
+        result.failures.setdefault(name, limits.get(name) or message.strip() or "no message")
+    summaries = SUMMARY.findall(text)
+    result.summary = summaries[-1] if summaries else ""
+    lines = [line.removeprefix(STAGE_PREFIX) for line in text.splitlines()]
+    fired = [index for index, line in enumerate(lines) if line.startswith("Timeout (")]
+    if fired:
+        rest = lines[fired[-1]:fired[-1] + STACK_LINES]
+        result.stack = rest[:next((index for index, line in enumerate(rest) if not line.strip()), len(rest))]          # (the dump ends at the first empty line)
+    if not result.summary and not result.failures and (result.code != 0 or result.hung):
+        result.tail = [line for line in lines if line.strip()][-LOG_TAIL_LINES:]
+
+
+class Runs:
+    """The containers that are running, so that a signal to this script ends them: each is `scripts/check-in-container`, which takes its own container away when it is told to stop."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.children: list[subprocess.Popen[bytes]] = []
+        self.stopped = False
+
+    def add(self, child: "subprocess.Popen[bytes]") -> bool:
+        with self.lock:
+            if self.stopped:
+                child.terminate()
+                return False
+            self.children.append(child)
+            return True
+
+    def stop(self, number: int, frame: FrameType | None) -> None:
+        with self.lock:
+            self.stopped = True
+            for child in self.children:
+                if child.poll() is None:
+                    child.terminate()
+
+
+def execute(run: Plan, ci_commands: Sequence[str], out: Path, limit_sec: float, runs: Runs) -> Result:
+    """One run: the container script with the command, its output in the run's log, under the time limit."""
+    result = Result(run, log=out / f"run-{run.number:02d}.log")
+    line = [sys.executable, str(CONTAINER), *(["--starved"] if run.starved else []), "--", *command(run, ci_commands)]
+    started = time.monotonic()
+    with result.log.open("wb") as log:
+        child = subprocess.Popen(line, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
+        if not runs.add(child):
+            result.code = 143
+            return result
+        try:
+            result.code = child.wait(timeout=limit_sec)
+        except subprocess.TimeoutExpired:
+            result.hung = True
+            child.terminate()                           # (the script ends its container: a stack of the hung tests is in the log already)
+            try:
+                result.code = child.wait(timeout=HUNG_GRACE_SEC)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                result.code = child.wait()
+    result.seconds = time.monotonic() - started
+    read_log(result.log.read_text(encoding="utf-8", errors="replace"), result)
+    return result
+
+
+def duration(seconds: float) -> str:
+    minutes, rest = divmod(round(seconds), 60)
+    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
+
+
+def run_line(result: Result) -> str:
+    what = result.summary or (f"exit {result.code}" if result.code else "")
+    return f"run {result.run.number + 1:2d}  {result.run.setting:<19} {result.word:<8} {duration(result.seconds):>10}  {what}".rstrip()
+
+
+def table(rows: list[list[str]]) -> list[str]:
+    """Rows of cells as lines of aligned columns between bars: the first row is the head."""
+    widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
+    lines = [" | ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip() for row in rows]
+    return [lines[0], "-+-".join("-" * width for width in widths), *lines[1:]]
+
+
+def report(results: list[Result]) -> list[str]:
+    """The report: a line for every run, then the table of the tests that failed (how often, in which settings, with the first failing line), then the stack of each run that hung and the end of the log of each
+    run that did not reach the tests."""
+    results = sorted(results, key=lambda each: each.run.number)
+    lines = [run_line(result) for result in results]
+    count: Counter[str] = Counter()
+    where: dict[str, Counter[str]] = {}
+    first: dict[str, str] = {}
+    for result in results:
+        for name, message in result.failures.items():
+            count[name] += 1
+            where.setdefault(name, Counter())[result.run.setting] += 1
+            first.setdefault(name, message)
+    lines.append("")
+    if count:
+        rows = [["test", "failed", "of", "in which settings", "first failing line"]]
+        for name, failed in sorted(count.items(), key=lambda item: (-item[1], item[0])):
+            settings = ", ".join(f"{setting} {times}" for setting, times in sorted(where[name].items()))
+            rows.append([name, str(failed), str(len(results)), settings, first[name]])
+        lines += table(rows)
+    else:
+        lines.append("no test failed in any run")
+    for result in results:
+        what = "hung" if result.hung else "had a test that ran over two minutes"
+        if result.stack:
+            lines += ["", f"run {result.run.number + 1} {what} ({result.run.setting}); the stack that faulthandler_timeout printed last:", *(f"    {line}" for line in result.stack)]
+        elif result.hung:
+            lines += ["", f"run {result.run.number + 1} hung ({result.run.setting}) with no stack in its log: the log is {result.log}"]
+        if result.tail:
+            lines += ["", f"run {result.run.number + 1} did not get to the tests (exit {result.code}); the end of its log:", *(f"    {line}" for line in result.tail)]
+    green = sum(1 for result in results if result.word == "ok")
+    lines += ["", f"{green} of {len(results)} runs green; {len(count)} tests failed in at least one run"]
+    return lines
+
+
+def default_parallel(container: ModuleType) -> int:
+    """As many runs side by side as the machine has groups of the threads of the runner's size (a run takes that many at most, so no thread is shared), at most four."""
+    threads = sum(len(core) for core in container.read_cores())
+    return max(1, min(MOST_PARALLEL, threads // container.RUNNER.threads))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="flaky", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--runs", type=int, default=DEFAULT_RUNS, help="the number of runs (default 20)")
+    parser.add_argument("--parallel", type=int, default=None, help="containers at once (default: groups of four threads, at most 4)")
+    parser.add_argument("--limit-minutes", type=float, default=DEFAULT_LIMIT_MINUTES, help="a run longer than this is ended and listed as hung (default 45)")
+    parser.add_argument("--out", type=Path, default=ROOT / "build" / "flaky", help="the folder of the logs and the report (default build/flaky)")
+    args = parser.parse_args(argv)
+    if args.runs < 1 or args.limit_minutes <= 0 or (args.parallel is not None and args.parallel < 1):
+        parser.error("--runs and --parallel are 1 or more, --limit-minutes more than 0")
+    for tool in ("docker", "git"):
+        if shutil.which(tool) is None:
+            say(f"{tool} is not installed")
+            return 2
+    container = load_container()
+    image = subprocess.run([sys.executable, str(CONTAINER), "--image-only"], stdout=subprocess.DEVNULL, check=False)
+    if image.returncode != 0:
+        say("the image could not be made: nothing was run")
+        return 1 if image.returncode == container.DOCKER_FAILED else image.returncode
+    args.out.mkdir(parents=True, exist_ok=True)
+    for old in args.out.glob("run-*.log"):
+        old.unlink()
+    parallel = args.parallel or default_parallel(container)
+    runs = Runs()
+    for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, runs.stop)
+    say(f"{args.runs} runs, {parallel} at a time, each under {args.limit_minutes:g} minutes; logs in {args.out}")
+    results: list[Result] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as pool:
+        futures = [pool.submit(execute, plan(number), container.CI_COMMANDS, args.out, args.limit_minutes * 60, runs) for number in range(args.runs)]
+        for future in concurrent.futures.as_completed(futures):
+            results.append(future.result())
+            print(run_line(results[-1]), flush=True)
+    if runs.stopped:
+        say("stopped: no report")
+        return 130
+    lines = report(results)
+    (args.out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(*lines[len(results):], sep="\n")
+    return 0 if all(result.word == "ok" for result in results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

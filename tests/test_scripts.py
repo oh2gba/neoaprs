@@ -12,9 +12,10 @@ from pathlib import Path
 
 from neoaprs.kiss import KissDecoder
 from tests.conftest import ROOT
-from tests.support.files import FIXTURES
+from tests.support.files import FIXTURES, text_if_readable
 from tests.support.proc import NEW_GROUP, stop
-from tests.support.ptyline import posix_only
+from tests.support.hfchannel import NONBLOCK
+from tests.support.ptyline import NOCTTY, posix_only
 
 CAPTURE = FIXTURES / "kiss" / "thd7-2026-10-21.bin"
 
@@ -73,7 +74,7 @@ def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_
         assert path.startswith("socket://127.0.0.1:")
         daemon = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), "--port", path, "--web-port", "0"], cwd=ROOT, env=env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=NEW_GROUP)
         log = data / "neoaprs.log"
-        wait_until(lambda: log.exists() and log.read_text(encoding="utf-8").count(" -> position ") >= 4)
+        wait_until(lambda: (text_if_readable(log) or "").count(" -> position ") >= 4)
         stations = tool(data, "stations")                                          # while the daemon runs (the appends are committed within a second)
         wait_until(lambda: "OH2PU-9" in tool(data, "stations").stdout)
         stations = tool(data, "stations")
@@ -102,17 +103,17 @@ def test_the_replay_on_a_pseudo_terminal_ends_on_ctrl_c_and_says_what_it_does(tm
     path = replay.stdout.readline().strip()
     assert path.startswith("/dev/pts/")
     time.sleep(0.3)                                                            # (nothing may be sent before a port opens it: the time is the point)
-    port = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)              # a port opens it: until then nothing is sent
+    port = os.open(path, os.O_RDWR | NOCTTY | NONBLOCK)              # a port opens it: until then nothing is sent
     heard = bytearray()
     try:
         deadline = time.monotonic() + 15
-        while len(KissDecoder().feed(bytes(heard))) < 9 and time.monotonic() < deadline:      # more than the 4 frames of the file: it loops
+        while len(KissDecoder().feed(bytes(heard))) < 12 and time.monotonic() < deadline:     # more than the 4 frames of the file: it loops (and three past the ninth, whose line is in the log by the time the tenth is written)
             if select.select([port], [], [], 0.1)[0]:
                 heard += os.read(port, 4096)
     finally:
         os.close(port)
     frames = KissDecoder().feed(bytes(heard))
-    assert len(frames) >= 9 and [f.payload for f in frames[:4]] == [f.payload for f in KissDecoder().feed(CAPTURE.read_bytes())]
+    assert len(frames) >= 12 and [f.payload for f in frames[:4]] == [f.payload for f in KissDecoder().feed(CAPTURE.read_bytes())]
     replay.send_signal(signal.SIGINT)
     out, err = replay.communicate(timeout=10)
     assert replay.returncode == 0 and "waiting for a port to open" in err and "a port opened it" in err and "frame 9 sent" in err and "stopped" in err

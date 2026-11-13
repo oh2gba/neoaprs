@@ -31,7 +31,8 @@ from neoaprs.tncmode import read_frame
 from neoaprs.tncprofile import DUMMY_HF, HF_PROFILES, MERCURY, hf_profile_of
 from tests.support import fakemercury
 from tests.support.clock import FixedClock
-from tests.support.env import Env, until
+from tests.support.env import Env, until_started
+from tests.support.hfchannel import NONBLOCK
 from tests.support.mercuryworld import World
 from tests.test_dummy import refuse_the_world
 
@@ -131,7 +132,7 @@ async def test_the_tnc_with_the_dummy_hf_profile_hears_the_stations_on_the_radio
     tnc.packet.connect(lambda p: heard.append((p.direction, p.source, p.via, p.radio)))
     await tnc.start()
     assert tnc.state is Source.State.CONNECTED and tnc.usable and tnc.is_dummy and tnc.rules.kind == "hf" and tnc.max_frame == 123
-    await until(lambda: tnc.confirmed)
+    await until_started(lambda: tnc.confirmed)
     assert tnc.send_frame(from_us(b":Q3TKU    :Hello{5"))
     for _ in range(40):
         clock.advance(5)
@@ -150,14 +151,14 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     e = Env(tmp_path, radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30"})
     e.ctl.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
     await e.start()
-    await until(lambda: e.hf.state is Source.State.CONNECTED)
+    await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
     speaking = hasattr(os, "mkfifo")
     if speaking:
         assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
         started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
         assert (tmp_path / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
-        await until(lambda: e.ctl.mercury.speaker_line.open, 5.0)
+        await until_started(lambda: e.ctl.mercury.speaker_line.open)
     else:
         assert e.ctl.mercury.state == "stopped" and e.ctl.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
     deadline = asyncio.get_running_loop().time() + 20.0                          # (real seconds: a slow runner needs more than 40 steps of 20 ms to play the made-up day; Windows CI heard 3 stations in that)
@@ -171,7 +172,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
     if speaking:
         assert e.ctl.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
-        await until(lambda: (tmp_path / fakemercury.BROADCAST_FILE).exists() and (tmp_path / fakemercury.BROADCAST_FILE).stat().st_size > 0, 5.0)
+        await until_started(lambda: (tmp_path / fakemercury.BROADCAST_FILE).exists() and (tmp_path / fakemercury.BROADCAST_FILE).stat().st_size > 0)
     assert e.ctl.config.serial_last_port == ""
     await e.stop()
     assert e.ctl.mercury.state == "stopped"
@@ -185,7 +186,7 @@ async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_no
     d.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     await w.start()
     await d.start()
-    await until(lambda: d.hf.state is Source.State.CONNECTED)
+    await until_started(lambda: d.hf.state is Source.State.CONNECTED)
     assert d.ctl.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy HF radio runs all the same"
     assert d.ctl.hf_beacon.send_now("request")
     for _ in range(30):
@@ -204,9 +205,9 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
     started = time.monotonic()
     audio.start()
     try:
-        cap = os.open(audio.capture, os.O_RDONLY | os.O_NONBLOCK)                 # (Mercury's side of the capture pipe)
+        cap = os.open(audio.capture, os.O_RDONLY | NONBLOCK)                 # (Mercury's side of the capture pipe)
         heard = bytearray()
-        deadline = started + 10.0
+        deadline = started + 60.0
         while len(heard) < 10 * BLOCK_BYTES and time.monotonic() < deadline:       # (it waits for the blocks and not for a time: a slow machine gets them later)
             with contextlib.suppress(BlockingIOError):
                 heard += os.read(cap, 1 << 16)
@@ -219,7 +220,7 @@ def test_the_speakers_audio_paces_silence_into_mercurys_capture_pipe_and_hands_w
         play = None
         for _ in range(50):                                                    # (the thread opens its reading end each block; the writing end can be opened once it has)
             try:
-                play = os.open(audio.playback, os.O_WRONLY | os.O_NONBLOCK)
+                play = os.open(audio.playback, os.O_WRONLY | NONBLOCK)
                 break
             except OSError:
                 time.sleep(0.02)
@@ -257,7 +258,7 @@ def test_the_speakers_audio_says_once_when_there_is_no_player_and_plays_nothing(
         play = None
         for _ in range(50):
             try:
-                play = os.open(audio.playback, os.O_WRONLY | os.O_NONBLOCK)
+                play = os.open(audio.playback, os.O_WRONLY | NONBLOCK)
                 break
             except OSError:
                 time.sleep(0.02)
@@ -282,7 +283,7 @@ def test_the_speakers_audio_plays_again_after_a_stop_and_never_runs_two_clocks(t
         play = None
         for _ in range(100):
             try:
-                play = os.open(audio.playback, os.O_WRONLY | os.O_NONBLOCK)
+                play = os.open(audio.playback, os.O_WRONLY | NONBLOCK)
                 break
             except OSError:
                 time.sleep(0.02)
@@ -339,7 +340,7 @@ async def test_leaving_the_dummy_hf_radio_cancels_what_was_being_sent_to_its_sta
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
     e.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     await e.start()
-    await until(lambda: e.hf.state is Source.State.CONNECTED)
+    await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     for _ in range(400):
         e.now.advance(10)                                                        # type: ignore[attr-defined]
         await asyncio.sleep(0.01)

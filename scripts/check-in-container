@@ -69,19 +69,20 @@ class Size:
 RUNNER = Size(threads=4, memory_gb=16)                 # GitHub's Linux runner of a public repository
 STARVED = Size(threads=2, memory_gb=7)                 # half of it, the size of GitHub's smaller runners: where a test that counts on time fails
 
-# The commands of the job `python` of .github/workflows/ci.yml as it runs on Linux, in its order (tests/test_check_in_container.py compares them with the workflow).
+# The commands of the job `python` of .github/workflows/ci.yml as it runs on Linux, in its order (tests/test_check_in_container.py compares them with the workflow): the install, then the stages of scripts/check, which
+# are what the workflow calls, so that the commands of the lock check, ruff, mypy and the suite are written once, in that script.
 CI_COMMANDS = (
     "uv sync --frozen --extra app --extra ble",
-    "env -u UV_FROZEN uv lock --check",
-    "uv run ruff check .",
-    "uv run mypy",
-    "uv run mypy --platform win32",
-    "uv run pytest -n auto",
+    "scripts/check --stage lock",
+    "scripts/check --stage ruff",
+    "scripts/check --stage mypy",
+    "scripts/check --stage architecture",
+    "scripts/check --stage pytest",
 )
 
 # What is set inside: the workflow's own two (no daemon asks the version page, uv never changes the lock), the switch that keeps every daemon from the machine's devices, and uv told that its cache is
 # on another file system than the tree (a volume), where it copies instead of linking and would say so at every package. Under UV_FROZEN `uv lock --check` reads uv.lock and does not compare it with
-# pyproject.toml, here as on GitHub: the comparing is the stage `lock` of scripts/check, which takes the variable away for it.
+# pyproject.toml, here as on GitHub: the comparing is the stage `lock` of scripts/check, which takes the variable away for it (as the workflow's own step does, which calls that stage).
 ENVIRONMENT = {"NEOAPRS_UPDATE_CHECK": "0", "UV_FROZEN": "1", "NEOAPRS_NO_DEVICES": "1", "UV_LINK_MODE": "copy"}
 
 # What runs inside the container, in WORK, with the tar on its input and the commands as its arguments: the tree unpacked, made a repository whose one commit is the tracked files (the tests ask git

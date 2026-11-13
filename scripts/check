@@ -4,10 +4,12 @@
 #   scripts/check                 every stage of the default list, most of them at once; every stage runs to its end, whatever the others say
 #   scripts/check --serial        the same stages one after the other in the order of the list, stopping at the first failure (NEOAPRS_TEST_WORKERS=0 implies it): for a machine with few
 #                                 cores, and to read the output of one failing test in order
-#   scripts/check --stage NAME    one stage only (see STAGES below)
+#   scripts/check --stage NAME    one stage only (see STAGES below); its output is shown (on stderr) as it is written, which the CI log relies on
 #   scripts/check --stage sim     the HF net simulation with real Mercury instances (scripts/mercury-sim), which is not in the default list: about six minutes, Linux only, and the Mercury built once with
 #                                 scripts/build-mercury --install (the stage builds it when the venv has none); the one the CI job `sim` runs on every push to master
 #   scripts/check --stage audit   the packages of both lock files asked of the advisory lists (scripts/security-check --audit), which is not in the default list: it needs the network
+#   scripts/check --stage flaky   the hunt for tests that fail on some runs only (scripts/flaky): 20 runs of the CI's command for the tests in the container of scripts/check-in-container, half in file order and half shuffled,
+#                                 half the runner's size and half starved, four side by side; an hour or more, Linux and docker only, and not in the default list. It prints a table of every test that failed with its count
 #   scripts/check --list          the stage names
 #
 # One line per stage with its time, in the order of the list; the output of every failing stage is printed under its line; the last line is "all green in Ns", or the exit code is 1.
@@ -29,7 +31,7 @@
 #   - vite builds twice: the stage ui-build into ui/dist, the page test into a folder of its own (NEOAPRS_OUT). The stage pytest leaves the page test to the stage page, so the suite
 #     builds nothing. Nothing else reads ui/dist: eslint, prettier and jscpd ignore it, vue-tsc and knip read ui/src only.
 #   - the rest only read the tree (ruff and vitest keep caches that no second stage uses).
-# sim and audit run only by name, so alone: sim keeps the pace of a sound card and fails on a machine that is busy with anything else.
+# sim, audit and flaky run only by name, so alone: sim keeps the pace of a sound card and fails on a machine that is busy with anything else, and flaky takes the cores of the machine for its containers.
 #
 # NEOAPRS_TEST_WORKERS and NEOAPRS_TEST_WORKERS_MAX set the workers of the stage pytest (below). NEOAPRS_CHECK_STAGES is for the tests of this script, which run a copy of it in a folder of their own: a file of
 # stand-ins for the stages (below). In a tree it is refused: the script stops.
@@ -51,7 +53,7 @@ fi
 # The stages, in the order of their result lines: the Python ones, then the page's (ui-types ... dup, which need node 22.12 or newer: the one on the PATH, else the newest in ~/.nvm), then the duplication check of the
 # Python tree (jscpd, from ui/node_modules), the security checks that need no network, and the smoke test of the built wheel.
 STAGES=(lock ruff mypy architecture pytest ui-types ui-lint ui-tests ui-build page dup dup-py security smoke)
-EXTRA_STAGES=(sim audit)               # run only by name (--stage sim): sim is minutes long and Linux only, audit needs the network
+EXTRA_STAGES=(sim audit flaky)         # run only by name (--stage sim): sim is minutes long and Linux only, audit needs the network, flaky is an hour of containers
 ALL_STAGES=("${STAGES[@]}" "${EXTRA_STAGES[@]}")
 ALONE_FIRST=(lock)                     # step 1 of the default run
 ALONE_LAST=(smoke)                     # step 3
@@ -63,7 +65,7 @@ while [ $# -gt 0 ]; do
         --serial) serial=1 ;;
         --stage) shift; only="${1:-}"; [ -n "$only" ] || { echo "check: --stage needs a name (${ALL_STAGES[*]})" >&2; exit 2; } ;;
         --list) printf '%s\n' "${ALL_STAGES[@]}"; exit 0 ;;
-        -h|--help) sed -n '2,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "check: unknown argument $1" >&2; exit 2 ;;
     esac
     shift
@@ -80,6 +82,9 @@ if [ -z "$python" ]; then
     python="$root/.venv/bin/python"
 fi
 [ -x "$python" ] || { echo "check: no Python environment: run 'uv sync --frozen' in $root" >&2; exit 2; }
+# The environment's own programs first on the PATH, as `uv run` has them: a script that a test starts by its first line (`#!/usr/bin/env python3`) runs on this Python, and a machine without a Python of its
+# own (the runner-sized container) still finds one.
+PATH="$(dirname "$python"):$PATH"
 
 # Node 22.12 or newer, from the PATH, else the newest of ~/.nvm; put first on the PATH, so that every stage (the page test too) runs the same one.
 node_ok() { command -v node >/dev/null && node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; }
@@ -148,7 +153,7 @@ stage_pytest() {
     local workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=() common=("${ARCHITECTURE_TESTS[@]/#/--ignore=}" "${PAGE_TESTS[@]/#/--ignore=}")
     if [ "$workers" = 0 ]; then "$python" -m pytest -q "${common[@]}"; return; fi
     if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
-    "$python" -m pytest -q -n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"} "${common[@]}"
+    "$python" -m pytest -q -n "$workers" --dist loadgroup ${cap[@]+"${cap[@]}"} "${common[@]}"
 }
 
 # The UI stages, and the stage page, are skipped (and say so) in a tree without ui/. node_modules is installed from the lock file when it is missing: by the stage that finds it missing, or, when the stages run
@@ -183,6 +188,8 @@ stage_dup_py() { ui_run ../scripts/dup-check; }                           # jscp
 # packages of both lock files, so it runs only by name.
 stage_security() { "$python" scripts/security-check; }
 stage_audit() { "$python" scripts/security-check --audit; }
+# The hunt for tests that fail on some runs only: scripts/flaky starts the containers of scripts/check-in-container (its own docs say how many and in which settings); the stage is its exit code and its table.
+stage_flaky() { "$python" scripts/flaky; }
 # The wheel as a user gets it, as the CI job `smoke` does it: built, installed into a fresh environment (uv takes what its cache has, and asks the net only when that is not everything), and the installed command run
 # against a fake TNC by scripts/smoke.py. The daemon it starts opens no device of this machine (NEOAPRS_NO_DEVICES) and does not ask the version page (NEOAPRS_UPDATE_CHECK); nothing of the caller's Python reaches it.
 uv_from_cache() { uv "$@" --offline 2>/dev/null || uv "$@"; }
@@ -225,7 +232,11 @@ run_stage() {
     local name="$1" word=ok start="${EPOCHREALTIME/[^0-9]/}" tenths
     shift
     [ $# -gt 0 ] || set -- "stage_${name//-/_}"
-    ( "$@" ) >"$work/$name.log" 2>&1 || word=FAIL
+    if [ -n "$only" ]; then
+        ( "$@" ) 2>&1 | tee "$work/$name.log" >&2 || word=FAIL          # (a stage that was named is the only output: it is shown as it is written, to stderr, so that a step of the CI that hangs shows where)
+    else
+        ( "$@" ) >"$work/$name.log" 2>&1 || word=FAIL
+    fi
     tenths=$(( (${EPOCHREALTIME/[^0-9]/} - start + 50000) / 100000 ))
     printf '%-5s %-12s %4d.%ds\n' "$word" "$name" $(( tenths / 10 )) $(( tenths % 10 )) >"$work/$name.line"
 }

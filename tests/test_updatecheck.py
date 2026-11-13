@@ -195,7 +195,7 @@ async def test_the_page_asks_the_daemon_what_is_new_and_gets_the_sections(tmp_pa
     fake = await version_page({"version": "9.9.9", "url": "https://oh2gba.github.io/neoaprs/", "message": "News"})
     e = Env(tmp_path, web=True, settings={"update/url": fake.url})
     e.ctl.updatecheck.first_sec = 0.05
-    e.ctl.updatecheck._fetch_url = Changelog("## 9.9.9\n\nEverything is new.\n\n## 0.0.1\n\nOld.\n")        # type: ignore[attr-defined]  (the fetch of the changelog, without the internet)
+    e.ctl.updatecheck._fetch_url = Changelog("## 9.9.9\n\nEverything is new.\n\n## 0.0.1\n\nOld.\n")        # type: ignore[attr-defined]  # the fetch of the changelog, without the internet
     await e.start()
     page = await e.ws()
     await until(lambda: e.ctl.updatecheck.latest is not None)

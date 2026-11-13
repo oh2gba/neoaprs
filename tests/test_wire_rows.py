@@ -59,7 +59,7 @@ def test_every_row_of_the_world_is_a_row_of_its_model(topic: str) -> None:
     adapter = TypeAdapter(MODELS[topic])
     for row in rows.values() if isinstance(rows, dict) else rows:
         adapter.validate_json(json.dumps(row))
-        assert list(row) == list(MODELS[topic].model_fields), "a row has the fields of its model, in its order"
+        assert list(row) == list(MODELS[topic].model_fields), "a row has the fields of its model, in its order"  # type: ignore[attr-defined]
 
 
 def test_the_world_has_a_row_of_every_kind() -> None:

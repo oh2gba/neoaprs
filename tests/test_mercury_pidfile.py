@@ -16,7 +16,7 @@ from neoaprs.mercuryhelper import PORT_TRIES, Program, end_stale, free_ports, im
 from neoaprs.mercurymodem import PID_FILE, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
-from tests.support.env import until
+from tests.support.env import until_started
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 QUICK = Backoff([0.1, 0.1])
@@ -122,7 +122,7 @@ async def test_a_program_that_does_not_end_at_the_first_request_is_asked_a_secon
     program.start([sys.executable, "-c", code], tmp_path, tmp_path / PID_FILE)
     process = program._process
     assert process is not None
-    await until(ready.exists)                                             # (the handler is in place when the file is there)
+    await until_started(ready.exists)                                             # (the handler is in place when the file is there)
     await asyncio.to_thread(program.stop)
     assert process.returncode == 0, "ended by the second request, not killed"
     assert count.read_text() == "xx"

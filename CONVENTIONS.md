@@ -32,7 +32,7 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers, `docs/
 - Everything the program needs at run time is inside `neoaprs/`, among it the built page `neoaprs/page/` (committed, package data, built by
   `scripts/build-page`) and the unit template `neoaprs/cli/neoaprs.service`. The version is `VERSION` in `neoaprs/__init__.py` and nowhere else
   (`pyproject.toml` reads it); the build backend is hatchling.
-- Type hints on every function. `mypy --strict` must pass on `neoaprs/` and `tests/support/`.
+- Type hints on every function. `mypy --strict` must pass on `neoaprs/` and `tests/support/`; the test files are read by mypy too, for Linux and for `--platform win32`, for what is wrong with their names (no signature is demanded, and the types of a test's doubles are not checked). A name that only POSIX has (`signal.SIGHUP`, `os.mkfifo`, `os.geteuid`) is used in a test file by way of `tests/support/ptyline.py`, never at import without it: Windows collects the file.
 - pytest, `asyncio_mode = auto`: an `async def test_*` just works. Run `.venv/bin/pytest -q tests/test_x.py`.
 - Comments and documents say what a thing is and why, in a sentence or two, in plain sentences. No docstring boilerplate that repeats the name, and no history:
   no review finding by number, no branch or release as the reason for code, no "was X, now Y".
@@ -177,6 +177,7 @@ Every `NEOAPRS_*` variable the code, the scripts, the units or the tests use is 
 | `NEOAPRS_VALIDATE_OUT`, `NEOAPRS_VALIDATE_RAISE` | `neoaprs/web/outbound.py` | `1` checks every message the daemon sends to a page against the `Message` union of `neoaprs/web/protocol.py` (and the `state` and `patch` of a topic against the type of its value); a mismatch is logged once for each message type, and with `NEOAPRS_VALIDATE_RAISE=1` it raises. `tests/conftest.py` sets both to `1`; `NEOAPRS_VALIDATE_OUT=0 pytest` runs the tests the way production runs |
 | `NEOAPRS_KIND`, `NEOAPRS_TITLE`, `NEOAPRS_FROM`, `NEOAPRS_TEXT`, `NEOAPRS_AT`, `NEOAPRS_MSG_ID` | the command of `messages/alert_command` (`neoaprs/services/alerts.py`) | set by the daemon for the command it runs when a message to us arrives or an alert set on a station fires, not read: `message` or `station`, the title of a notification ("APRS message from OH2XYZ", "APRS alert: OH2XYZ"), the sender's or the station's call, the text or what happened, when it was heard (ISO 8601, UTC) and the message id (empty when the message had none, and for a station) |
 | `NEOAPRS_BUILD_CACHE` | `scripts/build-appimage`, `scripts/build-macos-app`, `scripts/security-tools` (and through it `scripts/security-check`) | the folder the pinned build tools (CPython, appimagetool, the AppImage runtime) are kept in once downloaded, and in its folder `security-tools/` the programs of the security checks; else `~/.cache/neoaprs-build`. `tests/test_security_check.py` points it at a folder of stand-ins |
+| `NEOAPRS_TEST_LIMIT_SEC` | `tests/support/timelimit.py` | seconds one test may run before the run ends it with the test's name and the stack of every thread (600 when unset; `0` is no limit) |
 | `NEOAPRS_TEST_ORDER` | `tests/conftest.py` | `reverse` or `shuffle[:SEED]` runs the test files in another order, to find a test that depends on an earlier one |
 
 ## Data

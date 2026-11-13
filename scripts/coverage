@@ -41,7 +41,7 @@ trap 'rm -rf "$data"' EXIT
 export COVERAGE_FILE="$data/.coverage"
 workers="${NEOAPRS_TEST_WORKERS:-auto}" cap=()
 if [ "$workers" = auto ]; then cap=(--maxprocesses="${NEOAPRS_TEST_WORKERS_MAX:-12}"); fi
-if [ "$workers" = 0 ]; then par=(); else par=(-n "$workers" --dist worksteal ${cap[@]+"${cap[@]}"}); fi
+if [ "$workers" = 0 ]; then par=(); else par=(-n "$workers" --dist loadgroup ${cap[@]+"${cap[@]}"}); fi
 
 status=0
 "$python" -m coverage run -m pytest ${par[@]+"${par[@]}"} "$@" || status=$?

@@ -2,6 +2,7 @@
 an older or a newer version), a write that is refused, and Ctrl-C. The commands as processes, through the main command, are in tests/test_cli.py."""
 import asyncio
 import sqlite3
+from typing import Any
 from pathlib import Path
 
 import pytest
@@ -107,7 +108,7 @@ def test_a_database_error_while_reading_is_told_not_raised(data: Path, monkeypat
 
 
 def test_ctrl_c_ends_the_command_with_130(monkeypatch: pytest.MonkeyPatch) -> None:
-    def interrupted(coroutine: object) -> int:
+    def interrupted(coroutine: Any) -> int:
         coroutine.close()
         raise KeyboardInterrupt
     monkeypatch.setattr(asyncio, "run", interrupted)

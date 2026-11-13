@@ -96,6 +96,14 @@ async def until(condition: Callable[[], object], timeout_sec: float = 5.0) -> No
         await asyncio.sleep(0.01)
 
 
+START_SEC = 60.0            # the longest a test waits for a program it started (the made-up Mercury, a daemon): a busy Windows runner takes over 20 s to start one, so this is a limit and not a measure of how long it takes
+
+
+async def until_started(condition: Callable[[], object], timeout_sec: float = START_SEC) -> None:
+    """`until` for what depends on a program that was started (its first line, its ports, its state): the patience of a start, not of a step of the loop."""
+    await until(condition, timeout_sec)
+
+
 async def until_async(condition: Callable[[], Awaitable[object]], timeout_sec: float = 5.0) -> None:
     """`until` for a condition that has to be awaited (a row of the database)."""
     deadline = asyncio.get_running_loop().time() + timeout_sec

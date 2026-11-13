@@ -12,7 +12,7 @@ from neoaprs.services.bulletins import Bulletins
 from neoaprs.store import DB_NAME
 from neoaprs.tncmode import packet_of
 from tests.support.clock import FixedClock
-from tests.support.env import idle_for
+from tests.support.env import idle_for, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.igateworld import iworld
 from tests.support.storedb import store_at
@@ -68,7 +68,7 @@ async def test_the_qru_server_answers_a_request_from_the_radio_and_none_from_the
     asking = Packet(rig.clock(), "in", b"", "OH2RDG", "APRS", ("OH2RCH-2*",), b"", request)
     assert rig.qru.heard(internet(asking), request) is False and rig.tnc.sent == []
     assert rig.ask("OH2RDG", "INFO") is True
-    await idle_for(0.1)
+    await until(lambda: rig.texts() != [])
     assert rig.texts() != [], "the same request on the radio is answered"
 
 

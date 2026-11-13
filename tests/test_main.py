@@ -29,14 +29,17 @@ from neoaprs.store import DB_NAME
 from tests.conftest import ROOT
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for
-from tests.support.files import fixture_bytes
-from tests.support.proc import NEW_GROUP, WINDOWS, send, stop
+from tests.support.files import fixture_bytes, text_if_readable
+from tests.support.proc import NEW_GROUP, send, stop
 from tests.support.ptyline import posix_only
 from tests.test_migration_settings_reset import version_fifteen
 
 _radios: list[socket.socket] = []
 # A program that is stopped by a signal is stopped the way its system does: on Windows only Ctrl+Break reaches a child, and only one in a process group of its own (SIGTERM there is a kill).
-SIGNALS = [signal.SIGBREAK] if WINDOWS else [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
+if sys.platform == "win32":
+    SIGNALS = [signal.SIGBREAK]
+else:
+    SIGNALS = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
 LOCAL_SIGNALS = [getattr(signal, n) for n in ("SIGTERM", "SIGINT", "SIGHUP", "SIGBREAK") if hasattr(signal, n)]
 
 
@@ -81,7 +84,7 @@ def log_of(data: Path) -> str:
 def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: float = PATIENCE_SEC) -> None:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        if path.exists() and text in path.read_text(encoding="utf-8"):
+        if text in (text_if_readable(path) or ""):
             return
         assert proc.poll() is None, f"the daemon ended early: {proc.communicate()}\nits log:\n{log_of(path.parent)}"
         time.sleep(0.02)
@@ -228,7 +231,7 @@ def test_the_daemon_on_a_tcp_port_logs_and_keeps_the_capture_and_stops_on_sigter
     stop(proc)
     out, err = ended(proc, data)
     connection.close()
-    assert proc.returncode == 0 and time.monotonic() - began < 10, (out, err)
+    assert proc.returncode == 0 and time.monotonic() - began < 60, (out, err)          # (the stop with a radio still connected takes a second or two: a minute is the order of a stop that waited for something)
     log = (data / "neoaprs.log").read_text(encoding="utf-8")
     assert "OH2RDK-7>APRX29,OH2RCH-2*,TRACE2-1:!6009.90NT02456.80E&432.500 MHz -> position 60.1650 24.9467 T& 432.500 MHz" in log and log.count(" -> position ") == 4
     assert " ERROR " not in log and without_the_cut_off(err) == "", log

@@ -15,7 +15,7 @@ from neoaprs.source import Backoff
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
-from tests.support.env import until
+from tests.support.env import until_started
 from tests.support.fakemercury import Air
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test, modem  # noqa: F401 (the fixture keeps two tests from taking the same ports)
 from tests.test_tnc import ui_frame
@@ -47,7 +47,7 @@ async def test_the_start_says_the_program_the_sound_card_and_why_the_keying_the_
     m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)]
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
     finally:
         await m.stop()
     said = lines(caplog)
@@ -65,7 +65,7 @@ async def test_the_sound_card_and_the_keying_of_the_settings_are_said_as_the_set
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
     finally:
         await m.stop()
     said = lines(caplog)
@@ -85,7 +85,7 @@ async def test_mercurys_own_first_lines_are_in_the_log_and_the_rest_only_when_th
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
     finally:
         await m.stop()
     assert any("Mercury engine initialised" in line for line in lines(caplog, "neoaprs.mercury.program")), "what the program prints as it starts is in the log"
@@ -104,7 +104,7 @@ async def test_a_program_that_ends_is_said_with_its_last_lines_and_the_start_aft
     m.ports = lambda: []
     await m.start(HF)
     try:
-        await until(lambda: m.starts >= 2, 5.0)
+        await until_started(lambda: m.starts >= 2)
     finally:
         await m.stop()
     said = lines(caplog)
@@ -120,15 +120,15 @@ async def test_a_busy_channel_and_a_keyed_radio_are_one_line_each_with_how_long_
     m = modem(tmp_path)
     try:
         await m.start(HF, attach=station.url)
-        await until(lambda: m.state == "running")
+        await until_started(lambda: m.state == "running")
         station.say_control("BUSY ON")
-        await until(lambda: m.busy)
+        await until_started(lambda: m.busy)
         station.say_control("BUSY OFF")
-        await until(lambda: not m.busy)
+        await until_started(lambda: not m.busy)
         station.say_control("PTT ON")
-        await until(lambda: m.keyed)
+        await until_started(lambda: m.keyed)
         station.say_control("PTT OFF")
-        await until(lambda: not m.keyed)
+        await until_started(lambda: not m.keyed)
         said = lines(caplog)
         assert any(line.startswith("Mercury: the channel was busy for ") and line.endswith(" s") for line in said)
         assert any(line.startswith("Mercury: the radio was keyed for ") and line.endswith("(frame 1)") for line in said)
@@ -167,22 +167,22 @@ async def test_each_frame_over_hf_is_a_line_with_its_size_and_the_snr_of_the_mod
     tnc.packet.connect(lambda p: heard.append(p.source))
     await tnc.start()
     try:
-        await until(lambda: m.state == "running")
+        await until_started(lambda: m.state == "running")
         await b.connected()
         b.say_control("SN -2.5")
-        await until(lambda: m.snr == -2.5)
+        await until_started(lambda: m.snr == -2.5)
         a.heard_bytes(kiss.encode(ax25.encode(ui_frame("OH2XYZ"))))
-        await until(lambda: heard == ["OH2XYZ"])
-        await until(lambda: tnc.usable)
+        await until_started(lambda: heard == ["OH2XYZ"])
+        await until_started(lambda: tnc.usable)
         assert tnc.send_frame(ui_frame("OH2GBA"))
         size = len(ax25.encode(ui_frame("OH2XYZ")))
         said = lines(caplog, "neoaprs.tnc")
         assert f"HF frame heard from OH2XYZ: {size} bytes, SNR -2 dB" in said
         assert f"HF frame sent from OH2GBA: {len(ax25.encode(ui_frame('OH2GBA')))} bytes" in said
         assert tnc.label == "hf radio" and any(line.startswith("hf radio: opened ") for line in said), "a line says which radio it is about"
-        await until(lambda: m.frames_keyed == 1 and not m.keyed)               # (the fake station keys for our frame, then lets go)
+        await until_started(lambda: m.frames_keyed == 1 and not m.keyed)               # (the fake station keys for our frame, then lets go)
         b.say_control("BUSY ON")
-        await until(lambda: m.busy)
+        await until_started(lambda: m.busy)
         assert not tnc.send_frame(ui_frame("OH2GBA"))
         assert any(line.startswith("hf radio: a frame from OH2GBA (") and line.endswith("was not sent: the channel is busy") for line in lines(caplog, "neoaprs.tnc"))
     finally:

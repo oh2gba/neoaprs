@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { pageBuild } from "@/lib/build";
 import { currentPage, describeMismatch, matches, reloadForDaemon } from "@/lib/reload";
 import { PROTOCOL } from "@/protocol/lists";
@@ -33,6 +33,13 @@ describe("what matches", () => {
   });
 
   it("knows the page's identity from the protocol it was generated with and the main script its document loaded", () => {
+    // (the test's head holds module scripts that happy-dom would try to load, and say it cannot: a disabled load counts as a success here, the scripts themselves are only read)
+    const settings = (window as unknown as { happyDOM: { settings: { handleDisabledFileLoadingAsSuccess: boolean } } }).happyDOM.settings;
+    const before = settings.handleDisabledFileLoadingAsSuccess;
+    settings.handleDisabledFileLoadingAsSuccess = true;
+    onTestFinished(() => {
+      settings.handleDisabledFileLoadingAsSuccess = before;
+    });
     const doc = document.implementation.createHTMLDocument("t");
     doc.head.innerHTML =
       '<script type="module" crossorigin src="./assets/index-DefyaO5x.js"></script><script type="module" src="./assets/other-1.js"></script>';

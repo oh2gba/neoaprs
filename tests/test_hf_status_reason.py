@@ -12,7 +12,7 @@ from neoaprs.mercurymodem import NOT_INSTALLED, OPEN_TO_NETWORK, REASONS, Mercur
 from neoaprs.source import Backoff
 from neoaprs.web.tncwire import ModemState
 from tests.support import fakemercury
-from tests.support.env import until
+from tests.support.env import until_started
 from tests.test_mercury_modem import HF, QUICK, modem, stopped
 
 
@@ -42,9 +42,9 @@ async def test_a_program_that_dies_is_stopped_while_it_waits_and_nothing_once_it
     m.changed.connect(lambda: seen.append((m.state, m.reason)))
     await m.start(HF)
     try:
-        await until(lambda: m.state == "waiting", 5.0)
+        await until_started(lambda: m.state == "waiting")
         assert m.problem.startswith("Mercury stopped") and m.reason == "stopped"
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert m.reason == ""
         assert ("waiting", "stopped") in seen and all(reason == "" for state, reason in seen if state != "waiting")
     finally:
@@ -56,7 +56,7 @@ async def test_a_program_that_listens_on_the_network_is_network(tmp_path: Path, 
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "waiting", 5.0)
+        await until_started(lambda: m.state == "waiting")
         assert (m.problem, m.reason) == (OPEN_TO_NETWORK, "network")
     finally:
         await stopped(m)
@@ -78,7 +78,7 @@ async def test_a_program_that_cannot_be_started_is_not_started(tmp_path: Path) -
     m.ports = lambda: []                                                  # (never the operator's serial ports)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "waiting", 5.0)
+        await until_started(lambda: m.state == "waiting")
         assert m.reason == "not_started" and m.problem.startswith("Mercury could not be started")
     finally:
         await stopped(m)

@@ -9,6 +9,8 @@ A port that opens the slave resets its input buffer, so feed after the open.
 The fixture `ptys` (registered by tests/conftest.py) makes pairs for a test and closes them when it ends; `held_by_a_program(path)` is another process that has a port open, as rotctld has its own."""
 import os
 import select
+import signal
+import socket
 import subprocess
 import sys
 import time
@@ -18,6 +20,32 @@ from contextlib import contextmanager
 import pytest
 
 posix_only = pytest.mark.skipif(sys.platform == "win32", reason="needs a pseudo-terminal, a device file, a POSIX shell, file modes or a signal sent to a process: POSIX only")      # for a test, or `pytestmark = posix_only` for a file
+
+# What only a POSIX system has, by a name that both type checks know (mypy reads the tests for Windows too, and a file that Windows collects must import there): a test that uses these is marked `posix_only`, or
+# is skipped on Windows otherwise. A constant that has no value there is one that a test that is skipped never looks at; a function raises there, as the call would have.
+NOCTTY: int = getattr(os, "O_NOCTTY", 0)
+SIGHUP: signal.Signals = getattr(signal, "SIGHUP", signal.SIGTERM)
+SIGKILL: signal.Signals = getattr(signal, "SIGKILL", signal.SIGTERM)
+AF_UNIX: socket.AddressFamily = getattr(socket, "AF_UNIX", socket.AF_INET)
+
+
+def is_root() -> bool:
+    """Whether this process is root: never on Windows, where there is none (a test that is skipped for root is a condition that is read when the file is imported)."""
+    geteuid: Callable[[], int] | None = getattr(os, "geteuid", None)
+    return geteuid is not None and geteuid() == 0
+
+
+def mkfifo(path: str | os.PathLike[str]) -> None:
+    os.mkfifo(path)  # type: ignore[attr-defined, unused-ignore]
+
+
+def makedev(major: int, minor: int) -> int:
+    return int(os.makedev(major, minor))  # type: ignore[attr-defined, unused-ignore]
+
+
+def user_id() -> int:
+    return int(os.getuid())  # type: ignore[attr-defined, unused-ignore]
+
 
 Ptys = Callable[[], tuple[int, str]]         # the fixture `ptys`: each call is a new pair, (master, slave path)
 

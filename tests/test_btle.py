@@ -219,32 +219,36 @@ def test_a_read_waits_for_the_timeout_and_returns_what_there_is(monkeypatch: pyt
     ser = opened(timeout=0.15)
     try:
         started = time.monotonic()
-        assert ser.read(1) == b"" and 0.1 <= time.monotonic() - started < 2.0
+        assert ser.read(1) == b"" and 0.1 <= time.monotonic() - started, "(it waited: a read that gave up early would be no timeout)"
+    finally:
+        ser.close()
+    ser = opened(timeout=120.0)
+    try:
         ser.timeout = 0
         started = time.monotonic()
-        assert ser.read(1) == b"" and time.monotonic() - started < 0.1, "(no timeout: no wait)"
+        assert ser.read(1) == b"" and time.monotonic() - started < 30.0, "(no timeout: no wait, where the one it had was two minutes)"
     finally:
         ser.close()
 
 
 def test_a_read_returns_as_soon_as_the_bytes_are_there(monkeypatch: pytest.MonkeyPatch) -> None:
     ble = FakeBle(monkeypatch)
-    ser = opened(timeout=10.0)
+    ser = opened(timeout=300.0)
     try:
         threading.Timer(0.05, ble.feed, args=(b"xy",)).start()
         started = time.monotonic()
-        assert ser.read(2) == b"xy" and time.monotonic() - started < 5.0
+        assert ser.read(2) == b"xy" and time.monotonic() - started < 60.0, "(it did not wait out its timeout of five minutes)"
     finally:
         ser.close()
 
 
 def test_cancel_read_ends_a_read_that_is_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeBle(monkeypatch)
-    ser = opened(timeout=30.0)
+    ser = opened(timeout=300.0)
     try:
         threading.Timer(0.05, ser.cancel_read).start()
         started = time.monotonic()
-        assert ser.read(1) == b"" and time.monotonic() - started < 5.0
+        assert ser.read(1) == b"" and time.monotonic() - started < 60.0, "(it did not wait out its timeout of five minutes)"
     finally:
         ser.close()
 

@@ -585,7 +585,7 @@ async def with_page(tmp_path: Path) -> tuple[Env, WsClient]:
     e = Env(tmp_path, web=True)
     e.ctl.messaging.tick_sec = 0.02
     e.ctl.messaging.pace.spacing_sec = 0.0
-    e.ctl.bulletins.tick_sec = 0.02
+    e.ctl.bulletins.tick_sec = 0.02  # type: ignore[attr-defined]
     await e.start()
     await e.until_usable()                                                                            # (the TNC has settled)
     page = await e.ws()

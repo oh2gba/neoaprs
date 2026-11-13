@@ -572,7 +572,7 @@ async def test_a_quiet_line_gets_the_check_after_check_sec_the_radio_sees_exit_r
 
 @stops_rigs
 async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_restarts_from_it_and_nothing_is_told(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
-    r = await rig(clock=FixedClock(), **QUICK)
+    r = await rig(clock=FixedClock(), **{**QUICK, "reply_sec": 10.0, "answer_sec": 10.0})        # (long waits for the radio's reply and answer: the prompt below ends the one it comes in, however late a slow machine feeds it)
     caplog.set_level(logging.INFO)
     caplog.clear()
     await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE)
@@ -582,7 +582,7 @@ async def test_a_cmd_prompt_in_answer_keeps_the_radio_connected_and_the_clock_re
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.usable is False, "settling"
     await until(lambda: r.tnc.usable, 2.0)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.silent_since is None
-    await until(lambda: r.tnc.stats.keepalive_checks == 2, 3.0)
+    await until(lambda: r.tnc.stats.keepalive_checks == 2, 30.0)
     assert asyncio.get_running_loop().time() - answered >= 0.25, "the next check is a period after the answer"
     assert news(caplog) == [] and r.tnc.problem == ""
 

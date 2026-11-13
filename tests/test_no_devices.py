@@ -506,7 +506,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
                        "igate/enabled": "true", "igate/server": "rotate.aprs2.net:14580", "igate/password": "12345", "gps/source": "serial", "gps/device": port["gps"],
                        "status/source": "rig", "status/rigctld": f"{ELSEWHERE}:4532", "messages/alert": "true"})
     looked_for: list[str] = []
-    e.ctl.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()       # type: ignore[func-returns-value]   (a Mercury that is there and would start)
+    e.ctl.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()       # type: ignore[func-returns-value]   # a Mercury that is there and would start
     e.ctl.rigstatus.poll_sec = 0.02
     await e.start()
 

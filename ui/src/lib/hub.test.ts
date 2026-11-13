@@ -546,6 +546,18 @@ describe("Hub", () => {
     expect(FakeSocket.all).toHaveLength(before + 1);
   });
 
+  it("hears nothing from a socket after close(): a frame that still comes (a hello among them) changes nothing and reaches no one", () => {
+    const onHello = vi.fn();
+    const { hub, socket, seen } = opened(onHello);
+    hub.close();
+    const before = structuredClone(seen.connection);
+    socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
+    expect(onHello).not.toHaveBeenCalled();
+    expect(seen.hello).toBe(0);
+    expect(seen.connection).toEqual(before);
+    expect(hub.send({ cmd: "subscribe", topics: ["packets"] })).toBe(false);
+  });
+
   it("is not woken after close()", () => {
     const { hub } = opened();
     hub.close();

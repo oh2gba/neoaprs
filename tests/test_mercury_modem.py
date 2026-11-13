@@ -28,7 +28,7 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
-from tests.support.env import until
+from tests.support.env import until_started
 from tests.support.fakemercury import Air
 from tests.test_tnc import Rigs, stops_rigs, ui_frame
 
@@ -172,7 +172,7 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
     m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60)]
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert (m.sound_card, m.keying) == ("", Keying("rts", "/dev/ttyUSB0")), "the fake program lists a USB Audio CODEC that is the system's default (a computer whose only card is the radio's): Mercury's default device is right, and the one CP2102 port keys it"
         assert "line = rts" in (tmp_path / INI_FILE).read_text()
     finally:
@@ -180,13 +180,13 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
     m.ports = lambda: []
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert (m.sound_card, m.keying) == ("", Keying("vox")), "no serial port: VOX"
     finally:
         await m.stop()
     await m.start(HF)
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert (m.sound_card, m.keying) == ("plughw:1,0", Keying("rts", "/dev/ttyUSB0")), "the settings as they are"
     finally:
         await stopped(m)
@@ -199,7 +199,7 @@ async def test_the_modem_writes_its_configuration_starts_the_program_on_free_por
         assert m.state == "starting" and m.starts == 1 and _alive(m.pid)
         ini = (tmp_path / INI_FILE).read_text()
         assert "busy_detect = true" in ini and "line = rts" in ini and (tmp_path / PID_FILE).read_text() == str(m.pid)
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert await connects(m.broadcast_port) and m.control_port == m.broadcast_port + CONTROL_OFFSET
         assert m.describe() == "Mercury DATAC3, listening" and m.hold() == "" and m.problem == "", "the ports are the log's, not the status line's"
     finally:
@@ -215,9 +215,9 @@ async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_afte
     m.changed.connect(lambda: changes.append((m.state, m.problem)))
     await m.start(HF)
     try:
-        await until(lambda: m.state == "waiting", 5.0)
+        await until_started(lambda: m.state == "waiting")
         assert m.problem.startswith("Mercury stopped (exit 3)") and "dies as told" in caplog.text
-        await until(lambda: m.starts >= 2, 5.0)
+        await until_started(lambda: m.starts >= 2)
         after = changes[[state for state, _ in changes].index("waiting"):]
         assert all(state == "running" or (state == "waiting" and problem.startswith("Mercury stopped (exit 3)")) for state, problem in after), f"the problem stands through the next start until it is running: {after}"
     finally:
@@ -248,7 +248,7 @@ async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that
     assert not end_stale(pid_file), "our own process is never a Mercury"
     first = modem(tmp_path)
     await first.start(HF)
-    await until(lambda: first.state == "running", 5.0)
+    await until_started(lambda: first.state == "running")
     orphan = first.pid
     first._program._process = None                                        # (the daemon crashed: the program lives on, the pid file stays)
     await first.stop()
@@ -259,7 +259,7 @@ async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that
         second = modem(tmp_path)
         await second.start(HF)
         try:
-            await until(lambda: not _alive(orphan), 5.0)
+            await until_started(lambda: not _alive(orphan))
             assert second.pid != orphan and _alive(second.pid)
         finally:
             await stopped(second)
@@ -271,7 +271,7 @@ async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that
 async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_a_fresh_one(tmp_path: Path) -> None:
     m = modem(tmp_path)
     await m.start(HF)
-    await until(lambda: m.state == "running", 5.0)
+    await until_started(lambda: m.state == "running")
     first_pid, first_port = m.pid, m.broadcast_port
     await m.stop()
     assert not _alive(first_pid)
@@ -281,7 +281,7 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
         await asyncio.sleep(0.1)
     assert not await connects(first_port), "nothing listens on the dead program's port: it and whatever it started are gone"
     await m.start(HF)
-    await until(lambda: m.state == "running", 5.0)
+    await until_started(lambda: m.state == "running")
     assert m.pid != first_pid and m.starts == 2
     await stopped(m)
 
@@ -296,24 +296,24 @@ async def test_the_control_lines_of_a_station_are_the_hold_and_the_words_of_the_
     try:
         await m.start(HF, attach=station.url)
         assert m.attached == station.url and m.broadcast_port == station.port and m.control_port == station.control_port and m.starts == 0
-        await until(lambda: m.state == "running")
+        await until_started(lambda: m.state == "running")
         station.say_control("PTT ON")
-        await until(lambda: m.keyed)
+        await until_started(lambda: m.keyed)
         assert m.hold() == TRANSMITTING and m.describe().endswith("transmitting") and m.frames_keyed == 1
         station.say_control("PTT OFF")
-        await until(lambda: not m.keyed)
+        await until_started(lambda: not m.keyed)
         station.say_control("BUSY ON")
-        await until(lambda: m.busy)
+        await until_started(lambda: m.busy)
         assert m.hold() == CHANNEL_BUSY and m.describe().endswith("channel busy")
         station.say_control("SN -2.5")
-        await until(lambda: m.snr == -2.5)
+        await until_started(lambda: m.snr == -2.5)
         station.say_control("BUSY OFF")
-        await until(lambda: not m.busy)
+        await until_started(lambda: not m.busy)
         assert m.hold() == "" and m.describe().endswith("listening, SNR -2 dB")
         station.say_control("REGISTERED OH2GBA")                             # (a line NeoAPRS has no use for)
         station.drop_control()
-        await until(lambda: m.state == "starting")
-        await until(lambda: m.state == "running")                            # (the line is opened again)
+        await until_started(lambda: m.state == "starting")
+        await until_started(lambda: m.state == "running")                            # (the line is opened again)
         assert station.control_connections == 2
     finally:
         await m.stop()
@@ -375,7 +375,7 @@ async def test_the_tnc_tells_the_modems_problem_when_its_line_cannot_be_opened(t
     await m.start(HF)
     await tnc.start()
     try:
-        await until(lambda: tnc.state is Source.State.WAITING)
+        await until_started(lambda: tnc.state is Source.State.WAITING)
         assert tnc.problem == NOT_INSTALLED and tnc.describe() == f"Mercury DATAC3: {NOT_INSTALLED}, 0 packets", "the socket the modem is reached on is nowhere in the words of the status"
     finally:
         await tnc.stop()
@@ -395,10 +395,10 @@ async def test_a_frame_from_a_station_of_the_fake_air_reaches_the_tnc_with_the_s
         await b.connected()
         a.feed(b"")                                                           # (a is the other station: what its client hands in goes on the air)
         a.heard_bytes(kiss.encode(ax25.encode(ui_frame("OH2XYZ"))))
-        await until(lambda: heard == ["OH2XYZ"])
+        await until_started(lambda: heard == ["OH2XYZ"])
         assert air.delivered[0][2] == ax25.encode(ui_frame("OH2XYZ")) and air.collisions == 0
         a.heard_bytes(kiss.encode(ax25.encode(ui_frame("OH2LNG", b"!6010.00N/02456.00E>" + b"x" * 120))))
-        await until(lambda: len(heard) == 2)
+        await until_started(lambda: len(heard) == 2)
         assert heard[1] == "OH2LNG" and air.truncated == [(len(ax25.encode(ui_frame("OH2LNG", b"!6010.00N/02456.00E>" + b"x" * 120))), 123)], "the air cut it, as Mercury does, and the cut frame still decodes"
     finally:
         await tnc.stop()
@@ -451,15 +451,15 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
     await tnc.start()
     try:
         first = m.pid
-        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED, 5.0)              # (the fake prints the error once its ports listen: whether the control line connected first is the machine's business)
-        await until(lambda: not _alive(first), 5.0)
+        await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED)              # (the fake prints the error once its ports listen: whether the control line connected first is the machine's business)
+        await until_started(lambda: not _alive(first))
         assert m.hold() == "" and "could not open its sound card" in caplog.text                      # (the problem itself is checked over every change below: the quick back-off may have the next start running by now)
         if m.state == "waiting":                                                                                       # (the quick back-off may have begun the next start already: the words of the wait are checked while it lasts)
             assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
-        await until(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED, 5.0)              # (the line went with the program: the radio is not connected, and says why)
+        await until_started(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED)              # (the line went with the program: the radio is not connected, and says why)
         assert not tnc.usable
-        await until(lambda: m.starts >= 2, 5.0)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
-        await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2, 5.0)
+        await until_started(lambda: m.starts >= 2)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
+        await until_started(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2)
         after = seen[seen.index(("waiting", SOUND_CARD_FAILED)):]
         assert all(change == ("waiting", SOUND_CARD_FAILED) or change[0] == "running" for change in after), f"the problem stands through the next start until it is running (never `starting` with no problem between two failures): {after}"
     finally:
@@ -500,18 +500,18 @@ async def tnc_on(m: Mercury) -> Tnc:
 async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tnc_that_waited_on_them_connects_again(tmp_path: Path) -> None:
     m = modem(tmp_path)
     await m.start(HF)
-    await until(lambda: m.state == "running", 5.0)
+    await until_started(lambda: m.state == "running")
     ports, pid = (m.broadcast_port, m.control_port), m.pid
     tnc = await tnc_on(m)
     try:
-        await until(lambda: tnc.usable)
+        await until_started(lambda: tnc.usable)
         assert m._program._process is not None
         m._program._process.kill()                                         # (a sound device unplugged: Mercury is gone without a word)
-        await until(lambda: m.state == "waiting" and not tnc.usable, 5.0)
+        await until_started(lambda: m.state == "waiting" and not tnc.usable)
         assert tnc.state is not Source.State.CONNECTED and "Mercury stopped" in m.problem, "meanwhile the status is the truth: the modem is down and the radio is not connected"
-        await until(lambda: m.starts == 2 and m.running, 5.0)
+        await until_started(lambda: m.starts == 2 and m.running)
         assert (m.broadcast_port, m.control_port) == ports and m.pid != pid, "the same pair, where the Tnc waits"
-        await until(lambda: tnc.usable, 5.0)
+        await until_started(lambda: tnc.usable)
         assert tnc.port == f"socket://127.0.0.1:{ports[0]}"
     finally:
         await tnc.stop()
@@ -519,22 +519,22 @@ async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tn
 
 
 async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_owner_is_told_to_point_the_tnc_at_it(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([1.0, 1.0]), control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([4.0, 4.0]), control_backoff=Backoff([0.05, 0.05]))          # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
     m.ports = lambda: []
     told: list[int] = []
     m.ports_changed.connect(lambda: told.append(m.broadcast_port))
     await m.start(HF)
-    await until(lambda: m.state == "running", 5.0)
+    await until_started(lambda: m.state == "running")
     old = m.broadcast_port
     assert m._program._process is not None
     m._program._process.kill()
-    await until(lambda: m.state == "waiting", 5.0)
+    await until_started(lambda: m.state == "waiting")
     with socket.socket() as holder:                                        # (another program takes the KISS port in the second the back-off waits)
         holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         holder.bind(("127.0.0.1", old))
         holder.listen()
         try:
-            await until(lambda: m.starts == 2 and m.running, 5.0)
+            await until_started(lambda: m.starts == 2 and m.running)
             assert m.broadcast_port != old and m.control_port == m.broadcast_port + CONTROL_OFFSET
             assert told == [m.broadcast_port], "told once, after the new pair was chosen"
         finally:
@@ -561,7 +561,7 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "running", 5.0)
+        await until_started(lambda: m.state == "running")
         assert mercuryhelper.foreign_listeners((m.broadcast_port, m.control_port)) == [], "the fake binds 127.0.0.1, as the shipped program does"
     finally:
         await stopped(m)
@@ -569,10 +569,10 @@ async def test_the_fake_program_listens_on_the_loopback_and_one_that_listens_on_
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.state == "waiting", 5.0)
+        await until_started(lambda: m.state == "waiting")
         pid = m.pid
         assert m.problem == mercurymodem.OPEN_TO_NETWORK and m.starts == 1
-        await until(lambda: not _alive(pid), 5.0)
+        await until_started(lambda: not _alive(pid))
         await asyncio.sleep(0.5)                                           # (the back-off of a program that died is 0.1 s: a relaunch would have come)
         assert m.starts == 1 and m.state == "waiting", "ended, and not started again"
         assert m.describe() == f"Mercury DATAC3: {mercurymodem.OPEN_TO_NETWORK}"
@@ -596,7 +596,7 @@ async def test_a_launch_that_fails_for_a_reason_that_may_pass_is_tried_again_aft
     await m.start(HF)
     try:
         assert m.state == "waiting" and m.reason == "no_port" and m.starts == 0
-        await until(lambda: m.running, 5.0)
+        await until_started(lambda: m.running)
         assert m.starts == 1 and len(calls) == 2, "the second try, after the back-off, had its pair"
     finally:
         await stopped(m)
@@ -607,13 +607,13 @@ async def test_the_fm_radios_the_gpss_and_the_skipped_ports_are_never_chosen_to_
     m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60), SerialPort("/dev/ttyUSB1", 0x10C4, 0xEA60)]
     await m.start(replace(HF, mercury_sound_card="", mercury_keying="", serial_port="/dev/ttyUSB0"))
     try:
-        await until(lambda: m.running, 5.0)
+        await until_started(lambda: m.running)
         assert m.keying == Keying("rts", "/dev/ttyUSB1"), "the FM radio's port is not the one"
     finally:
         await m.stop()
     await m.start(replace(HF, mercury_sound_card="", mercury_keying="", gps_device="/dev/ttyUSB1", serial_skip="/dev/ttyUSB0"))
     try:
-        await until(lambda: m.running, 5.0)
+        await until_started(lambda: m.running)
         assert m.keying == Keying("vox"), "the GPS's port and a skipped port leave no serial port: VOX"
     finally:
         await stopped(m)
@@ -637,7 +637,7 @@ async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_
     m = modem(tmp_path)
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
     try:
-        await until(lambda: m.running, 5.0)
+        await until_started(lambda: m.running)
         assert order == ["stale", "cards", "ports"], "a program left behind holds the ports: ended first; the pair chosen after the seconds mercury -z takes, so that nobody takes it meanwhile"
     finally:
         await stopped(m)
@@ -676,7 +676,7 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
     m.ports = lambda: []                                                  # (never the operator's serial ports)
     await m.start(HF)
     try:
-        await until(lambda: m.running, 5.0)
+        await until_started(lambda: m.running)
         assert m.starts == 1 and m.reason == "" and "(not the one NeoAPRS ships)" not in caplog.text
         assert not [call for call in asked if "powershell" in call.lower() or "netsh" in call.lower()], asked
     finally:

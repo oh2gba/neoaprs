@@ -41,7 +41,7 @@ def radios(memory: Kept | None = None, config: Any = BOTH) -> tuple[Radios, Stat
     book, fm, hf = StationBook(), object(), object()
     book.seed([station("OH2GAX-2", fm=40, hf=21), station("OH2FAR", hf=3), station("OH2NEAR", fm=5)])
     remember = (lambda text: memory.rows.update({MESSAGE_RADIOS: text})) if memory is not None else (lambda text: None)
-    return Radios(fm, hf, lambda: config, book, remember), book, fm, hf          # type: ignore[arg-type]  (what is chosen is all that is asked of a radio here)
+    return Radios(fm, hf, lambda: config, book, remember), book, fm, hf          # type: ignore[arg-type]  # what is chosen is all that is asked of a radio here
 
 
 async def test_a_station_heard_on_both_radios_goes_on_fm_until_the_operator_chooses_hf_and_the_choice_is_kept() -> None:

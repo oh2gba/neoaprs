@@ -6,7 +6,7 @@ from neoaprs.tncwatchdog import Watchdog
 
 
 async def test_each_quiet_period_is_the_check_time_and_a_random_part_of_it_more() -> None:
-    dog = Watchdog(object(), TNC_CHECK_SEC)  # type: ignore[arg-type]  (the Tnc is not needed to start a quiet period)
+    dog = Watchdog(object(), TNC_CHECK_SEC)  # type: ignore[arg-type]  # the Tnc is not needed to start a quiet period
     periods: set[float] = set()
     for _ in range(50):
         dog.heard()

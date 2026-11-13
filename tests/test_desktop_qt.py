@@ -26,6 +26,7 @@ from neoaprs.desktop.shell import ShellContext  # noqa: E402
 from neoaprs.desktop.single import SingleApp  # noqa: E402
 from tests.test_desktop_logic import FakeAutoStart, FakeDaemon  # noqa: E402
 
+pytestmark = pytest.mark.xdist_group("desktop-qt")      # (one worker: one process holds the Qt application, which a second one in the same run would disturb)
 HTML = b"""<!doctype html><html><head><title>fake page</title></head><body>
 <a id="ext" href="https://www.qrz.com/db/OH2GBA" target="_blank">QRZ</a>
 <a id="plain" href="https://www.openstreetmap.org/copyright">OSM</a>

@@ -281,7 +281,9 @@ async def test_the_general_query_is_taken_once_in_ten_minutes() -> None:
 async def test_a_footprint_is_honoured_we_answer_only_from_inside_it(text: str, inside: bool) -> None:
     rig = Rig()                                          # (we are at 60.17 N 24.94 E)
     general(rig, text=text)
-    await idle_for(0.1)
+    if inside:
+        await until(lambda: len(rig.tnc.sent) == 1)
+    await idle_for(0.1)                                  # (and what is outside has had its time to be answered all the same)
     assert len(rig.tnc.sent) == (1 if inside else 0)
 
 

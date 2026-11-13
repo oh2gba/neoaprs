@@ -12,7 +12,7 @@ from neoaprs.mercury import BROADCAST_PORT
 from neoaprs.mercuryhelper import PORT_TRIES, free_ports
 from neoaprs.source import Backoff, Source
 from tests.support import fakemercury
-from tests.support.env import Env, until
+from tests.support.env import Env, until_started
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ async def hf_station(tmp_path: Path, backoff: Backoff) -> Env:
     e.ctl.mercury._control_backoff = Backoff([0.05, 0.05])
     e.hf.backoff = Backoff([0.05, 0.1])
     await e.start()
-    await until(lambda: e.ctl.mercury.running and e.hf.usable, 5.0)
+    await until_started(lambda: e.ctl.mercury.running and e.hf.usable)
     return e
 
 
@@ -44,27 +44,27 @@ async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_i
     try:
         port, pid = e.hf.port, e.ctl.mercury.pid
         kill(e)
-        await until(lambda: e.ctl.mercury.state == "waiting" and e.hf.state is not Source.State.CONNECTED, 5.0)
+        await until_started(lambda: e.ctl.mercury.state == "waiting" and e.hf.state is not Source.State.CONNECTED)
         assert not e.hf.usable, "while the modem is down the radio does not say it listens"
-        await until(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running and e.hf.usable, 5.0)
+        await until_started(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running and e.hf.usable)
         assert e.hf.port == port == f"socket://127.0.0.1:{e.ctl.mercury.broadcast_port}" and e.ctl.mercury.pid != pid
     finally:
         await e.stop()
 
 
 async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_new_one(tmp_path: Path) -> None:
-    e = await hf_station(tmp_path, Backoff([1.0, 1.0]))
+    e = await hf_station(tmp_path, Backoff([4.0, 4.0]))                      # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
     try:
         old = e.ctl.mercury.broadcast_port
         kill(e)
-        await until(lambda: e.ctl.mercury.state == "waiting", 5.0)
+        await until_started(lambda: e.ctl.mercury.state == "waiting")
         with socket.socket() as holder:
             holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             holder.bind(("127.0.0.1", old))
             holder.listen()
-            await until(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running, 5.0)
+            await until_started(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running)
             new = e.ctl.mercury.broadcast_port
             assert new != old
-            await until(lambda: e.hf.port == f"socket://127.0.0.1:{new}" and e.hf.usable, 5.0)
+            await until_started(lambda: e.hf.port == f"socket://127.0.0.1:{new}" and e.hf.usable)
     finally:
         await e.stop()

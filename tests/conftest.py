@@ -63,6 +63,15 @@ from tests.support.fixtures import clock, no_shipped_world, protocol_violations,
 from tests.support import guards, markers  # noqa: E402
 from tests.support.guards import isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
 from tests.support.ptyline import ptys  # noqa: E402, F401
+from tests.support.timelimit import a_test_has_a_time_limit  # noqa: E402, F401
+from tests.support import winloop  # noqa: E402
+
+
+if sys.platform == "win32":
+    def pytest_asyncio_loop_factories(config: pytest.Config, item: pytest.Item) -> dict[str, object]:
+        """The event loop of every test on Windows (pytest-asyncio asks this hook): one that is nudged from outside, so that it cannot sleep for ever while an answer waits (tests/support/winloop.py). Elsewhere the
+        hook is not there and the loop is asyncio's own."""
+        return {"nudged": winloop.new_loop}
 
 
 @pytest.fixture(autouse=True)

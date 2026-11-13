@@ -20,7 +20,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from tests.support.ptyline import posix_only
+from tests.support.ptyline import SIGKILL, is_root, posix_only
 
 pytestmark = posix_only      # (a script of the repository that locks a file and runs docker: a development check, not the product)
 
@@ -241,7 +241,7 @@ def test_a_file_that_cannot_be_read_is_named_and_one_that_went_away_is_left_out(
     with tarfile.open(fileobj=io.BytesIO(packed(script, repo))) as archive:
         assert sorted(archive.getnames()) == sorted([*(f"neoaprs/{name}" for name in PACKED), "tracked"])
     monkeypatch.undo()
-    if os.geteuid() == 0:
+    if is_root():
         pytest.skip("root reads every file")
     (repo / "new.txt").chmod(0)
     with pytest.raises(script.NotPacked, match=r"^new\.txt could not be packed \(Permission denied\)$"):
@@ -259,7 +259,7 @@ def closed(folder: Path, mode: int = 0) -> Iterator[None]:
 
 
 def test_a_folder_that_cannot_be_entered_or_listed_is_said_and_never_passed_over(script: ModuleType, repo: Path) -> None:
-    if os.geteuid() == 0:
+    if is_root():
         pytest.skip("root enters every folder")
     with closed(repo / "src"):
         with pytest.raises(script.NotPacked, match=r"^src/a name\.txt could not be packed \(Permission denied\)$"):
@@ -406,8 +406,9 @@ def python_job() -> str:
 
 
 def test_the_default_commands_are_the_commands_of_the_ci_job_on_linux_in_its_order(script: ModuleType) -> None:
-    commands = re.findall(r"^\s+(?:- run: )?((?:env -u UV_FROZEN )?uv \S.*?)\s*$", python_job(), re.M)
-    assert len(commands) >= 4
+    install = re.findall(r"^      - run: (uv sync .+)$", python_job(), re.M)
+    commands = [*install, *re.findall(r"^      - run: (.+)\n        if: runner\.os == 'Linux'$", python_job(), re.M)]
+    assert len(commands) >= 5 and commands[0].startswith("uv sync ") and all(command.startswith("scripts/check --stage ") for command in commands[1:])
     assert list(script.CI_COMMANDS) == commands, "the job `python` of .github/workflows/ci.yml has changed: CI_COMMANDS of scripts/check-in-container follows it"
 
 
@@ -514,7 +515,7 @@ def rig(repo: Path, tmp_path: Path) -> Iterator[Rig]:
     with contextlib.suppress(OSError, ValueError):       # (a stand-in that was left hanging by a test that failed; the number of one that has ended may be another program's by now)
         pid = int((made.state / "run.pid").read_text())
         if Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")[:2] == [b"sleep", b"600"]:
-            os.kill(pid, signal.SIGKILL)
+            os.kill(pid, SIGKILL)
 
 
 @linux_only
@@ -625,7 +626,7 @@ def one_line_and_nothing_started(rig: Rig, done: subprocess.CompletedProcess[str
 
 
 def test_a_file_that_cannot_be_read_ends_in_one_sentence_before_docker_is_asked_for_anything(rig: Rig) -> None:
-    if os.geteuid() == 0:
+    if is_root():
         pytest.skip("root reads every file")
     (rig.repo / "new.txt").chmod(0)
     one_line_and_nothing_started(rig, rig.run(), r"new\.txt could not be packed \(Permission denied\)")
@@ -633,7 +634,7 @@ def test_a_file_that_cannot_be_read_ends_in_one_sentence_before_docker_is_asked_
 
 
 def test_a_folder_that_cannot_be_opened_ends_in_one_sentence_before_docker_is_asked_for_anything(rig: Rig) -> None:
-    if os.geteuid() == 0:
+    if is_root():
         pytest.skip("root enters every folder")
     (rig.repo / "kept-out").mkdir()
     with closed(rig.repo / "kept-out"):

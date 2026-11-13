@@ -27,12 +27,12 @@ def rig() -> Rigs:
     return Rigs()
 
 
-async def silent_rig(rig: Rigs, probe_answer_sec: float = 0.1, **kwargs: object) -> tuple[Rig, FixedClock]:
-    """A Tnc whose check goes unanswered at once, and which has become SILENT; its probes wait `probe_answer_sec` for an answer."""
+async def silent_rig(rig: Rigs, probe_answer_sec: float = 0.1, probe_reply_sec: float = 0.05, **kwargs: object) -> tuple[Rig, FixedClock]:
+    """A Tnc whose check goes unanswered at once, and which has become SILENT; its probes wait `probe_reply_sec` for a reply to the return and `probe_answer_sec` for an answer to KISS ON."""
     clock = FixedClock()
     r = await rig(clock=clock, **{"probe_sec": 30.0, **QUICK, **kwargs})
     await until(lambda: r.tnc.state is Source.State.SILENT)
-    r.tnc.watchdog.answer_sec, r.tnc.watchdog.sec = probe_answer_sec, 30.0       # (no second check while the test looks at the return)
+    r.tnc.watchdog.answer_sec, r.tnc.watchdog.reply_sec, r.tnc.watchdog.sec = probe_answer_sec, probe_reply_sec, 30.0       # (no second check while the test looks at the return)
     await r.radio.said(4096, 0.05)                                 # (what the check wrote)
     return r, clock
 
@@ -151,10 +151,11 @@ async def test_a_silent_radio_whose_tnc_may_not_enter_kiss_connects_without_it(r
 
 @stops_rigs
 async def test_probes_repeat_the_check_and_a_prompt_after_the_return_enters_kiss_and_connects_without_a_second_entry(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
-    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=0.5)
+    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=5.0, probe_reply_sec=5.0)       # (the waits for the radio's reply are long: the prompt below ends the one it comes in, and a slow machine cannot make a second probe of it)
     caplog.set_level(logging.INFO)
     caplog.clear()
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE, 2.0) == KISS_EXIT + NUDGE_BYTE
+    r.tnc.watchdog.probe_sec = 30.0                                 # (the next probe is not for this test)
     assert (r.tnc.stats.watchdog_probes, r.tnc.last_watchdog_action) == (1, "probe")
     r.radio.feed(b"\r\ncmd:")
     assert await hear_until(r.radio, ENTER_KISS, 1.0)
@@ -165,7 +166,9 @@ async def test_probes_repeat_the_check_and_a_prompt_after_the_return_enters_kiss
 
 @stops_rigs
 async def test_a_probe_whose_return_is_not_answered_enters_kiss_and_an_answer_to_that_connects(rig: Rigs) -> None:
-    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=1.0)
+    r, _ = await silent_rig(rig, probe_sec=0.2, probe_answer_sec=5.0)
+    await until(lambda: r.tnc.stats.watchdog_probes == 1)
+    r.tnc.watchdog.probe_sec = 30.0                                 # (the probe that has begun is the only one: the period of the next is read after the wait for this one's answer)
     assert await hear_until(r.radio, KISS_EXIT + NUDGE_BYTE + ENTER_KISS, 3.0)
     assert r.tnc.state is Source.State.SILENT
     r.radio.feed(ANSWER)
@@ -286,7 +289,7 @@ async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_a
     e.tnc.set_check(0.1)                                             # (the settings of an Env have the checks off)
     await until(lambda: e.tnc.state is Source.State.SILENT)
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=1))
-    e.now.advance(30 + 60)                                           # type: ignore[attr-defined]  (the first beacon, and an interval, passed in the night)
+    e.now.advance(30 + 60)                                           # type: ignore[attr-defined]  # the first beacon, and an interval, passed in the night
     await idle_for(0.2)
     assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due < e.now()
     assert await hear_until(e.radio, KISS_EXIT + NUDGE_BYTE, 3.0)   # a probe

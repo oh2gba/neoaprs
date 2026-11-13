@@ -403,7 +403,7 @@ class StuckSer(SlowSer):
         self.cancelled = False
 
     def write(self, data: bytes) -> int:
-        self.release.wait(10)
+        self.release.wait(120)
         raise serial.SerialException("write aborted")
 
     def cancel_write(self) -> None:
@@ -423,7 +423,7 @@ async def test_a_line_that_takes_no_more_writes_refuses_them_and_a_stuck_write_i
             port.write(b"x")
     began = time.monotonic()
     port.close()
-    assert time.monotonic() - began < 2.0 and ser.cancelled and ser.closed.is_set()
+    assert time.monotonic() - began < 60.0 and ser.cancelled and ser.closed.is_set(), "(the stuck write waits two minutes for its release: the close cuts it short)"
     await idle_for(0.1)
     assert lost == [], "a write cut short by our own close is not a lost line"
 
@@ -584,10 +584,10 @@ async def test_probe_listens_to_every_port_at_once_and_finds_the_one_that_talks_
     talker = loop.create_task(late())
     began = loop.time()
     try:
-        assert await probe([r.url for r in three], 9600, 5.0, is_kiss) == three[2].url
+        assert await probe([r.url for r in three], 9600, 60.0, is_kiss) == three[2].url
     finally:
         await stop_feeding(talker)
-    assert 0.25 < loop.time() - began < 0.9, "the third port was heard as soon as it talked, not after a turn on each of the others"
+    assert 0.25 < loop.time() - began < 30.0, "the third port was heard as soon as it talked, not after a turn of a minute on each of the others"
 
 
 async def test_probe_without_a_limit_waits_for_a_port_to_talk(radios: Radios) -> None:
@@ -657,8 +657,8 @@ async def test_probe_returns_none_at_once_when_every_port_is_gone(radios: Radios
     for radio in pair:
         loop.call_later(0.1, radio.drop)
     began = loop.time()
-    assert await asyncio.wait_for(probe([r.url for r in pair], 9600, None, lambda data: True), 2.0) is None
-    assert loop.time() - began < 0.9
+    assert await asyncio.wait_for(probe([r.url for r in pair], 9600, None, lambda data: True), 30.0) is None, "with no limit it would wait for ever: it ends because every port is gone"
+    assert loop.time() - began < 10.0, "at once: not after a poll or a retry of some seconds"
 
 
 async def test_cancelling_the_probe_closes_every_port(radios: Radios) -> None:
@@ -675,27 +675,32 @@ async def test_cancelling_the_probe_during_the_opens_leaves_no_port_open(radios:
     pair = await radios(2)
     real_build = serialport._build
     opening = threading.Semaphore(0)
+    counts = {"begun": 0, "ended": 0}                                          # (the opens that began, and those that came back from the port)
 
     def slow(path: str, baud: int) -> Any:
         ser = real_build(path, baud)
         real_open = ser.open
 
         def open_() -> None:
+            counts["begun"] += 1
             opening.release()
-            time.sleep(0.3)                    # (the open that takes this long is the point)
-            real_open()
+            try:
+                time.sleep(0.3)                # (the open that takes this long is the point)
+                real_open()
+            finally:
+                counts["ended"] += 1
 
         ser.open = open_
         return ser
 
     monkeypatch.setattr(serialport, "_build", slow)
     task = asyncio.get_running_loop().create_task(probe([r.url for r in pair], 9600, None, lambda data: False))
-    assert await asyncio.to_thread(opening.acquire, True, 5.0), "an open began"
+    assert await asyncio.to_thread(opening.acquire, True, 30.0), "an open began"
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    await idle_for(0.8)                        # (the slow opens finish in their threads: no port may be left open after them)
-    assert all(r.clients == 0 for r in pair)
+    await until(lambda: counts["ended"] == counts["begun"], 30.0)          # (the slow opens finish in their threads)
+    await until(lambda: all(r.clients == 0 for r in pair), 30.0)          # (and no port may be left open after them: each is closed, a socket's close takes its time)
 
 
 @pytest.mark.parametrize("listed_as, skipped", [("socket://{}", "SOCKET://{}"), ("tcp://{}", "socket://{}"), ("socket://{}", "tcp://{}")])

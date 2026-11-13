@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.ptyline import posix_only
+from tests.support.files import text_if_readable
+from tests.support.ptyline import SIGHUP, SIGKILL, is_root, posix_only
 
 pytestmark = posix_only      # (a bash script with bash stand-ins: a development check, not the product)
 
@@ -147,7 +148,7 @@ def each_is_told_it_runs_alone(gate: Gate) -> None:
 
 def test_the_lists_of_the_script_are_what_these_tests_think_they_are() -> None:
     assert STAGES[0] == "lock" and FIRST == ["lock"] and LAST == ["smoke"] == STAGES[-1:], "lock alone first, smoke alone last"
-    assert {"ruff", "mypy", "architecture", "pytest", "page", "security", *UI} <= set(AT_ONCE) and EXTRA == ["sim", "audit"]
+    assert {"ruff", "mypy", "architecture", "pytest", "page", "security", *UI} <= set(AT_ONCE) and EXTRA == ["sim", "audit", "flaky"]
     assert len(set(STAGES + EXTRA)) == len(STAGES + EXTRA) and all(len(name) <= 12 for name in STAGES + EXTRA), "a name is written once and fits the column of the result lines"
 
 
@@ -254,7 +255,7 @@ def test_serial_stops_at_the_first_failure(gate: Gate, how: str) -> None:
     assert gate.events() == ["start lock", "end lock", "start ruff", "end ruff", "start mypy", "end mypy"], "nothing after it was started"
 
 
-@pytest.mark.parametrize("name", ["ui-lint", "smoke", "sim", "audit"])
+@pytest.mark.parametrize("name", ["ui-lint", "smoke", "sim", "audit", "flaky"])
 def test_stage_runs_the_one_stage_that_is_named(gate: Gate, name: str) -> None:
     each_is_told_it_runs_alone(gate)
     done = gate.run("--stage", name)
@@ -267,6 +268,15 @@ def test_a_named_stage_that_fails_is_exit_code_1_with_its_output(gate: Gate) -> 
     done = gate.run("--stage", "ruff")
     assert done.returncode == 1 and results(done) == [("FAIL", "ruff")]
     assert done.stdout.splitlines()[1:] == ["      | E501 line too long"]
+
+
+def test_a_named_stage_shows_its_output_as_it_is_written_and_a_green_one_too(gate: Gate) -> None:
+    """The steps of the CI are named stages: one that hangs must show where, and one that is green shows its output (stderr: stdout is the result lines)."""
+    gate.bodies["mypy"] = 'echo "checking 2"'
+    done = gate.run("--stage", "mypy")
+    assert done.returncode == 0 and results(done) == [("ok", "mypy")] and "checking 2" in done.stderr and "checking 2" not in done.stdout
+    every = gate.run()
+    assert every.returncode == 0 and "checking 2" not in every.stderr, "a run of every stage keeps each one's output until it has failed"
 
 
 def test_list_prints_the_names_and_runs_nothing(gate: Gate) -> None:
@@ -293,8 +303,8 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 
 # ---- an interrupted run ----
 
-@pytest.mark.parametrize(("name", "code"), [("SIGTERM", 143), ("SIGINT", 130), ("SIGHUP", 129)])        # (names: Windows has no SIGHUP, and nothing here may need it when the file is collected)
-def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, name: str, code: int) -> None:
+@pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
+def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, sent: signal.Signals, code: int) -> None:
     """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the stage that is still busy and the program it started (a daemon of the suite, in the real one) are ended, the stage
     does not go on, the temporary folder of the run is gone, and the exit code names the signal."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
@@ -303,10 +313,10 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
     run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     started: list[int] = []
     try:
-        until(lambda: pids.exists() and len(pids.read_text().split()) == 2, "the stage pytest never started")
+        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
         started = [int(pid) for pid in pids.read_text().split()]
         assert list(temp.iterdir()), "the run has its folder in TMPDIR"
-        run.send_signal(getattr(signal, name))
+        run.send_signal(sent)
         output, _ = run.communicate(timeout=30)
         assert run.returncode == code, output
         until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
@@ -314,7 +324,7 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
         run.kill()
         for pid in started:                # (a script that failed this test leaves nothing behind either)
             if alive(pid):
-                os.kill(pid, signal.SIGKILL)
+                os.kill(pid, SIGKILL)
     assert "start pytest" in gate.events() and "end pytest" not in gate.events() and "start smoke" not in gate.events()
     assert list(temp.iterdir()) == [] and "all green" not in output
 
@@ -342,8 +352,8 @@ def alive(pid: int) -> bool:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
-    stat = Path(f"/proc/{pid}/stat")
-    return not stat.exists() or stat.read_text().rsplit(")", 1)[-1].split()[0] != "Z"
+    stat = text_if_readable(Path(f"/proc/{pid}/stat"))                       # (None: it went between the two lookups)
+    return stat is None or stat.rsplit(")", 1)[-1].split()[0] != "Z"
 
 
 # ---- what keeps the stages apart when they run at once: their own command lines, against a python and an npx that only write down how they were called ----
@@ -360,7 +370,7 @@ NODE = "\nnode_ok() { return 0; }\n"                                           #
 MYPY, MYPY_WINDOWS = "python -m mypy", "python -m mypy --platform win32 --cache-dir .mypy_cache/win32"
 THE_REST = "--ignore=tests/test_architecture.py --ignore=tests/test_size_ratchet.py --ignore=tests/test_page_build.py"
 ARCHITECTURE = "python -m pytest -q -p no:cacheprovider tests/test_architecture.py tests/test_size_ratchet.py"
-SUITE = f"python -m pytest -q -n auto --dist worksteal --maxprocesses=12 {THE_REST}"
+SUITE = f"python -m pytest -q -n auto --dist loadgroup --maxprocesses=12 {THE_REST}"
 PAGE = "python -m pytest -q -p no:cacheprovider tests/test_page_build.py"
 SECURITY = "python scripts/security-check"
 
@@ -395,19 +405,20 @@ def test_beside_the_other_stages_vitest_has_eight_workers_at_most_and_no_more_th
     (("--stage", "mypy"), {}, [MYPY, MYPY_WINDOWS]),
     (("--stage", "architecture"), {}, [ARCHITECTURE]),
     (("--stage", "pytest"), {}, [SUITE]),
-    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS_MAX": "5"}, [f"python -m pytest -q -n auto --dist worksteal --maxprocesses=5 {THE_REST}"]),
-    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS": "3"}, [f"python -m pytest -q -n 3 --dist worksteal {THE_REST}"]),
-    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS": "3", "NEOAPRS_TEST_WORKERS_MAX": "2"}, [f"python -m pytest -q -n 3 --dist worksteal {THE_REST}"]),
+    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS_MAX": "5"}, [f"python -m pytest -q -n auto --dist loadgroup --maxprocesses=5 {THE_REST}"]),
+    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS": "3"}, [f"python -m pytest -q -n 3 --dist loadgroup {THE_REST}"]),
+    (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS": "3", "NEOAPRS_TEST_WORKERS_MAX": "2"}, [f"python -m pytest -q -n 3 --dist loadgroup {THE_REST}"]),
     (("--stage", "pytest"), {"NEOAPRS_TEST_WORKERS": "0"}, [f"python -m pytest -q {THE_REST}"]),
     (("--stage", "ui-tests"), {}, ["npx vitest run"]),
     (("--stage", "page"), {}, [PAGE]),
     (("--stage", "security"), {}, [SECURITY]),
     (("--stage", "audit"), {}, [f"{SECURITY} --audit"]),
+    (("--stage", "flaky"), {}, ["python scripts/flaky"]),
     (("--serial",), {}, [MYPY, MYPY_WINDOWS, ARCHITECTURE, SUITE, "npx vitest run", PAGE, SECURITY]),
 ])
 def test_the_command_line_of_a_stage_that_runs_alone(gate: Gate, args: tuple[str, ...], env: dict[str, str], calls: list[str]) -> None:
     """One stage at a time: the same files and cache folders, the workers as the variables say (a number that is named has no ceiling, 0 is no workers at all), and vitest takes what it likes."""
-    done = gate.run(*args, **with_made_up_programs(gate, "mypy", "architecture", "pytest", "ui-tests", "page", "security", "audit"), **env)
+    done = gate.run(*args, **with_made_up_programs(gate, "mypy", "architecture", "pytest", "ui-tests", "page", "security", "audit", "flaky"), **env)
     assert done.returncode == 0 and gate.calls() == calls, done.stdout + done.stderr
 
 
@@ -462,7 +473,7 @@ def test_the_lock_stage_asks_uv_to_compare_the_lock_file_even_where_the_caller_f
     assert gate.events() == ["uv lock --check frozen=unset"]
 
 
-@pytest.mark.skipif(sys.platform != "win32" and os.geteuid() == 0, reason="root writes to a folder whatever its rights are")        # (the file is collected on Windows too, where there is no geteuid)
+@pytest.mark.skipif(is_root(), reason="root writes to a folder whatever its rights are")
 def test_uv_gets_a_cache_of_its_own_where_the_one_it_was_given_cannot_be_written(gate: Gate, tmp_path: Path) -> None:
     """A sandbox that keeps uv from ~/.cache/uv would make the stages lock and smoke say something about the cache and not about the tree."""
     shut = tmp_path / "shut"

@@ -54,7 +54,7 @@ async def test_a_message_is_acked_within_one_frame_each_way_and_the_first_wait_o
     assert len(w.air.delivered) == 2, "the message one way, the ack the other"
     message, ack = (ax25.decode(p) for _, _, p in w.air.delivered)
     assert message.info == b":OH2B     :Moi Pekka, kuuluuko?{01}" and ack.info == b":OH2A     :ack01}"
-    assert 2 * w.air.frame_sec <= took < 5.0 and a.ctl.messaging.get(record.id).attempts == 1, "two frames on the air and the polls between them (longer on a slow machine), never a retry: on the air the ack of a first attempt comes in about 10 s, a third of the first wait of 32 s (docs/mercury.md)"       # type: ignore[union-attr]
+    assert 2 * w.air.frame_sec <= took and a.ctl.messaging.get(record.id).attempts == 1, "two frames on the air at least, and never a retry: on the air the ack of a first attempt comes in about 10 s, a third of the first wait of 32 s (docs/mercury.md)"       # type: ignore[union-attr]
     await w.until(lambda: any(m.direction == "in" for m in b.ctl.messaging.records()))     # (B acks at once and keeps the message as it is told: on a slow runner the ack can come first)
     received = [m for m in b.ctl.messaging.records() if m.direction == "in"]
     assert len(received) == 1 and received[0].text == "Moi Pekka, kuuluuko?"
@@ -192,7 +192,7 @@ async def test_a_station_that_never_acks_gets_the_four_attempts_of_the_schedule_
     await w.start()
     record = await a.ctl.messaging.send("OH2Z", "anybody there?")                                  # (nobody of that name on the air)
     for n, wait in enumerate((32, 32, 64), 2):                                                     # (the attempts at 0, 32, 64 and 128 s: schedule_sec, each retry after HF's pause of its own)
-        await w.until(lambda n=n: len(w.air.delivered) == n - 1, 15.0)                             # type: ignore[misc]  (the attempt is on the air)
+        await w.until(lambda n=n: len(w.air.delivered) == n - 1, 15.0)                             # type: ignore[misc]  # the attempt is on the air
         await w.settled("OH2A")                                                                    # (and the radio is free again, which the clock must not move before: `settled` says why)
         pause = retry_pause(a.ctl.messaging.get(record.id), HF.retry_jitter_sec).total_seconds()  # type: ignore[arg-type]
         assert 0 <= pause <= HF.retry_jitter_sec

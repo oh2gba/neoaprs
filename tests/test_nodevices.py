@@ -17,7 +17,7 @@ from neoaprs.tnc import Tnc
 from neoaprs.wiring import tnc_settings
 from tests.conftest import ROOT
 from tests.support import guards
-from tests.support.ptyline import make_pty, posix_only
+from tests.support.ptyline import make_pty, makedev, posix_only
 
 
 def test_every_test_starts_with_a_pattern_that_matches_nothing() -> None:
@@ -79,7 +79,7 @@ def test_the_serial_guard_looks_through_a_link_and_knows_a_device_by_its_number(
     radio = guards.SerialGuard()
     with pytest.raises(guards.RadioTouched):
         radio.check(link)
-    node = SimpleNamespace(st_mode=stat.S_IFCHR | 0o660, st_rdev=os.makedev(188, 3))
+    node = SimpleNamespace(st_mode=stat.S_IFCHR | 0o660, st_rdev=makedev(188, 3))
     real_stat = os.stat
     monkeypatch.setattr(guards.os, "stat", lambda path, *a, **k: node if path == "/dev/my-adapter" else real_stat(path, *a, **k))
     with pytest.raises(guards.RadioTouched):

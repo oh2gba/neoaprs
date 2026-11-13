@@ -12,7 +12,7 @@ import pytest
 
 from tests.conftest import ROOT
 from tests.support import guards
-from tests.support.ptyline import posix_only
+from tests.support.ptyline import AF_UNIX, posix_only
 
 CONFTEST = """
 import pytest
@@ -266,7 +266,7 @@ def test_any_port_of_this_machine_may_be_reached(address: tuple[object, ...]) ->
 @posix_only
 def test_a_unix_socket_is_on_this_machine(tmp_path: Path) -> None:
     network = guards.NetworkGuard()
-    network.check(str(tmp_path / "s"), socket.AF_UNIX)
+    network.check(str(tmp_path / "s"), AF_UNIX)
     assert network.refused == []
 
 

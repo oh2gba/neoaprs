@@ -46,7 +46,7 @@ async def test_operations_of_many_tasks_are_done_in_the_order_they_were_asked(tm
 
 
 async def test_appends_are_in_the_order_they_were_made_and_before_what_is_asked_after_them(tmp_path: Path) -> None:
-    db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=30.0))        # a tick as long as the test: nothing may wait for it
+    db = await started(tmp_path / "x.sqlite", tuning=Tuning(tick=3600.0))        # a tick of an hour: nothing may wait for it
     began = time.monotonic()
     for n in range(100):
         assert db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'a')", (n,)))
@@ -54,7 +54,7 @@ async def test_appends_are_in_the_order_they_were_made_and_before_what_is_asked_
     await db.write(lambda conn: conn.execute("INSERT INTO t VALUES (100, 'w')"))
     db.write_nowait(lambda conn: conn.execute("UPDATE t SET v = 'late' WHERE n = 100"))
     assert await db.read(lambda conn: conn.execute("SELECT v FROM t WHERE n = 100").fetchone()[0]) == "late"      # an append after a write is after it
-    assert time.monotonic() - began < 5.0
+    assert time.monotonic() - began < 300.0, "nothing waited for the tick"
     await db.close()
     assert committed(tmp_path / "x.sqlite") == list(range(101))
 

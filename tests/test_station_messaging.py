@@ -156,6 +156,6 @@ async def test_the_flag_is_found_again_at_the_start(tmp_path: Path) -> None:
 
     fresh = StationBook()
     fresh.seed(await log.stations())
-    assert takes(fresh.get("OH2NO")) is True                        # type: ignore[arg-type]  (nothing but the cache: it knows nothing yet)
+    assert takes(fresh.get("OH2NO")) is True                        # type: ignore[arg-type]  # nothing but the cache: it knows nothing yet
     fresh.seed_messaging(await log.messaging_evidence(30))
     assert {s.call: takes(s) for s in fresh.stations()} == expected

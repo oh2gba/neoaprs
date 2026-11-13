@@ -1,6 +1,7 @@
 """`neoaprs capture` (neoaprs/cli/capturecmd.py) in the test's own process, on a fake radio: choosing the port to listen to, a port that goes away while it is recorded, a port that cannot be opened (and no file
 left behind), and Ctrl-C. A whole run as a process, with the frames counted, is test_capture_records_a_tcp_tnc_into_a_file in tests/test_cli.py."""
 import asyncio
+from typing import Any
 from pathlib import Path
 
 import pytest
@@ -92,7 +93,7 @@ async def test_a_recording_that_runs_its_time_out_is_a_success(radio: FakeRadio,
 
 
 def test_ctrl_c_ends_the_command_with_the_bytes_that_came_kept(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    def interrupted(coroutine: object) -> int:
+    def interrupted(coroutine: Any) -> int:
         coroutine.close()
         raise KeyboardInterrupt
     monkeypatch.setattr(asyncio, "run", interrupted)

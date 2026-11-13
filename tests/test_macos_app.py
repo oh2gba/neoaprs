@@ -158,12 +158,12 @@ def mac_tree(tmp_path: Path) -> Path:
     res = tmp_path / "Resources"
     lib = res / "lib" / "python3.13"
     site = lib / "site-packages"
-    for folder in ("test", "idlelib", "tkinter", "encodings", "lib-dynload", "site-packages/pip", "site-packages/pip-26.2.2.dist-info"):
-        (lib / folder).mkdir(parents=True)
+    for leaf in ("test", "idlelib", "tkinter", "encodings", "lib-dynload", "site-packages/pip", "site-packages/pip-26.2.2.dist-info"):
+        (lib / leaf).mkdir(parents=True)
     (lib / "os.py").write_text("", encoding="utf-8")
     (lib / "lib-dynload" / "_tkinter.cpython-313-darwin.so").write_bytes(b"x")
-    for folder in ("include/python3.13", "share/man", "lib/tcl9.0", "lib/tk9.0", "bin"):
-        (res / folder).mkdir(parents=True)
+    for leaf in ("include/python3.13", "share/man", "lib/tcl9.0", "lib/tk9.0", "bin"):
+        (res / leaf).mkdir(parents=True)
     (res / "lib" / "libtcl9.0.dylib").write_bytes(b"x")
     (res / "lib" / "libpython3.13.dylib").write_bytes(b"x")
     (res / "bin" / "python3.13-config").write_text("", encoding="utf-8")

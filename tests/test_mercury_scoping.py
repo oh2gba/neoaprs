@@ -11,13 +11,13 @@ from pathlib import Path
 import pytest
 
 from neoaprs import mercurychannel  # noqa: F401  (the module that holds the hold)
-from neoaprs import mercuryhelper
+from neoaprs import mercuryhelper, mercuryscoping
 from neoaprs.mercury import CONTROL_OFFSET, UI_OFFSET
 from neoaprs.mercuryscope import ROW_BINS, ROW_FIRST_BIN, ScopeRow, byte_of_db
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
-from tests.support.env import until
+from tests.support.env import until_started
 from tests.support.fakemercury import UI_LOG_FILE, UI_SCENE_FILE, Air
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test  # noqa: F401  (the fixture gives each test ports of its own)
 
@@ -55,7 +55,7 @@ async def test_the_ini_has_the_gain_and_the_ui_interface_on_its_own_port_with_th
         assert m.tx_gain_db == -4 and "[audio]\ntx_gain_db = -4\n" in ini
         assert f"[main]\nui_enabled = true\nui_port = {m.broadcast_port + UI_NEAR}\nwaterfall_enabled = false\n" in ini and m.ui_port == m.broadcast_port + UI_NEAR
         assert m.control_port == m.broadcast_port + CONTROL_OFFSET
-        await until(lambda: m.scope, 10.0)
+        await until_started(lambda: m.scope)
     finally:
         await m.stop()
     assert not m.scope and m.tx_peak_dbfs is None
@@ -84,19 +84,19 @@ async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are
     m.scope_row.connect(rows.append)
     await m.start(HF)
     try:
-        await until(lambda: m.scope, 10.0)
-        await until(lambda: "set_waterfall on" in sent(tmp_path))
+        await until_started(lambda: m.scope)
+        await until_started(lambda: "set_waterfall on" in sent(tmp_path))
         await asyncio.sleep(0.5)
         assert rows == [], "nobody wants the scope: no row is made (the spectrum is read all the same, by the busy control)"
         m.want_scope(True)
-        await until(lambda: len(rows) >= 3)
+        await until_started(lambda: len(rows) >= 3)
         row = rows[-1]
         tone = round(1500 / 7.8125) - ROW_FIRST_BIN
         assert len(row.bins) == ROW_BINS and row.tx is False and -90 <= row.level <= 0
         assert row.bins[tone] > row.bins[tone - 5] + 20 and row.bins[tone] == byte_of_db(-30.0), "the fake program's tone at 1500 Hz stands in its own bin of the modem, 7.8 Hz wide"
         m.keyed = True
         mark = len(rows)
-        await until(lambda: len(rows) > mark + 2)
+        await until_started(lambda: len(rows) > mark + 2)
         assert all(r.tx for r in rows[mark + 2:]), "keyed: the rows are of our own signal"
         m.keyed = False
         m.want_scope(False)
@@ -120,14 +120,14 @@ async def test_the_gain_is_sent_to_the_running_program_and_the_peak_it_says_is_t
     m.changed.connect(changed)
     await m.start(HF)
     try:
-        await until(lambda: m.scope and m.state == "running", 10.0)
+        await until_started(lambda: m.scope and m.state == "running")
         assert m.live_gain and m.tx_peak_dbfs is None, "Mercury says -120 before anything was transmitted"
         m.set_tx_gain(7)
-        await until(lambda: "set_tx_gain 7" in sent(tmp_path))
+        await until_started(lambda: "set_tx_gain 7" in sent(tmp_path))
         assert m.tx_gain_db == 7
-        await until(lambda: m.tx_peak_dbfs == 1, 5.0)                          # (-6.4 dBFS at gain 0, +7 dB: 0.6, whole dB)
+        await until_started(lambda: m.tx_peak_dbfs == 1)                          # (-6.4 dBFS at gain 0, +7 dB: 0.6, whole dB)
         m.set_tx_gain(99)
-        await until(lambda: "set_tx_gain 20" in sent(tmp_path))
+        await until_started(lambda: "set_tx_gain 20" in sent(tmp_path))
         assert m.tx_gain_db == 20, "Mercury's own limit"
         before = len(sent(tmp_path))
         m.set_tx_gain(20)
@@ -142,7 +142,7 @@ async def test_a_mercury_without_the_ui_has_no_scope_and_the_gain_waits_for_the_
     m = modem(tmp_path, no_ui=True)
     await m.start(replace(HF, mercury_tx_gain_db=2))
     try:
-        await until(lambda: m.state == "running", 10.0)
+        await until_started(lambda: m.state == "running")
         await asyncio.sleep(0.5)
         assert not m.scope and not m.live_gain, "no interface: the controller starts the modem again at a change of the gain (it is in the settings the restart is decided by)"
         m.want_scope(True)
@@ -157,15 +157,16 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.scope, 10.0)
+        await until_started(lambda: m.scope)
         m.want_scope(True)
-        await until(lambda: "set_waterfall on" in sent(tmp_path))
+        await until_started(lambda: "set_waterfall on" in sent(tmp_path))
         pid = m.pid
         assert pid is not None
         import os
         import signal
         os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))          # (Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden)
-        await until(lambda: m.pid != pid and m.scope and m.state == "running", 20.0)
+        await until_started(lambda: m.pid != pid and m.scope and m.state == "running")
+        await until_started(lambda: sent(tmp_path).count("set_waterfall on") >= 2)       # (the link to the new program is made a moment after it runs)
         assert sent(tmp_path).count("set_waterfall on") >= 2, "what a page wants is asked for again of the new program"
     finally:
         await m.stop()
@@ -181,18 +182,18 @@ async def test_the_tune_tone_follows_the_gain_and_is_begun_again_when_the_gain_m
     m.ports = lambda: []
     await m.start(replace(HF, mercury_tx_gain_db=5), attach=station.url)
     try:
-        await until(lambda: m.state == "running")
+        await until_started(lambda: m.state == "running")
         await m.tune()
-        await until(lambda: station.tuned == ["TUNE -10"])                      # (-15 dBFS and the gain of 5 dB)
+        await until_started(lambda: station.tuned == ["TUNE -10"])                      # (-15 dBFS and the gain of 5 dB)
         m.set_tx_gain(8)
-        await until(lambda: station.tuned == ["TUNE -10", "TUNE OFF", "TUNE -7"])
+        await until_started(lambda: station.tuned == ["TUNE -10", "TUNE OFF", "TUNE -7"])
         assert m.test == "tune" and m.hold() == "the radio is transmitting", "the hold stays on while the tone is begun again"
         await asyncio.sleep(0.3)
-        await until(lambda: m.test == "tune" and station.tuned[-1] == "TUNE -7")
+        await until_started(lambda: m.test == "tune" and station.tuned[-1] == "TUNE -7")
         m.set_tx_gain(-30)
-        await until(lambda: station.tuned[-1] == "TUNE -35")
+        await until_started(lambda: station.tuned[-1] == "TUNE -35")
         await m.tune_stop()
-        await until(lambda: station.tuned[-1] == "TUNE OFF")
+        await until_started(lambda: station.tuned[-1] == "TUNE OFF")
         assert m.test == ""
         count = len(station.tuned)
         m.set_tx_gain(0)
@@ -214,14 +215,14 @@ async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_fra
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.scope and m.state == "running", 10.0)
+        await until_started(lambda: m.scope and m.state == "running")
         await asyncio.sleep(3.0)
         assert not m.busy and m.hold() == "", "the fake program's air has a carrier at 1500 Hz 30 dB over the noise, which is a run of one band"
         air(tmp_path, [[1200, 1800, 12]])
-        await until(lambda: m.busy and m.hold() == CHANNEL_BUSY, 10.0)
+        await until_started(lambda: m.busy and m.hold() == CHANNEL_BUSY)
         assert m.describe().endswith("channel busy")
         air(tmp_path, [])
-        await until(lambda: not m.busy, 10.0)
+        await until_started(lambda: not m.busy)
         air(tmp_path, [], noise_db=-35.0)
         await asyncio.sleep(4.0)
         assert not m.busy, "a step of 25 dB in the noise is no signal"
@@ -229,11 +230,12 @@ async def test_the_channel_is_busy_by_the_spectrum_for_a_signal_as_wide_as_a_fra
         await m.stop()
 
 
-async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(tmp_path: Path) -> None:
+async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_moment_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 3600.0)          # (the moment lasts until the test says it is over: a machine that stalls for half a second cannot end it early)
     m = modem(tmp_path)
     await m.start(HF)
     try:
-        await until(lambda: m.scope, 10.0)
+        await until_started(lambda: m.scope)
         await asyncio.sleep(2.0)
         air(tmp_path, [[1200, 1800, 15]])
         m.keyed, m._keyed_at = True, time.monotonic()
@@ -243,7 +245,26 @@ async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_mo
         m._keyed_at = time.monotonic()
         await asyncio.sleep(0.2)
         assert not m.busy, "the end of our own frame is still in the spectrum for a moment"
-        await until(lambda: m.busy, 10.0)
+        m._keyed_at -= 7200.0                                              # (the moment is over)
+        await until_started(lambda: m.busy)
+    finally:
+        m.keyed = False
+        await m.stop()
+
+
+async def test_the_moment_after_our_own_frame_is_a_fraction_of_a_second_and_ends_by_itself(tmp_path: Path) -> None:
+    assert 0.3 <= mercuryscoping.AFTER_TX_SEC <= 1.0, "longer than Mercury's own holdoff of 300 ms, and short enough not to hide a station that answers"
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.scope)
+        await asyncio.sleep(2.0)
+        air(tmp_path, [[1200, 1800, 15]])
+        m.keyed, m._keyed_at = True, time.monotonic()
+        await asyncio.sleep(1.0)
+        m.keyed = False
+        m._keyed_at = time.monotonic()
+        await until_started(lambda: m.busy)          # (nothing sets the time back: the real window is over by itself)
     finally:
         m.keyed = False
         await m.stop()

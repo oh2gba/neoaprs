@@ -36,7 +36,7 @@ def section(text: str, heading: str) -> str:
 def test_every_stage_of_scripts_check_is_in_the_table_of_the_development_guide() -> None:
     script = (ROOT / "scripts" / "check").read_text(encoding="utf-8")
     stages = re.search(r"^STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]
-    extra = re.search(r"^EXTRA_STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]  (the stages that run only by name: after the default ones in the table)
+    extra = re.search(r"^EXTRA_STAGES=\(([^)]*)\)", script, re.M).group(1).split()  # type: ignore[union-attr]  # the stages that run only by name: after the default ones in the table
     assert len(stages) >= 5
     missing = [name for name in stages + extra if f"| `{name}` |" not in DEVELOPMENT]
     assert not missing, f"scripts/check has stages that docs/development.md does not describe: {missing}"

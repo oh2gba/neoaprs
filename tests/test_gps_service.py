@@ -183,7 +183,7 @@ async def test_a_change_of_the_source_starts_the_feed_afresh_and_forgets_the_fix
     assert rig.gps.fix is None and rig.feed.target == second.address
     second.send(tpv(60.5, 24.2))
     await until(lambda: rig.gps.fix is not None)
-    assert rig.gps.fix.lat == 60.5                                                      # type: ignore[union-attr]
+    assert rig.gps.fix.lat == 60.5                                                      # type: ignore[union-attr, attr-defined]
 
 
 async def test_a_gps_switched_off_stops_the_feed() -> None:

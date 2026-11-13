@@ -14,7 +14,7 @@ from neoaprs.mercurymodem import TRANSMITTING, Mercury
 from neoaprs import mercurytune
 from neoaprs.mercurytune import NOT_RUNNING
 from neoaprs.source import Backoff
-from tests.support.env import Env, until
+from tests.support.env import START_SEC, Env, until_started
 from tests.support.fakemercury import Air, FakeMercury
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
@@ -33,7 +33,7 @@ async def running(tmp_path: Path, air: Air) -> tuple[Mercury, FakeMercury]:
     m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]))
     m.ports = lambda: []
     await m.start(HF, attach=station.url)
-    await until(lambda: m.state == "running")
+    await until_started(lambda: m.state == "running")
     return m, station
 
 
@@ -45,9 +45,9 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
         assert m.test == "" and m.hold() == ""
         await m.tune()
         assert m.test == "tune" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, tuning"
-        await until(lambda: station.tuned == ["TUNE -15"] and m.keyed)
-        await until(lambda: m.test == "", 2.0)
-        await until(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)                  # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a slow runner)
+        await until_started(lambda: station.tuned == ["TUNE -15"] and m.keyed)
+        await until_started(lambda: m.test == "")
+        await until_started(lambda: station.tuned == ["TUNE -15", "TUNE OFF"] and not m.keyed)                  # (the TUNE OFF is written at the end; the fake station reads it a moment later, longer on a slow runner)
         assert m.hold() == "" and m.describe() == "Mercury DATAC3, listening"
     finally:
         await m.stop()
@@ -60,17 +60,17 @@ async def test_a_second_press_stops_the_tone_early_and_the_keying_test_is_one_qu
     m, station = await running(tmp_path, air)
     try:
         await m.tune()
-        await until(lambda: m.keyed)
+        await until_started(lambda: m.keyed)
         await m.tune_stop()
         assert m.test == ""
-        await until(lambda: not m.keyed)
+        await until_started(lambda: not m.keyed)
         assert station.tuned == ["TUNE -15", "TUNE OFF"]
         await m.tune_stop()                                                   # (nothing on: nothing said)
         assert station.tuned == ["TUNE -15", "TUNE OFF"]
         await m.key_test()
         assert m.test == "key" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, keyed"
-        await until(lambda: m.test == "", 2.0)
-        await until(lambda: station.tuned[2:] == ["TUNE -60", "TUNE OFF"])
+        await until_started(lambda: m.test == "")
+        await until_started(lambda: station.tuned[2:] == ["TUNE -60", "TUNE OFF"])
     finally:
         await m.stop()
         await air.aclose()
@@ -88,10 +88,10 @@ async def test_the_keying_test_of_a_radio_that_keys_on_audio_sends_the_tune_tone
         m.ports = lambda: []
         await m.start(replace(HF, mercury_keying=keying), attach=station.url)
         try:
-            await until(lambda m=m: m.state == "running")
+            await until_started(lambda m=m: m.state == "running")
             await m.key_test()
-            await until(lambda m=m: m.test == "", 2.0)
-            await until(lambda station=station, sent=sent: station.tuned == [sent, "TUNE OFF"])
+            await until_started(lambda m=m: m.test == "")
+            await until_started(lambda station=station, sent=sent: station.tuned == [sent, "TUNE OFF"])
         finally:
             await m.stop()
             await air.aclose()
@@ -102,12 +102,12 @@ async def test_the_tone_is_refused_while_the_modem_is_not_running_or_the_radio_i
     m, station = await running(tmp_path, air)
     try:
         station.say_control("BUSY ON")
-        await until(lambda: m.busy)
+        await until_started(lambda: m.busy)
         with pytest.raises(CodedError, match="the channel is busy") as refused:
             await m.tune()
         assert refused.value.code == "hf.held" and station.tuned == []
         station.say_control("BUSY OFF")
-        await until(lambda: not m.busy)
+        await until_started(lambda: not m.busy)
         await m.key_test()
         with pytest.raises(CodedError, match=NOT_RUNNING):                  # (a stop takes the tone with it; afterwards nothing runs)
             await m.stop()
@@ -126,7 +126,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     await e.start()
     page = await e.ws()
     await page.send({"cmd": "subscribe", "topics": ["hf"]})
-    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
+    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running", START_SEC)
     assert page.topics["hf"]["modem"]["frequencies"][0] == {"band": "40 m", "dial": "7.0541 MHz USB"}, "the daemon owns the frequencies the page shows"
     await page.send({"cmd": "hf_tune", "on": True})
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "tune" and page.topics["hf"]["modem"]["keyed"])
@@ -134,7 +134,7 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "")
     await page.send({"cmd": "hf_key_test"})
     await page.until(lambda: page.topics["hf"]["modem"]["test"] == "key")
-    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "", 3.0)
+    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "", START_SEC)
     assert station.tuned == ["TUNE -15", "TUNE OFF", "TUNE -15", "TUNE OFF"], "(the keying here is the default, VOX: the test sends the tone)"
     await e.ctl.change_config(lambda c: replace(c, station_transmit=False))
     for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):

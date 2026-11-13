@@ -20,7 +20,8 @@ from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import on_air
 from tests.support.alertcmd import writing_titled
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, Env, until
+from tests.support.env import ON_AIR, Env
+from tests.support.files import until_written
 from tests.support.storedb import store_at
 
 HOME = (60.17, 24.94)
@@ -231,8 +232,7 @@ async def test_the_daemon_tells_every_page_and_runs_the_alert_command_and_the_al
     e.feed(on_air("OH2XYZ", b">on the air"))
     told = {"type": "station_alert", "call": "OH2XYZ", "kind": "on_air", "text": "OH2XYZ is on the air", "at": "2026-10-21T12:00:00Z", "km": None}
     assert await page.expect("station_alert") == told and await other.expect("station_alert") == told
-    await until(out.is_file)
-    assert out.read_text(encoding="utf-8").splitlines() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is on the air", "2026-10-21T12:00:00Z", "", "end"]
+    assert (await until_written(out)).splitlines() == ["station", "APRS alert: OH2XYZ", "OH2XYZ", "OH2XYZ is on the air", "2026-10-21T12:00:00Z", "", "end"]
     await e.stop()
     second = Env(tmp_path, web=True)
     await second.start()

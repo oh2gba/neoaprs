@@ -27,13 +27,13 @@ from tests.support.safety import raw
 # ---- shutdown
 async def test_a_clean_shutdown_does_everything_that_was_asked_and_does_not_wait_for_the_tick(tmp_path: Path) -> None:
     path = tmp_path / "x.sqlite"
-    db = await started(path, tuning=Tuning(tick=60.0))
+    db = await started(path, tuning=Tuning(tick=3600.0))
     awaited = [eager(db.write(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'w')", (n,)))) for n in range(20)]
     for n in range(100, 400):
         assert db.write_nowait(lambda conn, n=n: conn.execute("INSERT INTO t VALUES (?, 'a')", (n,)))
     began = time.monotonic()
     await db.close()
-    assert time.monotonic() - began < 30, "the shutdown waited for the tick (60 s); a loaded machine takes a few seconds for the 300 appends and their syncs"
+    assert time.monotonic() - began < 300, "the shutdown waited for the tick (an hour); a loaded machine takes a few seconds for the 300 appends and their syncs"
     answers = await asyncio.wait_for(asyncio.gather(*awaited, return_exceptions=True), 30)       # the answers are put on the loop by the thread; the tasks that wait for them wake up a turn after close() returns
     assert not [a for a in answers if isinstance(a, BaseException)], "an operation that was asked before the shutdown has its answer"
     assert committed(path) == list(range(20)) + list(range(100, 400)), "the last batch of appends is in"
@@ -104,21 +104,21 @@ async def test_a_write_on_the_queue_when_the_db_closes_is_committed_though_its_a
 async def test_a_stop_while_another_process_holds_the_lock_tries_the_batch_once_and_ends_inside_the_units_timeout(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A tool left in BEGIN IMMEDIATE during `systemctl restart`: three attempts with the busy time of 3 s would take 10.5 s, past TimeoutStopSec=10, and the unit would kill the stop. While the
     queue closes a batch is tried once (the STOP stands behind it; the lock is another process's), so the stop takes one busy wait, plus one for each awaited write still queued.
-    Here with a busy time of 100 ms and the retry waits of the daemon (0.5 s, then 1 s): three attempts would take 1.8 s."""
+    Here with a busy time of 100 ms and retry waits of 20 s, then 40 s: three attempts would take over a minute, and the stop takes a fraction of a second."""
     path = tmp_path / "x.sqlite"
     first = await started(path)
     await first.close()
     held = raw(path)
     held.execute("BEGIN IMMEDIATE")
     try:
-        db = Db.at(path, busy_ms=100, name=THREAD_PREFIX + "-locked", tuning=Tuning(tick=0.02, retry_sec=0.5))
+        db = Db.at(path, busy_ms=100, name=THREAD_PREFIX + "-locked", tuning=Tuning(tick=0.02, retry_sec=20.0))
         await db.start()
         assert db.write_nowait(lambda conn: conn.execute("INSERT INTO t VALUES (1, 'an event')"))
         awaited = eager(db.write(lambda conn: conn.execute("INSERT INTO t VALUES (2, 'a message')")))
         began = time.monotonic()
         await db.close()
         took = time.monotonic() - began
-        assert took < 1.0, f"the stop took {took:.2f} s: the batch was tried again behind a lock the stop cannot hurry"
+        assert took < 10.0, f"the stop took {took:.2f} s: the batch was tried again behind a lock the stop cannot hurry"
         with pytest.raises(sqlite3.OperationalError, match="locked"):
             await awaited                                                                 # the awaited write had its own busy wait and its own answer: nothing is silent
         stats: Any = db.stats()

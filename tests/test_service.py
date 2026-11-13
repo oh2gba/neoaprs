@@ -15,7 +15,7 @@ from neoaprs.cli.hostcheck import GroupCheck
 from neoaprs.instancelock import InstanceLock
 from tests.conftest import ROOT
 from tests.support.faketools import FakeTools
-from tests.support.ptyline import posix_only
+from tests.support.ptyline import posix_only, user_id
 
 REFERENCE_TEMPLATE = (ROOT / "tests" / "fixtures" / "service" / "reference-unit.template").read_text(encoding="utf-8")       # the unit of a clone, written by hand
 FOREIGN = "[Unit]\nDescription=foreign\n[Service]\nExecStart=/other/.venv/bin/python -m neoaprs\n"
@@ -339,7 +339,7 @@ def test_macos_install_writes_the_agent_and_loads_it(mac: Linux, capsys: pytest.
     content: dict[str, Any] = plistlib.loads(path.read_bytes())
     assert content["Label"] == "eu.oh2gba.neoaprs" and content["ProgramArguments"] == [sys.executable, "-m", "neoaprs", "--data", str(mac.clone / "data")]
     assert content["RunAtLoad"] is True and content["KeepAlive"] == {"SuccessfulExit": False}
-    uid = os.getuid()
+    uid = user_id()
     assert mac.tools.calls("launchctl ") == [f"launchctl bootout gui/{uid}/eu.oh2gba.neoaprs", f"launchctl bootstrap gui/{uid} {path}"]
     assert "starts at login" in capsys.readouterr().out
 

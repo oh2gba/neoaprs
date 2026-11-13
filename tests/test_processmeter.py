@@ -154,7 +154,7 @@ async def test_the_status_over_the_socket_has_the_share_the_memory_and_the_uptim
     assert first["uptime_sec"] == 0 and isinstance(first["cpu_percent"], float) and first["cpu_percent"] >= 0.0
     assert isinstance(first["rss_mb"], float) and first["rss_mb"] > 5.0
     assert round(first["cpu_percent"], 1) == first["cpu_percent"] and round(first["rss_mb"], 1) == first["rss_mb"]
-    e.now.advance(3700)
+    e.now.advance(3700)  # type: ignore[attr-defined]
     await page.send({"cmd": "status"})
     await page.until(lambda: len(page.of("status")) == 2)
     assert page.of("status")[-1]["uptime_sec"] == 3700
