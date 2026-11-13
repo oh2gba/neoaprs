@@ -118,7 +118,7 @@ OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.
                                   "path": None, "qru_group": "", "on_request": False, "radio": "fm", "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
 OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
-                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio": "",
+                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio": "", "failure": None,
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
                                                     "internet": None, "acked": False, "radio": "fm"}]}
 PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio": "fm", "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
@@ -129,9 +129,9 @@ TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "p
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
 MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
-    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "uv-tool", "appimage": "", "service": True, "arch": ""}, "topics": list(TOPIC_NAMES)},
-              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "topics": []},
-              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "topics": []}],
+    "hello": [{"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "uv-tool", "appimage": "", "service": True, "arch": ""}, "local": True, "topics": list(TOPIC_NAMES)},
+              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "local": True, "topics": []},
+              {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "local": False, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
                 "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "hf_beacon_last_sent": None, "hf_beacon_next_due": None,
                 "station_status": "QRV 14.074 MHz USB", "station_status_last_sent": NOW, "rig_state": "on",
@@ -293,6 +293,9 @@ def test_a_message_row_may_be_unconfirmed_and_a_station_pref_has_no_attempts_and
     assert MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "unconfirmed", "attempts": 2, "attempts_max": 2})).state == "unconfirmed"
     with pytest.raises(ValidationError):
         MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "unknown"}))
+    assert MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "failed", "attempts": 0, "failure": "too_long_for_radio"})).failure == "too_long_for_radio"
+    with pytest.raises(ValidationError):
+        MessageRow.model_validate_json(json.dumps({**MESSAGE_ROW, "state": "failed", "failure": "the message is too long"}))
     pref = {"path": None, "rf_only": False, "alert": None}
     assert not hasattr(StationPref.model_validate_json(json.dumps(pref)), "attempts")
     for extra in ({"attempts": 2}, {"hide_after_min": 90}):

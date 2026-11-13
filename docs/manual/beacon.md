@@ -23,7 +23,7 @@ Behind the status row's arrow a line per radio says each one's last and next bea
 While the beacon is **Off**:
 
 * **No automatic beacon goes out.** There is no timer and no SmartBeaconing. **Beacon now** still sends, and so does **Send status now**, each with its usual second press: Off is no automatic beacon, not a lock.
-* **No automatic status report goes out** either, because the status is the beacon's companion; a status that came due meanwhile is sent once, if it differs from the last one, at the first poll after you switch the beacon on again.
+* **No automatic status report goes out** either, because the status is the beacon's companion; a status that came due meanwhile is sent once, at the first poll after you switch the beacon on again.
 * **Everything else goes on as it does.** Messages and emails are sent and acknowledged, queries to your call are answered, your objects and bulletins are sent, and the fill-in digipeater digipeats. Off is not [RX only](#rx-only): your station still takes part, it just does not announce itself by the clock.
 * The **state of the beacon** under the Beacon choice reads **off: No automatic beacon · Beacon now still sends** for a fixed station. For a station that follows a GPS it keeps showing the GPS (its state and the fix line) and says the same behind its arrow, so that you can watch the fix while nothing is sent.
 * Only the **timing** is shown **greyed out, with its value kept**: **Travelling** and the status's **Every**. What is sent (the location, the symbol, the comment, the antenna, the path, the status text) stays editable, for **Beacon now** sends it. A header mark **Beacon off** (grey) says so, and opens this tab.
@@ -55,7 +55,7 @@ The first beacon goes out 30 seconds after the daemon starts, so that the radio 
 The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of `beacon/path`. Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
 
 ```
-OH2GBA>APZNEO,WIDE2-1:=6010.20N/02456.40E-NeoAPRS
+OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS
 ```
 
 A station that stays sends the plain uncompressed form, which every receiver reads; a moving station sends a compressed position ([Mobile operation](#mobile-operation)). `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
@@ -64,9 +64,9 @@ The **path** (Advanced) is one choice:
 
 - **Recommended**, the default, which goes by your station's type. The type is the **symbol** of your station; there is no setting for it. The choice names the path of the symbol you have, and follows it when you change the symbol.
   - A moving or carried station is **Recommended (WIDE1-1,WIDE2-1)**: a small digipeater nearby picks the packet up first and a wide-area one carries it on. Its symbol is a car, truck, van, bus, jeep, motorcycle, bicycle, jogger, wheelchair, boat, ship, canoe, yacht, aircraft, helicopter, glider, balloon, snowmobile, horse, farm vehicle, recreational vehicle, ambulance, fire truck or police car, with any overlay.
-  - Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop: **Recommended (WIDE2-1)**.
+  - Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop: **Recommended (WIDE2-2)**.
 - **Direct only (no digipeaters)**, for a station that everyone you talk to hears directly.
-- **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-2`, say. A path that is neither of the first two shows as Custom, `WIDE1-1,WIDE2-1` typed in included, and stays as it is when you change the symbol.
+- **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-1`, say. A path that is neither of the first two shows as Custom, `WIDE1-1,WIDE2-1` typed in included, and stays as it is when you change the symbol.
 
 Recommended and Direct only apply at once; the custom calls apply on Enter or when the field is left. An empty custom field is the recommended path again. The button beside the choice opens the [path builder](messages.md#the-path-builder), which starts from the path in force; **Use** applies the path built at once (no digipeater is Direct only, any other path Custom).
 
@@ -227,23 +227,23 @@ The tab shows only the fields the choice needs, with **Every** directly under th
 **From the radio.** NeoAPRS connects to `host:port` of the rigctld (Hamlib's default is `127.0.0.1:4532`) every 30 seconds, asks the frequency and the mode, and fills in the template. The default template is `QRV {freq} {mode}`. `{freq}` is megahertz with three decimals (`14.074 MHz`), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM`). No other field in braces, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`). With `14074000` Hz and `USB` the frame at 12:00 UTC on the 21st is:
 
 ```
-OH2GBA>APZNEO,WIDE2-1:>211200zQRV 14.074 MHz USB
+OH2GBA>APZNEO,WIDE2-2:>211200zQRV 14.074 MHz USB
 ```
 
-**The rule.** A status goes out when the interval (`status/interval_min`, a choice of 30 min, 60 min or 2 hours, at least 15) has passed since the last one, and what it says has changed since that one: the frequency to the kilohertz, or the mode, for a radio; the text for a static status. So:
+**The rule.** A status goes out when the interval (`status/interval_min`, a choice of 30 min, 60 min or 2 hours, at least 15) has passed since the last one, whether what it says has changed or not. For a radio the status is made from the frequency and the mode as they are then. So:
 
 - nothing goes inside the interval however the dial moves;
-- nothing goes when it is the same, so a long quiet band does not repeat itself every half hour;
+- a status that has not changed goes out again at every interval, so a station that hears yours sees that it is still there;
 - the first status goes out at the first poll after the start;
-- a restart does not send it again: the time and text of the last status are kept, so a daemon started inside the interval sends nothing, and one started after it sends a status only when the frequency and mode (or the text) differ from the kept text.
+- a restart does not send it again: the time and text of the last status are kept, so a daemon started inside the interval sends nothing, and one started after it sends a status at its first poll.
 
 **The beacon off.** While the beacon is [Off](#beacon-off) no status is sent, whatever its source; the whole Status group is greyed out and keeps its values.
 
 **The radio off.** If rigctld answers with an error (a radio that is switched off), refuses the connection or does not answer within 5 seconds, the radio is off or rigctld is away. Nothing is sent. The log says so once when it begins (`rigctld at 127.0.0.1:4532: connection refused: no status while it is away`) and once when the radio answers again.
 
-The status row says when the last status went and when the next may, if what it says has changed (**Last sent 4 min ago · next in 26 min if changed**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
+The status row says when the last status went and when the next is due (**Last sent 4 min ago · next in 26 min (every 30 min)**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
 
-**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval and although nothing changed. The interval counts from it. It is disabled, with a tip, only in [RX only](#rx-only) and while the TNC is not connected; [Off](#beacon-off) does not stop it.
+**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval. The interval counts from it. It is disabled, with a tip, only in [RX only](#rx-only) and while the TNC is not connected; [Off](#beacon-off) does not stop it.
 
 It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 

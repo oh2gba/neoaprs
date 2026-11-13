@@ -127,7 +127,7 @@ describe("the type of a station from its symbol", () => {
     ["\\", "Church"],
   ] as const)("takes %s %s for a fixed station", (table, name) => {
     expect(isMobileSymbol(table, named(table, name)), name).toBe(false);
-    expect(recommendedPath(table, named(table, name))).toBe("WIDE2-1");
+    expect(recommendedPath(table, named(table, name))).toBe("WIDE2-2");
   });
   it("sees through an overlay, and takes anything that is no symbol for a fixed station", () => {
     expect([isMobileSymbol("E", ">"), isMobileSymbol("4", "s"), isMobileSymbol("S", "#")]).toEqual([true, true, false]);

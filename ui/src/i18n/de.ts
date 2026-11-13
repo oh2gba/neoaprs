@@ -177,6 +177,7 @@ export const de: Catalogue = {
   "error.path.direct_alone": "{word} ist kein Digipeater: allein geschrieben bedeutet es gar keine Digipeater",
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
+  "error.setting.local_only": "das geht nur auf einer Seite am NeoAPRS-Computer",
   "error.setting.no_radio": "eine Station hat mindestens ein Funkgerät: setze das Häkchen beim FM-Funkgerät oder beim KW-Funkgerät",
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
@@ -268,6 +269,7 @@ export const de: Catalogue = {
   "messages.state.acked": { "=1": "quittiert, einmal gesendet", other: "quittiert, {n}-mal gesendet" },
   "messages.state.rejected": "abgelehnt",
   "messages.state.failed": "keine Antwort nach {n} Versuchen",
+  "messages.state.too_long_for_radio": "zu lang für das Funkgerät",
   "messages.state.unconfirmed": {
     "=1": "einmal gesendet, keine Quittung",
     "=2": "zweimal gesendet, keine Quittung",
@@ -421,6 +423,7 @@ export const de: Catalogue = {
   "email.state.rejected": "Abgelehnt",
   "email.state.cancelled": "Abgebrochen",
   "email.state.unconfirmed": "Nicht bestätigt",
+  "email.state.too_long_for_radio": "Zu lang für das Funkgerät",
   "email.not_confirmed":
     "gesendet, nicht bestätigt: die Quittung des Gateways erreicht dich nur über einen iGate, die E-Mail kann also durchaus angekommen sein",
 
@@ -1393,7 +1396,7 @@ export const de: Catalogue = {
   "settings.status_rigctld.tip2": "Beispiel: 127.0.0.1:4532",
   "settings.status_interval.name": "Statusintervall",
   "settings.status_interval.label": "Alle",
-  "settings.status_interval.tip1": "Die kürzeste Zeit zwischen zwei Status. Derselbe Status wird nicht noch einmal gesendet.",
+  "settings.status_interval.tip1": "Die Zeit zwischen zwei Status.",
   "settings.status_template.name": "Statusvorlage",
   "settings.status_template.label": "Text",
   "settings.status_template.tip1": "{{freq}} wird zur Frequenz des Funkgeräts und {{mode}} zur Betriebsart. Bis zu {max} Zeichen nach dem Einsetzen.",
@@ -1413,7 +1416,7 @@ export const de: Catalogue = {
   "settings.path.direct": "Nur direkt (keine Digipeater)",
   "settings.path.custom": "Eigener…",
   "settings.path.custom_label": "Digipeater",
-  "settings.path.tip1": "Empfohlen ist WIDE1-1,WIDE2-1 für eine bewegte Station und WIDE2-1 für eine feste, je nach deinem Symbol.",
+  "settings.path.tip1": "Empfohlen ist WIDE1-1,WIDE2-1 für eine bewegte Station und WIDE2-2 für eine feste, je nach deinem Symbol.",
   "settings.path.tip2": "Nur direkt, wenn alle, mit denen du sprichst, dich direkt hören.",
 
   "settings.confirm.label": "Bestätigen",
@@ -1612,8 +1615,7 @@ export const de: Catalogue = {
   "beacon.fold.untimed": "letzte Bake {ago} · keine zeitgesteuerte Bake",
   "beacon.fold.untimed_none": "noch keine Bake gesendet · keine zeitgesteuerte Bake",
   "beacon.status.line.none": "Noch nicht gesendet",
-  "beacon.status.line.timed": "Zuletzt gesendet {ago} · nächster {when}, wenn geändert",
-  "beacon.status.line.due": "Zuletzt gesendet {ago} · nächster, sobald er sich ändert",
+  "beacon.status.line.timed": "Zuletzt gesendet {ago} · nächster {when} (alle {minutes} min)",
   "beacon.status.line.untimed": "Zuletzt gesendet {ago} · kein zeitgesteuerter Status",
   "beacon.beacon_now": "Bake jetzt",
   "beacon.now_label": "Jetzt senden",

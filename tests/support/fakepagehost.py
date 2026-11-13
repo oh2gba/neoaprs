@@ -25,7 +25,7 @@ class FakeApi:
         self.commands: list[tuple[Socket, str]] = []
         self.detached: list[Socket] = []
 
-    def attach(self, socket: Socket, ip: str = "") -> None:
+    def attach(self, socket: Socket, ip: str = "", local: bool = False) -> None:
         self.sockets.append(socket)
 
     def on_command(self, socket: Socket, text: str) -> None:

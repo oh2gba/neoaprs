@@ -177,15 +177,15 @@ async def test_a_restart_inside_the_interval_sends_no_status_even_when_the_text_
     await d.stop()
 
 
-async def test_a_restart_after_the_interval_sends_no_status_when_the_text_is_the_same(tmp_path: Path) -> None:
+async def test_a_restart_after_the_interval_sends_the_same_text_again_and_the_kept_text_stays_what_the_aprss_answers_until_then(tmp_path: Path) -> None:
     store, clock = await kept(tmp_path)
     await first_run(store, clock, station_status="QRV 145.500", status_interval_min=30)
     clock.advance(31 * 60)
     d = Daemon(store, clock, station_status="QRV 145.500", status_interval_min=30)
+    assert d.status.status_frame() is None
     await d.status.start()
-    await quiet()
-    assert d.tnc.sent == []
-    assert d.status.status_frame() is not None, "?APRSS still answers with the status that was kept"
+    await until(lambda: len(d.reports()) == 1)
+    assert d.reports()[0].endswith(b"QRV 145.500")
     await d.stop()
 
 
@@ -201,17 +201,18 @@ async def test_a_restart_after_the_interval_sends_a_status_when_the_text_differs
     assert await store.setting(TEXT_ROW) == "At the cottage" and await store.setting(STATUS_ROW) == "2026-10-21T12:31:00Z"
 
 
-async def test_a_radio_status_after_a_restart_goes_out_only_when_the_frequency_or_the_mode_changed(tmp_path: Path) -> None:
+async def test_a_radio_status_after_a_restart_goes_out_once_the_interval_has_passed_with_what_the_radio_says_then(tmp_path: Path) -> None:
     store, clock = await kept(tmp_path)
     rigd: FakeRigctld = await rigctld()
     await first_run(store, clock, status_rigctld=rigd.address, status_interval_min=30)
     assert await store.setting(TEXT_ROW) == "QRV 14.074 MHz USB"
-    clock.advance(31 * 60)
-    same = Daemon(store, clock, status_rigctld=rigd.address, status_interval_min=30)
-    await same.status.start()
+    clock.advance(10 * 60)
+    inside = Daemon(store, clock, status_rigctld=rigd.address, status_interval_min=30)
+    await inside.status.start()
     await quiet()
-    assert same.tnc.sent == [], "the same frequency and mode"
-    await same.stop()
+    assert inside.tnc.sent == [], "inside the interval"
+    await inside.stop()
+    clock.advance(21 * 60)
     rigd.hz = 7074000
     moved = Daemon(store, clock, status_rigctld=rigd.address, status_interval_min=30)
     await moved.status.start()

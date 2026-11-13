@@ -88,7 +88,7 @@ def book() -> StationBook:
 
 
 def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
-    """A message in each state and with attempts: acked (heard back by radio and by the internet), failed, sending, received, overheard."""
+    """A message in each state and with attempts: acked (heard back by radio and by the internet), failed (for want of an answer, and for a frame the radio does not carry), sending, received, overheard."""
     seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True))
     a1 = Attempt(1, T0, ("OH2RCH-2", "WIDE2-1"), seen)
     a2 = Attempt(2, T0 + timedelta(seconds=30), ("WIDE1-1",), ())
@@ -103,6 +103,7 @@ def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
         (MessageRecord(6, T0, "out", ME, "OH2XYZ", "Moi, täällä ok", "15", "acked", 1, T0, T0 + timedelta(seconds=40), 4, "", "open", "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4"), (a3,)),
         (MessageRecord(7, T0, "in", "OH2XYZ", ME, "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4", "8", "received", 0, None, None, 4, "direct", "shut"), ()),
         (MessageRecord(8, T0, "in", "OH2XYZ", ME, "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", "9", "received", 0, None, None, 4, "direct", "key"), ()),
+        (MessageRecord(9, T0, "out", ME, "OH2XYZ", "Too long for HF", "16", "failed", 0, None, None, 4, "", failure="too_long_for_radio"), ()),
     ]
 
 

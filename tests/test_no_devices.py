@@ -130,8 +130,8 @@ class Doors:
 
     @property
     def left_this_computer(self) -> list[str]:
-        """Every host that was connected to or looked up and is not this computer."""
-        return [host for host in self.connected + self.looked_up if host not in LOCAL]
+        """Every host that was connected to or looked up and is not this computer (the page listens on the loopback address of this computer's name too, 127.0.1.1 on Debian)."""
+        return [host for host in self.connected + self.looked_up if host not in LOCAL and not nodevices.this_computer(host)]
 
     def untouched(self) -> bool:
         """No program was started, nothing left this computer, no Bluetooth socket was made and the machine was asked for no list."""

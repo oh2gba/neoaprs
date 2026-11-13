@@ -51,6 +51,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "messages.state.acked": { "=1": "con acuse, enviado una vez", other: "con acuse, enviado {n} veces" },
   "messages.state.rejected": "rechazado",
   "messages.state.failed": "sin respuesta tras {n} intentos",
+  "messages.state.too_long_for_radio": "demasiado largo para la radio",
   "messages.state.unconfirmed": { "=1": "enviado una vez, sin acuse", "=2": "enviado dos veces, sin acuse", other: "enviado {n} veces, sin acuse" },
   "messages.state.cancelled": { "=1": "cancelado tras {n} intento", other: "cancelado tras {n} intentos" },
 

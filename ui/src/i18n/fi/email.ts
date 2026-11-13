@@ -34,6 +34,7 @@ export const email: Record<keyof typeof source, Message> = {
   "email.state.rejected": "Hylätty",
   "email.state.cancelled": "Peruttu",
   "email.state.unconfirmed": "Ei vahvistettu",
+  "email.state.too_long_for_radio": "Liian pitkä radiolle",
   "email.not_confirmed": "lähetetty, ei vahvistettu: yhdyskäytävän kuittaus tulee luoksesi vain iGaten kautta, joten viesti on voinut mennä perille",
 
   "email.date_time": "{day}. {month} {time}",

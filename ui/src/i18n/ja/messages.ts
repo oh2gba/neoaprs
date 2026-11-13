@@ -52,6 +52,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.state.acked": { other: "応答確認あり、{n}回送信" },
   "messages.state.rejected": "拒否されました",
   "messages.state.failed": "{n}回送信しても応答なし",
+  "messages.state.too_long_for_radio": "無線機には長すぎる",
   "messages.state.unconfirmed": { other: "{n}回送信、応答確認なし" },
   "messages.state.cancelled": { other: "{n}回送信後にキャンセル" },
 

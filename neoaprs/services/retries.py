@@ -118,6 +118,13 @@ class Retries:
             else:
                 self._host.attempt(record)
 
+    def end_too_long(self, record: MessageRecord, why: Exception) -> MessageRecord:
+        """A message whose frame does not fit the radio it goes out on now (the radio changed, or its path is longer) cannot be sent by waiting: it has failed, and the log says why. Nothing was transmitted, so no attempt is counted; the record says why (`too_long_for_radio`), and so does the page."""
+        log.warning("message %d to %s fails: %s", record.id, record.to_call, why)
+        record = replace(record, state="failed", failure="too_long_for_radio")
+        self._host.put(record)
+        return record
+
     def _watch(self, radio: Radio, now: datetime, shut: bool) -> None:
         """One radio's time away, tick by tick: while it does not take frames (or the interlock is shut) the span grows to this tick; at the first tick that finds it back, the waits of the messages on it are
         moved on by the span up to the last tick that saw it away (the module docstring says why not up to this one)."""

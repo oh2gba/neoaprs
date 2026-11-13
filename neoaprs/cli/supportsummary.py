@@ -117,6 +117,14 @@ def _beacon(f: Facts, c: Config) -> str:
     return text
 
 
+def _state_rows(tnc: dict[str, Any]) -> list[tuple[str, str]]:
+    """A radio's state, its problem now (none while there is none), and, when it has had one, its latest error on a line of its own that says it is the latest and not the present one."""
+    rows = [("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or "none"))]
+    if tnc.get("last_error"):
+        rows.append(("Latest error", f"{tnc['last_error']} (the latest one, not necessarily a problem now)"))
+    return rows
+
+
 def _radio(f: Facts, c: Config) -> list[tuple[str, str]]:
     tnc = (f.live or {}).get("tnc")
     where = f"{c.tcp_host}:{c.tcp_port}" if c.profile.transport == "tcp" else (c.serial_port or "(found by searching)")
@@ -124,7 +132,7 @@ def _radio(f: Facts, c: Config) -> list[tuple[str, str]]:
         return [("TNC profile", c.tnc_profile), ("Port", f"{where}"), ("Speed", f"{c.tnc_baud} baud"), ("State", NO_DAEMON)]
     port = tnc.get("path") or where
     return [("TNC profile", c.tnc_profile), ("Port", f"{port}"), ("Speed", f"{tnc.get('baud') or c.tnc_baud} baud"),
-            ("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or tnc.get("last_error") or "none"))]
+            *_state_rows(tnc)]
 
 
 def _hf(f: Facts, c: Config) -> list[tuple[str, str]]:
@@ -137,7 +145,7 @@ def _hf(f: Facts, c: Config) -> list[tuple[str, str]]:
         return [*rows, ("State", NO_DAEMON)]
     found = hf.get("tnc")
     tnc: dict[str, Any] = found if isinstance(found, dict) else {}
-    rows += [("State", str(tnc.get("state", "?"))), ("Problem", str(tnc.get("problem") or tnc.get("last_error") or "none"))]
+    rows += _state_rows(tnc)
     for card in hf.get("sound_cards") or []:
         ways = " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on) or "neither"
         rows.append(("Sound card listed", f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}"))

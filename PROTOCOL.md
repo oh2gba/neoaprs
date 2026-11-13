@@ -210,7 +210,7 @@ or when the page closes, the page is sent no more. Nothing happens, and no error
 
 Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is
 left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the
-TNC, `station/*` move our own station on the map.
+TNC, `station/*` move our own station on the map. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`.
 
 | field | type | | description |
 |---|---|---|---|
@@ -462,7 +462,7 @@ that came from APRS-IS is read, as the topic shows none. Answered with a `statio
 
 Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM`
 is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. `messages/alert` is not asked: a test is explicit. Waits for the command and answers the page
-that asked with `alert_result`, or with an `error` when the command is empty (`no alert command`).
+that asked with `alert_result`, or with an `error` when the command is empty (`no alert command`). A page of another device is refused with `setting.local_only`.
 
 ### `bulletin_delete`
 
@@ -587,6 +587,7 @@ The first message of a connection; `status` and the `state` of every topic follo
 | `version` | string |  | the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one |
 | `page` | string |  | the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page |
 | `install` | InstallInfo |  | how this daemon was installed, for the steps of an update |
+| `local` | boolean |  | whether this page is on the computer the daemon runs on (the loopback, with a request addressed to it): only such a page changes the settings that name a program or an address the daemon runs or fetches from (messages/alert_command, update/url, map/source, web/allowed_hosts) and runs the alert's Test; a page of another device does not show them |
 | `topics` | string[] |  | the topics the page is following from the start: all of them (a page may `unsubscribe` from one) |
 
 ### `status`
@@ -931,7 +932,8 @@ of a message that came in, `to_call` of one we sent.
 | `text` | string |  |  |
 | `msg_id` | string \| null |  | the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one |
 | `radio` | "" \| "fm" \| "hf" |  | the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios |
-| `state` | "queued" \| "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
+| `state` | "queued" \| "sending" \| "acked" \| "rejected" \| "failed" \| "unconfirmed" \| "cancelled" \| "received" \| "overheard" |  | `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt, or the reason in `failure`; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) |
+| `failure` | "too_long_for_radio" \| null |  | why a `failed` message failed when it is not that no answer came: `too_long_for_radio`, its frame does not fit the radio it goes out on (it may have been sent before the radio changed; sent again, it is refused with `message.too_long_for_radio` while it does not fit); null for every other message, and for a failed one that had no answer |
 | `attempts` | integer |  | how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) (>= 0) |
 | `attempts_max` | integer |  | how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) (>= 1, <= 10) |
 | `last_attempt_at` | time \| null |  | when it was transmitted last; null until the first attempt (the TNC may be away) |

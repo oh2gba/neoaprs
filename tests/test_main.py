@@ -188,6 +188,7 @@ def test_a_database_of_a_newer_version_is_refused_without_a_restart_loop(tmp_pat
     out, err = ended(proc, data)
     assert proc.returncode == 2, (out, err)                                           # 2: the unit does not restart on it
     assert "newer NeoAPRS" in (data / "neoaprs.log").read_text(encoding="utf-8") and "newer NeoAPRS" in err
+    assert "there is no copy in the backup folder that this NeoAPRS can open" in (data / "neoaprs.log").read_text(encoding="utf-8")
     assert (data / DB_NAME).read_bytes() == before, "the file is not touched"
 
 

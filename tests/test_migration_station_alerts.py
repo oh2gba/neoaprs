@@ -8,13 +8,14 @@ from pathlib import Path
 import pytest
 
 from neoaprs import migrationsteps22on
-from neoaprs.alertcommand import LINUX_ALERT_COMMAND, WINDOWS_ALERT_COMMAND
+from neoaprs.alertcommand import WINDOWS_ALERT_COMMAND
 from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back, try_open
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
+from tests.test_migration_alert_markup import V22_LINUX_ALERT
 
 COLUMNS = "call, path, attempts, rf_only, updated_at"
 PREFS = [("OH2RDG", "OH2RCH-2,WIDE2-1", None, 0, STAMP), ("OH2DIR", "", None, 1, STAMP), ("OH2RFO", None, None, 1, STAMP), ("EMAIL-2", None, 2, 0, STAMP)]
@@ -43,7 +44,7 @@ def migrate(folder: Path, command: str | None = None) -> sqlite3.Connection:
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 22
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][21:] == [(22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][21:] == [(22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29])]
     fresh.close()
     return migrated.db
 
@@ -80,7 +81,7 @@ def test_a_command_of_the_operators_own_stays_and_the_old_defaults_are_the_new_o
     db = migrate(tmp_path, 'curl -s -H "Title: APRS message from $NEOAPRS_FROM" -d "$NEOAPRS_TEXT" https://ntfy.sh/x')
     assert db.execute("SELECT value FROM settings WHERE key = 'messages/alert_command'").fetchone()[0].startswith("curl -s")
     db.close()
-    assert migrationsteps22on._OLD_LINUX_ALERT.replace('"APRS message from $NEOAPRS_FROM"', '"$NEOAPRS_TITLE"') == LINUX_ALERT_COMMAND
+    assert migrationsteps22on._OLD_LINUX_ALERT.replace('"APRS message from $NEOAPRS_FROM"', '"$NEOAPRS_TITLE"') == V22_LINUX_ALERT
     assert migrationsteps22on._OLD_WINDOWS_ALERT.replace("'APRS message from '+$env:NEOAPRS_FROM", "$env:NEOAPRS_TITLE") == WINDOWS_ALERT_COMMAND
 
 

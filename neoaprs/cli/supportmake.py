@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from neoaprs import VERSION
+from neoaprs.childenv import windows_program
 from neoaprs.clock import Clock, utcnow
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
@@ -162,7 +163,7 @@ def show_command(path: Path, system: str) -> list[str] | str:
     """The command that shows the file in the system's file manager: Explorer with the file selected, Finder revealing it, or on Linux the folder (the file managers there do not agree on selecting a file). Explorer's is
     a command line and not a list: it wants the quotes round the path itself, after the comma, which a list would put round the whole argument."""
     if system == "win32":
-        return f'explorer /select,"{path}"'
+        return f'"{windows_program("explorer.exe", system32=False)}" /select,"{path}"'
     if system == "darwin":
         return ["open", "-R", str(path)]
     return ["xdg-open", str(path.parent)]

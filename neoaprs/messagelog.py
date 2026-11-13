@@ -11,7 +11,7 @@ from .clock import Clock, utcnow
 from .db import Db
 from .dberror import Row
 from .dblog import DbLog
-from .message import SEALS, MessageRecord
+from .message import FAILURES, SEALS, MessageRecord
 from .messagesql import (all_attempts, all_hops, all_keys, all_prefs, clear_chain, delete_conversation, delete_key, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_key, save_pref,
                          sending_messages, update_message)
 from .packetcodec import parse_stamp, stamp
@@ -29,16 +29,18 @@ def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
 def message_row(record: MessageRecord) -> Row:
     """The columns of the message table without the id, in the order of the INSERT."""
     return (stamp(record.at), record.direction, record.from_call, record.to_call, record.text, record.msg_id, record.state, record.attempts,
-            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio)
+            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio, record.failure)
 
 
 def message_of(row: Row) -> MessageRecord:
     """The message from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio) = row
+    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio, failure) = row
     if seal not in SEALS:
         raise ValueError(f"seal {seal!r}")
+    if failure is not None and failure not in FAILURES:
+        raise ValueError(f"failure {failure!r}")
     return MessageRecord(int(number), parse_stamp(str(at)), direction, str(from_call), str(to_call), str(text), None if msg_id is None else str(msg_id), state, int(attempts),
-                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=str(radio))
+                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=str(radio), failure=failure)
 
 
 class MessageLog(DbLog):
@@ -53,10 +55,10 @@ class MessageLog(DbLog):
         return None if number is None else replace(record, id=number)
 
     def update_state(self, record: MessageRecord) -> bool:
-        """Keeps the state, the attempts and the times of a message as they are now; False when it could not be queued."""
+        """Keeps the state, the attempts, the times and the failure of a message as they are now; False when it could not be queued."""
         last = None if record.last_attempt_at is None else stamp(record.last_attempt_at)
         acked = None if record.acked_at is None else stamp(record.acked_at)
-        return self._append(lambda conn: update_message(conn, record.id, record.state, record.attempts, last, acked))
+        return self._append(lambda conn: update_message(conn, record.id, record.state, record.attempts, last, acked, record.failure))
 
     async def delete(self, number: int) -> bool:
         """Removes a message; False when the database would not take it (a message that is not there is removed already, so that is True)."""

@@ -205,7 +205,7 @@ class Inbox:
         self.heard.settled(source)
         record = ours[0]
         if record.state in ACK_SETTLES:
-            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None))
+            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None))
             log.info("message %d to %s is %s", record.id, record.to_call, state)
         return True
 

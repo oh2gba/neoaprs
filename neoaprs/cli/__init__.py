@@ -11,7 +11,7 @@ COMMANDS = {
     "run": "run the daemon (what `neoaprs` does with no command, and `python -m neoaprs`)",
     "service": "set NeoAPRS up to start at login (install, remove, status, logs)",
     "map": "make the base map of your area (what the page's Download button does)",
-    "db": "look at and change the database: settings, stations, packets",
+    "db": "look at and change the database: settings, stations, packets, restore a copy",
     "replay": "play a capture as a KISS TNC on a TCP port, to run without a radio",
     "gps-replay": "play a drive as a gpsd on a TCP port, to run a moving station without a car or a GPS",
     "capture": "record what the radio sends into a file",

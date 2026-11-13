@@ -431,7 +431,7 @@ describe("SettingsForm", () => {
       expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
       expect(advanced?.find(".info-toggle").exists()).toBe(true);
       expect(advanced?.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
-      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-1)", "Direct only (no digipeaters)", "Custom…"]);
+      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-2)", "Direct only (no digipeaters)", "Custom…"]);
       expect(advanced?.find("#set-beacon-path-typed").exists()).toBe(false);
     });
 
@@ -440,7 +440,7 @@ describe("SettingsForm", () => {
       const options = () => wrapper.findAll("#set-beacon-path option").map((o) => o.text());
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
       await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }) });
-      expect(options()[0]).toBe("Recommended (WIDE2-1)");
+      expect(options()[0]).toBe("Recommended (WIDE2-2)");
       await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }) });
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
       expect(wrapper.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
@@ -999,6 +999,14 @@ describe("SettingsForm", () => {
           ?.findAll("button:not(.info-toggle):not(.groupfold)")
           .map((b) => b.text()),
       ).toEqual(["Test"]);
+    });
+    it("has no Command and no Test button on a page of another device, which keeps the Alert tickbox", () => {
+      const { wrapper } = make({ "messages/alert": "true" }, "settings", { local: false });
+      const box = notificationBoxes(wrapper)[0];
+      expect(wrapper.find("#set-messages-alert_command").exists()).toBe(false);
+      expect(box?.findAll("label").map((l) => l.text())).toEqual(["Alert"]);
+      expect(box?.findAll("button:not(.info-toggle):not(.groupfold)")).toHaveLength(0);
+      expect(wrapper.find("#set-messages-alert").exists()).toBe(true);
     });
     it("has the style of the group boxes for the boxes in it", () => {
       expect(cssRule(".settings fieldset")).toMatch(/border:\s*1px solid var\(--border\)/);

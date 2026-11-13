@@ -36,7 +36,7 @@ def table_of(table: str) -> str | None:
 
 
 # The symbols of a station that moves or is carried, by name, for each table (an overlay table is the alternate one). The station's symbol decides which path is recommended (route.recommended_path): a mobile one
-# goes by WIDE1-1,WIDE2-1 (the fill-in hop, then a wide-area digipeater), a fixed one (a house, a digipeater, a weather station, anything else) by WIDE2-1.
+# goes by WIDE1-1,WIDE2-1 (the fill-in hop, then a wide-area digipeater), a fixed one (a house, a digipeater, a weather station, anything else) by WIDE2-2.
 MOBILE_NAMES = {
     "primary": ("Small aircraft", "Mobile satellite station", "Wheelchair", "Snowmobile", "Motorcycle", "Railroad engine", "Car", "Canoe", "Farm vehicle", "Balloon", "Police car", "Recreational vehicle",
                 "Space shuttle", "Bus", "ATV", "Helicopter", "Yacht", "Jogger", "Large aircraft", "Ambulance", "Bicycle", "Horse", "Fire truck", "Glider", "Jeep", "Truck", "Rover", "Power boat",

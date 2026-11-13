@@ -21,6 +21,7 @@ import serial  # type: ignore[import-untyped]
 from . import nodevices
 from .btle import BleSerial, is_ble
 from .btserial import BluetoothSerial, is_bluetooth
+from .configvalues import port_scheme
 from .signal import Signal
 from .source import os_error_text
 
@@ -89,7 +90,7 @@ def _in_use(e: BaseException) -> bool:
 
 def _build(path: str, baud: int) -> Any:
     """The pyserial object, not yet open: 8N1, no flow control, DTR and RTS set low as soon as the open allows (they are what a sound-card interface keys the transmitter with), and exclusive on a POSIX device."""
-    url = normalize(path)
+    url = port_scheme(normalize(path))                    # (the one scheme check of the settings again: pyserial opens a file for `spy://`, so no address reaches it that the program does not mean)
     settings: dict[str, Any] = dict(baudrate=baud, bytesize=8, parity="N", stopbits=1, xonxoff=False, rtscts=False, dsrdtr=False, timeout=READ_TIMEOUT_SEC, write_timeout=WRITE_TIMEOUT_SEC)
     if is_bluetooth(url) or is_ble(url):                  # (pyserial does not know bt:// or ble://: its port class is made here, as serial_for_url would)
         ser = (BluetoothSerial if is_bluetooth(url) else BleSerial)(None, **settings)

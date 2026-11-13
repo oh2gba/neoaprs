@@ -29,7 +29,7 @@ def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
     version_fourteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 15
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [(15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][14:] == [(15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29])]
     found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
     migrated.close()
     return found
@@ -56,5 +56,5 @@ def test_a_database_with_no_beacon_path_stored_stays_so(tmp_path: Path) -> None:
 def test_after_the_migration_the_path_follows_the_symbol_and_the_custom_path_stays() -> None:
     house = Config.from_data({"beacon/path": "", "station/symbol_table": "/", "station/symbol_code": "-"})
     car = Config.from_data({"beacon/path": "", "station/symbol_table": "/", "station/symbol_code": ">"})
-    owner = Config.from_data({"beacon/path": "WIDE2-2", "station/symbol_table": "/", "station/symbol_code": ">"})
-    assert house.beacon_path_calls == ("WIDE2-1",) and car.beacon_path_calls == ("WIDE1-1", "WIDE2-1") and owner.beacon_path_calls == ("WIDE2-2",)
+    owner = Config.from_data({"beacon/path": "WIDE2-1", "station/symbol_table": "/", "station/symbol_code": ">"})
+    assert house.beacon_path_calls == ("WIDE2-2",) and car.beacon_path_calls == ("WIDE1-1", "WIDE2-1") and owner.beacon_path_calls == ("WIDE2-1",)

@@ -2,6 +2,7 @@
 // when none was (a digipeater we never hear direct cannot be confirmed from here), blue with "internet" when it was seen only in a copy an iGate gated back; the recipient is green on the ack, red on failure, grey while it waits.
 import { t } from "@/i18n";
 import { clockText, dateTimeText } from "@/lib/format";
+import { failedText } from "@/lib/messages";
 import type { AttemptRow, HopRow, MessageRow } from "@/protocol/protocol";
 
 type ChipKind = "you" | "heard" | "internet" | "unheard" | "acked" | "failed" | "waiting";
@@ -51,7 +52,7 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, ma
   }
   if (latest && mail && row.state === "failed") return { kind: "waiting", text, mark: "", title: t("chain.mail_unconfirmed") };
   if (latest && (row.state === "failed" || row.state === "rejected")) {
-    return { kind: "failed", text, mark: "✗", title: row.state === "failed" ? t("messages.state.failed", { n: row.attempts }) : t("messages.state.rejected") };
+    return { kind: "failed", text, mark: "✗", title: row.state === "failed" ? failedText(row) : t("messages.state.rejected") };
   }
   const waiting = !latest
     ? t("chain.no_ack_after")

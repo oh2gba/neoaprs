@@ -77,6 +77,8 @@ describe("chainOf", () => {
     const failed = message(1, { to_call: "OH2CUB-7", state: "failed", attempts: 6 });
     expect(chainOf(failed, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", mark: "✗", title: "no answer after 6 attempts" });
     expect(chainOf(failed, attempt([]), false).at(-1)?.kind).toBe("waiting");
+    const refused = message(1, { to_call: "OH2CUB-7", state: "failed", attempts: 1, failure: "too_long_for_radio" });
+    expect(chainOf(refused, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", mark: "✗", title: "too long for the radio" });
     const rejected = message(1, { to_call: "OH2CUB-7", state: "rejected" });
     expect(chainOf(rejected, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", title: "rejected" });
   });

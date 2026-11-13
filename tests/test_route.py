@@ -258,8 +258,8 @@ def test_a_group_seeded_from_the_database_brings_its_two_latest_times() -> None:
     assert heard_path(d, NOW) == ("OH2RCH-2",)
 
 
-@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-1"), ("/", "#", "WIDE2-1"), ("/", ">", WIDE_PATH), ("\\", "s", WIDE_PATH), ("J", "^", WIDE_PATH), ("/", "?", "WIDE2-1"), ("", "", "WIDE2-1")])
-def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_a_wide_hop_for_any_other(table: str, code: str, path: str) -> None:
+@pytest.mark.parametrize(("table", "code", "path"), [("/", "-", "WIDE2-2"), ("/", "#", "WIDE2-2"), ("/", ">", WIDE_PATH), ("\\", "s", WIDE_PATH), ("J", "^", WIDE_PATH), ("/", "?", "WIDE2-2"), ("", "", "WIDE2-2")])
+def test_the_recommended_path_is_the_fill_in_hop_and_a_wide_hop_for_a_mobile_symbol_and_two_wide_hops_for_any_other(table: str, code: str, path: str) -> None:
     assert recommended_path(table, code) == path
 
 

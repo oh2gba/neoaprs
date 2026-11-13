@@ -1,5 +1,6 @@
-"""Who may use the page from another device. On the loopback nobody is asked for anything. From any other address, and only while `web/network` is on, a request must carry the session cookie that the right
-access key (`web/key`) bought: the page's files are free (they hold the key screen), everything that carries data (the socket, the base map) is refused until the device has logged in.
+"""Who may use the page from another device. This computer itself (the loopback, with a request addressed to it) is asked for nothing. From any other address, and only while `web/network` is on, a request
+must carry the session cookie that the right access key (`web/key`) bought: the page's files are free (they hold the key screen), everything that carries data (the socket, the base map) is refused until the
+device has logged in. A page of another device does not change the settings that name a program or an address the daemon runs or fetches from, and does not run the alert's Test (`LOCAL_ONLY`).
 
 A session is `expires.nonce.mac`, the mac an HMAC of the first two parts under the access key, so that nothing is stored: it survives a restart, and a new key ends every session at once. The key itself is
 never in a cookie. Wrong keys are counted for each address; too many in a minute shut that address out for a while. The key is compared in constant time.
@@ -21,7 +22,7 @@ from neoaprs.config import Config
 from neoaprs.configtypes import KEY_ALPHABET, KEY_GROUP_SIZE, KEY_GROUPS, access_key
 
 from .addresses import is_loopback
-from .headers import origin_is_host
+from .headers import host_name, origin_is_host
 from .pagefiles import Secured
 
 log = logging.getLogger("neoaprs.web")
@@ -33,7 +34,11 @@ MAX_WRONG = 5                              # wrong keys from one address in WRON
 WRONG_WINDOW_SEC = 60.0
 BLOCK_SEC = 300.0
 MAX_TRACKED = 500                          # addresses kept in the counts
-PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip")      # a request that carries one came through a proxy, whose own address is not the visitor's
+PROXY_HEADERS = ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via")      # a request that carries one came through a proxy, whose own address is not the visitor's
+OWN_NAMES = ("localhost",)                 # the names of this computer itself that a request addressed to it has in its Host (besides a loopback address)
+# What a page of another device may not change: the settings that name a program or an address the daemon runs or fetches from. A session that left this computer (a phone, a cookie read off the network)
+# works the radio, not the computer; on a computer without a screen they are set with `neoaprs db set`.
+LOCAL_ONLY = frozenset({"messages/alert_command", "update/url", "map/source", "web/allowed_hosts"})
 
 
 def new_key() -> str:
@@ -41,8 +46,21 @@ def new_key() -> str:
 
 
 def is_local(request: tornado.httputil.HTTPServerRequest) -> bool:
-    """Does the request come from this computer itself, not through a proxy on it?"""
-    return is_loopback(request.remote_ip or "") and not any(name in request.headers for name in PROXY_HEADERS)
+    """Does the request come from this computer itself, not through a proxy on it? The peer is the loopback, no header of a proxy is there, and the request is addressed to this computer (a loopback
+    address or `localhost` in its Host): a proxy that passes the visitor's own Host name on is not this computer."""
+    if not is_loopback(request.remote_ip or "") or any(name in request.headers for name in PROXY_HEADERS):
+        return False
+    name = host_name(request.headers.get("Host", ""))
+    return name in OWN_NAMES or is_loopback(name)
+
+
+def this_computer_target(request: tornado.httputil.HTTPServerRequest, network: bool, port: int) -> str | None:
+    """Where a request on the loopback goes instead, `http://127.0.0.1:port`, when it was addressed by another name of this computer (its own name, as a browser on a Raspberry Pi opens it) while the page is
+    not open to the network: no key is let in then, so the key screen would be a dead end. None when the request is this computer's already, the network is on (the key works), it is not on the loopback,
+    or it says it came through a proxy (whose visitor is on another computer)."""
+    if network or port == 0 or not is_loopback(request.remote_ip or "") or any(name in request.headers for name in PROXY_HEADERS) or is_local(request):
+        return None
+    return f"http://127.0.0.1:{port}"
 
 
 def _mac(key: str, body: str) -> str:

@@ -116,9 +116,7 @@ class Messaging:
 
     def queued(self, record: MessageRecord) -> bool:
         """Whether the message waits for another of ours to the same station (one that has had an attempt, or an older one that has not) to be acked, rejected, failed or cancelled: no attempt of it is made meanwhile."""
-        if not _in_line(record) or record.attempts > 0:
-            return False
-        return any(other.id != record.id and other.to_call == record.to_call and _in_line(other) and (other.attempts > 0 or other.id < record.id) for other in self._records.values())
+        return _in_line(record) and record.attempts == 0 and any(other.id != record.id and other.to_call == record.to_call and _in_line(other) and (other.attempts > 0 or other.id < record.id) for other in self._records.values())
 
     def _line_of(self, record: MessageRecord) -> list[MessageRecord]:
         """The other messages of ours being sent to the same station: whether each waits may have changed with this one."""
@@ -219,8 +217,9 @@ class Messaging:
         record = self._ours(number)
         if record.state not in RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
+        self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the radio now is refused to the page, not sent to fail again)
         log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
-        record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None)
+        record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None)
         self.delivery.restart(number)
         self.put(record)
         return self.attempt(record)
@@ -334,6 +333,8 @@ class Messaging:
             radio = message_radio(self._tnc, record.to_call)
             sent = radio.send_frame(frame)
         except MessagingError as e:
+            if e.code == "message.too_long_for_radio":
+                return self.retries.end_too_long(record, e)
             if self._refused.get(record.id) != str(e):
                 self._refused[record.id] = str(e)
                 log.warning("message %d to %s cannot be sent: %s (it waits)", record.id, record.to_call, e)

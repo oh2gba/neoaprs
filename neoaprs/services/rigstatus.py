@@ -4,12 +4,12 @@
 `status/template` is filled in ({freq} as `14.074 MHz`, {mode} as rigctld names it: USB, LSB, CW, FM ...). A radio that is off (`RPRT -n`), a refused connection or no answer in time is "off": nothing is sent,
 and the log says so once for as long as it lasts, not at every poll. With `text` the status is the static text `station/status` ("unused"); with `off` there is none ("unused" too).
 
-One rule for both: a status report goes out when `status/interval_min` has passed since the last one sent (or none was ever sent) and what it says has changed since then: the frequency to the kHz and
-the mode for a radio, the text for the static status. So nothing goes inside the interval however the dial moves, nothing when it is the same, nothing while the radio is off, and a static text goes out
-once and again only when it is edited (at the next poll after the interval). The time and the text of the last report are kept in the rows `status/last_sent_at` and `status/last_text` (written after each
-send) and read at the start, so a restart sends nothing inside the interval and, after it, only a status that differs from the one kept. The report is the frame `Beacon.status_frame` makes (`>` and the time as `DDHHMMz`, then the text) sent through the Tnc by the
-beacon's destination and path. `last_text` is what `?APRSS` answers with (`status_frame()`) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval and whether it changed (the page's "Send status now"), by the same checks of the interlock, the length and the Tnc. No automatic status report goes while the beacon is off (`beacon/interval_min` is 0: quietly, as nothing is due; `send_now` still sends), and one that was held back goes at the first poll after the beacon is on if it differs and the interval has passed. A report that cannot go (the Tnc is not connected or the radio is silent, would not take it, the
-settings make no frame) is told once for each reason and tried again at the next poll.
+One rule for both: a status report goes out when `status/interval_min` has passed since the last one sent (or none was ever sent), whether what it says has changed or not: a static text goes out again at every interval, and a radio's frequency and
+mode are read afresh each time. So nothing goes inside the interval however the dial moves, and nothing while the radio is off. The time and the text of the last report are kept in the rows `status/last_sent_at` and `status/last_text`
+(written after each send) and read at the start, so a restart sends nothing inside the interval. The report is the frame `Beacon.status_frame` makes (`>` and the time as `DDHHMMz`, then the text) sent through the Tnc by the
+beacon's destination and path. `last_text` is what `?APRSS` answers with (`status_frame()`) and what the page shows as the current status. `send_now()` sends one at once, whatever the interval (the page's "Send status now"), by the same checks of the interlock,
+the length and the Tnc, and the interval counts from it. No automatic status report goes while the beacon is off (`beacon/interval_min` is 0: quietly, as nothing is due; `send_now` still sends), and one that was held back goes at the first poll after the beacon is on if the
+interval has passed. A report that cannot go (the Tnc is not connected or the radio is silent, would not take it, the settings make no frame) is told once for each reason and tried again at the next poll.
 """
 import logging
 from collections.abc import Awaitable, Callable
@@ -32,7 +32,6 @@ log = logging.getLogger("neoaprs.status")
 
 POLL_SEC = 30.0
 RigState = Literal["off", "on", "unused"]
-Key = tuple[str, str] | tuple[str, int, str]                   # what a status says: ("text", the text) or ("rig", kHz, mode)
 Reader = Callable[[str, int], Awaitable[Reading]]
 
 
@@ -65,7 +64,6 @@ class RigStatus:
         self.last_sent_at: datetime | None = None               # when the latest status report went out, as the row kept it after a restart
         self.last_text = ""                                     # what it said; empty until one has gone (or was kept)
         self.rig_state: RigState = "unused"
-        self._last_key: Key | None = None
         self._told = ""                                         # the reason a report was not sent, as last told
         self._rig_problem = ""                                  # why the radio gave no reading the last time
         self._remembered = Remembered(memory)
@@ -91,33 +89,33 @@ class RigStatus:
     async def poll(self) -> None:
         """Reads the radio (or takes the static text) and sends a status report when the rule says so."""
         c = self._config()
-        offer = await self._current(c)
-        if offer is not None and offer[1]:
-            self._offer(offer[0], offer[1], c.status_interval_min)
+        text = await self._current(c)
+        if text:
+            self._offer(text, c.status_interval_min)
 
-    async def _current(self, c: Config) -> tuple[Key, str] | None:
+    async def _current(self, c: Config) -> str | None:
         """What the status says now: the text, the radio's reading filled into the template, or None for no status (off, or a radio that is away)."""
         address = c.status_rig_address
         if address is not None:
             return await self._from_rig(c, address)
         self._set_state("unused", "")
-        return (("text", c.station_status), c.station_status) if c.status_choice == "text" else None
+        return c.station_status if c.status_choice == "text" else None
 
     async def send_now(self) -> str:
-        """Sends the status now, inside the interval and whether it changed or not; the interval counts from now. "" when it went out, else why not (the interlock, the Tnc, the radio away, no text, a text the settings cannot send)."""
+        """Sends the status now, inside the interval; the interval counts from now. "" when it went out, else why not (the interlock, the Tnc, the radio away, no text, a text the settings cannot send)."""
         c = self._config()
         if c.status_choice == "off":
             return "the status is off"
         if reason := self._interlock.refused("status"):
             return reason
-        offer = await self._current(c)
-        if offer is None:
+        text = await self._current(c)
+        if text is None:
             return self._rig_problem or "the status has no radio to come from: set status/rigctld"
-        if not offer[1]:
+        if not text:
             return "there is no status text"
-        return self._try(offer[0], offer[1])
+        return self._try(text)
 
-    async def _from_rig(self, c: Config, address: tuple[str, int]) -> tuple[Key, str] | None:
+    async def _from_rig(self, c: Config, address: tuple[str, int]) -> str | None:
         where = f"rigctld at {address[0]}:{address[1]}"
         try:
             reading = await self._read(*address)
@@ -126,7 +124,7 @@ class RigStatus:
             self._set_state("off", f"{self._rig_problem}: no status while it is away")
             return None
         self._set_state("on", f"{where}: the radio answers ({freq_text(reading.hz)} {reading.mode})")
-        return ("rig", (reading.hz + 500) // 1000, reading.mode), clipped(fill_template(c.status_template, freq_text(reading.hz), reading.mode))
+        return clipped(fill_template(c.status_template, freq_text(reading.hz), reading.mode))
 
     def _set_state(self, state: RigState, words: str) -> None:
         """The state of the radio; the log says it once when it changes (a warning for the radio going away, else a line of information)."""
@@ -135,15 +133,15 @@ class RigStatus:
             if words:
                 (log.warning if state == "off" else log.info)("%s", words)
 
-    def _offer(self, key: Key, text: str, interval_min: int) -> None:
+    def _offer(self, text: str, interval_min: int) -> None:
         if self._config().beacon_interval() == 0:
             return                                                   # (the radio's beacon Off is no automatic status; Status now still sends)
         now = self.clock()
-        if self._unchanged(key, text) or (self.last_sent_at is not None and now - self.last_sent_at < timedelta(minutes=interval_min)):
+        if self.last_sent_at is not None and now - self.last_sent_at < timedelta(minutes=interval_min):
             return
-        self._try(key, text)
+        self._try(text)
 
-    def _try(self, key: Key, text: str) -> str:
+    def _try(self, text: str) -> str:
         """Sends the status through the Tnc; "" when it went out, else the reason (told in the log once, as the poll tells it)."""
         if reason := self._interlock.refused("status"):
             return reason
@@ -163,14 +161,10 @@ class RigStatus:
             self._tell(reason, warn=True)
             return reason
         now = self.clock()
-        self.last_sent_at, self.last_text, self._last_key, self._told = now, text, key, ""
+        self.last_sent_at, self.last_text, self._told = now, text, ""
         self._remembered.put({STATUS_SENT: stamp(now), STATUS_TEXT: text})
         log.info("status sent: %s", frame.tnc2())
         return ""
-
-    def _unchanged(self, key: Key, text: str) -> bool:
-        """What the status says is what it said: the same frequency to the kHz and mode (or text) as the report sent in this run, or, after a restart, the same text as the one kept."""
-        return key == self._last_key if self._last_key is not None else text == self.last_text
 
     def _tell(self, reason: str, warn: bool = False) -> None:
         if reason != self._told:

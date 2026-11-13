@@ -29,8 +29,8 @@ from neoaprs.config import Config
 from neoaprs.controller import Controller
 from neoaprs.worldmap import world_file
 
-from .access import Access, Login, NewKey, new_key
-from .addresses import as_address, lan_addresses
+from .access import Access, Login, NewKey, new_key, this_computer_target
+from .addresses import as_address, is_loopback, lan_addresses
 from .api import Api
 from .connections import LimitedHTTPServer
 from .headers import host_name
@@ -53,6 +53,22 @@ MAX_REQUEST_BODY = 64 * 1024              # the page takes no upload over HTTP a
 HEADER_TIMEOUT_SEC = 60.0                 # a connection that has sent no request line, or is idle between two requests
 BODY_TIMEOUT_SEC = 30.0
 LOOPBACK = "127.0.0.1"
+HOSTS_FILE = Path("/etc/hosts")
+
+def name_loopbacks(hosts: Path = HOSTS_FILE) -> list[str]:
+    """The loopback addresses besides 127.0.0.1 that the hosts file gives this computer's own name (Debian and Raspberry Pi OS give it 127.0.1.1): a browser on it that opens the page by its name connects
+    there, so the page listens there too while it is not open to the network. The file is read, not the name looked up, so that nothing asks a name server. None when there is no such line or no file."""
+    own = socket.gethostname().lower()
+    try:
+        lines = hosts.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    found: set[str] = set()
+    for line in lines:
+        address, *names = line.split("#", 1)[0].split() or [""]
+        if is_loopback(address) and address != LOOPBACK and any(n.lower() == own or n.lower().startswith(f"{own}.") for n in names):
+            found.add(address)
+    return sorted(found)
 
 def default_page_dir() -> Path:
     return PAGE_DIR if (PAGE_DIR / "index.html").is_file() else PLACEHOLDER_DIR
@@ -71,6 +87,7 @@ class WebServer:
         self.api = Api(controller, reach=self.reach, secure=lambda: self.secure.state.wire(), page=self.page.build)
         self.access = Access(lambda: controller.config, controller.clock)
         self.address = LOOPBACK                           # what it listens on: "" is every interface
+        self._by_name: list[str] = []                     # the loopback addresses of this computer's own name, listened on beside LOOPBACK (name_loopbacks)
         self.port = 0
         self._server: LimitedHTTPServer | None = None
         self._switch = asyncio.Lock()                     # one change of what is listened on, or of the key, at a time
@@ -105,6 +122,10 @@ class WebServer:
         """Where a request that came over plain http from another device goes instead (neoaprs/web/securehandlers.py); None when it stays."""
         return secure_target(request, self.secure.port)
 
+    def this_computer_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None:
+        """Where a page request on the loopback by another name of this computer goes while the page is not open to the network (neoaprs/web/access.py); None when it stays."""
+        return this_computer_target(request, self.controller.config.web_network, self.bound_port())
+
     def _allowed_names(self) -> list[str]:
         return [host_name(n) for n in self.controller.config.web_allowed_hosts.replace(",", " ").split()]
 
@@ -133,6 +154,7 @@ class WebServer:
         c = self.config
         self._own_names = self._names(c.web_allowed_hosts.replace(",", " ").split())
         await self._ensure_key()
+        self._by_name = name_loopbacks()
         self.address = "" if self.controller.config.web_network else LOOPBACK
         app = tornado.web.Application([
             (r"/ws", Socket, {"server": self}),
@@ -157,6 +179,7 @@ class WebServer:
             await self.api.stop()
             return False
         self._server = server
+        self._listen_by_name(server)
         self.port = self.bound_port()
         log.info(PAGE_FORMAT, self.url())
         self._tell_the_page()
@@ -248,7 +271,19 @@ class WebServer:
             server.listen(port, self.address)
         except OSError as e:
             return e
+        self._listen_by_name(server)
         return None
+
+    def _listen_by_name(self, server: LimitedHTTPServer) -> None:
+        """On the loopback, the page listens on the loopback addresses of this computer's own name too, on the same port; one that cannot be listened on is left to the log."""
+        if self.address != LOOPBACK:
+            return
+        port = self.bound_port()
+        for address in self._by_name:
+            try:
+                server.listen(port, address)
+            except OSError as e:
+                log.info("the page is not on %s:%d, where this computer's own name leads: %s", address, port, e)
 
     @staticmethod
     def _log_request(handler: tornado.web.RequestHandler) -> None:

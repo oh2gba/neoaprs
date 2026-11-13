@@ -274,7 +274,7 @@ export const settings = {
   "settings.status_rigctld.tip2": "Example: 127.0.0.1:4532",
   "settings.status_interval.name": "Status interval",
   "settings.status_interval.label": "Every",
-  "settings.status_interval.tip1": "The least time between two statuses. The same status is not sent again.",
+  "settings.status_interval.tip1": "The time between two statuses.",
   "settings.status_template.name": "Status template",
   "settings.status_template.label": "Text",
   "settings.status_template.tip1": "{{freq}} becomes the radio's frequency and {{mode}} its mode. Up to {max} characters once filled in.",
@@ -292,7 +292,7 @@ export const settings = {
   "settings.path.direct": "Direct only (no digipeaters)",
   "settings.path.custom": "Custom…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "Recommended is WIDE1-1,WIDE2-1 for a moving station and WIDE2-1 for a fixed one, by your symbol.",
+  "settings.path.tip1": "Recommended is WIDE1-1,WIDE2-1 for a moving station and WIDE2-2 for a fixed one, by your symbol.",
   "settings.path.tip2": "Direct only if everyone you talk to hears you directly.",
 
   "settings.confirm.label": "Confirm",

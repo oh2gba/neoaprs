@@ -14,7 +14,7 @@ export interface AlertResultMessage {
   text: string;
 }
 
-/** Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. `messages/alert` is not asked: a test is explicit. Waits for the command and answers the page that asked with `alert_result`, or with an `error` when the command is empty (`no alert command`). */
+/** Runs the alert command as it is saved in the settings (`messages/alert_command`), exactly as for a message to us (the same shell, the same environment, the 20 s limit) with a made-up message: `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. `messages/alert` is not asked: a test is explicit. Waits for the command and answers the page that asked with `alert_result`, or with an `error` when the command is empty (`no alert command`). A page of another device is refused with `setting.local_only`. */
 export interface AlertTestCommand {
   cmd: "alert_test";
 }
@@ -461,6 +461,8 @@ export interface HelloMessage {
   page: string;
   /** how this daemon was installed, for the steps of an update */
   install: InstallInfo;
+  /** whether this page is on the computer the daemon runs on (the loopback, with a request addressed to it): only such a page changes the settings that name a program or an address the daemon runs or fetches from (messages/alert_command, update/url, map/source, web/allowed_hosts) and runs the alert's Test; a page of another device does not show them */
+  local: boolean;
   /** the topics the page is following from the start: all of them (a page may `unsubscribe` from one) */
   topics: string[];
 }
@@ -689,8 +691,10 @@ export interface MessageRow {
   msg_id: string | null;
   /** the radio a message that came in came on: `fm` the FM radio, `hf` the HF modem; empty for a message of ours (its attempts say) and for one kept before there were two radios */
   radio: "" | "fm" | "hf";
-  /** `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
+  /** `queued`: it waits, with no attempt made, for another message of ours to the same station to be acked, rejected, failed or cancelled (one message to a station is on the air at a time; one not expected to be acked, given 1 or 2 attempts, never waits); it can be cancelled, and becomes `sending` when its turn comes; `sending`: attempts are being made; `acked`: the addressee acknowledged it; `rejected`: the addressee refused it; `failed`: no answer after the last attempt, or the reason in `failure`; `unconfirmed`: no answer after the last attempt of a message that was given 1 or 2 attempts (the station is not expected to ack; a late ack still settles it); `cancelled`: stopped by the page; `received`: it was sent to us; `overheard`: it was sent to another station and we heard it (`from_call` sent it, `to_call` is who it is for) */
   state: "queued" | "sending" | "acked" | "rejected" | "failed" | "unconfirmed" | "cancelled" | "received" | "overheard";
+  /** why a `failed` message failed when it is not that no answer came: `too_long_for_radio`, its frame does not fit the radio it goes out on (it may have been sent before the radio changed; sent again, it is refused with `message.too_long_for_radio` while it does not fit); null for every other message, and for a failed one that had no answer */
+  failure: "too_long_for_radio" | null;
   /** how many times it has been transmitted (at most `attempts_max`: 0, 32, 64, 128, 256, 512, 1024 ... seconds after the first, no wait longer than 960) */
   attempts: number;
   /** how many attempts the message was given when it was sent: 4, 2 for the email gateway `EMAIL-2`, 1 for a bulletin (messages from before the count was fixed have their own, up to 10) */
@@ -1187,7 +1191,7 @@ export interface SendMessageCommand {
   locked?: boolean;
 }
 
-/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. */
+/** Changes settings. Every key and value is checked before anything is stored: the first that is wrong is answered with an `error` that names the key, and nothing changes. A key that is left out keeps its value. The answer is the `config` topic told again. `web/port` and `web/allowed_hosts` are read at the daemon's start, `web/network` (and with it the access key `web/key`) and `web/https` count at once, `serial/*`, `tcp/*` and `tnc/profile` restart the TNC, `station/*` move our own station on the map. A page of another device is refused with `setting.local_only` for `messages/alert_command`, `update/url`, `map/source` and `web/allowed_hosts`. */
 export interface SetConfigCommand {
   cmd: "set_config";
   /** key to the new text of the value; the text is checked and written the way the daemon writes it (`oh2gba` becomes `OH2GBA`) */

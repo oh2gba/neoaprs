@@ -180,7 +180,7 @@ describe("groupKeys", () => {
     expect(tip("station/status")).toContain("55");
     expect(tip("beacon/interval_min")).toContain("20");
     expect(tip("beacon/path")).toContain("WIDE1-1,WIDE2-1");
-    expect(tip("beacon/path")).toContain("WIDE2-1");
+    expect(tip("beacon/path")).toContain("WIDE2-2");
     expect(tip("status/template")).toMatch(/\{freq\}.*\{mode\}/);
     expect(tip("status/template")).toContain("14.074 MHz USB");
   });

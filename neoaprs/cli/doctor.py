@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from neoaprs import PROGRAM, VERSION
+from neoaprs.backupfolder import way_back
 from neoaprs.callsign import call_problem
 from neoaprs.config import Config
 from neoaprs.db import Db
@@ -78,7 +79,7 @@ def check_database(data: Path) -> tuple[Finding, dict[str, str] | None]:
     except (StoreError, SqlError, DbClosed, OSError) as e:
         return Finding("fail", f"{path} cannot be read: {e}", "if it is damaged, restore a copy from the backup folder next to it, or move it away (the settings and the packets are in it)"), None
     if version > SCHEMA_VERSION:
-        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", "update NeoAPRS; the file has not been touched"), rows
+        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), rows
     if version < SCHEMA_VERSION:
         return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), rows
     return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), rows

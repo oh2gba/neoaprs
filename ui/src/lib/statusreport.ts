@@ -1,5 +1,5 @@
-// What the status row of the Status group of the My station tab says (components/StatusReportRow.vue): not the text, which the Text field above it shows, but when a report last went and when the next may. The next is the interval after the last, and goes out then only if what it says has changed
-// (services/rigstatus.py); while the beacon is Off no status goes by the timer. In RX only (nothing is sent) the row is off in the warn colour, as the Digipeater's.
+// What the status row of the Status group of the My station tab says (components/StatusReportRow.vue): not the text, which the Text field above it shows, but when a report last went and when the next is due. The next is the interval after the last, and goes out then whether what it says has changed or not
+// (services/rigstatus.py), as "now" once it is due; while the beacon is Off no status goes by the timer. In RX only (nothing is sent) the row is off in the warn colour, as the Digipeater's.
 import { t } from "@/i18n";
 import { agoWords, untilText } from "@/lib/format";
 
@@ -19,5 +19,5 @@ export function reportLook(lastSent: string | null, minutes: string, beaconOff: 
   const every = Number(minutes);
   if (beaconOff || !(every > 0)) return { ...on, line: t("beacon.status.line.untimed", { ago }) };
   const nextAt = new Date(new Date(lastSent).getTime() + every * 60_000).toISOString();
-  return { ...on, line: t(Date.parse(nextAt) > nowMs ? "beacon.status.line.timed" : "beacon.status.line.due", { ago, when: untilText(nextAt, nowMs) }) };
+  return { ...on, line: t("beacon.status.line.timed", { ago, when: untilText(nextAt, nowMs), minutes: every }) };
 }

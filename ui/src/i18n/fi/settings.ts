@@ -278,7 +278,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_rigctld.tip2": "Esimerkki: 127.0.0.1:4532",
   "settings.status_interval.name": "Tilaviestin väli",
   "settings.status_interval.label": "Välein",
-  "settings.status_interval.tip1": "Lyhin aika kahden tilaviestin välillä. Samaa tilaviestiä ei lähetetä uudelleen.",
+  "settings.status_interval.tip1": "Aika kahden tilaviestin välillä.",
   "settings.status_template.name": "Tilaviestin malli",
   "settings.status_template.label": "Teksti",
   "settings.status_template.tip1": "{{freq}} muuttuu radion taajuudeksi ja {{mode}} sen modulaatioksi. Täytettynä enintään {max} merkkiä.",
@@ -298,7 +298,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.path.direct": "Vain suoraan (ei digipeatereita)",
   "settings.path.custom": "Oma…",
   "settings.path.custom_label": "Digipeaterit",
-  "settings.path.tip1": "Suositus on WIDE1-1,WIDE2-1 liikkuvalle ja WIDE2-1 kiinteälle asemalle symbolisi mukaan.",
+  "settings.path.tip1": "Suositus on WIDE1-1,WIDE2-1 liikkuvalle ja WIDE2-2 kiinteälle asemalle symbolisi mukaan.",
   "settings.path.tip2": "Vain suoraan, jos kaikki, joiden kanssa puhut, kuulevat sinut suoraan.",
 
   "settings.confirm.label": "Vahvista",

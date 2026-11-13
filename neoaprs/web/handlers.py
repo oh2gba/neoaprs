@@ -1,6 +1,6 @@
 """The handlers of the commands (neoaprs/web/dispatch.py): what each command of the page does to the daemon. Importing this module registers them, with those answered from the logs (neoaprs/web/historyhandlers.py).
 
-A handler asks the daemon to change and says so with an exception (`UserError`); what the pages are told of the change comes from the signals of the parts (neoaprs/web/topics.py), never from the handler.
+The settings and the alert's Test are in neoaprs/web/confighandlers.py. A handler asks the daemon to change and says so with an exception (`UserError`); what the pages are told of the change comes from the signals of the parts (neoaprs/web/topics.py), never from the handler.
 """
 import asyncio
 import logging
@@ -10,8 +10,7 @@ from dataclasses import asdict
 
 from neoaprs.clock import iso
 from neoaprs.coded import CodedError
-from neoaprs.config import RECEIVE_ONLY, Config, SettingError
-from neoaprs.cli.redaction import shown_value
+from neoaprs.config import RECEIVE_ONLY
 from neoaprs.mapstate import Job, MapError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.message import MessagingError
@@ -27,31 +26,23 @@ from .beaconwire import BeaconNow, StatusNow
 from .bulletinwire import BulletinDelete
 from . import historyhandlers  # noqa: F401  (the commands answered from the logs: importing it registers them)
 from . import hfhandlers  # noqa: F401  (Tune and the keying test of the HF radio: importing it registers them)
+from . import confighandlers  # noqa: F401  (set_config and the alert's Test: importing it registers them)
 from .dispatch import Ctx, UserError, command
 from .hostwire import AskStatus, CheckUpdate, Ping, ReleaseNotes
 from .hubwire import Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapWanted
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet
-from .pageerrors import one_line
-from .messagewire import AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage
+from .messagewire import ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage
 from .qruwire import AskQru
 from .generalwire import GeneralQuery
 from .portwire import FindRadio, FindRadioCancel, ListPorts
 from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStationRfOnly
-from .configwire import SetConfig
 from .stationwire import ForgetAllStations, ForgetStation
 from .supportwire import PageError
 from .updatewire import UpdateCancel, UpdateNow
 
 
 log = logging.getLogger("neoaprs.web")
-SHOWN_VALUE = 200                    # the longest value a line of the log shows
-
-
-def shown(key: str, value: str) -> str:
-    """A setting's value as the log shows it: a secret only as `(set, N characters)`, an empty value as such, a long one cut."""
-    text = one_line(shown_value(key, value), SHOWN_VALUE)
-    return text or "(empty)"
 
 
 @contextmanager
@@ -271,30 +262,6 @@ async def set_station_alert(ctx: Ctx, cmd: SetStationAlert) -> None:
         await ctx.ctl.stationalerts.set(cmd.call, Alert(cmd.on_air, cmd.within_km, cmd.direct))
 
 
-@command(SetConfig)
-async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
-    """Every value is checked before anything is stored (the first wrong one is the answer, with its key), and the settings in force are the base: a key that is left out keeps its value."""
-    before = after = ctx.ctl.config
-
-    def checked(base: Config) -> Config:
-        nonlocal before, after
-        before = base
-        after = Config.checked(base, cmd.values)
-        return after
-
-    try:
-        stored = await ctx.ctl.change_config(checked)
-    except SettingError as e:
-        raise UserError(f"set_config: {e}", e.code, e.key, e.params) from None
-    except ValueError as e:
-        raise UserError(f"set_config: {e}") from None
-    if not stored:
-        raise UserError("set_config: the settings could not be stored (the database would not take them); nothing changed", "setting.not_stored")
-    old, new = before.to_data(), after.to_data()
-    for key in before.changed(after):
-        log.info("settings: %s = %s (was %s)", key, shown(key, new[key]), shown(key, old[key]))
-
-
 @command(CheckUpdate)
 async def update_check(ctx: Ctx, cmd: CheckUpdate) -> None:
     result = await ctx.ctl.updatecheck.check_now()
@@ -323,15 +290,6 @@ async def update_cancel(ctx: Ctx, cmd: UpdateCancel) -> None:
         ctx.ctl.selfupdate.cancel()
     except CodedError as e:
         raise UserError(f"update_cancel: {e}", e.code, params=e.params) from None
-
-
-@command(AlertTest)
-async def alert_test(ctx: Ctx, cmd: AlertTest) -> None:
-    try:
-        ok, text = await ctx.ctl.alerts.test()
-    except ValueError as e:
-        raise UserError(f"{cmd.cmd}: {e}") from None
-    ctx.conn.send({"type": "alert_result", "ok": ok, "text": text})
 
 
 @command(BulletinDelete)

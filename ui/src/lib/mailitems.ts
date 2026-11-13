@@ -22,7 +22,7 @@ export interface MailItem {
 }
 
 export interface MailState {
-  /** the words: "Sending (1 of 2)", "Delivered", "Not confirmed", "Rejected", "Cancelled" */
+  /** the words: "Sending (1 of 2)", "Delivered", "Not confirmed", "Rejected", "Cancelled", "Too long for the radio" */
   word: string;
   /** green, red or plain, for the colour of the words */
   tone: "ok" | "bad" | "plain";
@@ -59,7 +59,8 @@ export function mailItems(thread: readonly MessageRow[]): MailItem[] {
   return [...thread].sort((a, b) => a.id - b.id).map(mailItem);
 }
 
-/** The state of a message of ours in words. A mail whose attempts ran out without an ack is "Not confirmed", never failed: the gateway's acks reach us only through an iGate. Null for a message that came in. */
+/** The state of a message of ours in words. A mail whose attempts ran out without an ack is "Not confirmed", never failed: the gateway's acks reach us only through an iGate. A mail that was never sent because
+ * it does not fit the radio says so. Null for a message that came in. */
 export function mailState(row: MessageRow): MailState | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
@@ -75,6 +76,8 @@ export function mailState(row: MessageRow): MailState | null {
     case "cancelled":
       return { word: t("email.state.cancelled"), tone: "plain" };
     case "failed":
+      if (row.failure === "too_long_for_radio") return { word: t("email.state.too_long_for_radio"), tone: "bad" };
+      return { word: t("email.state.unconfirmed"), tone: "plain" };
     case "unconfirmed":
       return { word: t("email.state.unconfirmed"), tone: "plain" };
     default:

@@ -9,9 +9,10 @@ from typing import Any
 
 import pytest
 
+from neoaprs.childenv import windows_program
 from neoaprs.services import alerts as alerts_module
 from neoaprs.services.alerts import (
-    POWERSHELL,
+    POWERSHELL_ARGS,
     POWERSHELL_POSTLUDE,
     POWERSHELL_PRELUDE,
     Alerts,
@@ -101,7 +102,7 @@ async def test_the_windows_run_gives_powershell_the_line_on_standard_input_and_t
     alerts = windows(monkeypatch, fake)
     assert await alerts.test() == (True, "ran")
     [(argv, kwargs)] = fake.started
-    assert tuple(argv) == POWERSHELL and argv[-2:] == ["-Command", "-"]
+    assert argv == [windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS] and argv[-2:] == ["-Command", "-"]
     assert not {"-EncodedCommand", "-ExecutionPolicy", "Bypass"} & set(argv)
     assert proc.inputs == [(POWERSHELL_PRELUDE + "Write-Host hi" + POWERSHELL_POSTLUDE + "\n").encode("utf-8")]
     assert (
@@ -144,7 +145,7 @@ async def test_a_windows_run_that_runs_out_of_time_is_killed_with_what_it_starte
         "the alert command did not end within 7 s: killed",
     )
     assert (
-        fake.taskkills == [["taskkill", "/T", "/F", "/PID", "4242"]]
+        fake.taskkills == [[windows_program("taskkill.exe"), "/T", "/F", "/PID", "4242"]]
         and proc.killed == 1
     ), "the tree is ended, then the process itself"
     assert len(proc.timeouts) == 2, (

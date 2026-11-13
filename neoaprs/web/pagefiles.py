@@ -29,6 +29,7 @@ class HostGate(Protocol):
     def host_allowed(self, header: str) -> bool: ...
     def note_foreign_host(self, shown: str) -> None: ...
     def secure_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None: ...
+    def this_computer_target(self, request: tornado.httputil.HTTPServerRequest) -> str | None: ...
 
 
 def refuse_foreign_host(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
@@ -60,6 +61,16 @@ def refuse_plain(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
     handler.set_header("Content-Type", "text/plain; charset=utf-8")
     handler.set_header("X-Content-Type-Options", "nosniff")
     handler.finish(f"The page is on a secure connection now: open {target}/\n")
+    return True
+
+
+def send_to_this_computer(handler: tornado.web.RequestHandler, server: HostGate) -> bool:
+    """Sends a GET or HEAD of a page on to http://127.0.0.1 (307) and returns True when it was addressed by another name of this computer while the network is off (no key is let in then)."""
+    request = handler.request
+    target = server.this_computer_target(request)
+    if target is None or request.method not in ("GET", "HEAD") or request.headers.get("Upgrade", "").lower() == "websocket":
+        return False
+    handler.redirect(f"{target}{request.uri or '/'}", status=307)
     return True
 
 
@@ -109,8 +120,8 @@ class Secured(SecurityHeaders):
     def prepare(self) -> None:
         # the server is in the application's settings, not an argument of initialize(): the files handler keeps its signature
         server = self.application.settings["neoaprs_server"]
-        if not refuse_foreign_host(self, server):
-            refuse_plain(self, server)
+        if not refuse_foreign_host(self, server) and not refuse_plain(self, server):
+            send_to_this_computer(self, server)
 
 
 PAGE_TYPES = {                                                # the types of the page's own kinds of file, the same on every system: the registry of Windows

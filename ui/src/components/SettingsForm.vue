@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The settings of the daemon, one field for every key it lists in the scope of the form (the Settings tab, or the My station tab with the keys the beacon sends), in groups (SettingsGroup; the Settings tab's fold by an arrow in the legend, and a group with a complaint of the daemon opens by itself). There is no Save button: a choice (a list, a switch, a symbol, a place
 // picked on the map) applies at once, a typed field on Enter or when it is left (never while it is typed), after the page's own check of it; the daemon checks it again, and a wrong one is shown under its field with what was typed kept. What
-// the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a field
+// the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a page of another device has neither (the daemon takes the command and runs the Test for a page on its own computer only, and says in hello which this is); a field
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: the FM radio and the HF radio in a box each, the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
@@ -49,7 +49,8 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now, keys } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now, keys, local } =
+  useDaemonContext();
 const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
@@ -100,6 +101,7 @@ const shown = (keys: readonly string[], inGroup = true) =>
       key !== SYMBOL_CODE &&
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
+      (key !== ALERT_KEY || local.value) &&
       shownFor(key, profile.value, network.value) &&
       shownByRadios(key, draft) &&
       shownByValues(key, draft),

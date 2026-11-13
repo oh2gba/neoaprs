@@ -72,7 +72,7 @@ The net cycle time follows the number of digipeaters of the path (chapter 2, poi
 
 A `WIDEn-N` counts the N hops it has left. `RFONLY`, `NOGATE` and the markers of the internet count none.
 
-So with `WIDE1-1,WIDE2-1` the packets go out at minute 0, 1, 3, 7, 15, 31 and then every 20 minutes (51, 71 ...). With `WIDE2-1`, the recommended path of a fixed station, they go at 0, 1, 3, 7, 15, 25 and then every 10. With `WIDE3-3` they go at 0, 1, 3, 7, 15, 31, 61 and then every 30.
+So with `WIDE1-1,WIDE2-1` the packets go out at minute 0, 1, 3, 7, 15, 31 and then every 20 minutes (51, 71 ...). With `WIDE2-2`, the recommended path of a fixed station, they go at 0, 1, 3, 7, 15, 31 and then every 20 minutes (51, 71 ...), as with `WIDE1-1,WIDE2-1`. With `WIDE2-1` they go at 0, 1, 3, 7, 15, 25 and then every 10. With `WIDE3-3` they go at 0, 1, 3, 7, 15, 31, 61 and then every 30. On the HF radio a frame goes direct, without the path, so an object on HF alone goes every 10 minutes; one on both radios keeps the rate of its path.
 
 - No packet of one object goes out less than a minute after the one before it, a change included. A change asked for sooner waits.
 - At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, whatever is due. A restart with many objects, or a radio that comes back, sends no burst.

@@ -56,7 +56,7 @@ from neoaprs.message import QUERY_TEXT, UNSETTLED, MessageRecord, addressed_to, 
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
-from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers
+from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget
 from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_for
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
@@ -205,10 +205,10 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 class Queries:
     def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[Radio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
-                 spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None) -> None:
+                 spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
         self._config = config
         self._tnc = tnc
-        self._answers = Answers(tnc, config, paths, spacing_sec)
+        self._answers = Answers(tnc, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._beacon = beacon
         self._status = status                                   # the frame of the status as last sent, for the radio the answer goes on (RigStatus.status_frame); None while none has been sent
         self._book = book
@@ -358,15 +358,18 @@ class Queries:
         return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
 
     def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: Radio) -> None:
-        """Each frame is made and sent on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it."""
+        """Each frame is made on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it; the ones that were made go together, or none when the budget
+        has no room for all of them."""
+        frames: list[ax25.Frame] = []
         for make in makers:
             try:
                 frame = make()
             except (BeaconError, ax25.Ax25Error, CallsignError, ValueError) as e:
                 log.warning("the answer to the general query of %s lacks a frame: %s", asker, e)
                 continue
-            if frame is not None and not self._answers.send(asker, frame, radio=radio):
-                break
+            if frame is not None:
+                frames.append(frame)
+        self._answers.send(asker, frames, radio=radio)
 
     # ---- the answers
     def _directs(self, now: datetime) -> list[str]:

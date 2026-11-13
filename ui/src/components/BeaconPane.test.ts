@@ -248,11 +248,11 @@ describe("BeaconPane", () => {
       expect(line(text, {})).toEqual(["on", "Not sent yet", ["Every 30 min"], "Send status now"]);
       expect(line(text, { station_status: "QRV 144.800 MHz FM", station_status_last_sent: ago(240) })).toEqual([
         "on",
-        "Last sent 4 min ago · next in 26 min if changed",
+        "Last sent 4 min ago · next in 26 min (every 30 min)",
         ["Every 30 min"],
         "Send status now",
       ]);
-      expect(line(text, { station_status_last_sent: ago(31 * 60) })[1]).toBe("Last sent 31 min ago · next as soon as it changes");
+      expect(line(text, { station_status_last_sent: ago(31 * 60) })[1]).toBe("Last sent 31 min ago · next now (every 30 min)");
       expect(line({ ...text, "beacon/interval_min": "0" }, { station_status_last_sent: ago(240) })[1]).toBe("Last sent 4 min ago · no timed status");
       expect(line(text, { station_status: "QRV 14.074 MHz USB", rig_state: "on" })[2]).toEqual(["QRV 14.074 MHz USB", "Every 30 min", "rigctld on"]);
       expect(line(text, { station_status: "", rig_state: "off" })).toEqual(["on", "Not sent yet", ["Every 30 min", "rigctld off"], "Send status now"]);

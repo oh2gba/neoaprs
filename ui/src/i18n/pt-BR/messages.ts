@@ -52,6 +52,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.state.acked": { "=1": "confirmada, enviada uma vez", other: "confirmada, enviada {n} vezes" },
   "messages.state.rejected": "rejeitada",
   "messages.state.failed": "sem resposta após {n} tentativas",
+  "messages.state.too_long_for_radio": "longa demais para o rádio",
   "messages.state.unconfirmed": { "=1": "enviada uma vez, sem ack", "=2": "enviada duas vezes, sem ack", other: "enviada {n} vezes, sem ack" },
   "messages.state.cancelled": { "=1": "cancelada após {n} tentativa", other: "cancelada após {n} tentativas" },
 

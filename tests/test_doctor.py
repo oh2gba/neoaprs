@@ -98,6 +98,15 @@ def test_a_database_of_a_newer_neoaprs_fails_and_one_of_an_older_version_is_a_wa
     conn.close()
     code, out = run(data, capsys)
     assert code == 1 and f"database version {SCHEMA_VERSION + 4}: made by a newer NeoAPRS" in out and "update NeoAPRS" in out
+    assert "there is no copy in the backup folder" in out
+    kept = data / "backup" / "premigrate-v1-to-v2-20261101-120000.sqlite"
+    kept.parent.mkdir()
+    conn = sqlite3.connect(kept)
+    conn.execute("CREATE TABLE t (x)")
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.close()
+    code, out = run(data, capsys)
+    assert kept.name in out and "2026-11-01 12:00 UTC" in out and "neoaprs db restore" in out
     conn = sqlite3.connect(data / "neoaprs.sqlite")
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION - 1}")
     conn.close()

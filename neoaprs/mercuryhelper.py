@@ -23,7 +23,7 @@ from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 from .bundled import tools_dir
-from .childenv import child_environment
+from .childenv import child_environment, windows_program
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards
 
 log = logging.getLogger("neoaprs.mercury")
@@ -292,7 +292,7 @@ def end_stale(pid_file: Path) -> bool:
 def _end_tree(process: subprocess.Popen[str]) -> None:
     """Windows: the process and every child of it ended (`taskkill /T /F`, the system's own tool: there is no tree in the Win32 API), then the process waited for; the process alone when taskkill is not there."""
     try:
-        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=STOP_WAIT_SEC, check=False, creationflags=HIDDEN_WINDOW)  # noqa: S607  (taskkill by its bare name: Windows looks in the program's own folder and in the working folder before System32, so a taskkill.exe in either would be run; its full path under %SystemRoot%\System32 closes that)
+        subprocess.run([windows_program("taskkill.exe"), "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=STOP_WAIT_SEC, check=False, creationflags=HIDDEN_WINDOW)
     except (OSError, subprocess.TimeoutExpired) as e:
         log.debug("taskkill could not end the Mercury tree: %s", e)
     try:

@@ -1,4 +1,4 @@
-"""One open page: the socket it talks through, where it is, and the ways to write to it.
+"""One open page: the socket it talks through, where it is (its address, and whether it is on this computer itself), and the ways to write to it.
 
 A connection sends through the publisher that made it (neoaprs/web/outbound.py), so a command handler says `conn.error("...")` or `conn.send(message)` and never meets the encoding, the size cap or the
 outgoing check. A connection is also what the state hub (neoaprs/web/hub.py) calls a `Link`: a way to write a text frame, and how much the socket holds that the page has not read.
@@ -35,6 +35,7 @@ class Connection:
     client: Client
     out: Outbound
     ip: str = ""
+    local: bool = False          # the page is on this computer itself (neoaprs/web/access.py, is_local of the socket's request): only such a page changes the settings of LOCAL_ONLY and runs the alert's Test
     closed: bool = False         # the page left: nothing is written to it any more
 
     def send(self, message: dict[str, Any]) -> None:

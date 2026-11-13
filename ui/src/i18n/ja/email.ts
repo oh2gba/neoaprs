@@ -34,6 +34,7 @@ export const email: Record<keyof typeof source, Message> = {
   "email.state.rejected": "拒否",
   "email.state.cancelled": "キャンセル",
   "email.state.unconfirmed": "未確認",
+  "email.state.too_long_for_radio": "無線機には長すぎる",
   "email.not_confirmed": "送信済み、未確認: ゲートウェイの応答確認はiGate経由でしか届かないため、メールは届いている可能性があります",
 
   "email.date_time": "{month}{day}日 {time}",

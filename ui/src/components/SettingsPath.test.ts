@@ -23,8 +23,8 @@ describe("SettingsPath", () => {
   });
 
   it("names the recommended path of a fixed station, and follows the symbol when it changes", async () => {
-    const wrapper = make("", { recommended: "WIDE2-1" });
-    expect(wrapper.findAll("option")[0]?.text()).toBe("Recommended (WIDE2-1)");
+    const wrapper = make("", { recommended: "WIDE2-2" });
+    expect(wrapper.findAll("option")[0]?.text()).toBe("Recommended (WIDE2-2)");
     await wrapper.setProps({ recommended: "WIDE1-1,WIDE2-1" });
     expect(wrapper.findAll("option")[0]?.text()).toBe("Recommended (WIDE1-1,WIDE2-1)");
     expect(select(wrapper).element.value).toBe("recommended");
@@ -55,7 +55,7 @@ describe("SettingsPath", () => {
   });
 
   it("applies Recommended at once, as the empty setting: the daemon takes the path of the symbol", async () => {
-    const wrapper = make("DIRECT", { recommended: "WIDE2-1" });
+    const wrapper = make("DIRECT", { recommended: "WIDE2-2" });
     await select(wrapper).setValue("recommended");
     expect(wrapper.emitted("choose")).toEqual([[""]]);
   });

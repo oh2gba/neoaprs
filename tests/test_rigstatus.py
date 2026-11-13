@@ -1,5 +1,5 @@
 """The status report (neoaprs/services/rigstatus.py) on a Tnc that is a stub, the real beacon, a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the
-interval, nothing when it is the same, nothing while the radio is off (and one line in the log for that), the static text under the same rule, and what ?APRSS answers with."""
+interval, the same status again at every interval, nothing while the radio is off (and one line in the log for that), the static text under the same rule, and what ?APRSS answers with."""
 import logging
 import socket
 import sys
@@ -66,18 +66,19 @@ async def test_after_the_interval_a_changed_frequency_or_mode_sends() -> None:
     assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211300zQRV 7.074 MHz CW"
 
 
-async def test_after_the_interval_without_a_change_sends_nothing_and_a_change_within_a_kilohertz_is_none() -> None:
+async def test_after_the_interval_the_same_status_goes_out_again_and_a_dial_that_moved_inside_it_makes_no_difference() -> None:
     rigd = await rigctld()
     rig = Rig(rigd)
     await rig.status.poll()
     rig.clock.advance(3 * 3600)
     await rig.status.poll()
-    rigd.hz = 14074400                                                  # (the same kilohertz)
-    await rig.status.poll()
-    assert rig.tnc.lines() == [FIRST]
+    assert rig.tnc.lines() == [FIRST, FIRST.replace("211200z", "211500z")]
     rigd.hz = 14075000
     await rig.status.poll()
-    assert rig.tnc.lines()[-1].endswith("QRV 14.075 MHz USB") and len(rig.tnc.sent) == 2
+    assert len(rig.tnc.sent) == 2, "the interval counts from the report that went out"
+    rig.clock.advance(30 * 60)
+    await rig.status.poll()
+    assert rig.tnc.lines()[-1].endswith("QRV 14.075 MHz USB") and len(rig.tnc.sent) == 3
 
 
 async def test_the_interval_is_the_setting_and_counts_from_the_status_that_went_out() -> None:
@@ -176,21 +177,26 @@ async def test_an_empty_template_sends_nothing() -> None:
 
 # ---- the static text ---------------------------------------------------------------------------------------------------------------------------
 
-async def test_the_static_text_goes_out_once_and_again_only_when_edited_and_after_the_interval() -> None:
+async def test_the_static_text_goes_out_again_at_each_interval_and_never_inside_it() -> None:
     rig = Rig(None, station_status="QRV 145.500")
     await rig.status.poll()
     assert rig.status.rig_state == "unused" and rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500"]
-    rig.clock.advance(3 * 3600)
+    rig.clock.advance(29 * 60 + 59)
     await rig.status.poll()
-    assert len(rig.tnc.sent) == 1, "the same text is not sent again"
+    assert len(rig.tnc.sent) == 1, "the same text, inside the interval"
+    rig.clock.advance(1)
+    await rig.status.poll()
+    assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211230zQRV 145.500" and len(rig.tnc.sent) == 2
+    for _ in range(3):
+        rig.clock.advance(30 * 60)
+        await rig.status.poll()
+    assert len(rig.tnc.sent) == 5
     rig.set(station_status="At the cottage")
-    rig.clock.advance(-3 * 3600 + 60)
     await rig.status.poll()
-    assert len(rig.tnc.sent) == 1, "edited, but inside the interval"
-    rig.clock.advance(29 * 60)
+    assert len(rig.tnc.sent) == 5, "edited, but inside the interval"
+    rig.clock.advance(30 * 60)
     await rig.status.poll()
-    assert rig.tnc.lines()[-1] == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211230zAt the cottage" and rig.status.last_text == "At the cottage"
-    assert len(rig.tnc.sent) == 2
+    assert rig.tnc.lines()[-1].endswith("At the cottage") and rig.status.last_text == "At the cottage" and len(rig.tnc.sent) == 6
 
 
 async def test_an_empty_static_text_sends_nothing() -> None:

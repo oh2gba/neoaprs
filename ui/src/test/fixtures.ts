@@ -219,6 +219,7 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     route: "",
     radio: "",
     seal: "",
+    failure: null,
     ...extra,
   };
 }
@@ -549,6 +550,7 @@ export function hello(extra: Partial<HelloMessage> = {}): HelloMessage {
     version: DAEMON_VERSION,
     page: "",
     install: { kind: "pip", appimage: "", service: false, arch: "" },
+    local: true,
     topics: [],
     ...extra,
   };

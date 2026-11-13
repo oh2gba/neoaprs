@@ -3,12 +3,16 @@ import { reportLook } from "@/lib/statusreport";
 import { NOW, ago } from "@/test/fixtures";
 
 describe("reportLook", () => {
-  it("says when the last report went and when the next may, if what it says has changed", () => {
-    expect(reportLook(ago(240), "30", false, false, NOW)).toEqual({ state: "on", tone: "beacon-on", line: "Last sent 4 min ago · next in 26 min if changed" });
+  it("says when the last report went and when the next is due, in the form of the beacon's line", () => {
+    expect(reportLook(ago(240), "30", false, false, NOW)).toEqual({
+      state: "on",
+      tone: "beacon-on",
+      line: "Last sent 4 min ago · next in 26 min (every 30 min)",
+    });
   });
 
-  it("says the next goes as soon as it changes once the interval has passed", () => {
-    expect(reportLook(ago(31 * 60), "30", false, false, NOW).line).toBe("Last sent 31 min ago · next as soon as it changes");
+  it("says the next is due now once the interval has passed", () => {
+    expect(reportLook(ago(31 * 60), "30", false, false, NOW).line).toBe("Last sent 31 min ago · next now (every 30 min)");
   });
 
   it("says not sent yet, and the text of the field is never the line", () => {

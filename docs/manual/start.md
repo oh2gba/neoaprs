@@ -45,6 +45,11 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 `--data DIR` chooses another folder, and `NEOAPRS_DATA_DIR` sets the default (the table "Environment variables" of [`CONVENTIONS.md`](../../CONVENTIONS.md) lists every variable).
 
 - `neoaprs.sqlite` is everything NeoAPRS keeps: the settings, every packet heard or sent, the messages, the message board, your own objects, items and bulletins, the weather of the weather stations, and the stations (a cache the daemon rebuilds from the packets). It is private to your user and is migrated at the start; a copy of it is made into `backup/` before a migration changes it.
+- `backup/` is also the way back. An older NeoAPRS refuses a file made by a newer one and leaves it alone; its message names the newest copy in `backup/` that it can open and the command that puts it back.
+
+  With NeoAPRS stopped, `neoaprs db restore` lists the copies (date, version, size) and `neoaprs db restore NAME` puts one in the place of the database. The file that was there is kept beside it as `neoaprs-set-aside-DATE-TIME.sqlite`, never deleted, so a newer NeoAPRS can have it back.
+
+  `backup/` holds the copy of the latest migration only: it is the way back from the last release, not from several.
 - Packets, weather observations and stations older than 7 days are removed once a day; packets that came from the internet (the Internet stations) are kept 2 days, since they are most of what the database holds. The weather graphs reach back 7 days. Messages and bulletins stay until you delete them.
 - `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors, and the lines of a database migration (what an upgrade changed), also go to stderr, which `systemctl status` and the journal show.
 - `basemap.pmtiles` is the detailed base map of your area (the world map ships with NeoAPRS and is not in this folder, unless an earlier version made `basemap-world.pmtiles` here); `bin/` holds the `pmtiles` tool; `tls/` holds the certificates of the secure connection.

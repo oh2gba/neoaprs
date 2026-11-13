@@ -73,6 +73,7 @@ export const errors: Readonly<Record<keyof typeof en, Message>> = {
   "error.qru.too_soon": "troppo presto per un’altra richiesta di info locali: attendi {seconds} s",
   "error.path.direct_alone": "{word} non è un digipeater: scritto da solo significa nessun digipeater",
   "error.setting.comment_too_long": "{length} caratteri sono più dei {limit} consentiti con l’estensione PHG (svuota beacon/power_w per non inviarla)",
+  "error.setting.local_only": "solo una pagina sul computer di NeoAPRS può farlo",
   "error.setting.no_radio": "una stazione ha almeno una radio: attiva la radio FM o la radio HF",
   "error.setting.not_access_key": "non è una chiave di accesso (tre gruppi di quattro cifre e lettere, come k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "ha caratteri che non sono ASCII stampabile",

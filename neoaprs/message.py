@@ -18,6 +18,8 @@ from neoaprs.route import DIRECT_ONLY, rf_only_path
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
 Seal = Literal["", "key", "key_other", "open", "shut"]
 SEALS: tuple[Seal, ...] = ("", "key", "key_other", "open", "shut")
+Failure = Literal["too_long_for_radio"]                                   # why a message of ours failed when it is not that no answer came: its frame does not fit the radio it goes out on
+FAILURES: tuple[Failure, ...] = get_args(Failure)
 STATES: tuple[str, ...] = get_args(State)
 UNSETTLED: tuple[State, ...] = ("sending", "failed", "unconfirmed")            # our messages that no ack has settled: being sent, or ended without one
 ACK_SETTLES: tuple[State, ...] = (*UNSETTLED, "cancelled")                   # an ack or a rej that comes settles a message of ours in one of these states
@@ -71,6 +73,7 @@ class MessageRecord:
     seal: Seal = ""                                       # what the message is besides text: "" plain; "key" an announcement of the sender's public key (neoaprs/cipher.py); "key_other" one that differs from the key kept and was not taken; "open" encrypted and read; "shut" encrypted and not readable here
     wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
     radio: str = ""                                      # the radio a message that came in came on (`fm`, `hf`; empty for one of ours, whose attempts say, and for one kept before there were two)
+    failure: Failure | None = None                        # why a failed message of ours failed (`FAILURES`); None while it has not failed and for one that failed for want of an answer
 
     @property
     def peer(self) -> str:

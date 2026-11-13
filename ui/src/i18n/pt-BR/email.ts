@@ -34,6 +34,7 @@ export const email: Record<keyof typeof source, Message> = {
   "email.state.rejected": "Rejeitado",
   "email.state.cancelled": "Cancelado",
   "email.state.unconfirmed": "Não confirmado",
+  "email.state.too_long_for_radio": "Longo demais para o rádio",
   "email.not_confirmed": "enviado, não confirmado: o ack do gateway só chega por um iGate, então o e-mail pode muito bem ter sido entregue",
 
   "email.date_time": "{day} {month} {time}",

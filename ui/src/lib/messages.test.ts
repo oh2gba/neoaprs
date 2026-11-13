@@ -158,6 +158,12 @@ describe("messages: the state", () => {
     expect(stateText(incoming(1, "A"))).toBe("");
   });
 
+  it("tells a failed message by its reason when it has one, in place of the attempts", () => {
+    expect(stateText(message(1, { state: "failed", attempts: 0, failure: "too_long_for_radio" }))).toBe("too long for the radio");
+    expect(stateText(message(1, { state: "failed", attempts: 1, failure: "too_long_for_radio" }))).toBe("too long for the radio");
+    expect(stateText(message(1, { state: "failed", attempts: 4, failure: null }))).toBe("no answer after 4 attempts");
+  });
+
   it("says a message that waits for the one before it to the same station is queued, with no attempt told", () => {
     expect(stateText(message(2, { state: "queued", attempts: 0 }))).toBe("waits for the message before");
   });

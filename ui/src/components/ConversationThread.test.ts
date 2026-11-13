@@ -16,6 +16,23 @@ describe("a queued message in the conversation", () => {
   });
 });
 
+describe("a failed message in the conversation", () => {
+  it("shows its reason where the attempts are told, in the same place, with Retry as for any failed message", () => {
+    const thread = [
+      message(1, { text: "long", state: "failed", attempts: 0, failure: "too_long_for_radio" }),
+      message(2, { text: "unanswered", state: "failed", attempts: 4 }),
+    ];
+    const wrapper = mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
+    const [refused, unanswered] = wrapper.findAll(".bubble");
+    expect(refused?.find(".msg-state").text()).toBe("too long for the radio");
+    expect(refused?.text()).not.toContain("no answer");
+    expect(refused?.find(".msg-state").classes()).toContain("state-failed");
+    expect(refused?.findAll(".bubble-meta").length).toBe(1);
+    expect(refused?.findAll("button").map((b) => b.text())).toContain("Retry");
+    expect(unanswered?.find(".msg-state").text()).toBe("no answer after 4 attempts");
+  });
+});
+
 describe("encrypted messages and keys in the conversation", () => {
   const mounted = (thread: ReturnType<typeof message>[]) => mount(ConversationThread, { props: { thread, peer: "OH2RDG" } });
 

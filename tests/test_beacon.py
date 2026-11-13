@@ -63,7 +63,7 @@ def test_the_frame_follows_the_settings() -> None:
 
 
 @pytest.mark.parametrize(("table", "code", "path"), [
-    ("/", "-", "WIDE2-1"), ("/", "_", "WIDE2-1"), ("\\", "#", "WIDE2-1"), ("/", "r", "WIDE2-1"),
+    ("/", "-", "WIDE2-2"), ("/", "_", "WIDE2-2"), ("\\", "#", "WIDE2-2"), ("/", "r", "WIDE2-2"),
     ("/", ">", "WIDE1-1,WIDE2-1"), ("/", "b", "WIDE1-1,WIDE2-1"), ("/", "k", "WIDE1-1,WIDE2-1"), ("/", "[", "WIDE1-1,WIDE2-1"), ("\\", "s", "WIDE1-1,WIDE2-1"), ("E", ">", "WIDE1-1,WIDE2-1"),
 ])
 def test_an_empty_path_is_the_recommended_path_of_the_symbol_for_the_beacon_and_the_status(table: str, code: str, path: str) -> None:
@@ -71,7 +71,12 @@ def test_an_empty_path_is_the_recommended_path_of_the_symbol_for_the_beacon_and_
     assert rig.beacon.frame().path_text == path
     status = rig.beacon.status_frame("QRV")
     assert status is not None and status.path_text == path
-    assert Rig(beacon_path="WIDE2-2", station_symbol_table=table, station_symbol_code=code).beacon.frame().path_text == "WIDE2-2", "a path that is set is the owner's"
+    assert Rig(beacon_path="WIDE2-1", station_symbol_table=table, station_symbol_code=code).beacon.frame().path_text == "WIDE2-1", "a path that is set is the owner's"
+
+
+def test_an_empty_path_sends_a_fixed_station_by_wide2_2_and_a_mobile_one_by_wide1_1_and_wide2_1() -> None:
+    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code="-").beacon.frame().path_text == "WIDE2-2"
+    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code=">").beacon.frame().path_text == "WIDE1-1,WIDE2-1"
 
 
 @pytest.mark.parametrize("lat, lon, text", [

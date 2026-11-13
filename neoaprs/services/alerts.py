@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 
 from neoaprs import nodevices
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
-from neoaprs.childenv import child_environment
+from neoaprs.childenv import child_environment, windows_program
 from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.message import MessageRecord, is_query
 from neoaprs.pref import Fired
@@ -48,7 +48,7 @@ MAX_LINE = 200                                                  # characters of 
 MAX_OUTPUT = 400                                                # characters of a command's output kept in the log
 # The script goes in on standard input (`-Command -`), as it is: no encoded command and no execution policy bypass, which a windowless program starting PowerShell with does what malware does, and Windows
 # Defender's guess took NeoAPRS for a trojan (4 Nov 2026); a command given inline is not under the execution policy anyway. (Text: else what it writes to stderr is XML.)
-POWERSHELL = ("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", "-")
+POWERSHELL_ARGS = ("-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", "-")
 POWERSHELL_PRELUDE = "$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"           # the Windows counterpart of `set -e` for cmdlets; the status of a program that failed is passed on by the postlude
 POWERSHELL_POSTLUDE = ";if($LASTEXITCODE){exit $LASTEXITCODE}"
 
@@ -179,7 +179,7 @@ class Alerts:
         script = (POWERSHELL_PRELUDE + command.replace("\r", " ").replace("\n", " ") + POWERSHELL_POSTLUDE + "\n").encode("utf-8")     # (one line: PowerShell runs what it reads line by line)
         try:
             creation = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            proc = subprocess.Popen(list(POWERSHELL), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
+            proc = subprocess.Popen([windows_program("WindowsPowerShell", "v1.0", "powershell.exe"), *POWERSHELL_ARGS], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creation)
         except Exception as e:                                   # (nothing a command does may stop the daemon)
             return Outcome(problem=f"the alert command could not run: {e}")
         running.set(proc)
@@ -230,7 +230,7 @@ class _Running:
         if proc is None or proc.poll() is not None:
             return
         try:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)      # (the whole tree: PowerShell and what it started)  # noqa: S607  (taskkill by its bare name: Windows looks in the program's own folder and in the working folder before System32, so a taskkill.exe in either would be run; its full path under %SystemRoot%\System32 closes that)
+            subprocess.run([windows_program("taskkill.exe"), "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)      # (the whole tree: PowerShell and what it started; the system's own taskkill, by its full path)
         except Exception:  # noqa: S110  (nothing a command does may stop the daemon; PowerShell itself is ended just below, with taskkill or without)
             pass
         try:

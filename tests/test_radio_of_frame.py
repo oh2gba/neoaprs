@@ -168,6 +168,23 @@ def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same
 def test_the_status_report_is_built_for_the_radio_it_goes_on() -> None:
     rig = Rig()
     rig.radios.enabled = {"hf"}                                             # (the FM radio off: the default radio is the HF one)
-    assert rig.status._try(("text", "QRV"), "QRV 14.074 MHz USB") == ""
+    assert rig.status._try("QRV 14.074 MHz USB") == ""
     [frame] = rig.radios.hf.sent
     assert frame.path == () and len(ax25.encode(frame)) <= 60 and rig.radios.fm.sent == []
+
+
+async def test_an_object_on_hf_alone_repeats_by_the_net_cycle_of_a_direct_frame_and_one_on_both_by_that_of_the_fm_path(tmp_path: Path) -> None:
+    log, _, clock = await log_at(tmp_path, OwnLog)
+    radios = StubRadios()
+    config = replace(BOTH, beacon_path="WIDE2-2")
+    objects = OwnObjects(Sender(radios, lambda: config, clock, spacing_sec=0.0), lambda: config, log, clock=clock, tick_sec=3600.0)
+    await objects.start()
+    remember_stop(objects.stop)
+    objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radio="hf")
+    objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", "-", "on both", radio="both")
+    for name in ("FARAWAY", "BOTHWAYS"):
+        found = objects.get(name)
+        assert found is not None
+        objects._store(replace(found, sent=6, last_sent_at=clock()))
+    assert objects._due("FARAWAY") == clock() + timedelta(seconds=600), "the HF frame carries no digipeater: ten minutes"
+    assert objects._due("BOTHWAYS") == clock() + timedelta(seconds=1200), "WIDE2-2 on FM: twenty"

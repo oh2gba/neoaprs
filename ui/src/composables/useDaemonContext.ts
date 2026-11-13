@@ -76,6 +76,8 @@ export interface DaemonContext {
   /** the version of the daemon */
   version: Read<string>;
   install: Read<InstallInfo | null>;
+  /** the page is on the computer the daemon runs on (the daemon's hello says so): only there are the settings shown that name a program the daemon runs, and the alert's Test */
+  local: Read<boolean>;
   /** the latest weather series for each station */
   weatherSeries: Read<ReadonlyMap<string, WeatherSeriesMessage>>;
   /** the packets heard by the hour, the answer to the statistics card's `packet_history`; null until one came */

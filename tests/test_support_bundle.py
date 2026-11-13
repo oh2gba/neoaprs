@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import VERSION
+from neoaprs.childenv import windows_program
 from neoaprs.clock import utc
 from neoaprs.cli import supportbundle, supportgather
 from neoaprs.cli.supportbundle import Member, bundle_name, log_members, rotated_logs, scrubbed, secret_pattern, write_zip
@@ -94,6 +95,29 @@ def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_n
     (tmp_path / "off").mkdir()
     off = made(tmp_path / "off", fake_folder(tmp_path / "off"))[1]["summary.txt"]
     assert "HF radio" in off
+
+
+def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_its_own(tmp_path: Path) -> None:
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "hf/profile": "mercury"})
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
+            "tnc": {"state": "connected", "problem": "", "last_error": "connection refused", "path": "", "baud": 9600},
+            "hf": {"enabled": True, "profile": "mercury", "tnc": {"state": "connected", "problem": "", "last_error": "the sound card could not be opened"}, "sound_cards": []}}
+    lines = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"].splitlines()
+    problems = [line.split(":", 1)[1].strip() for line in lines if line.strip().startswith("Problem:")]
+    latest = [line for line in lines if line.strip().startswith("Latest error:")]
+    assert problems == ["none", "none"], "the line says the problem there is now"
+    assert len(latest) == 2 and "connection refused" in latest[0] and "the sound card could not be opened" in latest[1] and all("the latest one" in line for line in latest)
+
+
+def test_a_radio_with_a_problem_now_shows_it_and_one_that_never_failed_has_no_latest_error_line(tmp_path: Path) -> None:
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"}, "tnc": {"state": "waiting", "problem": "no radio found", "last_error": "no radio found", "path": "", "baud": 9600}}
+    waiting = made(tmp_path, running=True, live=live, by="the running daemon")[1]["summary.txt"]
+    assert re.search(r"Problem:\s+no radio found", waiting)
+    (tmp_path / "quiet").mkdir()
+    quiet = {"daemon": live["daemon"], "tnc": {"state": "connected", "problem": "", "last_error": "", "path": "", "baud": 9600}}
+    text = made(tmp_path / "quiet", fake_folder(tmp_path / "quiet"), running=True, live=quiet, by="the running daemon")[1]["summary.txt"]
+    assert "Latest error" not in text and re.search(r"Problem:\s+none", text)
 
 
 def test_the_page_and_its_errors_are_members_when_given(tmp_path: Path) -> None:
@@ -413,7 +437,7 @@ def test_a_desktop_inside_onedrive_is_found_on_windows(tmp_path: Path) -> None:
 
 def test_the_file_manager_is_started_the_way_each_system_does(tmp_path: Path) -> None:
     file = tmp_path / "a.zip"
-    assert show_command(file, "win32") == f'explorer /select,"{file}"'
+    assert show_command(file, "win32") == f'"{windows_program("explorer.exe", system32=False)}" /select,"{file}"'
     assert show_command(file, "darwin") == ["open", "-R", str(file)]
     assert show_command(file, "linux") == ["xdg-open", str(tmp_path)]
 

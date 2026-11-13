@@ -342,7 +342,7 @@ export const LIMITS = {
   interval: { beaconMinMin: 20, statusMinMin: 15, hfBeaconMinMin: 30 },
   message: { textMax: 67, forbidden: "|~{", gateway: "EMAIL-2", lockedMax: 34 },
   call: { baseMax: 6, amateurBaseMin: 3, maxSsid: 15, placeholders: ["MYCALL", "N0CALL", "NOCALL"] },
-  path: { maxCalls: 8, direct: "DIRECT", rfOnly: "RFONLY", textMax: 256, recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-1" },
+  path: { maxCalls: 8, direct: "DIRECT", rfOnly: "RFONLY", textMax: 256, recommendedMobile: "WIDE1-1,WIDE2-1", recommendedFixed: "WIDE2-2" },
   alert: { kmMin: 1, kmMax: 1000 },
   history: { maxHours: 168 },
   object: { nameMax: 9, itemNameMin: 3, nameForbidden: "!_|~", commentMax: 43, commentMaxMotion: 36, courseMax: 359, speedMaxKmh: 1850, qruGroupMax: 8, qruReserved: ["INFO", "NEXT"] },

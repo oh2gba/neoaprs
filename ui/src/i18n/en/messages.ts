@@ -50,6 +50,7 @@ export const messages = {
   "messages.state.acked": { "=1": "acked, sent once", other: "acked, sent {n} times" },
   "messages.state.rejected": "rejected",
   "messages.state.failed": "no answer after {n} attempts",
+  "messages.state.too_long_for_radio": "too long for the radio",
   "messages.state.unconfirmed": { "=1": "sent once, no ack", "=2": "sent twice, no ack", other: "sent {n} times, no ack" },
   "messages.state.cancelled": { "=1": "cancelled after {n} attempt", other: "cancelled after {n} attempts" },
 

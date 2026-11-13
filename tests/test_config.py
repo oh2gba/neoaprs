@@ -99,24 +99,24 @@ def test_changed_names_the_keys_that_differ() -> None:
 
 def test_the_path_of_the_beacon_is_a_list_of_calls_written_in_capitals_without_blanks() -> None:
     assert Config.check("beacon/path", " wide1-1 , wide2-1 ") == "WIDE1-1,WIDE2-1"
-    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ("WIDE2-1",), "empty is the recommended path (of a house), not none"
+    assert Config.check("beacon/path", "") == "" and Config.from_data({"beacon/path": ""}).beacon_path_calls == ("WIDE2-2",), "empty is the recommended path (of a house), not none"
     assert Config.check("beacon/path", " direct ") == "DIRECT" and Config.from_data({"beacon/path": "DIRECT"}).beacon_path_calls == (), "DIRECT is no digipeaters, said explicitly"
-    assert Config.from_data({"beacon/path": "WIDE2-2"}).beacon_path_calls == ("WIDE2-2",)
+    assert Config.from_data({"beacon/path": "WIDE2-1"}).beacon_path_calls == ("WIDE2-1",), "a path typed in stays, WIDE2-1 included"
     with pytest.raises(ValueError, match="DIRECT"):
         Config.check("beacon/path", "DIRECT,WIDE1-1")
     assert Config.from_data({"beacon/path": "wide1-1,,wide2-1,"}).beacon_path_calls == ("WIDE1-1", "WIDE2-1")
-    assert DEFAULTS.beacon_path == "" and DEFAULTS.beacon_path_calls == ("WIDE2-1",), "the default is the recommended path, which follows the symbol: a house is fixed"
+    assert DEFAULTS.beacon_path == "" and DEFAULTS.beacon_path_calls == ("WIDE2-2",), "the default is the recommended path, which follows the symbol: a house is fixed"
     assert Config.check("beacon/path", ",".join(["WIDE1-1"] * 8)).count(",") == 7
 
 
 @pytest.mark.parametrize(("table", "code", "calls"), [
-    ("/", "-", ("WIDE2-1",)), ("/", "_", ("WIDE2-1",)), ("/", "#", ("WIDE2-1",)), ("\\", "-", ("WIDE2-1",)), ("D", "#", ("WIDE2-1",)),
+    ("/", "-", ("WIDE2-2",)), ("/", "_", ("WIDE2-2",)), ("/", "#", ("WIDE2-2",)), ("\\", "-", ("WIDE2-2",)), ("D", "#", ("WIDE2-2",)),
     ("/", ">", ("WIDE1-1", "WIDE2-1")), ("/", "b", ("WIDE1-1", "WIDE2-1")), ("/", "[", ("WIDE1-1", "WIDE2-1")), ("/", "O", ("WIDE1-1", "WIDE2-1")), ("\\", "s", ("WIDE1-1", "WIDE2-1")), ("E", ">", ("WIDE1-1", "WIDE2-1")),
 ])
 def test_the_empty_path_is_the_recommended_path_of_the_symbol_and_a_path_that_is_set_is_not(table: str, code: str, calls: tuple[str, ...]) -> None:
     empty = Config(station_symbol_table=table, station_symbol_code=code, beacon_path="")
     assert empty.beacon_path_calls == calls and empty.recommended_path == ",".join(calls)
-    assert replace(empty, beacon_path="WIDE2-2").beacon_path_calls == ("WIDE2-2",), "a custom path (the owner's) does not follow the symbol"
+    assert replace(empty, beacon_path="WIDE2-1").beacon_path_calls == ("WIDE2-1",), "a custom path (the owner's) does not follow the symbol"
     assert replace(empty, beacon_path="WIDE1-1,WIDE2-1").beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "typed in, it is a custom path too"
     assert replace(empty, beacon_path="DIRECT").beacon_path_calls == ()
 

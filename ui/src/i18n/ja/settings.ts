@@ -273,7 +273,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_rigctld.tip2": "例: 127.0.0.1:4532",
   "settings.status_interval.name": "ステータスの間隔",
   "settings.status_interval.label": "間隔",
-  "settings.status_interval.tip1": "2回のステータスの最短間隔です。同じ内容のステータスは再送されません。",
+  "settings.status_interval.tip1": "2回のステータスの間隔です。",
   "settings.status_template.name": "ステータスのテンプレート",
   "settings.status_template.label": "テキスト",
   "settings.status_template.tip1": "{{freq}} は無線機の周波数、{{mode}} は電波型式に置き換わります。置き換え後で最大{max}文字。",
@@ -291,7 +291,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.path.direct": "直接のみ(デジピーターなし)",
   "settings.path.custom": "カスタム…",
   "settings.path.custom_label": "デジピーター",
-  "settings.path.tip1": "推奨は、移動局なら WIDE1-1,WIDE2-1、固定局なら WIDE2-1 です(シンボルで決まります)。",
+  "settings.path.tip1": "推奨は、移動局なら WIDE1-1,WIDE2-1、固定局なら WIDE2-2 です(シンボルで決まります)。",
   "settings.path.tip2": "話す相手の全員に直接届くときだけ「直接のみ」にします。",
 
   "settings.confirm.label": "確認",

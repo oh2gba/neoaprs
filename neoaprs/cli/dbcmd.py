@@ -6,8 +6,10 @@ seconds for it.
     neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it against the settings stored; the daemon reads settings at its start (or when the page saves them)
     neoaprs db stations                  the stations the daemon knows: call, kind, last heard, position, packets
     neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the parser made of it
+    neoaprs db restore                   the copies in the backup folder: date, version of the schema, size, and whether this NeoAPRS can open it
+    neoaprs db restore NAME              puts the copy NAME in the place of the database, with NeoAPRS stopped; the file that was there is kept beside it under a name that says when
 
---data DIR is the data folder (default: the one the daemon uses). Everything but `set` opens the database for reading and changes nothing; `set` is the only write."""
+--data DIR is the data folder (default: the one the daemon uses). `set` and `restore` are the writes; everything else opens the database for reading and changes nothing."""
 import argparse
 import asyncio
 import logging
@@ -15,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, can_open, copies, restore, stamp as copy_stamp
 from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, STATE_KEYS, Config
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
@@ -49,6 +52,7 @@ def parse(argv: list[str]) -> argparse.Namespace:
     setter.add_argument("key")
     setter.add_argument("value")
     command("stations", "the stations the daemon knows")
+    command("restore", "list the copies in the backup folder, or put one back").add_argument("name", nargs="?", default="", help="the copy to put back, as the list names it")
     packets = command("packets", "the latest packets")
     packets.add_argument("-n", type=int, default=20, help="how many (default 20)")
     return parser.parse_args(argv)
@@ -116,7 +120,33 @@ async def store_setting(store: Store, key: str, value: str, text: str) -> int:
     return 0
 
 
+def list_copies(data: Path) -> int:
+    found = copies(data / FOLDER_NAME)
+    if not found:
+        say(f"{PROG}: no copy of the database in {data / FOLDER_NAME}")
+        return 0
+    width = max(len(c.name) for c in found)
+    for c in found:
+        usable = "" if can_open(c, SCHEMA_VERSION) else "  (of a newer NeoAPRS: cannot be opened by this one)"
+        print(f"{c.name:<{width}}  {copy_stamp(c.made)}  version {c.version:<3}  {c.size / 1e6:8.1f} MB{usable}")
+    return 0
+
+
+def restore_copy(data: Path, name: str) -> int:
+    """`restore NAME`: the exit code of putting the copy in the place of the database, or of the reason it was not done."""
+    try:
+        copy, aside = restore(data, DB_NAME, name, SCHEMA_VERSION)
+    except RestoreRefused as e:
+        say(f"{PROG}: {e}")
+        return 1
+    say(f"{PROG}: {copy.name} (version {copy.version}, of {copy_stamp(copy.made)}) is now the database" + (f"; the file that was there is kept as {aside.name}" if aside is not None else ""))
+    return 0
+
+
 async def run(args: argparse.Namespace) -> int:
+    if args.command == "restore":
+        data = Path(args.data).expanduser()
+        return restore_copy(data, args.name) if args.name else list_copies(data)
     path = Path(args.data).expanduser() / DB_NAME
     writing = args.command == "set"
     if writing:

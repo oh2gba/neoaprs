@@ -62,6 +62,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     connection: part(over.connection, "open" as const),
     version: part(over.version, ""),
     install: part(over.install, null),
+    local: part(over.local, true),
     weatherSeries: part(over.weatherSeries, new Map()),
     packetHistory: part(over.packetHistory, null),
     packetHistoryByCall: part(over.packetHistoryByCall, new Map()),

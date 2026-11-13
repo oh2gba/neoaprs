@@ -237,8 +237,8 @@ async def test_a_path_that_rfonly_would_make_longer_than_eight_is_refused_with_t
 
 async def test_a_station_without_a_path_gets_the_recommended_path_of_the_symbol_as_the_fallback(rig: Rig) -> None:
     rig.config = replace(rig.config, beacon_path="", station_symbol_table="/", station_symbol_code="-")
-    assert rig.book.path_for("OH2RDG") == ("WIDE2-1",) and rig.book.path_for("OH2RDG", 3) == ("WIDE2-1",)
+    assert rig.book.path_for("OH2RDG") == ("WIDE2-2",) and rig.book.path_for("OH2RDG", 3) == ("WIDE2-2",)
     rig.config = replace(rig.config, station_symbol_code=">")
     assert rig.book.path_for("OH2RDG") == ("WIDE1-1", "WIDE2-1")
-    rig.config = replace(rig.config, beacon_path="WIDE2-2")
-    assert rig.book.path_for("OH2RDG") == ("WIDE2-2",), "a path that was set stays"
+    rig.config = replace(rig.config, beacon_path="WIDE2-1")
+    assert rig.book.path_for("OH2RDG") == ("WIDE2-1",), "a path that was set stays"

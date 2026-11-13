@@ -71,7 +71,7 @@ What each layer is for:
   * `config`: the settings as one immutable value, each key checked.
   * `ownobject` and `ownbulletin`: an object, an item or a bulletin of ours as a value, what it must keep to be sent, and the information field it makes.
 * **adapters**: the world outside, the serial line and the TNC.
-  * `serialport` is the line on every system: any pyserial port or a `socket://host:port` URL (KISS over TCP), opened in a thread with DTR and RTS set low as soon as the open allows,
+  * `serialport` is the line on every system: a device path, or a `socket://`, `tcp://`, `bt://` or `ble://` address (no other pyserial scheme) (KISS over TCP), opened in a thread with DTR and RTS set low as soon as the open allows,
     read by a thread and written by a thread of its own that hand the bytes to the loop with `call_soon_threadsafe`. No descriptor is given to the loop, which
     Windows could not wait for.
   * `btserial` is the classic Bluetooth serial port (`bt://`, an RFCOMM socket as a pyserial port, the channel looked up by `btsdp`); `btpaired` lists the paired devices. `btle` is a Bluetooth LE KISS TNC as a port

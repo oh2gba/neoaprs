@@ -49,6 +49,10 @@
   run goes wrong that the tests with real commands and processes do not reach, in the test's own process: the alert command's Windows path and its failures,
   kills and timeouts on a fake `subprocess`; `neoaprs db` on a database that is not one, an older or a newer one; `neoaprs capture` choosing a port, losing it,
   not opening it; the replay's pseudo-terminal; a folder that cannot be synced; the app's size file and log; the LAN address.
+* `test_windows_program.py`: the programs started by the daemon on Windows (powershell, taskkill, explorer) are run by their full path under the system folder, never by a bare name.
+* `test_allowed_hosts.py`: `web/allowed_hosts` is host names (labels of letters, digits, hyphens and underscores, at most 253 characters), IPv4 and IPv6 addresses (brackets or none) separated by commas, else `setting.not_host`; a stored value that is refused now falling to the default.
+* `test_port_address.py`: the address of a port (`serial/port`, `serial/last_port`, `gps/device`): a device path or `socket://`, `tcp://`, `bt://`, `ble://` and no other scheme pyserial knows (`spy://` writes a file), refused in the setting and again where the port is made, no file made, a stored value that is refused now falling to the default.
+* `test_settings_reach.py`: for every setting whose text ends in a path, a URL, a port or a command line, no generated text passes its check and is misread where it ends; a setting in no table that takes a hostile text fails it, so a new one is found.
 * `test_serialport.py`, `test_serialport_pty.py`: the serial line (`neoaprs/serialport.py`, `serialprobe.py`, `serialholders.py`). The first on the fake radio
   and on stand-ins for pyserial's object, so it runs on every system: reading and writing through the threads, 8N1 with DTR and RTS set low as soon as the open allows,
   `tcp://` for `socket://`, the open in a thread and cancelled, a connection refused, Windows's access denied as in use by another program, a line that dies
@@ -145,6 +149,7 @@
   information field with its wait, once in ten minutes and cancelled by the stop), and inside the whole daemon on the pseudo-terminal radio: each query gives
   the right frame on the master, a bulletin is on the board and in the database and neither acked nor overheard, the status follows the beacon, the restart and
   the prune. The answer to an RF only asker ends with `RFONLY`, and one that cannot is not sent.
+* `test_answers_budget.py`: the budget of answers (`AnswerBudget` of `neoaprs/services/answers.py`): twenty asks in a minute send ten frames at most, a whole answer or none, the QRU server and the queries spending one budget, frames that never went on the air given back, a paced answer that is stopped giving back what it did not send.
 * `test_settings_reachable.py`: the settings the page leaves to `neoaprs db set` are the ones listed there, each with its reason, and none that can block a feature the page offers (transmit, the beacon, the Internet switch, the digipeater) is among them.
 * `test_receive_only.py`: Receive only (`station/transmit` false, the first reason of `config.can_transmit`): on the whole daemon with a fake radio nothing reaches the line while it is off
   (a beacon, a status, an object, an ack, a query, a digipeatable packet and a message being sent are all due or asked), a new message, a retry, an object and a bulletin are refused with the
@@ -207,6 +212,7 @@
   session, a cross-site POST, this computer never asked (and a request through a proxy header asked), the switch turned on and off live (the key made once, the
   addresses told, the listening sockets, a page of the network cut off, the listening kept when the address is taken), a `web/bind` row read as the switch on,
   the Host names with the network on, and the address of the computer.
+* `test_local_settings.py`: what a page of another device may not change or run (`LOCAL_ONLY`, `neoaprs/web/confighandlers.py`): the alert command, its Test, the update address, the map source and the allowed hosts are refused with `setting.local_only`, the rest is allowed, and `hello` says which page it is.
 * `test_web_gate.py`: the gate of the page's server for every route at once, read from the running application so that a new route is asked too: a host name that is not ours is refused, a device that has not logged in is refused except on the routes of the table `FREE` (each with why) and let in with a session, a request that changes something (POST, PUT, PATCH, DELETE) or a socket's handshake with another site's Origin is refused, plain http beside the secure page is sent on or refused (the table `PLAIN`), and every answer carries the security headers.
 * `test_alerttest.py`, `test_bulletindelete.py`: two commands over the socket. `alert_test` with a fake command that writes its environment (the made-up message
   in it and nothing of the daemon's, `messages/alert` off ignored, the saved command and not an older one, a failure with the exit code and the first line of
@@ -279,6 +285,10 @@
   (`station_pref.attempts`, null for every station, the table rebuilt with every row and the new CHECKs) and 9 to 10 (the state `unconfirmed` in the CHECK of
   `message`, every message and the index carried over, a doubt rolling back) against a fresh file), the settings. `test_migration_rf_only.py` has migration 12
   (`neoaprs/migrationsteps12to21.py`): a database of version 11 keeps every preference with `rf_only` off, the table refuses a bad `rf_only`, a doubt changes nothing.
+* `test_migration_alert_markup.py`, `test_alert_default_line.py`: migration 27 (a stored Linux alert line that is exactly the old default is deleted, so the new default counts; own lines and the Windows default stay) and the default line itself, run in the real shell with notifier scripts: markup in a message comes out as text.
+* `test_migration_message_failure.py`: migration 28 (`message.failure`, why a failed message of ours failed): every message of version 27 is kept with no failure, so an old failed one reads as one with no answer; the column takes `too_long_for_radio` and nothing else.
+* `test_migration_allowed_hosts.py`: migration 29 (`web/allowed_hosts` in the checked form): a value the server took (blanks between names, a port, a dot at the end, a name twice) is written so that the check takes it and every name stays allowed; what is not a name or an address is left out and logged; a value already in the form is not touched.
+* `test_restore.py`: the way back from a database newer than this version (`neoaprs/backupfolder.py`, `neoaprs db restore`): the newest usable copy named with its date and command, a copy this version cannot open refused, the present file set aside, both locks taken, a failed restore rolled back.
 * `test_cli.py`: the `neoaprs` command: no command and `run` are the daemon with the flags of `python -m neoaprs` (the daemon's parser decides them), each
   command is dispatched with the rest of the line, an unknown one is refused, the one version (`pyproject.toml` reads `VERSION`, the two scripts), the
   windowless entry that has no streams, the parser of each command, `capture` recording a TCP TNC into a file, and `map`, `db` and `doctor` as processes.

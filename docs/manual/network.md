@@ -15,10 +15,14 @@ Switching the network off closes the pages that came in by it. On a page opened 
 
 The alert command runs on the NeoAPRS computer, and the page alerts in the browser it is open in ([notifications.md](notifications.md)).
 
+A page on another device changes every setting but the ones that name a program or an address NeoAPRS runs or fetches from: the alert command (and its **Test**), `update/url`, `map/source` and `web/allowed_hosts`. It does not show them, and keeps the Alert tickbox. On a computer without a screen set them there, for example `neoaprs db set messages/alert_command "LINE"`, then restart NeoAPRS.
+
 ### What is refused
 
 - The page's files are free, because they hold the key screen. The connection that carries the data and the base map answer `401` to a device that has not logged in.
-- This computer is never asked for a key. A request that carries `X-Forwarded-For`, `Forwarded` or `X-Real-Ip` came through a proxy and counts as from the network, so a reverse proxy on the Pi gets the key screen too, as long as it sends one of those headers (nginx does not unless it is told to: `proxy_set_header X-Forwarded-For $remote_addr;`). A proxy on this computer that sends none is this computer, and whoever reaches the proxy is not asked for a key.
+- This computer is never asked for a key: a page opened on it at `http://127.0.0.1:7303/` or `http://localhost:7303/`. The same computer at another of its names or addresses (its name, its address on the network) counts as from the network and gets the key screen; while **Allow access from the network** is off, it is sent to `http://127.0.0.1:7303/` instead.
+- A reverse proxy on this computer gets the key screen when it sends `X-Forwarded-For`, `Forwarded`, `X-Real-Ip`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `Via`, or passes on the name the visitor typed (`proxy_set_header Host $host;`).
+- A proxy that does neither, and asks for `127.0.0.1` itself, is this computer. nginx is such a proxy unless it is told otherwise, and whoever reaches it with a program of their own is not asked for a key. Tell it `proxy_set_header X-Forwarded-For $remote_addr;`.
 - The page answers only to an IP address, `localhost`, the machine's own name (and `name.local`) and the names in the setting `web/allowed_hosts` (comma separated). A name for the machine that is not one of those is refused, and the log says so once with the command that adds it.
 - **Wrong keys.** Five in a minute from one address shut that address out for five minutes, even for the right key. The log has every wrong key and the shutting out, and never the key.
 - **A new key.** **New key** (it asks twice) makes another and logs every other device out: their open pages are closed and their sessions end at once. The device that pressed it stays in. A key you type yourself (`neoaprs db set web/key abcd-efgh-jkmn`, read when the daemon next starts) works the same. A key of your own must have the same form: three groups of four lowercase letters and digits without `0 1 i l o`.
@@ -27,7 +31,7 @@ The alert command runs on the NeoAPRS computer, and the page alerts in the brows
 ### Be careful
 
 - **Plain HTTP.** The key is sent once, and the session cookie with every request, in the clear. Use it on a network you trust. Reach the Pi from outside through a VPN, not by opening the port to the internet. Do not forward a port to NeoAPRS in your router.
-- Whoever is logged in can change every setting, the alert command (a shell line the computer runs) among them. The key is the only lock, so give it to your own devices only.
+- Whoever is logged in can work the radio and change the other settings. The key is the only lock, so give it to your own devices only.
 - **Windows** asks whether to let NeoAPRS through its firewall the first time the switch is on. Allow it on private networks.
 
 ### Another port

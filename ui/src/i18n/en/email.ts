@@ -31,6 +31,7 @@ export const email = {
   "email.state.rejected": "Rejected",
   "email.state.cancelled": "Cancelled",
   "email.state.unconfirmed": "Not confirmed",
+  "email.state.too_long_for_radio": "Too long for the radio",
   "email.not_confirmed": "sent, not confirmed: the gateway's ack reaches you only through an iGate, so the mail may well have gone through",
 
   "email.date_time": "{day} {month} {time}",

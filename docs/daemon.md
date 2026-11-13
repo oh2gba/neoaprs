@@ -121,7 +121,7 @@ A frame the Tnc refuses is tried again `RETRY_SEC` (5 s) later, `ATTEMPTS` (6) r
 The tocall is `TOCALL` in `neoaprs/__init__.py`. `APZ...` is the experimental range. A tocall of your own is registered by opening an issue at
 <https://github.com/aprsorg/aprs-deviceid>; it would then replace the constant.
 
-The status goes out by one rule, whether the text comes from the radio or the settings: the interval has passed and what it says has changed. The text is
+The status goes out by one rule, whether the text comes from the radio or the settings: the interval has passed since the last status, whether what it says has changed or not. The text is
 checked when it is saved, the template with its widest fill, and the frame again when it is made. A report the TNC would not take is told once and tried again
 at the next poll. From the radio, a fresh short connection to rigctld is made every 30 seconds, asking `f` (the frequency in Hz) and `m` (the mode and the
 passband); an `RPRT -n` answer, a refused connection or no answer within 5 seconds means the radio is off or rigctld is away.
@@ -313,7 +313,7 @@ within the window, no anonymous hop, no gate (those are counted apart), no marke
 are in `neoaprs/policy.py`. The delivery chain records the digipeaters of each attempt as it was sent. The station row tells the choice as `heard_path` (null: none, empty: direct), worked out
 when the row is made.
 
-**The path settings.** An empty path never means no digipeaters. `beacon/path` empty is the recommended path of the station's symbol (`route.recommended_path`: `WIDE1-1,WIDE2-1` when `symbols.is_mobile` of the symbol, else `WIDE2-1`;
+**The path settings.** An empty path never means no digipeaters. `beacon/path` empty is the recommended path of the station's symbol (`route.recommended_path`: `WIDE1-1,WIDE2-1` when `symbols.is_mobile` of the symbol, else `WIDE2-2`;
 `Config.beacon_path_calls` is the one place that works it out for the beacon, the status, objects, bulletins, queries, acks and the fallback of a message); the word `DIRECT` (`route.DIRECT_ONLY`,
 `message.path_choice`) is no digipeaters, and stands alone (`normal_path` refuses it among calls with `path.direct_alone`). Migration 14 changed a stored empty
 `beacon/path` to `DIRECT`; migration 15 changed the stored `WIDE1-1,WIDE2-1` (the old default, which every save wrote, so it cannot be told from a choice) to empty. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
@@ -447,6 +447,8 @@ new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log;
 **The ids of the messages** (migration 23, `neoaprs/migrationsteps22on.py`). `message.id` is AUTOINCREMENT: a message never gets the id of one that was deleted, so the page's marks of what it has shown cannot swallow a new message. Every message is kept with its id; the next id is above the highest in `message`, `message_attempt` and `message_hop`.
 
 **Encrypted messages** (migration 24, `neoaprs/migrationsteps22on.py`). The table `station_key` (`call`, `pubkey` as 43 characters of base64, `heard_at`), and the columns `message.seal` (`''` plain, `key`, `key_other`, `open`, `shut`) and `message.wire`. A message kept so far is plain.
+
+**The way back** (`neoaprs/backupfolder.py`, `neoaprs db restore`). A NeoAPRS that finds the file at a newer version than it knows refuses it and changes nothing; the refusal, in the log, in `neoaprs doctor` and in the tools, names in one sentence the newest copy in `backup/` that it can open (the version is read from the header of each `*.sqlite` there, the date is the file's) and the command that puts it back, or says that there is none. `neoaprs db restore` lists the copies; `neoaprs db restore NAME` takes both locks of the data folder (the daemon's and the desktop app's: it refuses while either is held), refuses a copy that is not in `backup/`, is not a database or is of a version this NeoAPRS does not know, sets the present file aside with its `-wal` and `-shm` as `neoaprs-set-aside-<date>-<time>.sqlite` in the data folder (never deleted; a second restore in the same second gets a number), and writes the copy in its place, private and synced, leaving the copy in `backup/`. If the copy cannot be written, the file set aside is moved back.
 
 **Two radios** (migration 25, `neoaprs/migrationsteps22on.py`). `packet.radio` (`fm`, `hf`, or empty for a packet from the internet), the counts and times a station was heard on each radio (`station.heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at`), `message.radio` and `message_attempt.radio`, and `own_object.radio` (`fm`, `hf` or `both`). The packets of the air kept so far are marked `fm`, the one radio there was, and a station's FM count is the sum of its radio counts. Like every migration, it runs after a copy of the file is made in `backup/`; a NeoAPRS that does not know version 25 refuses the file and does not touch it.
 

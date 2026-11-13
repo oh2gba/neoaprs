@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Changed:** the recommended path of a fixed station is WIDE2-2.
+- **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
+- **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
+- **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
+- **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.
+- **Fixed:** the support summary showed an old error as the present problem.
+- **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts the newest copy back.
+- **Fixed:** a burst of questions could make NeoAPRS send a flood of answers. It now sends at most ten frames of answers a minute.
+- **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
+- **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.
+- **Fixed:** with network access off, the page opened on a Raspberry Pi by its own name could not connect.
+
 ## 0.18.2
 
 - **Fixed:** on a phone the page could show old messages after the phone had slept, until it was reloaded. It now catches up as soon as it is on the screen again, and whenever it has heard nothing from NeoAPRS for half a minute.

@@ -33,6 +33,7 @@ export const email: Readonly<Record<keyof typeof en, Message>> = {
   "email.state.rejected": "Rifiutata",
   "email.state.cancelled": "Annullata",
   "email.state.unconfirmed": "Non confermata",
+  "email.state.too_long_for_radio": "Troppo lunga per la radio",
   "email.not_confirmed": "inviata, non confermata: la conferma del gateway ti arriva solo tramite un iGate, quindi la email potrebbe essere partita lo stesso",
 
   "email.date_time": "{day} {month} {time}",

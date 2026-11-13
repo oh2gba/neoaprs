@@ -1,5 +1,7 @@
 """The migrations from 22 on, frozen here beside migrations.py (which lists them in MIGRATIONS and runs them): the same rules as for the earlier ones (migrationsteps1to11.py, migrationsteps12to21.py), a step is
 never edited once it has been released."""
+import ipaddress
+import re
 import sqlite3
 
 from .dberror import StoreError
@@ -112,3 +114,63 @@ def _v26(db: sqlite3.Connection) -> None:
     if row is not None and " ".join(str(row[0]).split()) == "https://oh2gba.eu/neoaprs/version.php":
         db.execute("DELETE FROM settings WHERE key = 'update/url'")
         log.info("update/url reset to the default: https://oh2gba.eu/neoaprs/version.php → https://neo.oh2gba.eu/version.php")
+
+
+def _v27(db: sqlite3.Connection) -> None:
+    """The default alert command of Linux and macOS hands the title and the text to the notifier with & < > escaped (neoaprs/alertcommand.py), so that a message from the air is shown as typed and not read as the
+    markup of a notification (bold text, a link) or cut at a `<`: a stored `messages/alert_command` that is exactly the default of migration 22, which every save of the settings wrote, is deleted, so that the new
+    default is in force, with one INFO line in the log; a command of the operator's own is not touched, and the default of Windows did not change."""
+    old = ('(notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); '
+           'paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga')
+    if db.execute("DELETE FROM settings WHERE key = 'messages/alert_command' AND value = ?", (old,)).rowcount:
+        log.info("messages/alert_command was the old default: the new default, which escapes & < > of the title and the text for the notifier, is in force")
+
+
+def _v28(db: sqlite3.Connection) -> None:
+    """A failed message of ours says why it failed when it is not that no answer came: `message.failure`, 'too_long_for_radio' for one whose frame does not fit the radio it goes out on (it is never sent); null
+    for every other message, and every message kept so far is one of those, so a failed one among them failed for want of an answer, as it did."""
+    db.execute("ALTER TABLE message ADD COLUMN failure TEXT CONSTRAINT message_failure CHECK (failure IN ('too_long_for_radio'))")
+
+
+_HOST_LABEL = r"[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?"      # a label of a name in `web/allowed_hosts` as migration 29 takes it
+
+
+def _allowed_host(part: str) -> str | None:
+    """One word of a stored `web/allowed_hosts` as migration 29 keeps it: without a port and a dot at the end; None when it is not a name or an address at all."""
+    if part.startswith("[") and "]" in part:
+        part = part[:part.index("]") + 1]                                # [::1]:7303 is [::1]
+    elif part.count(":") == 1 and part.split(":", 1)[1].isdigit():
+        part = part.split(":", 1)[0]                                     # name:7303 is name
+    part = part.rstrip(".")
+    try:
+        ipaddress.ip_address(part[1:-1] if part.startswith("[") and part.endswith("]") else part)
+        return part if "%" not in part else None
+    except ValueError:
+        pass
+    return part if part and len(part) <= 253 and all(re.fullmatch(_HOST_LABEL, label) for label in part.split(".")) else None
+
+
+def _v29(db: sqlite3.Connection) -> None:
+    """`web/allowed_hosts` is checked now (host names and IP addresses separated by commas), where any text was taken before and the server split it on blanks and commas: a stored value is written again in
+    the form the check takes, so that the names in it stay allowed. Each blank or comma separates, a port and a dot at the end of a name are dropped (a Host header has neither), a name twice is kept once,
+    and what is not a name or an address at all (`x/y`, `http://x`) is left out, with one INFO line in the log; a value that is already in that form is not touched."""
+    row = db.execute("SELECT value FROM settings WHERE key = 'web/allowed_hosts'").fetchone()
+    if row is None:
+        return
+    old = str(row[0])
+    kept: list[str] = []
+    left_out: list[str] = []
+    for part in filter(None, re.split(r"[\s,]+", old.strip())):
+        name = _allowed_host(part)
+        if name is None:
+            left_out.append(part)
+        elif name not in kept:
+            kept.append(name)
+    new = ", ".join(kept)
+    if new == ", ".join(p.strip() for p in old.strip().split(",")) and not left_out:
+        return
+    if new:
+        db.execute("UPDATE settings SET value = ? WHERE key = 'web/allowed_hosts'", (new,))
+    else:
+        db.execute("DELETE FROM settings WHERE key = 'web/allowed_hosts'")
+    log.info("web/allowed_hosts written in the form that is checked now: %r → %r%s", old, new, f" (left out, not a name or an address: {', '.join(left_out)})" if left_out else "")

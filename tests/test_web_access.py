@@ -9,13 +9,15 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from tornado.httpclient import HTTPClientError, HTTPResponse
+import tornado.httputil
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest, HTTPResponse
 
 from neoaprs.config import DEFAULTS
 from neoaprs.web import access as web_access
-from neoaprs.web import addresses
+from neoaprs.web import addresses, server
 from neoaprs.web.access import COOKIE, MAX_WRONG, SESSION_DAYS, Access, Verdict, new_key
 from neoaprs.web.protocol import TOPIC_NAMES
+from neoaprs.web.server import name_loopbacks
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until
 from tests.support.wsclient import WsClient
@@ -29,6 +31,7 @@ KEY_FORM = re.compile(r"^[2-9a-hj-km-np-z]{4}(-[2-9a-hj-km-np-z]{4}){2}$")
 @pytest.fixture(autouse=True)
 def lan(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("neoaprs.web.server.lan_addresses", lambda: [LAN])
+    monkeypatch.setattr("neoaprs.web.server.name_loopbacks", lambda: [])          # (what this machine's hosts file says is not the test's)
 
 
 @pytest.fixture
@@ -225,9 +228,42 @@ async def test_this_computer_is_never_asked_for_the_key(tmp_path: Path) -> None:
 
 async def test_a_request_through_a_proxy_on_this_computer_is_not_this_computer(tmp_path: Path) -> None:
     e = await served(tmp_path, NETWORK)
-    for header in ("X-Forwarded-For", "Forwarded", "X-Real-Ip"):
+    for header in ("X-Forwarded-For", "Forwarded", "X-Real-Ip", "X-Forwarded-Host", "X-Forwarded-Proto", "Via"):
         assert (await e.fetch("/access", headers={header: "203.0.113.9"})).code == 401, header
     assert (await e.fetch("/access")).code == 204, "and without one it is this computer"
+
+
+async def test_a_request_from_the_loopback_is_this_computer_only_when_it_is_addressed_to_this_computer(tmp_path: Path) -> None:
+    e = await served(tmp_path, {**NETWORK, "web/allowed_hosts": "aprs.example.org"})
+    for host in (f"127.0.0.1:{e.port}", f"localhost:{e.port}", "localhost", f"[::1]:{e.port}", f"127.0.0.2:{e.port}", f"LOCALHOST.:{e.port}"):
+        assert (await e.fetch("/access", headers={"Host": host})).code == 204, host
+    for host in (f"aprs.example.org:{e.port}", "aprs.example.org", f"{LAN}:{e.port}", f"[2001:db8::1]:{e.port}"):
+        assert (await e.fetch("/access", headers={"Host": host})).code == 401, f"{host}: a proxy on this computer that passes the visitor's Host on"
+    with pytest.raises(HTTPClientError) as refused:
+        await e.ws(host=f"aprs.example.org:{e.port}")
+    assert refused.value.code == 401, "the socket asks for the key too"
+    page = await e.ws(host=f"localhost:{e.port}")
+    assert (await page.expect("hello"))["local"] is True
+
+
+def loopback_request(host: str, ip: str = "127.0.0.1", via: bool = False) -> tornado.httputil.HTTPServerRequest:
+    headers = {"Host": host, **({"X-Forwarded-For": "203.0.113.9"} if via else {})}
+    request = tornado.httputil.HTTPServerRequest(start_line=tornado.httputil.RequestStartLine("GET", "/", "HTTP/1.1"), headers=tornado.httputil.HTTPHeaders(headers))
+    request.remote_ip = ip
+    return request
+
+
+def test_with_the_network_off_a_page_opened_by_another_name_of_this_computer_is_sent_to_this_computer_instead_of_a_key_screen() -> None:
+    target = web_access.this_computer_target
+    own = socket.gethostname().lower()
+    for host in (f"{own}:7303", f"{own}.local:7303", "aprs.example.org"):
+        assert target(loopback_request(host), False, 7303) == "http://127.0.0.1:7303", host
+    assert target(loopback_request(f"{own}:7303"), True, 7303) is None, "with the network on the key is let in"
+    assert target(loopback_request("127.0.0.1:7303"), False, 7303) is None, "this computer already"
+    assert target(loopback_request("localhost:7303"), False, 7303) is None
+    assert target(loopback_request(f"{own}:7303", ip=LAN), False, 7303) is None, "not on the loopback"
+    assert target(loopback_request(f"{own}:7303"), False, 0) is None, "not listening"
+    assert target(loopback_request("aprs.example.org", via=True), False, 7303) is None, "a proxy's visitor is on another computer"
 
 
 async def test_with_the_network_off_a_device_that_is_not_this_computer_cannot_log_in_whatever_it_types(tmp_path: Path, away: None) -> None:
@@ -351,3 +387,48 @@ def test_the_address_of_this_computer_on_the_network_is_the_one_the_system_would
     assert addresses.lan_addresses() == [], "no route"
     monkeypatch.setattr(addresses.socket, "socket", fake("127.0.0.1"))
     assert addresses.lan_addresses() == []
+
+
+async def test_with_the_network_off_the_page_by_the_name_of_this_computer_is_sent_to_127_0_0_1(tmp_path: Path) -> None:
+    e = await served(tmp_path, {"web/allowed_hosts": "aprs.example.org"})
+    own = socket.gethostname().lower()
+    r = await e.fetch("/", headers={"Host": f"{own}:{e.port}"})
+    assert r.code == 307 and r.headers["Location"] == f"http://127.0.0.1:{e.port}/"
+    assert (await e.fetch("/", headers={"Host": f"aprs.example.org:{e.port}", "X-Forwarded-For": "203.0.113.9"})).code == 200
+    assert (await e.fetch("/")).code == 200
+
+
+async def test_with_the_network_off_the_page_listens_where_the_name_of_this_computer_leads_and_sends_it_to_127_0_0_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.web.server.name_loopbacks", _at_127_0_1_1)
+    e = await served(tmp_path)
+    own = socket.gethostname().lower()
+    request = HTTPRequest(f"http://127.0.1.1:{e.port}/", headers={"Host": f"{own}:{e.port}"}, follow_redirects=False)
+    try:
+        r = await AsyncHTTPClient().fetch(request)
+    except HTTPClientError as error:
+        assert error.response is not None
+        r = error.response
+    assert r.code == 307 and r.headers["Location"] == f"http://127.0.0.1:{e.port}/"
+    assert listening_on(e) == {"127.0.0.1", "127.0.1.1"}
+    page = await e.ws()
+    await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
+    await page.send({"cmd": "set_config", "values": {"web/network": "true"}})
+    await wait_for_address(e, "")
+    assert listening_on(e) <= {"0.0.0.0", "::"}
+    await page.send({"cmd": "set_config", "values": {"web/network": "false"}})
+    await wait_for_address(e, "127.0.0.1")
+    assert listening_on(e) == {"127.0.0.1", "127.0.1.1"}, "and again when the network is off again"
+
+
+def _at_127_0_1_1() -> list[str]:
+    return ["127.0.1.1"]
+
+
+def test_the_loopback_addresses_of_the_own_name_are_read_from_the_hosts_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(server.socket, "gethostname", lambda: "Shack")
+    hosts = tmp_path / "hosts"
+    hosts.write_text("127.0.0.1\tlocalhost\n127.0.1.1\tshack.lan shack  # Debian\n::1 localhost ip6-localhost\n192.168.1.20 shack\n127.0.2.1 other\n#127.0.3.1 shack\n\n")
+    assert name_loopbacks(hosts) == ["127.0.1.1"]
+    hosts.write_text("127.0.0.1 localhost shack\n")
+    assert name_loopbacks(hosts) == [], "127.0.0.1 is listened on anyway"
+    assert name_loopbacks(tmp_path / "none") == []

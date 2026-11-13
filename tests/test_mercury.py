@@ -19,10 +19,12 @@ from neoaprs.services.beacon import Beacon, BeaconError
 from neoaprs.services.common import fit_frame, fixed_prefix, our_frame
 from neoaprs.services.sender import SendError, Sender
 from neoaprs.tncprofile import MERCURY, PROFILES, profile_of
+from neoaprs.web.messagewire import MessageRow
+from neoaprs.web.views import message_row
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR
 from tests.support.stubtnc import StubTnc
-from tests.test_messaging import started_rig
+from tests.test_messaging import Rig, started_rig
 
 HF_CONFIG: Config = replace(ON_AIR, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
 
@@ -124,13 +126,65 @@ async def test_a_message_that_the_radio_would_cut_is_refused_with_the_reason_and
     assert fits.state == "sending" and len(ax25.encode(rig.tnc.sent[-1])) == 121, "with the two bytes of room it is 123: the last that fits"
 
 
-async def test_a_message_kept_before_the_radio_changed_waits_with_the_reason_when_it_does_not_fit_now(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_message_kept_before_the_radio_changed_fails_with_the_reason_when_it_does_not_fit_now(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     rig = await started_rig(tmp_path, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
     record = await rig.m.send("OH2RDG", "x" * 67)
-    assert record.attempts == 1
+    short = await rig.m.send("OH2RDG-10", "hi")
+    assert record.attempts == 1 and short.attempts == 1
     rig.tnc.max_frame = 90                                                # (the radio is one with a smaller frame now)
     await rig.pass_time(33)
-    assert rig.state(record.id).attempts == 1 and "cannot be sent: the message is" in caplog.text and "(it waits)" in caplog.text
+    failed = rig.state(record.id)
+    assert (failed.state, failed.attempts) == ("failed", 1), "it ends at once, with the attempts it had: nothing was transmitted for it"
+    assert "message 1 to OH2RDG fails: the message is" in caplog.text and "(it waits)" not in caplog.text
+    assert rig.state(short.id).state == "sending" and rig.state(short.id).attempts == 2, "a message that fits is untouched"
+    sent = len(rig.tnc.sent)
+    await rig.pass_time(33)
+    assert len(rig.tnc.sent) == sent + 1 and rig.state(record.id).attempts == 1, "nothing more is tried for the failed one"
+    with pytest.raises(MessagingError) as refused:
+        rig.m.retry(record.id)
+    assert refused.value.code == "message.too_long_for_radio", "sent again, it is refused with its reason, which the page tells in the operator's language"
+    kept = rig.state(record.id)
+    assert (kept.state, kept.attempts) == ("failed", 1), "and the message stays as it was"
+
+
+async def test_a_message_never_sent_that_does_not_fit_the_radio_it_goes_on_fails_without_an_attempt(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    rig = await started_rig(tmp_path, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
+    rig.tnc.held = "the channel is busy"                                  # (the radio is away: the message is kept, its first attempt waits)
+    record = await rig.m.send("OH2RDG", "x" * 67)
+    assert (record.state, record.attempts) == ("sending", 0)
+    rig.tnc.max_frame = 90
+    rig.tnc.held = ""
+    await rig.pass_time(1)
+    assert (rig.state(record.id).state, rig.state(record.id).attempts) == ("failed", 0) and not rig.lines()
+    assert "message 1 to OH2RDG fails" in caplog.text
+
+
+async def test_a_message_that_failed_for_its_frame_keeps_the_reason_across_a_restart_and_on_the_wire_and_loses_it_when_sent_again(tmp_path: Path) -> None:
+    rig = await started_rig(tmp_path, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
+    rig.tnc.held = "the channel is busy"
+    record = await rig.m.send("OH2RDG", "x" * 67)
+    rig.tnc.max_frame = 90
+    rig.tnc.held = ""
+    await rig.pass_time(1)
+    failed = rig.state(record.id)
+    assert (failed.state, failed.attempts, failed.failure) == ("failed", 0, "too_long_for_radio")
+    await rig.settled()
+    assert [(r.id, r.state, r.failure) for r in await rig.log.recent()] == [(record.id, "failed", "too_long_for_radio")], "the reason is on the disk"
+    restarted = Rig(rig.log, rig.clock, rig.tnc, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
+    await restarted.start()
+    kept = restarted.state(record.id)
+    assert (kept.state, kept.failure) == ("failed", "too_long_for_radio"), "and the daemon reads it back after a restart"
+    row = message_row(kept)
+    MessageRow.model_validate(row)
+    assert (row["state"], row["attempts"], row["failure"]) == ("failed", 0, "too_long_for_radio"), "the page is told why"
+    assert message_row(replace(kept, state="failed", attempts=4, failure=None))["failure"] is None, "a message that had no answer has no reason"
+    rig.tnc.max_frame = None                                              # (the radio carries it again)
+    again = restarted.m.retry(record.id)
+    assert (again.state, again.failure) == ("sending", None) and again.attempts == 1
+    await restarted.settled()
+    assert [(r.state, r.failure) for r in await rig.log.recent()] == [("sending", None)], "sent again, the reason is gone from the disk too"
+    await restarted.m.stop()
+
 
 
 # ---- the keying, the command and the configuration

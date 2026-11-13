@@ -75,6 +75,7 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.path.direct_alone": "{word} ei ole digipeateri: yksin kirjoitettuna se tarkoittaa, ettei digipeaterejä ole lainkaan",
   "error.setting.comment_too_long":
     "{length} merkkiä on enemmän kuin PHG-laajennuksen kanssa sallitut {limit} (tyhjennä beacon/power_w, jos et halua lähettää sitä)",
+  "error.setting.local_only": "tämän voi tehdä vain sivulta NeoAPRS-tietokoneella",
   "error.setting.no_radio": "asemalla on oltava vähintään yksi radio: valitse FM-radio tai HF-radio",
   "error.setting.not_access_key": "se ei ole pääsyavain (kolme neljän numeron ja kirjaimen ryhmää, kuten k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "siinä on merkkejä, jotka eivät ole tulostettavaa ASCII-merkkiä",

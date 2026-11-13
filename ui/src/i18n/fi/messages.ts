@@ -52,6 +52,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "messages.state.acked": { "=1": "kuitattu, lähetetty kerran", other: "kuitattu, lähetetty {n} kertaa" },
   "messages.state.rejected": "hylätty",
   "messages.state.failed": "ei vastausta {n} yrityksen jälkeen",
+  "messages.state.too_long_for_radio": "liian pitkä radiolle",
   "messages.state.unconfirmed": {
     "=1": "lähetetty kerran, ei kuittausta",
     "=2": "lähetetty kahdesti, ei kuittausta",

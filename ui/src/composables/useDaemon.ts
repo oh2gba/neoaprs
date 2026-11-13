@@ -88,6 +88,19 @@ function refuseMismatch(hello: HelloMessage, mismatch: Ref<Mismatch | null>, clo
   close();
 }
 
+/** What the daemon's hello says of it: its version, how it was installed, and whether this page is on the computer it runs on (until the hello has said so, it is not). */
+function useHello() {
+  const version = ref("");
+  const install = shallowRef<InstallInfo | null>(null);
+  const local = ref(false);
+  const hello = (message: HelloMessage): void => {
+    version.value = message.version;
+    install.value = message.install;
+    local.value = message.local;
+  };
+  return { hello, refs: { version, install, local } };
+}
+
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
   const stationsLoaded = ref(false); // the daemon has told the stations once: `stations` is then what was there, not a part of it
@@ -102,18 +115,14 @@ export function useDaemon(url: () => string = socketUrl) {
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
-  const version = ref("");
+  const said = useHello();
   const mismatch = shallowRef<Mismatch | null>(null); // the daemon is another protocol or serves another build of the page, and a load did not help: the page does not run against it (refuseMismatch)
-  const install = shallowRef<InstallInfo | null>(null);
   const stationAlert = shallowRef<StationAlertMessage | null>(null); // the latest alert of a station that fired: each is a message of its own, so the same words twice are two (composables/useStationAlerts.ts)
   let toasts = 0;
 
   const store: Store = {
     connection: (state) => (connection.value = state),
-    hello: (message) => {
-      version.value = message.version;
-      install.value = message.install;
-    },
+    hello: said.hello,
     status: (message) => (status.value = message),
     error: ({ cmd, key, code, params, text }) => (lastError.value = { cmd, key, code, params, text, n: ++toasts }),
     stationAlert: (message) => (stationAlert.value = message),
@@ -165,9 +174,8 @@ export function useDaemon(url: () => string = socketUrl) {
     status,
     connection,
     lastError,
-    version,
+    ...said.refs,
     mismatch,
-    install,
     stationAlert,
     ...answers.refs,
     send,

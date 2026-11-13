@@ -141,6 +141,11 @@ export function attemptText(row: MessageRow): string {
   return t("messages.attempt", { attempt: row.attempts, max: row.attempts_max });
 }
 
+/** Why a failed message of ours failed: its reason when it has one (a frame its radio does not carry), else that no answer came after its attempts. */
+export function failedText(row: MessageRow): string {
+  return row.failure === "too_long_for_radio" ? t("messages.state.too_long_for_radio") : t("messages.state.failed", { n: row.attempts });
+}
+
 /** The state of a message in words, with its attempts. Nothing for a message that came in. */
 export function stateText(row: MessageRow): string {
   const n = row.attempts;
@@ -158,7 +163,7 @@ export function stateText(row: MessageRow): string {
     case "rejected":
       return t("messages.state.rejected");
     case "failed":
-      return t("messages.state.failed", { n });
+      return failedText(row);
     case "unconfirmed":
       return t("messages.state.unconfirmed", { n });
     case "cancelled":

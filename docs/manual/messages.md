@@ -13,7 +13,7 @@ The text is at most 67 characters of printable ASCII, the specification's text. 
 The message gets the next message id: two characters, `01` to `99`, then `A0` to `ZZ`, `0A` to `9Z` and `00`, 1296 in all, one after the other, skipping the ids of messages still being sent. It goes out at once as a packet from your call to `APZNEO` by the digipeaters of the station's path (below). The text is followed by `{` and the id and `}`; the braces say that you know reply-acks (below). With the defaults your first message, "Hello Pekka" to OH2RDG, is:
 
 ```
-OH2GBA>APZNEO,WIDE2-1::OH2RDG   :Hello Pekka{01}
+OH2GBA>APZNEO,WIDE2-2::OH2RDG   :Hello Pekka{01}
 ```
 
 A message to a bulletin or a group (`BLN0` to `BLNZ`, `BLN3HAMS`, `ALL`, `CQ`, `QST`, `NWS-xxxxx`, `SKY`, `CWA`) goes out once, without an id, and is never retried. It is kept as *unconfirmed* with one attempt.
@@ -51,7 +51,7 @@ Some stations never ack to you. The email gateway's acks reach you only if an iG
 A message is for you when its addressee is your call with its SSID, exactly. No SSID and `-0` are the same. With OH2GBA-7, a message to OH2GBA-7 is yours; those to OH2GBA and OH2GBA-9 are other stations'.
 
 - A text that is a [query](beacon.md#answers-to-queries), or the definition of the channels of a telemetry station (it begins `PARM.`, `UNIT.`, `EQNS.` or `BITS.`), is neither kept nor acked, whatever id it carries. The Packets tab has it.
-- Any other message is kept (direction in, from the packet's source). When it carries an id it is answered at once with an ack by the sender's path. For message 12 from OH2RDG-7: `OH2GBA>APZNEO,WIDE2-1::OH2RDG-7 :ack12`.
+- Any other message is kept (direction in, from the packet's source). When it carries an id it is answered at once with an ack by the sender's path. For message 12 from OH2RDG-7: `OH2GBA>APZNEO,WIDE2-2::OH2RDG-7 :ack12`.
 - A text that reads as an ack or a reject (`ack12`, `rej12`) is one only when it quotes the id of a message of yours to that station. Otherwise it is the words of a person ("rejoin", "ackbar"), kept as a message without an id and not acked.
 - One ack goes out for each burst of copies. The first copy is acked at once. A further copy of the same message (same sender, id and text, such as a digipeater's copy or an iGate's) is acked again only when it arrives 30 seconds or more after your last ack of it, which is a sender that did not hear you and tries again (the digipeaters drop a copy of the same packet within 30 seconds). So three copies in six seconds cost one ack on the air.
 - The same id and text from the same station within 30 minutes is a repeat and is kept once. After 31 minutes it is a new message and is acked at once, and so is a new text with an id that was used (a sender that began its numbering again).
@@ -65,8 +65,8 @@ An ack that has to cross several hops is the likeliest frame to be lost. So, fol
 Every message you send has the number in that form, and the normal ack frames go out too: the reply-ack is extra. With the defaults, a message 05 from OH2RDG that said `{05}` and your answer to it, message 01:
 
 ```
-OH2GBA>APZNEO,WIDE2-1::OH2RDG   :ack05}
-OH2GBA>APZNEO,WIDE2-1::OH2RDG   :Moikka{01}05
+OH2GBA>APZNEO,WIDE2-2::OH2RDG   :ack05}
+OH2GBA>APZNEO,WIDE2-2::OH2RDG   :Moikka{01}05
 ```
 
 - Every attempt of a message to a station carries the id of the latest message that station sent you with such a number, until the station acks or rejects a message of yours.
@@ -128,7 +128,7 @@ You do not have to choose. Each attempt of a message to a station picks its path
 
 1. If you gave the station a path of its own (below), every attempt goes by it.
 2. Otherwise, if there is a **good heard path** to the station, attempts 1 and 2 go by it and attempts 3 and 4 by the beacon's path.
-3. Otherwise every attempt goes by the beacon's path (the recommended path of your station's symbol, `WIDE1-1,WIDE2-1` for a moving station and `WIDE2-1` for a fixed one, unless you changed it).
+3. Otherwise every attempt goes by the beacon's path (the recommended path of your station's symbol, `WIDE1-1,WIDE2-1` for a moving station and `WIDE2-2` for a fixed one, unless you changed it).
 
 A heard path is **good** when it is recent and repeated, in plain words:
 
@@ -149,12 +149,12 @@ Set it in the field under **Route** of a conversation, or build it with the [pat
 
 One line under the field says what the messages go by:
 
-- **Automatic: via OH2RDG,OH2RCH-2, then WIDE2-1**: the heard path for attempts 1 and 2, then the beacon's.
-- **Automatic: direct, then WIDE2-1**: the station is heard direct.
-- **Automatic: WIDE2-1**: nothing good was heard.
+- **Automatic: via OH2RDG,OH2RCH-2, then WIDE2-2**: the heard path for attempts 1 and 2, then the beacon's.
+- **Automatic: direct, then WIDE2-2**: the station is heard direct.
+- **Automatic: WIDE2-2**: nothing good was heard.
 - **Your path: ...** when you set one.
 
-`WIDE2-1` is the recommended path of a fixed station, as in these examples; a moving station's is `WIDE1-1,WIDE2-1`.
+`WIDE2-2` is the recommended path of a fixed station, as in these examples; a moving station's is `WIDE1-1,WIDE2-1`.
 
 The line is worked out when the station's row is sent, so it follows the station's next packet.
 
@@ -171,7 +171,7 @@ Every field that takes a path has a small button beside it, the same everywhere:
   | 2 | `WIDE1-1,WIDE2-1` | `WIDE2-2` |
   | 3 | `WIDE1-1,WIDE2-2` | `WIDE3-3` |
 
-  The tick starts as the path in the field has it, else as the path in force has it: ticked for a moving station (`WIDE1-1,WIDE2-1`), not for a fixed one (`WIDE2-1`), ticked when nothing says. Hover over a number to see the path it makes.
+  The tick starts as the path in the field has it, else as the path in force has it: ticked for a moving station (`WIDE1-1,WIDE2-1`), not for a fixed one (`WIDE2-2`), ticked when nothing says. Hover over a number to see the path it makes.
 - The path being built is drawn as what it means: you, then one node for each hop, then the stations that hear the last one. A node says who takes the hop: **any digi** (`WIDE1-1`: a home digipeater or a wide one), **wide digi** (a hop of `WIDE2-2` and the like) or the call of the digipeater named. Each element of the path is written under its hops (`WIDE2-2` under its two), with an x that takes it out. Hover over a node or an element to read it in a sentence.
 - Under the picture is the path as the field will get it, and the number of hops in all. No hop at all is **Direct**, which goes to the field as `DIRECT`.
 - More than 2 hops in all is more than most networks allow: the number of hops and the hops past the second are amber, with the reason in the hover text, and **Use** still takes it. An alias that is no path (`WIDE1-2`, `WIDE2-3`, `WIDE2-0`) is red, and **Use** is off while it is there.
@@ -206,7 +206,7 @@ With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-
 - **No path.** Every frame on HF is direct, so a station's own path and **RF only** are not used for it, and are kept for the day it is messaged over FM. The station panel of the Stations tab has no Route for it either.
 - **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is.
 - **Email** (`EMAIL-2`) goes out over the FM radio only, because it needs an iGate to put it on the internet and HF has none. While the FM radio is off, Send of the Email tab is off with the title "Email goes out over the FM radio, which is off".
-- The length is the same: every message of 67 characters fits an HF frame.
+- The length is the same: every message of 67 characters fits an HF frame. A message that does not fit the frame of the radio it goes out on now fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
 
 ## Encrypted messages
 

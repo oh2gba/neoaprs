@@ -278,7 +278,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.status_rigctld.tip2": "Ejemplo: 127.0.0.1:4532",
   "settings.status_interval.name": "Intervalo del estado",
   "settings.status_interval.label": "Cada",
-  "settings.status_interval.tip1": "El tiempo mínimo entre dos estados. El mismo estado no se vuelve a enviar.",
+  "settings.status_interval.tip1": "El tiempo entre dos estados.",
   "settings.status_template.name": "Plantilla del estado",
   "settings.status_template.label": "Texto",
   "settings.status_template.tip1": "{{freq}} se convierte en la frecuencia de la radio y {{mode}} en su modo. Hasta {max} caracteres una vez rellenado.",
@@ -298,7 +298,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.path.direct": "Solo directa (sin digipeaters)",
   "settings.path.custom": "Personalizada…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "Lo recomendado es WIDE1-1,WIDE2-1 para una estación móvil y WIDE2-1 para una fija, según tu símbolo.",
+  "settings.path.tip1": "Lo recomendado es WIDE1-1,WIDE2-1 para una estación móvil y WIDE2-2 para una fija, según tu símbolo.",
   "settings.path.tip2": "Solo directo si todos con quienes hablas te oyen directamente.",
 
   "settings.confirm.label": "Confirmar",

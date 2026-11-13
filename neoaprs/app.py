@@ -40,6 +40,7 @@ from .services.messaging import Messaging
 from .services.ownbulletins import OwnBulletins
 from .services.ownobjects import OwnObjects
 from .services.prefbook import PrefBook
+from .services.answers import AnswerBudget
 from .services.qru import Qru
 from .services.qruask import QruAsk
 from .services.queries import Queries
@@ -136,12 +137,13 @@ class Services:
         self.sender = Sender(self.radios, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the default radio (FM while it is on)
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
-        self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
+        answer_budget = AnswerBudget(clock)                             # the frames of answers of the minute: one for the QRU server and the queries, so that it is the station's as a whole
+        self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock, budget=answer_budget)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
         self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
         self.generalask = GeneralAsk(self.radios, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
         self.messaging = Messaging(self.radios, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
         self.queries = Queries(self.radios, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
-                               messages=self.messaging, heard=self.packetlog, igate=self.igate)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
+                               messages=self.messaging, heard=self.packetlog, igate=self.igate, budget=answer_budget)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
         """The base map, the ALOHA circle, Find my radio and the update parts."""

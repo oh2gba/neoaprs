@@ -14,7 +14,7 @@ from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
-from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_name, map_source, mercury_keying, passcode, symbol_code, symbol_table, tnc_profile
+from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .radiorules import HF
 from .route import DIRECT_ONLY, recommended_path
@@ -102,7 +102,7 @@ def _raised(setting: Setting, text: str) -> int | None:
 
 SETTINGS: tuple[Setting, ...] = (
     Setting("tnc_profile", "tnc/profile", tnc_profile),                         # what kind of TNC the radio is: what is said to it to put it in KISS, whether it can be asked if it is there, and how it is reached
-    Setting("serial_port", "serial/port", text_of(255)),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
+    Setting("serial_port", "serial/port", port_address),                     # empty: find the radio by listening to the ports of serial/pattern (a TCP profile connects to tcp/host and tcp/port instead)
     Setting("serial_baud", "serial/baud", optional_int(*RANGES["serial/baud"])),        # empty: the speed of the profile
     Setting("tcp_host", "tcp/host", host_name),                                  # where the TCP KISS server (Direwolf, a sound-card modem) runs
     Setting("tcp_port", "tcp/port", int_in(*RANGES["tcp/port"])),                       # and its KISS port: 8001 for Direwolf, 8100 for the sound-card modems
@@ -111,7 +111,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("mercury_sound_card", "mercury/sound_card", text_of(200)),           # the radio's sound card for the Mercury HF modem, as `mercury -z` names it (plughw:1,0); empty: the daemon's own choice (mercury.choose_sound_card), else the system's default device
     Setting("mercury_keying", "mercury/keying", mercury_keying),                 # how the Mercury modem keys the radio: vox (the radio keys itself), cm108 (the sound chip's GPIO), rts:PORT or dtr:PORT (a line of a serial port); empty: the daemon's own choice (mercury.choose_keying)
     Setting("mercury_tx_gain_db", "mercury/tx_gain_db", int_in(*RANGES["mercury/tx_gain_db"])),           # the Mercury modem's transmit gain in dB (0: its own level, a frame peaks at -6 dBFS): set live from the HF box beside Tune, written to its ini at every start
-    Setting("serial_last_port", "serial/last_port", text_of(255)),           # what the search found last time, tried first the next time
+    Setting("serial_last_port", "serial/last_port", port_address),           # what the search found last time, tried first the next time
     Setting("serial_pattern", "serial/pattern", device_globs),                   # space-separated globs of the device files the search listens to when no port is named
     Setting("serial_skip", "serial/skip", text_of(500)),                     # device paths, separated by commas, that the search for the radio never opens (a rotator's port, say)
     Setting("station_call", "station/call", call_or_empty),                 # empty: nothing is transmitted until a call is set (can_transmit)
@@ -131,7 +131,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("web_key", "web/key", access_key),                                # what a device on the network types to log in; made when web/network is first on, empty until then
     Setting("web_https", "web/https", boolean),                               # true (with web/network): the page is also served over https, on the port after web/port, with NeoAPRS's own certificate authority (neoaprs/web/tls.py)
     Setting("web_port", "web/port", int_in(0, 65535)),                        # 0: the system picks a free port (the log says which)
-    Setting("web_allowed_hosts", "web/allowed_hosts", text_of(500)),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
+    Setting("web_allowed_hosts", "web/allowed_hosts", host_list),         # names besides localhost, 127.0.0.1 and this machine's that a Host header may carry, separated by commas
     Setting("beacon_interval_min", "beacon/interval_min", int_or_off(*RANGES["beacon/interval_min"]), MIN_BEACON_INTERVAL_MIN),   # 0: the beacon is off, for a moving station too (any other value is On there, and unused)
     Setting("beacon_path", "beacon/path", digipeater_path),                           # the digipeaters of our beacon, empty: the recommended path of the station's symbol (route.recommended_path); DIRECT: none
     Setting("messages_alert", "messages/alert", boolean),                                       # true: a message to us runs messages/alert_command
@@ -151,7 +151,7 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("igate_password", "igate/password", passcode),                    # the APRS-IS passcode of station/call (digits; a secret; -1, the read-only login, is refused). NeoAPRS does not work it out: the operator types it
     Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),             # where the position of a moving station comes from: off, gpsd (a gpsd daemon, gps/host) or serial (a GPS receiver's NMEA on gps/device)
     Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
-    Setting("gps_device", "gps/device", text_of(255)),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
+    Setting("gps_device", "gps/device", port_address),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
     Setting("gps_baud", "gps/baud", int_in(*RANGES["gps/baud"])),             # its speed: 4800 is NMEA 0183's
     Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),    # how a station that follows the GPS (gps/source is not off) travels: by car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
 )
@@ -306,7 +306,7 @@ class Config:
 
     @property
     def recommended_path(self) -> str:
-        """The path that is recommended for this station: WIDE1-1,WIDE2-1 when its symbol is a mobile one, WIDE2-1 for any other (route.recommended_path)."""
+        """The path that is recommended for this station: WIDE1-1,WIDE2-1 when its symbol is a mobile one, WIDE2-2 for any other (route.recommended_path)."""
         return recommended_path(self.station_symbol_table, self.station_symbol_code)
 
     @property

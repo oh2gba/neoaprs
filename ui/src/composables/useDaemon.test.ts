@@ -106,6 +106,15 @@ describe("useDaemon", () => {
     expect([...daemon.stations.keys()]).toEqual(["B"]);
   });
 
+  it("knows from the hello whether the page is on the computer the daemon runs on, and is not until it has been told", () => {
+    const { daemon, socket } = setUp();
+    expect(daemon.local.value).toBe(false);
+    socket.say(hello({ local: true }));
+    expect(daemon.local.value).toBe(true);
+    socket.say(hello({ local: false }));
+    expect(daemon.local.value).toBe(false);
+  });
+
   it("holds our own objects by name and our own bulletins by slot, whole and by patch", () => {
     const { daemon, socket } = setUp();
     socket.say(hello());

@@ -73,6 +73,10 @@ describe("mailState", () => {
     expect(state({ state: "failed" })).toEqual({ word: "Not confirmed", tone: "plain" });
   });
 
+  it("says Too long for the radio for a mail that was never sent because it does not fit", () => {
+    expect(state({ state: "failed", attempts: 0, failure: "too_long_for_radio" })).toEqual({ word: "Too long for the radio", tone: "bad" });
+  });
+
   it("has none for what came in", () => {
     expect(mailState(incoming(2, "EMAIL-2"))).toBeNull();
   });

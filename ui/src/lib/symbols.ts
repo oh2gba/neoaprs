@@ -74,7 +74,7 @@ export function isMobileSymbol(table: string, code: string): boolean {
   return known && code.length === 1 && (table === "/" ? MOBILE_SYMBOLS.primary : MOBILE_SYMBOLS.alternate).includes(code);
 }
 
-/** The path that is recommended for a station with this symbol, which an empty path setting means: WIDE1-1,WIDE2-1 for a mobile symbol, WIDE2-1 (no fill-in hop) for any other, a fixed station. */
+/** The path that is recommended for a station with this symbol, which an empty path setting means: WIDE1-1,WIDE2-1 for a mobile symbol, WIDE2-2 (no fill-in hop) for any other, a fixed station. */
 export function recommendedPath(table: string, code: string): string {
   return isMobileSymbol(table, code) ? LIMITS.path.recommendedMobile : LIMITS.path.recommendedFixed;
 }

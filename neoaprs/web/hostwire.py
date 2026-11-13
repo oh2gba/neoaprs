@@ -33,6 +33,7 @@ class Hello(_Message):
     version: str = Field(description="the version of the daemon, which the page shows (Settings → Update check); the page has no version of its own and does not compare this one")
     page: str = Field(description="the build of the page this daemon serves, the name of its main script (`index-<hash>.js` of assets/); the daemon serves the page it took when it started, so this is the build a browser gets from it. A page of another build loads itself again, once for each build, and shows a notice when that does not help; empty when the daemon has no built page")
     install: InstallInfo = Field(description="how this daemon was installed, for the steps of an update")
+    local: bool = Field(description="whether this page is on the computer the daemon runs on (the loopback, with a request addressed to it): only such a page changes the settings that name a program or an address the daemon runs or fetches from (messages/alert_command, update/url, map/source, web/allowed_hosts) and runs the alert's Test; a page of another device does not show them")
     topics: list[str] = Field(description="the topics the page is following from the start: all of them (a page may `unsubscribe` from one)")
 
 

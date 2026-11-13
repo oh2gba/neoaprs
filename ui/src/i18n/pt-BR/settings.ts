@@ -278,7 +278,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.status_rigctld.tip2": "Exemplo: 127.0.0.1:4532",
   "settings.status_interval.name": "Intervalo do status",
   "settings.status_interval.label": "A cada",
-  "settings.status_interval.tip1": "O tempo mínimo entre dois status. O mesmo status não é enviado de novo.",
+  "settings.status_interval.tip1": "O tempo entre dois status.",
   "settings.status_template.name": "Modelo do status",
   "settings.status_template.label": "Texto",
   "settings.status_template.tip1": "{{freq}} vira a frequência do rádio e {{mode}} o seu modo. Até {max} caracteres depois de preenchido.",
@@ -298,7 +298,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.path.direct": "Somente direto (sem digipeaters)",
   "settings.path.custom": "Personalizado…",
   "settings.path.custom_label": "Digipeaters",
-  "settings.path.tip1": "O recomendado é WIDE1-1,WIDE2-1 para uma estação móvel e WIDE2-1 para uma fixa, conforme o seu símbolo.",
+  "settings.path.tip1": "O recomendado é WIDE1-1,WIDE2-1 para uma estação móvel e WIDE2-2 para uma fixa, conforme o seu símbolo.",
   "settings.path.tip2": "Só direto se todos com quem você fala ouvem você diretamente.",
 
   "settings.confirm.label": "Confirmar",

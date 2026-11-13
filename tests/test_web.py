@@ -495,8 +495,9 @@ async def test_a_foreign_host_name_is_refused_with_403_and_a_name_in_the_setting
     with pytest.raises(HTTPClientError) as refused:
         await e.ws(host="evil.example")
     assert refused.value.code == 403
-    for host in ("localhost", f"localhost:{e.port}", "127.0.0.1", "[::1]", "192.168.1.20:7303", "LOCALHOST."):
+    for host in ("localhost", f"localhost:{e.port}", "127.0.0.1", "[::1]", "LOCALHOST."):
         assert (await e.fetch("/", headers={"Host": host})).code == 200, host
+    assert (await e.fetch("/", headers={"Host": "192.168.1.20:7303", "X-Forwarded-For": "192.168.1.20"})).code == 200       # (a request on the loopback that says it came by a proxy is not this computer's: it is not sent on to 127.0.0.1)
     page = await e.ws(host="localhost")
     await page.expect("hello")
 
@@ -510,11 +511,12 @@ async def test_names_in_web_allowed_hosts_and_the_name_of_the_machine_are_ours(t
     second = Env(tmp_path, web=True)
     await e.stop()
     await second.start()
+    proxied = {"X-Forwarded-For": "203.0.113.9"}        # (a request on the loopback that says it came by a proxy is not this computer's: it is not sent on to 127.0.0.1)
     for host in ("aprs.example", "pi:7303", "PI"):
-        assert (await second.fetch("/", headers={"Host": host})).code == 200, host
+        assert (await second.fetch("/", headers={"Host": host, **proxied})).code == 200, host
     assert (await second.fetch("/", headers={"Host": "other.example"})).code == 403
     import socket
-    assert (await second.fetch("/", headers={"Host": socket.gethostname()})).code == 200
+    assert (await second.fetch("/", headers={"Host": socket.gethostname(), **proxied})).code == 200
 
 
 async def test_a_socket_from_another_site_is_refused(tmp_path: Path) -> None:

@@ -11,7 +11,7 @@ Both also alert for an alert you set on a station (**Alert me when…** in the S
 
 ## On the NeoAPRS computer
 
-When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Alert** is off, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
+When a message to you arrives and **Alert** (`messages/alert`) is on, which it is by default, NeoAPRS runs the shell line in **Command** (`messages/alert_command`, at most 1000 characters; empty runs nothing). While **Alert** is off, and on a page of another device, **Command** and its Test button are hidden. The default on Linux is a notification and a sound:
 
 ```
 (notify-send -- "$NEOAPRS_TITLE" "$NEOAPRS_TEXT" 2>/dev/null || kdialog --title "$NEOAPRS_TITLE" --passivepopup "$NEOAPRS_TEXT" 10); paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga

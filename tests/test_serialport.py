@@ -212,8 +212,8 @@ async def test_a_port_that_cannot_be_opened_raises_serial_error_with_the_systems
     assert not port.is_open
 
 
-async def test_a_url_pyserial_does_not_know_is_a_serial_error() -> None:
-    with pytest.raises(SerialError, match="protocol 'nonsense' not known"):
+async def test_a_url_the_program_does_not_mean_is_a_serial_error() -> None:
+    with pytest.raises(SerialError, match="'nonsense://x' is not an address or a name"):
         await SerialPort("nonsense://x").open()
 
 

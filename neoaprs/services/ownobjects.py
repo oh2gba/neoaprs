@@ -25,7 +25,7 @@ from neoaprs.message import same_call
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject, info_of, make_object
 from neoaprs.packet import DUMMY, ItemReport, ObjectReport, Packet
-from neoaprs.services.common import ConfigSource, transmit_refusal
+from neoaprs.services.common import ConfigSource, radio_path, transmit_refusal
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -136,8 +136,15 @@ class OwnObjects(Repeater[str]):
         if obj.sent == 0:                                   # new, changed or just killed: as soon as the last packet of it is a minute old
             return first_due(obj.updated_at, obj.last_sent_at)
         assert obj.last_sent_at is not None
-        wait = object_wait_sec(obj.sent, self.path_of(obj)) if obj.alive else kill_wait_sec(obj.sent)
+        wait = self._live_wait(obj) if obj.alive else kill_wait_sec(obj.sent)
         return None if wait is None else obj.last_sent_at + timedelta(seconds=wait)
+
+    def _live_wait(self, obj: OwnObject) -> int:
+        """The wait after the latest packet of a live object, by the net cycle time of the path its frames really carry: none on HF, where every frame is direct, the object's path on FM; the longest of
+        them when it goes on both radios."""
+        path = self.path_of(obj)
+        radios = self._sender.radios_for(obj.radio)
+        return max((object_wait_sec(obj.sent, radio_path(radio, path)) for radio in radios), default=object_wait_sec(obj.sent, path))
 
     def _transmit(self, key: str, now: datetime) -> bool:
         """The round of the object on its radios: each that has not taken it yet and takes a frame now is given it; the round is done when every radio that is there has taken it (one that is away does not hold it up),

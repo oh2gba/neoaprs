@@ -50,7 +50,7 @@ def test_a_database_of_version_twelve_gets_the_two_empty_tables_and_keeps_everyt
     assert migrated.db.execute("SELECT id, text, state FROM message ORDER BY id").fetchall() == messages
     assert migrated.db.execute("SELECT call, path, rf_only FROM station_pref ORDER BY call").fetchall() == prefs
     assert migrated.db.execute("SELECT sender, slot, text, times_heard FROM bulletin").fetchall() == board
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][12:] == [(13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29])]
     migrated.db.execute(INSERT_OBJECT, OBJECT)
     migrated.db.execute(INSERT_BULLETIN, BULLETIN)
     for opened_ in (migrated, fresh):
