@@ -8,7 +8,7 @@ packaged is in [`docs/development.md`](development.md).
 | what | where | how |
 |---|---|---|
 | the front page | `README.md` | the pointer to the project page, the downloads, a short feature list, the radios in a line, two screenshots |
-| the release notes | `CHANGELOG.md` | a line under `## Unreleased`; the release workflow reads the section of the version (`scripts/release-notes.py`) and makes it the notes of the GitHub release, so the section reads as release notes, and they are short and to the point: one sentence that sums the release up, then one line per change that says what the user gets (under about 20 words; no how, no internal names, no setting keys unless the user types them), as the section of 0.9.1 does. Before a release the section is tidied: overlapping bullets merged, and only the final behaviour kept (no bullet for a state that a later change took away) |
+| the release notes | `CHANGELOG.md` | a line under `## Unreleased`, written by the rule of `CONVENTIONS.md` ("Documents, scripts, units"): one short line for a thing a user can see or do, and none for a change nobody can notice (`tests/test_changelog_brief.py` holds the form, here and again under the version at the release; what is worth a line is the writer's care). The release workflow reads the section of the version (`scripts/release-notes.py`) and makes it the notes of the GitHub release. Before a release the section is tidied: the sentence that sums the release up written first, overlapping lines merged, and only the final behaviour kept (no line for a state that a later change took away) |
 | the manual and the radio guide | `docs/manual/`, `docs/RADIOS.md` | the file of the manual that the change touches, in plain words and short paragraphs; the description of a tab follows the tab |
 | the table of settings | `docs/manual/settings.md` | generated: `scripts/doc-settings --write`; a new setting also needs its words in `tests/support/settingsdoc.py` |
 | how the daemon behaves | `docs/daemon.md` | the technical details behind the manual, with the names the code uses |
@@ -69,8 +69,8 @@ The Mercury that every release carries is the four constants at the head of `neo
 **Before the notes:** a control that was taken off the page since the last release has a migration that reset its stored value to the default, or a control on the page still. Never leave a user with a state the page cannot change (`CONVENTIONS.md`, "Removing a control from the page"; `tests/test_settings_reachable.py` holds the list of what the page leaves out).
 
 
-**The way** is one command, on `master` with a clean tree that is up to date with origin and has the notes of the release under `## Unreleased` in `CHANGELOG.md` (a one-sentence summary line first, then the groups;
-`scripts/release-notes.py` prints it as GitHub will show it; overlapping bullets merged and only the final behaviour kept):
+**The way** is one command, on `master` with a clean tree that is up to date with origin and has the notes of the release under `## Unreleased` in `CHANGELOG.md` (a one-sentence summary line first, then one short line for each thing a user can see or do;
+`scripts/release-notes.py` prints it as GitHub will show it; overlapping lines merged and only the final behaviour kept):
 
     scripts/release 0.9.2 [--dry-run] [--rerun] [--deploy]
 
@@ -82,7 +82,7 @@ Each step says in one line what it does, and every one is skipped when it is don
 2. **version**, **changelog**: `VERSION` in `neoaprs/__init__.py` (the one place it is written), and `## Unreleased` renamed to `## <version>` (the notes of the release are that section) with a fresh empty one above.
 3. **page**: only when `ui/` changed since the last tag, the page is built and must be what is committed. A version bump changes nothing in `neoaprs/page/` (the page has no version in it, `ui/` is what it is built from),
    so the release commit holds no page; a committed page that is not what `ui/` builds stops the release, with the tree as it was: run `scripts/build-page`, commit `neoaprs/page/`, run the command again.
-4. **check**: `scripts/check`. The simulation of the HF net (`scripts/check --stage sim`, about six minutes) is not in it; the CI job `sim` runs it on every push to master, so a green CI run of the release commit covers it.
+4. **check**: `scripts/check`, which includes the stages `security` and `smoke`: run it outside a sandbox that keeps uv from its cache, and run `scripts/security-tools` once before (it fetches the programs of `security`). It reads the notes once more, now under `## <version>` (`tests/test_changelog_brief.py`): notes that are not brief stop the release here; correct them in that section and run the command again. The simulation of the HF net (`scripts/check --stage sim`, about six minutes) is not in it; the CI job `sim` runs it on every push to master, so a green CI run of the release commit covers it.
 5. **commit** `<version>: the changelog section and the version`, **push** `master`.
 6. **ci**: waits for the CI run of that commit (`gh run watch`). A failure prints the failed jobs and the lines of the failed tests and stops; `--rerun` runs the failed jobs of that run again once, for a flaky test.
 7. **tag** `v<version>` on that commit and **push the tag**. A tag is never moved: one that names another commit stops the script, and a failure of the release run is never answered with a new tag of the same number.
