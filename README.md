@@ -8,6 +8,8 @@ NeoAPRS shows the stations you hear on a map, sends and receives APRS messages w
 
 **New: APRS over HF.** NeoAPRS is the first to carry APRS over Rhizomatica's Mercury modem: an SSB radio with a sound card, stations 1000 to 2000 km away, messages with acks, and nothing extra to install.
 
+Read more: [the article](https://neo.oh2gba.eu/aprs-below-the-noise.html), [the one-page summary](https://neo.oh2gba.eu/aprs-over-hf-one-page.html), [the technical note](https://neo.oh2gba.eu/aprs-over-hf-mercury.html) and [the first test on the air](https://neo.oh2gba.eu/first-test.html).
+
 | ![The map](docs/screenshots/map.png) | ![Messages](docs/screenshots/messages.png) |
 |---|---|
 

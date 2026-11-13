@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS Below the Noise: Mercury Comes to HF · NeoAPRS</title>
+<meta name="description" content="NeoAPRS puts a modern OFDM modem inside an APRS client. Here is what it sends, how it shares the channel, and how to get your SSB rig on the air.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1f2c" media="(prefers-color-scheme: dark)">
+<meta name="author" content="John, OH2GBA; Otso, OH2GAX">
+<link rel="canonical" href="https://neo.oh2gba.eu/aprs-below-the-noise.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="alternate" type="application/pdf" href="aprs-below-the-noise.pdf" title="The article (PDF)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="NeoAPRS">
+<meta property="og:title" content="APRS Below the Noise: Mercury Comes to HF">
+<meta property="og:description" content="NeoAPRS puts a modern OFDM modem inside an APRS client. Here is what it sends, how it shares the channel, and how to get your SSB rig on the air.">
+<meta property="og:url" content="https://neo.oh2gba.eu/aprs-below-the-noise.html">
+<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
+<meta property="article:published_time" content="2026-11-05">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"APRS Below the Noise: Mercury Comes to HF","description":"NeoAPRS puts a modern OFDM modem inside an APRS client. Here is what it sends, how it shares the channel, and how to get your SSB rig on the air.","articleSection":"Digital modes | HF APRS","datePublished":"2026-11-05","inLanguage":"en","author":[{"@type":"Person","name":"John, OH2GBA","url":"https://oh2gba.eu"},{"@type":"Person","name":"Otso, OH2GAX"}],"publisher":{"@type":"Organization","name":"NeoAPRS","url":"https://neo.oh2gba.eu/"},"url":"https://neo.oh2gba.eu/aprs-below-the-noise.html","mainEntityOfPage":"https://neo.oh2gba.eu/aprs-below-the-noise.html","encoding":{"@type":"MediaObject","encodingFormat":"application/pdf","contentUrl":"https://neo.oh2gba.eu/aprs-below-the-noise.pdf"},"about":["APRS","HF APRS","Mercury modem","DATAC3","OFDM","LDPC","300-baud AFSK","amateur radio"],"image":"https://neo.oh2gba.eu/shots/og.png"}</script>
+<link rel="stylesheet" href="style.css?v=29">
+<script src="site.js?v=10" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<header class="mast">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28"><span>Neo<b>APRS</b></span></a>
+    <nav aria-label="Page">
+      <a href="./#download">Download</a>
+      <a href="./#features">Features</a>
+      <a href="./#radios">FM and HF</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<article class="sec article tech">
+  <div class="wrap">
+    <p class="flag">Digital modes · HF APRS · <time datetime="2026-11-05">November 2026</time></p>
+    <h1 class="article-title">APRS Below the Noise: Mercury Comes to HF</h1>
+    <p class="lead-sm">NeoAPRS puts a modern OFDM modem inside an APRS client. Here is what it sends, how it shares the channel, and how to get your SSB rig on the air.</p>
+    <p class="byline"><b>John, OH2GBA</b>, developer and author of NeoAPRS, and <b>Otso, OH2GAX</b>, ideas, feedback, testing</p>
+    <p class="cta"><a class="btn" href="aprs-below-the-noise.pdf">Download as PDF</a></p>
+
+    <div class="note-body">
+    <figure id="figure-1">
+      <img src="below-the-noise/figure-1.png" width="1790" height="646" alt="Two waterfalls side by side, audio frequency from 800 to 2200 Hz across and time from 0 to 4 s scrolling down. Left, Mercury DATAC3 (NeoAPRS HF radio): a block of 9 carriers, 562 Hz wide, 3.4 s of audio. Right, classic 300-baud AFSK packet: two tones 200 Hz apart, about 2.6 s.">
+      <table class="facts">
+        <tbody>
+          <tr><th scope="row">Mercury DATAC3 (NeoAPRS HF radio)</th><td>562 Hz, 9 carriers<br>3.4 s of audio (3.8 s keyed)<br>126 bytes with FEC<br>decodes down to about −4 dB SNR</td></tr>
+          <tr><th scope="row">Classic 300-baud AFSK packet</th><td>two tones, 200 Hz<br>≈2.6 s for an 80-byte frame, no error correction<br>one bad bit loses the frame</td></tr>
+        </tbody>
+      </table>
+      <figcaption><b>Figure 1.</b> The same waterfall, two HF APRS signals at about +8 dB SNR. Left: a real Mercury DATAC3 burst, made with the modem’s own code. Its nine carriers fill a 562 Hz block for 3.4 s. Right: a 300-baud AFSK packet, two tones 200 Hz apart. The AFSK packet is shorter, but it has no error correction, and on a fading skywave path it is the one that breaks.</figcaption>
+    </figure>
+
+    <p>On the afternoon of 4 November 2026 we were trading APRS messages on 2 m through the local digipeaters when the VHF path at one end went away. We didn’t stop the conversation. We ticked the HF radio in NeoAPRS, put both rigs on 50.620 MHz USB and kept typing. For the next twenty minutes, over 40.8 km, every message got through. One of them was sent with a single watt and decoded 3 dB below the noise.</p>
+    <p>That is not what HF APRS usually feels like. Since the early 1990s, APRS on HF has meant 300-baud AFSK: two tones 200 Hz apart, no error correction, and a frame that dies if one bit goes wrong. On a real skywave path, echoes arrive a couple of milliseconds apart, and a 3.3 ms symbol doesn’t stand a chance.</p>
+
+    <h2 id="nine-carriers">Nine carriers and a strong code</h2>
+    <p>NeoAPRS, a free APRS client for Windows, macOS, Linux and the Raspberry Pi, now has a second radio for HF. It is built around <b>Mercury</b>, the open-source HF modem from Rhizomatica’s HERMES project. Mercury sends APRS frames in <b>DATAC3</b>, one of the data modes of the FreeDV/codec2 project.</p>
+    <p>Instead of two tones, DATAC3 sends nine carriers 62.5 Hz apart, a 562 Hz-wide block centred on 1500 Hz audio (<a href="#figure-1">Figure 1</a>). Each carrier sends a QPSK symbol every 22 ms: 16 ms of data plus a 6 ms guard that swallows multipath echoes. Every fifth symbol is a known pilot, so the receiver can follow the fading and the phase of each carrier. On top of it all sits an LDPC code of rate 1/2: half of what goes out is error correction.</p>
+    <p>The price is air time. Every frame lasts 3.8 s from PTT ON to PTT OFF and carries 126 bytes, of which 123 are free for the APRS frame. That is enough for a full 67-character message. The net rate is about 316 bit/s, roughly that of 300-baud packet.</p>
+    <p>The gain is sensitivity. On a simulated channel, DATAC3 decodes down to about −4 dB SNR in 3 kHz. That is some 6 dB better than even an ideal 300-baud modem in plain noise, and the gap grows on fading paths, where AFSK falls apart.</p>
+
+    <blockquote class="cite"><b>“One message was sent with a single watt and decoded 3 dB below the noise.”</b></blockquote>
+
+    <h2 id="sharing">Sharing one frequency politely</h2>
+    <p>A 3.8-second frame, on a frequency shared by stations hundreds of kilometres apart, calls for good manners, and NeoAPRS builds them in:</p>
+    <ul class="article-list">
+      <li><b>No digipeaters, no path.</b> Every station hears every frame directly or not at all.</li>
+      <li><b>Listen before talk.</b> NeoAPRS reads the modem’s spectrum 20 times a second and holds its own frames while anything as wide as a frame is on the channel.</li>
+      <li><b>Patient acks.</b> The ack waits until the other station’s frame has cleared, so a message and its ack take about ten seconds (<a href="#figure-2">Figure 2</a>). Retries come at 32, 64 and 128 s, each with a random extra wait.</li>
+      <li><b>Quiet beacons.</b> At most one beacon every 30 minutes, with up to five minutes of random delay. Stations that start together drift apart instead of colliding every time.</li>
+    </ul>
+
+    <figure id="figure-2" class="small">
+      <img src="below-the-noise/figure-2.png" width="992" height="534" alt="A time line from 0 to 10 seconds with two rows. You: message, then wait. Them: ack." loading="lazy">
+      <figcaption><b>Figure 2.</b> A message and its ack on HF: about ten seconds.</figcaption>
+    </figure>
+
+    <p>You don’t have to change how you operate. FM and HF stations share one map and one message list, and you choose the radio for each station. Mercury comes inside NeoAPRS, and there is nothing else to install. With no HF rig handy, the <i>Dummy HF radio</i> makes up distant stations and plays the modem through your speakers, so you can hear what it sounds like.</p>
+
+    <div class="notebox">
+      <h3 id="what-you-need">What you need</h3>
+      <ul class="article-list">
+        <li>An SSB transceiver and a sound-card interface: the rig’s own USB audio, a DigiRig or a SignaLink.</li>
+        <li>PTT by RTS or DTR, a CM108 GPIO, or VOX. With VOX, a 150-ms tone ahead of each frame wakes the rig.</li>
+        <li><b>Dial, USB:</b> 7.0541 MHz (40 m), 14.1070 MHz (20 m), 10.1462 MHz (30 m), 50.620 MHz (6 m). These are proposals for now.</li>
+        <li>Press <i>Tune</i> (a 1 kHz tone) and set <i>Transmit level</i> so that the ALC does not move.</li>
+        <li>Use your normal SSB receive filter, not a narrow data filter.</li>
+        <li>Both rigs within ±50 Hz of each other. On 6 m a TCXO helps.</li>
+        <li><a href="./#download">NeoAPRS for Windows, macOS, Linux or the Pi</a>: <a href="https://neo.oh2gba.eu/">https://neo.oh2gba.eu</a></li>
+      </ul>
+    </div>
+
+    <h2 id="your-turn">Your turn</h2>
+    <p>Our <a href="first-test.html">first test</a> ran on 6 m. Over that distance it was ground wave, not skywave, so the real test is still ahead: 40 and 20 m, over a few hundred to a couple of thousand kilometres. That’s where we need you. Load NeoAPRS, tick the HF radio, call on 7.0541 MHz USB, and tell us what worked (band, distance, power) at <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a> or on <a href="https://github.com/oh2gba/neoaprs">GitHub</a>. See you below the noise.</p>
+    <p class="aside">NeoAPRS is free software (GPL-3.0). Mercury is by Rhizomatica (GPL-3), and the DATAC modes are by David Rowe and the FreeDV/codec2 team. Source: <a href="https://github.com/oh2gba/neoaprs">github.com/oh2gba/neoaprs</a>.</p>
+    </div>
+    <p class="cta"><a class="btn" href="./#download">Download NeoAPRS</a><a class="btn ghost" href="aprs-over-hf-one-page.html">The key numbers on one page</a><a class="btn ghost" href="aprs-over-hf-mercury.html">The technical note</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="links">
+      <a href="https://github.com/oh2gba/neoaprs">Source</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/manual/README.md">Manual</a>
+      <a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md">Radio guide</a>
+      <a href="https://github.com/oh2gba/neoaprs/releases">Releases</a>
+      <a href="faq.html">Questions and answers</a>
+      <a href="mailto:neoaprs@oh2gba.eu">neoaprs@oh2gba.eu</a>
+    </p>
+    <p>GNU GPL v3 or later. By <a href="https://oh2gba.eu">OH2GBA</a>. HF modem: <a href="https://github.com/Rhizomatica/mercury">Mercury</a> by Rhizomatica.</p>
+    <p class="privacy">No cookies · no IP addresses stored · no advertising</p>
+  </div>
+</footer>
+</body>
+</html>
