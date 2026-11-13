@@ -150,7 +150,12 @@ function support_is_bundle(array $names): bool
     return true;
 }
 
-/** A word of the form: only the characters in `$keep`, at most `$max` of them. */
+/**
+ * A word of the form: only the characters in `$keep`, at most `$max` of them. Every set this script keeps (letters, digits, dot, dash, plus, underscore) has no line end and no control character, which is why
+ * what comes out may stand in the mail's subject: Psalm is told so here, since it cannot follow a pattern.
+ *
+ * @psalm-taint-escape header
+ */
 function support_clean(mixed $value, string $keep, int $max): string
 {
     return is_string($value) ? substr((string) preg_replace('/[^' . $keep . ']/', '', $value), 0, $max) : '';

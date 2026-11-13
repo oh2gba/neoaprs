@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Fetches the programs that scripts/security-check runs and that this machine does not have: gitleaks, shellcheck, zizmor, osv-scanner and Psalm, each at the one version pinned below.
+
+    scripts/security-tools             fetch every tool that is not in the cache yet
+    scripts/security-tools NAME ...    only the tools named
+    scripts/security-tools --list      each tool, its version and whether it is in the cache; fetches nothing
+
+Each is a file of the tool's own GitHub release, downloaded from GitHub's hosts only and kept only when its SHA-256 is the one written here (the digest GitHub shows for the file of the release; the pin is
+the trust, not the server). The programs go to the folder security-tools/ of the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build), one folder per tool and version, so a new pin is a new
+folder. Nothing is installed on the system and nothing is put on the PATH: scripts/security-check asks this file where each program is. The pins are for Linux x86_64; on another system no tool is available.
+Psalm's file is a PHP archive: the system's php runs it, and needs its XML extensions for that (Debian and Ubuntu: the package php-xml), which this script does not fetch. Where the system's php
+lacks them, scripts/security-check runs the archive in the official php image with docker: PHP_IMAGES below pins that image by its digest, and `docker pull` of the pinned name is what gets it.
+Moving a pin: the new version, the address and the digest of its file here, then scripts/security-tools and scripts/security-check, which shows what the new version finds (docs/security-checks.md).
+Needs the network; the standard library only, so that it runs before there is a venv."""
+import argparse
+import hashlib
+import http.client
+import os
+import platform
+import shutil
+import sys
+import tarfile
+import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+from typing import IO
+
+HOSTS = frozenset({"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"})       # the release page and where GitHub keeps the files it redirects to
+USER_AGENT = "neoaprs-security-tools"
+TIMEOUT_SEC = 60.0
+MAX_DOWNLOAD = 200_000_000                  # the biggest file taken (Psalm's is 70 MB)
+SYSTEM = ("linux", "x86_64")                # what the files below are built for
+
+
+@dataclass(frozen=True)
+class Tool:
+    version: str
+    url: str
+    sha256: str                             # of the file at the address
+    program: str                            # the file's name in the cache
+    member: str = ""                        # the program's path inside a tar archive; empty when the file is the program itself
+
+
+TOOLS: dict[str, Tool] = {
+    "gitleaks": Tool("8.30.1", "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+                     "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb", "gitleaks", "gitleaks"),
+    "shellcheck": Tool("0.11.0", "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+                       "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198", "shellcheck", "shellcheck-v0.11.0/shellcheck"),
+    "zizmor": Tool("1.32.0", "https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-x86_64-unknown-linux-gnu.tar.gz",
+                   "bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b", "zizmor", "zizmor"),
+    "osv-scanner": Tool("2.7.1", "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64",
+                        "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8", "osv-scanner"),
+    "psalm": Tool("7.3.2", "https://github.com/vimeo/psalm/releases/download/7.3.2/psalm.phar",
+                  "db246341f242d81d8f51487fc6318cb9cdc9cbdb7b206e5fe5705a55be4d4975", "psalm.phar"),
+}
+
+
+# The official php image Psalm runs in where the system's php lacks its extensions (the image has them), by php's minor version: the name with the digest of the tag `<minor>-cli`, which is what
+# `docker pull php:<minor>-cli` prints as `Digest:`. A minor version without an entry has no image: the check then fails and says so. An entry reads
+#     "8.4": "php@sha256:<the 64 digits>",
+PHP_IMAGES: dict[str, str] = {"8.4": "php@sha256:d63e8b80cd4c6cfd01cfa7c910522e299cdc7ca1a2b6d6563db48df3c17e6c55"}
+
+
+class FetchError(Exception):
+    """A tool could not be had; the text says why."""
+
+
+def cache_dir() -> Path:
+    """The folder of the build cache that holds the tools."""
+    base = os.environ.get("NEOAPRS_BUILD_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build"
+    return Path(base) / "security-tools"
+
+
+def available_here() -> bool:
+    machine = {"amd64": "x86_64", "x64": "x86_64"}.get(platform.machine().lower(), platform.machine().lower())
+    return (platform.system().lower(), machine) == SYSTEM
+
+
+def tool_path(name: str) -> Path:
+    """Where the pinned program of the tool is once it is fetched."""
+    tool = TOOLS[name]
+    return cache_dir() / f"{name}-{tool.version}" / tool.program
+
+
+def present(name: str) -> bool:
+    return tool_path(name).is_file()
+
+
+def allowed(url: str) -> bool:
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme == "https" and (parts.hostname or "").lower() in HOSTS and parts.port in (None, 443) and parts.username is None
+
+
+class _GitHubOnly(urllib.request.HTTPRedirectHandler):
+    """A redirect only to one of GitHub's hosts of release files."""
+
+    def redirect_request(self, req: urllib.request.Request, fp: IO[bytes], code: int, msg: str, headers: http.client.HTTPMessage, newurl: str) -> urllib.request.Request | None:
+        if not allowed(newurl):
+            raise FetchError(f"the download was sent on to {newurl.split('?', 1)[0]}, which is not one of GitHub's addresses for release files")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def transfer(url: str, target: Path) -> str:
+    """One GET of the address written to `target`: the SHA-256 of what came. A transfer that ends before the size the server said is an OSError, so that it is tried again and not taken for another file."""
+    digest, size = hashlib.sha256(), 0
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (`download` has just said yes to the address with `allowed`, which says it again for every redirect: https on one of GitHub's hosts)
+    with urllib.request.build_opener(_GitHubOnly()).open(request, timeout=TIMEOUT_SEC) as reply, target.open("wb") as out:
+        said = reply.headers.get("Content-Length", "")
+        while chunk := reply.read(1 << 16):
+            size += len(chunk)
+            if size > MAX_DOWNLOAD:
+                raise FetchError(f"{url} is bigger than {MAX_DOWNLOAD // 1_000_000} MB")
+            digest.update(chunk)
+            out.write(chunk)
+    if said.isdigit() and size != int(said):
+        raise OSError(f"the transfer broke off after {size} of {said} bytes")
+    return digest.hexdigest()
+
+
+def download(url: str, target: Path, sha256: str, pause_sec: float = 2.0) -> None:
+    """The file at the address, written to `target`, if its digest is the pinned one; else FetchError, and what came is thrown away. A transfer that fails is tried three times."""
+    if not allowed(url):
+        raise FetchError(f"{url} is not one of GitHub's addresses for release files")
+    found, last = "", None
+    for attempt in range(3):
+        try:
+            found, last = transfer(url, target), None
+            break
+        except urllib.error.HTTPError as error:                             # (the server's answer is its answer: asking again changes nothing)
+            raise FetchError(f"{url}: the server answered {error.code} {error.reason}") from None
+        except (OSError, ValueError, http.client.HTTPException) as error:
+            last = error
+            time.sleep(pause_sec * (attempt + 1))
+    if last is not None:
+        raise FetchError(f"{url} could not be fetched: {last}")
+    if found != sha256:
+        raise FetchError(f"{url} is not the file that was expected (its SHA-256 is {found}, not {sha256}); it was thrown away")
+
+
+def unpack(archive: Path, member: str, target: Path) -> None:
+    """The one file `member` of the tar archive, written to `target`: the names inside the archive decide nothing but which file it is."""
+    try:
+        with tarfile.open(archive) as tar:
+            source = tar.extractfile(tar.getmember(member))
+            if source is None:
+                raise FetchError(f"{member} in {archive.name} is not a file")
+            with source, target.open("wb") as out:
+                shutil.copyfileobj(source, out)
+    except (KeyError, tarfile.TarError) as error:
+        raise FetchError(f"{archive.name} does not hold {member}: {error}") from None
+
+
+def fetch(name: str) -> Path:
+    """The tool's program in the cache, downloaded and checked when it is not there. The folder appears whole or not at all: it is made beside its place and renamed."""
+    tool, target = TOOLS[name], tool_path(name)
+    if target.is_file():
+        return target
+    if not available_here():
+        raise FetchError(f"{name} is not available here: the pinned files are for Linux x86_64")
+    cache = cache_dir()
+    cache.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=f"{name}-", suffix=".part", dir=cache))
+    try:
+        program = work / tool.program
+        if tool.member:
+            download(tool.url, work / "archive", tool.sha256)
+            unpack(work / "archive", tool.member, program)
+            (work / "archive").unlink()
+        else:
+            download(tool.url, program, tool.sha256)
+        program.chmod(0o755)
+        work.chmod(0o755)
+        shutil.rmtree(target.parent, ignore_errors=True)
+        work.rename(target.parent)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return target
+
+
+def listing() -> str:
+    """One line per tool: its name, its version and whether it is in the cache."""
+    def state(name: str) -> str:
+        if present(name):
+            return f"in the cache: {tool_path(name)}"
+        return "not in the cache" if available_here() else "not available here"
+    return "\n".join(f"{name:<12} {tool.version:<8} {state(name)}" for name, tool in TOOLS.items())
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("names", nargs="*", metavar="NAME", help=f"the tools to fetch (default: all): {', '.join(TOOLS)}")
+    parser.add_argument("--list", action="store_true", help="print each tool, its version and whether it is in the cache; fetch nothing")
+    args = parser.parse_args()
+    unknown = [name for name in args.names if name not in TOOLS]
+    if unknown:
+        parser.error(f"no tool called {', '.join(unknown)} ({', '.join(TOOLS)})")
+    if args.list:
+        print(listing())
+        return 0
+    failed = False
+    for name in args.names or list(TOOLS):
+        had = present(name)
+        try:
+            path = fetch(name)
+        except (FetchError, OSError) as error:
+            print(f"FAIL  {name} {TOOLS[name].version}: {error}", file=sys.stderr)
+            failed = True
+            continue
+        print(f"{'ok   ' if had else 'new  '} {name} {TOOLS[name].version}: {path}")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

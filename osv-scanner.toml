@@ -1,0 +1,19 @@
+# The advisories that `scripts/security-check --audit` (osv-scanner over uv.lock and ui/package-lock.json) sets aside.
+# An entry is one advisory that cannot reach NeoAPRS as it uses the package, with the reason and the day the entry ends: from that day the advisory fails the audit again and is looked at again.
+# An advisory against something the installers carry (uv.lock, and of the page maplibre-gl, pmtiles and vue) is not set aside: the package is moved to the fixed version.
+# The check refuses an entry without a reason or an end. docs/security-checks.md says how an entry is added.
+
+[[IgnoredVulns]]
+id = "GHSA-8g5g-mxqh-grgj"
+effectiveUntil = 2027-02-13
+reason = "vite: files that server.fs.deny names can be read from a dev server that is opened to the network. Ours listens on this computer only (no --host, no server.host in ui/vite.config.ts), and vite is not in the built page. Goes with the move to vite 6.4.5."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+effectiveUntil = 2027-02-13
+reason = "glob: a walk that was cancelled by a signal goes on reading folders. glob is here under the page's test library (@vue/test-utils, by way of js-beautify), which walks no folder an outsider names and cancels nothing, and it is not in the built page. The fix is in glob 14, which js-beautify does not take yet."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+effectiveUntil = 2027-02-13
+reason = "minimatch: a pattern written by an attacker can take very long to compile. The patterns here are the ones of our own lint, type-check and test tools (the eslint parser for TypeScript, vue-tsc, and editorconfig and glob under @vue/test-utils), and minimatch is not in the built page. The fix is in minimatch 11, which those tools do not take yet."

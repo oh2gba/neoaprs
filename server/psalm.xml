@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  The settings of Psalm for scripts/security-check. Psalm reads the PHP of this folder and follows what a request sends (the query, the form, the uploaded file, the headers, the body)
+  to the places where it is used: a file's path, an include, a header, a shell, the answer. The check counts only those reports (their names begin with Tainted), so the error level is
+  Psalm's most lenient one: the types of this PHP are not what is asked here.
+  The file is not uploaded: server/deploy.sh takes the files it names and the folder neo/.
+-->
+<psalm
+    xmlns="https://getpsalm.org/schema/config"
+    errorLevel="8"
+    resolveFromConfigFile="true"
+    runTaintAnalysis="true"
+    findUnusedCode="false"
+>
+    <projectFiles>
+        <directory name="." />
+    </projectFiles>
+</psalm>

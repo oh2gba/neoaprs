@@ -30,8 +30,13 @@ function neoaprs_get(string $url): ?string
     return $body !== false && ($http_response_header[0] ?? '') !== '' && strpos($http_response_header[0], ' 200 ') !== false ? $body : null;
 }
 
-// The version of the latest release: the cached one while it is fresh, else
-// GitHub's, else the cached one however old.
+/**
+ * The version of the latest release: the cached one while it is fresh, else GitHub's, else the cached one however old. Whatever it returns has matched VERSION_RE (digits, dots, and letters after a dash or a plus),
+ * so it holds no quote and no markup: Psalm is told so here, since it cannot follow a pattern, and the page that prints it is JSON.
+ *
+ * @psalm-taint-escape html
+ * @psalm-taint-escape has_quotes
+ */
 function neoaprs_latest_version(): string
 {
     $releases = getenv('RELEASES_URL') ?: 'https://api.github.com/repos/oh2gba/neoaprs/releases/latest';

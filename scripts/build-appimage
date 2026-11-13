@@ -54,7 +54,8 @@ mkdir -p "$cache"
 
 # fetch URL SHA256: the file in the cache, downloaded when it is not there or not the pinned one; its path on stdout
 fetch() {
-    local file="$cache/$(basename "${1//%2B/+}")"
+    local file
+    file="$cache/$(basename "${1//%2B/+}")"
     if [ ! -f "$file" ] || [ "$(sha256sum "$file" | cut -d' ' -f1)" != "$2" ]; then
         curl -fsSL --retry 3 -o "$file.part" "$1"
         [ "$(sha256sum "$file.part" | cut -d' ' -f1)" = "$2" ] || { rm -f "$file.part"; echo "build-appimage: $1 is not the file with SHA-256 $2" >&2; exit 1; }

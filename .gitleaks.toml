@@ -1,0 +1,41 @@
+# The secret scan of scripts/security-check: gitleaks reads every commit of the branch (what it changes and what its message says) and the tracked files that are changed or staged, with its own rules and one of ours, and this file lists the values it meets there that are no secrets.
+# An entry is one made-up value, or one form a value has, written as narrowly as it can be: never a folder or a whole file, so that a real key pasted into a test is still found.
+# The description is the reason, and the check refuses an entry without one. docs/security-checks.md says how an entry is added.
+title = "NeoAPRS"
+
+[extend]
+useDefault = true
+
+# The access token of the secrets manager (Bitwarden Secrets Manager), which opens every login the project keeps there: 0.<the token's id, a UUID>.<about thirty letters and digits>:<a key in base64>.
+# gitleaks' own rules do not know this form, so it has a rule here, without keywords: it is found whatever the line calls it. It is not found wherever it stands: gitleaks leaves out whole kinds of
+# files by a list of its own (lock files, pictures, a .pdf, node_modules, this file), and that list holds for this rule too. The check that holds for this token is `tokens` of scripts/security-check,
+# which reads every file itself and has no list of exceptions; this rule is gitleaks' second look at the same thing, over the whole history of the branch.
+# scripts/security-check shows the scan a made-up token of this form at every run and fails when the rule does not find it.
+[[rules]]
+id = "bitwarden-secrets-manager-access-token"
+description = "an access token of Bitwarden Secrets Manager"
+regex = '''0\.[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.[0-9A-Za-z]{20,48}:[0-9A-Za-z+/]{16,}={0,2}'''
+
+[[allowlists]]
+description = "the made-up access key of the tests, the screenshots and the example in PROTOCOL.md, with and without its dashes: no installation has it, each draws its own at random"
+regexes = ['''^k7m2-?x9pq-?4hrt$''']
+
+[[allowlists]]
+description = "an access key of the wrong form (one character too long), which the tests of the settings give to see it refused"
+regexes = ['''^abcd-efgh-jklm0$''']
+
+[[allowlists]]
+description = "the made-up token in the tests of the support file, which is there to see that a value under such a name is left out of the file"
+regexes = ['''^abcdef123456$''']
+
+[[allowlists]]
+description = "the alphabet an access key is drawn from (KEY_ALPHABET in neoaprs/configtypes.py): the characters that are not mistaken for one another, not a key"
+regexes = ['''^23456789abcdefghjkmnpqrstuvwxyz$''']
+
+[[allowlists]]
+description = "the Sec-WebSocket-Key of the example in RFC 6455 (the words 'the sample nonce' in base64), which the tests of the page's server send: a number for the handshake that anyone may read, not a key to anything"
+regexes = ['''^dGhlIHNhbXBsZSBub25jZQ==$''']
+
+[[allowlists]]
+description = "the key of a bulletin on the wire, which is the sender's call and the bulletin's name (OH2XYZ/BLN3HAMS): what a station sent in the clear, not a secret"
+regexes = ['''^[A-Z0-9]{3,7}(-[0-9]{1,2})?/BLN[0-9A-Z]{1,6}$''']

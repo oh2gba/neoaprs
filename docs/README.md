@@ -31,6 +31,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/palette.md` | the palette of the page: every colour token with its light and dark value and what it is for, held to `tokens.css` by a test |
 | `docs/ARCHITECTURE.md` | the layers and their import rules, the composition root, the database actor, the size and duplication ratchets |
 | `docs/MAINTAINING.md` | what to keep up to date after a change, the download names, the steps of a release |
+| `docs/security-checks.md` | for developers: the security checks of the gate (`scripts/security-check`): what each is for, fetching their programs, reading a failure, how a finding is accepted and the reason it must carry |
 | `CONVENTIONS.md` | how the code, the tests, the documents and the schema are written; the words; the one table of environment variables |
 | `PROTOCOL.md` | the wire protocol between the daemon and the page: the commands, the messages, the topics and the objects; generated from the models of `neoaprs/web/` by `scripts/gen-protocol.py` |
 | `ROADMAP.md` | what is planned |
