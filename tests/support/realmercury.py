@@ -58,10 +58,11 @@ def start_mercury(binary: str, folder: Path, name: str, capture: str, playback: 
 
 
 def daemon_env() -> dict[str, str]:
-    """The environment of a daemon of the bench: its radio is the port it is given, so it opens no serial port of the machine, and it asks no version page."""
+    """The environment of a daemon of the bench: its radio is the port it is given, so it opens no serial port of the machine, it asks no version page, and it is under the no-devices switch."""
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env["NEOAPRS_SERIAL_PATTERN"] = "/dev/neoaprs-bench-no-such-port*"
     env["NEOAPRS_UPDATE_CHECK"] = "0"
+    env["NEOAPRS_NO_DEVICES"] = "1"                 # (its HF radio is the Mercury it is given with --hf-port, which the switch lets through; no device of the machine and nothing but this computer otherwise: neoaprs/nodevices.py)
     return env
 
 

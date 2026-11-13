@@ -20,7 +20,7 @@ import re
 import socket
 from collections import deque
 
-from . import PROGRAM, VERSION
+from . import PROGRAM, VERSION, nodevices
 from .aprsisline import is_comment, parse_is_line
 from .callsign import call_problem
 from .clock import Clock, utcnow
@@ -198,6 +198,7 @@ class AprsIs(Source):
         return "the connection ended"
 
     async def _open(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        nodevices.check_host(self.host, "APRS-IS")             # (under the no-devices switch a server that is not on this computer is not there: nothing logs in under the operator's call)
         try:
             async with asyncio.timeout(self.connect_sec):
                 reader, writer = await asyncio.open_connection(self.host, self.port, limit=READ_LIMIT)

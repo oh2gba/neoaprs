@@ -144,6 +144,7 @@ RADIO_PATTERNS = ("/dev/brainbox_*", "/dev/tty*", "/dev/serial/*", "/dev/rfcomm*
 SERIAL_MAJORS = frozenset({4, 166, 188, 204})        # Linux: the character devices of ttyS*, ttyACM*, ttyUSB* and the on-chip UARTs (a node of another name is found by its number); a pseudo-terminal is /dev/pts/N, 136 and up
 SEARCH_VARIABLE = "NEOAPRS_SERIAL_PATTERN"
 UPDATE_VARIABLE = "NEOAPRS_UPDATE_CHECK"
+DEVICES_VARIABLE = "NEOAPRS_NO_DEVICES"
 
 
 class RadioTouched(PermissionError):
@@ -254,7 +255,7 @@ class BluetoothGuard:
 
 
 class ProcessGuard:
-    """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports, and without NEOAPRS_UPDATE_CHECK=0 would ask the version page on the internet: refused, and remembered."""
+    """Patches `subprocess.Popen`: the `neoaprs` command (or `python -m neoaprs`) started with an environment of its own, which does not carry NEOAPRS_SERIAL_PATTERN, would search the machine's serial ports, and without NEOAPRS_UPDATE_CHECK=0 would ask the version page on the internet, and without NEOAPRS_NO_DEVICES would open what its settings name: refused, and remembered."""
 
     def __init__(self) -> None:
         self.refused: list[str] = []
@@ -266,9 +267,12 @@ class ProcessGuard:
         return program in ("neoaprs", "neoaprs-app", "neoaprsw") or any(a == "-m" and b.split(".")[0] == "neoaprs" for a, b in zip(words, words[1:]))
 
     def check(self, args: Any, env: Any) -> None:
-        if env is not None and (not env.get(SEARCH_VARIABLE) or env.get(UPDATE_VARIABLE) != "0") and self.starts_neoaprs(args):
+        if env is None or not self.starts_neoaprs(args):
+            return
+        doors_open = DEVICES_VARIABLE in os.environ and env.get(DEVICES_VARIABLE, "").strip() in ("", "0")       # (a test that asked for switch_lifted_for_processes took the variable out of its own environment: its process may go without)
+        if not env.get(SEARCH_VARIABLE) or env.get(UPDATE_VARIABLE) != "0" or doors_open:
             self.refused.append(str(args))
-            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE} and {UPDATE_VARIABLE}=0 in its environment: {args}")
+            raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE}, {UPDATE_VARIABLE}=0 and {DEVICES_VARIABLE} in its environment: {args}")
 
     def install(self, patch: Callable[[Any, str, Any], None]) -> None:
         original_init = subprocess.Popen.__init__

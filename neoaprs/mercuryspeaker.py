@@ -22,6 +22,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from . import nodevices
 from .source import Backoff, os_error_text
 
 log = logging.getLogger("neoaprs.mercury")
@@ -45,6 +46,8 @@ NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
 def player_command() -> list[str] | None:
     """The system's player of raw audio from standard input, as a command; None when the machine has none of the three. NEOAPRS_PLAYER_PATH, when set, is where they are looked for instead of the PATH:
     the tests and the demo daemons point it at a folder that is not there, so that no daemon of theirs on the Dummy HF radio plays Mercury out of the developer's speakers (John heard their beacons, 4 Nov 2026)."""
+    if nodevices.refused("the Dummy HF radio's audio is not played", logging.INFO):
+        return None
     path = os.environ.get("NEOAPRS_PLAYER_PATH")
     for name, args in PLAYERS:
         if (found := shutil.which(name, path=path)) is not None:

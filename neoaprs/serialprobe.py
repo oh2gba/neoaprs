@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
+from . import nodevices
 from .btpaired import paired_devices
 from .config import DEFAULT_SERIAL_PATTERN
 from .serialboards import board_kind, describe
@@ -28,6 +29,7 @@ PATTERN_ENV = "NEOAPRS_SERIAL_PATTERN"         # the globs of this variable, whe
 HEARD_KEPT_BYTES = 16384            # a listening port keeps this much of the latest bytes for the validity test, so a port that never stops talking noise costs no memory
 NUDGE_SEC = 10.0                    # how long a port is listened to before a carriage return is written to it: a TNC in command mode answers it, one in KISS mode ignores it
 RELIST_SEC = 10.0                   # how often a search that listens lists its ports again: one that appeared is opened, one that vanished is closed
+NOT_LISTED = "the serial ports and the paired Bluetooth devices are not listed or searched"       # what the no-devices switch says of every list of this module: each is empty under it, as on a machine that has no port
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,8 @@ class PortInfo:
 
 def available_ports() -> list[PortInfo]:
     """The ports the system lists (pyserial: sysfs on Linux, SetupAPI on Windows, IOKit on macOS), in natural order (COM2 before COM10). Nothing is opened."""
+    if nodevices.refused(NOT_LISTED, logging.INFO):
+        return []
     try:
         found = sorted(serial.tools.list_ports.comports())
     except OSError as e:
@@ -83,6 +87,8 @@ def moved_to(adapter: AdapterId | None, gone: str) -> str | None:
 
 def paired_bluetooth_ports() -> list[PortInfo]:
     """The Bluetooth devices paired with the system (Linux), each as the port `bt://ADDRESS` that opens it. They are listed for the operator to pick from and are never opened by the search or to list them."""
+    if nodevices.refused(NOT_LISTED, logging.INFO):
+        return []
     return [PortInfo(f"bt://{d.address}", f"Bluetooth: {d.name}" if d.name else "Bluetooth device", "", None, None) for d in paired_devices()]
 
 
@@ -138,6 +144,8 @@ def _usb_first(port: PortInfo) -> int:
 def system_ports() -> list[PortInfo]:
     """The ports Find my radio tries where the system lists them (Windows and macOS): the system's list in natural order (COM2 before COM10), without the development boards that the search leaves alone (serialboards.py)
     and, on macOS, the `/dev/cu.*` devices pyserial did not list, without the ones that are no adapter. USB adapters come first, then the others, and the Bluetooth serial ports last. Nothing is opened."""
+    if nodevices.refused(NOT_LISTED, logging.INFO):
+        return []
     ports = available_ports()
     if sys.platform == "darwin":
         listed = {p.device for p in ports}
@@ -159,6 +167,8 @@ def search_pattern(stored: str = DEFAULT_PATTERN) -> str:
 def candidate_ports(pattern: str = DEFAULT_PATTERN) -> list[str]:
     """The ports the search may listen to: what the globs of `pattern` (separated by spaces) match. A device is listed once however many names it has (a link in /dev/serial/by-id and the
     ttyUSB node it points to): the name that the earliest glob matched stays, which is the stable one when the globs are in that order. A name that leads nowhere is left out. Sorted."""
+    if nodevices.refused(NOT_LISTED, logging.INFO):
+        return []
     found: dict[str, str] = {}
     for glob_pattern in pattern.split():
         for path in sorted(glob.glob(glob_pattern)):

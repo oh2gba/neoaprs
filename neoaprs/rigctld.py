@@ -6,6 +6,8 @@ off gives -5 or -6, say). Everything that can go wrong is a `RigError` whose tex
 import asyncio
 from dataclasses import dataclass
 
+from . import nodevices
+
 TIMEOUT_SEC = 5.0
 
 
@@ -41,6 +43,7 @@ def _hz(line: str) -> int:
 async def read_rig(host: str, port: int, timeout_sec: float = TIMEOUT_SEC) -> Reading:
     """The frequency and the mode in one go: `f` and `m` on one connection that is closed again. Raises RigError."""
     try:
+        nodevices.check_host(host, "rigctld")                        # (under the no-devices switch a rigctld on another computer is not there)
         async with asyncio.timeout(timeout_sec):
             reader, writer = await asyncio.open_connection(host, port)
             try:

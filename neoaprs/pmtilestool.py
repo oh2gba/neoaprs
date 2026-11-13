@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath
 
 from neoaprs.mapstate import MapError
+from . import nodevices
 from .httpstrust import https_handler
 
 VERSION = "1.31.2"
@@ -120,7 +121,8 @@ def _download(url: str, target: Path, sha256: str) -> None:
     """The file at the address, written to `target`, if its digest is the pinned one; else ToolError and nothing is kept."""
     digest, size = hashlib.sha256(), 0
     try:
-        with urllib.request.build_opener(https_handler()).open(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:
+        nodevices.check_url(url)                                            # (under the no-devices switch a server that is not on this computer is not there)
+        with urllib.request.build_opener(https_handler(), *nodevices.direct()).open(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SEC) as response, target.open("wb") as out:  # noqa: S310  (the address is RELEASE_URL, written above, with the name of a pinned file; no setting reaches it, and what arrives is kept only with the pinned SHA-256)
             while chunk := response.read(1 << 16):
                 size += len(chunk)
                 if size > MAX_DOWNLOAD:
@@ -345,6 +347,8 @@ async def extract(program: Path, source: str, target: Path, bbox: tuple[float, f
     """Cuts the box (the whole world without one) down to `maxzoom` out of `source`, a web address or a file, into `target`; with `dry_run` nothing is written and the sizes are what it would make.
     The sizes the program said, None when it did not say the size of the archive (a download is complete without them; a dry run is for them). `on_percent` is told the percent of the bar, on the event loop.
     A task that is cancelled ends the program and waits for it. ToolError for a program that fails."""
+    if nodevices.url_refused(source):                                       # (under the no-devices switch the program, which fetches the tiles itself, is not run on an archive of another computer)
+        raise ToolError(UNREACHABLE)
     loop = asyncio.get_running_loop()
     told = on_percent or (lambda percent: None)
     def from_thread(percent: int) -> None:
@@ -365,7 +369,8 @@ async def extract(program: Path, source: str, target: Path, bbox: tuple[float, f
 def url_exists(url: str) -> bool:
     """Whether a HEAD request for the address is answered with a success. A connection that fails is a no. Blocks: run it in a thread."""
     try:
-        with urllib.request.build_opener(https_handler()).open(urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=20) as response:
+        nodevices.check_url(url)
+        with urllib.request.build_opener(https_handler(), *nodevices.direct()).open(urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=20) as response:  # noqa: S310  (asked only for a daily build under BUILDS, an https address written above: `latest_build`)
             return bool(200 <= response.status < 300)
     except (OSError, ValueError):
         return False

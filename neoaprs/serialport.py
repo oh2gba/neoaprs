@@ -18,6 +18,7 @@ from typing import Any
 
 import serial  # type: ignore[import-untyped]
 
+from . import nodevices
 from .btle import BleSerial, is_ble
 from .btserial import BluetoothSerial, is_bluetooth
 from .signal import Signal
@@ -249,6 +250,7 @@ class SerialPort:
 
     def _open_blocking(self, hand: _Handover) -> Any:
         try:
+            nodevices.check_port(self.path)               # (under the no-devices switch only a TCP port on this computer is opened: any other is not there)
             ser = _build(self.path, self.baud)
             ser.open()
         except (serial.SerialException, OSError, ValueError) as e:

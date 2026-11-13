@@ -13,6 +13,7 @@ import logging
 import socket
 from typing import Any
 
+from . import nodevices
 from .callbackport import CallbackPort
 from .clock import Clock, utcnow
 from .gpsfix import Fix, GpsdFixes, NmeaFixes
@@ -136,6 +137,7 @@ class GpsFeed(Source):
     # ---- gpsd
     async def _open_gpsd(self, generation: int) -> None:
         host, port = split_address(self.target)
+        nodevices.check_host(host, "gpsd")                     # (under the no-devices switch a gpsd on another computer is not there)
         try:
             async with asyncio.timeout(self.connect_sec):
                 reader, writer = await asyncio.open_connection(host, port)

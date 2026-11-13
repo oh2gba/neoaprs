@@ -105,16 +105,18 @@ def test_the_serial_guard_lets_a_pseudo_terminal_through() -> None:
 def test_the_process_guard_refuses_neoaprs_with_an_environment_that_lacks_a_variable(args: object) -> None:
     processes = guards.ProcessGuard()
     both = {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0"}
-    for env in ({}, {"HOME": "/h"}, {guards.SEARCH_VARIABLE: ""}, {guards.SEARCH_VARIABLE: "/dev/none*"}, {guards.UPDATE_VARIABLE: "0"}, {**both, guards.UPDATE_VARIABLE: "1"}):
+    all_three = {**both, guards.DEVICES_VARIABLE: "1"}
+    for env in ({}, {"HOME": "/h"}, {guards.SEARCH_VARIABLE: ""}, {guards.SEARCH_VARIABLE: "/dev/none*"}, {guards.UPDATE_VARIABLE: "0"}, {**all_three, guards.UPDATE_VARIABLE: "1"}, both, {**both, guards.DEVICES_VARIABLE: "0"}, {**both, guards.DEVICES_VARIABLE: " "}):
         with pytest.raises(guards.RadioTouched):
             processes.check(args, env)
-    assert len(processes.refused) == 6
+    assert len(processes.refused) == 9
 
 
 def test_the_process_guard_lets_through_what_cannot_search() -> None:
     processes = guards.ProcessGuard()
     processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], None)                        # (the environment of this process, which has the variable)
-    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0"})
+    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "1"})
+    processes.check([sys.executable, "-m", "neoaprs", "--data", "d"], {guards.SEARCH_VARIABLE: "/dev/none*", guards.UPDATE_VARIABLE: "0", guards.DEVICES_VARIABLE: "true"})
     processes.check(["git", "status"], {})
     processes.check([sys.executable, "-m", "pytest"], {})
     processes.check(["/x/neoaprs-tool/other"], {})

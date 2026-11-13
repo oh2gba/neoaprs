@@ -66,6 +66,7 @@ class Daemon:
         env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
         env["NEOAPRS_UPDATE_CHECK"] = "0"                        # (a made-up day: the daemon does not ask the version page)
         env["NEOAPRS_SERIAL_PATTERN"] = "/nonexistent/none*"     # (the search for the radio looks at ports that match nothing: no serial device of this machine is ever opened)
+        env["NEOAPRS_NO_DEVICES"] = "1"                          # (no device, sound card or Mercury of this machine and nothing but this computer, whatever a shot sets: neoaprs/nodevices.py; the Mercury of the settings-hf shot is given by --hf-port)
         env.update(self.env)
         self.proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "--data", str(self.data), "--web-port", "0", *self.extra, env=env, cwd=ROOT,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)

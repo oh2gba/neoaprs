@@ -25,7 +25,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Protocol
 
-from . import ax25, kiss, serialprobe
+from . import ax25, kiss, nodevices, serialprobe
 from .clock import Clock, utcnow
 from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
@@ -197,7 +197,7 @@ class Tnc(TimedSource):
         path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
         if generation != self._generation:
             return None
-        if named and not self.is_dummy and (held := await asyncio.to_thread(held_by, path)):
+        if named and not self.is_dummy and not nodevices.on() and (held := await asyncio.to_thread(held_by, path)):       # (under the no-devices switch the port is not there, whoever holds it: nobody is asked)
             raise SerialError(f"{path}: {held}")
         asked = path
         port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)

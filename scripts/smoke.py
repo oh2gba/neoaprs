@@ -109,6 +109,7 @@ def start_daemon(program: list[str], data: Path, tnc: FakeTnc) -> subprocess.Pop
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env.setdefault("NEOAPRS_SERIAL_PATTERN", "/dev/neoaprs-smoke-no-such-port*")          # the daemon has a radio (--port) and searches no serial port of the machine
     env["NEOAPRS_UPDATE_CHECK"] = "0"                                                      # and does not ask the version page
+    env["NEOAPRS_NO_DEVICES"] = "1"                                                        # and opens no device and reaches nothing but this computer, whatever a setting says (neoaprs/nodevices.py)
     return subprocess.Popen([*program, "--data", str(data), "--port", tnc.url, "--web-port", "0"], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags)
 
 
@@ -129,7 +130,7 @@ def wait_for_page(daemon: subprocess.Popen[bytes], data: Path, seconds: float) -
 
 
 def fetch(url: str) -> tuple[int, Any, bytes]:
-    with urllib.request.urlopen(url, timeout=15) as answer:
+    with urllib.request.urlopen(url, timeout=15) as answer:  # noqa: S310  (the page of the daemon this script started: the http://127.0.0.1 address `wait_for_page` read from its log)
         return answer.status, answer.headers, answer.read()
 
 
@@ -151,9 +152,9 @@ def check_the_page(base: str) -> None:
 
 def check_the_world_map(base: str) -> None:
     """The world map that ships with the program is served from a data folder that has none (a wheel, the Windows app's frozen folder, an AppImage, a .deb: each has it in its own place)."""
-    request = urllib.request.Request(base + "basemap-world.pmtiles", headers={"Range": "bytes=0-126"})
+    request = urllib.request.Request(base + "basemap-world.pmtiles", headers={"Range": "bytes=0-126"})  # noqa: S310  (the same page: `base` is that http://127.0.0.1 address)
     try:
-        with urllib.request.urlopen(request, timeout=15) as answer:
+        with urllib.request.urlopen(request, timeout=15) as answer:  # noqa: S310  (the request made on the line before)
             status, head = answer.status, answer.read()
     except OSError as e:
         raise Failure(f"GET /basemap-world.pmtiles: {e} (the world map is not in the package?)") from None

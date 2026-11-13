@@ -18,7 +18,7 @@ SOURCE = "https://build.example/20261020.pmtiles"
 
 
 @pytest.fixture
-def fake(tmp_path: Path) -> FakePmtiles:
+def fake(tmp_path: Path, switch_lifted_for_processes: None) -> FakePmtiles:
     return install_fake(tmp_path / "tools")
 
 

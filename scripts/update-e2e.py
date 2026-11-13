@@ -385,7 +385,7 @@ class AppImageInstall(Install):
         self.folder.mkdir(parents=True)
         self.home.mkdir(parents=True)
         shutil.copy2(self.old, self.file)
-        os.chmod(self.file, 0o755)
+        os.chmod(self.file, 0o755)  # noqa: S103  (an AppImage is a program: anyone may read and run it, only its owner may write it)
 
     def command(self) -> list[str]:
         return [str(self.file), "--appimage-extract-and-run"] if self.extract_and_run else [str(self.file)]
@@ -437,7 +437,7 @@ class AppImageInstall(Install):
 
 def daemon_env(release: Release) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG", "NEOAPRS_INSTALL_KIND")}
-    env.update(NEOAPRS_UPDATE_TEST="1", NEOAPRS_UPDATE_FROM=release.url, NEOAPRS_UPDATE_CHECK="0", NEOAPRS_SERIAL_PATTERN="/dev/neoaprs-update-e2e-no-such-port*")
+    env.update(NEOAPRS_UPDATE_TEST="1", NEOAPRS_UPDATE_FROM=release.url, NEOAPRS_UPDATE_CHECK="0", NEOAPRS_NO_DEVICES="1", NEOAPRS_SERIAL_PATTERN="/dev/neoaprs-update-e2e-no-such-port*")
     return env
 
 

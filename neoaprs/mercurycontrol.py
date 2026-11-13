@@ -6,6 +6,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 
+from . import nodevices
 from .mercury import ControlEvent, parse_control_line, split_control_lines
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -49,6 +50,7 @@ class ControlLine:
     async def _run(self) -> None:
         while True:
             try:
+                nodevices.check_host(self.host, "the control port of a Mercury")        # (under the no-devices switch a Mercury that something else runs on another computer is not there)
                 reader, writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), CONNECT_SEC)
             except (OSError, TimeoutError) as e:
                 await asyncio.sleep(self.backoff.next_delay_sec())

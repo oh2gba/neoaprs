@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -39,6 +40,11 @@ for _name in ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XAUTHOR
     os.environ.pop(_name, None)
 
 
+# No process a test starts may open a real device or talk to a real service, whatever settings it is given: every one inherits the no-devices switch (neoaprs/nodevices.py), which shuts the doors the variables above leave open (a
+# serial port that is named, the Mercury program on a sound card, APRS-IS, a Bluetooth address, a server on another computer). In the test's own process the fixture devices_are_fakes, below, lifts it.
+os.environ["NEOAPRS_NO_DEVICES"] = "1"
+
+
 # Hypothesis is in the dev group. 'ci' is the default so that a run is reproducible (derandomize: the same examples every time, no example database);
 # HYPOTHESIS_PROFILE=dev explores far more, with a random seed, and keeps what it finds in .hypothesis/ to replay.
 try:
@@ -57,6 +63,22 @@ from tests.support.fixtures import clock, no_shipped_world, protocol_violations,
 from tests.support import guards, markers  # noqa: E402
 from tests.support.guards import isolated_machine, logging_restored, no_leaked_db_threads, no_leaked_tasks, no_unexpected_errors  # noqa: E402, F401
 from tests.support.ptyline import ptys  # noqa: E402, F401
+
+
+@pytest.fixture(autouse=True)
+def devices_are_fakes(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """In the test's own process the no-devices switch is lifted. There the guards of tests/support/guards.py watch the same doors and fail the test that reaches a real device, and behind those doors stand the fakes
+    that the tests of them use (a pseudo-terminal for a serial port, the made-up Mercury program, a socket pair for Bluetooth), which the switch would refuse as it refuses the real things. The variable stays in the
+    environment, so every process the test starts runs under the switch. A test of the switch itself asks for the fixture `under_the_switch` (tests/test_no_devices.py) and keeps it on."""
+    if "under_the_switch" not in request.fixturenames:
+        monkeypatch.setattr("neoaprs.nodevices.on", lambda: False)
+
+
+@pytest.fixture
+def switch_lifted_for_processes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The test starts a process behind one of whose doors a fake of the test stands (the made-up pmtiles program on its PATH, which is given the address of a map server that does not exist): NEOAPRS_NO_DEVICES, which
+    tests/conftest.py sets for every process a test starts, is taken out of the environment that process inherits. Nothing but the test then keeps the process from a real device or service: it gives it fakes only."""
+    monkeypatch.delenv("NEOAPRS_NO_DEVICES")
 
 
 def reorder_files(items: "list[pytest.Item]", order: str) -> None:
@@ -78,3 +100,12 @@ def pytest_collection_modifyitems(items: "list[pytest.Item]") -> None:
     guards.add_leak_guard(items)
     if os.environ.get("NEOAPRS_TEST_ORDER"):
         reorder_files(items, os.environ["NEOAPRS_TEST_ORDER"])
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """No run makes its scratch folders in the repository. Where the system's temporary folder cannot be written and TMPDIR names none, Python's last resort is the current folder, and pytest (under -n,
+    before any test or fixture) makes its `pytest-of-<user>` there: such a run is refused before it starts."""
+    if config.option.basetemp is None:
+        scratch = Path(tempfile.gettempdir()).resolve()
+        if scratch == ROOT or ROOT in scratch.parents:
+            raise pytest.UsageError(f"the temporary folder is {scratch}, inside the repository (the system's cannot be written): set TMPDIR to a folder outside it")

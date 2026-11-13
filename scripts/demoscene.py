@@ -408,6 +408,7 @@ async def _send_beacon(s: Scene) -> None:
 async def history(data_dir: Path, radio: DemoRadio) -> int:
     """Plays the day through a daemon on `data_dir` (its settings are in the database already) and stops it; how many events were played."""
     os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                    # (a made-up day: the daemon does not ask the version page)
+    os.environ["NEOAPRS_NO_DEVICES"] = "1"                      # (... and opens no device and reaches nothing but this computer: neoaprs/nodevices.py; its radio is the DemoRadio on the loopback)
     local = datetime.now(timezone(timedelta(hours=3)))          # (Finland in the summer time of October)
     local_hour_now = local.hour + local.minute / 60
     clock = Clock()

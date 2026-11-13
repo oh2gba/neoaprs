@@ -9,6 +9,7 @@ from dataclasses import replace
 from datetime import timedelta
 from typing import NamedTuple
 
+from . import nodevices
 from .app import Services
 from .config import MESSAGE_RADIOS, Config
 from .dummyline import DUMMY_PATH
@@ -30,6 +31,7 @@ packets_log = logging.getLogger("neoaprs.packets")
 SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
 ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
 start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
+NO_MERCURY = "the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (hf_settings)
 
 
 class TncSettings(NamedTuple):
@@ -60,11 +62,13 @@ def tnc_settings(config: Config, port_override: str = "", pattern_override: str 
 def hf_settings(config: Config, port_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
     """What the HF radio's Tnc is started with: the Mercury profile, reached on `modem_port` (the broadcast port the modem part chose for the program it starts), or at the `socket://` address given for this run
     (`--hf-port`: a Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches. The Dummy HF radio (hf/profile) opens
-    nothing, as the FM radio's Dummy does."""
+    nothing, as the FM radio's Dummy does. Under the no-devices switch the daemon starts no Mercury, so without an address given for this run the HF radio has no port at all (and no pattern to search): whatever
+    listens where a Mercury of ours would have been, the operator's own modem on this computer's port 8100 for one, is not ours and is never connected to."""
     profile = hf_profile_of(config.hf_profile)
     if profile.transport == "dummy":
         return TncSettings(DUMMY_PATH, 9600, profile, False, (), "")
-    return TncSettings(port_override or tcp_url(MERCURY_HOST, modem_port), 9600, profile, False, (), "", (config.mercury_sound_card, config.mercury_keying))
+    no_line = not port_override and (nodevices.refused(NO_MERCURY, logging.INFO) if config.hf_enabled else nodevices.on())       # (said in the log only while there is an HF radio to say it of)
+    return TncSettings(port_override or ("" if no_line else tcp_url(MERCURY_HOST, modem_port)), 9600, profile, False, (), "", (config.mercury_sound_card, config.mercury_keying))
 
 
 def radio_words(settings: TncSettings) -> str:
@@ -75,10 +79,13 @@ def radio_words(settings: TncSettings) -> str:
 
 
 def hf_words(config: Config, port_override: str) -> str:
-    """The HF radio that is started, for the log: the Mercury modem (the daemon's own, or one something else runs at the address given for this run) or the Dummy HF radio."""
+    """The HF radio that is started, for the log: the Mercury modem (the daemon's own, which under the no-devices switch is not started, or one something else runs at the address given for this run) or the
+    Dummy HF radio."""
     if hf_profile_of(config.hf_profile).transport == "dummy":
-        return "the Dummy HF radio, made-up stations, and the modem played through the speakers"
-    return f"the Mercury modem, one something else runs at {port_override}" if port_override else "the Mercury modem, started by NeoAPRS"
+        return "the Dummy HF radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
+    if port_override:
+        return f"the Mercury modem, one something else runs at {port_override}"
+    return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"
 
 
 def _shown(value: object) -> str:

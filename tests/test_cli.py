@@ -132,7 +132,7 @@ def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
 
 # ---- as processes ----
 
-def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path) -> None:
+def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path, switch_lifted_for_processes: None) -> None:
     fake: FakePmtiles = install_fake(tmp_path / "tools")
     done = process("map", "--data", str(tmp_path / "data"), "--source", "https://build.example/20261020.pmtiles", "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "14", "--dry-run",
                    home=tmp_path, path=str(fake.path.parent))

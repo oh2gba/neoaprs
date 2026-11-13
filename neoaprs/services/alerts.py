@@ -28,6 +28,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from neoaprs import nodevices
+from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.childenv import child_environment
 from neoaprs.clock import Clock, iso, utcnow
 from neoaprs.message import MessageRecord, is_query
@@ -110,14 +112,17 @@ class Alerts:
         self._start(lambda: station_environment(fired), f"the alert of {fired.call}")
 
     def _start(self, environment: Callable[[], dict[str, str]], what: str) -> None:
-        c = self._config()
-        command = c.messages_alert_command.strip()
-        if not c.messages_alert or not command:
+        if not self._config().messages_alert or not (command := self._command()):
             return
         if len(self._tasks) >= MAX_RUNNING:
             log.debug("the alert for %s is dropped: %d alerts are running", what, MAX_RUNNING)
             return
         self._tasks.spawn(self._run(command, environment(), what), "alert")
+
+    def _command(self) -> str:
+        """The alert command of the settings; none under the no-devices switch while it is the default one, which shows a notification on the desktop and plays a sound."""
+        command = self._config().messages_alert_command.strip()
+        return "" if command == DEFAULT_ALERT_COMMAND and nodevices.refused("the default alert command is not run (no notification on the desktop, no sound)", logging.INFO) else command
 
     async def stop(self) -> None:
         """An alert that is running is ended with the daemon (the command and what it started are killed)."""
@@ -132,7 +137,7 @@ class Alerts:
     async def test(self) -> tuple[bool, str]:
         """The test button: the command as it is saved, run as for a real message (the same environment, the same 20 s) from a made-up one, whatever `messages/alert` says. (ok, "ran" or why not: the
         exit code and the first line of stderr). A command that is empty is a ValueError; the log is not told, the operator is looking at the answer."""
-        command = self._config().messages_alert_command.strip()
+        command = self._command()
         if not command:
             raise ValueError("no alert command")
         record = MessageRecord(0, self.clock(), "in", TEST_FROM, "", TEST_TEXT, None, "received")
@@ -225,8 +230,8 @@ class _Running:
         if proc is None or proc.poll() is not None:
             return
         try:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)      # (the whole tree: PowerShell and what it started)
-        except Exception:
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, timeout=10, check=False)      # (the whole tree: PowerShell and what it started)  # noqa: S607  (taskkill by its bare name: Windows looks in the program's own folder and in the working folder before System32, so a taskkill.exe in either would be run; its full path under %SystemRoot%\System32 closes that)
+        except Exception:  # noqa: S110  (nothing a command does may stop the daemon; PowerShell itself is ended just below, with taskkill or without)
             pass
         try:
             proc.kill()

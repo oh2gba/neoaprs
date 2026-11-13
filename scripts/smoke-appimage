@@ -30,6 +30,7 @@ while [ $# -gt 0 ]; do
 done
 
 export NEOAPRS_UPDATE_CHECK=0           # none of the daemons below asks the version page
+export NEOAPRS_NO_DEVICES=1             # ... and none opens a device of this machine or connects to anything but this computer, whatever its settings say (neoaprs/nodevices.py)
 say() { echo "smoke-appimage: $*"; }
 fail() { echo "smoke-appimage: FAILED: $*" >&2; exit 1; }
 

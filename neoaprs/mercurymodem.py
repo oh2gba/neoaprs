@@ -25,6 +25,7 @@ import logging
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from . import nodevices
 from .clock import Clock, utcnow
 from .config import Config
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
@@ -159,10 +160,11 @@ class Mercury(Channel, Tuning, Scoping):
         last and the program started. A failure that may pass is tried again after the back-off; one that cannot (no program, a speaker without pipes) is said and left."""
         config = self._config
         assert config is not None
-        program = self._finder()
+        program = self._program_to_run()
         self._audio_failed = False
         if program is None:
-            log.warning("no Mercury program at %s", expected_program())
+            if not nodevices.on():                                     # (under the no-devices switch the program was not looked for, and the switch has said so itself)
+                log.warning("no Mercury program at %s", expected_program())
             self._set("waiting", NOT_INSTALLED, "not_installed")
             return
         log.info("Mercury program: %s%s", program[0], "" if is_shipped(program) else " (not the one NeoAPRS ships)")
@@ -315,8 +317,12 @@ class Mercury(Channel, Tuning, Scoping):
 
     def sound_cards(self) -> list[SoundCard]:
         """The sound cards Mercury lists; none when this installation has no Mercury. Runs the program: for a thread, not the loop."""
-        program = self._finder()
+        program = self._program_to_run()
         return [] if program is None else list_sound_cards(program)
+
+    def _program_to_run(self) -> Command | None:
+        """The Mercury program of this installation; none under the no-devices switch, as in an installation without it, so that no modem is started on a sound card and a keying line and no sound card is listed."""
+        return None if nodevices.refused("the Mercury modem program is not started and its sound cards are not listed") else self._finder()
 
     def _set(self, state: str, problem: str, reason: str = "") -> None:
         if (state, problem, reason) != (self.state, self.problem, self.reason):

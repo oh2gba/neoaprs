@@ -11,6 +11,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Any, Protocol
+from . import nodevices
 from .httpstrust import https_handler
 
 log = logging.getLogger("neoaprs.update")
@@ -61,9 +62,10 @@ def open_url(url: str, allowed: Allowed) -> Response:
     """The response to a GET of `url`, every redirect checked; DownloadError for an address that is not allowed, a server that does not answer, or an answer that is not 200."""
     if not allowed(url):
         raise DownloadError(f"{url} is not one of GitHub's addresses for release files")
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310  (`allowed` has just said yes to the address, and says it again for every redirect: https on one of GitHub's hosts)
     try:
-        response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed)).open(request, timeout=TIMEOUT_SEC)
+        nodevices.check_url(url)                       # (under the no-devices switch a server that is not on this computer is not there)
+        response: Response = urllib.request.build_opener(https_handler(), _Guarded(allowed), *nodevices.direct()).open(request, timeout=TIMEOUT_SEC)
     except urllib.error.HTTPError as e:
         raise DownloadError(f"{url.rsplit('/', 1)[-1]}: the server answered {e.code} {e.reason}") from None
     except (OSError, ValueError, http.client.HTTPException) as e:

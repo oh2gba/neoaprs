@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from pathlib import Path
 
-from . import wiring
+from . import nodevices, wiring
 from .app import Frontend, Services
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, Config
@@ -64,6 +64,7 @@ class Controller(Services):
         log.debug("the database %s is open (busy time %d ms)", path, self.busy_ms)
 
     async def start(self) -> None:
+        nodevices.announce()                                            # (a daemon under the no-devices switch says so in its log before any part is started)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         await self.open_database()
         rows = await self.store.settings()
