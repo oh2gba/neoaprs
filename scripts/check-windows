@@ -1,0 +1,726 @@
+#!/usr/bin/env python3
+"""Runs the CI's two Windows jobs on a real Windows, in a VirtualBox virtual machine of this computer, over SSH, so that what fails on GitHub's windows-latest fails here first.
+
+  scripts/check-windows                       sync, lock, ruff, pytest and smoke in this order, each with its result line; a failed step stops none but sync
+  scripts/check-windows --only NAME           only the steps named (repeatable): sync lock ruff pytest smoke (ruff and pytest need the environment that sync makes, so sync runs with them)
+  scripts/check-windows -- ARGS...            ARGS go to pytest (`-- tests/test_replay.py -x`), which then is the one step that runs unless --only says more
+  scripts/check-windows --snapshot NAME       puts the machine back to its snapshot NAME before it starts (only a machine that is powered off), for a clean Windows at every run
+  scripts/check-windows --tty                 runs the pytest step in a session with a console (below) without trying a plain one first
+
+Where the machine is comes from the environment, and nothing is guessed (CONVENTIONS.md has the table):
+  NEOAPRS_WINVM              the VirtualBox name of the machine; unset means that the Windows check is not set up here, and the script says so and ends with 2
+  NEOAPRS_WINVM_SSH_PORT     the port on this computer that is forwarded to the machine's SSH (it is reached at 127.0.0.1)
+  NEOAPRS_WINVM_SSH_KEY      the private key it logs in with (a path: the script passes it to ssh and never reads it)
+  NEOAPRS_WINVM_KNOWN_HOSTS  the known_hosts file that holds the machine's host key (a login with an unknown key fails: nothing is accepted on first use)
+  NEOAPRS_WINVM_USER         the user on the machine, default John; its profile folder is C:\\Users\\USER
+It is never a stage of scripts/check: it needs a machine that only some developers have, and minutes.
+
+The machine. Powered off, it is started without a window (`VBoxManage startvm NAME --type headless`), the script waits for its SSH to answer, and when the run is over the machine is shut down with
+the ACPI power button, which is Windows's own shutdown, and waited for; never a hard power-off, and if it does not go off in time it is left as it is and the script says so. A machine that was running
+is left running. One run at a time: a lock file in the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build), one for each machine; a second run says so and stops.
+
+The tree goes over as it is on disk, packed by scripts/check-in-container (its functions are loaded from that file: one reading of git's list, one place that keeps what an ignore rule names and every
+file of access tokens, `.secrets` and what follows, on this computer). The tar is copied with scp and unpacked by Windows's own tar.exe into C:\\Users\\USER\\neoaprs-check\\RUN-<UTC time>\\neoaprs; the folders
+of older runs are removed but the newest two. Where the machine has git, the tree there is a repository of one commit made of the tracked files, as the container does it (the tests ask git which files
+are tracked); where it has none, those tests fail on it, as they do on a runner without git. uv lives in C:\\Users\\USER\\neotest\\uv: when that is not the pinned version (UV below, with its SHA-256, as
+scripts/security-tools pins a program) the zip is fetched once into the build cache, checked and copied over. The Python that uv needs it fetches itself (UV_PYTHON_PREFERENCE=only-managed).
+
+The steps are the CI's commands in the order of ci.yml, as the job `python` runs them on Windows (UV_FROZEN=1, which the lock step takes away as the workflow's `env -u` does) and the job `smoke` (the
+wheel built, a fresh environment, the wheel installed there, scripts/smoke.py with the installed command), written in PowerShell. Every step runs with NEOAPRS_NO_DEVICES=1, NEOAPRS_UPDATE_CHECK=0 and
+UV_PYTHON_PREFERENCE=only-managed. A line for each step as scripts/check prints it (`ok` or `FAIL`, the name, the seconds); under a failed step the end of its output, and the whole log of every step
+is kept in the folder that the first line names, on this computer. Commands go to the machine as one PowerShell script in `-EncodedCommand` form, so that no name or path is read by two shells.
+
+A test that is run over SSH has no console of its own, and some tests need one: a child that a test started in its own process group (tests/support/proc.py: CREATE_NEW_PROCESS_GROUP, used by the
+daemon tests, the replay commands of tests/test_scripts.py and tests/test_replay.py, and scripts/smoke.py) is ended with Ctrl+Break, which Windows delivers only inside a console that the sender is
+attached to. Before the pytest step the script runs a probe of that in the same kind of session (a child in a new process group, Ctrl+Break sent, it must end). A plain `ssh HOST COMMAND` is tried first:
+sshd starts the command with a hidden console, which should be enough. If the probe fails there, the step runs through `ssh -tt`, which gives it a pseudo console (ConPTY), and the output is cleaned of
+its escape sequences. Not known until it is tried on the machine: whether the probe passes in the plain session, whether `ssh -tt` with its input held open ends cleanly at the command's end, and
+whether the machine's own shutdown answers a power button without a user signed in; --tty skips the plain try.
+
+Exit code: 0 all steps passed, 1 a step failed, 2 not set up (a variable, a file, a program on the PATH, a tree that cannot be packed, a machine that is in no state to be used, a second run, the
+machine not answering, uv or the tree not put on it). Needs Linux, ssh, scp, VBoxManage and git."""
+import argparse
+import base64
+import contextlib
+import fcntl
+import hashlib
+import importlib.machinery
+import importlib.util
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+from types import FrameType, ModuleType
+from typing import NamedTuple
+
+SCRIPTS = Path(__file__).resolve().parent
+ROOT = SCRIPTS.parent
+NOT_SET_UP = 2
+LOOPBACK = "127.0.0.1"
+KEEP_RUNS = 2                                          # the folders of runs left on the machine: this run's and the one before
+TAIL_LINES = 40                                        # of a failed step's output under its line
+SSH_PATIENCE_SEC = 300.0                               # a Windows that was powered off answers SSH after a minute or two
+OFF_PATIENCE_SEC = 300.0                               # and shuts down in about as long
+REMOTE_LINE_MAX = 8000                                 # cmd.exe, which may be the machine's SSH shell, takes 8191 characters of a command line
+NEVER_STOPS = float("inf")
+
+
+class Pin(NamedTuple):
+    version: str
+    url: str
+    sha256: str
+    file: str
+
+
+# uv for Windows, from the release of its own repository, kept only when its SHA-256 is this one (the pin is the trust, not the server); the same version as the one the Linux machine runs.
+UV = Pin("0.11.26", "https://github.com/astral-sh/uv/releases/download/0.11.26/uv-x86_64-pc-windows-msvc.zip",
+         "4e1278ede866be6c0bf32d2f466cc6de7a9fb399ecf20c9ce2d186e52424be47", "uv-x86_64-pc-windows-msvc.zip")
+
+VARIABLES = ("NEOAPRS_WINVM_SSH_PORT", "NEOAPRS_WINVM_SSH_KEY", "NEOAPRS_WINVM_KNOWN_HOSTS")
+STEP_ENVIRONMENT = {"NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "UV_PYTHON_PREFERENCE": "only-managed"}
+NEEDS_THE_ENVIRONMENT = ("ruff", "pytest")             # the steps that run in the .venv that sync makes
+
+
+def say(text: str) -> None:
+    print(f"check-windows: {text}", file=sys.stderr, flush=True)
+
+
+class NotSetUp(Exception):
+    """Why the check cannot run, as the sentence the user is told (exit code 2)."""
+
+
+def load_script(name: str) -> ModuleType:
+    """A tool of this folder that has no .py in its name, run as a module so that its functions can be used."""
+    loader = importlib.machinery.SourceFileLoader(name.replace("-", "_"), str(SCRIPTS / name))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+# ---- where the machine is ----
+
+@dataclass(frozen=True)
+class Settings:
+    vm: str
+    port: int
+    key: Path
+    known_hosts: Path
+    user: str
+
+
+def read_settings(env: Mapping[str, str]) -> Settings:
+    """The machine as the environment names it, or NotSetUp with the sentence. Nothing has a default but the user."""
+    vm = env.get("NEOAPRS_WINVM", "").strip()
+    if not vm:
+        raise NotSetUp("the Windows check is not set up on this machine: it needs NEOAPRS_WINVM (the VirtualBox name of the Windows machine), NEOAPRS_WINVM_SSH_PORT, NEOAPRS_WINVM_SSH_KEY and "
+                       "NEOAPRS_WINVM_KNOWN_HOSTS, and NEOAPRS_WINVM_USER when the user there is not John")
+    if vm.startswith("-"):
+        raise NotSetUp(f"NEOAPRS_WINVM is {vm!r}, which VBoxManage would read as an option: the name of the machine does not begin with a dash")
+    missing = [name for name in VARIABLES if not env.get(name, "").strip()]
+    if missing:
+        raise NotSetUp(f"NEOAPRS_WINVM is set, and {' and '.join(missing)} {'is' if len(missing) == 1 else 'are'} not")
+    port_text = env["NEOAPRS_WINVM_SSH_PORT"].strip()
+    if not port_text.isascii() or not port_text.isdigit() or not 0 < int(port_text) < 65536:
+        raise NotSetUp(f"NEOAPRS_WINVM_SSH_PORT is {port_text!r}, which is not a port number")
+    user = env.get("NEOAPRS_WINVM_USER", "").strip() or "John"
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", user):
+        raise NotSetUp(f"NEOAPRS_WINVM_USER is {user!r}: a user name here is letters, digits, dots, dashes and underscores")
+    known_hosts = env["NEOAPRS_WINVM_KNOWN_HOSTS"].strip()
+    if '"' in known_hosts:
+        raise NotSetUp("NEOAPRS_WINVM_KNOWN_HOSTS has a double quote in it, which ssh cannot be given in an option")
+    return Settings(vm, int(port_text), Path(env["NEOAPRS_WINVM_SSH_KEY"].strip()), Path(known_hosts), user)
+
+
+def missing_files(settings: Settings) -> list[str]:
+    """The sentences for the files that are not there: the key and the known_hosts file."""
+    return [f"{name} is {path}, which is not a file" for name, path in (("NEOAPRS_WINVM_SSH_KEY", settings.key), ("NEOAPRS_WINVM_KNOWN_HOSTS", settings.known_hosts)) if not path.is_file()]
+
+
+def build_cache(env: Mapping[str, str]) -> Path:
+    """The build cache, where scripts/security-tools keeps its programs: the zip of uv and the lock files are here too."""
+    base = env.get("NEOAPRS_BUILD_CACHE") or Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build"
+    return Path(base) / "check-windows"
+
+
+# ---- command lines ----
+
+def option_value(path: Path) -> str:
+    """A path as the value of an ssh option: in double quotes when it has a space, which ssh's own parser takes apart."""
+    text = str(path)
+    return f'"{text}"' if any(char.isspace() for char in text) else text
+
+
+def ssh_options(settings: Settings) -> list[str]:
+    """What ssh and scp share: the key and only that key, no question asked (a host key that is not in the file is a refusal), and an unanswered connection given up on."""
+    return ["-i", str(settings.key), "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "-o", f"UserKnownHostsFile={option_value(settings.known_hosts)}",
+            "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15"]
+
+
+def ssh_command(settings: Settings, remote: str, tty: bool = False) -> list[str]:
+    """ssh with the command line that the machine's shell runs. `tty` (-tt) gives it a console even though this side has none."""
+    return ["ssh", *ssh_options(settings), "-p", str(settings.port), *(["-tt"] if tty else []), f"{settings.user}@{LOOPBACK}", remote]
+
+
+def scp_command(settings: Settings, local: Path, remote_path: str) -> list[str]:
+    """scp of one file to a path on the machine, which is written with forward slashes (C:/Users/...)."""
+    return ["scp", *ssh_options(settings), "-P", str(settings.port), str(local), f"{settings.user}@{LOOPBACK}:{remote_path}"]
+
+
+def ps_quote(text: str) -> str:
+    """A PowerShell string in single quotes. PowerShell takes the typographic single quotes for quotes too, so each of them is doubled as the plain one is."""
+    return "'" + "".join(char * 2 if char in "'\u2018\u2019\u201a\u201b" else char for char in text) + "'"
+
+
+class Raw(str):
+    """A piece of a PowerShell command that is an expression and is not quoted."""
+
+
+def encode_powershell(script: str) -> str:
+    return base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+
+
+def powershell_line(script: str) -> str:
+    """The command line that runs a script on the machine whichever shell sshd starts (cmd.exe or PowerShell): the script in Base64, so that no quote of it is read by that shell. The execution
+    policy is bypassed only for this line: -EncodedCommand is not a script file, but a machine of a stricter policy would still say so."""
+    return f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -OutputFormat Text -EncodedCommand {encode_powershell(script)}"
+
+
+def ssh_script(settings: Settings, script: str, tty: bool = False) -> list[str]:
+    return ssh_command(settings, powershell_line(script), tty)
+
+
+class Paths(NamedTuple):
+    """Where things are on the machine, Windows paths (the profile folder is C:\\Users\\USER)."""
+    home: str
+    root: str          # the folders of the runs
+    run: str
+    tree: str          # the tree, a repository when git is there
+    tar: str
+    uv_dir: str
+    uv_zip: str
+
+
+def windows_paths(user: str, run_name: str) -> Paths:
+    home = f"C:\\Users\\{user}"
+    root = f"{home}\\neoaprs-check"
+    run = f"{root}\\{run_name}"
+    return Paths(home, root, run, f"{run}\\neoaprs", f"{run}-tree.tar", f"{home}\\neotest\\uv", f"{root}\\{UV.file}")
+
+
+def scp_path(windows_path: str) -> str:
+    return windows_path.replace("\\", "/")
+
+
+def run_name(now: float) -> str:
+    """The folder of a run: its UTC time, which sorts as time does."""
+    return time.strftime("RUN-%Y%m%dT%H%M%S", time.gmtime(now))
+
+
+RUN_NAME = re.compile(r"RUN-\d{8}T\d{6}")
+
+
+def runs_to_remove(names: Sequence[str], keep: int = KEEP_RUNS) -> list[str]:
+    """Of the folders found, the names of runs but the newest `keep`, oldest first; whatever else is in the folder is not ours and stays."""
+    runs = sorted(name.strip() for name in names if RUN_NAME.fullmatch(name.strip()))
+    return runs[: max(0, len(runs) - keep)]
+
+
+def native(program: str, *arguments: str) -> list[str]:
+    """The lines of a PowerShell script that run a program and pass its output on as text (its error stream is merged: Windows PowerShell 5.1 turns what a program writes to it into error records,
+    which `"$_"` makes lines again) and end the script with its exit code when it is not 0."""
+    call = "& " + " ".join(argument if isinstance(argument, Raw) else ps_quote(argument) for argument in (program, *arguments))
+    return [f'{call} 2>&1 | ForEach-Object {{ "$_" }}', "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"]
+
+
+# GitHub's Windows runner has the programs of Git for Windows on its PATH, sh and bash among them, and tests start them (tests/test_install_line.py reads a script with `sh -n`). An SSH session
+# gets git's own folder only (Git\cmd), so the folder of sh and bash is added where it is there; a machine without Git for Windows runs as it is, and those tests fail there by name.
+GIT_TOOLS_ON_THE_PATH = "$gitBin = Join-Path $env:ProgramFiles 'Git\\bin'; if (Test-Path -LiteralPath $gitBin) { $env:Path = $env:Path + ';' + $gitBin }"
+
+
+def preamble(paths: Paths, frozen: bool = True, folder: str | None = None) -> list[str]:
+    """The start of a step's script: the environment of every step, uv first on the PATH, and the folder of the tree. A failure here ends the script; what comes after it is the program's own."""
+    lines = ["$ErrorActionPreference = 'Stop'", "$ProgressPreference = 'SilentlyContinue'"]
+    lines += [f"$env:{name} = {ps_quote(value)}" for name, value in STEP_ENVIRONMENT.items()]
+    lines.append("$env:UV_FROZEN = '1'" if frozen else "Remove-Item Env:UV_FROZEN -ErrorAction SilentlyContinue")
+    lines += [f"$env:Path = {ps_quote(paths.uv_dir + ';')} + $env:Path", GIT_TOOLS_ON_THE_PATH, f"Set-Location -LiteralPath {ps_quote(folder or paths.tree)}", "$ErrorActionPreference = 'Continue'"]
+    return lines
+
+
+@dataclass(frozen=True)
+class Step:
+    name: str
+    commands: tuple[tuple[str, ...], ...]      # each one a program and its arguments, run one after the other until one fails
+    frozen: bool = True                        # UV_FROZEN=1, as the workflow has it
+    timeout_sec: float = 900.0
+
+
+def steps(paths: Paths, pytest_args: Sequence[str] = ()) -> list[Step]:
+    """The steps in order: the commands of ci.yml's jobs `python` (without mypy, which the workflow runs on Linux only) and `smoke`, which tests/test_check_windows.py reads against the workflow."""
+    venv = f"{paths.run}\\smoke-venv"
+    python, command = f"{venv}\\Scripts\\python.exe", f"{venv}\\Scripts\\neoaprs.exe"
+    wheel = Raw("(Get-ChildItem -LiteralPath 'dist' -Filter '*.whl').FullName")
+    return [
+        Step("sync", (("uv", "sync", "--frozen", "--extra", "app", "--extra", "ble"),)),
+        Step("lock", (("uv", "lock", "--check"),), frozen=False, timeout_sec=300.0),
+        Step("ruff", (("uv", "run", "ruff", "check", "."),), timeout_sec=300.0),
+        Step("pytest", (("uv", "run", "pytest", "-n", "auto", "-p", "no:cacheprovider", *pytest_args),), timeout_sec=2400.0),
+        Step("smoke", (("uv", "build", "--wheel"), ("uv", "venv", venv), ("uv", "pip", "install", "--python", python, wheel), (python, "scripts\\smoke.py", "--command", command))),
+    ]
+
+
+def step_script(paths: Paths, step: Step) -> str:
+    lines = preamble(paths, step.frozen)
+    for command in step.commands:
+        lines += native(*command)
+    return "\n".join([*lines, "exit 0"])
+
+
+def chosen_steps(only: Sequence[str]) -> list[str]:
+    """The names to run, in the order of the CI: all when none is chosen; sync joins ruff and pytest, which run in what it makes."""
+    names = list(only) or [step.name for step in steps(windows_paths("x", "x"))]
+    if any(name in names for name in NEEDS_THE_ENVIRONMENT) and "sync" not in names:
+        names.append("sync")
+    return [step.name for step in steps(windows_paths("x", "x")) if step.name in names]
+
+
+# The probe of the console: a child in a process group of its own, Ctrl+Break sent to it, which must end it (what tests/support/proc.py does). Run by the Python of the environment.
+CONSOLE_PROBE = ("import signal,subprocess,sys,time; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'],creationflags=subprocess.CREATE_NEW_PROCESS_GROUP); time.sleep(1); "
+                 "p.send_signal(signal.CTRL_BREAK_EVENT); time.sleep(3); code=p.poll(); p.kill(); print('Ctrl+Break ended the child:', code is not None); sys.exit(0 if code is not None else 1)")
+
+
+def probe_script(paths: Paths) -> str:
+    python = f"{paths.tree}\\.venv\\Scripts\\python.exe"
+    return "\n".join([*preamble(paths), *native(python, "-c", CONSOLE_PROBE), "exit 0"])
+
+
+def stop_script(folder: str) -> str:
+    """Ends every process whose command line names the folder of the run (the programs of the .venv are started by their full path): what is left of a step that was given up on."""
+    return ("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ('*' + " + ps_quote(folder) + " + '*') -and $_.ProcessId -ne $PID } | "
+            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; exit 0")
+
+
+def prepare_script(paths: Paths) -> str:
+    """The folder of the run made, the tar unpacked into it and, where git is, the tree made a repository of one commit made of the tracked files. The git part is a nicety: it never fails the run."""
+    tar = "$env:SystemRoot + '\\System32\\tar.exe'"
+    git_lines = ["$git = Get-Command git.exe -ErrorAction SilentlyContinue",
+                 "if ($git) { try {",
+                 f"  Set-Location -LiteralPath {ps_quote(paths.tree)}",
+                 "  & git.exe -c core.autocrlf=false init --quiet --initial-branch=master . 2>&1 | Out-Null",
+                 f"  & git.exe -c core.autocrlf=false add --force --pathspec-from-file={ps_quote(paths.run + chr(92) + 'tracked')} --pathspec-file-nul 2>&1 | Out-Null",
+                 "  & git.exe -c user.name=runner -c user.email=runner@localhost -c commit.gpgsign=false commit --quiet --allow-empty --message='The tree as it was on disk' 2>&1 | Out-Null",
+                 "} catch { } }"]
+    return "\n".join(["$ErrorActionPreference = 'Stop'", "$ProgressPreference = 'SilentlyContinue'",
+                      f"New-Item -ItemType Directory -Force -Path {ps_quote(paths.root)} | Out-Null",
+                      f"New-Item -ItemType Directory -Path {ps_quote(paths.run)} | Out-Null",
+                      f"& ({tar}) -xf {ps_quote(paths.tar)} -C {ps_quote(paths.run)}",
+                      "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+                      f"Remove-Item -LiteralPath {ps_quote(paths.tar)}",
+                      "$ErrorActionPreference = 'Continue'", *git_lines, "exit 0"])
+
+
+def uv_version_script(paths: Paths) -> str:
+    return "\n".join(["$ErrorActionPreference = 'SilentlyContinue'", f"& {ps_quote(paths.uv_dir + chr(92) + 'uv.exe')} --version 2>&1 | ForEach-Object {{ \"$_\" }}", "exit 0"])
+
+
+def uv_unpack_script(paths: Paths) -> str:
+    tar = "$env:SystemRoot + '\\System32\\tar.exe'"
+    return "\n".join(["$ErrorActionPreference = 'Stop'", f"New-Item -ItemType Directory -Force -Path {ps_quote(paths.uv_dir)} | Out-Null",
+                      f"& ({tar}) -xf {ps_quote(paths.uv_zip)} -C {ps_quote(paths.uv_dir)}", "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+                      f"Remove-Item -LiteralPath {ps_quote(paths.uv_zip)}", "exit 0"])
+
+
+def listing_script(paths: Paths) -> str:
+    return f"Get-ChildItem -LiteralPath {ps_quote(paths.root)} -Directory -Name -ErrorAction SilentlyContinue; exit 0"
+
+
+def removal_script(paths: Paths, names: Sequence[str]) -> str:
+    """Takes the folders of old runs away; only names that are runs, and a folder that cannot be removed (something holds a file of it) is left."""
+    return "\n".join([f"Remove-Item -LiteralPath {ps_quote(paths.root + chr(92) + name)} -Recurse -Force -ErrorAction SilentlyContinue" for name in names if RUN_NAME.fullmatch(name)] + ["exit 0"])
+
+
+def uv_version_ok(output: str, pin: Pin = UV) -> bool:
+    """Whether what `uv --version` printed names the pinned version."""
+    found = re.match(r"uv (\S+)", output.strip())
+    return found is not None and found.group(1) == pin.version
+
+
+# ---- the output and the result lines ----
+
+ESCAPES = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>]")
+
+
+def clean_output(text: str) -> str:
+    """What a session with a console adds taken away: escape sequences, the carriage returns of its line ends, and what a line wrote before a bare carriage return overwrote it."""
+    lines = ESCAPES.sub("", text).replace("\r\n", "\n").split("\n")
+    return "\n".join(line.rsplit("\r", 1)[-1] for line in lines)
+
+
+@dataclass(frozen=True)
+class StepResult:
+    name: str
+    code: int
+    seconds: float
+    log: Path
+    tail: tuple[str, ...] = ()
+
+
+def result_line(result: StepResult) -> str:
+    """The line of scripts/check: `ok` or `FAIL`, the name, the seconds in tenths."""
+    tenths = int(result.seconds * 10 + 0.5)
+    return f"{'ok' if result.code == 0 else 'FAIL':<5} {result.name:<12} {tenths // 10:4d}.{tenths % 10}s"
+
+
+def report_lines(result: StepResult) -> list[str]:
+    """The result line, and under a failed step the end of its output and where the whole is."""
+    if result.code == 0:
+        return [result_line(result)]
+    return [result_line(result), *(f"      | {line}" for line in result.tail), f"      (the whole log: {result.log})"]
+
+
+def exit_code(results: Sequence[StepResult]) -> int:
+    return 1 if any(result.code != 0 for result in results) else 0
+
+
+def summary(results: Sequence[StepResult], seconds: float) -> str:
+    failed = [result.name for result in results if result.code != 0]
+    return f"failed in {int(seconds)}s: {' '.join(failed)}" if failed else f"all green in {int(seconds)}s"
+
+
+# ---- power and the lock ----
+
+class Refused(Exception):
+    """The machine cannot be used as asked: the sentence for the user (exit code 2)."""
+
+
+class Busy(Exception):
+    """Another run holds the lock."""
+
+
+START_FROM = ("poweroff", "aborted", "saved", "aborted-saved")
+
+
+@dataclass(frozen=True)
+class PowerPlan:
+    restore: bool        # the snapshot is put back before the start
+    start: bool          # this run starts the machine, and so shuts it down at the end
+
+
+def plan_power(state: str, snapshot: str, vm: str = "the machine") -> PowerPlan:
+    """What a run does about power, from the state VirtualBox gives. A running machine is used as it is and left running, and is no machine to put back to a snapshot; a machine that is off is
+    started, and shut down again by the run that started it; one that is between the two is not touched."""
+    if state == "running":
+        if snapshot:
+            raise Refused(f"--snapshot puts a machine back only while it is powered off, and {vm} is running: shut it down first")
+        return PowerPlan(restore=False, start=False)
+    if state in START_FROM:
+        return PowerPlan(restore=bool(snapshot), start=True)
+    raise Refused(f"{vm} is {state or 'in a state VBoxManage did not tell'}: it is used when it is running or powered off, so wait or finish what it does and run again")
+
+
+def parse_vm_state(output: str) -> str:
+    """The state from `VBoxManage showvminfo --machinereadable`: the line `VMState="running"`."""
+    found = re.search(r'^VMState="([^"]*)"', output, re.MULTILINE)
+    return found.group(1) if found else ""
+
+
+def lock_path(env: Mapping[str, str], vm: str) -> Path:
+    """The lock file of a machine: in the build cache, named by the machine's name with whatever is not a letter or a digit made a dash."""
+    return build_cache(env) / "locks" / (re.sub(r"[^A-Za-z0-9._]", "-", vm) + ".lock")
+
+
+@contextlib.contextmanager
+def run_lock(path: Path) -> Iterator[None]:
+    """One run at a time on a machine: the lock is the file's, and goes when the run ends however it ends."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise Busy(f"another run of this script holds {path}: one run at a time on a machine") from None
+        yield
+
+
+def wait_for(done: Callable[[], bool], patience_sec: float, interval_sec: float = 5.0, sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> bool:
+    """Asks `done` until it says yes (True) or the patience is over (False)."""
+    deadline = clock() + patience_sec
+    while not done():
+        if clock() >= deadline:
+            return False
+        sleep(interval_sec)
+    return True
+
+
+def vboxmanage(*arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["VBoxManage", *arguments], capture_output=True, text=True)
+
+
+def vm_state(vm: str) -> str:
+    return parse_vm_state(vboxmanage("showvminfo", vm, "--machinereadable").stdout)
+
+
+def last_line(text: str) -> str:
+    return (text.strip().splitlines() or ["it said nothing"])[-1]
+
+
+def start_vm(settings: Settings, plan: PowerPlan, snapshot: str) -> None:
+    """The snapshot put back when asked, then the machine started without a window, and waited for until its SSH answers."""
+    if plan.restore:
+        say(f"putting {settings.vm} back to the snapshot {snapshot}")
+        done = vboxmanage("snapshot", settings.vm, "restore", snapshot)
+        if done.returncode != 0:
+            raise Refused(f"the snapshot {snapshot} could not be put back ({last_line(done.stderr or done.stdout)})")
+    say(f"starting {settings.vm} without a window")
+    done = vboxmanage("startvm", settings.vm, "--type", "headless")
+    if done.returncode != 0:
+        raise Refused(f"{settings.vm} could not be started ({last_line(done.stderr or done.stdout)})")
+
+
+def ssh_answers(settings: Settings) -> bool:
+    return subprocess.run(ssh_script(settings, "exit 0"), stdin=subprocess.DEVNULL, capture_output=True).returncode == 0
+
+
+def wait_for_ssh(settings: Settings, patience_sec: float = SSH_PATIENCE_SEC, interval_sec: float = 5.0) -> None:
+    say(f"waiting for the SSH of {settings.vm} to answer (up to {int(patience_sec)} s)")
+    if not wait_for(lambda: ssh_answers(settings), patience_sec, interval_sec):
+        raise Refused(f"the SSH of {settings.vm} did not answer within {int(patience_sec)} s (port {settings.port}, user {settings.user}): is the machine's forward and its sshd right? try the ssh line by hand")
+
+
+def power_off(settings: Settings, patience_sec: float = OFF_PATIENCE_SEC, interval_sec: float = 5.0) -> None:
+    """The machine shut down with Windows's own shutdown (the ACPI power button) and waited for. Never a hard power-off: one that is not off in time is left as it is, and said."""
+    say(f"shutting {settings.vm} down")
+    vboxmanage("controlvm", settings.vm, "acpipowerbutton")
+    if wait_for(lambda: vm_state(settings.vm) == "poweroff", patience_sec, interval_sec):
+        return
+    say(f"{settings.vm} is not powered off after {int(patience_sec)} s: left as it is, shut it down by hand")
+
+
+# ---- the machine ----
+
+def ssh_run(settings: Settings, script: str, timeout_sec: float = 300.0) -> subprocess.CompletedProcess[str]:
+    """A short script on the machine, its output as text. An answer that does not come is a failed one."""
+    try:
+        return subprocess.run(ssh_script(settings, script), stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=timeout_sec)
+    except subprocess.TimeoutExpired as error:
+        return subprocess.CompletedProcess(error.cmd, 124, "", f"no answer within {int(timeout_sec)} s")
+
+
+def ensure_uv_zip(cache: Path, pin: Pin = UV, download: Callable[[str, Path, str], None] | None = None) -> Path:
+    """The zip of uv in the build cache: the one there when its digest is the pin's, else fetched (from GitHub's hosts only, by scripts/security-tools's own download, which checks the digest)."""
+    target = cache / f"uv-{pin.version}" / pin.file
+    with contextlib.suppress(OSError):
+        if hashlib.sha256(target.read_bytes()).hexdigest() == pin.sha256:
+            return target
+    fetch = download or load_script("security-tools").download
+    target.parent.mkdir(parents=True, exist_ok=True)
+    part = target.with_name(target.name + ".part")
+    try:
+        fetch(pin.url, part, pin.sha256)
+        part.replace(target)
+    finally:
+        part.unlink(missing_ok=True)
+    return target
+
+
+def copy_to(settings: Settings, local: Path, remote_windows_path: str) -> None:
+    done = subprocess.run(scp_command(settings, local, scp_path(remote_windows_path)), stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace")
+    if done.returncode != 0:
+        raise Refused(f"{local.name} could not be copied to the machine ({last_line(done.stderr)})")
+
+
+def remote_must(settings: Settings, script: str, failure: str) -> None:
+    done = ssh_run(settings, script)
+    if done.returncode != 0:
+        raise Refused(f"{failure} ({last_line(done.stdout + done.stderr)})")
+
+
+def put_uv_there(settings: Settings, paths: Paths, cache: Path) -> None:
+    """uv of the pinned version in its folder on the machine: left alone when it is there, else the zip is copied over and unpacked."""
+    if uv_version_ok(ssh_run(settings, uv_version_script(paths)).stdout):
+        return
+    say(f"putting uv {UV.version} on the machine")
+    try:
+        zip_file = ensure_uv_zip(cache)
+    except Exception as error:      # (what the download says: the pin, the network or the disk; the sentence is the user's)
+        raise Refused(f"uv {UV.version} could not be fetched ({error})") from None
+    copy_to(settings, zip_file, paths.uv_zip)
+    remote_must(settings, uv_unpack_script(paths), "uv could not be unpacked on the machine")
+    if not uv_version_ok(ssh_run(settings, uv_version_script(paths)).stdout):
+        raise Refused(f"uv {UV.version} is not what runs from {paths.uv_dir} after it was put there")
+
+
+def prepare(settings: Settings, paths: Paths, tar: Path, cache: Path) -> None:
+    """The machine made ready for the steps: uv, then the tree in the folder of the run."""
+    put_uv_there(settings, paths, cache)
+    say(f"copying the tree to {paths.run}")
+    remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.root)} | Out-Null; exit 0", "the folder for the runs could not be made")
+    copy_to(settings, tar, paths.tar)
+    remote_must(settings, prepare_script(paths), "the tree could not be unpacked on the machine")
+
+
+def remove_old_runs(settings: Settings, paths: Paths) -> None:
+    """The folders of older runs taken away but the newest two. What cannot be done is only logged: it is a courtesy to the disk of the machine."""
+    names = runs_to_remove(ssh_run(settings, listing_script(paths)).stdout.splitlines())
+    if names:
+        say(f"removing the older runs on the machine: {' '.join(names)}")
+        ssh_run(settings, removal_script(paths, names), timeout_sec=900.0)
+
+
+def run_step(settings: Settings, paths: Paths, step: Step, log_dir: Path, tty: bool = False) -> StepResult:
+    """One step on the machine, its whole output in a log here. A step that is not done in its time is ended, with what it left on the machine, and fails with code 124."""
+    log = log_dir / f"{step.name}.log"
+    say(f"running {step.name}")
+    started = time.monotonic()
+    code, note = 0, ""
+    with log.open("wb") as out:
+        proc = subprocess.Popen(ssh_script(settings, step_script(paths, step), tty), stdin=subprocess.PIPE if tty else subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+        try:
+            code = proc.wait(timeout=step.timeout_sec)
+        except subprocess.TimeoutExpired:
+            code, note = 124, f"(stopped: the step did not end in {int(step.timeout_sec)} s)"
+            proc.kill()
+            proc.wait()
+            ssh_run(settings, stop_script(paths.run), timeout_sec=60.0)
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            ssh_run(settings, stop_script(paths.run), timeout_sec=60.0)
+            raise
+        finally:
+            if proc.stdin is not None:
+                proc.stdin.close()
+    text = clean_output(log.read_bytes().decode("utf-8", errors="replace"))
+    log.write_text(text + (note and "\n" + note) + "\n", encoding="utf-8")
+    tail = [*text.rstrip("\n").splitlines()[-TAIL_LINES:], *([note] if note else [])]
+    return StepResult(step.name, code, time.monotonic() - started, log, tuple(tail))
+
+
+def console_works(settings: Settings, paths: Paths, tty: bool) -> bool:
+    """Whether the probe ends its child with Ctrl+Break in a session of this kind."""
+    with subprocess.Popen(ssh_script(settings, probe_script(paths), tty), stdin=subprocess.PIPE if tty else subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as proc:
+        try:
+            return proc.wait(timeout=120) == 0
+        finally:
+            proc.kill()                      # (a probe that hangs is a failed one; its input, held open for a console, closes when the with block ends)
+
+
+def choose_console(settings: Settings, paths: Paths, force_tty: bool) -> bool:
+    """Whether the pytest step runs through `ssh -tt`: when asked, or when a plain session cannot send Ctrl+Break and one with a console can. Said either way."""
+    if force_tty:
+        return True
+    try:
+        if console_works(settings, paths, tty=False):
+            say("Ctrl+Break reaches a child in a plain SSH session: pytest runs in one")
+            return False
+        if console_works(settings, paths, tty=True):
+            say("Ctrl+Break does not reach a child in a plain SSH session, and does in one with a console: pytest runs through ssh -tt")
+            return True
+    except subprocess.TimeoutExpired:
+        pass
+    say("the probe of Ctrl+Break did not pass in either kind of session: pytest runs in a plain one, and the tests that end a child that way will fail")
+    return False
+
+
+def execute(settings: Settings, names: Sequence[str], pytest_args: Sequence[str], tar: Path, cache: Path, force_tty: bool) -> int:
+    """From a machine that answers to the last result line; every step runs to its end except that none follows a failed sync."""
+    paths = windows_paths(settings.user, run_name(time.time()))
+    log_dir = Path(tempfile.mkdtemp(prefix="neoaprs-check-windows-"))
+    say(f"the logs are in {log_dir}")
+    prepare(settings, paths, tar, cache)
+    results: list[StepResult] = []
+    total = time.monotonic()
+    tty = False
+    try:
+        for step in steps(paths, pytest_args):
+            if step.name not in names:
+                continue
+            if step.name == "sync" or "sync" not in [result.name for result in results if result.code != 0]:
+                if step.name == "pytest":
+                    tty = choose_console(settings, paths, force_tty)
+                result = run_step(settings, paths, step, log_dir, tty and step.name == "pytest")
+                results.append(result)
+                print("\n".join(report_lines(result)), flush=True)
+    finally:
+        remove_old_runs(settings, paths)
+    print(summary(results, time.monotonic() - total), flush=True)
+    return exit_code(results)
+
+
+# ---- the command ----
+
+def interrupted(number: int, frame: FrameType | None) -> None:
+    raise KeyboardInterrupt
+
+
+def parse(argv: Sequence[str], split: Callable[[Sequence[str]], tuple[list[str], list[str]]]) -> tuple[argparse.Namespace, list[str]]:
+    own, pytest_args = split(argv)
+    parser = argparse.ArgumentParser(prog="check-windows", usage="scripts/check-windows [--only NAME]... [--snapshot NAME] [--tty] [-- PYTEST-ARGS...]", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--only", action="append", default=[], choices=[step.name for step in steps(windows_paths("x", "x"))], metavar="NAME", help="run only this step (repeatable): sync lock ruff pytest smoke")
+    parser.add_argument("--snapshot", default="", metavar="NAME", help="put the machine back to this snapshot before it is started (only while it is powered off)")
+    parser.add_argument("--tty", action="store_true", help="run the pytest step through ssh -tt without trying a plain session first")
+    args = parser.parse_args(own)
+    if pytest_args and args.only and "pytest" not in args.only:
+        parser.error("arguments after -- are for pytest, and --only does not name it")
+    if pytest_args and not args.only:
+        args.only = ["pytest"]
+    return args, pytest_args
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    packer = load_script("check-in-container")
+    args, pytest_args = parse(sys.argv[1:] if argv is None else argv, packer.split_command)
+    try:
+        settings = read_settings(os.environ)
+        for tool in ("ssh", "scp", "VBoxManage", "git"):
+            if shutil.which(tool) is None:
+                raise NotSetUp(f"{tool} is not installed (the Windows check needs ssh, scp, VBoxManage and git)")
+        problems = missing_files(settings)
+        if problems:
+            raise NotSetUp("; ".join(problems))
+    except NotSetUp as error:
+        say(str(error))
+        return NOT_SET_UP
+    cache = build_cache(os.environ)
+    # The tree is packed whole into a file before the machine is asked for anything: what is wrong with the tree is said while nothing runs yet.
+    with tempfile.TemporaryDirectory(prefix="neoaprs-check-windows-tar-") as scratch:
+        tar = Path(scratch) / "tree.tar"
+        try:
+            with tar.open("wb") as out:
+                packer.pack(ROOT, out)
+        except packer.NotPacked as error:
+            say(f"nothing was run: {error}")
+            return NOT_SET_UP
+        for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            signal.signal(number, interrupted)
+        started_by_us = False
+        try:
+            with run_lock(lock_path(os.environ, settings.vm)):
+                plan = plan_power(vm_state(settings.vm), args.snapshot, settings.vm)
+                if plan.start:
+                    started_by_us = True
+                    start_vm(settings, plan, args.snapshot)
+                wait_for_ssh(settings, SSH_PATIENCE_SEC if plan.start else 60.0)
+                return execute(settings, chosen_steps(args.only), pytest_args, tar, cache, args.tty)
+        except (Refused, Busy) as error:
+            say(str(error))
+            return NOT_SET_UP
+        except KeyboardInterrupt:
+            say("interrupted")
+            return 130
+        finally:
+            if started_by_us:
+                signal.signal(signal.SIGINT, signal.SIG_IGN)       # (the shutdown is not given up on by a second Ctrl+C)
+                power_off(settings)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

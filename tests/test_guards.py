@@ -62,6 +62,11 @@ async def test_forgets_to_stop_its_daemon_and_the_guard_stops_it(tmp_path):
     await e.start()
     assert e.ctl.running
 
+async def test_leaves_a_stop_that_never_ends(monkeypatch):
+    from tests.support import env, guards
+    monkeypatch.setattr(guards, "TEARDOWN_LIMIT_SEC", 0.3)
+    env.remember_stop(lambda: asyncio.Event().wait())
+
 async def test_stops_its_daemon_itself_and_the_guard_does_not_mind(tmp_path):
     from tests.support.env import Env
     e = Env(tmp_path)
@@ -174,7 +179,7 @@ def test_what_is_allowed_passes_the_guards(child_outcomes: dict[str, str], name:
     assert child_outcomes[name] == "ok"
 
 
-@pytest.mark.parametrize("name", ["test_leaks_a_task", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name",
+@pytest.mark.parametrize("name", ["test_leaks_a_task", "test_leaves_a_stop_that_never_ends", "test_reaches_out_and_swallows_the_error", "test_sends_a_datagram_out", "test_looks_up_a_name", "test_logs_an_error", "test_asks_the_rigctld_of_this_machine", "test_asks_the_rotctld_of_this_machine_by_name",
                                   *(["test_makes_a_bluetooth_socket_and_swallows_the_error"] if hasattr(socket, "AF_BLUETOOTH") else [])])
 def test_what_is_forbidden_fails_the_test(child_outcomes: dict[str, str], name: str) -> None:
     assert child_outcomes[name] == "error"
@@ -189,6 +194,18 @@ async def test_a_leaked_task_is_found_and_a_finished_one_is_not() -> None:
     finally:
         task.cancel()
     assert await guards.leaked_tasks() == []
+
+
+async def test_a_stop_that_hangs_when_the_test_is_over_fails_the_test_by_its_name_and_ends() -> None:
+    hung = asyncio.get_running_loop().create_future()                         # (a word that never comes: the Db's close on Windows 11 waited 25 minutes for one)
+
+    async def never_ends() -> None:
+        await hung
+
+    guards.env_module.remember_stop(never_ends)                               # (taken off the list by the stop_all that runs it)
+    with pytest.raises(pytest.fail.Exception, match=r"tests/test_x\.py::test_y: stopping what the test started did not end in 0\.2 s"):
+        await asyncio.wait_for(guards.torn_down_within(0.2, "tests/test_x.py::test_y"), 10.0)
+    assert hung.cancelled()
 
 
 @pytest.mark.parametrize("host,local", [

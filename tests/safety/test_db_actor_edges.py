@@ -68,6 +68,14 @@ async def test_a_db_that_was_never_started_closes_and_stays_closed() -> None:
     assert wait_gone(0.05) == []
 
 
+async def test_a_close_whose_word_from_the_ended_thread_never_reaches_the_loop_returns_all_the_same(tmp_path: Path) -> None:
+    """A teardown on Windows 11 sat 25 minutes in the proactor's `_poll` closing a Db whose thread had ended: the thread's word through the loop was lost. The close looks at the thread itself."""
+    db = await started(tmp_path / "x.sqlite")
+    db._exited = asyncio.get_running_loop().create_future()                      # (the future the thread settles at its end, swapped for one that nobody settles: the word that never came)
+    await asyncio.wait_for(db.close(), 5.0)
+    assert not db.is_open and wait_gone(1.0) == []
+
+
 async def test_a_message_for_a_loop_that_is_gone_or_a_future_that_is_settled_is_dropped_quietly() -> None:
     loop = asyncio.get_running_loop()
     seen: list[dict[str, object]] = []

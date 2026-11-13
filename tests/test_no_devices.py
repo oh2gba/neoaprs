@@ -11,6 +11,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import urllib.request
 from collections.abc import Callable
 from dataclasses import replace
@@ -61,7 +62,8 @@ def under_the_switch(monkeypatch: pytest.MonkeyPatch) -> None:
 
 class Doors:
     """Every way out of the process, watched: each file opened by its path, each program started, each socket connected, each name looked up, each Bluetooth socket made and each time the machine is asked for its
-    ports or its paired devices is written down, and then goes on as it would have."""
+    ports or its paired devices is written down, and then goes on as it would have. A socket pair is not a way out: where the system has none (Windows) the standard library makes one as a TCP connection to a
+    listener of its own on 127.0.0.1, which every event loop does for its wake-up, so what is connected inside `socket.socketpair` is not written down."""
 
     def __init__(self, patch: Callable[[Any, str, Any], None]) -> None:
         self.opened: list[str] = []                 # what os.open was given (pyserial opens a device with it), with every link followed
@@ -71,6 +73,8 @@ class Doors:
         self.looked_up: list[str] = []              # the names asked of the resolver
         self.bluetooth = 0                          # Bluetooth sockets made
         self.listed: list[str] = []                 # what the machine was asked to list
+        self._pairing = threading.local()           # (whether this thread is inside socket.socketpair)
+        real_pair = socket.socketpair
         real_open, real_popen, real_connect, real_connect_ex, real_lookup, real_socket, real_ports, real_paired = (
             os.open, subprocess.Popen.__init__, socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo, socket.socket.__init__, serial.tools.list_ports.comports, btpaired._run)
 
@@ -82,6 +86,13 @@ class Doors:
         def starting(popen: Any, args: Any, *rest: Any, **kwargs: Any) -> None:
             self.started.append(str(args))
             real_popen(popen, args, *rest, **kwargs)
+
+        def pairing(*args: Any, **kwargs: Any) -> Any:
+            self._pairing.inside = True
+            try:
+                return real_pair(*args, **kwargs)
+            finally:
+                self._pairing.inside = False
 
         def connecting(sock: socket.socket, address: Any) -> None:
             self._note(address)
@@ -109,11 +120,11 @@ class Doors:
             return str(real_paired(command))
 
         for owner, name, watched in ((os, "open", opening), (subprocess.Popen, "__init__", starting), (socket.socket, "connect", connecting), (socket.socket, "connect_ex", connecting_ex),
-                                     (socket, "getaddrinfo", looking_up), (socket.socket, "__init__", making), (serial.tools.list_ports, "comports", ports), (btpaired, "_run", paired)):
+                                     (socket, "getaddrinfo", looking_up), (socket, "socketpair", pairing), (socket.socket, "__init__", making), (serial.tools.list_ports, "comports", ports), (btpaired, "_run", paired)):
             patch(owner, name, watched)
 
     def _note(self, address: Any) -> None:
-        if isinstance(address, tuple) and len(address) > 1 and isinstance(address[0], str):
+        if isinstance(address, tuple) and len(address) > 1 and isinstance(address[0], str) and not getattr(self._pairing, "inside", False):
             self.connected.append(address[0])
             self.ports.append(int(address[1]))
 
@@ -285,6 +296,35 @@ def test_with_the_switch_off_nothing_is_refused_and_nothing_is_said(under_the_sw
     nodevices.check_url("https://neo.oh2gba.eu/version.php")
     assert not nodevices.refused("anything") and not nodevices.host_refused(ELSEWHERE) and not nodevices.url_refused("https://neo.oh2gba.eu/")
     assert said(caplog) == []
+
+
+def test_the_record_of_connections_leaves_out_a_socket_pair_and_not_a_connection_made_the_same_way(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows has no socket pair of its own: the standard library connects two sockets over the loopback, as the fallback here does (the system of the test has the real one, which does not connect at all)."""
+    def over_the_loopback() -> tuple[socket.socket, socket.socket]:
+        listener = socket.socket()
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        client = socket.socket()
+        client.connect(listener.getsockname())
+        server, _ = listener.accept()
+        listener.close()
+        return client, server
+
+    monkeypatch.setattr(socket, "socketpair", over_the_loopback)
+    doors = Doors(monkeypatch.setattr)
+    for sock in socket.socketpair():
+        sock.close()
+    assert doors.connected == [] and doors.ports == [] and doors.untouched()
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    client = socket.socket()
+    try:
+        client.connect(listener.getsockname())
+        assert doors.connected == ["127.0.0.1"] and doors.ports == [listener.getsockname()[1]], "a connection of the code under test is still written down"
+    finally:
+        client.close()
+        listener.close()
 
 
 # ---- the doors, each where it is

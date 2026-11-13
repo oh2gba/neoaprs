@@ -211,14 +211,15 @@ async def test_the_modem_writes_its_configuration_starts_the_program_on_free_por
 async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_after_the_back_off(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.mercury.program")
     m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
-    changes: list[str] = []
-    m.changed.connect(lambda: changes.append(m.state))
+    changes: list[tuple[str, str]] = []
+    m.changed.connect(lambda: changes.append((m.state, m.problem)))
     await m.start(HF)
     try:
         await until(lambda: m.state == "waiting", 5.0)
         assert m.problem.startswith("Mercury stopped (exit 3)") and "dies as told" in caplog.text
         await until(lambda: m.starts >= 2, 5.0)
-        assert "starting" in changes[changes.index("waiting"):]
+        after = changes[[state for state, _ in changes].index("waiting"):]
+        assert all(state == "running" or (state == "waiting" and problem.startswith("Mercury stopped (exit 3)")) for state, problem in after), f"the problem stands through the next start until it is running: {after}"
     finally:
         await stopped(m)
 
@@ -442,6 +443,8 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
     """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play] error in audio->open()`, and the status said "running"."""
     m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
     m.ports = lambda: []
+    seen: list[tuple[str, str]] = []
+    m.changed.connect(lambda: seen.append((m.state, m.problem)))
     await m.start(HF)
     tnc = Tnc(f"socket://127.0.0.1:{m.broadcast_port}", profile=MERCURY, check_sec=0.0, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
     tnc.modem = m
@@ -450,13 +453,15 @@ async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_
         first = m.pid
         await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED, 5.0)              # (the fake prints the error once its ports listen: whether the control line connected first is the machine's business)
         await until(lambda: not _alive(first), 5.0)
-        assert m.problem == SOUND_CARD_FAILED and m.hold() == "" and "could not open its sound card" in caplog.text
+        assert m.hold() == "" and "could not open its sound card" in caplog.text                      # (the problem itself is checked over every change below: the quick back-off may have the next start running by now)
         if m.state == "waiting":                                                                                       # (the quick back-off may have begun the next start already: the words of the wait are checked while it lasts)
             assert m.describe() == f"Mercury DATAC3: {SOUND_CARD_FAILED}"
         await until(lambda: tnc.state is Source.State.WAITING and tnc.problem == SOUND_CARD_FAILED, 5.0)              # (the line went with the program: the radio is not connected, and says why)
         assert not tnc.usable
         await until(lambda: m.starts >= 2, 5.0)                                                                        # (tried again after the back-off: a card chosen anew is taken then)
         await until(lambda: m.state == "waiting" and m.problem == SOUND_CARD_FAILED and m.starts >= 2, 5.0)
+        after = seen[seen.index(("waiting", SOUND_CARD_FAILED)):]
+        assert all(change == ("waiting", SOUND_CARD_FAILED) or change[0] == "running" for change in after), f"the problem stands through the next start until it is running (never `starting` with no problem between two failures): {after}"
     finally:
         await tnc.stop()
         await stopped(m)

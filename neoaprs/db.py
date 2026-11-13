@@ -48,6 +48,7 @@ T = TypeVar("T")
 Fn = Callable[[sqlite3.Connection], T]
 
 NEW, OPEN, CLOSED = "new", "open", "closed"
+END_LOOK_SEC = 0.1          # how often a close looks whether the thread has ended, besides being told so: the word of the thread through the loop (call_soon_threadsafe) is not all a close may hang on
 CHECKPOINTS = {"PASSIVE": "PRAGMA wal_checkpoint(PASSIVE)", "FULL": "PRAGMA wal_checkpoint(FULL)", "RESTART": "PRAGMA wal_checkpoint(RESTART)", "TRUNCATE": "PRAGMA wal_checkpoint(TRUNCATE)"}
 
 
@@ -84,8 +85,7 @@ class Db:
             self._state = CLOSED
             thread.finish()
             if not isinstance(e, asyncio.CancelledError):           # the opener failed: the thread is ending (cancelled: it ends by itself when the connection is open)
-                await exited
-                thread.join()
+                await _ended(thread, exited)
             raise
 
     async def close(self) -> None:
@@ -96,8 +96,7 @@ class Db:
             return
         self._state = CLOSED
         thread.finish()
-        await exited
-        thread.join()
+        await _ended(thread, exited)
 
     @property
     def is_open(self) -> bool:
@@ -173,6 +172,15 @@ class Db:
     def stats(self) -> dict[str, object]:
         thread = self._thread
         return {**self._stats.snapshot(), "queued": thread.pending() if thread is not None else 0, "state": self._state}
+
+
+async def _ended(thread: DbThread, exited: "asyncio.Future[None]") -> None:
+    """Returns when the thread has ended: when it says so through the loop, or when it is seen to have ended. A word from another thread wakes a loop that waits for nothing else only through the loop's
+    own wake-up (the self-pipe of the Windows proactor), and a close that hung on that word alone waited for ever (a teardown of the suite on Windows 11 sat 25 minutes in `_poll` with the thread gone); the
+    loop's timer wakes it to look. `exited` itself is never cancelled here: a second close waits on it too."""
+    while not exited.done() and thread.is_alive():
+        await asyncio.wait((exited,), timeout=END_LOOK_SEC)
+    thread.join()
 
 
 def _post(loop: asyncio.AbstractEventLoop, future: "asyncio.Future[None]", error: BaseException | None) -> None:

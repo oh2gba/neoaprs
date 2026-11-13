@@ -90,7 +90,7 @@ class Mercury(Channel, Tuning, Scoping):
         self.frequencies: list[Frequency] = [Frequency(band, dial) for band, dial in SUGGESTED]       # the frequencies the HF box suggests (versions.suggested: the project's list, else the version page's dial, else these two)
         self.ports_changed: Signal[[]] = Signal("mercury.ports_changed")      # a program started again had to take other ports: the owner points the HF Tnc at them
         self._held = HeldPorts()                                     # the pair of ports of this start, kept across the relaunches of a program that died
-        self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem
+        self.state = "stopped"                                       # one of STATES: `starting` is the program started (or an attached one not yet answering on its control port), `running` its control port answering, `waiting` a problem (also while the start after it is under way: the problem stands until a start is running)
         self.problem, self.reason = "", ""                           # why it is not running, in English for the log; empty while it is. And the same as a code of REASONS, for the page's words (only `waiting` has one)
         self.broadcast_port, self.control_port = BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET
         self.attached = ""                                           # the address of a Mercury that something else runs; empty for one of ours
@@ -111,6 +111,7 @@ class Mercury(Channel, Tuning, Scoping):
         self._test_task: asyncio.Task[None] | None = None
         self._tasks = TaskSet(log, "mercury")
         self._generation = 0
+        self._waits = 0                                              # the number of the latest wait that has a start after the back-off due (`_relaunch_later`)
         self._config: Config | None = None
 
     # ---- life
@@ -198,7 +199,10 @@ class Mercury(Channel, Tuning, Scoping):
         except OSError as e:
             return self._failed(f"Mercury could not be started: {os_error_text(e)}", "not_started")
         self.starts += 1
-        self._set("starting", "")
+        if self.state == "waiting":
+            self.changed.emit()                                        # (a start after a wait: its problem stands until this one is running, so the status line does not lose it at every attempt)
+        else:
+            self._set("starting", "")
         self._start_control()
         await self._stop_ui()
         self._start_ui()
@@ -211,7 +215,7 @@ class Mercury(Channel, Tuning, Scoping):
     def _failed(self, problem: str, reason: str) -> None:
         """A launch that failed for a reason that may pass (no free port, the data folder briefly unwritable, the program not started): said, and tried again after the back-off, as a program that ended is."""
         self._set("waiting", problem, reason)
-        self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation), "mercury-restart")
+        self._relaunch_later()
 
     def _choose_ports(self) -> None:
         """The pair of ports of this start (mercuryhelper.HeldPorts: kept for a program started again in the place of one that died, so that the HF Tnc finds the modem where it left it); when something else took
@@ -248,12 +252,17 @@ class Mercury(Channel, Tuning, Scoping):
         self._clear_channel()
         self.test = ""
         self._set("waiting", problem, reason)
-        self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation), "mercury-restart")
+        self._relaunch_later()
 
-    async def _relaunch_after(self, delay_sec: float, generation: int) -> None:
+    def _relaunch_later(self) -> None:
+        """A start after the back-off, for this wait only: a later failure (of the start it makes, or of the program meanwhile) brings its own, and this one is void. (The state cannot tell: it stays `waiting` while that start is under way.)"""
+        self._waits += 1
+        self._tasks.spawn(self._relaunch_after(self.backoff.next_delay_sec(), self._generation, self._waits), "mercury-restart")
+
+    async def _relaunch_after(self, delay_sec: float, generation: int, wait: int) -> None:
         log.info("Mercury is started again in %g s", delay_sec)
         await asyncio.sleep(delay_sec)
-        if generation == self._generation and self.state == "waiting":
+        if generation == self._generation and wait == self._waits and self.state == "waiting":
             await self._launch()
 
     # ---- the control port

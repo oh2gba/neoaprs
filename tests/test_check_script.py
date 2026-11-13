@@ -101,7 +101,8 @@ class Gate:
         # The PATH is set in the file and not in the environment: the script puts the node of ~/.nvm before whatever it was given, and the real npx of that folder must never be the one a stage finds.
         stand_ins.write_text(f'events="{self.events_file}"\nPATH="{self.bin}:$PATH"\n{HELPERS}{stages}{real}{self.also}\n', encoding="utf-8")
         self.events_file.unlink(missing_ok=True)
-        outside = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_TEST_WORKERS", "NEOAPRS_TEST_WORKERS_MAX")}        # (a gate that runs this test serially says nothing about the copy)
+        # (a gate that runs this test serially says nothing about the copy; and no setting of uv that the caller has, such as UV_FROZEN, UV_PYTHON or UV_NO_CACHE of the CI's setup-uv: the stages are told what they get)
+        outside = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_TEST_WORKERS", "NEOAPRS_TEST_WORKERS_MAX") and not k.startswith("UV_")}
         return {**outside, "NEOAPRS_CHECK_STAGES": str(stand_ins), "NEOAPRS_PYTHON": sys.executable, "UV_CACHE_DIR": str(self.folder / "uv-cache"), **env}
 
     def run(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
@@ -292,8 +293,8 @@ def test_a_stage_without_a_stand_in_fails_and_the_real_one_does_not_run(gate: Ga
 
 # ---- an interrupted run ----
 
-@pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (signal.SIGHUP, 129)])
-def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, sent: signal.Signals, code: int) -> None:
+@pytest.mark.parametrize(("name", "code"), [("SIGTERM", 143), ("SIGINT", 130), ("SIGHUP", 129)])        # (names: Windows has no SIGHUP, and nothing here may need it when the file is collected)
+def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_away(gate: Gate, name: str, code: int) -> None:
     """The signal reaches the script alone, as `kill` sends it, while the stages run at once: the stage that is still busy and the program it started (a daemon of the suite, in the real one) are ended, the stage
     does not go on, the temporary folder of the run is gone, and the exit code names the signal."""
     pids, temp = gate.folder / "pids", gate.folder / "tmp"
@@ -305,7 +306,7 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
         until(lambda: pids.exists() and len(pids.read_text().split()) == 2, "the stage pytest never started")
         started = [int(pid) for pid in pids.read_text().split()]
         assert list(temp.iterdir()), "the run has its folder in TMPDIR"
-        run.send_signal(sent)
+        run.send_signal(getattr(signal, name))
         output, _ = run.communicate(timeout=30)
         assert run.returncode == code, output
         until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
@@ -461,7 +462,7 @@ def test_the_lock_stage_asks_uv_to_compare_the_lock_file_even_where_the_caller_f
     assert gate.events() == ["uv lock --check frozen=unset"]
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root writes to a folder whatever its rights are")
+@pytest.mark.skipif(sys.platform != "win32" and os.geteuid() == 0, reason="root writes to a folder whatever its rights are")        # (the file is collected on Windows too, where there is no geteuid)
 def test_uv_gets_a_cache_of_its_own_where_the_one_it_was_given_cannot_be_written(gate: Gate, tmp_path: Path) -> None:
     """A sandbox that keeps uv from ~/.cache/uv would make the stages lock and smoke say something about the cache and not about the tree."""
     shut = tmp_path / "shut"

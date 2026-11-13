@@ -13,7 +13,7 @@ from neoaprs.config import MAX_ALERT_COMMAND, Config
 from neoaprs.message import MessageRecord
 from neoaprs.pref import Fired
 from neoaprs.services.alerts import Alerts, alert_environment
-from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing, writing_titled
+from tests.support.alertcmd import MISSING_STATUS, SHORT_TIMEOUT_SEC, SURVIVOR_AFTER_SEC, TIMEOUT_SEC, WINDOWS, failing, missing_notifier, not_a_program, starting_a_survivor, then_succeeds, writing, writing_titled, written
 from tests.support.air import message_info, on_air, said
 from tests.support.clock import FixedClock
 from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
@@ -192,7 +192,7 @@ async def started(tmp_path: Path) -> tuple[Env, Path]:
 async def test_a_message_to_us_runs_the_alert_once_for_the_first_copy_only(tmp_path: Path) -> None:
     e, out = await started(tmp_path)
     e.feed(on_air("OH2RDG-7", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-2*"))
-    await until(out.exists)
+    await until(written(out))
     assert out.read_text(encoding="utf-8").splitlines() == ["OH2RDG-7", "Moi!", "2026-10-21T12:00:00Z", "12", "end"]
     assert (await said(e))[0].tnc2().endswith("::OH2RDG-7 :ack12"), "and it is acked as before"
     out.unlink()
@@ -215,7 +215,7 @@ async def test_what_is_not_a_message_to_us_runs_nothing(tmp_path: Path) -> None:
     assert not out.exists()
     e.feed(on_air("OH2RDG", message_info("OH2GBA-9", "not ours", "4")))              # another SSID is another station
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Now it is for us")))
-    await until(out.exists)
+    await until(written(out))
     assert out.read_text(encoding="utf-8").splitlines()[1] == "Now it is for us"
     await e.stop()
 
@@ -237,7 +237,7 @@ async def test_the_clock_of_a_message_is_the_time_it_was_heard(tmp_path: Path) -
     e, out = await started(tmp_path)
     e.now.advance(timedelta(hours=3, minutes=7, seconds=5).total_seconds())            # type: ignore[attr-defined]
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Late")))
-    await until(out.exists)
+    await until(written(out))
     assert out.read_text(encoding="utf-8").splitlines()[2] == "2026-10-21T15:07:05Z"
     await e.stop()
 

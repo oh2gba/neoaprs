@@ -1,6 +1,7 @@
 """Alert commands for the tests, in the language the alert runs under: a POSIX shell line, or on Windows a PowerShell line (neoaprs/services/alerts.py). The same few commands on both, so that a test about
 the alert does not care which system it is on."""
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 WINDOWS = sys.platform == "win32"
@@ -18,6 +19,18 @@ def writing(path: Path, secret: bool = False) -> str:
         return f"[IO.File]::WriteAllText('{path}.tmp',((@({FIELDS},{last}) -join \"`n\")+\"`n\"));Move-Item -Force '{path}.tmp' '{path}'"
     last = '"${SECRET_OF_THE_DAEMON-gone}"' if secret else '"end"'
     return f'printf "%s\\n" "$NEOAPRS_FROM" "$NEOAPRS_TEXT" "$NEOAPRS_AT" "$NEOAPRS_MSG_ID" {last} > {path}.tmp && mv {path}.tmp {path}'
+
+
+def written(path: Path) -> Callable[[], bool]:
+    """Whether the file a `writing` command makes is there and can be read. On Windows a file that was just moved into place can be held for a moment longer (by the mover, or by a scanner
+    that reads every new file), and reading it then is refused: a test waits for this, not for the name alone."""
+    def readable() -> bool:
+        try:
+            path.read_bytes()
+        except OSError:
+            return False
+        return True
+    return readable
 
 
 def writing_titled(path: Path) -> str:

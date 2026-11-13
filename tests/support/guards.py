@@ -6,7 +6,7 @@
 * no radio: a test that opens a serial device of the machine (/dev/brainbox_*, /dev/tty*, /dev/serial/*, /dev/rfcomm*, or any device node of the serial drivers, whatever it is called or linked as) through `serial.Serial` or `os.open` fails; the tests use a fake radio on the loopback (tests/support/fakeradio.py) or, for a device file, a pseudo-terminal pair (tests/support/ptyline.py), and the live port is the operator's. A process a test starts inherits NEOAPRS_SERIAL_PATTERN (tests/conftest.py), which makes its search find no port, and NEOAPRS_UPDATE_CHECK=0, which keeps its daily update check from asking the version page on the internet; one that is given an environment of its own must carry both (`ProcessGuard`);
 * no Bluetooth: a test that makes a real Bluetooth socket (AF_BLUETOOTH: an RFCOMM or L2CAP connection to a device, which a radio nearby would answer) fails; the tests use a socket pair (tests/support/fakebluetooth.py), and the list of the devices paired with the machine (BlueZ) is not read; the same for a Bluetooth LE scan or connection through bleak, which is replaced by a stand-in that refuses (a test of the BLE port gives its own, tests/support/fakeble.py);
 * no leak: a test that ends with an asyncio task still running fails (the daemons of `Env` are stopped for it first, see env.stop_all), and so does one that ends with the thread of
-  a Db (neoaprs/db.py) still running (`await db.close()`);
+  a Db (neoaprs/db.py) still running (`await db.close()`); stopping them may take TEARDOWN_LIMIT_SEC, after which the test fails by its name instead of hanging its worker;
 * no swallowed error: a test that makes the code log an ERROR it did not say it expects fails (`@pytest.mark.expects_errors`, or a test that reads the log
   through `caplog`, says so);
 * no leaked logging: the levels, handlers and switches of the loggers are what they were when the test started (neoaprs.daemon.setup_logging sets the level of the
@@ -440,12 +440,32 @@ def no_leaked_db_threads() -> Iterator[None]:
     assert not leaked, "the test left database threads running (await db.close()):\n  " + "\n  ".join(t.name for t in leaked)
 
 
+# How long stopping what a test started may take when the test is over. A stop that hangs (on Windows 11 a teardown sat 25 minutes in the loop's `_poll`) fails the test by its name after this, with what still runs:
+# the stacks that faulthandler_timeout (pyproject.toml, 120 s) prints end nothing, and a hung worker costs the CI job its whole time limit.
+TEARDOWN_LIMIT_SEC = 60.0
+
+
+async def torn_down_within(limit_sec: float, test: str) -> list[asyncio.Task[Any]]:
+    """env.stop_all and the leaked tasks of `test`, in at most `limit_sec` (a timer of the loop: it wakes a loop that waits for a word that never comes, and cancels what waits); pytest.fail, naming the test, after that."""
+    deadline = asyncio.timeout(limit_sec)
+    try:
+        async with deadline:
+            await env_module.stop_all()
+            return await leaked_tasks()
+    except TimeoutError:
+        if not deadline.expired():
+            raise                                      # (a TimeoutError of the code being stopped, not of the limit)
+        stuck = pending_tasks()
+        for task in stuck:
+            task.cancel()
+        pytest.fail(f"{test}: stopping what the test started did not end in {limit_sec:g} s" + "".join(f"\n  still running: {describe_task(t)}" for t in stuck), pytrace=False)
+
+
 @pytest_asyncio.fixture
-async def no_leaked_tasks() -> AsyncIterator[None]:
+async def no_leaked_tasks(request: pytest.FixtureRequest) -> AsyncIterator[None]:
     """Added by tests/conftest.py to every async test (a fixture that is async would otherwise make a loop for the sync tests too)."""
     yield
-    await env_module.stop_all()
-    leaked = await leaked_tasks()
+    leaked = await torn_down_within(TEARDOWN_LIMIT_SEC, request.node.nodeid)
     for task in leaked:
         task.cancel()
     assert not leaked, "the test left tasks running (stop what it started):\n  " + "\n  ".join(describe_task(t) for t in leaked)
