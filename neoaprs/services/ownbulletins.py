@@ -3,7 +3,8 @@
 `post` puts a text in a slot (`BLN1`, `BLNA`, `BLN3HAMS`; a text for a slot that holds one replaces it and starts its schedule again), `delete` takes the slot off the board and stops it. What is sent is a
 message without an id to the slot (`ownbulletin.info_of`): nobody acknowledges it, so it goes out a few times early and then at a long interval, as the specification says of bulletins ("a few times an hour
 for a few hours") and announcements ("less frequently but perhaps for several days"): neoaprs/decay.py has the numbers (a bulletin: now, after 2 minutes, after 6, then every 20 minutes until 4 hours after
-the first; an announcement the same early and then every hour until 72 hours after the first). The packet goes by `beacon/path`. The sender (services/sender.py) holds back everything while the call is not
+the first; an announcement the same early and then every hour until 72 hours after the first). The packet goes on the main radio (the FM radio while it is on, else the HF one: services/sender.py) by its own path
+(on the FM radio `beacon/path`; none on HF). The sender (services/sender.py) holds back everything while the call is not
 set, while the radio is not usable and between two frames of ours; what is due then goes out when the radio is back, one packet however many were missed. After the last one the entry stays on the board, as
 ended, until it is deleted or posted again. The time of each packet and how often it was sent are kept in the database (ownlog.py), so a restart goes on where the schedule stopped.
 

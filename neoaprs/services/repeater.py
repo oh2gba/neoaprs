@@ -7,7 +7,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from neoaprs.clock import Clock, utcnow
-from neoaprs.services.sender import SendError, Sender
+from neoaprs.services.radioset import SendError
+from neoaprs.services.sender import Sender
 from neoaprs.tasks import TaskSet, every
 
 log = logging.getLogger("neoaprs.sender")

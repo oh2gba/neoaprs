@@ -1,6 +1,6 @@
-"""The objects and items of ours (neoaprs/services/ownobjects.py) on a Tnc that is a stub, a real log in a temporary database and a clock the test holds: the decay schedule second by second, a change that
-starts it again, a kill that is sent three times and forgotten, the interlock, the radio that is away, the pause between two frames, a restart that goes on where the schedule stopped, and another station
-that takes an object over."""
+"""The objects and items of ours (neoaprs/services/ownobjects.py) on the station's FM radio as the registry gives it (services/radioset.py's RadioPick, tests/support/seamshapes.py) over a line that is a stub, a real
+log in a temporary database and a clock the test holds: the decay schedule second by second, a change that starts it again, a kill that is sent three times and forgotten, the interlock, the radio that is away,
+the pause between two frames, a frame the radio cannot carry, a restart that goes on where the schedule stopped, and another station that takes an object over."""
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,22 +10,37 @@ import pytest
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject
 from neoaprs.packet import ObjectReport, Packet, Position
+from neoaprs.radiotype import FM_ID
 from neoaprs.services.ownobjects import MAX_OBJECTS, OwnObjects
+from neoaprs.services.sender import Sender
 from neoaprs.source import Source
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop
 from tests.support.rig import OwnRig
+from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.storedb import log_at
 
 STEP = 5                                                    # seconds the clock moves between two looks at it
 LAT, LON = 60.17, 24.94
 
 
-class Rig(OwnRig):
-    """One run of the daemon's objects: made again on the same log and clock after a stop."""
+class Capped(LiveShape):
+    """The FM radio with a frame cap of 100 bytes and its paths (what a radio of some type may be): a frame of ours with a long path does not fit it."""
 
-    def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
+    @property
+    def max_frame(self) -> int | None:
+        return 100
+
+
+class Rig(OwnRig):
+    """One run of the daemon's objects, on radio 1 (the FM radio: `tnc` is its line): made again on the same log and clock after a stop."""
+
+    def __init__(self, log: OwnLog, clock: FixedClock, shape: type[LiveShape] = LiveShape, **changes: object) -> None:
         super().__init__(log, clock, **changes)
+        fm = self.config.radio(FM_ID)
+        assert fm is not None
+        self.radio = shape(fm, self.config.radios, self.tnc)                   # type: ignore[arg-type]
+        self.sender = Sender(RegistryShape([self.radio]), lambda: self.config, clock, spacing_sec=10.0)
         self.objects = OwnObjects(self.sender, lambda: self.config, log, lambda name: name == "OH2RDG", clock, tick_sec=3600.0)
         self.record(self.objects)
 
@@ -43,9 +58,9 @@ class Rig(OwnRig):
         self.look(self.objects.tick, seconds, STEP)
 
 
-async def rig_at(tmp_path: Path, **changes: object) -> Rig:
+async def rig_at(tmp_path: Path, shape: type[LiveShape] = LiveShape, **changes: object) -> Rig:
     log, _, clock = await log_at(tmp_path, OwnLog)
-    return await Rig(log, clock, **changes).start()
+    return await Rig(log, clock, shape, **changes).start()
 
 
 def reported(name: str, at: datetime, sender: str = "OH2XYZ", alive: bool = True) -> Packet:
@@ -252,13 +267,14 @@ async def test_several_objects_that_are_due_together_go_out_one_after_the_other_
     assert [(t, info[1:6].strip()) for t, info in rig.sent] == [(3, b"ONE"), (13, b"TWO"), (23, b"THREE")]
 
 
-async def test_a_frame_that_cannot_be_made_is_told_once_and_does_not_hold_the_others_up(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
-    rig.make("BAD")
+async def test_a_frame_that_cannot_be_made_is_told_once_and_does_not_hold_the_others_up(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    rig = await rig_at(tmp_path, Capped)
+    rig.make("BAD", path=",".join(["WIDE1-1"] * 8))
     rig.make("GOOD", path="WIDE2-1")
-    rig.config = replace(rig.config, beacon_path=",".join(["WIDE1-1"] * 9))
     rig.run(30)
-    assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-1"], "the object with a path of its own goes out, the one with the beacon's path of nine digipeaters cannot"
-    assert caplog.text.count("cannot be sent") == 1, "told once, not at every look"
+    assert [f.path_text for f in rig.tnc.sent] == ["WIDE2-1"], "the object with one digipeater goes out, the one whose eight digipeaters leave no room in the radio's 100 bytes cannot"
+    assert caplog.text.count("cannot be sent") == 1 and "shortening its comment is not enough" in caplog.text, "told once, not at every look"
+    assert rig.objects.get("BAD").sent == 0 and rig.objects.next_at("BAD") is not None, "it waits"         # type: ignore[union-attr]
 
 
 # ---- the names and the number ---------------------------------------------------------------------------------------------------------------------

@@ -6,10 +6,10 @@ Timing (neoaprs/decay.py): the new or changed object goes out at once (never soo
 path apart, until it is changed or killed. A kill is sent as the killed form three times (0, 1 and 3 minutes after it is asked for), and then the object is forgotten; an object that was never sent is simply
 removed. An object that is `on_request` (with or without a QRU group, services/qru.py) is kept and shown on the map but never sent on this schedule, so a kill of it is simply removal too: it goes out only as an answer
 to a station that asks, `?APRSO` or its group (services/queries.py, services/qru.py). The sender (services/sender.py) holds back everything while the call is not set, while the radio is not usable, and between two frames of ours; what is due then goes out when the radio is back, one
-packet however many were missed. The time of each packet and how often it was sent are kept in the database (ownlog.py), so a restart goes on where the schedule stopped. An object on both radios (`radio` `both`) goes
-out on each when it is due, and a radio that is held at that moment (the HF modem transmitting or hearing a busy channel, for up to a minute) is given it at a later tick without the other radio sending it again: the
-object remembers which radios have taken this round (`_taken`, in memory: a restart sends on both, which is one packet more); a radio that is away (not connected, silent) does not hold the round up, the next one goes
-on both when it is back.
+packet however many were missed. The time of each packet and how often it was sent are kept in the database (ownlog.py), so a restart goes on where the schedule stopped. An object goes out on the radios
+its choice names (`OwnObject.radios`, by id: `fm` radio 1, `hf` radio 2, `both` the two) that are enabled, else on the main radio; on each of them when it is due, and a radio that is held at that moment (the HF
+modem transmitting or hearing a busy channel, for up to a minute) is given it at a later tick without another radio sending it again: the object remembers the ids of the radios that have taken this round
+(`_taken`, in memory: a restart sends on all of them, which is one packet more); a radio that is away (not connected, silent) does not hold the round up, the next one goes on every radio when it is back.
 
 Another station that reports an object with the name of one of ours takes it over (the specification's "Replacement": the original station ceases to transmit it): ours is dropped, silently, and theirs is
 what the station book shows. A packet from our own call that comes back (a digipeater's copy, the TNC's echo) is nobody's report: the station book ignores it, so there is no second object.
@@ -25,7 +25,9 @@ from neoaprs.message import same_call
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnError, OwnObject, info_of, make_object
 from neoaprs.packet import DUMMY, ItemReport, ObjectReport, Packet
-from neoaprs.services.common import ConfigSource, radio_path, transmit_refusal
+from neoaprs.radiotype import RadioId
+from neoaprs.services.common import ConfigSource, transmit_refusal
+from neoaprs.services.radioset import path_on
 from neoaprs.services.repeater import TICK_SEC, Repeater
 from neoaprs.services.sender import Sender
 from neoaprs.signal import Signal
@@ -47,7 +49,7 @@ class OwnObjects(Repeater[str]):
         self.changed: Signal[[OwnObject]] = Signal("ownobjects_changed")
         self.removed: Signal[[OwnObject]] = Signal("ownobjects_removed")
         self._objects: dict[str, OwnObject] = {}
-        self._taken: dict[str, set[str]] = {}               # by object: the kinds of radio that have taken the round of it that is being sent
+        self._taken: dict[str, set[RadioId]] = {}           # by object: the ids of the radios that have taken the round of it that is being sent
 
     # ---- what there is
     def records(self) -> list[OwnObject]:
@@ -140,22 +142,22 @@ class OwnObjects(Repeater[str]):
         return None if wait is None else obj.last_sent_at + timedelta(seconds=wait)
 
     def _live_wait(self, obj: OwnObject) -> int:
-        """The wait after the latest packet of a live object, by the net cycle time of the path its frames really carry: none on HF, where every frame is direct, the object's path on FM; the longest of
-        them when it goes on both radios."""
-        path = self.path_of(obj)
-        radios = self._sender.radios_for(obj.radio)
-        return max((object_wait_sec(obj.sent, radio_path(radio, path)) for radio in radios), default=object_wait_sec(obj.sent, path))
+        """The wait after the latest packet of a live object, by the net cycle time of the path its frames really carry on each of its radios (radioset.path_on: none on HF, where every frame is direct, the
+        object's path, else the radio's own, on FM); the longest of them when it goes on several."""
+        config = self._config()
+        radios = self._sender.radios_for(obj.radios)
+        return max((object_wait_sec(obj.sent, path_on(radio, config, obj.path_calls)) for radio in radios), default=object_wait_sec(obj.sent, self.path_of(obj)))
 
     def _transmit(self, key: str, now: datetime) -> bool:
         """The round of the object on its radios: each that has not taken it yet and takes a frame now is given it; the round is done when every radio that is there has taken it (one that is away does not hold it up),
-        and False until then (the next tick tries the radios that are still owed it, and no other sends it again)."""
+        and False until then (the next tick tries the radios that are still owed it, and no other sends it again). The radios are told apart by their ids."""
         obj = self._objects[key]
         taken = self._taken.setdefault(key, set())
-        radios = self._sender.radios_for(obj.radio)
+        radios = self._sender.radios_for(obj.radios)
         for radio in radios:
-            if radio.rules.kind not in taken and self._sender.send(info_of(obj, now), obj.path_calls, radio):
-                taken.add(radio.rules.kind)
-        if not taken or any(radio.rules.kind not in taken and radio.state is Source.State.CONNECTED for radio in radios):
+            if radio.id not in taken and self._sender.send(info_of(obj, now), obj.path_calls, radio):
+                taken.add(radio.id)
+        if not taken or any(radio.id not in taken and radio.state is Source.State.CONNECTED for radio in radios):
             return False
         self._taken.pop(key, None)
         sent = replace(obj, sent=obj.sent + 1, last_sent_at=now)

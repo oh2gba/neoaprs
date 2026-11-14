@@ -1,8 +1,9 @@
 """The iGate, switched on by `igate/enabled` (off unless the operator turns it on): what the radio hears is put on APRS-IS, and nothing that APRS-IS says is ever put on the air.
 
 That is built in, not promised. This service has no radio: its constructor takes the connection (neoaprs/aprsis.py), the settings, a function that gives the bytes of our position and one that gives where we are, and nothing
-else; it imports neither the Tnc nor `Radio` nor the sender. The one place a packet comes from is `on_packet`, which the composition root connects to the packets heard on the radio. What the server sends is read by the
-connection and goes to the one gate for packets from the internet (`Services.hear_internet`, neoaprs/wiring.py), not through this service.
+else; it imports neither the Tnc nor `Radio` nor `RadioPick` nor the sender. The one place a packet comes from is `on_packet`, which the composition root connects to the packets every radio hears. What the server sends
+is read by the connection and goes to the one gate for packets from the internet (`Services.hear_internet`, neoaprs/wiring.py), not through this service. What it knows of the radios is the settings': whether an
+enabled radio is of a Dummy type (`made_up`).
 
 With a passcode the iGate gates what the radio hears. Without one (or with one the server does not accept) it only listens: the connection logs in read-only, nothing is gated and our position is not sent, and the stations
 of the internet round us are read all the same. The connection's filter is the circle of the map's radius (`map/radius_km`) round our position (`aprsis.range_filter`), sent again when the station has moved more than FILTER_MOVE_KM or the radius is changed.
@@ -28,10 +29,13 @@ from typing import Literal, NamedTuple
 from neoaprs import TOCALL, ax25
 from neoaprs.aprsis import FILTER_MOVE_KM, UNVERIFIED, AprsIs, range_filter
 from neoaprs.clock import Clock, utcnow
+from neoaprs.config import Config
 from neoaprs.geo import distance_km
 from neoaprs.igaterules import DUPLICATE, FRAME, NOT_AIR, OFFLINE, REASON_WORDS, Dropped, gate_of
 from neoaprs.packet import GATEABLE, DuplicateKey, Packet
 from neoaprs.policy import DIGI_DUPLICATE_SEC
+from neoaprs.radiospec import RadioSpec
+from neoaprs.radiotype import RadioTypeError
 from neoaprs.recent import Recent
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
@@ -44,6 +48,18 @@ MOBILE_EVERY_SEC = 60.0
 SUMMARY_SEC = 3600.0
 TICK_SEC = 1.0
 IgateStateName = Literal["off", "connecting", "connected", "listening", "unverified"]
+
+
+def dummy_on(config: Config) -> bool:
+    """Whether an enabled radio of the settings is of a Dummy type (`RadioType.dummy`), which makes up its traffic; a radio of a type that is none is no Dummy."""
+    return any(_dummy(spec) for spec in config.enabled_radios)
+
+
+def _dummy(spec: RadioSpec) -> bool:
+    try:
+        return spec.rtype.dummy
+    except RadioTypeError:
+        return False
 
 
 class Wanted(NamedTuple):
@@ -74,7 +90,7 @@ class Igate:
         self._hour_dropped: Counter[str] = Counter()
         self._summary_due: datetime | None = None
         self._seen: Recent[DuplicateKey] = Recent(duplicate_sec)              # what was gated lately, for the duplicate check
-        self.made_up: Callable[[], bool] = lambda: False             # whether the radio only makes up its traffic (the Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not (set by app.py)
+        self.made_up: Callable[[], bool] = lambda: dummy_on(self._config())      # whether a radio that is on only makes up its traffic (a Dummy radio): then nothing of ours goes to APRS-IS, for the position would say a station is on the air that is not
         self._position_due: datetime | None = None
         self._position_sent: datetime | None = None
         self._was_verified = False

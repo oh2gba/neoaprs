@@ -1,5 +1,6 @@
-"""The bulletins, announcements and group bulletins of ours (neoaprs/services/ownbulletins.py) on a Tnc that is a stub, a real log in a temporary database and a clock the test holds: the schedule of each
-kind, a text that replaces the one in its slot, the delete, the interlock, the radio that is away, and a restart."""
+"""The bulletins, announcements and group bulletins of ours (neoaprs/services/ownbulletins.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py)
+over lines that are stubs, a real log in a temporary database and a clock the test holds: the schedule of each kind, a text that replaces the one in its slot, the delete, the interlock, the radio that is away, the
+main radio a bulletin goes on, and a restart."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -8,19 +9,26 @@ import pytest
 
 from neoaprs.ownbulletin import MAX_POSTED, PostError
 from neoaprs.ownlog import OwnLog
+from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.services.ownbulletins import OwnBulletins
+from neoaprs.services.sender import Sender
 from neoaprs.source import Source
 from tests.support.clock import FixedClock
 from tests.support.env import remember_stop
 from tests.support.rig import OwnRig
+from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.storedb import log_at
+from tests.support.stubtnc import StubTnc
 
 
 class Rig(OwnRig):
-    """One run of the daemon's bulletins: made again on the same log and clock after a stop."""
+    """One run of the daemon's bulletins on the station's radios, radio 1's line `tnc` and radio 2's `hf`: made again on the same log and clock after a stop."""
 
     def __init__(self, log: OwnLog, clock: FixedClock, **changes: object) -> None:
         super().__init__(log, clock, **changes)
+        self.hf = StubTnc()
+        lines = {FM_ID: self.tnc, HF_ID: self.hf}
+        self.sender = Sender(RegistryShape([LiveShape(spec, self.config.radios, lines[spec.id]) for spec in self.config.radios]), lambda: self.config, clock, spacing_sec=10.0)     # type: ignore[arg-type]
         self.posts = OwnBulletins(self.sender, lambda: self.config, log, clock, tick_sec=3600.0)
         self.record(self.posts)
 
@@ -146,6 +154,16 @@ async def test_the_radio_that_is_silent_holds_it_back_and_it_is_not_made_up_when
     assert rig.offsets() == [0, 3000], "one, not the ones that were due on the way"
     rig.run(1000)
     assert rig.offsets() == [0, 3000, 3000 + 240] and rig.posts.get("BLN1").sent == 3                  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(("fm", "hf", "on"), [(True, True, "fm"), (True, False, "fm"), (False, True, "hf")])
+async def test_a_bulletin_goes_on_the_main_radio_the_fm_one_while_it_is_on_else_the_hf_one_by_its_own_path(tmp_path: Path, fm: bool, hf: bool, on: str) -> None:
+    rig = await rig_at(tmp_path, fm_enabled=fm, hf_enabled=hf)
+    rig.posts.post("BLN1", "Net tonight")
+    rig.run(10)
+    sent = rig.tnc.sent if on == "fm" else rig.hf.sent
+    assert len(sent) == 1 and (rig.hf.sent if on == "fm" else rig.tnc.sent) == []
+    assert sent[0].path_text == ("WIDE1-1,WIDE2-1" if on == "fm" else ""), "beacon/path on the FM radio, no path on HF"
 
 
 async def test_a_slot_or_a_text_that_cannot_be_sent_is_refused_with_the_reason(rig: Rig) -> None:

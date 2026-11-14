@@ -1,6 +1,8 @@
-"""The fill-in digipeater (neoaprs/services/digipeater.py) on a Tnc that is a stub and a clock the test holds: WIDE1-1 becomes our call as a used hop, our own call in the path is marked used, and nothing else
-is repeated (WIDE2-1, our own packets, duplicates for 30 seconds, packets from the internet, anything while it is off, there is no call or the radio is away); the frame differs from the one heard in its path
-only. Then the whole daemon with the radio a fake TCP server: a packet on the line comes back with the new path."""
+"""The fill-in digipeater (neoaprs/services/digipeater.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py) over lines that are stubs, and a clock
+the test holds: WIDE1-1 becomes our call as a used hop, our own call in the path is marked used, and nothing else is repeated (WIDE2-1, our own packets, duplicates for 30 seconds, packets from the internet, anything
+while it is off, there is no call or the radio is away); the frame differs from the one heard in its path only. A packet is repeated on the radio that heard it, the duplicate check, the burst limit and the counts
+are that radio's (shown on two radios with today's rule set aside), and only radio 1 (the FM radio) repeats. The old call of app.py (the FM Tnc and its counters) works the same. Then the whole daemon with the radio a fake TCP server: a packet on the line comes back
+with the new path."""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -10,6 +12,8 @@ import pytest
 from neoaprs import ax25
 from neoaprs.packet import Packet
 from neoaprs.policy import DIGI_DUPLICATE_SEC
+from neoaprs.radiospec import RadioSpec
+from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.services.digipeater import BURST_MAX, BURST_WINDOW_SEC, Digipeater
 from neoaprs.source import Source
 from neoaprs.tncmode import packet_of
@@ -17,6 +21,8 @@ from neoaprs.tncwatchdog import TncStats
 from tests.support.air import on_air, said
 from tests.support.env import ON_AIR, Env, until
 from tests.support.rig import ServiceRig
+from tests.support.seamshapes import LiveShape, RegistryShape
+from tests.support.stubtnc import StubTnc
 
 INFO = b"!6010.20N/02456.40E-test"
 
@@ -25,11 +31,25 @@ def frame(path: str = "WIDE1-1,WIDE2-1", source: str = "OH2XYZ", info: bytes = I
     return ax25.Frame(ax25.Address.parse(destination), ax25.Address.parse(source), tuple(ax25.Address.parse(p) for p in path.split(",") if p), info=info)
 
 
-class Rig(ServiceRig):
-    def __init__(self, **changes: object) -> None:
-        super().__init__(digi_enabled=True, **changes)
+class Line(StubTnc):
+    """A stub line with the counters of a Tnc."""
+
+    def __init__(self) -> None:
+        super().__init__()
         self.stats = TncStats()
-        self.digi = Digipeater(self.tnc, lambda: self.config, self.clock, self.stats)
+
+
+class Rig(ServiceRig):
+    """The digipeater on the station's radios: radio 1 on the line `tnc` (its counters `stats`), radio 2 on `hf` (`specs` of a test's own make the radios other ones)."""
+
+    def __init__(self, specs: tuple[RadioSpec, ...] | None = None, **changes: object) -> None:
+        super().__init__(tnc=Line(), digi_enabled=True, hf_enabled=True, **changes)
+        self.hf = Line()
+        lines = {FM_ID: self.tnc, HF_ID: self.hf}
+        specs = self.config.radios if specs is None else specs
+        self.radios = RegistryShape([LiveShape(spec, specs, lines[spec.id]) for spec in specs])      # type: ignore[arg-type]
+        self.stats: TncStats = self.tnc.stats                                    # type: ignore[attr-defined]
+        self.digi = Digipeater(self.radios, lambda: self.config, self.clock)
 
     def hear(self, f: ax25.Frame, direction: str = "in", radio: str = "fm") -> Packet:
         packet = packet_of(direction, ax25.encode(f), f, self.clock(), radio=radio)     # type: ignore[arg-type]
@@ -118,12 +138,45 @@ def test_a_packet_that_came_from_the_internet_is_not_repeated() -> None:
     assert rig.tnc.sent == []
 
 
-def test_a_packet_heard_on_the_hf_radio_is_not_repeated_on_the_fm_radio() -> None:
+def test_a_packet_heard_on_the_hf_radio_is_repeated_nowhere_and_is_not_held_against_the_same_heard_on_fm() -> None:
     rig = Rig()
     rig.hear(frame("WIDE1-1"), radio="hf")
-    assert rig.tnc.sent == []
-    rig.hear(frame("WIDE1-1", info=b">again"))
-    assert len(rig.tnc.sent) == 1, "the same on FM is repeated"
+    assert rig.tnc.sent == [] and rig.hf.sent == [] and rig.hf.stats.digipeated == 0      # type: ignore[attr-defined]
+    rig.hear(frame("WIDE1-1"))
+    assert len(rig.tnc.sent) == 1 and rig.hf.sent == [], "the same on FM is repeated, on FM: what the HF radio hears goes into no table"
+
+
+def test_what_the_hf_radio_hears_takes_nothing_of_the_fm_radios_burst_or_its_table() -> None:
+    rig = Rig()
+    for n in range(BURST_MAX + 2):
+        rig.hear(frame(info=f">{n}".encode()), radio="hf")
+    assert len(rig.digi.seen_on(FM_ID)) == 0 and len(rig.digi.seen_on(HF_ID)) == 0, "the HF radio does not digipeat: what it hears is in no table"
+    for n in range(BURST_MAX):
+        rig.hear(frame(info=f">{n}".encode()))
+    assert len(rig.tnc.sent) == BURST_MAX and rig.stats.digipeat_held == 0
+
+
+def test_only_radio_1_repeats_even_when_another_radio_could() -> None:
+    specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"digipeat": "true"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"digipeat": "true"}))
+    rig = Rig(specs)
+    rig.hear(frame("WIDE1-1"), radio="hf")                                   # (radio 2, here of an FM type that is allowed a digipeater)
+    assert rig.hf.sent == [] and rig.tnc.sent == [], "as today: the one digipeater is the FM radio's"
+    rig.hear(frame("WIDE1-1"))
+    assert len(rig.tnc.sent) == 1
+
+
+def test_two_radios_that_repeat_each_keep_their_own_duplicate_table_and_burst(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Digipeater, "_repeats", staticmethod(lambda radio, config: radio.allowed.digipeat and config.digi_enabled))     # (today's rule, radio 1 alone, set aside)
+    specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"digipeat": "true"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"digipeat": "true"}))
+    rig = Rig(specs)
+    rig.hear(frame("WIDE1-1"))
+    rig.hear(frame("WIDE1-1"), radio="hf")
+    assert len(rig.tnc.sent) == 1 and len(rig.hf.sent) == 1, "the same frame within 30 s is repeated on each radio that heard it"
+    for n in range(BURST_MAX):
+        rig.hear(frame(info=b">%d" % n))
+    assert len(rig.tnc.sent) == BURST_MAX and rig.stats.digipeat_held == 1, "radio 1's burst is full"
+    rig.hear(frame(info=b">on 2"), radio="hf")
+    assert len(rig.hf.sent) == 2 and rig.hf.stats.digipeat_held == 0, "radio 1's burst does not hold radio 2's frame"       # type: ignore[attr-defined]
 
 
 def test_a_third_party_packet_an_igate_puts_on_the_air_is_repeated_the_tcpip_inside_it_does_not_count() -> None:
@@ -272,24 +325,37 @@ def test_bytes_that_do_not_decode_as_a_frame_are_not_repeated_and_not_an_error()
 
 def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_large() -> None:
     rig = Rig()
-    rig.digi._seen.keep_max = 5
+    rig.digi.seen_on(FM_ID).keep_max = 5
     for n in range(6):                                                       # (six packets that are not ours to repeat, heard at the same minute)
         rig.hear(frame("WIDE2-1", info=b">%d" % n))
     rig.clock.advance(DIGI_DUPLICATE_SEC + 1)
     rig.hear(frame("WIDE2-1", info=b">late"))                                # (the seventh: the six old ones are over the window and are dropped)
-    assert len(rig.digi._seen) == 1
+    assert len(rig.digi.seen_on(FM_ID)) == 1
     rig.hear(frame("WIDE1-1", info=b">0"))                                   # (a packet heard long ago is a new one again)
     assert len(rig.tnc.sent) == 1
 
 
-def test_without_counters_a_frame_is_repeated_and_a_burst_is_held_all_the_same() -> None:
+def test_the_old_call_of_a_tnc_and_its_counters_repeats_and_counts_as_the_radio_does() -> None:
     rig = Rig()
-    digi = Digipeater(rig.tnc, lambda: rig.config, rig.clock)
+    stats = TncStats()
+    digi = Digipeater(rig.tnc, lambda: rig.config, rig.clock, stats)        # (app.py's call until the integration gives the registry)
     for n in range(BURST_MAX + 2):
         f = frame("WIDE1-1", info=b">%d" % n)
         digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
-    assert len(rig.tnc.sent) == BURST_MAX, "the burst limit holds with no stats to count what it held"
+    f = frame("WIDE1-1", info=b">hf")
+    digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock(), radio="hf"))
+    assert len(rig.tnc.sent) == BURST_MAX and (stats.digipeated, stats.digipeat_held) == (BURST_MAX, 2), "the counters given are the ones counted; the HF packet is not its radio's"
+
+
+def test_a_tnc_without_counters_repeats_and_holds_a_burst_all_the_same() -> None:
+    rig = Rig()
+    line = StubTnc()                                                         # (a stub with no counters of its own)
+    digi = Digipeater(line, lambda: rig.config, rig.clock)
+    for n in range(BURST_MAX + 2):
+        f = frame("WIDE1-1", info=b">%d" % n)
+        digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
+    assert len(line.sent) == BURST_MAX, "the burst limit holds with no stats to count what it held"
     rig.clock.advance(BURST_WINDOW_SEC)
     f = frame("WIDE1-1", info=b">after")
     digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
-    assert len(rig.tnc.sent) == BURST_MAX + 1
+    assert len(line.sent) == BURST_MAX + 1

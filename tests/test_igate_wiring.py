@@ -1,12 +1,15 @@
 """The iGate inside the whole daemon: the radio a fake TNC, APRS-IS a fake server, both on the loopback. A capture of the radio played into the daemon becomes lines on the server, every packet heard is gated or
 counted, the settings from the page switch it on and off, the page is told by the topic `igate`, what the server sends becomes stations of the internet in the book and the log, and nothing of it ever reaches the radio.
-Without a passcode the daemon only listens: it logs in read-only, gates nothing and sends no position, and the stations of the internet come all the same."""
+Without a passcode the daemon only listens: it logs in read-only, gates nothing and sends no position, and the stations of the internet come all the same. The iGate knows a Dummy radio from the settings, as the
+radio's line knows it from its type."""
 import re
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from neoaprs import PROGRAM, TOCALL, VERSION
+from neoaprs.services.igate import dummy_on
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import message_info, on_air
 from tests.support.env import CAPTURE, Env, idle_for, until
@@ -135,6 +138,20 @@ async def test_a_packet_heard_on_the_radio_is_gated_and_nothing_of_it_is_answere
     e.feed(on_air("OH2RDG-7", message_info("OH7XYZ", "not for us", "3")))              # (a message to somebody else: gated, not answered)
     await until(lambda: any(":OH7XYZ   :not for us{3" in line for line in server.packets))
     assert await e.heard(1, 0.3) == b""
+    await e.stop()
+
+
+async def test_the_igate_knows_the_dummy_radio_from_the_settings_as_the_line_does_when_the_operator_switches_to_it_and_back(tmp_path: Path) -> None:
+    server = await fake_aprsis()
+    e = await started(tmp_path, server)
+    real = e.ctl.config.tnc_profile
+    assert not e.tnc.is_dummy and not dummy_on(e.ctl.config) and not e.ctl.igate.made_up()
+    assert await e.ctl.change_config(lambda c: replace(c, tnc_profile="dummy"))
+    await until(lambda: e.tnc.is_dummy)
+    assert dummy_on(e.ctl.config) and e.ctl.igate.made_up(), "the Dummy radio is on: nothing of ours goes to APRS-IS"
+    assert await e.ctl.change_config(lambda c: replace(c, tnc_profile=real))
+    await until(lambda: not e.tnc.is_dummy)
+    assert not dummy_on(e.ctl.config) and not e.ctl.igate.made_up()
     await e.stop()
 
 

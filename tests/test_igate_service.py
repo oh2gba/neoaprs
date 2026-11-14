@@ -1,5 +1,5 @@
 """The iGate service (neoaprs/services/igate.py) on a fake APRS-IS: what the radio hears becomes lines on the server, each not gated is counted by its reason, a copy within 30 seconds is gated once, nothing is
-gated while it is not logged in, our own position goes to the server, the filter of the connection follows our position, without a passcode (or with one the server refuses) it only listens, the log has the packets and the hour
+gated while it is not logged in, our own position goes to the server (never while a radio of a Dummy type is on: the settings say so), the filter of the connection follows our position, without a passcode (or with one the server refuses) it only listens, the log has the packets and the hour
 and never the password, and what the server says is read by the connection and goes nowhere through the service."""
 import logging
 from datetime import timedelta
@@ -8,9 +8,11 @@ from dataclasses import replace
 import pytest
 
 from neoaprs import TOCALL
-from neoaprs.aprsis import UNVERIFIED
+from neoaprs.aprsis import UNVERIFIED, AprsIs
 from neoaprs.igaterules import DUPLICATE, FRAME, NOGATE, NOT_AIR, OFFLINE, OWN, QUERY, SOURCE, TCPIP
-from tests.support.env import idle_for, until
+from neoaprs.services.igate import Igate, dummy_on
+from tests.support.clock import FixedClock
+from tests.support.env import ON_AIR, idle_for, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.igateworld import POSITION, frame_of, iworld
 
@@ -316,25 +318,30 @@ async def test_a_beacon_is_not_sent_to_the_server_while_the_igate_is_not_logged_
 
 async def test_nothing_of_ours_is_sent_to_the_server_while_the_radio_is_a_dummy_and_the_position_goes_when_it_is_a_real_one() -> None:
     server = await fake_aprsis()
-    w = await iworld(server, wait=False)
-    made_up = [True]
-    w.igate.made_up = lambda: made_up[0]
+    w = await iworld(server, wait=False, tnc_profile="dummy")                  # (the settings say the radio that is on is the Dummy one: the iGate reads it there)
     await until(lambda: w.igate.state == "connected")
     await idle_for(0.1)
-    assert server.packets == [], "(the station that stays: its position waits)"
+    assert w.igate.made_up() and server.packets == [], "(the station that stays: its position waits)"
     w.clock.advance(61)
     w.igate.tick()
     await idle_for(0.1)
     assert server.packets == []
-    made_up[0] = False
+    w.save(tnc_profile="kenwood-tnc2")
     w.clock.advance(61)
     w.igate.tick()
     await until(lambda: server.packets == [OWN_LINE])
-    moving = await iworld(await fake_aprsis(), gps_source="gpsd")
-    moving.igate.made_up = lambda: True
+    moving = await iworld(await fake_aprsis(), gps_source="gpsd", hf_enabled=True, hf_profile="dummy-hf")
     moving.igate.beacon_sent(frame_of(source="OH2GBA-10", destination=TOCALL, info=b"=/5L!!<*e7>7P["))
     await idle_for(0.1)
-    assert moving.server.packets == [], "(the beacon sent over a Dummy radio is a packet of it)"
+    assert moving.server.packets == [], "(the beacon sent while the Dummy HF radio is on is a packet of a made-up station too)"
+
+
+@pytest.mark.parametrize(("changes", "made_up"), [({}, False), ({"tnc_profile": "dummy"}, True), ({"tnc_profile": "dummy", "fm_enabled": False, "hf_enabled": True}, False),
+                                                  ({"hf_enabled": True, "hf_profile": "dummy-hf"}, True), ({"hf_enabled": False, "hf_profile": "dummy-hf"}, False), ({"tnc_profile": "no such type"}, False)])
+def test_a_dummy_radio_is_one_of_a_dummy_type_that_is_enabled(changes: dict[str, object], made_up: bool) -> None:
+    config = replace(ON_AIR, **changes)                                        # type: ignore[arg-type]
+    assert dummy_on(config) is made_up
+    assert Igate(AprsIs(FixedClock()), lambda: config, lambda: b"", lambda: None).made_up() is made_up, "the iGate's own check, unless the composition root gives it another"
 
 
 # ---- the log

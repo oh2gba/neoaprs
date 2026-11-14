@@ -10,7 +10,10 @@ and reserved bits too), control, PID and information field are the bytes that ar
 
 Nothing goes while the interlock refuses (no call set: config.can_transmit) or the radio is not usable. A fill-in is of use only at once, so it does not wait for the sender's pause (services/sender.py) of
 ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access, its random
-delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a software fill-in is never as quick as one in the TNC)."""
+delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a software fill-in is never as quick as one in the TNC).
+
+The radios are the station's (services/radioset.py's `RadioPick`): a packet heard on a radio is repeated on that radio, and the duplicate check, the burst limit and the counts (the radio's `stats`) are each
+radio's own. Only radio 1, the FM radio, repeats, where its type allows it (no digipeater on HF: every station hears every frame, a repeat would only fill the channel) and `digi/enabled` is on."""
 import logging
 from collections import deque
 from dataclasses import replace
@@ -20,11 +23,14 @@ from neoaprs import ax25
 from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
+from neoaprs.config import Config
 from neoaprs.packet import DuplicateKey, Packet, duplicate_key
 from neoaprs.policy import DIGI_DUPLICATE_SEC
+from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.recent import Recent
 from neoaprs.route import INTERNET_MARKERS
-from neoaprs.services.common import ConfigSource, Radio
+from neoaprs.services.common import ConfigSource, Radio, as_pick
+from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.digipeater")
@@ -59,24 +65,26 @@ def spliced(raw: bytes, heard: ax25.Frame, frame: ax25.Frame) -> bytes:
 
 
 class Digipeater:
-    def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, stats: TncStats | None = None) -> None:
-        self._tnc = tnc
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, clock: Clock = utcnow, stats: TncStats | None = None) -> None:
+        self._given, self._stats = radios, stats                    # (today's app.py gives the FM Tnc and its counters: read as a RadioPick by services/common.as_pick)
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock
-        self._stats = stats                                          # the Tnc's counters: `digipeated` counts what went out
-        self._seen: Recent[DuplicateKey] = Recent(DIGI_DUPLICATE_SEC)              # the packets heard or sent lately, for the duplicate check
-        self._sent: deque[datetime] = deque(maxlen=BURST_MAX)        # when the latest digipeated frames went out
+        self._seen: dict[RadioId, Recent[DuplicateKey]] = {}          # by radio: the packets heard or sent on it lately, for the duplicate check
+        self._sent: dict[RadioId, deque[datetime]] = {}             # by radio: when the latest frames it digipeated went out
+
+    def seen_on(self, radio: RadioId) -> Recent[DuplicateKey]:
+        """The radio's table of what was heard or sent on it lately."""
+        return self._seen.setdefault(radio, Recent(DIGI_DUPLICATE_SEC))
 
     def on_packet(self, packet: Packet) -> None:
-        """The Tnc heard a packet, or sent one (it is remembered for the duplicate check, and ours is never repeated)."""
+        """A radio heard a packet, or sent one (it is remembered for the duplicate check of that radio, and ours is never repeated)."""
         config = self._config()
-        if not config.digi_enabled or not packet.on_air or not self._tnc.rules.digipeat:       # (no digipeater on HF: every station hears every frame, a repeat would only fill the channel)
-            return                                                   # (a packet from the internet was never on the air: there is nothing to repeat)
-        if (packet.radio or "fm") != self._tnc.rules.kind:
-            return                                                   # (a packet of the other radio is that radio's: this one's channel did not hear it)
+        radio = as_pick(self._given, self._config, self._stats).get(FM_ID if packet.radio_id is None else packet.radio_id) if packet.on_air else None
+        if radio is None or not self._repeats(radio, config):     # (a packet from the internet was never on the air: there is nothing to repeat)
+            return
         now = self.clock()
-        duplicate = self._seen.seen(duplicate_key(packet.source, packet.destination, packet.info), now)
+        duplicate = self.seen_on(radio.id).seen(duplicate_key(packet.source, packet.destination, packet.info), now)
         if packet.direction != "in" or duplicate:
             return
         ours = _own(config.station_call)
@@ -89,26 +97,30 @@ class Digipeater:
             return
         if (frame := repeat(heard, ours)) is None or self._interlock.refused("digipeat"):
             return
-        self._send(heard, frame, spliced(packet.raw, heard, frame), now)
+        self._send(radio, heard, frame, spliced(packet.raw, heard, frame), now)
 
-    def _send(self, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, now: datetime) -> None:
-        if not self._tnc.usable:
-            log.debug("not digipeating %s: %s", heard.tnc2(), self._tnc.why_unusable())
+    @staticmethod
+    def _repeats(radio: AirRadio, config: Config) -> bool:
+        """Whether this radio repeats what it hears: radio 1 (the FM radio) alone, while its type allows a digipeater and digi/enabled is on."""
+        return radio.id == FM_ID and radio.allowed.digipeat and config.digi_enabled
+
+    def _send(self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, now: datetime) -> None:
+        if not radio.usable:
+            log.debug("not digipeating %s: %s", heard.tnc2(), radio.why_unusable())
             return
-        while self._sent and (now - self._sent[0]).total_seconds() >= BURST_WINDOW_SEC:
-            self._sent.popleft()
-        if len(self._sent) >= BURST_MAX:
+        sent = self._sent.setdefault(radio.id, deque(maxlen=BURST_MAX))
+        while sent and (now - sent[0]).total_seconds() >= BURST_WINDOW_SEC:
+            sent.popleft()
+        if len(sent) >= BURST_MAX:
             log.debug("not digipeating %s: %d frames went out in the last %g s", heard.tnc2(), BURST_MAX, BURST_WINDOW_SEC)
-            if self._stats is not None:
-                self._stats.digipeat_held += 1
+            radio.stats.digipeat_held += 1
             return
-        if not self._tnc.send_frame(frame, raw):
+        if not radio.send_frame(frame, raw):
             log.warning("the digipeated frame of %s was not sent: the TNC would not take it", heard.source)
             return
-        self._sent.append(now)
-        if self._stats is not None:
-            self._stats.digipeated += 1
-            self._stats.digipeated_at = now
+        sent.append(now)
+        radio.stats.digipeated += 1
+        radio.stats.digipeated_at = now
         log.info("digipeated %s>%s: the path %s is sent as %s", heard.source, heard.destination, heard.path_text, frame.path_text)
 
 

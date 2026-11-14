@@ -1,16 +1,21 @@
-"""The radio of the frame, on stubs (tests/support/stubtnc.py: two stub radios as one set): every gate asks the radio the frame goes on and every frame is built for it, never for "the radio" of a station that has two.
-The retry ticker (services/retries.py) attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away; the sender and our objects (services/sender.py, services/ownobjects.py)
-send on the radio that takes a frame and give a held radio its copy later without the other sending again; a query asked over HF (services/queries.py) is answered with the beacon's and the status's frames built for HF,
-no path and within the frame, while the same asked on FM has the path; the status report (services/rigstatus.py) is built for the radio it goes on."""
+"""The radio of the frame: every gate asks the radio the frame goes on and every frame is built for it, never for "the radio" of a station that has two. The retry ticker (services/retries.py), on two stub radios
+as one set (tests/support/stubtnc.py), attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away. The sender and our objects (services/sender.py,
+services/ownobjects.py), on the station's radios by id (services/radioset.py's RadioPick: tests/support/seamshapes.py over stub lines), send on the radio that takes a frame and give a held radio its copy later
+without another sending again, keep the round by the radio's id (two radios of one kind are two radios), and repeat by the net cycle of the path each radio carries; a query asked over HF (services/queries.py) is
+answered with the beacon's and the status's frames built for HF, no path and within the frame, while the same asked on FM has the path; the status report (services/rigstatus.py) is built for the radio it goes on."""
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import pytest
 
 from neoaprs import ax25
 from neoaprs.config import Config
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessageRecord, retry_pause
 from neoaprs.radiorules import HF
+from neoaprs.radiospec import RadioSpec
+from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.ownlog import OwnLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.beacon import Beacon
@@ -25,8 +30,9 @@ from neoaprs.stationbook import StationBook
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, remember_stop
 from tests.support.rig import ServiceRig
+from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.storedb import log_at
-from tests.support.stubtnc import StubRadios
+from tests.support.stubtnc import StubRadios, StubTnc
 
 
 BOTH: Config = replace(ON_AIR, hf_enabled=True, station_comment="a comment cut on a radio with a short frame")       # (43 characters, the most a comment may be)
@@ -98,40 +104,87 @@ def test_the_time_a_radio_was_away_moves_on_the_waits_of_that_radio_alone_and_no
 
 # ---- the sender and our objects
 
-async def test_an_object_on_both_radios_goes_on_the_radio_that_takes_it_and_a_held_radio_gets_its_copy_later_without_the_other_sending_again(tmp_path: Path) -> None:
+class Lines:
+    """The station's radios of the settings as the registry gives them (RadioPick), each on a stub line of its own: `lines[id]`."""
+
+    def __init__(self, config: Config, specs: tuple[RadioSpec, ...] | None = None, *, old: bool = False) -> None:
+        self.specs = config.radios if specs is None else specs
+        self.lines = {spec.id: StubTnc() for spec in self.specs}
+        self.pick: object = RegistryShape([LiveShape(spec, self.specs, self.lines[spec.id]) for spec in self.specs])      # type: ignore[arg-type]
+        if old:                                                             # (the old set of two that app.py hands the sender until the integration gives the registry: services/common.OldRadios)
+            self.pick = StubRadios()
+            self.lines = {FM_ID: self.pick.fm, HF_ID: self.pick.hf}                                                   # type: ignore[attr-defined]
+
+    def __getitem__(self, id: int) -> StubTnc:
+        return self.lines[id]
+
+
+async def objects_on(tmp_path: Path, radios: Lines, config: Config) -> OwnObjects:
     log, _, clock = await log_at(tmp_path, OwnLog)
-    radios = StubRadios()
-    sender = Sender(radios, lambda: BOTH, clock, spacing_sec=0.0)
-    objects = OwnObjects(sender, lambda: BOTH, log, clock=clock, tick_sec=3600.0)
+    objects = OwnObjects(Sender(radios.pick, lambda: config, clock, spacing_sec=0.0), lambda: config, log, clock=clock, tick_sec=3600.0)
     await objects.start()
     remember_stop(objects.stop)
-    radios.hf.held = "the channel is busy"
+    return objects
+
+
+@pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
+async def test_an_object_on_both_radios_goes_on_the_radio_that_takes_it_and_a_held_radio_gets_its_copy_later_without_the_other_sending_again(tmp_path: Path, old: bool) -> None:
+    radios = Lines(BOTH, old=old)
+    objects = await objects_on(tmp_path, radios, BOTH)
+    clock = objects.clock
+    fm, hf = radios[FM_ID], radios[HF_ID]
+    hf.held = "the channel is busy"
     objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", ">", "on both", radio="both")
     objects.tick()
-    assert [f.info[:10] for f in radios.fm.sent] == [b";BOTHWAYS "] and radios.hf.sent == [], "FM took it at once, HF is held"
+    assert [f.info[:10] for f in fm.sent] == [b";BOTHWAYS "] and hf.sent == [], "FM took it at once, HF is held"
+    assert objects._taken["BOTHWAYS"] == {FM_ID}, "the round is kept by the radio's id"
     objects.tick()
     objects.tick()
-    assert len(radios.fm.sent) == 1, "FM does not send the object again while HF owes its copy"
-    radios.hf.held = ""
+    assert len(fm.sent) == 1, "FM does not send the object again while HF owes its copy"
+    hf.held = ""
     objects.tick()
-    assert len(radios.hf.sent) == 1 and len(radios.fm.sent) == 1 and radios.hf.sent[0].path == ()
+    assert len(hf.sent) == 1 and len(fm.sent) == 1 and hf.sent[0].path == ()
     found = objects.get("BOTHWAYS")
     assert found is not None and found.sent == 1 and found.last_sent_at == clock(), "the round is done when every radio has taken it"
-    radios.fm.state = Source.State.SILENT                                   # (the FM radio away: it does not hold the next round up)
-    clock.advance(600)
+    fm.state = Source.State.SILENT                                          # (the FM radio away: it does not hold the next round up)
+    clock.advance(600)                                                      # type: ignore[attr-defined]
     objects.tick()
-    assert len(radios.hf.sent) == 2 and len(radios.fm.sent) == 1 and objects.get("BOTHWAYS").sent == 2       # type: ignore[union-attr]
+    assert len(hf.sent) == 2 and len(fm.sent) == 1 and objects.get("BOTHWAYS").sent == 2       # type: ignore[union-attr]
 
 
 async def test_an_object_on_hf_alone_goes_while_the_fm_radio_is_away(tmp_path: Path) -> None:
-    log, _, clock = await log_at(tmp_path, OwnLog)
-    radios = StubRadios()
-    radios.fm.state = Source.State.SILENT
-    objects = OwnObjects(Sender(radios, lambda: BOTH, clock, spacing_sec=0.0), lambda: BOTH, log, clock=clock, tick_sec=3600.0)
-    await objects.start()
-    remember_stop(objects.stop)
+    radios = Lines(BOTH)
+    radios[FM_ID].state = Source.State.SILENT
+    objects = await objects_on(tmp_path, radios, BOTH)
     objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radio="hf")
-    assert objects.tick() and len(radios.hf.sent) == 1 and radios.fm.sent == []
+    assert objects.tick() and len(radios[HF_ID].sent) == 1 and radios[FM_ID].sent == []
+
+
+async def test_with_one_radio_enabled_an_object_goes_on_it_whatever_it_was_given_and_with_none_it_waits(tmp_path: Path) -> None:
+    only_hf = replace(BOTH, fm_enabled=False)
+    radios = Lines(only_hf)
+    objects = await objects_on(tmp_path, radios, only_hf)
+    objects.set("FMSAID", "object", 61.5, 23.9, "/", ">", "said fm", radio="fm")
+    assert objects.tick() and [f.info[:8] for f in radios[HF_ID].sent] == [b";FMSAID "] and radios[FM_ID].sent == [], "the main radio, the HF one, takes it"
+    assert objects.get("FMSAID").radio == "fm", "the choice is kept for the day the FM radio is on"       # type: ignore[union-attr]
+    none = replace(only_hf, hf_enabled=False)                               # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    (tmp_path / "none").mkdir()
+    idle = await objects_on(tmp_path / "none", Lines(none), none)
+    idle.set("NOWHERE", "object", 61.5, 23.9, "/", ">", "", radio="both")
+    assert not idle.tick() and idle._sender.problem == "there is no radio" and idle.next_at("NOWHERE") is not None
+
+
+async def test_two_radios_of_one_kind_are_two_radios_and_each_takes_its_own_copy_of_the_round(tmp_path: Path) -> None:
+    specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1, settings={"path": "WIDE2-1"}), RadioSpec(HF_ID, "fm", "kiss", "", True, 2, settings={"path": "OH2RCH-2"}))
+    radios = Lines(BOTH, specs)
+    objects = await objects_on(tmp_path, radios, BOTH)
+    radios[HF_ID].held = "the channel is busy"
+    objects.set("TWICE", "object", 60.2, 24.9, "/", ">", "", radio="both")
+    objects.tick()
+    assert len(radios[FM_ID].sent) == 1 and radios[HF_ID].sent == [] and objects.get("TWICE").sent == 0, "the second radio of the kind still owes its copy"     # type: ignore[union-attr]
+    radios[HF_ID].held = ""
+    objects.tick()
+    assert [f.path_text for f in radios[FM_ID].sent + radios[HF_ID].sent] == ["WIDE2-1", "OH2RCH-2"] and objects.get("TWICE").sent == 1, "each by its own path"     # type: ignore[union-attr]
 
 
 # ---- the answers to queries and the status report
@@ -174,12 +227,9 @@ def test_the_status_report_is_built_for_the_radio_it_goes_on() -> None:
 
 
 async def test_an_object_on_hf_alone_repeats_by_the_net_cycle_of_a_direct_frame_and_one_on_both_by_that_of_the_fm_path(tmp_path: Path) -> None:
-    log, _, clock = await log_at(tmp_path, OwnLog)
-    radios = StubRadios()
     config = replace(BOTH, beacon_path="WIDE2-2")
-    objects = OwnObjects(Sender(radios, lambda: config, clock, spacing_sec=0.0), lambda: config, log, clock=clock, tick_sec=3600.0)
-    await objects.start()
-    remember_stop(objects.stop)
+    objects = await objects_on(tmp_path, Lines(config), config)
+    clock = objects.clock
     objects.set("FARAWAY", "object", 61.5, 23.8, "/", "-", "over HF", radio="hf")
     objects.set("BOTHWAYS", "object", 60.2, 24.9, "/", "-", "on both", radio="both")
     for name in ("FARAWAY", "BOTHWAYS"):
