@@ -64,7 +64,7 @@ What each layer is for:
   * `policy`: the fixed numbers that are not settings (how long things are kept, the keep-alive time).
 * **domain**:
   * `stationbook`: the stations as the packets tell them (who, where, when last, the track, the latest weather; objects and items, ours marked `own`; us). The
-    tracks and the weather the database kept are seeded at the start. `station` is the station as a value, `stationnotes` what a packet says of its sender that the
+    tracks and the weather the database kept are seeded at the start. `station` is the station as a value (with what each radio heard of it by the radio's id, `heard_by`), `stationnotes` what a packet says of its sender that the
     book notes (does it do messages; its packets of the last hour, which `hourcount` keeps as a count for each minute, so that a busy station costs no more than a quiet one).
   * `aloha`: the ALOHA circle of WB4APR, the distance round our position within which the stations heard on RF fill the channel (`policy.py` has the numbers). The service
     `services/aloha.py` works it out again every minute and when our position moves.
@@ -94,11 +94,11 @@ What each layer is for:
     `pmtilesplan` works out from the directories what the cut fetches and writes (its size is known before a tile is fetched: the dry run), `pmtilescut` fetches the tiles in few requests and writes the archive
     (a `.part` file moved into place when whole), and `pmtilesarchive` holds the rest: the header of a file, moving a file into place, the latest daily build.
 * **persistence**: the database file on the database thread.
-  * The actor, the migrations and the settings: `store`, `storesql`.
+  * The actor, the migrations and the settings: `store`, `storesql`, and the radios with their own settings: `radiosql`. The steps of the migrations are frozen in `migrationsteps1to11`, `migrationsteps12to21`, `migrationsteps22on`, `migrationsteps31` (the radios as rows) and `migrationsteps32` (the air rows, what each radio heard of a station, the stations' paths and the objects by radio).
   * `supportsql` is the read-only statements of the support bundle. `dblog` is what the logs below share: the database they run on and the ways they ask it, each of which says no instead of raising.
-  * `packetlog` (every packet and the station cache, appended without waiting) with `packetsql`.
+  * `packetlog` (every packet and the station cache, appended without waiting) with `packetsql`, and with `stationsql` for what each radio heard of a station (`station_radio`), kept and deleted with the station's row.
   * `messagelog` (every message we sent and every one sent to us: an insert that is awaited, state updates appended, the attempts and the hops heard back of
-    each message of ours appended; and the table `station_pref`) with `messagesql`.
+    each message of ours appended; and the table `station_pref`) with `messagesql`, and with `stationsql` for the path of a station on a radio (`station_path`).
   * `bulletinlog` (the message board: one row for each sender and slot, appended) with `bulletinsql`; `ownlog` (our own objects, items and bulletins with where
     each schedule stands) with `ownsql`; `weatherlog` (every observation of a weather station, appended, for the trend graphs; made once from the packets
     already kept when it is empty) with `weathersql`.
@@ -122,7 +122,7 @@ What each layer is for:
   * Asking around (`services/generalask.py`): a general query (`?APRS?`, `?IGATE?` or `?WX?`) sent once at the operator's request, by the path given or `beacon/path`, RF only unless told otherwise, and the stations heard on the radio in the two minutes after it that the station book had not heard in the ten before (the topic `general`).
   * The fill-in digipeater (`services/digipeater.py`): a packet whose first unused hop is `WIDE1-1` or our call is sent again with our call as a used hop, when `digi/enabled` is on.
   * The receive-only iGate (`services/igate.py`): every packet heard on the radio goes through the rules of `igaterules` to APRS-IS (`qAO`), duplicates within 30 seconds once, the counts for the page and the log, and our own position to APRS-IS. It is given the connection (`aprsis`), the settings and a function for the position, and has no Tnc, no `Radio` and no sender: nothing from APRS-IS can reach the radio.
-  * The preferences of the stations (`services/prefbook.py`): the path, RF only and the alert of each station; messaging is given the paths.
+  * The preferences of the stations (`services/prefbook.py`): the path of each station on each radio, RF only and the alert of each station; messaging is given the paths.
   * The keys of encrypted messages (`services/keyring.py`): our own key pair and the key each station announced; messaging seals and opens with them.
   * The alerts set on stations (`services/stationalerts.py`): watched as the station book changes (on the air after half an hour of silence, within N km of us, heard direct), each fired once for each crossing, to the alert command and, by the page's topics, to every page.
   * What the services that send share (`services/common.py`): `ConfigSource`, the interlock's refusal and our call, the old `Radio` of the Tnc, which only the tests still give, and `as_pick`, which reads an old shape as the `RadioPick` of `services/radioset.py`, whose `fit` makes every frame of the sender, our objects and the digipeater.
@@ -259,8 +259,12 @@ The homes of SQL (`SQL_HOMES` in the test): every file that imports `sqlite3` or
 | `neoaprs/migrationsteps12to21.py` | the migrations 12 to 21, frozen beside migrations.py: migration code |
 | `neoaprs/migrationsteps1to11.py` | the migrations 1 to 11, frozen beside migrations.py: migration code |
 | `neoaprs/migrationsteps22on.py` | the migrations from 22 on, frozen beside migrations.py: migration code |
+| `neoaprs/migrationsteps31.py` | migration 31, the radios as rows, frozen beside migrations.py: migration code |
+| `neoaprs/migrationsteps32.py` | migrations 32 and 33, frozen: the air rows' radio as an id, the stations' history and paths by radio, the objects' radios |
 | `neoaprs/ownsql.py` | the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs |
 | `neoaprs/packetsql.py` | the statements of the packet log and the station cache: functions of a connection that the thread runs |
+| `neoaprs/radiosql.py` | the statements of the radios and their own settings: functions of a connection that the thread runs |
+| `neoaprs/stationsql.py` | the statements of what each radio heard of a station and of a station's path on a radio: functions of a connection that the thread runs |
 | `neoaprs/storesql.py` | the statements of the settings: functions of a connection that the thread runs |
 | `neoaprs/supportsql.py` | the statements of the support bundle: functions of a read-only connection that the bundle's own thread runs (the file's version and sizes, the rows of each table, the latest packets) |
 | `neoaprs/walcare.py` | the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread |

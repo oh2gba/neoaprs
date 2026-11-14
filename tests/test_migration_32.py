@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from neoaprs import ax25, packetcodec
+from neoaprs import ax25
 from neoaprs.chain import Attempt
 from neoaprs.dberror import StoreError
 from neoaprs.message import MessageRecord
@@ -205,14 +205,13 @@ def test_the_way_back_gives_the_words_again_and_the_step_then_makes_the_same_dat
 
 # ---- the stores on the database the step leaves
 
-async def test_the_logs_read_the_rows_the_step_left_and_write_the_ids_beside_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_logs_read_the_rows_the_step_left_and_write_the_ids_beside_them(tmp_path: Path) -> None:
     db = at_31(tmp_path, packets, messages, settings={"hf/enabled": "true"})
     run(db, _v32)
     run(db, _v33)
     assert {"station_radio", "station_path"} <= tables(db)
     stepped(db)
     db.close()
-    monkeypatch.setattr(packetcodec, "BY_RADIO", True)
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     log, kept = PacketLog(store.db, clock), MessageLog(store.db, clock)
@@ -230,8 +229,8 @@ async def test_the_logs_read_the_rows_the_step_left_and_write_the_ids_beside_the
     assert await sql(store, "SELECT attempt, radio FROM message_attempt WHERE message_id = ? ORDER BY attempt", ours.id) == [(1, 2), (2, 1), (3, None)]
 
 
-async def test_a_message_and_an_attempt_of_a_radio_beyond_the_two_are_left_out_and_told(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """Until a message and an attempt hold the id of their radio as it is, a row of a third radio cannot be read into one: it is left out with a line in the log, and the rest is read."""
+async def test_a_message_and_an_attempt_of_a_third_radio_are_read_as_they_are(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """A message and an attempt hold the id of their radio as it is: a row of a third radio is read with it, and nothing is told."""
     db = at_31(tmp_path, messages, settings={"hf/enabled": "true"})
     run(db, _v32)
     run(db, _v33)
@@ -239,9 +238,8 @@ async def test_a_message_and_an_attempt_of_a_radio_beyond_the_two_are_left_out_a
     db.execute("UPDATE message_attempt SET radio = 3 WHERE attempt = 2")
     stepped(db)
     db.close()
-    monkeypatch.setattr(packetcodec, "BY_RADIO", True)
     caplog.set_level(logging.WARNING, "neoaprs.messagelog")
     kept = MessageLog((await store_at(tmp_path / DB_NAME)).db, FixedClock())
-    assert [m.id for m in reversed(await kept.held(10))] == [1, 2, 4, 5, 6] and [a.number for a in (await kept.chains())[1]] == [1, 3]
-    told = [r.getMessage() for r in caplog.records]
-    assert any("message table" in line and "radio 3" in line for line in told) and any("message_attempt table" in line and "radio 3" in line for line in told)
+    assert [(m.id, m.radio_id) for m in reversed(await kept.held(10))] == [(1, None), (2, 1), (3, 3), (4, 1), (5, None), (6, None)]
+    assert [(a.number, a.radio_id) for a in (await kept.chains())[1]] == [(1, 1), (2, 3), (3, None)]
+    assert not [r for r in caplog.records if r.name == "neoaprs.messagelog"]

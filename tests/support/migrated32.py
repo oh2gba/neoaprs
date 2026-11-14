@@ -7,32 +7,27 @@ the way back for `tests/support/migrated.step_back`.
     run(db, _v32); run(db, _v33)         # a step as the runner runs it: in a transaction of its own, rolled back when it raises
     stepped(db)                          # the file says the version its shape is of, so that a Db opens it as it is
     through_33(db)                       # whatever of 31, 32 and 33 the file has not been through
-    path = shaped(path)                  # a new file of the shape the stores are set to write (packetcodec.BY_RADIO), for a Db
+    path = shaped(path)                  # a new file with the radios a test wants in it (today's two when not said), for a Db
     undo_33(db); undo_32(db)             # a database of the shape of 33 put back to that of 31 (the rows of radios 1 and 2 with it), for step_back
     f"SELECT call, path FROM {SAID}"     # what is said of each station as the one row it was before 33, for the read-backs of the older migrations' tests
 
-`step_31` is a STAND-IN while migration 31 (package D1a) is not on this branch: it makes the radios as D1a's step decides them (the tables, a new installation only where no settings row and no row of
-an installation is, radio 2 where a row names the HF radio, each radio's type and tickbox), as far as 32, 33 and the stores read it, and moves no settings row. The integration puts D1a's step in its
-place: `step_31` becomes `_v31(db)` and `_KEPT`, `_HF_ROWS`, `_FM_TYPES` and `_on` go.
-
-`SHAPES` and `shaped` end with the integration too: once migrations 32 and 33 are listed in MIGRATIONS every database is of the new shape, `SHAPES` is `(True,)` and `shaped` gives the path back."""
-import json
+`SHAPES` is what is left of the time the stores knew two shapes of database (that of version 30 beside this one): the tests of the stores still take the shape as a parameter, of which there is one."""
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from neoaprs import packetcodec
 from neoaprs.clock import Clock, utcnow
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
+from neoaprs.migrationsteps31 import _v31
 from neoaprs.migrationsteps32 import _v32, _v33
 
 if TYPE_CHECKING:
     from tests.support.migrated import Opened            # (only the name: migrated.py's step_back takes undo_32 and undo_33 from this module)
 
 FORM = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'"
-SHAPES: tuple[bool, ...] = (True,) if SCHEMA_VERSION >= 33 else (False, True)          # the shapes the stores are tested in: that of version 30 while it is the program's, and that of 33
-SHAPE_IDS = {False: "version 30", True: "version 33"}
+SHAPES: tuple[bool, ...] = (True,)                                                     # the shape the stores are tested in: that of migrations 32 and 33
+SHAPE_IDS = {True: "version 33"}
 FM, HF = (1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2)                           # (id, kind, type, enabled, position) of today's two radios, both on
 
 
@@ -61,58 +56,9 @@ def old_database(path: str | Path, clock: Clock = utcnow) -> sqlite3.Connection:
     return db
 
 
-_KEPT = ("own_object", "station_pref", "message", "message_attempt", "station", "packet")          # (as D1a's migration 31: a row in any is no new installation)
-_HF_ROWS = (("message_attempt", "radio = 'hf'"), ("message", "radio = 'hf'"), ("own_object", "radio IN ('hf', 'both')"), ("station", "heard_hf > 0"), ("packet", "radio = 'hf'"))     # (rows that name the HF radio)
-_FM_TYPES = ("kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "dummy")
-
-
-def _on(text: str | None, default: bool) -> bool:
-    """A stored tickbox as the settings read it (D1a's `_on31`)."""
-    word = (text or "").strip().lower()
-    return True if word in ("1", "true", "yes", "on") else False if word in ("0", "false", "no", "off") else default
-
-
 def step_31(db: sqlite3.Connection) -> None:
-    """What migration 31 leaves in a database of version 30 (the STAND-IN, see the module), by the rules of D1a's step: the tables `radio`, `radio_setting` and `_m31`; no radio in a new installation (no
-    settings row and no row of `_KEPT`); else radio 1 (fm), and radio 2 (hf) where a settings row or a row of `_HF_ROWS` names the HF radio; each radio's type and whether it is enabled written plainly,
-    by the old rules. It moves no settings row."""
-    db.execute(f"""CREATE TABLE radio (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        kind TEXT NOT NULL CONSTRAINT radio_kind CHECK (kind IN ('fm', 'hf', 'lora')),
-        type TEXT NOT NULL CONSTRAINT radio_type_present CHECK (type <> ''),
-        name TEXT NOT NULL DEFAULT '' CONSTRAINT radio_name_length CHECK (length(name) <= 8),
-        enabled INTEGER NOT NULL CONSTRAINT radio_enabled CHECK (enabled IN (0, 1)),
-        position INTEGER NOT NULL,
-        removed_at TEXT CONSTRAINT radio_removed_form CHECK (removed_at IS NULL OR removed_at GLOB {FORM})
-    ) STRICT""")
-    db.execute("CREATE UNIQUE INDEX radio_name ON radio (lower(name)) WHERE name <> '' AND removed_at IS NULL")
-    db.execute("""CREATE TABLE radio_setting (
-        radio_id INTEGER NOT NULL REFERENCES radio (id),
-        key TEXT NOT NULL CONSTRAINT radio_setting_key_form CHECK (key <> '' AND key NOT GLOB '*/*'),
-        value TEXT NOT NULL,
-        rev INTEGER NOT NULL DEFAULT 1 CONSTRAINT radio_setting_rev_positive CHECK (rev >= 1),
-        PRIMARY KEY (radio_id, key)
-    ) STRICT""")
-    db.execute("CREATE TABLE _m31 (hf_exists INTEGER NOT NULL CHECK (hf_exists IN (0, 1)), fm_on INTEGER NOT NULL CHECK (fm_on IN (0, 1)), hf_on INTEGER NOT NULL CHECK (hf_on IN (0, 1))) STRICT")
-    settings = {str(key): str(value) for key, value in db.execute("SELECT key, value FROM settings")}
-    if not settings and not any(db.execute(f"SELECT EXISTS (SELECT 1 FROM {table})").fetchone()[0] for table in _KEPT):
-        db.execute("INSERT INTO _m31 (hf_exists, fm_on, hf_on) VALUES (0, 0, 0)")           # a new installation: no radio at all
-        return
-    try:
-        choices = json.loads(settings.get("messages/radio_by_station", "{}"))
-    except ValueError:
-        choices = {}
-    hf_exists = (any(key.startswith(("hf/", "mercury/")) for key in settings) or settings.get("tnc/profile", "").strip() == "mercury"
-                 or (isinstance(choices, dict) and "hf" in choices.values()) or any(db.execute(f"SELECT EXISTS (SELECT 1 FROM {t} WHERE {where})").fetchone()[0] for t, where in _HF_ROWS))
-    alone = settings.get("tnc/profile", "").strip() == "mercury" and "fm/enabled" not in settings and "hf/enabled" not in settings
-    profile = None if alone else settings.get("tnc/profile")
-    fm_type = "kenwood-tnc2" if profile is None and _on(settings.get("tnc/enter_kiss"), False) else profile.strip() if profile and profile.strip() in _FM_TYPES else "kiss"
-    fm_on, hf_on = (False, True) if alone else (_on(settings.get("fm/enabled"), True), _on(settings.get("hf/enabled"), False))
-    hf_type = settings.get("hf/profile", "").strip()
-    db.execute("INSERT INTO radio (id, kind, type, name, enabled, position) VALUES (1, 'fm', ?, '', ?, 1)", (fm_type, int(fm_on)))
-    if hf_exists:
-        db.execute("INSERT INTO radio (id, kind, type, name, enabled, position) VALUES (2, 'hf', ?, '', ?, 2)", (hf_type if hf_type in ("mercury", "dummy-hf") else "mercury", int(hf_on)))
-    db.execute("INSERT INTO _m31 (hf_exists, fm_on, hf_on) VALUES (?, ?, ?)", (int(hf_exists), int(fm_on), int(hf_on and hf_exists)))
+    """Migration 31 (neoaprs/migrationsteps31.py), called as 32 and 33 are."""
+    _v31(db)
 
 
 def run(db: sqlite3.Connection, step: Callable[[sqlite3.Connection], None]) -> None:
@@ -175,15 +121,12 @@ def said_of(db: sqlite3.Connection) -> list[tuple[str, str | None, int]]:
 
 
 def shaped(path: Path, clock: Clock = utcnow, radios: tuple[tuple[int, str, str, int, int], ...] = (FM, HF)) -> Path:
-    """A new database file of the shape the stores are set to write, for a Db to open: with `packetcodec.BY_RADIO` on it is brought through 33 and has `radios` (today's two, both on, when not given); else
-    it is not made here at all (the Db makes it). The path, so that `store_at(shaped(path))` reads as one."""
-    if packetcodec.BY_RADIO:
-        from tests.support.migrated import opened
-        opened(path, clock).close()
-        db = connect(path)
-        through_33(db)
-        db.executemany("INSERT OR IGNORE INTO radio (id, kind, type, name, enabled, position) VALUES (?, ?, ?, '', ?, ?)", radios)
-        db.close()
+    """A new database file for a Db to open, with `radios` in it (today's two, both on, when not given). The path, so that `store_at(shaped(path))` reads as one."""
+    from tests.support.migrated import opened
+    opened(path, clock).close()
+    db = connect(path)
+    db.executemany("INSERT OR IGNORE INTO radio (id, kind, type, name, enabled, position) VALUES (?, ?, ?, '', ?, ?)", radios)
+    db.close()
     return path
 
 

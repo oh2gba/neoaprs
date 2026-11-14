@@ -177,7 +177,7 @@ async def test_what_is_said_of_a_station_is_kept_replaced_and_forgotten_and_an_e
     assert await log.forget_pref("OH2XYZ") and await log.forget_pref("NOBODY")
     assert set(await log.prefs()) == {"OH2RDG", "OH2ABC", "EMAIL-2"}
     assert log.db is not None
-    assert await log.db.read(lambda conn: conn.execute("SELECT updated_at FROM station_pref WHERE call = 'OH2RDG'").fetchone()[0]) == "2026-10-21T12:01:00.000000Z"
+    assert await log.db.read(lambda conn: conn.execute("SELECT updated_at FROM station_path WHERE call = 'OH2RDG' AND radio_id = 1").fetchone()[0]) == "2026-10-21T12:01:00.000000Z"
 
 
 @pytest.mark.expects_errors

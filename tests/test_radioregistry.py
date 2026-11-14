@@ -413,7 +413,8 @@ async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_
 
 
 async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_stopped_alone(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """The settings cannot hold a third radio until the radios are stored; a Config of the test that has one goes through a save all the same, and the daemon's own driver, line, beacon and wiring take it."""
+    """The page cannot add a third radio yet; settings that hold one go through a save all the same, and the daemon's own driver, line, beacon and wiring take it. The radios are a field of the settings: a save
+    of another setting keeps the third radio, and a save without it stops it alone."""
     caplog.set_level(logging.INFO, "neoaprs.controller")
     e = Env(tmp_path)
     await e.start()
@@ -429,7 +430,8 @@ async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_sto
     other.feed(kiss.encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2TRD"), (), info=b"!6010.00N/02456.00E>on the third radio"))))
     await until(lambda: e.ctl.stationbook.get("OH2TRD") is not None)
     assert [p.source for p in await e.packets()] == ["OH2TRD"], "what it hears goes to the parts by the one signal, once"
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="the settings of two radios again"))
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="another comment")) and e.ctl.radios.get(3) is third and third.state is Source.State.CONNECTED, "a save of another setting keeps the radio"
+    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="the settings of two radios again", radios=e.ctl.config.radios[:2]))
     assert e.ctl.radios.get(3) is None and e.ctl.radios.why == {3: "it is removed"}
     await until(lambda: third.state is Source.State.STOPPED and not third.beacon.running)
     assert e.tnc.state is Source.State.CONNECTED and e.tnc._generation == fm_line and e.ctl.beacon.running, "radio 1 was not touched"
@@ -459,6 +461,6 @@ def test_the_stub_registry_of_the_services_tests_chooses_as_the_stub_radios_do_a
 
 def test_a_config_of_a_test_with_any_number_of_radios_leaves_the_one_it_was_made_of_alone() -> None:
     made = with_radios(ON_AIR, THREE)
-    assert isinstance(made, Config) and made == ON_AIR and made.radios == tuple(THREE) and [s.id for s in ON_AIR.radios] == [FM_ID, HF_ID]
+    assert isinstance(made, Config) and made != ON_AIR and replace(made, radios=ON_AIR.radios) == ON_AIR and made.radios == tuple(THREE) and [s.id for s in ON_AIR.radios] == [FM_ID, HF_ID], "the radios are part of what the settings are"
     assert [s.id for s in made.enabled_radios] == [1, 3] and made.main_radio == 1 and made.radio(3) is THREE[2]
     assert isinstance(registry_of(made).drivers[1], FakeDriver)

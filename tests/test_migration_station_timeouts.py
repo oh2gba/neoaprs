@@ -10,6 +10,7 @@ from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
+from tests.support.migrated32 import SAID
 from tests.test_migrations import GOLDEN, STAMP, raw
 
 #           call       path              hide_after_min  attempts  rf_only
@@ -36,13 +37,13 @@ def migrate(folder: Path):  # type: ignore[no-untyped-def]
     version_sixteen(old, clock)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 17
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][16:] == [(17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     return migrated
 
 
 def test_every_own_timeout_is_cleared_and_a_row_that_held_only_that_is_gone(tmp_path: Path) -> None:
     migrated = migrate(tmp_path)
-    rows = migrated.db.execute("SELECT call, path, hide_after_min, attempts, rf_only, updated_at FROM station_pref ORDER BY call").fetchall()
+    rows = migrated.db.execute(f"SELECT call, path, hide_after_min, attempts, rf_only, updated_at FROM {SAID} ORDER BY call").fetchall()
     assert rows == [("OH2ATT", None, None, 3, 0, STAMP), ("OH2ATTM", None, None, 2, 0, STAMP), ("OH2BOTH", "OH2RCH-2", None, None, 0, STAMP), ("OH2DIRT", "", None, None, 0, STAMP),
                     ("OH2PATH", "WIDE2-1", None, None, 0, STAMP), ("OH2RFON", None, None, None, 1, STAMP), ("OH2RFTM", None, None, None, 1, STAMP)]
     migrated.close()

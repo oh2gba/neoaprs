@@ -14,6 +14,7 @@ from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back, try_open
+from tests.support.migrated32 import SAID
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
 from tests.test_migration_alert_markup import V22_LINUX_ALERT
 
@@ -44,18 +45,18 @@ def migrate(folder: Path, command: str | None = None) -> sqlite3.Connection:
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 22
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][21:] == [(22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][21:] == [(22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     fresh.close()
     return migrated.db
 
 
 def test_a_database_of_version_twentyone_keeps_every_preference_with_no_alert_and_takes_one_that_is_only_an_alert(tmp_path: Path) -> None:
     db = migrate(tmp_path)
-    assert db.execute(f"SELECT {COLUMNS} FROM station_pref ORDER BY call").fetchall() == sorted(PREFS)
-    assert db.execute("SELECT COUNT(*) FROM station_pref WHERE alert_on_air = 0 AND alert_within_km IS NULL AND alert_direct = 0").fetchone() == (len(PREFS),)
+    assert db.execute(f"SELECT {COLUMNS} FROM {SAID} ORDER BY call").fetchall() == sorted(PREFS)
+    assert db.execute(f"SELECT COUNT(*) FROM {SAID} WHERE alert_on_air = 0 AND alert_within_km IS NULL AND alert_direct = 0").fetchone() == (len(PREFS),)
     for call, on_air, within, direct in (("OH2AIR", 1, None, 0), ("OH2NEAR", 0, 10, 0), ("OH2DCT", 0, None, 1), ("OH2ALL", 1, 1000, 1)):
         db.execute("INSERT INTO station_pref (call, alert_on_air, alert_within_km, alert_direct, updated_at) VALUES (?, ?, ?, ?, ?)", (call, on_air, within, direct, STAMP))
-    assert db.execute("SELECT COUNT(*) FROM station_pref").fetchone() == (len(PREFS) + 4,)
+    assert db.execute(f"SELECT COUNT(*) FROM {SAID}").fetchone() == (len(PREFS) + 4,)
     db.close()
 
 

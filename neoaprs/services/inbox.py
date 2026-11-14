@@ -132,7 +132,7 @@ class Inbox:
         if reply:
             self._settle(packet, reply, "acked")
         text, seal, wire = self._opened(packet, message)
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio=packet.radio,
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio_id=packet.radio_id,
                                snr=packet.snr, rssi=packet.rssi)
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
@@ -180,7 +180,7 @@ class Inbox:
         if message.ack_id is not None or message.rej_id is not None:
             return
         seal: Seal = "key" if cipher.key_of_message(message.text) is not None else "shut" if cipher.is_locked(message.text) else ""
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal, radio=packet.radio,
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal, radio_id=packet.radio_id,
                                snr=packet.snr, rssi=packet.rssi)
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")

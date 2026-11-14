@@ -13,6 +13,8 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.migrations import history, open_database, schema_version
 from neoaprs.migrationsteps1to11 import _v10
 from neoaprs.migrationsteps12to21 import _v12
+from tests.support.migrated31 import undo_31
+from tests.support.migrated32 import undo_32, undo_33
 
 
 class Opened:
@@ -47,6 +49,12 @@ def try_open(path: str | Path, clock: Clock = utcnow) -> tuple[bool, str]:
 
 def step_back(db: sqlite3.Connection, version: int) -> None:
     """Takes out of a fully migrated database what the migrations after `version` added to the schema, so that they can run again on it (the history and `user_version` are the test's to set)."""
+    if version < 33:
+        undo_33(db)
+    if version < 32:
+        undo_32(db)
+    if version < 31:
+        undo_31(db)                 # (after undo_33 and undo_32: the latest step is taken out first)
     if version < 30:
         for table in ("packet", "message", "station"):
             db.execute(f"ALTER TABLE {table} DROP COLUMN snr")

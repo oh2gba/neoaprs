@@ -10,7 +10,7 @@ paths, the objects) and removes both files.
     .venv/bin/python scripts/migration-size work/migration-size             a gigabyte; the folder is made, and must not be on a RAM disk
     .venv/bin/python scripts/migration-size FOLDER --mb 200 --keep          a smaller file, and the two files are left there
 
-Migration 31 is taken from the runner's list when it is there; while it is not (the steps are listed by the round's integration), the stand-in of the tests makes the radios (tests/support/migrated32.py).
+The three steps are those of the runner's list (migrations.MIGRATIONS).
 """
 import argparse
 import shutil
@@ -128,14 +128,10 @@ def build(path: Path, megabytes: int) -> int:
     return packets
 
 
-def steps() -> tuple[list[tuple[int, Callable[[sqlite3.Connection], None]]], str]:
-    """The three steps by number, and where 31 is from."""
+def steps() -> list[tuple[int, Callable[[sqlite3.Connection], None]]]:
+    """The three steps by number, as the runner lists them."""
     from neoaprs.migrations import MIGRATIONS
-    from neoaprs.migrationsteps32 import _v32, _v33
-    if len(MIGRATIONS) >= 33:
-        return [(number, MIGRATIONS[number - 1]) for number in (31, 32, 33)], "the runner's list"
-    from tests.support.migrated32 import step_31
-    return [(31, step_31), (32, _v32), (33, _v33)], "the stand-in of the tests (31 is not listed yet): it makes the radios and moves no settings"
+    return [(number, MIGRATIONS[number - 1]) for number in (31, 32, 33)]
 
 
 def migrate(path: Path) -> tuple[list[tuple[int, float]], float, float, int, int, int]:
@@ -156,7 +152,7 @@ def migrate(path: Path) -> tuple[list[tuple[int, float]], float, float, int, int
         step(db)
         db.execute(f"PRAGMA user_version = {number}")
         db.execute("COMMIT")
-    for number, step in steps()[0]:
+    for number, step in steps():
         took.append((number, timed(partial(one, number, step))[0]))
     checkpoint, _ = timed(lambda: db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall())
     room.stop()
@@ -193,7 +189,7 @@ def main() -> int:
     took, copying, checkpoint, before, most, most_log = migrate(new)
     wrong = differences(old, new)
     after = new.stat().st_size
-    print(f"the file: {before / MIB:.0f} MB, {packets:,} packets, {STATIONS:,} stations, {MESSAGES:,} messages (built in {building:.1f} s); migration 31 is {steps()[1]}")
+    print(f"the file: {before / MIB:.0f} MB, {packets:,} packets, {STATIONS:,} stations, {MESSAGES:,} messages (built in {building:.1f} s)")
     print(f"the copy the runner makes before the steps: {copying:.1f} s, {before / MIB:.0f} MB")
     for number, seconds in took:
         print(f"migration {number}: {seconds:.1f} s")

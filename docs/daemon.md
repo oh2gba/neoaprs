@@ -86,7 +86,7 @@ Kantronics, in that order), and the first after which a carriage return gets no 
 of a serial line: a task that asks a `Scene` every half second what has come due and hands the frames to the Tnc as KISS bytes, so that the KISS decoder, the AX.25 decoder and the parser work as for a radio. The scene is pure
 (a clock is given to it) and seeded: fixed stations (`Q1ABC`, `Q1CLB`, `Q8QTH`), cars (`Q4CAR-9` and `Q6CAR-1` in Mic-E, `Q5VAN-7` compressed), a walker (`Q7WLK-7`), a weather station (`Q3WX`, every 5 min), two digipeaters with PHG
 (`Q2DIG-2`, `Q7DIG-1`, which repeat the first frame of the others with themselves starred in the path), two objects and a bulletin and a status from the club and the house, all round `station/lat` and `station/lon` (Helsinki when none is set)
-and at most 8 km from it. The stations that send `=` positions answer a message: an ack after 1.5 s, "Hello from the dummy radio" 3.5 to 6 s later, once for each message. What the Tnc writes is decoded by the port and shown to the scene and then dropped:
+and at most 8 km from it. Each Dummy radio plays a world of its own: the seed is the radio's id, the seed 1 the world above, any other the same town with other calls (`Q3ABC` for the seed 3) turned round the station. The stations that send `=` positions answer a message: an ack after 1.5 s, "Hello from the dummy radio" 3.5 to 6 s later, once for each message. What the Tnc writes is decoded by the port and shown to the scene and then dropped:
 a position of ours is played back as repeated by `Q2DIG-2` (the first always, then 6 in 10). Every call is on the ITU prefix Q, which no country has. `Source.is_dummy` is true for the Dummy (the Tnc says it by its profile's transport, there is no flag of its own): every packet the Tnc hears or sends is made in `Tnc._handle` and `Tnc._transmit`, like a radio's, with the channel `dummy`, and
 whatever sends packets to the internet (an iGate) takes the packets of the channels in `packet.GATEABLE` only. The iGate also puts nothing of ours (its timed position, a moving station's beacon) on APRS-IS while `Igate.made_up()` (set by `app.py` to `Tnc.is_dummy`) says the radio is the Dummy.
 
@@ -96,9 +96,9 @@ whatever sends packets to the internet (an iGate) takes the packets of the chann
 
 **Two radios** (`neoaprs/radioregistry.py`). A station may have an FM radio (`fm/enabled`, the KISS TNC of `tnc/profile`, on by default) and an HF radio (`hf/enabled`, the Mercury modem, off by default), at most one of
 each; a third kind (a LoRa board) would be one more slot there and nothing in the services. Each radio is a `Tnc` of its own with the rules of its kind (`neoaprs/radiorules.py`) and is started and stopped on its own
-settings by the controller (`RadioRegistry.restart`, one radio alone: the modem first for the HF one). Every packet names the radio it came on (`Packet.radio`, `fm` or `hf`, set where the Tnc makes the packet; `""` for one from the internet)
-and the database keeps it (`packet.radio`, version 25); the station book counts and dates a station's packets per radio (`heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at`, with `heard_rf` and the rest unchanged
-in meaning: any radio). The registry (`RadioRegistry`, which every service that sends or answers is given) is the one place that chooses: its `main` is the **default radio** (FM while it is on, else HF), which a service that addresses no station takes (asking around and
+settings by the controller (`RadioRegistry.restart`, one radio alone: the modem first for the HF one). Every packet names the radio it came on by its id (`Packet.radio_id`, set where the Tnc makes the packet; none for one from the internet; `Packet.radio` is the word `fm` or `hf` of radios 1 and 2)
+and the database keeps the id (`packet.radio`, version 32); the station book counts and dates a station's packets per radio (`Station.heard_by`: the count, the time and the last digipeaters of each radio, a row of
+`station_radio` each; `heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at` are radios 1 and 2 of it, with `heard_rf` and the rest unchanged in meaning: any radio). The registry (`RadioRegistry`, which every service that sends or answers is given) is the one place that chooses: its `main` is the **default radio** (FM while it is on, else HF), which a service that addresses no station takes (asking around and
 asking QRU, our objects and bulletins); `for_station(call)` is the radio a message of ours goes out on (FM unless the station was heard on HF alone, or FM is off: a station heard on both is near, and HF airtime
 is everyone's), which messaging uses for the path rules and the frame cap of each message; `for_packet(packet)` is the radio an ack or an answer goes back on (the one the request came on: the inbox hands the
 packet with the ack it asks for, the queries and the QRU server with their answers; an ack that waits for a held radio waits for that radio). The beacon is one service per radio (`beacon`, `hf_beacon`; `beacon_now`
@@ -304,7 +304,7 @@ ack has settled (`sending`, `failed`, `unconfirmed`) once more with its number, 
 `SPACING_SEC` (10 s) apart. The messages' records do not change.
 
 **The path of an attempt.** `Messaging` asks `PrefBook.path_for(call, attempt)` each time it sends an attempt of a message that has an id (the attempt is
-`record.attempts + 1`); acks and answers ask with no attempt. The path is, in order: the station's own path (`station_pref`), else for attempts up to
+`record.attempts + 1`); acks and answers ask with no attempt. The path is, in order: the station's own path (`station_path`), else for attempts up to
 `HEARD_PATH_ATTEMPTS` (2) of a message to a station other than `EMAIL-2` the heard path, else `beacon/path`; `RFONLY` is added to whichever it is. The heard path
 is the pure function `route.heard_path(deliveries, now)` (`route.automatic_path` adds the attempt rule) over the station book's `Deliveries`, which keeps for
 direct and for each route the times of its latest `TIMES_KEPT` (2) packets (seeded from the database with the two latest of each group,
@@ -319,7 +319,7 @@ when the row is made.
 `beacon/path` to `DIRECT`; migration 15 changed the stored `WIDE1-1,WIDE2-1` (the old default, which every save wrote, so it cannot be told from a choice) to empty. A station's own path: the stored `path` null is none (automatic), `''` is direct; `set_station_path` takes calls or `DIRECT`, and an empty
 `path` is `clear_station_path`. An own object's or item's path: null (or empty) is `beacon/path`, `DIRECT` is none.
 
-**The station preferences** (`neoaprs/services/prefbook.py`; the table `station_pref`). The path, the RF-only flag and the alert of each
+**The station preferences** (`neoaprs/services/prefbook.py`; the tables `station_pref`, RF only and the alert, and `station_path`, the path of a station on each radio). The path on radio 1, the RF-only flag and the alert of each
 station, under the call as written, in the row `{path, rf_only, alert}` of the topic `station_prefs` (the path null where none is set, a `path` of `""` is
 direct, the alert null where none is set; an entry with no path, `rf_only` false and no alert is not kept). The commands are `set_station_path` (calls, or `DIRECT`; an empty `path` clears), `clear_station_path`
 and `set_station_rf_only{call, on}`. `PrefBook.path_for` adds `RFONLY` so every frame to the station takes the same road. Messaging is given
@@ -382,7 +382,7 @@ usable, and puts a pause between two frames of ours.
 - **Limits** are in `neoaprs/ownobject.py` (`OBJECT_NAME`, `ITEM_NAME`, `NAME_FORBIDDEN`, `COMMENT_MAX`, `COMMENT_MAX_MOTION`, `COURSE_MAX`, `SPEED_MAX_KMH`, `QRU_GROUP_MAX`, `QRU_RESERVED`)
   and `neoaprs/ownbulletin.py` (`GROUP_MAX`, `MAX_POSTED`); the page takes them from the daemon (`LIMITS` of `ui/src/protocol/lists.ts`).
 - **Tables.** `own_object` (migration 13): name, kind, position, symbol, comment, course, speed, path, whether it is alive or being killed, when it was made and
-  last changed, how often it was sent since then, when last; strict, with named CHECKs. `own_bulletin`: slot, group, text, when posted, how often sent, when
+  last changed, how often it was sent since then, when last, and the radios it goes out on (`radios`, their ids: migration 33); strict, with named CHECKs. `own_bulletin`: slot, group, text, when posted, how often sent, when
   first and last. Both are written after every change and every packet.
 - **On the wire** the topic `own_objects` has the values and the schedule of each (`state` `live` or `killing`, `sent`, `last_sent_at`, `next_at`) and the topic
   `stations` a row with `own` true for each live one. A row also has `qru_group` and `on_request` (below).
@@ -426,8 +426,9 @@ name; the sender inside a third-party packet), oldest first, with the rule the l
 passed, the latest 50 are kept.
 
 **The tables** of the database: `settings`, `packet`, `station` (the cache), `message`, `message_attempt`, `message_hop`, `station_key`, `bulletin`, `own_object`,
-`own_bulletin`, `weather` and `station_pref`. `station_pref` is operator data and not part of the station cache, so it survives a rebuilt cache. Everything is
-described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrationsteps1to11.py`, `neoaprs/migrationsteps12to21.py` and `neoaprs/migrationsteps22on.py`; how the database is written is in
+`own_bulletin`, `weather`, `station_pref`, `station_path` and `station_radio`. `station_pref` and `station_path` are operator data and not part of the station cache, so they survive a rebuilt cache;
+`station_radio` is part of it and goes with its station. Everything is
+described in `neoaprs/migrations.py` (the runner) and its steps, `neoaprs/migrationsteps1to11.py`, `neoaprs/migrationsteps12to21.py`, `neoaprs/migrationsteps22on.py` and `neoaprs/migrationsteps32.py`; how the database is written is in
 [`docs/ARCHITECTURE.md`](ARCHITECTURE.md#the-database-actor).
 
 **The settings reset** (migration 16, `neoaprs/migrationsteps12to21.py`). The settings that are not on the page any more cannot be changed back by their operator, so once, at the first start of this version, their stored rows are
@@ -451,6 +452,8 @@ new default, which shows `NEOAPRS_TITLE`, counts, with one INFO line in the log;
 **The way back** (`neoaprs/backupfolder.py`, `neoaprs db restore`). A NeoAPRS that finds the file at a newer version than it knows refuses it and changes nothing; the refusal, in the log, in `neoaprs doctor` and in the tools, names in one sentence the newest copy in `backup/` that it can open (the version is read from the header of each `*.sqlite` there, the date is the file's) and the command that puts it back, or says that there is none. `neoaprs db restore` lists the copies; `neoaprs db restore NAME` takes both locks of the data folder (the daemon's and the desktop app's: it refuses while either is held), refuses a copy that is not in `backup/`, is not a database or is of a version this NeoAPRS does not know, sets the present file aside with its `-wal` and `-shm` as `neoaprs-set-aside-<date>-<time>.sqlite` in the data folder (never deleted; a second restore in the same second gets a number), and writes the copy in its place, private and synced, leaving the copy in `backup/`. If the copy cannot be written, the file set aside is moved back.
 
 **Two radios** (migration 25, `neoaprs/migrationsteps22on.py`). `packet.radio` (`fm`, `hf`, or empty for a packet from the internet), the counts and times a station was heard on each radio (`station.heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at`), `message.radio` and `message_attempt.radio`, and `own_object.radio` (`fm`, `hf` or `both`). The packets of the air kept so far are marked `fm`, the one radio there was, and a station's FM count is the sum of its radio counts. Like every migration, it runs after a copy of the file is made in `backup/`; a NeoAPRS that does not know version 25 refuses the file and does not touch it.
+
+**Any number of radios in the tables** (migrations 32 and 33, `neoaprs/migrationsteps32.py`; the table `radio` is migration 31's). A packet, a message that came in and an attempt of ours name their radio by its id (`packet.radio`, `message.radio`, `message_attempt.radio`: a whole number, null for none): `fm` became 1 and `hf` 2, a packet of the air that named none 1, and a packet from the internet and a message of ours name none, as before. What each radio heard of a station is a row of `station_radio` (`call`, `radio_id`, `heard`, `last_at`, `last_path`: the digipeaters of the last packet that radio heard) in place of `station.heard_fm`, `heard_hf`, `last_fm_at`, `last_hf_at` and `last_path`; no connection turns the foreign keys on, so the statements that delete a station delete these rows (`neoaprs/packetsql.py`). The path the operator gave a station is its path on a radio, `station_path` (`call`, `radio_id`, `path`, `updated_at`): every path there was is the station's on radio 1, and `station_pref` keeps RF only and the alerts by station. An object of ours names its radios in `own_object.radios`, their ids in ascending order with commas between (`fm` 1, `hf` 2, `both` 1,2; where one radio was enabled every object is on that one, which is where it went). Migration 32 writes every packet again where it lies, so the file does not grow, but until the step is committed the write-ahead log holds the packet table once more: a file of a gigabyte took 8 seconds on a desktop's SSD and its log grew to 0.92 of the file (`scripts/migration-size`).
 
 ## What the parser reads
 

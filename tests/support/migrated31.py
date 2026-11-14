@@ -9,6 +9,7 @@
     state_row(db, "beacon/last_sent_at")     # a row of the daemon's state under the name it has in this database
     flat_row(db, "beacon/path")              # a radio's own setting that was stored under a flat key, with its revision, wherever it is in this database
 """
+import json
 import sqlite3
 from pathlib import Path
 
@@ -26,9 +27,28 @@ PATH_FORM = "path = '' OR (path NOT GLOB '*[^A-Z0-9,-]*' AND path NOT GLOB ',*' 
 
 
 def undo_31(db: sqlite3.Connection) -> None:
-    """Takes out of a migrated database what migration 31 added to the schema: the tables of the radios, and `_m31` where migration 33 has not dropped it yet."""
+    """Takes out of a migrated database what migration 31 added to the schema: the tables of the radios, and `_m31` where migration 33 has not dropped it yet. Radios 1 and 2 go back into the flat rows
+    first (`_flat_again`), so that migration 31 run again on the file makes the same radios with the same settings."""
+    if has_table(db, "radio"):
+        _flat_again(db)
     for table in ("_m31", "radio_setting", "radio"):
         db.execute(f"DROP TABLE IF EXISTS {table}")
+
+
+def _flat_again(db: sqlite3.Connection) -> None:
+    """Radios 1 and 2 as the flat settings rows of version 30: each radio's own settings under its flat key with its revision, its type and its tickbox, the state rows under their old names, and the
+    stations' choices as the words `fm` and `hf` with the revision they had before migration 31 counted it up. The type and the tickbox rows are written at revision 1 in the program's words, whatever they were before 31. A radio of another id has no flat rows and is dropped with the tables."""
+    for flat, (radio, own) in OWN_31.items():
+        db.execute("INSERT OR REPLACE INTO settings (key, value, rev) SELECT ?, value, rev FROM radio_setting WHERE radio_id = ? AND key = ?", (flat, radio, own))
+    for radio, profile, tickbox in ((1, "tnc/profile", "fm/enabled"), (2, "hf/profile", "hf/enabled")):
+        for type_, enabled in db.execute("SELECT type, enabled FROM radio WHERE id = ?", (radio,)).fetchall():
+            db.executemany("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ((profile, str(type_)), (tickbox, "true" if enabled else "false")))
+    for old, new in STATE_31.items():
+        db.execute("UPDATE OR REPLACE settings SET key = ? WHERE key = ?", (old, new))
+    row = db.execute("SELECT value FROM settings WHERE key = 'messages/radio_by_station'").fetchone()
+    if row is not None:
+        words = {call: {1: "fm", 2: "hf"}[radio] for call, radio in json.loads(str(row[0])).items() if radio in (1, 2)}
+        db.execute("UPDATE settings SET value = ?, rev = max(rev - 1, 1) WHERE key = 'messages/radio_by_station'", (json.dumps(words, sort_keys=True),))
 
 
 def has_table(db: sqlite3.Connection, name: str) -> bool:

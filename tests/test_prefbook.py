@@ -278,10 +278,8 @@ class Paths:
 
 
 def three_radios(config: Config, path: str = "WIDE2-1") -> Config:
-    """The settings with radios 1 and 2 as they are and a second FM radio, radio 3, whose own path is `path` (the stored radios of any number; D1a makes this
-    `replace(config, radios=...)`, which carries radio 3 over: it is replaced, never added twice)."""
-    config.__dict__["radios"] = (*(spec for spec in config.radios if spec.id != SECOND_FM), RadioSpec(SECOND_FM, "fm", "kiss", "", True, 3, settings={"path": path}))
-    return config
+    """The settings with radios 1 and 2 as they are and a second FM radio, radio 3, whose own path is `path` (the stored radios of any number: a radio 3 already there is replaced, never added twice)."""
+    return replace(config, radios=(*(spec for spec in config.radios if spec.id != SECOND_FM), RadioSpec(SECOND_FM, "fm", "kiss", "", True, 3, settings={"path": path})))
 
 
 class RadioRig(Rig):

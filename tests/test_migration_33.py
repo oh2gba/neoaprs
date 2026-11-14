@@ -307,12 +307,11 @@ def test_the_way_back_through_32_and_33_gives_the_tables_of_version_30_word_for_
 
 # ---- the stores on the database the step leaves
 
-async def test_the_logs_read_what_the_step_left_and_write_beside_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_the_logs_read_what_the_step_left_and_write_beside_it(tmp_path: Path) -> None:
     db = at_32(tmp_path, stations, prefs, objects, settings=BOTH_ON)
     run(db, _v33)
     stepped(db)
     db.close()
-    monkeypatch.setattr(packetcodec, "BY_RADIO", True)
     clock = FixedClock()
     store = await store_at(tmp_path / DB_NAME, clock)
     packets, messages, own = PacketLog(store.db, clock), MessageLog(store.db, clock), OwnLog(store.db, clock)
@@ -328,4 +327,4 @@ async def test_the_logs_read_what_the_step_left_and_write_beside_it(tmp_path: Pa
     station.heard_hf, station.last_hf_at, station.last_path = 1, parse_stamp(LATEST), ()
     packets.save_station(station)
     assert {s.call: s for s in await packets.stations()}["OH2FM"] == station
-    assert await sql(store, "SELECT radio_id, heard, last_path FROM station_radio WHERE call = 'OH2FM' ORDER BY radio_id") == [(1, 4, ""), (2, 1, "")]
+    assert await sql(store, "SELECT radio_id, heard, last_path FROM station_radio WHERE call = 'OH2FM' ORDER BY radio_id") == [(1, 4, "WIDE1-1*"), (2, 1, "")], "each radio keeps its own path"

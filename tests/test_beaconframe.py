@@ -37,9 +37,8 @@ def radio_of(config: Config, id: RadioId, line: StubTnc | None = None) -> LiveSh
 
 
 def with_radios(config: Config, *specs: RadioSpec) -> Config:
-    """The settings with these radios (any number, any ids), as the stored radios will be: the flat view replaced on this one Config."""
-    config.__dict__["radios"] = specs
-    return config
+    """The settings with these radios (any number, any ids), as they are stored."""
+    return replace(config, radios=specs)
 
 
 def third(path: str = "WIDE2-1", kind: str = "fm", type: str = "kiss", enabled: bool = True) -> RadioSpec:

@@ -3,26 +3,24 @@
 A row is a tuple in the order of the column lists below; the codecs are packetcodec.py's (packets) and packetlog.py's (stations). Nothing here begins or commits a transaction.
 
 A packet names its radio by the id of the table `radio` (`packet.radio`, null for the internet: migration 32), and what each radio heard of a station is in `station_radio` (migration 33; stationsql.py),
-written and deleted here with the station's row. The parts marked "before 33" are the statements of a database of version 30, in force until migrations 32 and 33 are listed (packetcodec.BY_RADIO)."""
+written and deleted here with the station's row."""
 import sqlite3
 from collections.abc import Sequence
 
-from . import packetcodec, stationsql
+from . import stationsql
 from .dberror import Row, limit, rows
 
 PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via", "radio", "snr", "rssi")
-_STATION = ("call", "kind", "reported_by", "symbol_table", "symbol_code", "lat", "lon", "altitude_m", "course_deg", "speed_kmh", "first_heard", "last_heard",
-            "last_position_at", "last_status", "last_comment", "packets", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "snr", "rssi", "signal_at")
-STATION_BEFORE_33 = (*_STATION[:16], "last_path", *_STATION[16:25], "heard_fm", "heard_hf", "last_fm_at", "last_hf_at", *_STATION[25:])       # before 33: the station's row holds the counts of the two radios and the last path
-STATION_COLUMNS = _STATION if packetcodec.BY_RADIO else STATION_BEFORE_33
+STATION_COLUMNS = ("call", "kind", "reported_by", "symbol_table", "symbol_code", "lat", "lon", "altitude_m", "course_deg", "speed_kmh", "first_heard", "last_heard",
+                   "last_position_at", "last_status", "last_comment", "packets", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "snr", "rssi", "signal_at")
 PACKET_LIST = ", ".join(PACKET_COLUMNS)
 _PACKET_PLACES = ", ".join("?" * len(PACKET_COLUMNS))
 NOT_HF = "(radio IS NULL OR radio NOT IN (SELECT id FROM radio WHERE kind = 'hf'))"      # not of a radio of the kind hf: a packet without a radio, and one of a radio the table does not have, are not
 
 
 def station_columns() -> tuple[str, ...]:
-    """The columns of the station table in the order of a station's row, as the database has them now."""
-    return _STATION if packetcodec.BY_RADIO else STATION_BEFORE_33
+    """The columns of the station table in the order of a station's row."""
+    return STATION_COLUMNS
 
 HEARD = "direction = 'in'"                    # the packets that were heard, not those we sent
 NOT_INTERNET = "via != 'is'"                  # not from APRS-IS: a packet heard on the radio stays, an iGate's third-party one too
@@ -97,8 +95,7 @@ def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, spa
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
     """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route; not those of a radio of the kind hf: every frame there is
     direct, the routes are those of the other radios' digipeaters), the oldest first."""
-    not_hf = NOT_HF if packetcodec.BY_RADIO else "radio != 'hf'"
-    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} AND {not_hf} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
+    return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} AND {NOT_HF} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 
 def position_packets(db: sqlite3.Connection, stamp: str, count: int) -> list[Row]:
@@ -170,26 +167,24 @@ def delete_heard(db: sqlite3.Connection, keep_call: str) -> int:
     """Deletes the packets that were heard and the cached stations but `keep_call`, with what each radio heard of them; how many packets."""
     gone = db.execute(f"DELETE FROM packet WHERE {HEARD}").rowcount
     db.execute("DELETE FROM station WHERE call != ?", (keep_call,))
-    if packetcodec.BY_RADIO:
-        stationsql.delete_station_radios_but(db, keep_call)
+    stationsql.delete_station_radios_but(db, keep_call)
     return gone
 
 
 def upsert_station(db: sqlite3.Connection, row: Sequence[object], *, heard: Sequence[Sequence[object]] | None = None) -> None:
     """Keeps a station's row (in the order of `station_columns()`), replacing the one it had, and with it what each radio heard of it, `heard` (stationsql.put_station_radios: the row of a radio that is
-    not among them goes); None leaves what each radio heard as it was kept. Before 33 the row holds the counts of the two radios itself and `heard` is not looked at."""
+    not among them goes); None leaves what each radio heard as it was kept."""
     columns = station_columns()
     update = ", ".join(f"{c} = excluded.{c}" for c in columns if c != "call")
     db.execute(f"INSERT INTO station ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))}) ON CONFLICT(call) DO UPDATE SET {update}", tuple(row))
-    if packetcodec.BY_RADIO and heard is not None:
+    if heard is not None:
         stationsql.put_station_radios(db, str(row[0]), heard)
 
 
 def delete_station(db: sqlite3.Connection, call: str) -> None:
     """Removes a cached station, with what each radio heard of it."""
     db.execute("DELETE FROM station WHERE call = ?", (call,))
-    if packetcodec.BY_RADIO:
-        stationsql.delete_station_radios(db, call)
+    stationsql.delete_station_radios(db, call)
 
 
 def all_stations(db: sqlite3.Connection) -> list[Row]:
@@ -197,6 +192,6 @@ def all_stations(db: sqlite3.Connection) -> list[Row]:
 
 
 def heard_by_radio(db: sqlite3.Connection) -> list[Row]:
-    """(call, radio_id, heard, last_at, last_path) of every station and radio that heard it (stationsql.station_radio_rows); none before 33, where the station's row says it."""
-    return stationsql.station_radio_rows(db) if packetcodec.BY_RADIO else []
+    """(call, radio_id, heard, last_at, last_path) of every station and radio that heard it (stationsql.station_radio_rows)."""
+    return stationsql.station_radio_rows(db)
 

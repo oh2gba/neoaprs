@@ -2,9 +2,7 @@
 thread runs: the tables migration 33 makes (migrationsteps32.py). packetsql.py asks for the first with a station's row, messagesql.py for the second with what is said of a station.
 
 A row is a tuple in the order each function names. Nothing here begins or commits a transaction. The database has no foreign keys in force (no connection turns them on), so nothing deletes these rows
-by itself: who deletes a station deletes its rows here in the same function (packetsql.delete_station, delete_heard; messagesql.delete_pref).
-
-These tables are there once migration 33 has run: the stores ask for them only with `packetcodec.BY_RADIO` on."""
+by itself: who deletes a station deletes its rows here in the same function (packetsql.delete_station, delete_heard; messagesql.delete_pref)."""
 import sqlite3
 from collections.abc import Sequence
 

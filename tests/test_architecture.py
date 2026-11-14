@@ -33,7 +33,7 @@ LAYERS: dict[str, list[str]] = {
     "delivery": ["__main__", "daemon"],
 }
 # The modules of the radio round that are placed before they are written (work/par/round/breakdown.md, section 2.1: a later package adds no layer line); a name leaves this set when its module exists.
-PLANNED: set[str] = {"neoaprs.stationsql", "neoaprs.radiosql", "neoaprs.migrationsteps31", "neoaprs.migrationsteps32"}
+PLANNED: set[str] = set()
 # The packages that are one layer whole, by their folder: the services, and the descriptions of the types of radio (one module for each family, the registry in its __init__.py).
 PACKAGE_LAYERS: dict[str, str] = {"neoaprs.services": "services", "neoaprs.radiotypes": "domain"}
 MAY_IMPORT: dict[str, set[str]] = {
@@ -77,7 +77,9 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
     "neoaprs/dberror.py": "the names of SQLite's connection and errors, taken from here by every class that uses the thread, so that none of them imports sqlite3",
     "neoaprs/dbfile.py": "how a connection is set up (WAL, synchronous=FULL, the busy time) and the whole checked copy",
     "neoaprs/storesql.py": "the statements of the settings: functions of a connection that the thread runs",
+    "neoaprs/radiosql.py": "the statements of the radios and their own settings: functions of a connection that the thread runs",
     "neoaprs/packetsql.py": "the statements of the packet log and the station cache: functions of a connection that the thread runs",
+    "neoaprs/stationsql.py": "the statements of what each radio heard of a station and of a station's path on a radio: functions of a connection that the thread runs",
     "neoaprs/messagesql.py": "the statements of the message table: functions of a connection that the thread runs",
     "neoaprs/bulletinsql.py": "the statements of the bulletin table (the message board): functions of a connection that the thread runs",
     "neoaprs/ownsql.py": "the statements of the tables of our own objects and bulletins (what we send of our own accord): functions of a connection that the thread runs",
@@ -86,6 +88,8 @@ SQL_HOMES: dict[str, str] = {              # the permanent homes of SQL: no coun
     "neoaprs/walcare.py": "the limits of the write-ahead log (journal_size_limit and the automatic checkpoint): a function of the connection, run by the thread",
     "neoaprs/migrationsteps12to21.py": "the migrations 12 to 21, frozen beside migrations.py: migration code",
     "neoaprs/migrationsteps22on.py": "the migrations from 22 on, frozen beside migrations.py: migration code",
+    "neoaprs/migrationsteps31.py": "migration 31, the radios as rows, frozen beside migrations.py: migration code",
+    "neoaprs/migrationsteps32.py": "migrations 32 and 33, frozen: the air rows' radio as an id, the stations' history and paths by radio, the objects' radios",
     "neoaprs/migrationsteps1to11.py": "the migrations 1 to 11, frozen beside migrations.py: migration code",
     "neoaprs/migrations.py": "the opening of the file, before the thread opens it, and in the tools, and the runner of the migrations (their history, the copy taken before them)",
 }

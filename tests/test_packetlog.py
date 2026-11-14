@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import aprsparse, ax25, packetcodec
+from neoaprs import aprsparse, ax25
 from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsextension import Area, DfBearing, Dfs, Extensions, Phg
 from neoaprs.aprsfreq import Frequency
@@ -42,9 +42,8 @@ NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)
 
 
 @pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
-def shape(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> bool:
+def shape(request: pytest.FixtureRequest) -> bool:
     """The shape of the database the stores write in this test: False that of version 30, True that of migrations 32 and 33 (`shaped` makes the file to match)."""
-    monkeypatch.setattr(packetcodec, "BY_RADIO", request.param)
     return bool(request.param)
 
 
@@ -456,10 +455,13 @@ def test_a_station_gives_its_row_and_what_each_radio_heard_and_they_give_the_sta
         ("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], "the path is the one of the radio that heard the station last"
     assert [r[4] for r in heard_rows(Station("OH2TIE", first_heard=T0, last_heard=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0, last_path=("WIDE1-1",)))] == ["WIDE1-1", ""], "the FM radio's when both heard it at the same time"
     assert heard_rows(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4)) == [], "a radio that heard nothing has no row"
+    told = Station("OH2ONE", first_heard=T0, last_heard=T0, heard_by={3: RadioHeard(1, T0, ())})
+    told.heard_by[4] = RadioHeard(0, None, ())
+    assert heard_rows(told) == [("OH2ONE", 3, 1, stamp(T0), "")], "nor one whose entry was put into heard_by by hand"
 
 
 @NEW
-def test_a_station_is_made_from_what_radios_one_and_two_heard_and_a_third_radio_is_refused() -> None:
+def test_a_station_is_made_from_what_each_radio_heard_and_a_third_radio_is_taken_as_it_is() -> None:
     row = station_row(Station("OH2AAA", first_heard=T0, last_heard=T0))
     later = T0 + timedelta(minutes=1)
     both = station_of(row, heard={1: RadioHeard(3, T0, ("WIDE1-1",)), 2: RadioHeard(2, later, ("OH2HFD",))})
@@ -467,8 +469,10 @@ def test_a_station_is_made_from_what_radios_one_and_two_heard_and_a_third_radio_
     assert station_of(row, heard={1: RadioHeard(3, later, ("WIDE1-1",)), 2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("WIDE1-1",)
     assert station_of(row, heard={2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("OH2HFD",) and station_of(row, heard={1: RadioHeard(1, None, ("WIDE1-1",))}).last_path == ("WIDE1-1",), "the one radio that heard it"
     assert station_of(row).heard_by == {} and station_of(row, heard={}).last_path == ()
-    with pytest.raises(ValueError, match=r"radio \[3\] heard OH2AAA"):
-        station_of(row, heard={1: RadioHeard(3, T0), 3: RadioHeard(1, T0)})
+    third = {1: RadioHeard(3, T0), 3: RadioHeard(1, later, ("WIDE2-1",))}
+    made = station_of(row, heard=third)
+    assert made.heard_by == third and (made.heard_fm, made.heard_hf, made.last_path) == (3, 0, ("WIDE2-1",)), "radio 3 by its id, and the path of the radio that heard it last"
+    assert by_radio(made) == third, "and its rows give it back"
 
 
 # ---- the shape of migrations 32 and 33: a packet's radio by its id, what each radio heard of a station in a table of its own
@@ -484,20 +488,27 @@ async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_name
     assert [(p.source, p.radio, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", "fm", 1), ("OH2HF", "hf", 2), ("OH2NET", "", None), ("OH2NO", "", None)]
     assert list(reversed(await log.recent())) == packets
     assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [("OH2FM", 1, "integer"), ("OH2HF", 2, "integer"), ("OH2NET", None, "null"), ("OH2NO", None, "null")]
-    assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])._replace(radio="hf")) == packets[1], "a row of a database before 32 holds the word"
+    assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])) == packets[1]
+    with pytest.raises(ValueError):
+        packet_of(packet_row(packets[1])._replace(radio="hf"))         # (the word of a database before migration 32 is no row of this program)
 
 
 @NEW
-async def test_a_packet_of_a_radio_beyond_the_two_is_left_out_and_told(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_packet_of_a_third_radio_is_read_and_written_as_it_is_and_a_row_that_names_no_radio_is_refused(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (3, "lora", "dummy-lora", 1, 2))))
     log = PacketLog(store.db, FixedClock())
     log.append(replace(heard("OH2FM", ()), radio="fm"))
+    log.append(replace(heard("OH2LRA", (), T0 + timedelta(seconds=1)), radio_id=3))
     await log.count()
-    await sql(store, "UPDATE packet SET radio = 3")
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
-    assert await log.recent() == [] and any("packet table" in r.getMessage() and "radio 3" in r.getMessage() for r in caplog.records)
-    with pytest.raises(ValueError, match="radio 'lora'"):
+    assert [(p.source, p.radio_id, p.radio) for p in reversed(await log.recent())] == [("OH2FM", 1, "fm"), ("OH2LRA", 3, "")], "radio 3 by its id; the old word has none for it"
+    assert await sql(store, "SELECT source, radio FROM packet ORDER BY id") == [("OH2FM", 1), ("OH2LRA", 3)]
+    await sql(store, "UPDATE packet SET radio = 3 WHERE source = 'OH2FM'")
+    assert [p.radio_id for p in await log.recent()] == [3, 3] and not [r for r in caplog.records if r.name == "neoaprs.packetlog"]
+    with pytest.raises(ValueError):
         packet_of(packet_row(heard("OH2FM", ()))._replace(radio="lora"))
+    with pytest.raises(ValueError, match="no radio"):
+        packet_of(packet_row(heard("OH2FM", ()))._replace(radio=0))
 
 
 @NEW
@@ -534,7 +545,7 @@ async def test_a_station_that_is_deleted_or_forgotten_takes_what_the_radios_hear
 
 
 @NEW
-async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_station_a_third_radio_heard_is_too(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_station_a_third_radio_heard_is_read_as_it_is(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "lora", "dummy-lora", 1, 3))))
     log = PacketLog(store.db, FixedClock())
     for call in ("OH2AAA", "OH2BBB"):
@@ -542,9 +553,11 @@ async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_st
     await log.stations()
     await sql(store, "INSERT INTO station_radio (call, radio_id, heard, last_at) VALUES ('OH2AAA', 2, 4, 'yesterday'), ('OH2BBB', 3, 1, ?)", stamp(T0))
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
-    assert [(s.call, s.heard_fm, s.heard_hf) for s in await log.stations()] == [("OH2AAA", 1, 0)], "the row with no time is left out, the station of radio 3 with it"
+    found = sorted(await log.stations(), key=lambda s: s.call)
+    assert [(s.call, sorted(s.heard_by)) for s in found] == [("OH2AAA", [1]), ("OH2BBB", [1, 3])], "the row with no time is left out, the row of radio 3 is the station's"
+    assert found[1].heard_on(3) == RadioHeard(1, T0) and found[1].last_path == ()
     told = [r.getMessage() for r in caplog.records]
-    assert any("station_radio table" in line for line in told) and any("station table" in line and "radio [3] heard OH2BBB" in line for line in told)
+    assert any("station_radio table" in line for line in told) and not any("station table" in line for line in told)
 
 
 @NEW

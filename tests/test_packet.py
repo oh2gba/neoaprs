@@ -163,8 +163,9 @@ def test_a_packet_keeps_the_id_of_its_radio_and_the_old_word_is_a_view_of_it() -
     assert all(p.radio in RADIOS for p in by_id.values()) and [radio_word(n) for n in (None, 1, 2, 3)] == ["", "fm", "hf", ""]
     with pytest.raises(FrozenInstanceError):
         by_id[3].radio_id = 1  # type: ignore[misc]
-    with pytest.raises(AttributeError):
+    with pytest.raises((AttributeError, TypeError)):            # Python 3.13's frozen dataclass with slots refuses a name that is no field by a TypeError of its own __setattr__, 3.14's by AttributeError
         by_id[3].radio = "fm"  # type: ignore[misc]
+    assert (by_id[3].radio_id, by_id[3].radio) == (3, ""), "and the packet is as it was"
 
 
 def test_the_constructor_and_replace_still_take_the_old_word() -> None:

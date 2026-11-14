@@ -2,22 +2,19 @@
 
 A row is a tuple in the order of OBJECT_COLUMNS or BULLETIN_COLUMNS; the codec between a row and a value is ownlog.py's. Nothing here begins or commits a transaction.
 
-An object names the radios it goes out on in `radios`: their ids in the table `radio`, ascending, separated by commas (migration 33). Before 33 (a database of version 30, in force until migrations 32
-and 33 are listed: packetcodec.BY_RADIO) the column is `radio`, a word: fm, hf or both."""
+An object names the radios it goes out on in `radios`: their ids in the table `radio`, ascending, separated by commas (migration 33)."""
 import sqlite3
 from collections.abc import Sequence
 
-from . import packetcodec
 from .dberror import Row, rows
 
-_OBJECT = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request")
-OBJECT_COLUMNS = (*_OBJECT, "radios" if packetcodec.BY_RADIO else "radio")
+OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request", "radios")
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at")
 
 
 def object_columns() -> tuple[str, ...]:
-    """The columns of own_object in the order of an object's row, as the database has them now."""
-    return (*_OBJECT, "radios" if packetcodec.BY_RADIO else "radio")
+    """The columns of own_object in the order of an object's row."""
+    return OBJECT_COLUMNS
 
 
 def _upsert(table: str, columns: tuple[str, ...]) -> str:

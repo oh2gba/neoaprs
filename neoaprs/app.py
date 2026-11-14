@@ -165,7 +165,7 @@ class Services:
         """The parts that keep rows in the database, and the board and the preferences kept with them."""
         self.packetlog = PacketLog(clock=clock)                         # every packet and the station cache, in the database
         self.messagelog = MessageLog(clock=clock)                       # every message we sent and every one sent to us, in the database
-        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
+        self.prefbook = PrefBook(self.messagelog, lambda: self.config, self._deliveries, clock, paths=self.messagelog)  # the path, the timeout and RF only of each station, kept with the messages; read by the controller before messaging starts
         self.keyring = Keyring(self.data_dir, self.messagelog, clock, allowed=self.encryption)      # the keys of encrypted messages: ours in the data folder, the stations' with the messages; read by the controller before messaging starts
         self.weatherlog = WeatherLog(clock=clock)                       # every observation of the weather stations, in the database
         self.bulletinlog = BulletinLog(clock=clock)                     # the message board in the database

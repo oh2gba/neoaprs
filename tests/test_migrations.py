@@ -12,11 +12,13 @@ from pathlib import Path
 import pytest
 
 from neoaprs import migrations as migrations_module
-from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, source_hash
+from neoaprs.dberror import StoreError
+from neoaprs.migrations import COPY_MARGIN_BYTES, MIGRATIONS, SCHEMA_VERSION, _require_room, source_hash
 from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open
+from tests.support.migrated32 import SAID
 
 # The checksum of the source of each migration. If this test fails somebody edited a migration that may have run on databases already: add a new migration instead.
 # Only a migration that has never run on a kept database may have its entry changed.
@@ -40,7 +42,10 @@ GOLDEN = {1: "9ab3c608724b21575f4555fcfcd5c2aaa60ad5b56ee5de68e583797f5667ae2b",
           27: "af1005c12d078514e326d2bcf322e7f8ac44d477eadafd5ac31401ce7d8d15b9",
           28: "c082b660c1ea145adcdabd04185bead6bbdee8b3d0e549f73ead569af675a96f",
           29: "f37bc1c40d4ff8f20c3bdb5d35e5f4c5b08fcb6b37e477d82df0c6a479a362a5",
-          30: "2ac08e702b03cbfb8de02677458e74eb0c1d6f0404700f8f91bf9d3132d3e0d4"}
+          30: "2ac08e702b03cbfb8de02677458e74eb0c1d6f0404700f8f91bf9d3132d3e0d4",
+          31: "3f4253eb76b65cc049509915a7db44623c5a8da1b7401c6af1cbcd0e95d1d1b1",
+          32: "54b58792fd02b37750969d56f157b6f9e76513aeb3ff63084c7dd3eef6f58e3a",
+          33: "8218cee47320bbeb346212031ff0494acafddfc175626d6d1ae95de9b88b0c9e"}
 
 
 # What a step calls or reads that is written outside it, in the module beside it: the helper functions and the constants (a text, a number, a tuple), by the step that uses them and the hash of what they are.
@@ -49,6 +54,7 @@ GOLDEN_USED = {
     "_v21": {"_third_party_sender": "5a15e75b3fbb473e8ec940c464521dd68b7ec34c49d633a6441a4cdf1c5e54c2"},
     "_v22": {"_OLD_LINUX_ALERT": "5fb693746274abb1ee0e8149fdf0264c1cb906f6e8bbeed6189d4fe0bfa377f9", "_OLD_WINDOWS_ALERT": "0b4b01fbd7a1f34a5703db45884f161b882ff4af0b90514424be568c339123ea"},
     "_v29": {"_allowed_host": "cdac1e89d80032fe364499a32247597d9895e94bef5752ce1f71b688f366f082", "_HOST_LABEL": "c221b1e4a74e5e08ce521e3de652ebb797c93c5678e39d26cc567f9ffc18b0d8"},
+    "_v31": {"_CHOICES": "8dff05af4898688bb573d41c40e6ea66cb01fec877ebf9d1103e4e60ad8afbd6", "_FALSE": "26d5af627562f4f506311ff6b1f373ce1d4406cfbd264b33a38ed9fc8f613802", "_FM_MOVES": "51c809510ed2916bd937bbbd481e61c2ced3975132253b646c4544fa0d1cce96", "_FM_TYPES": "7541c474b50bbecda547e23a7ca29d8783194a22d030e54ba2cce545bfe803b9", "_GONE": "899f89869d238a2e74ed59d38c738a293da367551f893b12830f5e082b1f1e88", "_HF_MOVES": "4e04d8edf6de4538b82213828691ce0b0e0ae70998b818ed2eb4b57d2d43c49c", "_HF_ROWS": "193801f61fca27cd9ded94bac5f1f7cded93f930f3684f22435e7d4d606fde11", "_HF_TYPES": "40d1c888a8e29895c78e13046d4715f7e5be0b622c14709ebc8cf84203988679", "_KEPT": "81d155c5e50be9f6ef91ea3241da710fabe991e4377a1412919ed7ec71371fa5", "_STATE": "d15998254a92fef6d3ac0265df36572c51567de7b573570f61cfda7028f39757", "_TRUE": "2903545dd56c033b3f0962fa48660f7136a4656b920d5ff309b7f5cb810ebbb4", "_choices31": "38cc46833e0239c9051396bffba6e612f3c01025a619295951ae68c2bd33ae36", "_hf_named31": "7afe8ecbd8e34526876dbb7fe17155d89f89153aef209920bc7f6cd043b0654d", "_move31": "b827728202d34d1f4e2a9d3b7d00babdf9281af5d41205a51992a6dc28e4bff5", "_on31": "e0f91aa73006f8063e626492ea643502ae23ed4c90839a929649cec7006c0d67", "_tables31": "412412734227c3e63e9563ceb7156e04fc4edb8a621b83fca07ffc540dffd835", "_type31": "2d14e908b6235225e003fda1b4b077b0f021e53c4ca9f541d13315aa5b563fea"},
 }
 
 
@@ -167,6 +173,11 @@ def broken(db: sqlite3.Connection) -> None:
     raise sqlite3.OperationalError("the disk is full")
 
 
+def mended(db: sqlite3.Connection) -> None:
+    """The migration that `broken` failed at, as the next release has it."""
+    db.execute("CREATE TABLE half (x INTEGER)")
+
+
 def with_steps(monkeypatch: pytest.MonkeyPatch, *steps: object) -> None:
     all_steps = [*MIGRATIONS, *steps]
     monkeypatch.setattr(migrations_module, "MIGRATIONS", all_steps)
@@ -242,6 +253,30 @@ def test_a_copy_that_cannot_be_made_leaves_the_earlier_one_and_a_disk_without_ro
     assert [p.name for p in folder.iterdir()] == [f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-120000.sqlite"]
 
 
+def test_a_file_that_migration_32_has_yet_to_rewrite_needs_its_size_twice_beside_the_margin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Migration 32 writes the packet table again where it lies, and until it is committed the write-ahead log holds the table once more (0.92 of a gigabyte's file, scripts/migration-size): below version 32 the
+    disk needs the file's size for the copy and once more for that log; from 32 on the copy alone."""
+    db = sqlite3.connect(tmp_path / DB_NAME)
+    db.execute("CREATE TABLE packet (raw BLOB)")
+    db.executemany("INSERT INTO packet (raw) VALUES (?)", [(bytes(4000),)] * 100)
+    db.commit()
+    size = int(db.execute("PRAGMA page_count").fetchone()[0]) * int(db.execute("PRAGMA page_size").fetchone()[0])
+    room = {"free": 2 * size + COPY_MARGIN_BYTES - 1}
+    monkeypatch.setattr("neoaprs.migrations.shutil.disk_usage", lambda _: types.SimpleNamespace(free=room["free"]))
+    with pytest.raises(StoreError, match="the migration needs .* MB there for the copy of the database it makes first and for the database's log"):
+        _require_room(db, tmp_path, 30)
+    _require_room(db, tmp_path, 32)
+    _require_room(db, tmp_path, 33)
+    with pytest.raises(StoreError, match="MB free"):
+        _require_room(db, tmp_path, 31)
+    room["free"] += 1
+    _require_room(db, tmp_path, 31)
+    room["free"] = size + COPY_MARGIN_BYTES - 1
+    with pytest.raises(StoreError, match="MB free"):
+        _require_room(db, tmp_path, 33)
+    db.close()
+
+
 @pytest.mark.expects_errors
 def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / DB_NAME
@@ -260,6 +295,26 @@ def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the
     names = {r[0] for r in db.execute("SELECT name FROM sqlite_master")}
     assert "beacon" in names and "half" not in names
     db.close()
+
+
+@pytest.mark.expects_errors
+def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cut_short(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A migration cut short leaves the file at a middle version, which no release opens: the start that gets through copies that file and keeps the copy taken at the old version."""
+    path = tmp_path / DB_NAME
+    opened(path).close()
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    (folder / "premigrate-v22-to-v23-20260101-000000.sqlite").write_bytes(b"the copy of the migration before")
+    clock = FixedClock()
+    with_steps(monkeypatch, v_next, broken)
+    ok, why = try_open(path, clock)
+    assert not ok and "the disk is full" in why
+    with_steps(monkeypatch, v_next, mended)
+    clock.advance(60)
+    ok, why = try_open(path, clock)
+    assert ok, why
+    assert sorted(p.name for p in folder.iterdir()) == [f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 1}-20261021-120000.sqlite", f"premigrate-v{NEXT}-to-v{NEXT + 1}-20261021-120100.sqlite"], \
+        "the copy at the old version stays beside the one of the middle version, and the migration before's goes"
 
 
 @pytest.mark.expects_errors
@@ -283,7 +338,7 @@ def test_history_records_when_and_what_and_flags_a_migration_that_was_edited_sin
     assert [(r[0], r[1], r[2], r[3], r[4]) for r in rows] == [(1, "_v1", GOLDEN[1], clock.now, ""), (2, "_v2", GOLDEN[2], clock.now, ""), (3, "_v3", GOLDEN[3], clock.now, ""),
                                                                                         (4, "_v4", GOLDEN[4], clock.now, ""),
                                                                                         (5, "_v5", GOLDEN[5], clock.now, ""), (6, "_v6", GOLDEN[6], clock.now, ""), (7, "_v7", GOLDEN[7], clock.now, ""), (8, "_v8", GOLDEN[8], clock.now, ""), (9, "_v9", GOLDEN[9], clock.now, ""),
-                                                                                        (10, "_v10", GOLDEN[10], clock.now, ""), (11, "_v11", GOLDEN[11], clock.now, ""), (12, "_v12", GOLDEN[12], clock.now, ""), (13, "_v13", GOLDEN[13], clock.now, ""), (14, "_v14", GOLDEN[14], clock.now, ""), (15, "_v15", GOLDEN[15], clock.now, ""), (16, "_v16", GOLDEN[16], clock.now, ""), (17, "_v17", GOLDEN[17], clock.now, ""), (18, "_v18", GOLDEN[18], clock.now, ""), (19, "_v19", GOLDEN[19], clock.now, ""), (20, "_v20", GOLDEN[20], clock.now, ""), (21, "_v21", GOLDEN[21], clock.now, ""), (22, "_v22", GOLDEN[22], clock.now, ""), (23, "_v23", GOLDEN[23], clock.now, ""), (24, "_v24", GOLDEN[24], clock.now, ""), (25, "_v25", GOLDEN[25], clock.now, ""), (26, "_v26", GOLDEN[26], clock.now, ""), (27, "_v27", GOLDEN[27], clock.now, ""), (28, "_v28", GOLDEN[28], clock.now, ""), (29, "_v29", GOLDEN[29], clock.now, ""), (30, "_v30", GOLDEN[30], clock.now, "")]
+                                                                                        (10, "_v10", GOLDEN[10], clock.now, ""), (11, "_v11", GOLDEN[11], clock.now, ""), (12, "_v12", GOLDEN[12], clock.now, ""), (13, "_v13", GOLDEN[13], clock.now, ""), (14, "_v14", GOLDEN[14], clock.now, ""), (15, "_v15", GOLDEN[15], clock.now, ""), (16, "_v16", GOLDEN[16], clock.now, ""), (17, "_v17", GOLDEN[17], clock.now, ""), (18, "_v18", GOLDEN[18], clock.now, ""), (19, "_v19", GOLDEN[19], clock.now, ""), (20, "_v20", GOLDEN[20], clock.now, ""), (21, "_v21", GOLDEN[21], clock.now, ""), (22, "_v22", GOLDEN[22], clock.now, ""), (23, "_v23", GOLDEN[23], clock.now, ""), (24, "_v24", GOLDEN[24], clock.now, ""), (25, "_v25", GOLDEN[25], clock.now, ""), (26, "_v26", GOLDEN[26], clock.now, ""), (27, "_v27", GOLDEN[27], clock.now, ""), (28, "_v28", GOLDEN[28], clock.now, ""), (29, "_v29", GOLDEN[29], clock.now, ""), (30, "_v30", GOLDEN[30], clock.now, ""), (31, "_v31", GOLDEN[31], clock.now, ""), (32, "_v32", GOLDEN[32], clock.now, ""), (33, "_v33", GOLDEN[33], clock.now, "")]
     s.close()
     caplog.set_level(logging.WARNING, MIGRATION_LOG)
     opened(path).close()
@@ -349,8 +404,9 @@ def test_a_database_of_version_one_gets_the_packet_and_station_tables_and_keeps_
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 2
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert migrated.db.execute("SELECT key, value, rev FROM settings ORDER BY key").fetchall() == [("serial/port", "/dev/brainbox_3", 1), ("station/call", "OH2GBA", 1), ("station/lat", "60.17", 4), ("web/port", "7303", 1)]
-    assert [(r[0], r[1]) for r in migrated.history()] == [(1, "_v1"), (2, "_v2"), (3, "_v3"), (4, "_v4"), (5, "_v5"), (6, "_v6"), (7, "_v7"), (8, "_v8"), (9, "_v9"), (10, "_v10"), (11, "_v11"), (12, "_v12"), (13, "_v13"), (14, "_v14"), (15, "_v15"), (16, "_v16"), (17, "_v17"), (18, "_v18"), (19, "_v19"), (20, "_v20"), (21, "_v21"), (22, "_v22"), (23, "_v23"), (24, "_v24"), (25, "_v25"), (26, "_v26"), (27, "_v27"), (28, "_v28"), (29, "_v29"), (30, "_v30")] and [r[2] for r in migrated.history()] == [GOLDEN[n] for n in range(1, 31)]
+    assert migrated.db.execute("SELECT key, value, rev FROM settings ORDER BY key").fetchall() == [("station/call", "OH2GBA", 1), ("station/lat", "60.17", 4), ("web/port", "7303", 1)]
+    assert migrated.db.execute("SELECT radio_id, key, value, rev FROM radio_setting").fetchall() == [(1, "port", "/dev/brainbox_3", 1)], "the port is the FM radio's own setting since migration 31, with its value and revision"
+    assert [(r[0], r[1]) for r in migrated.history()] == [(1, "_v1"), (2, "_v2"), (3, "_v3"), (4, "_v4"), (5, "_v5"), (6, "_v6"), (7, "_v7"), (8, "_v8"), (9, "_v9"), (10, "_v10"), (11, "_v11"), (12, "_v12"), (13, "_v13"), (14, "_v14"), (15, "_v15"), (16, "_v16"), (17, "_v17"), (18, "_v18"), (19, "_v19"), (20, "_v20"), (21, "_v21"), (22, "_v22"), (23, "_v23"), (24, "_v24"), (25, "_v25"), (26, "_v26"), (27, "_v27"), (28, "_v28"), (29, "_v29"), (30, "_v30"), (31, "_v31"), (32, "_v32"), (33, "_v33")] and [r[2] for r in migrated.history()] == [GOLDEN[n] for n in range(1, 34)]
     assert migrated.db.execute("SELECT COUNT(*) FROM packet").fetchone()[0] == 0 and migrated.db.execute("SELECT COUNT(*) FROM station").fetchone()[0] == 0
     names = {n for _, n, _ in shape(migrated.db)}
     assert {"packet_heard_at", "packet_source"} <= names
@@ -434,36 +490,48 @@ def test_the_message_table_takes_what_the_program_produces_and_the_index_serves_
     s.close()
 
 
-PREF_INSERT = "INSERT INTO station_pref (call, path, hide_after_min, updated_at) VALUES (?, ?, ?, ?)"
+def say(db: sqlite3.Connection, call: object, path: object, hide: object, stamp: object) -> None:
+    """What a row of PREF_INSERT said of a station, said to a database of now: the timeout is a row of `station_pref` (and so is a station of which nothing is said, for the table to refuse), the path
+    the station's path on radio 1 in `station_path` (migration 33)."""
+    if hide is not None or path is None:
+        db.execute("INSERT INTO station_pref (call, hide_after_min, updated_at) VALUES (?, ?, ?)", (call, hide, stamp))
+    if path is not None:
+        db.execute("INSERT INTO station_path (call, radio_id, path, updated_at) VALUES (?, 1, ?, ?)", (call, path, stamp))
+
+
+PREF_INSERT = "INSERT INTO station_pref (call, path, hide_after_min, updated_at) VALUES (?, ?, ?, ?)"         # (a row of the versions before 33, where the path was a column of the table)
 STAMP = "2026-10-21T12:00:00.000000Z"
 
 
 @pytest.mark.parametrize("path, hide", [("", None), ("WIDE1-1", None), ("WIDE1-1,WIDE2-1", 0), ("OH2RCH-2,WIDE2-2", 180), (None, 0), (None, 10080), ("", 1)])
 def test_the_station_pref_table_takes_a_path_a_timeout_or_both_and_an_empty_path_is_not_none(tmp_path: Path, path: str | None, hide: int | None) -> None:
     s = opened(tmp_path / DB_NAME)
-    s.db.execute(PREF_INSERT, ("OH2RDG", path, hide, STAMP))
-    assert s.db.execute("SELECT call, path, hide_after_min FROM station_pref").fetchall() == [("OH2RDG", path, hide)]
+    say(s.db, "OH2RDG", path, hide, STAMP)
+    assert s.db.execute(f"SELECT call, path, hide_after_min FROM {SAID}").fetchall() == [("OH2RDG", path, hide)]
     s.close()
 
 
 @pytest.mark.parametrize("row, name", [
-    (("", "WIDE1-1", None, STAMP), "station_pref_call_present"), (("OH2RDG", "wide1-1", None, STAMP), "station_pref_path_form"),
-    (("OH2RDG", "WIDE1-1,,WIDE2-1", None, STAMP), "station_pref_path_form"), (("OH2RDG", ",WIDE1-1", None, STAMP), "station_pref_path_form"),
-    (("OH2RDG", "WIDE1-1,", None, STAMP), "station_pref_path_form"), (("OH2RDG", "WIDE 1-1", None, STAMP), "station_pref_path_form"),
+    (("", "WIDE1-1", None, STAMP), "station_path_call_present"), (("", None, 5, STAMP), "station_pref_call_present"), (("OH2RDG", "wide1-1", None, STAMP), "station_path_form"),
+    (("OH2RDG", "WIDE1-1,,WIDE2-1", None, STAMP), "station_path_form"), (("OH2RDG", ",WIDE1-1", None, STAMP), "station_path_form"),
+    (("OH2RDG", "WIDE1-1,", None, STAMP), "station_path_form"), (("OH2RDG", "WIDE 1-1", None, STAMP), "station_path_form"),
     (("OH2RDG", None, -1, STAMP), "station_pref_hide_range"), (("OH2RDG", None, 10081, STAMP), "station_pref_hide_range"), (("OH2RDG", None, "never", STAMP), "cannot store"),
-    (("OH2RDG", "WIDE1-1", None, "yesterday"), "station_pref_updated_form"), (("OH2RDG", None, None, STAMP), "station_pref_says_something"), (("OH2RDG", None, 5, None), "NOT NULL")])
+    (("OH2RDG", "WIDE1-1", None, "yesterday"), "station_path_updated_form"), (("OH2RDG", None, 5, "yesterday"), "station_pref_updated_form"), (("OH2RDG", None, None, STAMP), "station_pref_says_something"),
+    (("OH2RDG", None, 5, None), "NOT NULL")])
 def test_the_station_pref_table_refuses_what_the_program_cannot_produce(tmp_path: Path, row: tuple[object, ...], name: str) -> None:
     s = opened(tmp_path / DB_NAME)
     with pytest.raises(sqlite3.IntegrityError, match=name):
-        s.db.execute(PREF_INSERT, row)
+        say(s.db, *row)
     s.close()
 
 
 def test_a_station_has_one_entry(tmp_path: Path) -> None:
     s = opened(tmp_path / DB_NAME)
-    s.db.execute(PREF_INSERT, ("OH2RDG", "WIDE1-1", None, STAMP))
-    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
-        s.db.execute(PREF_INSERT, ("OH2RDG", "", 5, STAMP))
+    say(s.db, "OH2RDG", "WIDE1-1", 5, STAMP)
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint failed: station_path"):
+        say(s.db, "OH2RDG", "", None, STAMP)
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint failed: station_pref"):
+        say(s.db, "OH2RDG", None, 7, STAMP)
     s.close()
 
 
@@ -498,13 +566,13 @@ def test_a_database_of_version_three_gets_station_pref_in_place_of_station_path_
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 4
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     names = {n for _, n, _ in shape(migrated.db)}
-    assert "station_pref" in names and "station_path" not in names
-    assert migrated.db.execute("SELECT call, path, hide_after_min, updated_at FROM station_pref ORDER BY call").fetchall() == sorted((c, p, None, t) for c, p, t in PATHS)
+    assert "station_pref" in names and "radio_id" in {r[1] for r in migrated.db.execute("PRAGMA table_info(station_path)")}, "(station_path is there again since migration 33: a station's path on a radio)"
+    assert migrated.db.execute(f"SELECT call, path, hide_after_min, updated_at FROM {SAID} ORDER BY call").fetchall() == sorted((c, p, None, t) for c, p, t in PATHS)
     assert migrated.db.execute("SELECT state, text FROM message ORDER BY id").fetchall() == [("sending", "hello"), ("received", "hi"), ("overheard", "overheard text")]
     assert migrated.db.execute("SELECT key, value FROM settings").fetchall() == [("station/call", "OH2GBA")]
     assert migrated.db.execute("SELECT source FROM packet").fetchall() == [("OH2RDG",)] and migrated.db.execute("SELECT call FROM station").fetchall() == [("OH2RDG",)]
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][3:] == [(4, "_v4", GOLDEN[4]), (5, "_v5", GOLDEN[5]), (6, "_v6", GOLDEN[6]), (7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
-    migrated.db.execute(PREF_INSERT, ("OH2NEW", None, 0, STAMP))                      # and the new table takes what the old one could not hold
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][3:] == [(4, "_v4", GOLDEN[4]), (5, "_v5", GOLDEN[5]), (6, "_v6", GOLDEN[6]), (7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
+    say(migrated.db, "OH2NEW", None, 0, STAMP)                                        # and the new table takes what the old one could not hold
     for opened_ in (migrated, fresh):
         opened_.close()
     [copy_path] = sorted((old.parent / "backup").glob("premigrate-v3-to-v*.sqlite"))
@@ -572,7 +640,7 @@ def test_a_database_of_version_four_gets_the_attempts_max_column_with_6_for_ever
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at FROM message ORDER BY id").fetchall() == rows
     assert migrated.db.execute("SELECT attempts_max FROM message ORDER BY id").fetchall() == [(6,)] * 4
-    assert migrated.db.execute("SELECT call, path, hide_after_min FROM station_pref WHERE call = 'OH2NEW'").fetchone() is None, "(its timeout was all it said: migration 17 deleted the row)"
+    assert migrated.db.execute(f"SELECT call, path, hide_after_min FROM {SAID} WHERE call = 'OH2NEW'").fetchone() is None, "(its timeout was all it said: migration 17 deleted the row)"
     assert [(r[0], r[1], r[2]) for r in migrated.history()][4:5] == [(5, "_v5", GOLDEN[5])]
     migrated.db.execute(INSERT_MESSAGE.replace("acked_at)", "acked_at, attempts_max)").replace("?)", "?, ?)"), (*GOOD, 10))
     assert migrated.db.execute("SELECT attempts_max FROM message ORDER BY id DESC LIMIT 1").fetchone() == (10,)
@@ -630,8 +698,8 @@ def test_a_database_of_version_five_gets_the_route_column_empty_for_every_messag
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max FROM message ORDER BY id").fetchall() == rows
     assert migrated.db.execute("SELECT route FROM message ORDER BY id").fetchall() == [("",)] * len(rows)
-    assert migrated.db.execute("SELECT call, path, hide_after_min FROM station_pref WHERE call = 'OH2NEW'").fetchone() is None, "(its timeout was all it said: migration 17 deleted the row)"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][5:] == [(6, "_v6", GOLDEN[6]), (7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert migrated.db.execute(f"SELECT call, path, hide_after_min FROM {SAID} WHERE call = 'OH2NEW'").fetchone() is None, "(its timeout was all it said: migration 17 deleted the row)"
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][5:] == [(6, "_v6", GOLDEN[6]), (7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     migrated.db.execute("INSERT INTO message (at, direction, from_call, to_call, text, state, route) VALUES (?, 'in', 'OH2RDG', 'OH2GBA', 'hi', 'received', 'via OH2RCH-1 \u2192 OH2RCH-3')", (STAMP,))
     assert migrated.db.execute("SELECT route FROM message ORDER BY id DESC LIMIT 1").fetchone() == ("via OH2RCH-1 \u2192 OH2RCH-3",)
     for opened_ in (migrated, fresh):
@@ -681,7 +749,7 @@ def test_a_database_of_version_six_gets_the_empty_bulletin_table_and_keeps_the_r
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     assert migrated.db.execute("SELECT COUNT(*) FROM bulletin").fetchone() == (0,)
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route FROM message ORDER BY id").fetchall() == rows
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][6:] == [(7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][6:] == [(7, "_v7", GOLDEN[7]), (8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     migrated.db.execute(BULLETIN_INSERT, ("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", STAMP, LATER, 3))      # and the new table takes what the program produces
     assert migrated.db.execute("SELECT sender, slot, group_name, text, times_heard FROM bulletin").fetchall() == [("OH2XYZ", "BLN3HAMS", "HAMS", "Club net tonight", 3)]
     for opened_ in (migrated, fresh):
@@ -750,7 +818,7 @@ def test_a_database_of_version_seven_gets_the_empty_weather_table_and_keeps_the_
     assert migrated.db.execute("SELECT COUNT(*) FROM weather").fetchone() == (0,), "the migration does not make the weather: the daemon reads the packets at its start"
     assert migrated.db.execute("SELECT heard_at, direction, source, kind, summary FROM packet").fetchall() == packets
     assert migrated.db.execute("SELECT sender, slot, text FROM bulletin").fetchall() == bulletins
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][7:] == [(8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][7:] == [(8, "_v8", GOLDEN[8]), (9, "_v9", GOLDEN[9]), (10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     migrated.db.execute(WEATHER_INSERT, GOOD_WEATHER)                         # and the new table takes what the program produces
     assert migrated.db.execute("SELECT station, temp_c, luminosity FROM weather").fetchall() == [("OH2MUI", 10.0, None)]
     assert "weather_station_at" in {n for _, n, _ in shape(migrated.db)}
@@ -816,11 +884,11 @@ def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_st
     fresh = opened(tmp_path / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 9
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert migrated.db.execute("SELECT call, path, hide_after_min, updated_at FROM station_pref ORDER BY call").fetchall() == prefs and prefs
+    assert migrated.db.execute(f"SELECT call, path, hide_after_min, updated_at FROM {SAID} ORDER BY call").fetchall() == prefs and prefs
     assert migrated.db.execute("SELECT COUNT(*) FROM station_pref WHERE attempts IS NOT NULL").fetchone() == (0,)
     assert migrated.db.execute("SELECT sender, slot FROM bulletin").fetchall() == [("OH2XYZ", "BLN1")]
     assert [(r[0], r[1], r[2]) for r in migrated.history()][8:9] == [(9, "_v9", GOLDEN[9])]
-    migrated.db.execute("UPDATE station_pref SET attempts = 2 WHERE call = 'OH2BOTH'")        # and the new column takes a count
+    migrated.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('OH2BOTH', 2, ?)", (STAMP,))        # and the new column takes a count (OH2BOTH said only a path since migration 17: its row is new)
     migrated.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('EMAIL-2', 2, ?)", (STAMP,))
     assert migrated.db.execute("SELECT call, attempts FROM station_pref WHERE attempts IS NOT NULL ORDER BY call").fetchall() == [("EMAIL-2", 2), ("OH2BOTH", 2)]
     for opened_ in (migrated, fresh):
@@ -837,7 +905,7 @@ def test_a_database_of_version_eight_gets_the_attempts_column_empty_for_every_st
 def test_the_station_pref_table_refuses_attempts_the_program_cannot_produce(tmp_path: Path, row: tuple[object, ...], name: str) -> None:
     s = opened(tmp_path / DB_NAME)
     with pytest.raises(sqlite3.IntegrityError, match=name):
-        s.db.execute("INSERT INTO station_pref (call, path, hide_after_min, attempts, updated_at) VALUES (?, ?, ?, ?, ?)", row)
+        s.db.execute("INSERT INTO station_pref (call, hide_after_min, attempts, updated_at) VALUES (?1, ?3, ?4, ?5)", row)          # (the second of a row was the path, which is a table of its own since 33)
     s.close()
 
 
@@ -845,7 +913,7 @@ def test_the_station_pref_table_refuses_attempts_the_program_cannot_produce(tmp_
 def test_a_station_may_have_only_attempts(tmp_path: Path, attempts: int) -> None:
     s = opened(tmp_path / DB_NAME)
     s.db.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES ('EMAIL-2', ?, ?)", (attempts, STAMP))
-    assert s.db.execute("SELECT path, hide_after_min, attempts FROM station_pref").fetchall() == [(None, None, attempts)]
+    assert s.db.execute(f"SELECT path, hide_after_min, attempts FROM {SAID}").fetchall() == [(None, None, attempts)]
     s.close()
 
 
@@ -882,7 +950,7 @@ def test_a_database_of_version_nine_takes_unconfirmed_messages_and_keeps_every_m
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route FROM message ORDER BY id").fetchall() == rows
     assert migrated.db.execute("SELECT call, attempts FROM station_pref WHERE attempts IS NOT NULL").fetchall() == [("EMAIL-2", 2)]
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][9:] == [(10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][9:] == [(10, "_v10", GOLDEN[10]), (11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     migrated.db.execute(INSERT_MESSAGE, GOOD[:6] + ("unconfirmed",) + GOOD[7:])             # and the new table takes the state
     assert migrated.db.execute("SELECT state, attempts_max, route FROM message ORDER BY id DESC LIMIT 1").fetchone() == ("unconfirmed", 6, "")
     plan = " ".join(str(r) for r in migrated.db.execute("EXPLAIN QUERY PLAN SELECT id FROM message WHERE to_call = 'OH2RDG' AND from_call = 'OH2GBA' ORDER BY at"))
@@ -949,7 +1017,7 @@ def test_a_database_of_version_ten_gets_the_empty_attempt_and_hop_tables_and_kee
     assert {"message_attempt", "message_hop", "message_hop_message"} <= {n for _, n, _ in shape(migrated.db)}
     assert migrated.db.execute("SELECT COUNT(*) FROM message_attempt").fetchone() == (0,) and migrated.db.execute("SELECT COUNT(*) FROM message_hop").fetchone() == (0,)
     assert migrated.db.execute("SELECT id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route FROM message ORDER BY id").fetchall() == rows
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][10:] == [(11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][10:] == [(11, "_v11", GOLDEN[11]), (12, "_v12", GOLDEN[12]), (13, "_v13", GOLDEN[13]), (14, "_v14", GOLDEN[14]), (15, "_v15", GOLDEN[15]), (16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     for opened_ in (migrated, fresh):
         opened_.close()
     [copy_path] = sorted((old.parent / "backup").glob("premigrate-v10-to-v*.sqlite"))

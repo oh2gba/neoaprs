@@ -47,4 +47,8 @@ async def sql(store: Store, statement: str, *args: object) -> list[tuple[Any, ..
 
 async def keep_old_attempts(db: Db, call: str, attempts: int, path: str | None = None) -> None:
     """A row of `station_pref` as a version that let the operator choose the attempts wrote it: the station's own count, and a path when given."""
-    await db.write(lambda conn: conn.execute("INSERT INTO station_pref (call, path, attempts, updated_at) VALUES (?, ?, ?, '2026-10-01T00:00:00.000000Z')", (call, path, attempts)))
+    def keep(conn: sqlite3.Connection) -> None:
+        conn.execute("INSERT INTO station_pref (call, attempts, updated_at) VALUES (?, ?, '2026-10-01T00:00:00.000000Z')", (call, attempts))
+        if path is not None:                    # (the path is the station's on radio 1 since migration 33)
+            conn.execute("INSERT INTO station_path (call, radio_id, path, updated_at) VALUES (?, 1, ?, '2026-10-01T00:00:00.000000Z')", (call, path))
+    await db.write(keep)

@@ -20,7 +20,7 @@ from .instancelock import APP_LOCK_NAME, LOCK_NAME, AlreadyRunning, InstanceLock
 from .paths import default_data_dir
 
 LITTER = re.compile(r"^[^/]+\.sqlite\.tmp(-journal)?$")      # the temporary file of a copy, and the journal SQLite keeps beside it while it is written
-PREMIGRATION = re.compile(r"^premigrate-v\d+-to-v\d+-\d{8}-\d{6}(-\d+)?\.sqlite$")        # the copy taken before a migration (migrations.premigration_backup)
+PREMIGRATION = re.compile(r"^premigrate-v(\d+)-to-v(\d+)-\d{8}-\d{6}(-\d+)?\.sqlite$")   # the copy taken before a migration (migrations.premigration_backup), its version and the one it went to in the groups
 STAMPED = re.compile(r"^premigrate-v\d+-to-v\d+-(\d{8}-\d{6})(-\d+)?\.sqlite$")     # the same name, with the time of the migration (UTC) in the first group
 LITTER_AGE_SEC = 300                                          # a copy that is being written changes its file all the time: what has been still this long is dead
 
@@ -44,9 +44,10 @@ def sweep(folder: Path, now: float) -> list[str]:
     return removed
 
 
-def drop_older_copies(folder: Path, keep: str) -> list[str]:
-    """Removes the copies taken before earlier migrations, all but the file named `keep` (the one just made whole): the folder holds the latest. Nothing else in the folder is looked at,
-    so a copy somebody made by hand stays. Returns the names removed; a file that cannot be removed is left."""
+def drop_older_copies(folder: Path, keep: str, found: int) -> list[str]:
+    """Removes the copies taken before earlier migrations, all but the file named `keep` (the one just made whole): the folder holds the latest. A copy of a file older than `found`, the version
+    this migration found the file at, taken by a migration that went to a version above it stays too: that migration was cut short at `found`, a middle version, and its copy is the one
+    at the version the program before can open. Nothing else in the folder is looked at, so a copy somebody made by hand stays. Returns the names removed; a file that cannot be removed is left."""
     removed: list[str] = []
     try:
         names = os.listdir(folder)
@@ -55,7 +56,8 @@ def drop_older_copies(folder: Path, keep: str) -> list[str]:
     for name in sorted(names):
         path = folder / name
         try:
-            if name != keep and PREMIGRATION.match(name) and path.is_file() and not path.is_symlink():
+            match = PREMIGRATION.match(name)
+            if name != keep and match is not None and not int(match.group(1)) < found < int(match.group(2)) and path.is_file() and not path.is_symlink():
                 path.unlink()
                 removed.append(name)
         except OSError:

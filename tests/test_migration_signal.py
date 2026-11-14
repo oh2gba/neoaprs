@@ -8,10 +8,9 @@ from neoaprs import ax25
 from neoaprs.messagelog import message_of
 from neoaprs.messagesql import held_messages
 from neoaprs.migrations import SCHEMA_VERSION
-from neoaprs.packetcodec import PacketRow, packet_of, parse_stamp
-from neoaprs.packetlog import station_of, station_row
-from neoaprs.packetsql import PACKET_LIST, STATION_COLUMNS, all_stations
-from neoaprs.station import Station
+from neoaprs.packetcodec import PacketRow, packet_of
+from neoaprs.packetlog import heard_of, station_of
+from neoaprs.packetsql import PACKET_LIST, all_stations, heard_by_radio
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
@@ -31,9 +30,9 @@ def version_twenty_nine(path: Path, clock: FixedClock) -> None:
     db.execute("PRAGMA user_version = 29")
     db.execute("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, error, via, radio) VALUES (?, 'in', ?, 'Q3TKU', 'APRS', '', 'status', 'status hi', "
                "'{\"type\":\"status\",\"text\":\"hi\",\"timestamp\":null,\"locator\":null,\"frequency\":null}', NULL, 'rf', 'hf')", (STAMP, FRAME))
-    before = STATION_COLUMNS[:-3]                                                # (the columns of version 29: the last three are migration 30's)
-    row = station_row(Station("Q3TKU", first_heard=parse_stamp(STAMP), last_heard=parse_stamp(STAMP), packets=1, heard_rf=1, heard_hf=1, last_hf_at=parse_stamp(STAMP)))[:len(before)]
-    db.execute(f"INSERT INTO station ({', '.join(before)}) VALUES ({', '.join('?' * len(before))})", row)
+    db.execute("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path, heard_rf, heard_hf, last_hf_at) "          # (the columns of version 29)
+               "VALUES ('Q3TKU', 'station', '', '', '', ?, ?, '', '', 1, '', 1, 1, ?)", (STAMP, STAMP, STAMP))
+    db.execute("INSERT INTO settings (key, value) VALUES ('hf/enabled', 'true')")           # (the HF radio was on: migration 31 gives the database radio 2)
     for row in MESSAGES:
         db.execute(f"INSERT INTO message ({MESSAGE_COLUMNS}) VALUES ({', '.join('?' * len(row))})", row)
     db.close()
@@ -48,19 +47,19 @@ def migrate(folder: Path) -> sqlite3.Connection:
     fresh = opened(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 30
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][29:] == [(30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][29:] == [(30, "_v30", GOLDEN[30]), (31, "_v31", GOLDEN[31]), (32, "_v32", GOLDEN[32]), (33, "_v33", GOLDEN[33])]
     fresh.close()
     return migrated.db
 
 
 def test_every_row_is_kept_and_none_has_a_reading(tmp_path: Path) -> None:
     db = migrate(tmp_path)
-    assert db.execute(f"SELECT {MESSAGE_COLUMNS} FROM message ORDER BY id").fetchall() == MESSAGES
+    assert db.execute(f"SELECT {MESSAGE_COLUMNS} FROM message ORDER BY id").fetchall() == [(*row[:15], {"": None, "hf": 2}[row[15]], row[16]) for row in MESSAGES], "every column as it was, the radio by its id (migration 32)"
     assert db.execute("SELECT snr, rssi FROM message ORDER BY id").fetchall() == [(None, None)] * len(MESSAGES)
     assert [(r.id, r.snr, r.rssi) for r in sorted((message_of(row) for row in held_messages(db, 10)), key=lambda r: r.id)] == [(1, None, None), (2, None, None)]
     packet = packet_of(PacketRow(*db.execute(f"SELECT {PACKET_LIST} FROM packet").fetchone()))
     assert (packet.source, packet.radio, packet.snr, packet.rssi) == ("Q3TKU", "hf", None, None)
-    station = station_of(all_stations(db)[0])
+    station = station_of(all_stations(db)[0], heard={radio: heard for _, radio, heard in map(heard_of, heard_by_radio(db))})
     assert (station.call, station.heard_hf, station.snr, station.rssi, station.signal_at) == ("Q3TKU", 1, None, None, None)
     db.close()
 

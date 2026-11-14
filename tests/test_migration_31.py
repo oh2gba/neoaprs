@@ -391,14 +391,17 @@ def test_a_step_that_fails_changes_nothing(tmp_path: Path) -> None:
 
 
 def test_undo_31_takes_the_tables_out_so_that_the_step_runs_again(tmp_path: Path) -> None:
-    db = old(tmp_path, {"hf/enabled": "true"})
+    db = old(tmp_path, {"hf/enabled": "true", "beacon/path": "WIDE2-1", "mercury/keying": "rts:/dev/ttyUSB1", "beacon/last_sent_at": "2026-10-21T12:00:00.000000Z", "messages/radio_by_station": '{"OH2GAX-2": "hf"}'})
     run_31(db)
+    made = (radios(db), db.execute("SELECT * FROM radio_setting ORDER BY radio_id, key").fetchall(), settings(db))
     undo_31(db)
     assert not has_table(db, "radio") and not has_table(db, "radio_setting") and not has_table(db, "_m31")
+    assert settings(db) == {"hf/enabled": ("true", 1), "beacon/path": ("WIDE2-1", 1), "mercury/keying": ("rts:/dev/ttyUSB1", 1), "beacon/last_sent_at": ("2026-10-21T12:00:00.000000Z", 1),
+                            "messages/radio_by_station": ('{"OH2GAX-2": "hf"}', 1), "tnc/profile": ("kiss", 1), "fm/enabled": ("true", 1), "hf/profile": ("mercury", 1)}, \
+        "the radios are the flat rows again, each with its revision, their types and tickboxes written out"
     undo_31(db)                                            # (and where migration 33 dropped _m31, or nothing is there, it does nothing)
-    db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
     run_31(db)
-    assert radios(db) == [FM], "the rows of the radios it made were dropped with the tables: the settings it is run on now name no HF radio"
+    assert (radios(db), db.execute("SELECT * FROM radio_setting ORDER BY radio_id, key").fetchall(), settings(db)) == made, "the step run again makes the same radios with the same settings"
 
 
 # ---- the step is frozen, and reads nothing of the program

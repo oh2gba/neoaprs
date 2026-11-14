@@ -1,14 +1,12 @@
 """What each radio heard of a station and the path of a station on a radio (neoaprs/stationsql.py: the tables `station_radio` and `station_path` of migration 33), statement by statement on a
 connection, and what the message log makes of them (neoaprs/messagelog.py, messagesql.py): what is said of a station is its path on a radio beside RF only and the alert, each kept where it belongs,
-replaced, taken away alone, and forgotten with its path on radio 1 while its paths on other radios stay. And the one switch between the two shapes of the database the stores know (packetcodec.BY_RADIO), which is held to the list of the migrations."""
+replaced, taken away alone, and forgotten with its path on radio 1 while its paths on other radios stay."""
 import sqlite3
 from pathlib import Path
 
 import pytest
 
-from neoaprs import packetcodec
 from neoaprs.messagelog import MessageLog
-from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.packetcodec import parse_stamp
 from neoaprs.packetlog import station_row
 from neoaprs.packetsql import upsert_station
@@ -21,16 +19,14 @@ from tests.support.clock import FixedClock
 from tests.support.migrated32 import SHAPE_IDS, SHAPES, connect, shaped
 from tests.support.storedb import log_at
 
-DEFAULT = packetcodec.BY_RADIO                 # the switch as the program has it (the fixture below sets it for each test)
 STAMP = "2026-10-21T12:00:00.000000Z"
 LATER = "2026-10-21T12:30:00.000000Z"
 NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migration 33 alone
 
 
 @pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
-def shape(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> bool:
+def shape(request: pytest.FixtureRequest) -> bool:
     """The shape of the database the stores write in this test: False that of version 30, True that of migration 33 (`shaped` makes the file to match)."""
-    monkeypatch.setattr(packetcodec, "BY_RADIO", request.param)
     return bool(request.param)
 
 
@@ -42,12 +38,6 @@ def database(tmp_path: Path) -> sqlite3.Connection:
 async def opened(tmp_path: Path) -> tuple[MessageLog, FixedClock]:
     log, _, clock = await log_at(shaped(tmp_path / DB_NAME).parent, MessageLog)
     return log, clock
-
-
-def test_the_switch_of_the_shape_is_on_exactly_when_the_two_steps_are_listed() -> None:
-    """The stores write the shape of migrations 32 and 33 from the change that lists the steps on: the same change turns `packetcodec.BY_RADIO` on (and takes the parts marked "before 33" out)."""
-    listed = [step.__name__ for step in MIGRATIONS]
-    assert DEFAULT == ("_v32" in listed and "_v33" in listed) == (SCHEMA_VERSION >= 33)
 
 
 # ---- what each radio heard of a station

@@ -2,12 +2,12 @@
 
 Like the packet log (packetlog.py) this runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). `insert` is awaited (the message has its id, and is on the
 disk, when it returns); `update_state` is an append that nobody waits for, in order with everything else the thread was asked. The statements are messagesql.py's, and stationsql.py's for the paths of
-the stations by radio. The parts marked "before 33" are those of a database of version 30, in force until migrations 32 and 33 are listed (packetcodec.BY_RADIO)."""
+the stations by radio."""
 import logging
 from dataclasses import replace
 from datetime import datetime
 
-from . import packetcodec, stationsql
+from . import stationsql
 from .chain import Attempt, HopSeen
 from .clock import Clock, utcnow
 from .db import Db
@@ -16,7 +16,7 @@ from .dblog import DbLog
 from .message import FAILURES, SEALS, MessageRecord
 from .messagesql import (all_attempts, all_hops, all_keys, all_prefs, clear_chain, delete_conversation, delete_key, delete_message, delete_overheard, delete_pref, held_messages, insert_attempt, insert_hop, insert_message, recent_messages, save_key, save_pref,
                          sending_messages, update_message)
-from .packetcodec import parse_stamp, stamp, stored_radio_word
+from .packetcodec import parse_stamp, stamp
 from .pref import Alert
 from .radiotype import FM_ID, RadioId
 
@@ -32,8 +32,7 @@ def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
 def message_row(record: MessageRecord) -> Row:
     """The columns of the message table without the id, in the order of the INSERT."""
     return (stamp(record.at), record.direction, record.from_call, record.to_call, record.text, record.msg_id, record.state, record.attempts,
-            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire,
-            record.radio_id if packetcodec.BY_RADIO else record.radio, record.failure, record.snr, record.rssi)        # (before 33 the row holds the word)
+            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio_id, record.failure, record.snr, record.rssi)
 
 
 def message_of(row: Row) -> MessageRecord:
@@ -44,14 +43,14 @@ def message_of(row: Row) -> MessageRecord:
     if failure is not None and failure not in FAILURES:
         raise ValueError(f"failure {failure!r}")
     return MessageRecord(int(number), parse_stamp(str(at)), direction, str(from_call), str(to_call), str(text), None if msg_id is None else str(msg_id), state, int(attempts),
-                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=stored_radio_word(radio), failure=failure,
+                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio_id=None if radio is None else int(radio), failure=failure,
                          snr=None if snr is None else float(snr), rssi=None if rssi is None else float(rssi))
 
 
 def attempt_of(row: Row) -> tuple[int, Attempt]:
     """(the id of the message, the attempt without the hops heard) from a row of `message_attempt`. Raises ValueError (or TypeError) for a row this program did not write."""
     number, attempt, sent_at, path, radio = row
-    return int(number), Attempt(int(attempt), parse_stamp(str(sent_at)), tuple(p for p in str(path).split(",") if p), radio=stored_radio_word(radio))
+    return int(number), Attempt(int(attempt), parse_stamp(str(sent_at)), tuple(p for p in str(path).split(",") if p), radio_id=None if radio is None else int(radio))
 
 
 class MessageLog(DbLog):
@@ -86,8 +85,7 @@ class MessageLog(DbLog):
     # ---- the delivery chain (neoaprs/chain.py): each attempt of a message and the hops heard back
     def add_attempt(self, number: int, attempt: Attempt) -> bool:
         """Keeps an attempt as it was sent; False when it could not be queued."""
-        radio = attempt.radio_id if packetcodec.BY_RADIO else attempt.radio             # (before 33 the row holds the word)
-        return self._append(lambda conn: insert_attempt(conn, number, attempt.number, stamp(attempt.sent_at), ",".join(attempt.path), radio))
+        return self._append(lambda conn: insert_attempt(conn, number, attempt.number, stamp(attempt.sent_at), ",".join(attempt.path), attempt.radio_id))
 
     def add_hop(self, number: int, attempt: int, seen: HopSeen) -> bool:
         """Keeps a hop that was heard back (the first time it was heard stays); False when it could not be queued."""
@@ -165,7 +163,7 @@ class MessageLog(DbLog):
         radios stay (`forget_path`). False when the database would not take it."""
         return await self._done(lambda conn: delete_pref(conn, call), "a station preference could not be removed")
 
-    # ---- the paths of the stations, by radio (the table station_path; there is none before migration 33)
+    # ---- the paths of the stations, by radio (the table station_path)
     async def paths(self) -> dict[str, dict[RadioId, str]]:
         """Every path the operator gave a station on a radio: call to (radio to the path, digipeater calls separated by commas, empty for direct)."""
         rows: list[Row] = await self._read(stationsql.station_paths, [])

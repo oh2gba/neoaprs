@@ -165,6 +165,7 @@ extend-include = [
     "scripts/mercury-bench",
     "scripts/mercury-measure",
     "scripts/mercury-sim",
+    "scripts/migration-size",
     "scripts/release",
     "scripts/security-check",
     "scripts/security-tools",

@@ -2,7 +2,7 @@
 MIGRATIONS below), one after the other; a file from
 a newer NeoAPRS than this one is refused, not damaged. Before the first migration step that is going to run on a file that holds anything, the file is copied whole into backup/ next to it
 (premigrate-v<from>-to-v<to>-<time>.sqlite; the copies of the migrations before are removed once this whole migration has succeeded, so the folder holds the latest only: a migration that
-fails, or is cut short, leaves every copy, and the one at the old version among them); if that copy cannot be made, or the disk has no room for it, nothing is migrated. Every step that ran is written to the table
+fails, or is cut short, leaves every copy, and the one at the old version among them, which the next migration that gets through keeps too); if that copy cannot be made, or the disk has no room for it, nothing is migrated. Every step that ran is written to the table
 schema_history (version, name, a checksum of the function's source, the time). A migration that has been applied is never edited: a change is a new migration (the checksum of the
 source of each step is pinned by tests/test_migrations.py; the steps keep the names and the annotations they were written with, which is why they name sqlite3 and not dberror.py's aliases).
 
@@ -24,6 +24,8 @@ from .migrationlog import log
 from .migrationsteps12to21 import _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21
 from .migrationsteps1to11 import _v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11
 from .migrationsteps22on import _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30
+from .migrationsteps31 import _v31
+from .migrationsteps32 import _v32, _v33
 
 
 def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
@@ -35,9 +37,10 @@ def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
 
 
 # one function per version, in order: version N is reached by running MIGRATIONS[N - 1] on version N - 1
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11, _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21, _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30, _v31, _v32, _v33]
 SCHEMA_VERSION = len(MIGRATIONS)
 MIB = 1024 * 1024
+REWRITE_BELOW = 32                                   # a file below this version has migration 32 before it, which writes the packet table again where it lies: until that step is committed the write-ahead log holds the table once more (0.92 of a gigabyte's file, measured)
 COPY_MARGIN_BYTES = 8 * MIB                          # what the disk needs beyond the size of the database for its copy (the journal of the copy, the folder's entry)
 
 
@@ -72,7 +75,7 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
             if _step(db, number, clock) and version:
                 log.info("the database %s is now version %d (was %d)", path, number, number - 1)
         if copy is not None:
-            drop_older_copies(copy.parent, copy.name)        # (only now, every step in: a migration cut short at a middle version would otherwise have taken the one copy at the old version with it)
+            drop_older_copies(copy.parent, copy.name, version)        # (only now, every step in: a migration cut short at a middle version would otherwise have taken the one copy at the old version with it)
         for problem in _history_problems(db):
             log.warning("%s: %s", path, problem)
     except sqlite3.Error as e:
@@ -130,21 +133,22 @@ def premigration_backup(db: sqlite3.Connection, path: Path, version: int, clock:
         dest = folder / f"{stem}-{n}.sqlite"
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        _require_room(db, folder)
+        _require_room(db, folder, version)
         _copy_database(db, dest)
     except (sqlite3.Error, OSError) as e:
         raise StoreError(f"the copy of the database before the migration could not be made ({e}); nothing was changed") from e
     return dest
 
 
-def _require_room(db: sqlite3.Connection, folder: Path) -> None:
-    """Raises StoreError when `folder`'s disk has less free than the copy needs (the database's size and a margin), naming what to free."""
+def _require_room(db: sqlite3.Connection, folder: Path, version: int = SCHEMA_VERSION) -> None:
+    """Raises StoreError when `folder`'s disk has less free than the migration from `version` needs, naming what to free: the copy (the database's size and a margin), and the database's size once more
+    for a file that migration 32 has yet to rewrite (its write-ahead log; the log lies beside the database and the copy in backup/ under it, one disk)."""
     size = int(db.execute("PRAGMA page_count").fetchone()[0]) * int(db.execute("PRAGMA page_size").fetchone()[0])
-    need = size + COPY_MARGIN_BYTES
+    need = size * (2 if version < REWRITE_BELOW else 1) + COPY_MARGIN_BYTES
     free = shutil.disk_usage(folder).free
     if free < need:
         short = (need - free + MIB - 1) // MIB
-        raise StoreError(f"the disk of {folder} has {free // MIB} MB free and the copy of the database before the migration needs {need // MIB} MB; free at least {short} MB there "
+        raise StoreError(f"the disk of {folder} has {free // MIB} MB free and the migration needs {need // MIB} MB there for the copy of the database it makes first and for the database's log while it runs; free at least {short} MB there "
                          f"(the copies in backup/ that are not wanted any more can go) and start again; nothing was changed")
 
 

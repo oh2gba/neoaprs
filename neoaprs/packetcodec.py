@@ -12,18 +12,11 @@ from . import ax25
 from .aprsthirdparty import header_of
 from .aprstelemetry import Telemetry
 from .packet import DUMMY, IS, Decoded, ItemReport, Message, ObjectReport, Other, Packet, Position, Status, Undecoded, channel_of, via_of
-from .radiotype import FM_ID, HF_ID, RadioId
 
 STAMP_FORM = "%Y-%m-%dT%H:%M:%S.%fZ"
 _BY_KIND: dict[str, type] = {"position": Position, "message": Message, "object": ObjectReport, "item": ItemReport, "status": Status, "other": Other, "undecoded": Undecoded}
 KINDS = tuple(_BY_KIND)                                      # the kinds of a packet (the column `kind`)
 _TYPES: dict[str, type] = {**_BY_KIND, "telemetry": Telemetry}      # the `type` of the JSON of a decoded packet: a telemetry report is a packet of kind "other" and has a type of its own
-_WORDS: dict[RadioId, str] = {FM_ID: "fm", HF_ID: "hf"}             # the word the values hold for a radio (Packet.radio, MessageRecord.radio, Attempt.radio) until they hold its id
-
-# Which shape the database of this program has: that of migrations 32 and 33 (a row names its radio by the id of the table `radio`, what each radio heard of a station and the stations' paths by radio are
-# tables of their own, an object names its radios by their ids), or that of version 30 (the words fm and hf). It becomes True in the change that lists the two steps in migrations.MIGRATIONS, and with it
-# the parts of the stores marked "before 33" go (packetsql.py, packetlog.py, messagesql.py, messagelog.py, ownsql.py, ownlog.py and here): tests/test_stationsql.py holds the two together.
-BY_RADIO = False
 
 
 class PacketRow(NamedTuple):
@@ -53,20 +46,6 @@ def stamp(t: datetime) -> str:
 
 def parse_stamp(text: str) -> datetime:
     return datetime.strptime(text, STAMP_FORM).replace(tzinfo=UTC)
-
-
-def stored_radio_word(stored: object) -> str:
-    """The radio of a row (a packet's, a message's, an attempt's) as the word the values hold: `fm` for radio 1, `hf` for radio 2, "" for none (null). A row of a database before migration 32 holds the word
-    itself. Raises ValueError for anything else: a radio beyond the two cannot be held in a word (the values hold the id from the day they have it as a field)."""
-    if stored is None or stored == "":
-        return ""
-    if isinstance(stored, str):
-        if stored not in _WORDS.values():
-            raise ValueError(f"radio {stored!r} of a row is no radio")
-        return stored
-    if isinstance(stored, int) and stored in _WORDS:
-        return _WORDS[stored]
-    raise ValueError(f"radio {stored!r} of a row cannot be held as fm or hf")
 
 
 def _plain(value: Any) -> Any:
@@ -127,7 +106,7 @@ def packet_row(packet: Packet) -> PacketRow:
     decoded = packet.decoded
     error = decoded.error if isinstance(decoded, Undecoded) else None
     return PacketRow(stamp(packet.heard_at), packet.direction, packet.raw, packet.source, packet.destination, ",".join(packet.path), packet.kind, packet.summary,
-                     encode_decoded(decoded), error, packet.via, packet.radio_id if BY_RADIO else packet.radio, packet.snr, packet.rssi)          # (before 33 the row holds the word)
+                     encode_decoded(decoded), error, packet.via, packet.radio_id, packet.snr, packet.rssi)
 
 
 def info_of(raw: bytes, via: str) -> bytes:
@@ -146,5 +125,5 @@ def packet_of(row: PacketRow) -> Packet:
     opened = header_of(info)                  # (the header of a third-party packet is in the information field; `decoded` holds what is inside it)
     via = channel_of(None if opened is None else opened[0], row.via == IS, row.via == DUMMY)
     return Packet(heard_at=parse_stamp(row.heard_at), direction=direction, raw=bytes(row.raw), source=row.source, destination=row.destination,
-                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via, radio=stored_radio_word(row.radio),
+                  path=tuple(row.path.split(",")) if row.path else (), info=info, decoded=decode_decoded(row.decoded), third_party=None if opened is None else opened[0], via=via, radio_id=None if row.radio is None else int(row.radio),
                   snr=None if row.snr is None else float(row.snr), rssi=None if row.rssi is None else float(row.rssi))
