@@ -332,8 +332,14 @@ async def test_the_place_the_setup_sends_makes_the_map_round_it_and_the_page_is_
     await e.settled()
     assert server.cuts == 1, "the map covers the place"
     await page.send({"cmd": "set_config", "values": {"station/lat": "48.85", "station/lon": "2.35"}})
-    await page.until(lambda: server.cuts == 2 and page.topics["map"]["state"] == "ready", 10)
-    assert read_header(tmp_path / "basemap.pmtiles").bbox == pytest.approx(box_around(48.85, 2.35, 150), abs=1e-5), "another town: made again"     # type: ignore[union-attr]
+    paris = pytest.approx(box_around(48.85, 2.35, 150), abs=1e-5)
+
+    def made_again() -> bool:
+        # (the state is still "ready" from the first map until the page hears of the second job, and the second cut is counted when it begins: the new file is what says it is over)
+        header = read_header(tmp_path / "basemap.pmtiles")
+        return server.cuts == 2 and page.topics["map"]["state"] == "ready" and header is not None and header.bbox == paris
+    await page.until(made_again, 10)
+    assert read_header(tmp_path / "basemap.pmtiles").bbox == paris, "another town: made again"     # type: ignore[union-attr]
 
 
 async def test_the_map_wanted_without_a_place_is_nothing_and_no_error(tmp_path: Path) -> None:
