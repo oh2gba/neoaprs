@@ -185,7 +185,7 @@ def test_every_step_script_sets_the_environment_runs_in_the_tree_and_ends_with_t
     paths = script.windows_paths("John", "RUN-1")
     for step in script.steps(paths):
         text = script.step_script(paths, step)
-        for name, value in (("NEOAPRS_NO_DEVICES", "1"), ("NEOAPRS_UPDATE_CHECK", "0"), ("UV_PYTHON_PREFERENCE", "only-managed")):
+        for name, value in (("NEOAPRS_NO_DEVICES", "1"), ("NEOAPRS_UPDATE_CHECK", "0"), ("UV_PYTHON_PREFERENCE", "only-managed"), ("UV_PYTHON", script.PYTHON)):
             assert f"$env:{name} = '{value}'" in text, (step.name, name)
         assert f"Set-Location -LiteralPath '{paths.tree}'" in text
         assert text.count("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }") == len(step.commands)
@@ -866,3 +866,9 @@ def test_a_tree_that_is_no_repository_is_said_before_the_machine_is_asked_for_an
     shutil.rmtree(tree / ".git")
     done = run_check(tree, bench)
     assert done.returncode == 2 and "nothing was run" in done.stderr and bench.vbox_calls() == [] and bench.ssh_calls() == []
+
+
+def test_the_python_of_the_steps_is_the_one_the_workflow_names(script: ModuleType) -> None:
+    """Left to uv, a clean machine takes the newest Python the project allows; the workflow names one, and the Windows check runs that one."""
+    named = set(re.findall(r'python-version: "([0-9.]+)"', WORKFLOW))
+    assert named == {script.PYTHON}, "ci.yml names one Python, and scripts/check-windows runs its steps on it"

@@ -264,6 +264,8 @@ async def test_the_operators_cancel_settles_it_the_next_start_does_not_try_again
     again.auto.wanted()                                                     # the guide run again
     await until(lambda: again.server.cuts == 2, 5)
     await again.row("wanted")
+    await again.auto.stop()                                                 # (that daemon ends before the next one has the data folder: its cut is held by the server, and on
+    await again.fetch.stop()                                                # Windows a second job cannot delete the part file that the first still has open)
     stopped = make()
     stopped.hold()
     await stopped.auto.start()

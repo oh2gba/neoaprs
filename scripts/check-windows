@@ -23,7 +23,7 @@ The tree goes over as it is on disk, packed by scripts/check-in-container (its f
 file of access tokens, `.secrets` and what follows, on this computer). The tar is copied with scp and unpacked by Windows's own tar.exe into C:\\Users\\USER\\neoaprs-check\\RUN-<UTC time>\\neoaprs; the folders
 of older runs are removed but the newest two. Where the machine has git, the tree there is a repository of one commit made of the tracked files, as the container does it (the tests ask git which files
 are tracked); where it has none, those tests fail on it, as they do on a runner without git. uv lives in C:\\Users\\USER\\neotest\\uv: when that is not the pinned version (UV below, with its SHA-256, as
-scripts/security-tools pins a program) the zip is fetched once into the build cache, checked and copied over. The Python that uv needs it fetches itself (UV_PYTHON_PREFERENCE=only-managed).
+scripts/security-tools pins a program) the zip is fetched once into the build cache, checked and copied over. The Python that uv needs it fetches itself (UV_PYTHON_PREFERENCE=only-managed), of the version the workflow names (UV_PYTHON).
 
 The steps are the CI's commands in the order of ci.yml, as the job `python` runs them on Windows (UV_FROZEN=1, which the lock step takes away as the workflow's `env -u` does) and the job `smoke` (the
 wheel built, a fresh environment, the wheel installed there, scripts/smoke.py with the installed command), written in PowerShell. Every step runs with NEOAPRS_NO_DEVICES=1, NEOAPRS_UPDATE_CHECK=0 and
@@ -87,7 +87,10 @@ UV = Pin("0.11.26", "https://github.com/astral-sh/uv/releases/download/0.11.26/u
          "4e1278ede866be6c0bf32d2f466cc6de7a9fb399ecf20c9ce2d186e52424be47", "uv-x86_64-pc-windows-msvc.zip")
 
 VARIABLES = ("NEOAPRS_WINVM_SSH_PORT", "NEOAPRS_WINVM_SSH_KEY", "NEOAPRS_WINVM_KNOWN_HOSTS")
-STEP_ENVIRONMENT = {"NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "UV_PYTHON_PREFERENCE": "only-managed"}
+# The Python of the steps is the one the workflow names (setup-uv's `python-version`, which it hands to uv as UV_PYTHON): left to uv, a clean machine gets the newest Python the project allows, which is
+# not what GitHub runs (seen on 14 November 2026: 3.14 on the clean machine, 3.13 in the workflow). tests/test_check_windows.py holds it to ci.yml.
+PYTHON = "3.13"
+STEP_ENVIRONMENT = {"NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "UV_PYTHON_PREFERENCE": "only-managed", "UV_PYTHON": PYTHON}
 NEEDS_THE_ENVIRONMENT = ("ruff", "pytest")             # the steps that run in the .venv that sync makes
 
 
