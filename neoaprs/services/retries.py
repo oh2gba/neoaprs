@@ -38,7 +38,7 @@ class Host(Protocol):
 class Retries:
     def __init__(self, host: Host, radios: RadioPick | Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float], first: Callable[[], None] | None = None) -> None:
         self._host = host
-        self._given = radios                                     # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each tick)
+        self._given = radios                                     # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each tick)
         self._config = config
         self._interlock = interlock
         self._clock = clock

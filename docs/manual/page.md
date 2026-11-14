@@ -29,9 +29,9 @@ The page has a **map** of the area round your station and, at its right, a **pan
 The table has the symbol, the call, the distance from you, the bearing as a small arrow with north up ("NE, 47°" is its hover text) and **Last heard**, the newest time of anything the station sent, with the full time as hover text. Every row is one line high and the table fills the panel, as every tab does; the column of the tags takes the free width and the others fit what they hold, so that the tags start at one place. The Nearby tab's lists have the same columns.
 
 - The columns Call, km and Last heard sort on a click. Your own station is on top.
-- A small green check mark right after a call means the station was heard direct ("Heard direct", also on its card).
+- A small check mark right after a call means the station was heard direct ("Heard direct", also on its card).
 - In a column of its own after the call, as a small quiet tag, is how the station was heard: **RF** (on the radio, direct or by digipeaters), **iGate** (on the radio, from an iGate that took it from the internet), **Internet** (received over the internet, not on the radio) or two joined, such as **RF · Internet** for a station heard both ways. **Dummy** is a station made up by the Dummy radio.
-- With the [HF radio](radio.md#the-mercury-hf-modem) on, a station heard over it has the tag **HF** (hover text: "Heard on the HF radio"), and the tag of the FM radio says **FM** in place of RF; a station heard on both has both, "FM · HF". Every HF packet is direct, so such a station has the green check. A radio is named only where there are two: with the HF radio off every tag is as above.
+- With the [HF radio](radio.md#the-mercury-hf-modem) on, a station heard over it has the tag **HF** (hover text: "Heard on the HF radio"), and the tag of the FM radio says **FM** in place of RF; a station heard on both has both, "FM · HF". Every HF packet is direct, so such a station has the check. A radio is named only where there are two: with the HF radio off every tag is as above.
 - An object that came as an answer to Local info has the tag **Local info** too; the station that sent it is in its hover text. Your own station and your own objects have none. Hover text says what the word means. A station known from the internet alone has its label in italics.
 - The filters are in a group box, **Filter**: the filter field, up to three tickboxes and a choice that wrap onto a second line: "hide timed out", "direct only" (stations heard direct at some time), "heard on RF only" (leaves out the stations known only from the internet; it is there once a station has been received over it, and off until you tick it) and **On map for** (1, 3, 6, 12 or 24 hours, [below](#the-map)).
 - The tickboxes are remembered by your browser; the hours are a setting of the daemon. A station heard on the radio as well as over the internet stays when "heard on RF only" is ticked, and so does one heard on the HF radio: RF there means on the air.
@@ -51,7 +51,7 @@ The table has the symbol, the call, the distance from you, the bearing as a smal
 The panel is fixed at the bottom of the tab, as the box to write in is on the Bulletins and Email tabs, with the station's call as its title and a cross at its right that closes it (Esc anywhere in it too, and the focus goes back to the row). It takes half the tab whichever station it shows, and what does not fit scrolls inside it, so the list above keeps its place. It has, in this order:
 
 - **Message** and the questions to the station, **Ask for position**, **Ask for status**, **Ask what it hears direct** and **Trace the route** (the directed queries `?APRSP`, `?APRSS`, `?APRSD` and `?APRST` of the APRS specification), and for a weather station **Ask for weather** (`?WX?`, a general query in the specification; its hover text says many stations do not answer it by name). They are there only for a station a message can go to. A toast says "Asked OH2XYZ for its status" and the conversation with the station gets a grey line, "You asked for its status".
-- Under them a box for a question of your own, such as `?APRSH OH2GBA-15` or `?PING?`, and **Ask**; its hover text names the other directed queries (`?APRSO`, `?APRSM`, `?APRSH`, `?PING?`). It begins with `?`, is plain ASCII without `|`, `~` or `{` and at most 67 characters, and goes in capitals; a text that is not one has a red edge, says why in its hover text, and Ask stays off.
+- Under them a box for a question of your own, such as `?APRSH OH2GBA-15` or `?PING?`, and **Ask**; its hover text names the other directed queries (`?APRSO`, `?APRSM`, `?APRSH`, `?PING?`). It begins with `?`, is plain ASCII without `|`, `~` or `{` and at most 67 characters, and goes in capitals; a text that is not one has an orange edge, says why in its hover text, and Ask stays off.
 - A question is sent once, with no message number, and is never repeated. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
 - **Show on map** (or **Open its card**), **Copy call**, the **QRZ page** and, at the end of the line, **Forget**, which asks twice like the trash can ("Really forget?").
 - **Traffic**: the station's packets and the messages you sent it, newest first, the latest 50, as the Packets tab shows packets (the same columns, the same block for each packet in a narrow panel, the same facts under a packet you click, and the packet's SNR after its summary where the radio measured one). They reach back past what the Packets tab holds, and new ones come in as they are heard. While Internet stations is off none from the internet is listed.
@@ -65,7 +65,7 @@ Your own station has Show, Copy call and the QRZ page, an object or an item of y
 **Alert me when…** is in the station panel ([above](#the-station-panel)), for that station; each choice is saved as it is ticked or cleared. Tick any of three:
 
 - **comes on the air**: a packet of it is heard after it was silent for 30 minutes or more, or for the first time.
-- **comes within N km of me** (10 km to start with, 1 to 1000; a distance outside that has a red edge and is not saved): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.
+- **comes within N km of me** (10 km to start with, 1 to 1000; a distance outside that has an orange edge and is not saved): its position comes from farther to that near. It needs your position, and the box says so when there is none. A station that is near already when you set it is told only after it has been outside and comes in again. It is outside again only a little beyond N km (a tenth more, at least 0.5 km), so a station whose positions wander on the edge is not told again and again.
 - **is heard direct**: a packet of it is heard with no digipeater after none was for 30 minutes or more.
 
 Each is told once each time it happens, not for every packet. A packet over the internet counts only while Internet stations are on. Untick all three to take the alert away.
@@ -94,7 +94,7 @@ The tab has no count on it: nothing in it is waiting to be seen.
 
 The first box of the tab asks the stations in radio range to make themselves known, with one of the general queries of APRS: **Who is around** (`?APRS?`: the stations answer with their position, and their status if they have one), **iGates** (`?IGATE?`: the iGates answer with what they do) or **Weather stations** (`?WX?`: they answer with their weather). The query is in the hover text of each choice. **Ask** sends it once, by radio. The answers are ordinary packets: they arrive on the map, in the Stations tab and in the lists of this tab.
 
-- Under Ask, closed, is **Advanced** (there while the FM radio is on): the **Path** the query goes by and **RF only**. An empty path is your beacon's path, shown in the field. A path is calls or aliases separated by commas, as a station's own path is in Messages: `WIDE1-1,WIDE2-1`, or an explicit `OH2RDK-7,OH2RCH-2` for a station that reaches the network only through a fill-in digipeater that relays it when it is named, or `DIRECT` for none. A wrong path is red, with the reason in its hover text. The button beside the field opens the [path builder](messages.md#the-path-builder).
+- Under Ask, closed, is **Advanced** (there while the FM radio is on): the **Path** the query goes by and **RF only**. An empty path is your beacon's path, shown in the field. A path is calls or aliases separated by commas, as a station's own path is in Messages: `WIDE1-1,WIDE2-1`, or an explicit `OH2RDK-7,OH2RCH-2` for a station that reaches the network only through a fill-in digipeater that relays it when it is named, or `DIRECT` for none. A wrong path is orange, with the reason in its hover text. The button beside the field opens the [path builder](messages.md#the-path-builder).
 - **RF only**, ticked unless you untick it, puts `RFONLY` after the path, so that the iGates keep the query off the internet. The browser remembers the query, the path and RF only.
 - Nothing is sent while **RX only** is ticked or your call is not set, or while the path is wrong; one query of each kind goes on the air per minute. Ask is off then, and its hover text says why; a query the daemon refuses says why under it.
 - Under it, two quiet lines say what was asked, when and by what path ("Asked who is around at 18:05 by OH2RDK-7,OH2RCH-2; answers arrive on the map and in Stations"), and how many stations were heard on the radio in the two minutes after the query that had not been heard in the ten minutes before it. Their calls are in its hover text. Most of them are answers, but a station cannot be told to answer: one whose own beacon fell in those two minutes counts too, and the answer of a station heard a minute before the query does not. NeoAPRS forgets the queries when it stops.
@@ -191,7 +191,7 @@ A right-click on the card (a long press on a touch screen) opens its menu: **Spe
 A click on a marker opens a card over the map. It is above the markers, clear of the map's zoom buttons, and the map moves so that the station's marker is not under it. It has the facts a person asks for:
 
 - the symbol's picture and name, and a small QRZ link beside the call (the base call's page on qrz.com, the SSID off, in a new tab; for a station, yours included, not for an object or an item);
-- a green check mark beside the call when the station was heard direct;
+- a check mark beside the call when the station was heard direct;
 - when the station was last heard ("6 min ago", the full time on hover);
 - the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a KISS TNC none), the full time on hover; a station with no such reading has no row;
 - its position, how far and in which direction it is from you;
@@ -254,17 +254,17 @@ A click on a marker or on a row of the Stations table opens that station's card 
 
 The **header** is one calm line. It holds the title **NeoAPRS**, a link to the project page (https://neo.oh2gba.eu/, in a new tab; it looks like the title, with an underline on hover), and at its right the number of messages not seen as a small badge with an envelope. That is the messages and the gateway's mail not seen, one count that the handle of the folded panel and the title of the browser tab have too. A click opens the Messages tab, or the Email tab when all of them are the gateway's.
 
-While no call is set an amber **no call set** button is beside the title, which opens the setup guide.
+While no call is set a lime **no call set** button is beside the title, which opens the setup guide.
 
 At the right, before the count of messages, are small marks that say how things stand. Each has a hover text, and all but **Server** open the place where they are set:
 
 - **Update** (blue) while a newer version is out;
-- **Server** (green, amber while the page connects, red when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
-- **Radio**, always: green while the radio is connected, grey and dashed for the Dummy radio, amber with the state in words otherwise. It opens Settings → Radio. A station with the HF radio alone has the same mark for it;
+- **Server** (mint, lime while the page connects, orange when NeoAPRS does not answer), in a browser only. In the desktop app page and daemon are one, so it is not there. The page connects again by itself;
+- **Radio**, always: mint while the radio is connected, grey and dashed for the Dummy radio, lime with the state in words otherwise. It opens Settings → Radio. A station with the HF radio alone has the same mark for it;
 - **FM radio** and **HF radio** in place of that one mark while both radios are on, with the same colours and words, each leading to its own box in Settings → Radio;
-- **RX only** (amber) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
+- **RX only** (lime) while Settings → Radio → RX only is ticked ([beacon.md](beacon.md#rx-only));
 - **Beacon off** (grey) while the Beacon choice is Off and the station transmits ([beacon.md](beacon.md#beacon-off));
-- **GPS**, only when a GPS is the position source: green with a fix, amber without;
+- **GPS**, only when a GPS is the position source: mint with a fix, lime without;
 - **Internet** (blue) while Settings → Internet stations is enabled and connected ([igate.md](igate.md)).
 
 On a narrow screen the marks give way, the last first, and the count stays. Your call is not in the header; it is in the Settings tab and in every message you send.

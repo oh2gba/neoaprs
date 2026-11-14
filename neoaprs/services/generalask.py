@@ -61,7 +61,7 @@ class GeneralAsked:
 
 class GeneralAsk:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, book: Stations, clock: Clock = utcnow) -> None:
-        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it): a query goes on the main radio
+        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's): a query goes on the main radio
         self._config = config
         self._book = book
         self.clock = clock

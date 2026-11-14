@@ -164,7 +164,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.peak": "ピーク {value} dBFS",
   "settings.txlevel.tip_label": "送信レベルについて",
   "settings.txlevel.tip1": "モデムの音声が無線機へ入る強さ（dB）です。チューンを押して無線機のALCを見てください。ほとんど動かないのが理想です。",
-  "settings.txlevel.tip2": "ピークは0 dBFSで赤になり、サウンドカードが飽和します。",
+  "settings.txlevel.tip2": "ピークは0 dBFSでオレンジ色になり、サウンドカードが飽和します。",
   "settings.tune": "チューン",
   "settings.tune_stop": "停止",
   "settings.tune.label": "チューン音",

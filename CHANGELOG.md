@@ -13,6 +13,7 @@
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
 - **Changed:** the recommended path of a fixed station is WIDE2-2.
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
+- **Changed:** the page has the colours and shapes of the project's site, in the light and the dark theme.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
 - **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.

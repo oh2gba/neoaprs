@@ -161,7 +161,7 @@ describe("SkedCompose", () => {
   });
 
   describe("the note", () => {
-    it("counts the characters it has left, in red when it is too long, and Post is off then", async () => {
+    it("counts the characters it has left, in orange when it is too long, and Post is off then", async () => {
       const wrapper = form();
       expect(wrapper.find(".compose-left").text()).toBe("80 left");
       await wrapper.find("#sked-note").setValue("Mercury, 10 W");

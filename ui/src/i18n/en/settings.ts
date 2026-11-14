@@ -162,7 +162,7 @@ export const settings = {
   "settings.txlevel.peak": "Peak {value} dBFS",
   "settings.txlevel.tip_label": "About the transmit level",
   "settings.txlevel.tip1": "How strong the modem's audio is to the radio, in dB. Press Tune and watch the radio's ALC: it should hardly move.",
-  "settings.txlevel.tip2": "The peak turns red at 0 dBFS, where the sound card clips.",
+  "settings.txlevel.tip2": "The peak turns orange at 0 dBFS, where the sound card clips.",
   "settings.tune": "Tune",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tuning tone",

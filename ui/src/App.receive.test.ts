@@ -27,7 +27,7 @@ describe("App: RX only", () => {
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { [KEY]: "false" } }); // (ticked: RX only, which is station/transmit false)
   });
 
-  it("shows the amber RX only mark after the Daemon and Radio marks, in place of the old badge, while transmitting is off, and none while it is on", async () => {
+  it("shows the RX only mark on the warn plate after the Daemon and Radio marks, in place of the old badge, while transmitting is off, and none while it is on", async () => {
     const { wrapper, socket } = await open();
     expect(wrapper.find(".appheader .rxonly").exists()).toBe(false);
     await say(socket, 1, { [KEY]: "false" });
@@ -75,7 +75,7 @@ describe("App: RX only", () => {
     }
   });
 
-  it("has the Internet mark while the Internet group is connected, and the GPS mark green with a fix and amber without, all before the count", async () => {
+  it("has the Internet mark while the Internet group is connected, and the GPS mark mint with a fix and on the warn plate without, all before the count", async () => {
     const { wrapper, socket } = await open();
     socket.say({ type: "state", topic: "igate", rev: 1, value: igateState() });
     await say(socket, 1, { "gps/source": "gpsd" });

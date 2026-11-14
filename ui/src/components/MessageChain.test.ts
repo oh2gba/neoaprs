@@ -28,7 +28,7 @@ describe("MessageChain", () => {
     expect(wrapper.findAll(".chip-hop").map((c) => c.attributes("data-kind"))).toEqual(["you", "heard", "unheard", "waiting"]);
   });
 
-  it("gives a hop that was heard a check, the green class and the time, and one that was not the title that says why", () => {
+  it("gives a hop that was heard a check, the heard class and the time, and one that was not the title that says why", () => {
     const row = message(1, {
       attempts_detail: [attempt("2026-10-22T12:00:00Z", [hop("OH2RCH-2", { heard: true, heard_at: "2026-10-22T12:00:05Z" }), hop("OH2RDG"), hop("OH2XYZ")])],
     });
@@ -40,7 +40,7 @@ describe("MessageChain", () => {
     expect(items[3]?.attributes("title")).toBe("not heard");
   });
 
-  it("shows a hop seen only over the internet as internet, and the recipient green on the ack and red on failure", () => {
+  it("shows a hop seen only over the internet as internet, and the recipient plain on the ack and orange on failure", () => {
     const seen = [hop("OH2RDG", { by_internet: true, heard_at: "2026-10-22T12:00:05Z" })];
     const internet = show(message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", seen)] })).findAll(".chip-hop");
     expect([internet[1]?.classes(), internet[1]?.text()]).toEqual([expect.arrayContaining(["hop-internet"]), "→OH2RDGinternet"]);

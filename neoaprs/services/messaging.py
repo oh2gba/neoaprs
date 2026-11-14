@@ -103,7 +103,7 @@ class Messaging:
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
                  qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
-        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each call)
+        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each call)
         self.keyring = keyring                                  # the keys of encrypted messages (services/keyring.py); None where there are none (some tests)
         self._config = config
         interlock = Interlock(config)

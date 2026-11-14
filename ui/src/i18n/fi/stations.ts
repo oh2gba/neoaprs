@@ -109,7 +109,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter_title": "Kutsu, symboli, kommentti, polku",
   "station.table.about_label": "Tietoa asemista",
   "station.table.about1": "Kaikki kuullut asemat etäisyyksineen ja suuntineen. Napsauta asemaa löytääksesi sen kartalta.",
-  "station.table.about2": "Vihreä valintamerkki kutsun perässä tarkoittaa suoraan, ilman digipeateria kuultua asemaa.",
+  "station.table.about2": "Valintamerkki kutsun perässä tarkoittaa suoraan, ilman digipeateria kuultua asemaa.",
   "station.table.filter_label": "Suodata asemat",
   "station.table.hide_timed_out": "piilota vanhentuneet",
   "station.table.direct_only": "vain suorat",

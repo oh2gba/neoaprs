@@ -166,7 +166,7 @@ def test_the_splash_is_the_size_at_the_dpi_in_the_middle_of_the_work_area_on_the
     assert splash.place((0, 0, 1366, 728), 96) == (503, 304, 360, 120)
     assert splash.place((0, 0, 2560, 1400), 144) == (1010, 610, 540, 180), "150 %"
     assert splash.place((-1920, 40, 0, 1080), 96) == (-1140, 500, 360, 120), "a work area that does not start at 0"
-    assert splash.colorref(loading.BACKGROUND[True]) == 0x1A1714 and splash.colorref(loading.TEXT[True]) == 0xE8E6E3
+    assert splash.colorref(loading.BACKGROUND[True]) == 0x2C1F0E and splash.colorref(loading.TEXT[True]) == 0xFFFFFF
 
 
 # ---- where the app takes it away

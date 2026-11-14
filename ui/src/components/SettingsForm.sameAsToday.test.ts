@@ -135,7 +135,7 @@ describe("the header with the FM radio alone", () => {
   };
   const open = { connection: "open", tnc: tncState(), hf: null, now: NOW, inApp: false } as const;
 
-  it("is the Server mark and the one Radio mark, green while connected, whether the HF radio's topic is there or not", () => {
+  it("is the Server mark and the one Radio mark, mint while connected, whether the HF radio's topic is there or not", () => {
     const today = [
       ["SPAN", "Server", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
       ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],
@@ -144,7 +144,7 @@ describe("the header with the FM radio alone", () => {
     expect(marks({ ...open, hf: hfState({ state: "stopped" }) })).toEqual(today);
   });
 
-  it("is the Radio mark in amber with the state in words, as it was: waiting, silent, not connected, searching, entering KISS", () => {
+  it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching, entering KISS", () => {
     const radio = (tnc: Parameters<typeof tncState>[0] | null, extra: Partial<Link> = {}) =>
       marks({ ...open, tnc: tnc === null ? null : tncState(tnc), ...extra })[1];
     expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the TNC yet. Settings → Radio", "tag-warn pill-radio"]);

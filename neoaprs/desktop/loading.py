@@ -2,8 +2,8 @@
 the page's tokens (ui/src/styles/tokens.css: --bg and --text). Nothing on it moves and there is nothing on it to read but the name; the page takes its place in the same window as soon as it answers, and when
 no page comes the window closes and the app says why, as it did before there was a window to wait in. One page for both shells: qtwindow.py gives it to the web view, winshell.py to pywebview."""
 
-BACKGROUND = {False: "#f4f5f3", True: "#14171a"}         # --bg of the page, light and dark
-TEXT = {False: "#1d2125", True: "#e3e6e8"}               # --text
+BACKGROUND = {False: "#eff0f2", True: "#0e1f2c"}         # --bg of the page, light and dark
+TEXT = {False: "#0a2a3d", True: "#ffffff"}               # --text
 MARK = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><rect width="64" height="64" rx="12.8" fill="#18345c"/><polygon points="22,31.24 42,31.24 32,51.2" fill="#fff"/>'
         '<circle cx="32" cy="26.88" r="10.88" fill="#fff"/><circle cx="32" cy="26.88" r="4.57" fill="#18345c"/><g fill="none" stroke-width="3.2"><path d="M46.22 14.95A18.56 18.56 0 0 1 46.22 38.81M17.78 38.81A18.56 18.56 0 0 1 17.78 14.95" stroke="#fff"/>'
         '<path d="M51.61 10.42A25.6 25.6 0 0 1 51.61 43.34M12.39 43.34A25.6 25.6 0 0 1 12.39 10.42" stroke="#60a5eb"/></g></svg>')       # the page's icon, ui/public/icons/icon.svg (tests/test_desktop_startup.py holds them equal)

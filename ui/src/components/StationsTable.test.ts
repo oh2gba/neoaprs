@@ -81,7 +81,7 @@ describe("StationsTable", () => {
     expect(cell?.attributes("title")).toMatch(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/);
   });
 
-  it("has a green check mark after the call of a station heard direct, named for a screen reader, and nothing for the others", () => {
+  it("has a check mark after the call of a station heard direct, named for a screen reader, and nothing for the others", () => {
     const stations = table(
       station("OH2GBA", { is_me: true, last_direct_at: ago(60) }),
       station("OH2NEAR", { last_direct_at: ago(300) }),

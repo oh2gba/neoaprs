@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The Transmit level of the HF radio, a row under Tune: the gain the modem sends its audio to the radio with, in whole dB (the setting `mercury/tx_gain_db`), lowered and raised by the two buttons, each press saved at once. The modem takes it while it runs, and
-// the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns red at 0 or over, where the sound card clips.
+// the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns orange at 0 or over, where the sound card clips.
 // The room of the number is kept, so that nothing moves when it changes.
 import InfoTip from "@/components/InfoTip.vue";
 import { computed } from "vue";

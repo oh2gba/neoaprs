@@ -265,7 +265,7 @@ describe("StationCard", () => {
     expect(wrapper.emitted("forget")).toBeUndefined();
   });
 
-  it("has a green check mark beside the call of a station heard direct, named for a screen reader, and no Direct row or line about it", () => {
+  it("has a check mark beside the call of a station heard direct, named for a screen reader, and no Direct row or line about it", () => {
     const near = station("OH2PU-9", { last_direct_at: ago(300) });
     const wrapper = mount(StationCard, { props: { row: near, now: NOW } });
     const mark = wrapper.find(".card-call .direct-mark");

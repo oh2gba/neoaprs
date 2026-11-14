@@ -2,8 +2,8 @@
 the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 
 The radios are made from the settings (`Config.radios`): from the defaults here, so that the parts made here have radios 1 and 2 to be given, and again by the controller once the settings are read. Until the
-round's last wave, `tnc`, `hf`, `mercury`, `beacon` and `hf_beacon` name radio 1's line and beacon and radio 2's line, modem and beacon (the page and the tests reach them so), and `radio_set` is the two
-radios as the services that still take the old `RadioSet` see them.
+round's last wave, `tnc`, `hf`, `mercury`, `beacon` and `hf_beacon` name radio 1's line and beacon and radio 2's line, modem and beacon (the page and the tests reach them so). Every service that
+sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
 """
 import asyncio
 import logging
@@ -17,7 +17,7 @@ from .aprsis import AprsIs
 from .bulletinlog import BulletinLog
 from .claims import Claims
 from .clock import Clock, utcnow
-from .config import BEACON_SENT, DEFAULTS, MESSAGE_RADIOS, Config, radio_state_key
+from .config import DEFAULTS, MESSAGE_RADIOS, Config
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
@@ -30,13 +30,13 @@ from .packetlog import PacketLog
 from .policy import TNC_CHECK_SEC
 from .radiodriver import RadioDriver, RunOverrides
 from .radioregistry import LiveRadio, RadioRegistry, make_driver
-from .radios import Radios
 from .radiospec import FM_ID, HF_ID, RadioId, RadioSpec
 from .route import Deliveries
 from .serialprobe import search_pattern
 from .services.alerts import Alerts
 from .services.aloha import Aloha
-from .services.beacon import HF_BEACON_MEMORY, Beacon
+from .services.beacon import Beacon
+from .services.beaconframe import BeaconFrames
 from .services.memory import Remembered
 from .services.bulletins import Bulletins
 from .services.digipeater import Digipeater
@@ -110,11 +110,10 @@ class Services:
         kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radioregistry.py)
         self.radios: RadioRegistry[Beacon] = RadioRegistry(claims, lambda spec: self._make_driver(spec, interlock), self._make_beacon, lambda: self.config, self.stationbook, lambda text: kept.put({MESSAGE_RADIOS: text}), kept.flush,
                                                            clock=clock, run=lambda: self.run)       # the radios of the settings, any number: each with its driver, its line and its beacon, one lifecycle for all, and the choice between them (the main radio, by station, by packet)
-        self.radio_set = Radios(self.tnc, self.hf, lambda: self.config, self.stationbook)       # radios 1 and 2 as the services that take the old RadioSet see them (neoaprs/radios.py), until each takes the registry
         self._make_radio_parts(clock)
         self._make_logs(clock)
         self.aprsis = AprsIs(clock)                                      # the connection to an APRS-IS server: it writes the lines it is given and reads the packets of the internet, which wiring.py hands to `hear_internet`; configured and started by the iGate
-        self.igate = Igate(self.aprsis, lambda: self.config, self.beacon.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
+        self.igate = Igate(self.aprsis, lambda: self.config, self.beacon_frames.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
         self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, radio 1 alone (services/digipeater.py); each radio's own duplicates, burst and counts; nothing to start
@@ -142,10 +141,9 @@ class Services:
 
     def _make_beacon(self, radio: Radio) -> Beacon:
         """A radio's own beacon: our position packet on it, on an interval, on SmartBeaconing for a moving station where the radio's kind allows it, and on request, by the rules of its kind (the one beacon interval,
-        raised to the floor of 30 minutes while an HF radio is on; on HF the random pause); started by the controller while its radio is on. Its last send is kept in today's rows for radios 1 and 2, and in the
-        radio's own for any other."""
-        key = {FM_ID: BEACON_SENT, HF_ID: HF_BEACON_MEMORY}.get(radio.id) or radio_state_key(radio.id, "beacon_last_sent_at")
-        return Beacon(radio.line, lambda: self.config, self.clock, memory=self.store, gps=self.gps, memory_key=key)
+        raised to the floor of 30 minutes while an HF radio is on; on HF the random pause); started by the controller while its radio is on. Its last send is kept in the radio's own row
+        (services/beacon.py memory_key_of: today's rows for radios 1 and 2), and its frames are the station's one maker's."""
+        return Beacon(radio, lambda: self.config, self.clock, memory=self.store, frames=self.beacon_frames)
 
     def _radio(self, id: RadioId) -> Radio:
         """Radio 1 or 2, which the settings always have until the radios are stored."""
@@ -157,9 +155,10 @@ class Services:
         """The radios with their beacons, and what the beacons need: the GPS and the status report."""
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
+        self.beacon_frames = BeaconFrames(lambda: self.config, self.gps, clock)      # the one maker of our frames: the position, the status report and the position field for any radio (services/beaconframe.py); each radio's beacon, the status report, the queries and the iGate take theirs from it
         self.radios.sync(self.config)                                   # (radios 1 and 2 of the defaults: the controller syncs again once the settings are read)
         self.beacon, self.hf_beacon = self._radio(FM_ID).beacon, self._radio(HF_ID).beacon       # radio 1's beacon and radio 2's
-        self.rigstatus = RigStatus(self.radio_set, lambda: self.config, self.beacon, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min; started by the controller after the beacon
+        self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon_frames, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min, on the main radio; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 
     def _make_logs(self, clock: Clock) -> None:
@@ -180,11 +179,11 @@ class Services:
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
         answer_budget = AnswerBudget(clock)                             # the frames of answers of the minute: one for the QRU server and the queries, so that it is the station's as a whole
-        self.qru = Qru(self.radio_set, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock, budget=answer_budget)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
-        self.qruask = QruAsk(self.radio_set, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.generalask = GeneralAsk(self.radio_set, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
-        self.messaging = Messaging(self.radio_set, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
-        self.queries = Queries(self.radio_set, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
+        self.qru = Qru(self.radios, lambda: self.config, self.ownobjects, self.stationbook, self.prefbook.path_for, clock, budget=answer_budget)       # the QRU server: our objects of a group, sent to the station that asks QRU for the group; messaging hands it the messages to QRU
+        self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
+        self.generalask = GeneralAsk(self.radios, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
+        self.messaging = Messaging(self.radios, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
+        self.queries = Queries(self.radios, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging, heard=self.packetlog, igate=self.igate, budget=answer_budget)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:

@@ -213,7 +213,7 @@ async def test_with_no_radio_at_all_a_message_that_comes_gets_no_ack_and_an_answ
     assert rig.tnc.sent == [] and rig.radios.lines[HF_ID].sent == []
 
 def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_with_the_same_choices() -> None:
-    old = StubRadios(hf_stations=("OH2C",))                               # (the old set of two, as app.py gives it until the integration gives the registry)
+    old = StubRadios(hf_stations=("OH2C",))                               # (the old set of two of before the round, which a test may still give)
     pick = as_pick(old, lambda: BOTH)
     hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", "hf")
     assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "FM"), (HF_ID, "hf", "HF")]
@@ -222,5 +222,5 @@ def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_
     old.enabled = {"hf"}
     assert pick.email() is None and pick.get(FM_ID) is None and pick.main.id == HF_ID and pick.for_station("OH2B").radio is old.hf, "the FM radio off"     # type: ignore[union-attr, attr-defined]
     one = as_pick(old.hf, lambda: BOTH)                                    # (one plain radio, a test's stub: every choice)
-    assert all(r is not None and r.radio is old.hf for r in (one.main, one.for_station("OH2B"), one.email(), one.get(HF_ID))) and one.get(FM_ID) is None     # type: ignore[union-attr, attr-defined]
+    assert all(r is not None and r.radio is old.hf for r in (one.main, one.for_station("OH2B"), one.get(HF_ID))) and one.get(FM_ID) is None and one.email() is None     # type: ignore[union-attr, attr-defined]
     assert as_pick(pick, lambda: BOTH) is pick, "a RadioPick is taken as it is"

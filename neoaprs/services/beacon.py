@@ -14,7 +14,8 @@ not send another; then one an interval after each beacon, whether it was sent by
 off at night), is not skipped: `next_due` stays where it was, in the past (told once per outage), and the first tick that finds the radio usable sends it, one beacon however many intervals went by. A TNC that
 is settling after KISS ON is not usable either, and the beacon waits for it quietly. A frame the radio refuses (the write failed) is tried again `retry_sec` later, `ATTEMPTS` times in all; then the interval counts as skipped, and the next is the first interval boundary after now.
 
-`frame()`, `status_frame()` and `position_info()` are the frames of the one maker under the names the callers of the old shape use (the queries, the status report and the iGate, until they are given the maker).
+`frame()`, `status_frame()` and `position_info()` are the frames of the one maker under the old names: `frame()` is the queries' (app.py gives them radio 1's beacon until W3 gives them `beacon_frames`) and scripts/gen-protocol.py's;
+`status_frame()` and `position_info()` are kept for the tests of the old shape (W3).
 """
 import logging
 from collections.abc import Callable, Mapping
@@ -39,7 +40,6 @@ from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet, every
 
-HF_BEACON_MEMORY = HF_BEACON_SENT        # radio 2's row, under the name the old call of neoaprs/app.py gives it
 MEMORY_KEYS: Mapping[RadioId, str] = {FM_ID: BEACON_SENT, HF_ID: HF_BEACON_SENT}        # the rows of radios 1 and 2 as they are today; any other radio's is radio/<id>/beacon_last_sent_at
 
 log = logging.getLogger("neoaprs.beacon")
@@ -58,7 +58,7 @@ def memory_key_of(radio: RadioId) -> str:
 
 class Beacon:
     def __init__(self, radio: AirRadio | Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
-                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None, memory_key: str | None = None, *, frames: BeaconFrames | None = None) -> None:
+                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None, *, frames: BeaconFrames | None = None) -> None:
         if frames is not None and gps is not None and gps is not frames.gps:
             raise ValueError("a beacon given the maker of frames follows the maker's GPS")
         self._old = frames is None                              # made the old way (until W3): its radios are read as the old shape, by the station's beacon/path, and its row is beacon/last_sent_at
@@ -77,7 +77,7 @@ class Beacon:
         self._started: datetime | None = None
         self._earlier: datetime | None = None                   # the beacon of an earlier run, as the row kept it; None if there was none
         self._remembered = Remembered(memory)
-        self._memory_key = memory_key or (BEACON_SENT if self._old else memory_key_of(self._radio.id))       # the row the last send is kept in: the radio's own (the old call's: beacon/last_sent_at)
+        self._memory_key = BEACON_SENT if self._old else memory_key_of(self._radio.id)       # the row the last send is kept in: the radio's own (the old call's: beacon/last_sent_at)
         self._planned_min = 0                                   # the interval next_due was planned for
         self._planned_mobile = False                            # whether it was planned for a mobile station
         self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page

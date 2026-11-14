@@ -1,5 +1,5 @@
 // The page's corners are three tokens, the site's shapes (styles/tokens.css): --radius (4 px) for a control, --radius-box (6 px) for a group, a card, a menu or a bubble, --radius-pill for the tag; a corner
-// written anywhere else is one of them, 0, or 50 % (a circle). The instruments keep their own (plan §7: the level bar and the scope's picture stay as they are), and the tag's 9 px waits for its test to read the token.
+// written anywhere else is one of them, 0, or 50 % (a circle). The instruments keep their own (plan §7: the level bar and the scope's picture stay as they are).
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -23,7 +23,6 @@ const PART = /^(var\(--radius(?:-box|-pill)?\)|0|50%)$/;
 const KEPT: Record<string, string> = {
   "components/HfLevelBar.vue": "5px", // (the level bar: an instrument's scale, plan §7)
   "components/HfScope.vue": "4px", // (the scope's picture: an instrument, plan §7)
-  "styles/tag.css": "9px", // (the tag: components/TagMark.test.ts holds the number; it is --radius-pill at the tag's 18 px)
 };
 
 /** Every corner the page writes: where, and the value. A .vue file's <style> and its inline styles are read, a .ts file's strings too. */
@@ -47,7 +46,7 @@ describe("the corners of the page", () => {
     expect(tokens.slice(DARK_AT)).not.toMatch(/--radius/);
   });
 
-  it("are written nowhere as a number but by the instruments and the tag", () => {
+  it("are written nowhere as a number but by the instruments", () => {
     const all = corners();
     expect(all.length).toBeGreaterThan(50);
     const numbers = all.filter(({ value }) => !value.split(/\s+/).every((part) => PART.test(part)));
@@ -55,10 +54,10 @@ describe("the corners of the page", () => {
     expect(Object.entries(KEPT).filter(([name, value]) => !numbers.some((c) => c.name === name && c.value === value))).toEqual([]);
   });
 
-  it("give the tag round ends: its 9 px is half its 18 px height", () => {
+  it("give the tag round ends: the pill", () => {
     const tag = cssRule(".tag");
     expect(tag).toMatch(/height:\s*18px/);
-    expect(tag).toMatch(/border-radius:\s*9px/);
+    expect(tag).toMatch(/border-radius:\s*var\(--radius-pill\)/);
   });
 
   it("put a control's corner on the controls and a box's on the groups, cards and menus", () => {

@@ -85,7 +85,7 @@ const good = computed(() => ({ left: `${GOOD_PERCENT[0]}%`, width: `${GOOD_PERCE
   position: absolute;
   top: 0;
   bottom: 0;
-  background: var(--ok-soft-bg);
+  background: var(--level-band);
 }
 .levelfill {
   position: absolute;
@@ -95,16 +95,16 @@ const good = computed(() => ({ left: `${GOOD_PERCENT[0]}%`, width: `${GOOD_PERCE
   transition: width 0.2s linear;
 }
 .levelfill.low {
-  background: var(--muted);
+  background: var(--level-low);
 }
 .levelfill.good {
-  background: var(--ok);
+  background: var(--level-good);
 }
 .levelfill.high {
-  background: var(--warn);
+  background: var(--level-high);
 }
 .levelfill.clip {
-  background: var(--bad);
+  background: var(--level-clip);
 }
 .levelvalue {
   flex: 0 0 auto;

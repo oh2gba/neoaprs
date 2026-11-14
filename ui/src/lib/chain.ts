@@ -1,5 +1,5 @@
-// The delivery chain of a message of ours (the `attempts_detail` of its row), as the chips the thread shows: "you → OH2RCH-2 → OH2RDG → OH2CUB-7". A hop is green with a check when a copy of our own packet was heard with that hop used, grey with a "?"
-// when none was (a digipeater we never hear direct cannot be confirmed from here), blue with "internet" when it was seen only in a copy an iGate gated back; the recipient is green on the ack, red on failure, grey while it waits.
+// The delivery chain of a message of ours (the `attempts_detail` of its row), as the chips the thread shows: "you → OH2RCH-2 → OH2RDG → OH2CUB-7". A hop is plain with a check when a copy of our own packet was heard with that hop used, grey with a "?"
+// when none was (a digipeater we never hear direct cannot be confirmed from here), blue with "internet" when it was seen only in a copy an iGate gated back; the recipient is plain on the ack, orange on failure, grey while it waits.
 import { t } from "@/i18n";
 import { clockText, dateTimeText } from "@/lib/format";
 import { failedText } from "@/lib/messages";

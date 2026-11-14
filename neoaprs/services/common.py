@@ -1,10 +1,10 @@
 """What the services that send share: `ConfigSource` (how they read the settings), `transmit_refusal` and `our_call` (why nothing may be sent, and the call we may send under), and the two shapes of the
 radios. The new one is services/radioset.py's: `RadioPick` (the radios by id, the enabled ones, the main one, the station's, the one a packet came on) and `AirRadio`, and its `fit` makes every frame of the
 sender, our objects and bulletins and the digipeater. `as_pick` gives an old shape as the new one (`OldRadios`: the set of neoaprs/radios.py with the choice by station, by packet and by kind, or one plain
-`Radio`, each radio an `OldAir`): app.py gives the sender the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set) and from the services that still take one. The old shapes and their choices (`Radio`, `RadioSet`, `radios_on`, `radio_for`,
-`radio_to`, `message_radio`, `radio_path`: none on HF) stay for the services that still take them (messaging, the answers, the beacon); `our_frame` and `fit_frame` (the frame shortened to what a radio with a
-fixed frame carries: the Mercury HF modem's 123 bytes) are services/radioset.py's, given here under their old names. The rule every service follows: a frame is built for, gated by and sent on *its* radio, the
-one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
+`Radio`, each radio an `OldAir`): app.py gives every service the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set). The old shapes and their choice of
+a message's radio (`Radio`, `RadioSet`, `radio_to`, `message_radio`: tests/test_seams.py holds the email rule of neoaprs/emailrule.py to it) stay until those tests go; `our_frame` and `fit_frame` (the frame
+shortened to what a radio with a fixed frame carries: the Mercury HF modem's 123 bytes) are services/radioset.py's, given here under their old names. The rule every service follows: a frame is built for,
+gated by and sent on *its* radio, the one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from typing import Any, Protocol, TypeGuard, cast, runtime_checkable
@@ -52,17 +52,6 @@ class RadioSet(Radio, Protocol):
     def on(self) -> list[Radio]: ...
 
 
-def radios_on(radio: Radio) -> list[Radio]:
-    """The radios that are on, each to be asked on its own (a gate that asks "the radio" asks the FM one while it is on, and holds what goes over HF when the FM radio is silent at night): the radios of the set that are
-    enabled, or the one radio the service was given (a test's stub)."""
-    return radio.on if isinstance(radio, RadioSet) else [radio]
-
-
-def radio_for(radio: Radio, packet: Packet) -> Radio:
-    """The radio to answer the packet on: the one it came on when the service was given the radios, else the one radio it was given (a test's stub)."""
-    return radio.for_packet(packet) if isinstance(radio, RadioSet) else radio
-
-
 def radio_to(radio: Radio, call: str) -> Radio:
     """The radio a frame of ours to the station goes out on: by the station when the service was given the radios, else the one radio it was given."""
     return radio.for_station(call) if isinstance(radio, RadioSet) else radio
@@ -79,22 +68,21 @@ def message_radio(radio: Radio, to: str) -> Radio:
     return radio_to(radio, to)
 
 
-def radio_path(radio: Radio, path: tuple[str, ...]) -> tuple[str, ...]:
-    """The digipeaters a frame of ours goes by on this radio: the path given where the network has digipeaters (FM), none where every frame is direct (HF: the settings and the stations' own paths are kept for the day the operator is back on VHF, and a path would only cost bytes of the frame).
-    The old form of `radioset.path_on`, for the services that still take a Radio."""
-    return path if radio.rules.paths else ()
-
-
-# ---- the old shapes as the new one, for the tests and the services that still give one
+# ---- the old shapes as the new one, for the tests that still give one
 
 class OldAir:
     """An old Radio (a Tnc, the old set as its default radio, a test's stub) as an AirRadio: its id and kind by its rules' kind (fm 1, hf 2), its limits and what it is allowed from its rules, its own choices
-    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's."""
+    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's. It keeps `rules`, as the
+    registry's radios do until the old shapes go."""
 
     def __init__(self, radio: Radio, config: ConfigSource) -> None:
         self.radio, self._config = radio, config
         found = getattr(radio, "stats", None)
         self._stats = found if isinstance(found, TncStats) else TncStats()
+
+    @property
+    def rules(self) -> RadioRules:
+        return self.radio.rules
 
     @property
     def id(self) -> RadioId:

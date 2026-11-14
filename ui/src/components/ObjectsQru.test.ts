@@ -48,7 +48,7 @@ describe("Local info in the Objects tab", () => {
     expect(daemon.send.mock.calls.map(([command]) => command)).toEqual([asked("INFO 150"), asked("INFO 120"), asked("INFO 120"), asked("INFO")]);
   });
 
-  it("has an (i) on the distance field, and a wrong distance is red and keeps the button and the tags off", async () => {
+  it("has an (i) on the distance field, and a wrong distance is orange and keeps the button and the tags off", async () => {
     const { wrapper } = make({ qru: qruState({ asked: null }) });
     expect(wrapper.find("input.qru-km").attributes("aria-label")).toBe("Distance in km");
     await wrapper.find(".qru-ask button.info-toggle").trigger("click");

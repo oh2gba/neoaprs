@@ -7,7 +7,7 @@
   height: 18px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 9px; /* = var(--radius-pill) at the tag's 18 px: written as the number while components/TagMark.test.ts holds it (radii.test.ts lists it) */
+  border-radius: var(--radius-pill);
   font: inherit;
   font-size: 11px;
   font-weight: 600;

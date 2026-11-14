@@ -35,7 +35,7 @@ describe("attend", () => {
     expect(await never).toBe(false);
   });
 
-  it("is a soft yellow of the palette that fades in and out quickly, after a short pause", () => {
+  it("is a soft lime of the palette that fades in and out quickly, after a short pause", () => {
     expect(cssRule(".attend")).toMatch(/animation:\s*attend 1\.2s/);
     expect([PAUSE_MS, ATTEND_MS]).toEqual([300, 1200]);
   });

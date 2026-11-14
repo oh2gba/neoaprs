@@ -11,7 +11,7 @@ If the port says *permission denied* on Linux, add yourself to the group that ow
 
 ## The setup guide
 
-On a fresh install the page opens a guide in four steps. It opens by itself once, when NeoAPRS has no call. The amber **no call set** button in the header and **Run the setup guide again** in the Settings tab open it again, and what you typed is still there.
+On a fresh install the page opens a guide in four steps. It opens by itself once, when NeoAPRS has no call. The lime **no call set** button in the header and **Run the setup guide again** in the Settings tab open it again, and what you typed is still there.
 
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the My station tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.

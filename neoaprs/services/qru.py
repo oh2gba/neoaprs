@@ -107,7 +107,7 @@ class Qru:
                  first_wait_sec: float = FIRST_WAIT_SEC, budget: AnswerBudget | None = None) -> None:
         self._config = config
         self.first_wait_sec = first_wait_sec
-        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each request)
+        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each request)
         self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._objects = objects
         self._book = book

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The stations heard, as a short table that fits the panel: the symbol, the call (a green check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two
+// The stations heard, as a short table that fits the panel: the symbol, the call (a check mark after it for a station heard direct, and under it in small quiet letters how it was heard: RF, iGate, Internet, or two
 // joined; lib/channels.ts), the distance from us, the bearing as a small arrow (north up; "NE, 47°" is its hover title) and when the station was last heard at all (the newest of anything it sent, with the full time as the
 // hover title). A column is sorted by a click on its head (again to reverse), the group box over it (StationsFilters: a filter box and the toggles "direct only", "heard on RF only" and "hide timed out", and "On map for")
 // narrows it, our own station is always on top, the selected row is marked and a click on a row selects the station (the map flies to it; with Ctrl it adds a card). The click (or Enter, or Up, Down, Home and End, which

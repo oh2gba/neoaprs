@@ -110,8 +110,8 @@ Resize the panel and the layout follows, with the same conversation open.
 Under a message of yours the thread shows the digipeaters its latest attempt went by, as a chain: `you → OH2RCH-2 → OH2RDG → OH2CUB-7`. The line above it already says which attempt it is ("attempt 3 of 4"), so only the latest attempt's chain is shown.
 
 - A copy of your message that the radio hears again (also one an iGate gated back) is linked to the attempt it belongs to, and each hop of the path that a copy was heard with is marked as used. A hop that is used implies the hops before it, so `OH2RCH-2,OH2RDG*` shows both.
-- A hop heard is green with a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
-- The recipient at the end is green on the ack, red on failure and grey while the message waits.
+- A hop heard has a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
+- The recipient at the end is plain on the ack, orange on failure and grey while the message waits.
 - An attempt that went out over the HF radio has the mark **HF** after the first chip ("sent 12:03 over HF" is its hover text): `you HF → OH2CUB-7`. There is no digipeater in it, because nothing on HF repeats.
 - Acks and copies of other messages are not linked. The chain goes with the message when it or its conversation is deleted, and a retry starts a new chain.
 
@@ -175,7 +175,7 @@ Every field that takes a path has a small button beside it, the same everywhere:
   The tick starts as the path in the field has it, else as the path in force has it: ticked for a moving station (`WIDE1-1,WIDE2-1`), not for a fixed one (`WIDE2-2`), ticked when nothing says. Hover over a number to see the path it makes.
 - The path being built is drawn as what it means: you, then one node for each hop, then the stations that hear the last one. A node says who takes the hop: **any digi** (`WIDE1-1`: a home digipeater or a wide one), **wide digi** (a hop of `WIDE2-2` and the like) or the call of the digipeater named. Each element of the path is written under its hops (`WIDE2-2` under its two), with an x that takes it out. Hover over a node or an element to read it in a sentence.
 - Under the picture is the path as the field will get it, and the number of hops in all. No hop at all is **Direct**, which goes to the field as `DIRECT`.
-- More than 2 hops in all is more than most networks allow: the number of hops and the hops past the second are amber, with the reason in the hover text, and **Use** still takes it. An alias that is no path (`WIDE1-2`, `WIDE2-3`, `WIDE2-0`) is red, and **Use** is off while it is there.
+- More than 2 hops in all is more than most networks allow: the number of hops and the hops past the second are on a lime plate, with the reason in the hover text, and **Use** still takes it. An alias that is no path (`WIDE1-2`, `WIDE2-3`, `WIDE2-0`) is orange, and **Use** is off while it is there.
 - **Digipeaters heard** lists the digipeaters your station hears direct: the calls that were the last hop of a route you heard, and the stations with a digipeater's symbol whose packets came direct, the one that repeated the most packets for you first, with that number, when it was last heard direct and how far it is. A click puts it first, in the place of one of the alias hops, so that the number of hops stays: `WIDE1-1,WIDE2-1` becomes `OH2RDK-7,WIDE2-1`.
 - Then the list is of the digipeaters seen **next to** that hop in the routes NeoAPRS counted for the stations (each station's best route, its latest route and the routes the map draws), the one seen there for the most stations first. A route heard as A → B means that B hears A, and a path is a route turned round, so a pair counts either way. The list is offered for the first three digipeaters named. With digipeaters named, **Hops** keeps them as far as they go and adds wide hops after them (`OH2RDK-7` with 2 hops is `OH2RDK-7,WIDE2-1`), and the tick is off: the first hop is the one named.
 - In a station's Route, **As its packets come** takes the route most of its packets came by, turned round (the suggested path of its card). It is off while no route of the station is known. When a station's packets reach you via `OH2RCH-2 → OH2RDK-7` (a wide-area digipeater, then the fill-in one near you), the path back is `OH2RDK-7,OH2RCH-2`, which the plain `WIDE2-1` or `WIDE2-2` may not take, as a fill-in digipeater may relay only a packet that names it.
@@ -189,7 +189,7 @@ The (i) beside the title is a short guide to `WIDEn-N`:
 - N is never more than n: `WIDE1-2` or `WIDE2-3` is no path. The hops of a path are the Ns of its aliases and one for each digipeater named.
 - A digipeater named (`OH2RDK-7`) is one hop by exactly that digipeater.
 
-The path is checked as the field checks it (for a request with RF only, 7 hops at most leave room for `RFONLY`): while it cannot go, it is red and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
+The path is checked as the field checks it (for a request with RF only, 7 hops at most leave room for `RFONLY`): while it cannot go, it is orange and **Use** is off, with the reason in their hover text. **Use** puts the path into the field, which saves it as it saves what you type (the beacon's path and a station's at once). **Cancel**, the x, Esc and a click beside the builder leave the field as it was.
 
 ### RF only
 
@@ -245,7 +245,7 @@ For each station NeoAPRS counts how many of its packets came direct and how many
 - When the best route has an anonymous hop there is no call to name, and the suggestion is the general `WIDE1-1,WIDE2-1`; the card says "unknown repeater".
 - No route is known for an object or an item, for your own station and for a station none of whose packets are left.
 
-**Heard direct.** NeoAPRS also keeps when each station last came direct: the time of its latest packet with no repeated address in its path (not a third-party packet). A station heard direct in the last hour has a green ring on the map. A station heard direct has a green check mark after its call in the Stations table and on its card. The share of a station's packets that came direct is counted over the packets counted for the station (direct, by a digipeater, from the internet).
+**Heard direct.** NeoAPRS also keeps when each station last came direct: the time of its latest packet with no repeated address in its path (not a third-party packet). A station heard direct in the last hour has a green ring on the map. A station heard direct has a check mark after its call in the Stations table and on its card. The share of a station's packets that came direct is counted over the packets counted for the station (direct, by a digipeater, from the internet).
 
 ### Packets from the internet
 

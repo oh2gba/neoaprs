@@ -1,7 +1,8 @@
-"""Radios 1 and 2 as the services of before the radio round see them: the FM radio (slot `fm`) and the HF radio (slot `hf`) as one `RadioSet` (neoaprs/services/common.py), the default radio for a service
+"""Radios 1 and 2 as the services of before the radio round saw them: the FM radio (slot `fm`) and the HF radio (slot `hf`) as one `RadioSet` (neoaprs/services/common.py), the default radio for a service
 that sends to no station in particular (the FM one while it is on, else the HF one), `for_station` for a message of ours and `for_packet` for an ack or an answer, each giving the radio's `Tnc`. The radios
-themselves, any number of them, their lifecycle and the operator's choice by station are the registry's (neoaprs/radioregistry.py, `Services.radios`); the composition root gives this view (`Services.radio_set`)
-to each service until the service takes the registry, and then it goes, with `hf_is_mercury`, `hf_is_dummy` and `KINDS`, which the page's handlers and the tests still read.
+themselves, any number of them, their lifecycle and the operator's choice by station are the registry's (neoaprs/radioregistry.py, `Services.radios`), which every service takes. No part of the program is
+given this set any more: it is what the tests hold the registry's choices to (tests/test_seams.py, tests/test_radioregistry.py, tests/test_message_radio.py), and it goes with the round's removals, with
+`hf_is_mercury`, `hf_is_dummy` and `KINDS`, which the page's handlers and the tests still read.
 
 The slots are enabled by the settings `fm/enabled` and `hf/enabled`; a radio that is not enabled is never chosen. The rule of `for_station` is the one of neoaprs/messagerule.py (tests/test_seams.py holds
 the two equal). The operator's choice by station (`choose`, `restore`) is the registry's own part (`radioregistry.StationChoices`), which a set made by itself, as the tests make one, keeps for itself."""

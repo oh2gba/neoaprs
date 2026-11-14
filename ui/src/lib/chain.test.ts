@@ -31,7 +31,7 @@ describe("chainOf", () => {
     expect(chainOf(row, attempt([]), true).map((c) => c.text)).toEqual(["you", "OH2CUB-7"]);
   });
 
-  it("shows a hop that was heard green with a check and the time for the title", () => {
+  it("shows a hop that was heard plain with a check and the time for the title", () => {
     const [, chip] = chainOf(row, attempt([hop("OH2RCH-2", { heard: true, heard_at: "2026-10-22T12:00:05Z" })]), true);
     expect([chip?.kind, chip?.mark, chip?.title.startsWith("heard ")]).toEqual(["heard", "✓", true]);
   });
@@ -67,13 +67,13 @@ describe("chainOf", () => {
     expect(shown.map((c) => c.text)).toEqual(["you", "OH2RCH-2", "OH2CUB-7"]);
   });
 
-  it("makes the recipient green on the ack, with the time of the ack for the title", () => {
+  it("makes the recipient plain on the ack, with the time of the ack for the title", () => {
     const acked = message(1, { to_call: "OH2CUB-7", state: "acked", acked_at: "2026-10-22T12:00:09Z" });
     const last = chainOf(acked, attempt([], { acked: true }), true).at(-1);
     expect([last?.kind, last?.mark, last?.title.startsWith("acked ")]).toEqual(["acked", "✓", true]);
   });
 
-  it("makes the recipient red on failure and on a rejection, on the latest attempt only", () => {
+  it("makes the recipient orange on failure and on a rejection, on the latest attempt only", () => {
     const failed = message(1, { to_call: "OH2CUB-7", state: "failed", attempts: 6 });
     expect(chainOf(failed, attempt([]), true).at(-1)).toMatchObject({ kind: "failed", mark: "✗", title: "no answer after 6 attempts" });
     expect(chainOf(failed, attempt([]), false).at(-1)?.kind).toBe("waiting");
@@ -107,7 +107,7 @@ describe("isAlias", () => {
 });
 
 describe("chainOf for mail", () => {
-  it("leaves the gateway grey, not red, when its ack never came: it reaches us only through an iGate", () => {
+  it("leaves the gateway grey, not orange, when its ack never came: it reaches us only through an iGate", () => {
     const mail = message(2, { to_call: "EMAIL-2", state: "failed", attempts: 4 });
     const last = chainOf(mail, attempt([]), true, new Set(), true).at(-1);
     expect(last?.kind).toBe("waiting");

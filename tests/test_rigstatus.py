@@ -329,7 +329,7 @@ async def test_with_no_radio_no_status_goes_and_the_log_says_so_once(caplog: pyt
 async def test_the_old_call_with_a_line_and_a_beacon_sends_the_same_on_that_line_and_takes_the_beacons_maker() -> None:
     rig = Rig(None, station_status="QRV 145.500")
     beacon = Beacon(rig.tnc, lambda: rig.config, rig.clock)
-    old = RigStatus(rig.tnc, lambda: rig.config, beacon, rig.clock)                 # (neoaprs/app.py's call until the integration gives it the registry and the maker)
+    old = RigStatus(rig.tnc, lambda: rig.config, beacon, rig.clock)                 # (the call of before the round: a line and a beacon)
     assert old.frames is beacon.frames
     await old.poll()
     await rig.status.poll()

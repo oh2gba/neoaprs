@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The operator's own directed query in the station panel of the Stations tab, under its query buttons: a box and Ask, in one line. The text is held to the daemon's rule (lib/query.ts: "?" and something after it, printable
-// ASCII without | ~ {, at most 67 characters, which the box takes no more of); while it breaks it the box has the red edge of every field that is wrong and Ask is off, and why is said only in the box's hover title, so that no
+// ASCII without | ~ {, at most 67 characters, which the box takes no more of); while it breaks it the box has the orange edge of every field that is wrong and Ask is off, and why is said only in the box's hover title, so that no
 // line comes and goes under it. Ask (or Enter) sends it upper-cased (`ask`) and empties the box. The hover title of the box names the other directed queries of the specification. With RX only both are off.
 import { computed, ref } from "vue";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";

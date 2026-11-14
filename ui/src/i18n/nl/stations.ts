@@ -109,7 +109,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.table.filter_title": "Roepnaam, symbool, commentaar, pad",
   "station.table.about_label": "Over de stations",
   "station.table.about1": "Elk gehoord station, met zijn afstand en richting vanaf jou. Klik op een station om het op de kaart te vinden.",
-  "station.table.about2": "Een groen vinkje achter een roepnaam betekent dat het station direct is gehoord, zonder digipeater.",
+  "station.table.about2": "Een vinkje achter een roepnaam betekent dat het station direct is gehoord, zonder digipeater.",
   "station.table.filter_label": "Stations filteren",
   "station.table.hide_timed_out": "verlopen verbergen",
   "station.table.direct_only": "alleen direct",

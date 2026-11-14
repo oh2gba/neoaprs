@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The choices of "Alert me when…" for one station, a group box with the legend "Alert me when OH2XYZ…": the three things the daemon can watch, any of them at once (it comes on the air after half an hour of silence; it comes
-// within so many km of us, which needs our position: while there is none a quiet line under it says so; it is heard direct after half an hour without). A distance out of the daemon's range (1 to 1000 km) has the red edge of
+// within so many km of us, which needs our position: while there is none a quiet line under it says so; it is heard direct after half an hour without). A distance out of the daemon's range (1 to 1000 km) has the orange edge of
 // every field that is wrong, and no line says the range. The values are the parent's (composables/useAlertDraft.ts): the station panel of the Stations tab (StationPanel) sends them as each is changed (`change`: a tickbox ticked
 // or cleared, the distance changed and left or Enter pressed).
 import { t } from "@/i18n";

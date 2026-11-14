@@ -42,7 +42,7 @@ HEARD_MAX = 2000                        # the objects (by sender and name) kept 
 
 class QruAsk:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow) -> None:
-        self._given = radios                                        # the station's radios (the registry; an old shape until app.py gives it): a request goes on the main radio
+        self._given = radios                                        # the station's radios (the registry; which app.py gives; an old shape of a test's): a request goes on the main radio
         self._config = config
         self._paths = paths                                         # the digipeaters of what we send to a station (PrefBook.path_for)
         self.clock = clock

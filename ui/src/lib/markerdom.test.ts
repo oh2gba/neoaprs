@@ -69,14 +69,14 @@ describe("the marker of a station", () => {
   });
   it("has a dotted outline and an italic call for the class of the internet, in colours of both themes, and lets the selected marker be drawn as any other", () => {
     const icon = cssRule(".stn--net .stn-icon");
-    expect(icon).toMatch(/outline:\s*2px dotted var\(--muted\)/);
+    expect(icon).toMatch(/outline:\s*2px dotted var\(--map-net\)/);
     expect(icon).toMatch(/background:\s*var\(--map-halo\)/);
     expect(cssRule(".stn--net .stn-label")).toMatch(/font-style:\s*italic/);
     expect(cssRule(".stn--selected .stn-icon")).toMatch(/outline:\s*2px solid var\(--map-select\)/);
     const tokens = readFileSync(resolve(__dirname, "../styles/tokens.css"), "utf8");
     const dark = tokens.slice(tokens.indexOf("prefers-color-scheme: dark"));
-    expect(tokens.slice(0, tokens.indexOf("prefers-color-scheme: dark"))).toMatch(/--muted:/);
-    expect(dark).toMatch(/--muted:/);
+    expect(tokens.slice(0, tokens.indexOf("prefers-color-scheme: dark"))).toMatch(/--map-net:/);
+    expect(dark).toMatch(/--map-net:/);
     expect(dark).toMatch(/--map-halo:/);
   });
   it("shows the characters of a signpost over its symbol, as text, and nothing for a station that is none", () => {

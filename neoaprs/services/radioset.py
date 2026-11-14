@@ -3,7 +3,7 @@
 radio may carry one, the comment cut to what it carries whole; `our_frame`, `fixed_prefix` and `fit_frame` are its parts (services/common.py and services/sender.py give them, and SendError, under their old
 names), here so that every service may import this module and it imports none of theirs.
 
-The registry of the app layer (neoaprs/radioregistry.py) satisfies `RadioPick` and its radios `AirRadio`; until the services take them (wave 1) they take common.Radio and common.RadioSet. The members of both
+The registry of the app layer (neoaprs/radioregistry.py) satisfies `RadioPick` and its radios `AirRadio`, and the services take them; a test may still give an old shape (common.Radio, common.RadioSet), which common.as_pick reads as one. The members of both
 Protocols are read-only, so that a plain attribute, a property and a frozen field all satisfy them, and `enabled` is a Sequence, so that a list of the registry's own radios does."""
 import logging
 import re

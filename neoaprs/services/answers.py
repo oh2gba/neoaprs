@@ -6,33 +6,28 @@ whoever asks, with whatever call, the frames beyond it are not sent, and an answ
 still to go are held for it meanwhile, and the room of a frame that did not go on the air is given back. Nothing is sent under the transmit interlock or while the radio is not usable.
 
 An answer goes on the radio the request came on (`radio`, the RadioPick's `for_packet`; the main radio when none is named), by the path that radio may carry (services/radioset.py `path_on`). The services that
-answer and the messaging take the radios as a `RadioPick` (services/radioset.py); `as_pick` reads what they are given today (the old set of neoaprs/radios.py, a plain Radio of a test) as one, at each call."""
+answer and the messaging take the radios as a `RadioPick` (services/radioset.py): the registry, which app.py gives them, or an old shape that a test still gives (the old set of two, a plain Radio), which
+`as_pick` (services/common.py, given here under its name) reads as one at each call."""
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, TypeGuard, cast
+from typing import cast
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import format_message
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
-from neoaprs.packet import Packet
-from neoaprs.radiorules import RadioRules
-from neoaprs.radiospec import KIND_WORDS, log_name
-from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, radio_id_of
-from neoaprs.radiotypes import kind_field
-from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
+from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
-from neoaprs.services.common import ConfigSource, Radio, RadioSet, our_frame, radio_for, radio_to, radios_on
+from neoaprs.services.common import ConfigSource, OldAir, Radio, our_frame
+from neoaprs.services.common import as_pick as as_pick      # (the one adapter of the old shapes, under the name the services of messages and answers import it by)
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
-from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
-from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.queries")
 
@@ -92,7 +87,7 @@ class Share:
 
 class Answers:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
-        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: `as_pick`)
+        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: `as_pick`)
         self._config = config
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
         self._spacing = spacing_sec
@@ -209,119 +204,10 @@ class Answers:
         return True
 
 
-# ---- the radios as a RadioPick, whatever the services are given until app.py gives the registry
-
-class OldAir:
-    """An old Radio (a Tnc, the old set of neoaprs/radios.py as its default radio, a test's stub) as an AirRadio: its id and kind by its rules' kind (fm 1, hf 2), its limits and what it is allowed by its rules,
-    its own choices the station's radio of that id (the FM radio's where its kind has no such field), its counters its line's. It keeps `rules`, which today's beacon reads of the radio an answer goes on (the
-    registry's radios keep them too until the old shapes go)."""
-
-    def __init__(self, radio: Radio, config: ConfigSource) -> None:
-        self.radio, self._config = radio, config
-
-    @property
-    def rules(self) -> RadioRules:
-        return self.radio.rules
-
-    @property
-    def id(self) -> RadioId:
-        return radio_id_of(self.radio.rules.kind) or FM_ID
-
-    @property
-    def kind(self) -> Kind:
-        return "hf" if self.radio.rules.kind == "hf" else "fm"
-
-    @property
-    def name(self) -> str:
-        config = self._config()
-        spec = config.radio(self.id)
-        return KIND_WORDS[self.kind] if spec is None else log_name(spec, config.radios)
-
-    @property
-    def limits(self) -> Limits:
-        r = self.radio.rules
-        return Limits(r.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
-
-    @property
-    def allowed(self) -> Allowed:
-        r = self.radio.rules
-        return replace(FM_ALLOWED if r.kind == "fm" else HF_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
-
-    @property
-    def stats(self) -> TncStats:
-        found = getattr(self.radio, "stats", None)
-        return found if isinstance(found, TncStats) else TncStats()
-
-    @property
-    def state(self) -> Source.State:
-        return self.radio.state
-
-    @property
-    def usable(self) -> bool:
-        return self.radio.usable
-
-    @property
-    def max_frame(self) -> int | None:
-        return self.radio.max_frame
-
-    def why_unusable(self) -> str:
-        return self.radio.why_unusable()
-
-    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
-        return self.radio.send_frame(frame, raw)
-
-    def choice(self, key: str) -> Any:
-        config = self._config()
-        spec = config.radio(self.id)
-        if spec is None or kind_field(spec.kind, key) is None:
-            spec = config.radio(FM_ID)
-        return None if spec is None else spec.value(key)
-
-
-class OldRadios:
-    """The old shapes as a RadioPick, each radio an OldAir: the set of neoaprs/radios.py (its enabled radios, the radio of a kind while it is enabled, its default radio as the main one, its choice by station
-    and by packet, the FM radio for email), or one plain Radio, which is every choice (a test's stub)."""
-
-    def __init__(self, radios: Radio, config: ConfigSource) -> None:
-        self._old, self._config = radios, config
-
-    def _air(self, radio: Radio | None) -> AirRadio | None:
-        return None if radio is None else OldAir(radio, self._config)
-
-    def get(self, id: RadioId) -> AirRadio | None:
-        if isinstance(self._old, RadioSet):
-            return self._air(self._old.of("fm" if id == FM_ID else "hf" if id == HF_ID else ""))
-        return self.main if OldAir(self._old, self._config).id == id else None
-
-    def enabled(self) -> Sequence[AirRadio]:
-        return [OldAir(radio, self._config) for radio in radios_on(self._old)]
-
-    @property
-    def main(self) -> AirRadio | None:
-        return self._air(self._old)
-
-    def for_station(self, call: str) -> AirRadio | None:
-        return self._air(radio_to(self._old, call))
-
-    def for_packet(self, packet: Packet) -> AirRadio | None:
-        return self._air(radio_for(self._old, packet))
-
-    def email(self) -> AirRadio | None:
-        return self._air(self._old.of("fm") if isinstance(self._old, RadioSet) else self._old)
-
-
-def is_pick(radios: object) -> TypeGuard[RadioPick]:
-    """Whether this is a RadioPick (the registry, a test's), not an old shape: it has the radios by id and the email radio, which no Radio and no old set has."""
-    return callable(getattr(radios, "get", None)) and callable(getattr(radios, "email", None))
-
-
-def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
-    """The radios as a RadioPick: the registry as it is, an old shape as OldRadios. A service that holds an old shape reads it again at each call, so that it holds no part of its own that takes a packet."""
-    return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
-
+# ---- a radio named in the old shape, and the radio of a request
 
 def air_of(radio: AirRadio | Radio, config: ConfigSource) -> AirRadio:
-    """A radio as an AirRadio: an old one as an OldAir (a test of today names a radio by its Tnc)."""
+    """A radio as an AirRadio: an old one as an OldAir of services/common.py (a test of today names a radio by its Tnc)."""
     return cast(AirRadio, radio) if hasattr(radio, "allowed") else OldAir(radio, config)
 
 

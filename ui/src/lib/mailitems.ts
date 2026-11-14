@@ -24,7 +24,7 @@ export interface MailItem {
 export interface MailState {
   /** the words: "Sending (1 of 2)", "Delivered", "Not confirmed", "Rejected", "Cancelled", "Too long for the radio" */
   word: string;
-  /** green, red or plain, for the colour of the words */
+  /** ok (the plain text), bad (orange) or plain, for the colour of the words */
   tone: "ok" | "bad" | "plain";
 }
 

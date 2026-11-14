@@ -1,6 +1,6 @@
 // The scope in the HF radio's box (HfScope.vue, HfWaterfall.vue, composables/useHfScope.ts) and the Transmit level row (HfLevelRow.vue): the fold, folded at first and remembered in the browser; the rows asked of the daemon only while it is open, this page is
 // in front and the modem has the interface; the waterfall drawn from the rows and from what the page keeps of them, whole at once when it is mounted again, with the stations heard on the HF radio written on it; the receive
-// level as a bar with its zones; the gain buttons and the peak that turns red.
+// level as a bar with its zones; the gain buttons and the peak that turns orange.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { shallowReactive, shallowRef } from "vue";
@@ -371,7 +371,7 @@ describe("the Transmit level row", () => {
     expect(buttons(bottom.box)[0].attributes("disabled")).toBeDefined();
   });
 
-  it("turns the peak red at 0 dBFS and over, and shows a dash before there is one", () => {
+  it("turns the peak orange at 0 dBFS and over, and shows a dash before there is one", () => {
     expect(
       level(make({ scope: true, tx_peak_dbfs: 0 }).box)
         .find(".txlevel-peak")

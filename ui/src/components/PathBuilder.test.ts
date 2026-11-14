@@ -170,7 +170,7 @@ describe("the path builder", () => {
     expect(all(".pathbuild-node")[0]?.title).toBe("Hop 1: any digipeater that hears it, a home (fill-in) one as well as a wide one");
   });
 
-  it("marks a path of more hops than the network usually allows in amber, and still lets it be used", async () => {
+  it("marks a path of more hops than the network usually allows on the warn plate, and still lets it be used", async () => {
     const wrapper = make({ value: "WIDE1-1,WIDE2-1" });
     await open(wrapper);
     expect(count()?.classList.contains("tag-neutral")).toBe(true);
@@ -183,7 +183,7 @@ describe("the path builder", () => {
     expect(wrapper.emitted("use")).toEqual([["WIDE1-1,WIDE2-2"]]);
   });
 
-  it("refuses an alias that is no path, typed in lower case, in red with the reason in the titles", async () => {
+  it("refuses an alias that is no path, typed in lower case, in orange with the reason in the titles", async () => {
     const wrapper = make({ value: "DIRECT" });
     await open(wrapper);
     await type("wide1-2");

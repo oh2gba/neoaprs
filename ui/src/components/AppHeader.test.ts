@@ -57,7 +57,7 @@ describe("AppHeader", () => {
     expect(cssRule(".headmail.badge")).toMatch(/margin:\s*0 0 0 auto/);
   });
 
-  it('shows an amber button "no call set" while the call is empty, and a click asks for the setup guide', async () => {
+  it('shows a button "no call set" on the warn plate while the call is empty, and a click asks for the setup guide', async () => {
     const wrapper = header({ call: "" });
     const button = wrapper.find(".nocall");
     expect(button.text()).toBe("no call set");

@@ -165,7 +165,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.peak": "Pico {value} dBFS",
   "settings.txlevel.tip_label": "Sobre o nível de transmissão",
   "settings.txlevel.tip1": "Quão forte o áudio do modem vai para o rádio, em dB. Aperte Sintonizar e olhe o ALC: ele quase não deve se mexer.",
-  "settings.txlevel.tip2": "O pico fica vermelho em 0 dBFS, onde a placa de som satura.",
+  "settings.txlevel.tip2": "O pico fica laranja em 0 dBFS, onde a placa de som satura.",
   "settings.tune": "Sintonizar",
   "settings.tune_stop": "Parar",
   "settings.tune.label": "Tom de sintonia",

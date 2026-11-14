@@ -56,7 +56,7 @@ describe("App", () => {
     expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
   });
 
-  it("says Daemon: offline in red when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
+  it("says Daemon: offline in orange when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
     const { wrapper, socket } = await open();
     vi.useFakeTimers();
     socket.hangUp();

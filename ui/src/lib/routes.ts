@@ -50,7 +50,7 @@ export function heardDirectRecently(row: Pick<StationRow, "last_direct_at">, now
   return row.last_direct_at !== null && ageSeconds(row.last_direct_at, nowMs) <= DIRECT_RECENT_SEC;
 }
 
-/** Whether a station (not our own, not an object) was heard direct at some time: its call has the green check mark. */
+/** Whether a station (not our own, not an object) was heard direct at some time: its call has the check mark. */
 export function heardDirect(row: Pick<StationRow, "kind" | "is_me" | "last_direct_at">): boolean {
   return row.kind === "station" && !row.is_me && row.last_direct_at !== null;
 }

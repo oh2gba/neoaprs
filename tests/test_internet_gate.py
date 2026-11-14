@@ -96,7 +96,6 @@ TAKERS = {
     "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
     "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
     "radios": {"for_packet"},                                                                                    # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing itself, and is asked only for a packet of the air)
-    "radio_set": {"for_packet"},                                                                                 # (the same choice as the services that still take the two radios see it, neoaprs/radios.py)
 }
 
 

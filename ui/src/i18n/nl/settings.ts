@@ -167,7 +167,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.tip_label": "Over het zendniveau",
   "settings.txlevel.tip1":
     "Hoe sterk het geluid van het modem naar de set gaat, in dB. Druk op Afstemmen en let op de ALC van de set: die moet nauwelijks bewegen.",
-  "settings.txlevel.tip2": "De piek wordt rood bij 0 dBFS, waar de geluidskaart overstuurd wordt.",
+  "settings.txlevel.tip2": "De piek wordt oranje bij 0 dBFS, waar de geluidskaart overstuurd wordt.",
   "settings.tune": "Afstemmen",
   "settings.tune_stop": "Stoppen",
   "settings.tune.label": "Afstemtoon",

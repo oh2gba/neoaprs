@@ -64,7 +64,7 @@ describe("the path of a request for local info", () => {
     expect(sent(daemon)[2]).toEqual({ cmd: "qru_ask", text: "INFO 150", path: null, rf_only: false });
   });
 
-  it("keeps Ask and the groups off while the path is wrong, with the reason, and the field red", async () => {
+  it("keeps Ask and the groups off while the path is wrong, with the reason, and the field orange", async () => {
     const { wrapper } = make({ config: configValues() });
     await pathField(wrapper).setValue("OH2RDK-7,???");
     expect(fold(wrapper).find(".field").classes()).toContain("invalid");

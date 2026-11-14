@@ -1,10 +1,10 @@
 """The radio of the frame: every gate asks the radio the frame goes on and every frame is built for it, never for "the radio" of a station that has two. The retry ticker (services/retries.py), on the
-station's radios as the registry gives them (services/radioset.py RadioPick: tests/test_messaging.py `StubPick` over stub lines) and on the old set (tests/support/stubtnc.py: two stub radios as one set, read as a
-RadioPick), attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away, two radios of one kind each by its own id. The sender and our objects (services/sender.py,
-services/ownobjects.py), on the station's radios by id (tests/support/seamshapes.py over stub lines), send on the radio that takes a frame and give a held radio its copy later without another sending again, keep
-the round by the radio's id, and repeat by the net cycle of the path each radio carries; a query asked over HF (services/queries.py) is answered with the beacon's and the status's frames built for HF, no path
-and within the frame, while the same asked on FM has the path, and the general and the heard query asked over HF are answered on HF alone (each on the registry's radios and on the old set); the status report
-(services/rigstatus.py) is built for the radio it goes on."""
+station's radios as the registry gives them (services/radioset.py RadioPick: tests/test_messaging.py `StubPick` over stub lines) and on the old set of two (tests/support/stubtnc.py `StubRadios`, read as a
+RadioPick: the shape of before the round, kept until its last test goes), attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away, two radios of one kind
+each by its own id. The sender and our objects (services/sender.py, services/ownobjects.py), on the station's radios by id (tests/support/seamshapes.py over stub lines), send on the radio that takes a frame
+and give a held radio its copy later without another sending again, keep the round by the radio's id (two radios of one kind are two radios), and repeat by the net cycle of the path each radio carries; a
+query asked over HF (services/queries.py) is answered with the beacon's and the status's frames built for HF, no path and within the frame, while the same asked on FM has the path, and the general and the
+heard query asked over HF are answered on HF alone (each on the registry's radios and on the old set); the status report (services/rigstatus.py) is built for the radio it goes on."""
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -22,6 +22,7 @@ from neoaprs.ownlog import OwnLog
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.answers import as_pick
 from neoaprs.services.beacon import Beacon
+from neoaprs.services.beaconframe import BeaconFrames
 from neoaprs.services.ownobjects import OwnObjects
 from neoaprs.services.queries import Queries
 from neoaprs.services.radioset import AirRadio, RadioPick
@@ -71,7 +72,7 @@ def record(number: int, to: str, at: datetime, attempts: int = 1) -> MessageReco
 
 
 def two(config: Config, old: bool) -> tuple[RadioPick | StubRadios, RadioPick, dict[int, StubTnc]]:
-    """The two radios of the settings with OH2C on the HF one: what the ticker is given (the registry's RadioPick, or the old set of two that app.py gives it until then), the same as a RadioPick, and the lines by id."""
+    """The two radios of the settings with OH2C on the HF one: what the ticker is given (the registry's RadioPick, or the old set of two of before the round), the same as a RadioPick, and the lines by id."""
     if old:
         radios = StubRadios(hf_stations=("OH2C",))
         return radios, as_pick(radios, lambda: config), {FM_ID: radios.fm, HF_ID: radios.hf}
@@ -152,7 +153,7 @@ class Lines:
         self.specs = config.radios if specs is None else specs
         self.lines = {spec.id: StubTnc() for spec in self.specs}
         self.pick: object = RegistryShape([LiveShape(spec, self.specs, self.lines[spec.id]) for spec in self.specs])      # type: ignore[arg-type]
-        if old:                                                             # (the old set of two that app.py hands the sender until the integration gives the registry: services/common.OldRadios)
+        if old:                                                             # (the old set of two of before the round, which the sender reads as a RadioPick: services/common.OldRadios)
             self.pick = StubRadios()
             self.lines = {FM_ID: self.pick.fm, HF_ID: self.pick.hf}                                                   # type: ignore[attr-defined]
 
@@ -231,17 +232,25 @@ async def test_two_radios_of_one_kind_are_two_radios_and_each_takes_its_own_copy
 # ---- the answers to queries and the status report
 
 class Rig(ServiceRig):
-    """The two radios of the settings (a short HF frame) and the queries on them: given the registry's radios (a StubPick over the two lines), or with `old` the old set of two that app.py gives them until then."""
+    """The two radios of the settings (a short HF frame) and the queries on them: given the registry's radios (a StubPick over the two lines) as app.py gives them, radio 1's beacon and the status report
+    made from the one maker of frames, or with `old` the old set of two of before the round, with the beacon and the status report made the old way."""
 
     def __init__(self, old: bool = False) -> None:
         super().__init__(**{"hf_enabled": True, "station_comment": BOTH.station_comment})
         self.radios = StubRadios(hf_max_frame=60)                           # (a short HF frame: what is built for HF is cut to it, what is built for FM is not)
         self.book = StationBook(self.clock)
         self.book.set_me(self.config.station_call, self.config.station_lat, self.config.station_lon)
-        self.beacon = Beacon(self.radios.fm, lambda: self.config, self.clock)          # (the FM beacon, as app.py gives the queries)
-        self.status = RigStatus(self.radios, lambda: self.config, self.beacon, self.clock)
-        self.status.last_text = "QRV 14.074 MHz USB"
         self.pick = StubPick([LineAir(self.radios.fm, lambda: self.config), LineAir(self.radios.hf, lambda: self.config)])      # (the same two lines as the registry's radios: what the queries take)
+        if old:
+            self.beacon = Beacon(self.radios.fm, lambda: self.config, self.clock)      # (the FM beacon, made the old way: the queries ask it for the frame of the radio the answer goes on)
+            self.status = RigStatus(self.radios, lambda: self.config, self.beacon, self.clock)
+        else:
+            maker = BeaconFrames(lambda: self.config, None, self.clock)             # (app.py's shape: one maker, radio 1's beacon made from it, the status report on the registry's radios)
+            fm = self.pick.get(FM_ID)
+            assert fm is not None
+            self.beacon = Beacon(fm, lambda: self.config, self.clock, frames=maker)
+            self.status = RigStatus(self.pick, lambda: self.config, maker, self.clock)
+        self.status.last_text = "QRV 14.074 MHz USB"
         self.q = Queries(self.radios if old else self.pick, lambda: self.config, self.beacon, self.status.status_frame, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0,
                          heard=Log({}))
         remember_stop(self.q.stop)
@@ -268,7 +277,6 @@ def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same
     assert rig.radios.fm.sent[-1].path_text == "WIDE1-1,WIDE2-1" and rig.radios.fm.sent[-1].info == b"=6010.20N/02456.40E-" + BOTH.station_comment.encode()
 
 
-
 @pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
 async def test_the_general_query_and_the_heard_query_asked_over_hf_are_answered_on_hf_alone_with_no_path(old: bool) -> None:
     rig = Rig(old)
@@ -282,9 +290,10 @@ async def test_the_general_query_and_the_heard_query_asked_over_hf_are_answered_
     await idle_for(0.05)
     assert rig.radios.fm.sent == [], "nothing on FM"
 
+
 def test_the_status_report_is_built_for_the_radio_it_goes_on() -> None:
     rig = Rig()
-    rig.radios.enabled = {"hf"}                                             # (the FM radio off: the default radio is the HF one)
+    rig.radios.enabled, rig.pick.on = {"hf"}, {HF_ID}                       # (the FM radio off: the default radio is the HF one)
     assert rig.status._try("QRV 14.074 MHz USB") == ""
     [frame] = rig.radios.hf.sent
     assert frame.path == () and len(ax25.encode(frame)) <= 60 and rig.radios.fm.sent == []

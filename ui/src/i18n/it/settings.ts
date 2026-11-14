@@ -165,7 +165,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.txlevel.peak": "Picco {value} dBFS",
   "settings.txlevel.tip_label": "Informazioni sul livello di trasmissione",
   "settings.txlevel.tip1": "Quanto forte l’audio del modem va alla radio, in dB. Premi Accordatura e guarda l’ALC: non deve quasi muoversi.",
-  "settings.txlevel.tip2": "Il picco diventa rosso a 0 dBFS, dove la scheda audio satura.",
+  "settings.txlevel.tip2": "Il picco diventa arancione a 0 dBFS, dove la scheda audio satura.",
   "settings.tune": "Accordatura",
   "settings.tune_stop": "Stop",
   "settings.tune.label": "Tono di accordatura",

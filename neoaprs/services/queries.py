@@ -45,7 +45,7 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Protocol
+from typing import Protocol
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError
@@ -80,7 +80,7 @@ _HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.patte
 _NOT_ANSWERED = (QUERY_TEXT["wx"],)                                                # the general query of the specification that we have nothing to answer
 
 
-AnswerRadio = Any          # the radio an answer is built for: an AirRadio of the RadioPick (today's beacon and status read it by the rules that the registry's radios still have; the beacon's frame maker of the round by its AirRadio members)
+AnswerRadio = AirRadio | None          # the radio an answer is built for: the one the question came on (the RadioPick's `for_packet`); None, the beacon's own or the main radio
 
 
 class Frames(Protocol):
@@ -211,7 +211,7 @@ class Queries:
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
         self._config = config
-        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each question)
+        self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: services/answers.py `as_pick`, read at each question)
         self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._beacon = beacon
         self._status = status                                   # the frame of the status as last sent, for the radio the answer goes on (RigStatus.status_frame); None while none has been sent

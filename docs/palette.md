@@ -89,7 +89,7 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 
 ## The shapes and the fonts
 
-The corners are three tokens, the site's: `--radius` for a control, `--radius-box` for a group, a card, a menu or a bubble, `--radius-pill` for the tag; a corner written anywhere else is one of them, `0` or `50%` (a circle), and `ui/src/styles/radii.test.ts` fails for any other (the receive level bar, `HfLevelBar.vue` `5px`, and the scope, `HfScope.vue` `4px`, are instruments and keep theirs; the tag's `9px` is the pill at its 18 px). The tail corner of a message bubble is `0`. The sizes are the page's own: 14 px text, the tag's size, the fieldset with its legend, all spacing, the 2-px focus ring.
+The corners are three tokens, the site's: `--radius` for a control, `--radius-box` for a group, a card, a menu or a bubble, `--radius-pill` for the tag; a corner written anywhere else is one of them, `0` or `50%` (a circle), and `ui/src/styles/radii.test.ts` fails for any other (the receive level bar, `HfLevelBar.vue` `5px`, and the scope, `HfScope.vue` `4px`, are instruments and keep theirs). The tail corner of a message bubble is `0`. The sizes are the page's own: 14 px text, the tag's size, the fieldset with its legend, all spacing, the 2-px focus ring.
 
 | token | light | dark | recipe | for |
 |---|---|---|---|---|

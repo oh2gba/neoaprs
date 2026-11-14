@@ -14,16 +14,16 @@ const PREVIOUS: ExpressionSpecification = ["==", ["get", "previous"], 1];
 const LATEST: ExpressionSpecification = ["==", ["get", "previous"], 0];
 const IGATE: ExpressionSpecification = ["==", ["get", "end"], 1];
 
-/** A colour of the page's palette (`--accent`), else the one given where the style sheet is not there. */
+/** A colour of the page's palette (`--map-route`), else the one given where the style sheet is not there. */
 function paletteColor(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
 export function addRouteLayers(map: MapLibreMap, data: RouteCollection): void {
   if (map.getSource(ROUTE_SOURCE)) return;
-  const accent = paletteColor("--accent", "#1565c0");
-  const grey = paletteColor("--muted", "#5d6670");
-  const internet = paletteColor("--info", "#00697f");
+  const accent = paletteColor("--map-route", "#1565c0");
+  const grey = paletteColor("--map-route-old", "#5d6670");
+  const internet = paletteColor("--map-internet", "#00697f");
   const halo = paletteColor("--map-halo", "rgba(255, 255, 255, 0.9)");
   const text = paletteColor("--map-label", "#1d2125");
   map.addSource(ROUTE_SOURCE, { type: "geojson", data });

@@ -342,7 +342,9 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     assert (fm.line.radio_id, fm.line.label, hf.line.radio_id, hf.line.label) == (FM_ID, "tnc", HF_ID, "hf radio"), "the lines' own log lines begin as they did"
     assert fm.line.interlock is hf.line.interlock is not None and ctl.radios.enabled() == [fm] and not hf.rtype.dummy, "the defaults until the settings are read"
     assert ctl.sender.radios is ctl.radios and ctl.digipeater._radios is ctl.radios, "the sender (and our objects and bulletins through it) and the digipeater take the registry itself"
-    assert (ctl.radio_set.fm, ctl.radio_set.hf) == (fm.line, hf.line) and ctl.messaging._tnc is ctl.radio_set, "the services of messages and answers still take the two radios as one"
+    assert ctl.messaging._given is ctl.queries._given is ctl.qru._given is ctl.qruask._given is ctl.generalask._given is ctl.rigstatus._radios is ctl.radios, "messaging, the answers, asking and the status report take the registry itself"
+    assert ctl.rigstatus.frames is ctl.beacon_frames is fm.beacon.frames is hf.beacon.frames and (fm.beacon.radio, hf.beacon.radio) == (fm, hf), "one maker of our frames for the status report and every radio's beacon, each beacon its own radio's"
+    assert not hasattr(ctl, "radio_set"), "no service takes the two radios as one any more"
     assert ctl.run == RunOverrides("", str(e.ports / "probe_*"), "", 0.0)
     ctl.pattern_override = ""
     assert ctl.run.pattern == "", "what the process gave for the run is read each time"

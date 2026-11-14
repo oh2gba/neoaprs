@@ -1,8 +1,7 @@
-"""Two radios in one station (the registry, neoaprs/radioregistry.py, and the two as the services still see them, neoaprs/radios.py), in a world of three daemons on the suite's two airs (tests/support/mercuryworld.py: the fake Mercury's HF air and an FM air): OH2A has both radios, OH2B the FM
+"""Two radios in one station (the registry, neoaprs/radioregistry.py, which every service that sends or answers takes), in a world of three daemons on the suite's two airs (tests/support/mercuryworld.py: the fake Mercury's HF air and an FM air): OH2A has both radios, OH2B the FM
 radio alone, OH2C the HF radio alone. A beacon of OH2A goes out on both radios and each neighbour hears it on its own; a station is tagged with the radio it was heard on; a message of OH2A goes to OH2B on FM
 and to OH2C over HF, and each ack comes back on the radio the message came on; a message to a station heard on both radios goes on FM; with the HF radio off nothing of this is there. The tests of what a radio
-does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the main radio, the radio of a station),
-and with it, each time, that the services' view of the two radios (`ctl.radio_set`) chooses the same line (`lines_on`, `line_to`)."""
+does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the main radio, the radio of a station; `lines_on`, `line_to`)."""
 from pathlib import Path
 
 
@@ -33,16 +32,14 @@ def heard_on(e: Env, call: str) -> tuple[int, int]:
 
 
 def lines_on(e: Env) -> list[Tnc]:
-    """The lines of the radios that are enabled, by the registry; the services' view of the two radios says the same."""
-    lines = [radio.line for radio in e.ctl.radios.enabled()]
-    assert e.ctl.radio_set.on == lines
-    return lines
+    """The lines of the radios that are enabled, by the registry."""
+    return [radio.line for radio in e.ctl.radios.enabled()]
 
 
 def line_to(e: Env, call: str) -> Tnc:
-    """The line of the radio a message to the station goes out on, by the registry; the services' view of the two radios says the same."""
+    """The line of the radio a message to the station goes out on, by the registry."""
     radio = e.ctl.radios.for_station(call)
-    assert radio is not None and e.ctl.radio_set.for_station(call) is radio.line
+    assert radio is not None
     return radio.line
 
 
@@ -106,15 +103,13 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
     e = Env(tmp_path)
     await e.start()
     try:
-        radios, both = e.ctl.radios, e.ctl.radio_set
+        radios = e.ctl.radios
         assert e.ctl.config.fm_enabled and not e.ctl.config.hf_enabled
         main, hf = radios.main, radios.get(HF_ID)
         assert main is not None and main.id == FM_ID and main.line is e.tnc and line_to(e, "OH2X") is e.tnc and lines_on(e) == [e.tnc]
         assert hf is not None and not hf.spec.enabled and hf.line is e.hf and radios.email() is main, "the HF radio is there, off, and is never chosen"
-        assert both.default is e.tnc and both.of("hf") is None, "(the same as the services see the two)"
         assert e.hf.state is Source.State.STOPPED and e.ctl.mercury.state == "stopped" and e.ctl.hf_beacon.last_sent is None
         assert main.rules == e.tnc.rules and main.max_frame is None and main.usable == e.tnc.usable and (main.kind, main.name) == ("fm", "FM")
-        assert both.rules is e.tnc.rules and both.max_frame is None and both.usable == e.tnc.usable
         await e.ctl.save_config(DEFAULTS)         # (the defaults: still one radio)
         await until(lambda: e.hf.state is Source.State.STOPPED)
     finally:

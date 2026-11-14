@@ -164,7 +164,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.txlevel.peak": "Huippu {value} dBFS",
   "settings.txlevel.tip_label": "Tietoa lähetystasosta",
   "settings.txlevel.tip1": "Kuinka voimakkaana modeemin ääni menee radiolle, dB:nä. Paina Viritä ja seuraa radion ALC:tä: sen ei pitäisi juuri liikkua.",
-  "settings.txlevel.tip2": "Huippu muuttuu punaiseksi arvossa 0 dBFS, jossa äänikortti leikkaa.",
+  "settings.txlevel.tip2": "Huippu muuttuu oranssiksi arvossa 0 dBFS, jossa äänikortti leikkaa.",
   "settings.tune": "Viritä",
   "settings.tune_stop": "Pysäytä",
   "settings.tune.label": "Viritysääni",

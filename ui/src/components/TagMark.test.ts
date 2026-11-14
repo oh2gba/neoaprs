@@ -13,7 +13,7 @@ describe("TagMark", () => {
     expect(button.attributes("type")).toBe("button");
   });
 
-  it("has a tone of its own for the HF radio: a violet pair of the palette, apart from the FM radio's neutral grey in both themes", () => {
+  it("has a tone of its own for the HF radio: the site's inverse pill, apart from the FM radio's neutral grey in both themes", () => {
     const hf = mount(TagMark, { props: { tone: "hf" }, slots: { default: "HF" } });
     const fm = mount(TagMark, { props: { tone: "neutral" }, slots: { default: "FM" } });
     expect(hf.classes()).toEqual(["tag", "tag-hf"]);
@@ -27,7 +27,7 @@ describe("TagMark", () => {
     expect(rule).toMatch(/height:\s*18px/);
     expect(rule).toMatch(/font-size:\s*11px/);
     expect(rule).toMatch(/padding:\s*0 6px/);
-    expect(rule).toMatch(/border-radius:\s*9px/);
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-pill\)/);
   });
 
   it.each([

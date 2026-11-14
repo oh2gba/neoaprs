@@ -54,7 +54,7 @@ export function channelLabel(row: Heard, named = false): string {
   return parts.length === 0 ? "" : joined(parts);
 }
 
-/** The tone of a channel's tag: the internet teal, the Dummy radio's dashed, the HF radio's violet, and the FM radio's and the iGate's the neutral grey (the words stay: the colour is not the only difference). */
+/** The tone of a channel's tag: the internet sky, the Dummy radio's dashed, the HF radio's inverse pill, and the FM radio's and the iGate's the neutral grey (the words stay: the colour is not the only difference). */
 type ChannelTone = "neutral" | "info" | "hf" | "dummy";
 const toneOf = (channel: Channel): ChannelTone => (channel === "is" ? "info" : channel === "dummy" ? "dummy" : channel === "hf" ? "hf" : "neutral");
 

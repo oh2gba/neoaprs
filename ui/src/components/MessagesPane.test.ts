@@ -363,7 +363,7 @@ describe("MessagesPane, the box to write in", () => {
     expect(parts).toEqual(["convo-head", "bubbles", "composebar"]);
   });
 
-  it("shows the bytes left of 67 as the text grows, and in red when there are too many", async () => {
+  it("shows the bytes left of 67 as the text grows, and in orange when there are too many", async () => {
     const wrapper = await pane();
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
     await wrapper.find("#msg-text").setValue("hello");

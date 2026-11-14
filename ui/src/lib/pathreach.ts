@@ -12,7 +12,7 @@
 import { t } from "@/i18n";
 import { isAlias } from "@/lib/chain";
 
-/** The most hops in all that most networks allow; a path of more is marked (amber), not refused. */
+/** The most hops in all that most networks allow; a path of more is marked (the warn plate), not refused. */
 export const USUAL_HOPS = 2;
 /** The choices of the Hops control: Direct (none) and 1 to 3 hops in all. */
 export const REACHES = [0, 1, 2, 3] as const;

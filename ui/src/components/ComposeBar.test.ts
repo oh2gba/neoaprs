@@ -48,7 +48,7 @@ describe("ComposeBar", () => {
     wrapper.unmount();
   });
 
-  it("counts what is left beside the buttons, red when it is over, and has no counter when it is not given one", async () => {
+  it("counts what is left beside the buttons, orange when it is over, and has no counter when it is not given one", async () => {
     const wrapper = bar({ left: 67, leftTitle: "67 of 67 characters left" });
     expect(wrapper.find(".compose-left").text()).toBe("67 left");
     expect(wrapper.find(".compose-left").attributes("title")).toBe("67 of 67 characters left");

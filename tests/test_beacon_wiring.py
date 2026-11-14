@@ -50,6 +50,7 @@ async def test_each_radio_has_its_own_beacon_and_its_frames_are_the_one_makers(t
     assert (fm.radio.id, hf.radio.id, fm.radio.kind, hf.radio.kind) == (FM_ID, HF_ID, "fm", "hf")
     assert (fm._memory_key, hf._memory_key) == (memory_key_of(FM_ID), memory_key_of(HF_ID)) == (BEACON_SENT, HF_BEACON_SENT), "each its radio's own row, today's for radios 1 and 2"
     assert e.ctl.rigstatus.frames is fm.frames, "the status report's maker is the beacons'"
+    assert hf.frames is fm.frames, "one maker for every radio's beacon"
     assert fm.position_info() == fm.frames.position_info() == INFO and fm.frame(hf.radio).path == (), "the iGate's position field, and the frame for the HF radio without its path"
     assert hf.frames.position(hf.radio) == fm.frames.position(hf.radio), "the HF beacon's frame is the one maker's for radio 2"
     await e.stop()

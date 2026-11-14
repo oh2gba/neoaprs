@@ -41,7 +41,7 @@ Up to 0.12 the default titled every notification "APRS message from …". A stor
 
 **The Test button** to the right of the Command field runs the command as it is saved, exactly as for a real message. `NEOAPRS_KIND` is `message`, `NEOAPRS_TITLE` is `APRS message from NEOAPRS`, `NEOAPRS_FROM` is `NEOAPRS`, `NEOAPRS_TEXT` is `This is a test of the NeoAPRS alert`, `NEOAPRS_AT` is now and `NEOAPRS_MSG_ID` is empty. It works whatever **Alert** says. Its result is said in the toast at the bottom of the page.
 
-The answer is shown under the field until the next edit: green `ran` when it worked, else red with the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed. An empty command answers `no alert command`. The button waits while a test runs, and is off, with the title "Save first", while the field differs from the saved command.
+The answer is shown under the field until the next edit: `ran` when it worked, else orange with the exit code and the first line of stderr (`exit code 3: no display`), or that it could not start or was killed. An empty command answers `no alert command`. The button waits while a test runs, and is off, with the title "Save first", while the field differs from the saved command.
 
 ## In this browser
 
