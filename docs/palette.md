@@ -87,6 +87,10 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 | `--speed` | `#2e7d32` | `#81c784` | as it was | the speed graph of a moving station's card |
 | `--signal` | `#ad1457` | `#f48fb1` | as it was | the signal graph of a station's card |
 
+## The icon
+
+The icon (`ui/public/icons/icon.svg`, the same text as `site/favicon.svg` and the loading page's mark; every raster file drawn from it by `scripts/make-icon.py`) is the palette's too: the tile and the pin's hole petrol `#0a2a3d`, the pin and the inner waves white, the outer waves mint `#a6d7d4`. `tests/test_icon.py` holds the files to these colours.
+
 ## The shapes and the fonts
 
 The corners are three tokens, the site's: `--radius` for a control, `--radius-box` for a group, a card, a menu or a bubble, `--radius-pill` for the tag; a corner written anywhere else is one of them, `0` or `50%` (a circle), and `ui/src/styles/radii.test.ts` fails for any other (the receive level bar, `HfLevelBar.vue` `5px`, and the scope, `HfScope.vue` `4px`, are instruments and keep theirs). The tail corner of a message bubble is `0`. The sizes are the page's own: 14 px text, the tag's size, the fieldset with its legend, all spacing, the 2-px focus ring.

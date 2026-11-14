@@ -366,6 +366,9 @@
 * `test_desktop_splash_shown.py` (a Windows desktop that is shown: GitHub's Windows runner; skipped in a service's or an SSH session's hidden window station and on every other system): the loading window of `neoaprs/desktop/splash.py` made with the Win32 calls themselves: there and shown, of its size at the screen's scale, in the middle of the work area, a tool window with no button on the taskbar, without the focus, and gone when it is taken away.
   options, the look at a data folder an app holds already (no lock taken), the place at the DPI and the page's dark colours, the handle that closes it once from
   anywhere, every place the app takes it away (before a message box of its own, which the splash would cover), and the entry's way to it importing nothing heavy (`-X importtime` in a process of its own).
+* `test_icon.py`: the icon, one drawing in the site's colours: every raster file `scripts/make-icon.py` makes (the desktop app's, the site's, the page's) read with the standard library, each frame of an .ico a PNG, at its sizes and in its form
+  (the rounded tile with transparent corners, or full bleed), its ground the petrol and an outer wave the mint, stroked on its radius as the SVG strokes it (from 32 px); the page's copies the same bytes; the SVG files the script's drawing (and the check failing on
+  a changed colour, number and shape); the old navy in none of the files where the icon's colours are written.
 * `test_desktop_startup.py`: the desktop app's start: the loading page (`neoaprs/desktop/loading.py`: the page's icon and colours, nothing that moves), the session
   opened in a thread of its own, the wait for the page every 0.05 s that looks at the lock only once the page answers, and `neoaprs app` on a slow daemon and on
   one that never comes in virtual time (the wait's clock and sleep are the test's); the Windows shell's window before the page and with no page.

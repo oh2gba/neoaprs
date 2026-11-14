@@ -338,7 +338,7 @@ The words of the page are in a catalogue, so that a language is a file and not a
 | `scripts/dup-compare.py` | the decision of `dup-check`: compares a jscpd report with the baseline, clone by the pair of files it joins |
 | `scripts/css-unused.py` | the unused-class check of the page's style sheets (`ui/src/styles/*.css`), run by the stage `ui-lint`: lists the classes that a rule names and no `.vue`, `.ts` or `.html` file of `ui/` writes; the classes the page builds at run time (`hop-${kind}`, ...) are in its `PREFIXES`, with the file that builds each |
 | `scripts/neoaprs-db` | a clone's wrapper of `neoaprs db` with `--data` set to the clone's `./data` (a `--data` of your own wins) |
-| `scripts/make-icon.py` | draws the desktop app's icon, `neoaprs/desktop/icon.png` and `icon.ico` (they are committed; this is how they were made), and with `--site` the icons of the project page; needs Pillow: `uv run --with Pillow scripts/make-icon.py` |
+| `scripts/make-icon.py` | draws every raster icon from the one drawing of `ui/public/icons/icon.svg`, in one run: the desktop app's `neoaprs/desktop/icon.png` and `icon.ico`, the project page's `site/favicon.ico` and `apple-touch-icon.png`, and the page's `ui/public/favicon.ico` and `ui/public/icons/*.png` (all committed; `scripts/build-page` carries the page's into `neoaprs/page/`); it first checks that the two SVG files are its drawing and writes nothing when they are not; `--out DIR` writes them under another folder; needs Pillow: `uv run --with Pillow scripts/make-icon.py` |
 | `scripts/screenshots.py` | takes the screenshots of the README and of the project page with Playwright, on a daemon of its own and a made-up day on the air ([the project page](#the-project-page)); the version beside Check now is hidden in them, so they are retaken when the page changes, not at each release |
 | `scripts/demoscene.py` | the day on the air that `screenshots.py` plays: a KISS TNC on a TCP port of the loopback and a daemon on a clock moved back in time, with stations on the move, weather, messages, email, bulletins and objects, items and bulletins of our own |
 | `scripts/mercury-bench` | the bench of APRS over the Mercury HF modem with no radio (Linux): two real Mercury instances cross-wired through named pipes and two daemons with the Mercury radio type attached to them, driven through their sockets: a beacon heard, a message acked with the time it took, the longest message acked; `--keep` keeps the folders of the run. Mercury has to be installed ([`docs/RADIOS.md`](RADIOS.md#mercury-hf-modem)) |
@@ -578,8 +578,8 @@ On a failure the work folder (the logs, the data folder, the installer's log; no
 
 The logic runs with no toolkit (fakes of the window and the tray; `tests/README.md`). The Windows shell is tried against stand-ins for pywebview, pystray and
 Pillow, and the Qt shell headless with the real PySide6 (`QT_QPA_PLATFORM=offscreen`, skipped without the extra). A real tray, real Wayland or X11 windows and a
-real WebView2 are what only a desktop can try. The icon is `neoaprs/desktop/icon.png` (the tray) and `icon.ico` (the Windows programs), made by
-`scripts/make-icon.py`. The app picks Qt on Linux and macOS and pywebview with pystray on Windows because pywebview's Qt backend would need the tray from a
+real WebView2 are what only a desktop can try. The icon is `neoaprs/desktop/icon.png` (the tray) and `icon.ico` (the Windows programs, and the macOS icon made of it),
+made by `scripts/make-icon.py` with every other raster icon of the page and the site, from the drawing of `ui/public/icons/icon.svg` (`tests/test_icon.py`). The app picks Qt on Linux and macOS and pywebview with pystray on Windows because pywebview's Qt backend would need the tray from a
 library that does not share Qt's event loop on Linux, while Qt has both.
 
 ### The project page

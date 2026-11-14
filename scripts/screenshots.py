@@ -706,12 +706,12 @@ def _font(size: int, bold: bool) -> Any:
 
 
 def make_og(out: Path) -> None:
-    """og.png, 1200x630: the map shot on the dark blue of the icon, the name and the pitch beside it (what a link to the site shows)."""
+    """og.png, 1200x630: the map shot on the petrol of the icon, the name and the pitch beside it (what a link to the site shows)."""
     from PIL import Image, ImageDraw
     source = out / "map.png"
     if not source.exists():
         return
-    card = Image.new("RGB", (1200, 630), (20, 44, 82))
+    card = Image.new("RGB", (1200, 630), (10, 42, 61))                # petrol #0a2a3d, the icon's tile
     shot = Image.open(source).convert("RGB")
     shot = shot.resize((round(shot.width * 0.62), round(shot.height * 0.62)), Image.LANCZOS)
     mask = Image.new("L", shot.size, 0)
@@ -720,7 +720,7 @@ def make_og(out: Path) -> None:
     draw = ImageDraw.Draw(card)
     draw.text((56, 150), "NeoAPRS", font=_font(84, True), fill=(255, 255, 255))
     for i, line in enumerate(("A modern, easy-to-use", "APRS client for Windows,", "Linux and the Raspberry Pi")):
-        draw.text((58, 262 + i * 40), line, font=_font(28, False), fill=(190, 214, 245))
+        draw.text((58, 262 + i * 40), line, font=_font(28, False), fill=(166, 215, 212))       # mint #a6d7d4, as the site's dark band has it on petrol: 9.4 to 1
     if ICON.exists():
         mark = Image.open(ICON).convert("RGBA").resize((72, 72), Image.LANCZOS)
         card.paste(mark, (58, 56), mark)
