@@ -3,6 +3,7 @@
 `{"status":"ok"}` (an unknown one with `{"status":"error","code":-1}`), takes `set_waterfall` and `set_tx_gain`, and while the waterfall is on sends a binary spectrum frame (the magic, the number of bins, the sample rate and
 the floats) every `spectrum_sec`. `commands` keeps every command it was given, as (command, value). The spectrum is white noise of a level the test sets (`noise_db`) with a tone of `tone_hz` at `tone_db` over it."""
 import asyncio
+import contextlib
 import json
 import math
 import random
@@ -35,6 +36,7 @@ class FakeUi:
     upgrade: bool = True                       # false: the server answers a GET with a plain 200, as a server that is no websocket does
     _server: asyncio.Server | None = None
     _clients: list[asyncio.StreamWriter] = field(default_factory=list)
+    _open: set[asyncio.StreamWriter] = field(default_factory=set)      # every connection, from its first byte: one that has not yet asked for the websocket is closed with the rest
     _tasks: list[asyncio.Task[None]] = field(default_factory=list)
 
     async def start(self, host: str = "127.0.0.1") -> None:
@@ -46,12 +48,15 @@ class FakeUi:
         for task in self._tasks:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
-        for writer in list(self._clients):
-            writer.close()
-        self._clients.clear()
         if self._server is not None:
             self._server.close()
-            await self._server.wait_closed()
+        for writer in list(self._open):                                    # (also one that connected a moment ago and has sent nothing: wait_closed waits for every connection, and that one
+            writer.transport.abort()                                       # would keep a dying program alive until its client gave up, seen on Windows under load on 14 November 2026)
+        self._open.clear()
+        self._clients.clear()
+        if self._server is not None:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._server.wait_closed(), 2.0)
 
     def drop(self) -> None:
         """Closes every connection: the client's link is lost and opened again."""
@@ -98,6 +103,7 @@ class FakeUi:
                 self.broadcast(spectrum_frame(self.spectrum_db(), RATE), BINARY)
 
     async def _client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        self._open.add(writer)
         try:
             head = (await reader.readuntil(b"\r\n\r\n")).decode("latin-1")
             headers = {n.strip().lower(): v.strip() for n, _, v in (line.partition(":") for line in head.split("\r\n")[1:] if ":" in line)}
@@ -116,6 +122,7 @@ class FakeUi:
         finally:
             if writer in self._clients:
                 self._clients.remove(writer)
+            self._open.discard(writer)
             writer.close()
 
     async def _read(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

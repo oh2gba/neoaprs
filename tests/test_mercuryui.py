@@ -269,3 +269,16 @@ async def test_a_handler_that_fails_does_not_end_the_link(caplog: pytest.LogCapt
 
 def test_the_opcodes_are_the_ones_of_the_rfc() -> None:
     assert (TEXT, BINARY, CLOSE, PING) == (1, 2, 8, 9)
+
+
+async def test_the_fake_ui_ends_at_once_with_a_connection_that_has_asked_for_nothing_yet() -> None:
+    """The fake modem's UI server closes every connection when it ends: one that connected a moment before and has sent nothing kept a dying fake Mercury alive until the client gave up (Windows, under load)."""
+    ui = FakeUi(port=0)
+    await ui.start()
+    reader, writer = await asyncio.open_connection("127.0.0.1", ui.port)
+    try:
+        await asyncio.sleep(0.05)                                           # the server has taken the connection and waits for its first line
+        await asyncio.wait_for(ui.aclose(), 1.0)
+        assert await asyncio.wait_for(reader.read(), 1.0) == b"", "the connection is closed from the server's side"
+    finally:
+        writer.close()
