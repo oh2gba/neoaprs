@@ -3,8 +3,8 @@
 The address is built here from the version alone: the release page of the project on github.com, the tag `v<version>`, the file's name. Nothing of the version page's answer but the version is used, and a version that is
 not plainly one (digits and dots, an optional `-rc1`) builds no address. The download may be redirected only to GitHub's own hosts of release files, over https.
 
-SHA256SUMS is believed only with its signature (`signed_checksum`): SHA256SUMS.sig is the base64 of the 64-byte Ed25519 signature, made by `scripts/release` with the project's key, which is on the maintainer's machine
-and not on GitHub; PUBLIC_KEY is its public half, and the only place the program has it. What is signed is `signed_message`: the line `NeoAPRS SHA256SUMS v<version>` and the list as it is. The version is bound there
+SHA256SUMS is believed only with its signature (`signed_checksum`): SHA256SUMS.sig is the base64 of the 64-byte Ed25519 signature, made with the project's key, which is in Bitwarden Secrets Manager and read into memory by
+`scripts/release` alone, never on GitHub; PUBLIC_KEY is its public half, and the only place the program has it. What is signed is `signed_message`: the line `NeoAPRS SHA256SUMS v<version>` and the list as it is. The version is bound there
 and not in the list, so that the list stays what `sha256sum --check --strict` and the programs from before the signature read, and the version the check holds it to is the one Update now asked for: it is never read
 out of the bytes that came with the download, so a signed list of an older release offered as a newer one does not hold.
 """

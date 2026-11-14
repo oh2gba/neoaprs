@@ -4,13 +4,11 @@
 
 - **New:** a right-click on the monitor card sets how fast its waterfall scrolls.
 - **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
-- **New:** the HF waterfall keeps its last two minutes across another tab, a reload or another screen.
 - **Changed:** the HF modem is Mercury 1.9.24.
-- **Changed:** the detailed map is made by NeoAPRS itself, and the Windows program is 56 MB smaller.
+- **Changed:** the detailed map no longer downloads a helper program first, and the Windows program is smaller.
 - **Changed:** the app's window opens at once while NeoAPRS starts; on Windows a small loading window comes first.
 - **New:** a **Skeds** tab: post when and on which dial you will be on the air, and see who else will be.
-- **New:** the HF **Spectrum** is a sharper waterfall with a frequency ruler, the spectrum as a curve and what was heard written on it.
-- **New:** **Monitor** in the map's menu shows the waterfall on a card over the map.
+- **New:** a sharper HF waterfall with a frequency ruler keeps its last two minutes; **Monitor** in the map's menu shows it over the map.
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
 - **Changed:** the recommended path of a fixed station is WIDE2-2.
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
@@ -18,7 +16,8 @@
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
 - **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.
 - **Fixed:** the support summary showed an old error as the present problem.
-- **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts the newest copy back.
+- **Fixed:** the HF radio's status lost the reason the modem had stopped at its next try. It now keeps it until the modem runs again.
+- **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts a backup copy back.
 - **Fixed:** a burst of questions could make NeoAPRS send a flood of answers. It now sends at most ten frames of answers a minute.
 - **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
 - **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.

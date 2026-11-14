@@ -7,11 +7,11 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `README.md` | the front page: what NeoAPRS is, how to download, run and try it |
 | `docs/MANUAL.md` | a pointer to docs/manual, for links to the manual's old place |
 | `docs/manual/README.md` | the manual for the person who runs NeoAPRS: what it is, the contents, a few words |
-| `docs/manual/install.md` | installing on Windows, Linux and the Raspberry Pi, starting at login, updating, the update check |
+| `docs/manual/install.md` | installing on Windows, macOS, Linux and the Raspberry Pi, starting at login, updating, the update check |
 | `docs/manual/start.md` | the first start, the setup guide, the data folder, how settings apply, trying it without a radio, stopping |
 | `docs/manual/page.md` | the page: the panel and its tabs (the Stations table, the Nearby tab, the Packets tab, the Settings tab), the map, the station cards, the header, phone, tablet and desktop, the base map |
 | `docs/manual/desktop.md` | the desktop app: the window, the tray, start at sign-in |
-| `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio; the HF radio (the Mercury modem, its sound card and keying, Tune and Test) and the Dummy HF radio |
+| `docs/manual/radio.md` | the radio's port (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC type, the keep-alive and the silent radio; the HF radio (the Mercury modem, its sound card and keying, Tune and Test, the Spectrum) and the Dummy HF radio |
 | `docs/manual/beacon.md` | the My station tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
 | `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, a station heard on HF, encrypted messages, deleting |
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, the radius and the server, and advanced use as an iGate |

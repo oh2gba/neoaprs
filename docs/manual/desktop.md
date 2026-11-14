@@ -14,7 +14,9 @@ The Windows installer and the AppImage have it inside; the .deb, made for a mach
 
 ## The window
 
-- It is titled NeoAPRS, 1280x800 in the middle of the screen the first time, then the size and place it was closed with, maximized if it was. A window closed while minimised comes back as it was before.
+- The window is there at once. Until NeoAPRS has started it shows the NeoAPRS mark and name, and the page takes their place in the same window. A window closed while it waits goes to the tray (with no tray, the app ends). If NeoAPRS does not start, the window closes and the app says why.
+- The Windows program shows a small window with the name first, while it loads. It goes when the real window is shown, and after 15 seconds at the most. It is not shown for `--tray`, `--quit`, `--help` or a second start.
+- The window is titled NeoAPRS, 1280x800 in the middle of the screen the first time, then the size and place it was closed with, maximized if it was. A window closed while minimised comes back as it was before.
 - On Windows the size, the place and the maximize are Windows' own window placement: it is read from Windows when the window is closed to the tray, at Quit and when it has stopped moving, and given back to Windows as it was when the window is opened again or the app starts. A window whose monitor is gone is moved onto one that is there by Windows. A file from an earlier version has no placement: the first start after the update opens the window at 1280x800 in the middle (maximized if it was), and from then on it is kept.
 - On Linux and macOS a place that is on no monitor any more (one was unplugged) is not used.
 - On Windows the app's log, `neoaprs-app.log`, has a line beginning `window:` for each save and restore of the window: the placement read, the one applied with the monitor's area, the work area without the taskbar and the display scaling (DPI), and what Windows says right after. If the window comes back wrong, **Collect support logs** in the tray menu puts that log in the support file ([support.md](support.md)).

@@ -36,7 +36,7 @@ The radio is a COM port. The page lists the ports of the computer to pick from (
 
 ## Linux AppImage
 
-`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed. It runs on x86_64 Linux with glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35 and newer) and the usual desktop libraries.
+`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed. It runs on x86_64 Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and newer) and the usual desktop libraries.
 
 ```bash
 chmod +x NeoAPRS-<version>-x86_64.AppImage
@@ -130,8 +130,9 @@ The window shows the steps for this copy, each file as a button and each command
 
 Once a day the daemon asks the project's version page whether a newer NeoAPRS is out, so that you hear of it and the project can count how many copies are in use. The first question comes a minute after the daemon starts, then one every 24 hours. A desktop app and the daemon it starts count once, and opening the page asks nothing.
 
-- **What is sent.** One request with the version and the kind of system in the address, `https://neo.oh2gba.eu/version.php?v=<version>&os=linux&id=<number>`, and a User-Agent that says the same. The system is `windows`, `macos`, `linux`, `linux-appimage` or `linux-arm` (a Raspberry Pi). The number is a random number made once for this installation (so that installations can be counted; it says nothing about you); a clone of the repository sends `0` in its place, which is not counted. Nothing else: no call, no position, no setting.
-- **What comes back.** The latest version, the address of the project page, an optional short note, and the HF frequency the group meets on, which the HF radio's box shows.
+- **What is sent.** One request with the version and the kind of system in the address, `https://neo.oh2gba.eu/version.php?v=<version>&os=linux&id=<number>`, and a User-Agent that says the same. The system is `windows`, `macos`, `linux`, `linux-appimage` or `linux-arm` (a Raspberry Pi). The number is a random number made once for this installation (so that installations can be counted; it says nothing about you). Nothing else: no call, no position, no setting.
+  - A clone of the repository, and an installation marked as a test machine (`neoaprs db set update/not_counted true`), send `0` in place of the number, which is not counted.
+- **What comes back.** The latest version, the address of the project page, an optional short note, and the HF frequency the group meets on, which the HF radio's box shows until the project's list of suggested frequencies has come.
 - **What is kept.** The server adds a line with the time (to the minute, UTC), the version, the system and the number to a log, and hands the version, the system and the number to the project's status page, where they are counted. Your address is not used. The source of the page is `server/version.php` in the repository.
 - **The answer** is a few lines of JSON: the latest release, the address of the project page and an optional note. When it is newer than yours, the page shows the **Update** mark and the note is in the update window. A page that cannot be reached, or answers something else, is ignored: nothing is shown and the next question is the next day.
 - **Switching it off.** The check has no setting. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run. The setting `update/url` can point at a page of your own (`neoaprs db set update/url ADDRESS`).

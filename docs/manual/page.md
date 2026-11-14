@@ -2,7 +2,7 @@
 
 NeoAPRS serves a page at `http://127.0.0.1:7303/` (the port is `web/port`). The [desktop app](desktop.md) shows the same page in a window. The colours follow the system's light or dark scheme.
 
-The page has a **map** of the area round your station and, at its right, a **panel** with ten tabs: Messages, Stations, Nearby, Email, Bulletins, Skeds, Objects, Beacon, Packets and Settings. A new page opens on Messages.
+The page has a **map** of the area round your station and, at its right, a **panel** with ten tabs: Messages, Stations, Nearby, Email, Bulletins, Skeds, Objects, My station, Packets and Settings. A new page opens on Messages.
 
 ## The panel and its tabs
 
@@ -20,7 +20,7 @@ The page has a **map** of the area round your station and, at its right, a **pan
 | **Bulletins** | the message board and the box to post to it ([bulletins.md](bulletins.md)) |
 | **Skeds** | when stations will be on the air, and the box to post your own ([skeds.md](skeds.md)) |
 | **Objects** | your objects and items, and Local info, where you ask the stations near you for theirs ([objects.md](objects.md)) |
-| **Beacon** | the state of the beacon with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
+| **My station** | the state of the beacon with Beacon now, where your position comes from (fixed, or a GPS), the Beacon choice that switches the beacon off, and what your station says on the air ([beacon.md](beacon.md)) |
 | **Packets** | the log, newest first, below |
 | **Settings** | the TNC and everything else, below ([settings.md](settings.md)) |
 
@@ -193,7 +193,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - the symbol's picture and name, and a small QRZ link beside the call (the base call's page on qrz.com, the SSID off, in a new tab; for a station, yours included, not for an object or an item);
 - a green check mark beside the call when the station was heard direct;
 - when the station was last heard ("6 min ago", the full time on hover);
-- the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a LoRa radio the RSSI too, a KISS TNC neither), the full time on hover; a station with no such reading has no row;
+- the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a KISS TNC none), the full time on hover; a station with no such reading has no row;
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
 - the PHG or the range it gave, one line each: the power, height, gain and the range worked out from them, with the antenna drawn as a small arrow after the figures (the direction it favours, north up) or a small circle when it is omni, the compass point and the degrees as its hover title; a DF report or an area the same way. The last given stays until the station gives another;
@@ -300,7 +300,7 @@ The page chooses its layout from the size of the window.
 |---|---|---|
 | **phone** | under 700 px wide, or shorter than 500 px and under 1000 px wide (a phone held sideways) | One view at a time. A compact header, the tab bar under it (the tabs that fit, and **More** for the rest), and the rest of the screen is the open tab, or the map. The first button of the tab bar is **Map**: it shows the map on the whole screen, and a tab of the bar brings its tab back (the view is remembered). A station's card is a bottom sheet: folded to its head and the first facts, a tap or a swipe up on its grip opens it, a swipe down folds it and a swipe down on the folded sheet closes it. It has a close button too (held sideways it is a sheet at the left). A tap on a row of the Stations tab shows the map with the card; **Message** and **Edit** on the card and the mail count of the header bring the tab. **Choose on map** shows the map with a bar ("Tap the place on the map", **Cancel**), and the tab comes back with the place filled in. The setup guide is the whole screen. One card at a time |
 | **tablet** | 700 to 1100 px | The map and the panel side by side, the panel 380 to 420 px wide (40 % of the window between those; no handle, a finger cannot drag it), with the fold button. Both orientations are side by side: a portrait tablet (768 by 1024) keeps a map 388 px wide, which is enough for a pinch and a card, and the panel keeps its full height. Up to two cards |
-| **desktop** | from 1100 px | The map and, at its right, the panel with the handle you drag. A panel you have not dragged is 760 px wide from a window of 1280 px (wide enough for the two columns of the Messages tab and the nine tabs with their badges), 480 px below that; a width you dragged is kept. Up to four cards side by side, as many as the width of the map has room for |
+| **desktop** | from 1100 px | The map and, at its right, the panel with the handle you drag. A panel you have not dragged is 760 px wide from a window of 1280 px (wide enough for the two columns of the Messages tab and the ten tabs with their badges), 480 px below that; a width you dragged is kept. Up to four cards side by side, as many as the width of the map has room for |
 
 - On every size the page is the height of the window (it follows the toolbars of a phone), does not scroll sideways, and keeps clear of the notch and the home bar.
 - On a touch screen every button, tab, field and row is at least 40 px high and a field has a 16 px font, so that a phone does not zoom the page in when one is focused.

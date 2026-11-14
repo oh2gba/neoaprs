@@ -97,7 +97,7 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 <!-- doc-settings:state -->
 - `beacon/last_sent_at`: when the FM radio's beacon last went out, so that a restart waits out the rest of the interval.
 - `status/last_sent_at`: when the status report last went out.
-- `status/last_text`: the text of that status report, so that an unchanged status is not sent again.
+- `status/last_text`: the text of that status report, which ?APRSS answers with and the page shows.
 - `map/auto`: whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`).
 - `hf/beacon_last_sent_at`: the same for the HF radio's beacon.
 - `messages/radio_by_station`: the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on.

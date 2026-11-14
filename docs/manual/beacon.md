@@ -263,6 +263,8 @@ A message to your call whose text is one of these queries is answered by NeoAPRS
 | `?APRSO` | your live objects and items, each once as it is now, at most 5, 10 seconds apart; also those you keep to send only when asked ([Objects](objects.md#objects-sent-only-when-asked)) |
 | `?APRSM` | your messages to the asker that are not acked (being sent, failed or unconfirmed), each once more, the latest 5, 10 seconds apart. They stay as they were: an ack that comes settles them |
 
+All the answers of your station together, the QRU server's too, are at most ten frames a minute, whoever asks. An answer that does not fit whole is not given.
+
 The general query `?APRS?` is a packet and not the text of a message (a message with that text is not answered, whoever it is for). It is answered with your position packet and then your status report, after a random wait of 0 to 120 seconds. Once one is taken, another is not taken for 10 minutes.
 
 It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: latitude and longitude in degrees (the `V` stands for a space and may be left out; a west or south value has its minus) and the radius in miles. Then you answer only when your position is inside the circle, and a footprint that does not read is not answered.

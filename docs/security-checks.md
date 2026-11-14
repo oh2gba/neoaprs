@@ -5,7 +5,7 @@
 | stage | command | when |
 |---|---|---|
 | `security` | `scripts/security-check` | in every run of the gate; asks nobody, nothing is fetched |
-| `audit` | `scripts/security-check --audit` | by name only, before a release: it asks osv.dev, and a new advisory must not turn the gate red for a change that has nothing to do with it |
+| `audit` | `scripts/security-check --audit` | by name only, before a release, and every Monday by the workflow `audit.yml`: it asks osv.dev, and a new advisory must not turn the gate red for a change that has nothing to do with it |
 
 The checks that are tests of the code itself (the routes of the page's server, the settings that reach the system, the modules that may start a program) are in the suite and in ruff's rules, not here.
 
