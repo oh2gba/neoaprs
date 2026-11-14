@@ -28,7 +28,7 @@ log = logging.getLogger("neoaprs.sender")
 
 class Sender:
     def __init__(self, radios: RadioPick | Radio, config: ConfigSource, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC) -> None:
-        self._radios = radios                                   # the radios as given (an old shape of today's app.py is read as a RadioPick: `radios`)
+        self._radios = radios                                   # the radios as given: app.py's registry, or an old shape of a test's (tests/support/rig.py) read as a RadioPick (`radios`)
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock

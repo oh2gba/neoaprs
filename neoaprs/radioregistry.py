@@ -21,6 +21,7 @@ from . import ax25, emailrule, messagerule
 from .claims import Claims
 from .clock import Clock, utcnow
 from .config import Config
+from .mercuryclaims import radio_folder
 from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
 from .packet import Packet
@@ -46,9 +47,8 @@ _SHOWN = {"skip": "ports to skip", "pattern": "search pattern", "fallback_probe"
 
 
 def driver_key(spec: RadioSpec) -> str:
-    """The key in DRIVERS of the radio's driver: its type's; the modem's for the Dummy HF radio, whatever its type says, because the program is its speaker and is started and stopped with it."""
-    t = spec.rtype
-    return "mercury" if t.kind == "hf" and t.dummy else t.driver
+    """The key in DRIVERS of the radio's driver: its type's."""
+    return spec.rtype.driver
 
 
 def make_driver(spec: RadioSpec, claims: Claims, clock: Clock, data_dir: Path, line: Tnc | None = None, modem: Mercury | None = None, *, search_lock: asyncio.Lock | None = None) -> RadioDriver:
@@ -56,7 +56,7 @@ def make_driver(spec: RadioSpec, claims: Claims, clock: Clock, data_dir: Path, l
     key = driver_key(spec)
     if key not in DRIVERS:
         raise RadioTypeError(f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})")
-    return DRIVERS[key](spec, claims, clock, data_dir / "radios" / str(spec.id), line, modem, search_lock or asyncio.Lock())
+    return DRIVERS[key](spec, claims, clock, radio_folder(data_dir, spec.id), line, modem, search_lock or asyncio.Lock())
 
 
 def _shown(value: object) -> str:
@@ -319,7 +319,7 @@ class RadioRegistry(StationChoices, Generic[B]):
                 self.why[id] = reason
         for id, spec in wanted.items():
             self._radios[id]._made_as = spec
-            self._radios[id].line.radio_name = log_name(spec, config.radios)
+            self._radios[id].line.radio_name = "" if id in SLOT_WORDS else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
         return list(self.why)
 
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:

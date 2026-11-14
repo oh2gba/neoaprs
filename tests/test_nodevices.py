@@ -14,7 +14,7 @@ from neoaprs import serialprobe
 from neoaprs.config import DEFAULTS
 from neoaprs.serialprobe import PATTERN_ENV, candidate_ports, search_pattern
 from neoaprs.tnc import Tnc
-from neoaprs.wiring import tnc_settings
+from neoaprs.tncdriver import tnc_settings
 from tests.conftest import ROOT
 from tests.support import guards
 from tests.support.ptyline import make_pty, makedev, posix_only

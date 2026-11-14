@@ -33,7 +33,7 @@ SAMPLE_BYTES = 4                              # s32le
 BLOCK_MS = 20                                 # a sound card's block
 BLOCK_BYTES = RATE * BLOCK_MS // 1000 * SAMPLE_BYTES
 SILENCE = bytes(BLOCK_BYTES)
-CAPTURE_FIFO = "mercury-capture.fifo"         # what Mercury hears (silence), in the data folder
+CAPTURE_FIFO = "mercury-capture.fifo"         # what Mercury hears (silence), in the modem's own folder (`Mercury.home`: radios/<id>/ of the data folder)
 PLAYBACK_FIFO = "mercury-playback.fifo"       # what Mercury transmits
 PLAYERS: tuple[tuple[str, tuple[str, ...]], ...] = (                      # the system's players of raw s32le mono at 8 kHz from standard input, the first found wins
     ("pw-play", ("--raw", "--rate", str(RATE), "--channels", "1", "--format", "s32", "-")),

@@ -1,7 +1,7 @@
 """What the services that send share: `ConfigSource` (how they read the settings), `transmit_refusal` and `our_call` (why nothing may be sent, and the call we may send under), and the two shapes of the
 radios. The new one is services/radioset.py's: `RadioPick` (the radios by id, the enabled ones, the main one, the station's, the one a packet came on) and `AirRadio`, and its `fit` makes every frame of the
 sender, our objects and bulletins and the digipeater. `as_pick` gives an old shape as the new one (`OldRadios`: the set of neoaprs/radios.py with the choice by station, by packet and by kind, or one plain
-`Radio`, each radio an `OldAir`), so that what app.py gives them today keeps working until the registry is given instead. The old shapes and their choices (`Radio`, `RadioSet`, `radios_on`, `radio_for`,
+`Radio`, each radio an `OldAir`): app.py gives the sender the registry, and the old shapes come only from the tests (tests/support/rig.py, the cases of the old set) and from the services that still take one. The old shapes and their choices (`Radio`, `RadioSet`, `radios_on`, `radio_for`,
 `radio_to`, `message_radio`, `radio_path`: none on HF) stay for the services that still take them (messaging, the answers, the beacon); `our_frame` and `fit_frame` (the frame shortened to what a radio with a
 fixed frame carries: the Mercury HF modem's 123 bytes) are services/radioset.py's, given here under their old names. The rule every service follows: a frame is built for, gated by and sent on *its* radio, the
 one the station is reached on or the one the request came on, never "the radio" of a station that has two."""
@@ -85,15 +85,15 @@ def radio_path(radio: Radio, path: tuple[str, ...]) -> tuple[str, ...]:
     return path if radio.rules.paths else ()
 
 
-# ---- the old shapes as the new one, until app.py gives the registry
+# ---- the old shapes as the new one, for the tests and the services that still give one
 
 class OldAir:
     """An old Radio (a Tnc, the old set as its default radio, a test's stub) as an AirRadio: its id and kind by its rules' kind (fm 1, hf 2), its limits and what it is allowed from its rules, its own choices
-    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's (or the ones given)."""
+    from the station's radio of that id (the FM radio's where its kind has no such field: the one beacon/path and digi/enabled of today were the station's), its counters its line's."""
 
-    def __init__(self, radio: Radio, config: ConfigSource, stats: TncStats | None = None) -> None:
+    def __init__(self, radio: Radio, config: ConfigSource) -> None:
         self.radio, self._config = radio, config
-        found = stats if stats is not None else getattr(radio, "stats", None)
+        found = getattr(radio, "stats", None)
         self._stats = found if isinstance(found, TncStats) else TncStats()
 
     @property
@@ -152,10 +152,10 @@ class OldAir:
 
 class OldRadios:
     """The old shapes as a RadioPick: the set of neoaprs/radios.py (its enabled radios, the one of a kind while it is enabled, its default radio as the main one: FM while it is on, else HF, else the FM one
-    stopped, as today), or one plain Radio (the digipeater's FM Tnc, a test's stub) that is every choice. Each radio is one OldAir for as long as this lives (the counters of the stats it was given stay its)."""
+    stopped, as today), or one plain Radio (a test's stub) that is every choice. Each radio is one OldAir for as long as this lives."""
 
-    def __init__(self, radios: Radio, config: ConfigSource, stats: TncStats | None = None) -> None:
-        self._old, self._config, self._stats = radios, config, stats
+    def __init__(self, radios: Radio, config: ConfigSource) -> None:
+        self._old, self._config = radios, config
         self._airs: dict[int, OldAir] = {}
 
     def _air(self, radio: Radio | None) -> OldAir | None:
@@ -163,7 +163,7 @@ class OldRadios:
             return None
         found = self._airs.get(id(radio))                  # (the OldAir keeps the radio it wraps, so the id is never another's)
         if found is None:
-            found = self._airs[id(radio)] = OldAir(radio, self._config, self._stats if radio is self._old else None)
+            found = self._airs[id(radio)] = OldAir(radio, self._config)
         return found
 
     def _of(self, kind: str) -> OldAir | None:
@@ -199,9 +199,9 @@ def is_pick(radios: object) -> TypeGuard[RadioPick]:
     return callable(getattr(radios, "get", None)) and callable(getattr(radios, "email", None))
 
 
-def as_pick(radios: RadioPick | Radio, config: ConfigSource, stats: TncStats | None = None) -> RadioPick:
-    """The radios as a RadioPick: the registry as it is, an old shape as OldRadios (`stats` the counters of one plain Radio, as app.py gives the digipeater the FM Tnc's)."""
-    return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config, stats)
+def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
+    """The radios as a RadioPick: the registry as it is, an old shape as OldRadios."""
+    return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
 
 
 RX_ONLY = "RX only: nothing is sent"                                # what a refusal to the page says while station/transmit is off (its code is `transmit.off`)

@@ -14,6 +14,7 @@ from . import nodevices
 from .claims import Claim, Claims
 from .clock import Clock, utcnow
 from .config import DEFAULTS, Config
+from .dummyline import DUMMY_PATH
 from .mercury import BROADCAST_PORT
 from .mercurymodem import HOST, Mercury
 from .radiodriver import RunOverrides
@@ -24,7 +25,6 @@ from .tncprofile import HF_BY_KEY, MERCURY, Profile, tcp_url
 log = logging.getLogger("neoaprs.controller")        # what the start of a radio says is the controller's, whoever does it
 
 NO_MERCURY = "the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (modem_settings)
-DUMMY_PORT = "the dummy radio"                       # dummyline.DUMMY_PATH: what the Tnc calls the port of a Dummy radio (a test holds the two equal; the name is imported once the architecture test pairs this module with dummyline)
 SPEED = 9600                                         # the line's speed, which a TCP line and the dummy line do not use
 
 
@@ -46,7 +46,7 @@ def modem_settings(spec: RadioSpec, run: RunOverrides, modem_port: int = BROADCA
     computer's port 8100 for one, is not ours and is never connected to."""
     profile = HF_BY_KEY[spec.rtype.profile]
     if profile.transport == "dummy":
-        return ModemSettings(DUMMY_PORT, profile)
+        return ModemSettings(DUMMY_PATH, profile)
     attached = _attached(spec, run)
     no_line = not attached and (nodevices.refused(NO_MERCURY, logging.INFO) if spec.enabled else nodevices.on())       # (said in the log only while there is an HF radio to say it of)
     return ModemSettings(attached or ("" if no_line else tcp_url(HOST, modem_port)), profile, (spec.value("sound_card"), spec.value("keying")))
@@ -83,7 +83,7 @@ class MercuryDriver:
         self.id = spec.id
         self.claims = claims
         self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)                                              # (a line and a modem made elsewhere: the process's own for radio 2, a test's)
-        self._modem = modem if modem is not None else Mercury(folder, clock, claims=claims, holder=spec.id, folder=folder)       # (its files in the radio's own folder: package C2)
+        self._modem = modem if modem is not None else Mercury(folder, clock, claims=claims, holder=spec.id, folder=folder)       # (its files in the radio's own folder)
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now; the Dummy HF radio's line plays its frames through it)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()       # what `configure` gave last: `start` starts the modem with it
@@ -145,5 +145,5 @@ class MercuryDriver:
         await self._modem.stop()
 
     def held(self) -> list[Claim]:
-        """What the station's table says this radio holds (the modem claims its sound card, its keying line and its pair of ports: package C2)."""
+        """What the station's table says this radio holds (the modem claims its sound card, its keying line and its pair of ports)."""
         return [claim for claim in self.claims.all() if claim.holder == self.id]

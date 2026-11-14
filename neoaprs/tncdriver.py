@@ -84,9 +84,10 @@ class TncDriver:
     def __init__(self, spec: RadioSpec, claims: Claims, clock: Clock = utcnow, line: Tnc | None = None, *, search_lock: asyncio.Lock | None = None) -> None:
         self.id = spec.id
         self.claims = claims
-        self.search_lock = search_lock if search_lock is not None else asyncio.Lock()   # the registry's: one radio searches the ports at a time (the line takes it with the claims: package C2)
+        self.search_lock = search_lock if search_lock is not None else asyncio.Lock()   # the registry's: one radio searches the ports at a time (the line takes it with the claims)
         self._line = line if line is not None else Tnc(clock=clock)        # (a line made elsewhere: the process's own for radio 1, a test's)
         self._line.radio_id = spec.id
+        self._line.claims, self._line.search_lock = claims, self.search_lock       # (the line leaves out what the others hold, waits for its turn to search, and holds the port it opens)
 
     @property
     def line(self) -> Tnc:
@@ -114,7 +115,7 @@ class TncDriver:
         await self._line.stop()
 
     def held(self) -> list[Claim]:
-        """What the station's table says this radio holds (the Tnc claims the port it opened: package C2)."""
+        """What the station's table says this radio holds (the Tnc claims the port it found or opened)."""
         return [claim for claim in self.claims.all() if claim.holder == self.id]
 
     def found_port(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:

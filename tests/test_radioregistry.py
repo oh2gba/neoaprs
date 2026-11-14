@@ -2,7 +2,8 @@
 they are asked): a radio is made for every one the settings have and dropped with it, a save restarts the radio whose driver's key or tickbox changed and no other, the one lifecycle (stop, take the settings,
 start while enabled) touches one radio alone, a third radio is started and stopped on its own, each beacon runs while its radio is on, and the choices (the main radio, the radio of a station, of a packet, of
 an email, the operator's own by station) are the rule modules' (radiospec, messagerule, emailrule) and, for two radios, what neoaprs/radios.py chose before. With the daemon: radios 1 and 2 are the registry's,
-under the names the page and the tests reach them by."""
+under the names the page and the tests reach them by; Find my radio lets go of both and takes them again, as before, and the hold of one radio alone is ready for the day the page names it."""
+import asyncio
 import itertools
 import json
 import logging
@@ -19,9 +20,12 @@ from neoaprs.radiodriver import RunOverrides
 from neoaprs.radioregistry import LiveRadio, RadioRegistry, driver_key, make_driver
 from neoaprs.radiorules import FM, HF
 from neoaprs.radios import Radios
-from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec, main_radio
+from neoaprs.radiosearch import Found
+from neoaprs.radiospec import FM_ID, HF_ID, RadioId, RadioSpec, main_radio
 from neoaprs.radiotype import RadioTypeError
 from neoaprs.radiotypes import type_of
+from neoaprs.services.radiofinder import RadioFinder
+from neoaprs.services.radioprobe import Timing
 from neoaprs.source import Source
 from neoaprs.station import Station
 from neoaprs.tncdriver import TncDriver
@@ -29,6 +33,7 @@ from tests.support.air import from_internet
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, until
 from tests.support.fakedriver import FakeDriver, Rig, as_air, as_driver, as_pick, registry_of, spec, with_radios
+from tests.support.faketnc import FakeTncServer
 from tests.support.stubtnc import StubRadios, StubRegistry, StubTnc, as_air as stub_air, as_pick as stub_pick
 
 T0 = FixedClock()()
@@ -53,8 +58,8 @@ def test_a_radio_is_made_for_every_radio_of_the_settings_that_is_not_removed_wit
     assert rig.registry.sync(rig.config) == [1, 2, 3] and rig.registry.why == {1: "it is new", 2: "it is new", 3: "it is new"}
     radios = rig.registry.all()
     assert [r.id for r in radios] == [1, 2, 3] and rig.registry.get(4) is None and rig.registry.get(3) is radios[2], "a removed radio has none"
-    assert [(r.name, r.kind, r.spec, r.driver, r.beacon, r.line.radio_id, r.line.radio_name) for r in radios] == \
-        [(name, s.kind, s, rig.drivers[s.id], rig.beacons[s.id], s.id, name) for name, s in zip(("FM", "HF", "FM 2"), THREE, strict=True)]
+    assert [(r.name, r.kind, r.spec, r.driver, r.beacon, r.line.radio_id) for r in radios] == [(name, s.kind, s, rig.drivers[s.id], rig.beacons[s.id], s.id) for name, s in zip(("FM", "HF", "FM 2"), THREE, strict=True)]
+    assert [r.line.radio_name for r in radios] == ["", "", "FM 2"], "the line of radio 1 and of radio 2 says today's words in its own log lines (`tnc`, `hf radio`: Tnc.label by its kind), any other its radio's name"
     assert rig.made == [(1, "kiss"), (2, "mercury"), (3, "kiss")] and rig.wired == [1, 2, 3], "one driver for each, and each handed to the wiring once"
     assert rig.registry.enabled() == [radios[0], radios[2]] and rig.registry.main is radios[0]
     assert rig.registry.sync(rig.config) == [] and rig.made == [(1, "kiss"), (2, "mercury"), (3, "kiss")], "a sync with nothing new makes nothing"
@@ -216,7 +221,7 @@ def test_the_driver_of_a_type_is_its_own_and_the_modems_for_the_dummy_hf_radio(t
         made_for = replace(fm, type=key)
         assert driver_key(made_for) == type_of(key).driver == "tnc" and isinstance(make_driver(made_for, claims, FixedClock(), tmp_path), TncDriver)
     assert driver_key(replace(hf, type="mercury")) == type_of("mercury").driver == "mercury"
-    assert driver_key(replace(hf, type="dummy-hf")) == "mercury" != type_of("dummy-hf").driver, "the Dummy HF radio's speaker is the modem program: the modem's driver starts and stops it"
+    assert driver_key(replace(hf, type="dummy-hf")) == type_of("dummy-hf").driver == "mercury", "the Dummy HF radio's speaker is the modem program: the modem's driver starts and stops it"
     driver = make_driver(replace(hf, id=5), claims, FixedClock(), tmp_path)
     assert isinstance(driver, MercuryDriver) and driver.line.radio_id == 5 and driver.modem.holder == 5 and driver.modem.folder == tmp_path / "radios" / "5" and driver.modem.claims is claims
     with pytest.raises(RadioTypeError):
@@ -331,9 +336,13 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     assert isinstance(fm.driver, TncDriver) and isinstance(hf.driver, MercuryDriver) and fm.driver.modem is None and hf.line.modem is ctl.mercury
     assert fm.driver.search_lock is ctl.radios.search_lock and (ctl.mercury.claims, ctl.mercury.holder, ctl.mercury.folder) == (ctl.radios.claims, HF_ID, ctl.data_dir / "radios" / "2"), "the registry's lock and table"
     assert ctl.mercury.claims is ctl.radios.claims
-    assert (fm.line.radio_id, fm.line.radio_name, hf.line.radio_id, hf.line.radio_name) == (FM_ID, "FM", HF_ID, "HF")
+    assert fm.line.claims is ctl.radios.claims and fm.line.search_lock is ctl.radios.search_lock and hf.line.claims is None, "radio 1's line has the station's table and its one search at a time; the modem's line, a socket, claims nothing"
+    finder = ctl.radiofinder
+    assert (finder.claims, finder.search_lock, finder._hold, finder._release) == (None, None, ctl.hold_tnc, ctl.release_tnc), "Find my radio lets go of the whole station as before, until the page says which radio it searches for"
+    assert (fm.line.radio_id, fm.line.label, hf.line.radio_id, hf.line.label) == (FM_ID, "tnc", HF_ID, "hf radio"), "the lines' own log lines begin as they did"
     assert fm.line.interlock is hf.line.interlock is not None and ctl.radios.enabled() == [fm] and not hf.rtype.dummy, "the defaults until the settings are read"
-    assert (ctl.radio_set.fm, ctl.radio_set.hf) == (fm.line, hf.line) and ctl.sender._tnc is ctl.radio_set, "the services still take the two radios as one"
+    assert ctl.sender.radios is ctl.radios and ctl.digipeater._radios is ctl.radios, "the sender (and our objects and bulletins through it) and the digipeater take the registry itself"
+    assert (ctl.radio_set.fm, ctl.radio_set.hf) == (fm.line, hf.line) and ctl.messaging._tnc is ctl.radio_set, "the services of messages and answers still take the two radios as one"
     assert ctl.run == RunOverrides("", str(e.ports / "probe_*"), "", 0.0)
     ctl.pattern_override = ""
     assert ctl.run.pattern == "", "what the process gave for the run is read each time"
@@ -349,6 +358,56 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     await until(lambda: fm.state is not Source.State.STOPPED)
     await e.stop()
     assert fm.state is hf.state is Source.State.STOPPED and not fm.beacon.running and not hf.beacon.running
+
+
+def searching(url: str, finder: RadioFinder, radio: RadioId | None = None) -> "asyncio.Task[Found | None]":
+    """A search of the finder over the one port of a fake TNC (tests/support/faketnc.py) that says nothing, under way: no device of the machine is listed or opened."""
+    async def listed() -> list[str]:
+        return [url]
+
+    finder.ports, finder.timing = listed, Timing(listen_sec=30, answer_sec=30)
+    return asyncio.create_task(finder.find(lambda step: None, radio))
+
+
+async def test_find_my_radio_of_the_daemon_lets_go_of_both_radios_and_starts_them_again_as_before(tmp_path: Path) -> None:
+    """The daemon's own finder, asked as the page asks it (no radio named): the whole station lets go of its radios for the search, the HF radio and its modem with the FM radio's line, and takes them again
+    after it, as it did before the registry."""
+    silent = await FakeTncServer("silent").start()
+    e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e.ctl.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
+    await e.start()
+    fm, hf = e.ctl.radios.all()
+    await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
+    hf_line = e.hf._generation
+    search = searching(silent.url, e.ctl.radiofinder)
+    await until(lambda: silent.connections == 1)
+    assert fm.state is hf.state is Source.State.STOPPED, "both radios let go of their lines for the search"
+    assert e.ctl.radiofinder.cancel() and await search is None
+    await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
+    assert e.hf._generation != hf_line and fm.beacon.running and hf.beacon.running, "both radios started again, each with its beacon"
+    await e.stop()
+    await silent.aclose()
+
+
+async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_and_takes_the_stations_one_search_at_a_time(tmp_path: Path) -> None:
+    """The finder as the composition root will make it once the page names the radio it searches for (the controller's hold_radio and release_radio, the registry's table and lock), asked for radio 1."""
+    silent = await FakeTncServer("silent").start()
+    e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e.ctl.mercury._finder = lambda: None
+    await e.start()
+    fm, hf = e.ctl.radios.all()
+    await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
+    hf_line, lock, ctl = e.hf._generation, e.ctl.radios.search_lock, e.ctl
+    finder = RadioFinder(ctl._radio_ports, ctl.hold_radio, ctl.release_radio, claims=ctl.radios.claims, search_lock=lock)
+    search = searching(silent.url, finder, FM_ID)
+    await until(lambda: silent.connections == 1)
+    assert fm.state is Source.State.STOPPED and lock.locked(), "radio 1 let go of its line, and the search has the station's turn"
+    assert hf.state is Source.State.CONNECTED and e.hf._generation == hf_line and hf.beacon.running, "the other radio was not touched"
+    assert finder.cancel() and await search is None
+    await until(lambda: fm.state is Source.State.CONNECTED)
+    assert not lock.locked() and hf.state is Source.State.CONNECTED and e.hf._generation == hf_line, "radio 1 took its line again, the turn is free, and radio 2 ran all the while"
+    await e.stop()
+    await silent.aclose()
 
 
 async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_stopped_alone(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

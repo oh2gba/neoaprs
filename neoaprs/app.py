@@ -21,6 +21,7 @@ from .config import BEACON_SENT, DEFAULTS, MESSAGE_RADIOS, Config, radio_state_k
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
+from .mercuryclaims import radio_folder
 from .mercurymodem import Mercury
 from .messagelog import MessageLog
 from .ownlog import OwnLog
@@ -101,7 +102,7 @@ class Services:
         self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # radio 1's line (the FM radio, a KISS TNC): made with the process, so that the tests may hand theirs in; its driver gives it the settings when it is started
         self.hf = hf if hf is not None else Tnc(clock=clock, profile=MERCURY)      # radio 2's line (the HF radio): the Tnc that reaches the Mercury modem's KISS port, with the HF rules of its profile
         claims = Claims()                                               # the station's one table of resources (the registry's): what each radio and the GPS receiver hold
-        self.mercury = Mercury(data_dir, clock, claims=claims, holder=HF_ID, folder=data_dir / "radios" / str(HF_ID))       # radio 2's modem, the Mercury HF modem: the program its driver starts with the line while the radio is on, its control port, and the hold while it transmits or the channel is busy
+        self.mercury = Mercury(data_dir, clock, claims=claims, holder=HF_ID, folder=radio_folder(data_dir, HF_ID))       # radio 2's modem, the Mercury HF modem: the program its driver starts with the line while the radio is on, its control port, and the hold while it transmits or the channel is busy
         interlock = Interlock(lambda: self.config)                     # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
         self.stationbook = StationBook(clock)                           # who was heard, where, and on which radio
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")    # every packet of every radio, in and out, stamped with its radio: what the parts take (neoaprs/wiring.py connects each radio's line to it)
@@ -116,7 +117,7 @@ class Services:
         self.igate = Igate(self.aprsis, lambda: self.config, self.beacon.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
-        self.digipeater = Digipeater(self.tnc, lambda: self.config, clock, self.tnc.stats)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the FM radio, where the network has digipeaters; nothing to start
+        self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, radio 1 alone (services/digipeater.py); each radio's own duplicates, burst and counts; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.igate.made_up = lambda: any(radio.line.is_dummy for radio in self.radios.enabled())       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
@@ -175,7 +176,7 @@ class Services:
 
     def _make_messaging(self, clock: Clock) -> None:
         """What sends by a schedule, the QRU parts, messaging and the answers to queries."""
-        self.sender = Sender(self.radio_set, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the default radio (FM while it is on)
+        self.sender = Sender(self.radios, lambda: self.config, clock)   # our frames that go out by a schedule: one at a time, by the interlock and the state of the radio each goes on (the main radio for a bulletin)
         self.ownobjects = OwnObjects(self.sender, lambda: self.config, self.ownlog, self._is_station, clock)       # the objects and items of ours, on the decay schedule of the specification; started by the controller after the beacon
         self.ownbulletins = OwnBulletins(self.sender, lambda: self.config, self.ownlog, clock)       # the bulletins and announcements of ours, on their schedule; started by the controller after the beacon
         answer_budget = AnswerBudget(clock)                             # the frames of answers of the minute: one for the QRU server and the queries, so that it is the station's as a whole

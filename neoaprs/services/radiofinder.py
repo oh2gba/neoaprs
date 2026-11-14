@@ -34,7 +34,7 @@ log = logging.getLogger("neoaprs.tnc")
 
 SPEEDS = (9600, 57600, 19200, 38400, 115200, 4800, 1200)          # the usual speeds of a TNC on a serial line, the likeliest first
 NO_SPEED = 9600                                                      # what a port with no speed is opened at (pyserial wants a number)
-Hold = Callable[[], Awaitable[None]] | Callable[[RadioId], Awaitable[None]]      # the radio's line let go: of the one radio of before (app.py's call today), or of the radio `find` is given
+Hold = Callable[[], Awaitable[None]] | Callable[[RadioId], Awaitable[None]]      # the radio's line let go: the whole station's (app.py's hold_tnc, while the page names no radio), or that of the radio `find` is given
 Release = Callable[[], None] | Callable[[RadioId], None]
 
 
@@ -152,7 +152,7 @@ class RadioFinder:
                 cast(Callable[[RadioId], None], self._release)(radio)
 
     async def _let_go(self, radio: RadioId | None) -> None:
-        """The radio's line is let go for the search: the one radio's of before when there is no radio (app.py's call, which takes none), else the radio's."""
+        """The radio's line is let go for the search: the whole station's when there is no radio (app.py's hold_tnc, which takes none), else the radio's."""
         if radio is None:
             await cast(Callable[[], Awaitable[None]], self._hold)()
         else:

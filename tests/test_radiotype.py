@@ -8,7 +8,7 @@ from neoaprs.config import DEFAULTS, RANGES, Config
 from neoaprs.radiorules import FM, HF, rules_of
 from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, RadioTypeError, radio_id_of, stored_text
 from neoaprs.radiotypes import BY_KEY, COMMON_FIELDS, DEFAULT_TYPE, TYPES, kind_field, kind_fields, type_of, types_of
-from neoaprs.tncprofile import BY_KEY as PROFILES_BY_KEY, DEFAULT, HF_BY_KEY, HF_DEFAULT, HF_PROFILES, PROFILES
+from neoaprs.tncprofile import BY_KEY as PROFILES_BY_KEY, DEFAULT, DUMMY_HF, HF_BY_KEY, HF_DEFAULT, HF_PROFILES, PROFILES
 
 OLD_KEY = {"port": "serial/port", "baud": "serial/baud", "tcp_host": "tcp/host", "tcp_port": "tcp/port", "sound_card": "mercury/sound_card", "keying": "mercury/keying", "tx_gain_db": "mercury/tx_gain_db",
            "path": "beacon/path", "digipeat": "digi/enabled"}       # the flat setting of today that each field of a radio is (the beacon is new: on, as both beacons are today)
@@ -25,7 +25,7 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
         assert (t.limits.max_frame, t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.retry_jitter_sec) == (p.rules.max_frame, p.rules.beacon_min_min, p.rules.beacon_jitter_sec, p.rules.retry_jitter_sec)
         assert (t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon) == (p.rules.paths, p.rules.digipeat, p.rules.smart_beacon)
         assert t.allowed.gateway_heard == t.allowed.shared_channel == (t.kind == "fm")
-        assert t.driver == ("mercury" if p.transport == "modem" else "tnc") and t.dummy == (p.transport == "dummy")
+        assert t.driver == ("mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
 
 
 def test_each_kind_lists_its_types_in_todays_order_and_a_new_radio_gets_todays_default() -> None:

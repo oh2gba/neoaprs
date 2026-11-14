@@ -16,7 +16,7 @@ from neoaprs.claims import Claims
 from neoaprs.config import DEFAULTS
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.mercury import Keying
-from neoaprs.mercurydriver import DUMMY_PORT, MercuryDriver, hf_settings, hf_words, modem_settings
+from neoaprs.mercurydriver import MercuryDriver, hf_settings, hf_words, modem_settings
 from neoaprs.mercurymodem import Mercury
 from neoaprs.packet import Position
 from neoaprs.radiodriver import RunOverrides
@@ -342,10 +342,6 @@ def test_storing_what_the_running_modem_chose_for_itself_is_no_change_and_anythi
     other = replace(hf, settings={**hf.settings, "sound_card": "plughw:9,0", "keying": "rts:/dev/ttyUSB0"})
     assert driver.made_explicit(hf, other).settings["sound_card"] == "" and driver.made_explicit(hf, other).settings["keying"] == "rts:/dev/ttyUSB0", "another card is a change, the keying it chose is none"
     assert driver.made_explicit(chosen, hf) == chosen, "a setting that is cleared is a change: the modem is to choose again"
-
-
-def test_the_dummy_port_of_the_modem_driver_is_the_dummy_lines() -> None:
-    assert DUMMY_PORT == DUMMY_PATH, "the modem driver names the Dummy radio's port itself until the architecture test pairs it with dummyline"
 
 
 def test_the_words_of_a_change_name_what_differs_and_the_tickbox() -> None:

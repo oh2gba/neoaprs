@@ -1,7 +1,7 @@
 """The fill-in digipeater (neoaprs/services/digipeater.py) on the station's radios as the registry gives them (services/radioset.py's RadioPick, tests/support/seamshapes.py) over lines that are stubs, and a clock
 the test holds: WIDE1-1 becomes our call as a used hop, our own call in the path is marked used, and nothing else is repeated (WIDE2-1, our own packets, duplicates for 30 seconds, packets from the internet, anything
 while it is off, there is no call or the radio is away); the frame differs from the one heard in its path only. A packet is repeated on the radio that heard it, the duplicate check, the burst limit and the counts
-are that radio's (shown on two radios with today's rule set aside), and only radio 1 (the FM radio) repeats. The old call of app.py (the FM Tnc and its counters) works the same. Then the whole daemon with the radio a fake TCP server: a packet on the line comes back
+are that radio's (shown on two radios with today's rule set aside), and only radio 1 (the FM radio) repeats. Then the whole daemon with the radio a fake TCP server: a packet on the line comes back
 with the new path."""
 import logging
 from dataclasses import replace
@@ -333,29 +333,3 @@ def test_the_table_of_what_was_heard_is_cleared_of_the_old_when_it_grows_too_lar
     assert len(rig.digi.seen_on(FM_ID)) == 1
     rig.hear(frame("WIDE1-1", info=b">0"))                                   # (a packet heard long ago is a new one again)
     assert len(rig.tnc.sent) == 1
-
-
-def test_the_old_call_of_a_tnc_and_its_counters_repeats_and_counts_as_the_radio_does() -> None:
-    rig = Rig()
-    stats = TncStats()
-    digi = Digipeater(rig.tnc, lambda: rig.config, rig.clock, stats)        # (app.py's call until the integration gives the registry)
-    for n in range(BURST_MAX + 2):
-        f = frame("WIDE1-1", info=b">%d" % n)
-        digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
-    f = frame("WIDE1-1", info=b">hf")
-    digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock(), radio="hf"))
-    assert len(rig.tnc.sent) == BURST_MAX and (stats.digipeated, stats.digipeat_held) == (BURST_MAX, 2), "the counters given are the ones counted; the HF packet is not its radio's"
-
-
-def test_a_tnc_without_counters_repeats_and_holds_a_burst_all_the_same() -> None:
-    rig = Rig()
-    line = StubTnc()                                                         # (a stub with no counters of its own)
-    digi = Digipeater(line, lambda: rig.config, rig.clock)
-    for n in range(BURST_MAX + 2):
-        f = frame("WIDE1-1", info=b">%d" % n)
-        digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
-    assert len(line.sent) == BURST_MAX, "the burst limit holds with no stats to count what it held"
-    rig.clock.advance(BURST_WINDOW_SEC)
-    f = frame("WIDE1-1", info=b">after")
-    digi.on_packet(packet_of("in", ax25.encode(f), f, rig.clock()))
-    assert len(line.sent) == BURST_MAX + 1

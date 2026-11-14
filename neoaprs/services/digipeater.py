@@ -29,9 +29,8 @@ from neoaprs.policy import DIGI_DUPLICATE_SEC
 from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.recent import Recent
 from neoaprs.route import INTERNET_MARKERS
-from neoaprs.services.common import ConfigSource, Radio, as_pick
+from neoaprs.services.common import ConfigSource
 from neoaprs.services.radioset import AirRadio, RadioPick
-from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.digipeater")
 
@@ -65,8 +64,8 @@ def spliced(raw: bytes, heard: ax25.Frame, frame: ax25.Frame) -> bytes:
 
 
 class Digipeater:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, clock: Clock = utcnow, stats: TncStats | None = None) -> None:
-        self._given, self._stats = radios, stats                    # (today's app.py gives the FM Tnc and its counters: read as a RadioPick by services/common.as_pick)
+    def __init__(self, radios: RadioPick, config: ConfigSource, clock: Clock = utcnow) -> None:
+        self._radios = radios                                       # the station's radios (the registry): each radio's counters are its `stats`
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock
@@ -80,7 +79,7 @@ class Digipeater:
     def on_packet(self, packet: Packet) -> None:
         """A radio heard a packet, or sent one (it is remembered for the duplicate check of that radio, and ours is never repeated)."""
         config = self._config()
-        radio = as_pick(self._given, self._config, self._stats).get(FM_ID if packet.radio_id is None else packet.radio_id) if packet.on_air else None
+        radio = self._radios.get(FM_ID if packet.radio_id is None else packet.radio_id) if packet.on_air else None
         if radio is None or not self._repeats(radio, config):     # (a packet from the internet was never on the air: there is nothing to repeat)
             return
         now = self.clock()

@@ -20,7 +20,7 @@ from .policy import LOG_KEEP_DAYS
 from .radiospec import FM_ID
 from .source import Source
 from .stationbook import DETAILS_SEEN, ROUTES_SEEN
-from .tncdriver import TncDriver, tnc_settings as tnc_settings       # (the FM radio's settings under the name they had here: tests/test_nodevices.py)
+from .tncdriver import TncDriver
 from .versions import Frequency, suggested
 
 log = logging.getLogger("neoaprs.wiring")

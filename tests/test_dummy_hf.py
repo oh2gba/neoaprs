@@ -159,13 +159,13 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
     radio = e.ctl.radios.get(HF_ID)
-    assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "tnc" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
+    assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
     assert radio.line is e.hf and radio.driver.modem is e.ctl.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
     speaking = hasattr(os, "mkfifo")
     if speaking:
         assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
         started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
-        assert (tmp_path / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
+        assert (e.ctl.mercury.home / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
         await until_started(lambda: e.ctl.mercury.speaker_line.open)
     else:
         assert e.ctl.mercury.state == "stopped" and e.ctl.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
@@ -180,7 +180,7 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
     if speaking:
         assert e.ctl.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
-        await until_started(lambda: (tmp_path / fakemercury.BROADCAST_FILE).exists() and (tmp_path / fakemercury.BROADCAST_FILE).stat().st_size > 0)
+        await until_started(lambda: (e.ctl.mercury.home / fakemercury.BROADCAST_FILE).exists() and (e.ctl.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0)
     assert e.ctl.config.serial_last_port == ""
     await e.stop()
     assert e.ctl.mercury.state == "stopped"
