@@ -99,9 +99,10 @@
   overflow: hidden;
   gap: 0;
 }
-/* the tabs and the More button again, out of the way and as wide as they want: SidePanel measures them (the widths are the ones of the real ones, which have the same classes) */
+/* the tabs and the More button again, out of the way and as wide as they want: SidePanel measures them (the widths are the ones of the real ones, which have the same classes). Fixed, not absolute: a row
+   that is wider than the window must add nothing to the page's width, or the page can be moved sideways under its hidden overflow (a click on a tab did so: the title stood cut off at the left edge) */
 .tabs-probe {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   display: flex;

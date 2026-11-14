@@ -92,7 +92,8 @@ describe("the tabs in a row, and the ones that do not fit under More", () => {
     expect(probe.find("button").exists()).toBe(false);
     expect(cssRule(".tabs-probe")).toMatch(/visibility:\s*hidden/);
     expect(cssRule(".tabs-probe")).toMatch(/width:\s*max-content/);
-    expect(cssRule(".tabs-probe")).toMatch(/position:\s*absolute/);
+    // fixed, not absolute: a row wider than the window must add nothing to the page's width, or the page can be moved sideways under its hidden overflow (a click on a tab did: the title stood cut off)
+    expect(cssRule(".tabs-probe")).toMatch(/position:\s*fixed/);
   });
 
   it("measures the width of the panel and not a breakpoint: the same panel keeps more tabs as it gets wider", async () => {

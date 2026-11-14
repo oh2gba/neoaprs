@@ -23,6 +23,7 @@
 - **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
 - **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.
 - **Fixed:** with network access off, the page opened on a Raspberry Pi by its own name could not connect.
+- **Fixed:** a click on a tab could move the whole page a little to the left.
 
 ## 0.18.2
 
