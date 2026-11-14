@@ -158,3 +158,16 @@ def test_a_token_file_that_was_named_and_is_missing_is_never_replaced_by_the_one
     assert done.returncode == 1 and "no .secrets file" in done.stderr, (done.returncode, done.stderr)
     assert not asked.exists(), "the token of the file beside the checkout went to the secrets program"
     assert MADE_UP not in done.stdout + done.stderr
+
+
+def test_an_upload_of_hundreds_of_files_ends_well_and_names_the_first_twelve(repo: Path, tools: Path) -> None:
+    """The list of what was sent is cut to twelve lines; cut by `head`, a long list ended the script with 141 after everything was uploaded (seen on 14 November 2026 with 315 files)."""
+    many = [f"site/shots/picture-{i:03}.png" for i in range(600)]
+    for name in many:
+        (repo / name).write_text(f"{name}\n", encoding="utf-8")
+    git(repo, "add", "--", *many)
+    done, args = run(repo, tools, "--site")
+    assert done.returncode == 0, done.stderr
+    sent = [a for a in args if a.startswith("sftp://")]
+    assert len(sent) > 600 and done.stdout.count("  -> ") == 12
+    assert f"... and {len(sent) - 12} more" in done.stdout and "done." in done.stdout

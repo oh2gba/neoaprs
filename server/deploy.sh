@@ -84,6 +84,6 @@ while IFS=$'\t' read -r local remote; do ARGS+=(-T "$local" "sftp://$FH$remote")
 
 echo "$n files in one session -> $OLD and $NEO"
 curl -sS --max-time 600 --ftp-create-dirs -u "$FU:$FP" "${ARGS[@]}" >/dev/null
-manifest | awk -F'\t' '{printf "  -> %s\n", $2}' | head -12
+manifest | awk -F'\t' 'NR <= 12 {printf "  -> %s\n", $2}'   # awk reads the whole list: with `| head -12` a long list ended awk by SIGPIPE and, under pipefail, the script with 141 after a complete upload
 [ "$n" -le 12 ] || echo "  ... and $((n - 12)) more"
 echo "done. Try: curl 'https://neo.oh2gba.eu/version.php?v=0.1.0&os=linux' and curl 'https://oh2gba.eu/neoaprs/version.php?v=0.1.0&os=linux'"
