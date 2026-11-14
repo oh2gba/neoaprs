@@ -28,7 +28,7 @@ LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 TIMEOUT_SEC = 30
 WORKERS = 8
 # The PHP that the web calls, by its place under server/neo/: every other PHP file there is a helper, and must answer 403. (version.php and latest.php are one folder up in the repository and are not under neo/.)
-PUBLIC_PHP = ("api/v1/view.php", "support/send.php")
+PUBLIC_PHP = ("api/v1/view.php", "support/send.php", "api/v1/skeds.php")
 # Places that must answer 403 whatever the repository holds: the stored support files and their log, PHP's settings, the folder of the version page's log and cache.
 PRIVATE = (
     "/private/", "/private/support/", "/private/support/rate.json", "/private/support/salt", "/private/logs/support.log", "/private/.htaccess",

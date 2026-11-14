@@ -246,3 +246,5 @@ def test_every_endpoint_it_leaves_alone_is_a_php_file_the_repository_tracks() ->
     """`PUBLIC_PHP` names the endpoints under `server/neo/`; every other PHP file the repository tracks there is checked for 403, so a renamed endpoint (and a new one, which has to be added) shows here or on the live page."""
     loaded = module()
     assert set(loaded.PUBLIC_PHP) <= {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php")}
+    endpoints = {name for name in loaded.tracked(ROOT, "server/neo") if name.endswith(".php") and "$_SERVER['REQUEST_METHOD']" in (ROOT / "server" / "neo" / name).read_text(encoding="utf-8")}
+    assert endpoints == set(loaded.PUBLIC_PHP), "a PHP file that reads the request's method is an endpoint the web calls: it answers by itself (405 to a GET), and is no private place"
