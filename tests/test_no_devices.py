@@ -12,6 +12,7 @@ import socket
 import subprocess
 import sys
 import threading
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import replace
@@ -21,7 +22,7 @@ from typing import Any
 import pytest
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
-from neoaprs import btpaired, dummyline, mercurymodem, nodevices, pmtilestool, serialprobe, updatedownload, updatefetch
+from neoaprs import btpaired, dummyline, mercurymodem, nodevices, pmtilesarchive, pmtilescut, serialprobe, updatedownload, updatefetch
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.gpsfeed import GpsFeed
 from neoaprs.mercurymodem import Mercury
@@ -40,8 +41,10 @@ from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, idle_for, remember_stop, until
 from tests.support.fakemercury import program as fake_mercury
 from tests.support.fakeversionpage import version_page
+from tests.support.madepmtiles import planet
 from tests.support.proc import NEW_GROUP, stop
 from tests.support.ptyline import Ptys, heard, held_by_a_program, posix_only
+from tests.support.rangeserver import range_server
 from tests.support.storedb import store_at
 
 LOCAL = ("127.0.0.1", "::1", "localhost")
@@ -362,12 +365,11 @@ async def test_nothing_is_fetched_from_or_sent_to_another_computer(under_the_swi
     assert updatefetch.post_form(there, {"note": "x"}, {"bundle": ("b.zip", b"zip")}, "0.1.0", "linux") is None, "as a server that could not be reached"
     with pytest.raises(updatedownload.DownloadError, match="could not be fetched"):
         updatedownload.open_url(f"https://{ELSEWHERE}/releases/download/v0.1.0/SHA256SUMS", lambda url: True)
-    assert pmtilestool.url_exists(f"https://{ELSEWHERE}/20261101.pmtiles") is False
-    with pytest.raises(pmtilestool.ToolError, match="could not download"):
-        pmtilestool._download(f"https://{ELSEWHERE}/go-pmtiles.tar.gz", tmp_path / "tool.tar.gz", "0" * 64)
-    with pytest.raises(pmtilestool.ToolError) as unreachable:
-        await pmtilestool.extract(tmp_path / "pmtiles", f"https://{ELSEWHERE}/20261101.pmtiles", tmp_path / "map.pmtiles", None, 5)
-    assert str(unreachable.value) == pmtilestool.UNREACHABLE and not (tmp_path / "tool.tar.gz").exists()
+    assert pmtilesarchive.url_exists(f"https://{ELSEWHERE}/20261101.pmtiles") is False
+    for dry_run in (True, False):
+        with pytest.raises(pmtilescut.CutError) as unreachable:
+            await pmtilescut.extract(f"https://{ELSEWHERE}/20261101.pmtiles", tmp_path / "map.pmtiles", None, 5, dry_run=dry_run)
+        assert str(unreachable.value) == pmtilesarchive.UNREACHABLE and not list(tmp_path.glob("map.pmtiles*"))
     with pytest.raises(RigError, match="connection refused"):
         await read_rig(ELSEWHERE, 4532)
     assert doors.untouched() and doors.connected == []
@@ -401,9 +403,9 @@ async def test_a_server_on_this_computer_is_asked_itself_and_not_through_a_proxy
     assert b"9.9.9" in (await updatefetch.fetch(page.url, "0.1.0", "linux") or b"")
     await asyncio.to_thread(updatefetch.post_form, page.url, {"note": "x"}, {}, "0.1.0", "linux")
     (await asyncio.to_thread(updatedownload.open_url, page.url, lambda url: True)).close()
-    assert await asyncio.to_thread(pmtilestool.url_exists, page.url)
-    with pytest.raises(pmtilestool.ToolError, match="is not the file that was expected"):
-        await asyncio.to_thread(pmtilestool._download, page.url, tmp_path / "tool.tar.gz", "0" * 64)
+    assert await asyncio.to_thread(pmtilesarchive.url_exists, page.url)
+    with pytest.raises(pmtilescut.CutError, match="not 206"):
+        await pmtilescut.extract(page.url, tmp_path / "map.pmtiles", None, 5)
     assert len(page.requests) == 5, "each of the five reached the server of this computer"
     assert doors.left_this_computer == [] and set(doors.connected) <= set(LOCAL) and set(doors.ports) == {page.port}
 
@@ -419,6 +421,17 @@ def test_a_redirect_to_another_computer_is_not_followed(under_the_switch: None) 
     with pytest.raises(ConnectionRefusedError):
         updatefetch._NotDowngraded().redirect_request(request, None, 302, "Found", {}, f"http://{ELSEWHERE}/version.php")       # type: ignore[arg-type]
     assert updatefetch._NotDowngraded().redirect_request(request, None, 302, "Found", {}, "http://127.0.0.1:2/version.php") is not None       # type: ignore[arg-type]
+
+
+async def test_a_map_server_that_sends_the_cut_on_to_another_computer_is_not_followed(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:
+    server = await range_server(planet())
+    server.mode, server.moved_to = "moved", f"http://{ELSEWHERE}/20261101.pmtiles"
+    with pytest.raises(pmtilescut.CutError) as unreachable:
+        await asyncio.to_thread(pmtilescut.Cutting(server.url, tmp_path / "map.pmtiles", None, 5, pauses=(0.0, 0.0, 0.0)).run)
+    assert str(unreachable.value) == pmtilesarchive.UNREACHABLE and server.cuts == 4 and doors.left_this_computer == []
+    request = urllib.request.Request("https://127.0.0.1:1/20261101.pmtiles")
+    with pytest.raises(urllib.error.HTTPError, match="https to http"):
+        pmtilesarchive.Redirected().redirect_request(request, None, 302, "Found", {}, "http://127.0.0.1:1/20261101.pmtiles")       # type: ignore[arg-type]
 
 
 async def test_the_default_alert_command_is_not_run_and_the_operators_own_is(under_the_switch: None, doors: Doors, tmp_path: Path) -> None:

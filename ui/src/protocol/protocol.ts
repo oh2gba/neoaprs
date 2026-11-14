@@ -565,7 +565,7 @@ export interface MapCancelCommand {
   cmd: "map_cancel";
 }
 
-/** Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start (no position, or a job is running). The pmtiles program is fetched first when it is not there. */
+/** Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start (no position, or a job is running). */
 export interface MapEstimateCommand {
   cmd: "map_estimate";
 }
@@ -610,9 +610,9 @@ export interface MapSizeEstimate {
 export interface MapState {
   /** `none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were */
   state: "none" | "estimating" | "downloading" | "ready" | "error";
-  /** what the running job is doing: fetching the pmtiles program (`tool`), looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs */
-  step: "" | "tool" | "build" | "world" | "area";
-  /** how far the step is; null when it cannot say (the program and the build have no bar) */
+  /** what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs */
+  step: "" | "build" | "world" | "area";
+  /** how far the step is; null when it cannot say (the build has no bar) */
   percent: number | null;
   /** the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet */
   downloaded: number | null;

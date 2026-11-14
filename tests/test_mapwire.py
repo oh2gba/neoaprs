@@ -1,35 +1,33 @@
 """The base map over the socket: the topic `map`, the commands `map_estimate`, `map_fetch` and `map_cancel` (each refusal an `error` that says why), and the two files served with byte ranges once they exist, in the whole
-daemon with the fake pmtiles program of tests/support/fakepmtiles.py."""
+daemon cutting the made-up planet of tests/support/madepmtiles.py from a range server on the loopback (tests/support/rangeserver.py): the dry run's numbers on the wire, the files the download makes, a cancel, the end of the
+daemon while a cut runs."""
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from neoaprs.pmtilestool import UNREACHABLE
-from tests.support.env import Env
-from tests.support.fakepmtiles import alive, install_fake
+from neoaprs.geo import box_around
+from tests.support.env import Env, until_started
+from tests.support.madepmtiles import every_tile, planet, tiles_of
+from tests.support.maprig import data_offset
+from tests.support.rangeserver import RangeServer, range_server
 from tests.support.wsclient import WsClient
 
-
-SOURCE = "https://build.example/20261020.pmtiles"
 pytestmark = pytest.mark.usefixtures("no_shipped_world")
 
 
-async def daemon(tmp_path: Path, mode: str = "ok", operator: bool = True) -> tuple[Env, WsClient]:
-    """The daemon with the fake program in its bin folder, a source of the test (no daily build is looked for), and a page that has the topic."""
-    install_fake(tmp_path / "bin").mode(mode)
+async def daemon(tmp_path: Path, operator: bool = True, hold: bool = False) -> tuple[Env, WsClient, RangeServer]:
+    """The daemon with a source of the test in its settings (no daily build is looked for; the server holds its answers for tile data when asked to), and a page that has the topic."""
+    server = await range_server(planet())
+    if hold:
+        server.hold_from = data_offset(planet())
     e = Env(tmp_path, web=True, radio=False, operator=operator)
     await e.start(connected=False)
     if operator:
-        await e.ctl.save_config(replace(e.ctl.config, map_source=SOURCE))
+        await e.ctl.save_config(replace(e.ctl.config, map_source=server.url))
     page = await e.ws()
     await page.until(lambda: "map" in page.topics)
-    return e, page
-
-
-@pytest.fixture(autouse=True)
-def only_the_fake_program(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PATH", "")                                         # (a pmtiles on this machine is not the one to run)
+    return e, page, server
 
 
 async def test_the_page_is_told_the_state_of_the_map_with_the_area_of_the_settings(tmp_path: Path) -> None:
@@ -48,17 +46,19 @@ async def test_the_page_is_told_the_state_of_the_map_with_the_area_of_the_settin
 
 
 async def test_an_estimate_then_a_download_are_told_and_the_two_files_are_served(tmp_path: Path) -> None:
-    e, page = await daemon(tmp_path)
+    e, page, server = await daemon(tmp_path)
     await page.send({"cmd": "map_estimate"})
     await page.until(lambda: page.topics["map"]["estimate"] is not None)
     estimate = page.topics["map"]["estimate"]
-    assert (estimate["bytes"], estimate["radius_km"], estimate["maxzoom"]) == (493_000_000, 150, 12)
-    assert page.topics["map"]["state"] == "none"
+    box = box_around(60.17, 24.94, 150)
+    assert (estimate["tiles"], estimate["radius_km"], estimate["maxzoom"], estimate["build"], estimate["box"]) == (len(tiles_of(box, 0, 6)), 150, 12, "20261020", list(box))
+    assert page.topics["map"]["state"] == "none" and all(last < data_offset(planet()) for _, last in server.asked), "no tile data is fetched for a dry run"
     assert (await e.fetch("/basemap.pmtiles")).code == 404
     await page.send({"cmd": "map_fetch"})
     await page.until(lambda: page.topics["map"]["state"] == "ready", 10)
     value = page.topics["map"]
-    assert value["detail"]["name"] == "basemap.pmtiles" and value["detail"]["max_zoom"] == 12 and value["detail"]["build"] == "20261020"
+    assert value["detail"]["name"] == "basemap.pmtiles" and value["detail"]["max_zoom"] == 6 and value["detail"]["build"] == "20261020"
+    assert value["detail"]["bytes"] == estimate["bytes"] and len(every_tile((tmp_path / "basemap.pmtiles").read_bytes())) == estimate["tiles"], "the dry run said what the download made"
     assert value["world"]["name"] == "basemap-world.pmtiles" and value["world"]["max_zoom"] == 5 and value["estimate"] is None
     assert [op["value"]["state"] for op in page.ops("map") if op["op"] == "replace"][-1] == "ready"
     for name, head in (("basemap.pmtiles", b"PMTiles\x03"), ("basemap-world.pmtiles", b"PMTiles\x03")):
@@ -69,29 +69,41 @@ async def test_an_estimate_then_a_download_are_told_and_the_two_files_are_served
 
 
 async def test_a_cancel_ends_the_job_and_every_refusal_is_an_error_with_the_reason(tmp_path: Path) -> None:
-    e, page = await daemon(tmp_path, "slow")
+    e, page, server = await daemon(tmp_path, hold=True)
     await page.send({"cmd": "map_cancel"})
     assert (await page.expect("error"))["text"] == "map_cancel: no map job is running"
     await page.send({"cmd": "map_fetch"})
-    await page.until(lambda: page.topics["map"]["percent"] == 10)
-    assert page.topics["map"]["state"] == "downloading" and page.topics["map"]["step"] == "world" and page.topics["map"]["blocked"] == "a map job is running"
+    await until_started(lambda: server.holding > 0)
+    await page.until(lambda: page.topics["map"]["state"] == "downloading")
+    assert page.topics["map"]["step"] == "world" and page.topics["map"]["blocked"] == "a map job is running"
     await page.send({"cmd": "map_estimate"})
     assert (await page.expect("error"))["text"] == "map_estimate: a map job is running already"
-    pid = int((tmp_path / "bin" / "pid").read_text(encoding="utf-8"))
     await page.send({"cmd": "map_cancel"})
     await page.until(lambda: page.topics["map"]["state"] == "none" and page.topics["map"]["percent"] is None)
-    assert page.topics["map"]["problem"] == "" and not alive(pid)
+    assert page.topics["map"]["problem"] == ""
+    await until_started(lambda: server.holding == 0)
+    assert not list(tmp_path.glob("*.part"))
+
+
+async def test_a_daemon_that_ends_while_a_cut_runs_stops_it(tmp_path: Path) -> None:
+    e, page, server = await daemon(tmp_path, hold=True)
+    await page.send({"cmd": "map_fetch"})
+    await until_started(lambda: server.holding > 0)
+    await e.stop()
+    await until_started(lambda: server.holding == 0)             # (the connections that waited for the server were shut)
+    assert not list(tmp_path.glob("*.part"))
 
 
 async def test_a_failed_job_is_the_state_error_with_the_reason(tmp_path: Path) -> None:
-    e, page = await daemon(tmp_path, "fail")
+    e, page, server = await daemon(tmp_path)
+    server.mode = "missing"
     await page.send({"cmd": "map_fetch"})
     await page.until(lambda: page.topics["map"]["state"] == "error")
-    assert page.topics["map"]["problem"] == UNREACHABLE and page.topics["map"]["detail"] is None
+    assert page.topics["map"]["problem"] == "the map server answered 404 Not Found" and page.topics["map"]["detail"] is None
 
 
 async def test_without_a_position_the_jobs_are_refused_and_the_topic_says_why(tmp_path: Path) -> None:
-    e, page = await daemon(tmp_path, operator=False)
+    e, page, _ = await daemon(tmp_path, operator=False)
     value = page.topics["map"]
     assert value["box"] is None and "no position" in value["blocked"]
     for cmd in ("map_estimate", "map_fetch"):

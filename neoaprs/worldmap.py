@@ -7,7 +7,7 @@ app's frozen libraries (PyInstaller's `_internal`, `sys._MEIPASS`), where the pa
 import sys
 from pathlib import Path
 
-from neoaprs.pmtilestool import read_header
+from neoaprs.pmtilesarchive import read_header
 
 WORLD_FILE = "basemap-world.pmtiles"
 SHIPPED_ZOOM = 4                            # the deepest zoom of the shipped file (zoom 5 is 15 MB, zoom 4 six)

@@ -83,13 +83,6 @@ def devices_are_fakes(request: pytest.FixtureRequest, monkeypatch: pytest.Monkey
         monkeypatch.setattr("neoaprs.nodevices.on", lambda: False)
 
 
-@pytest.fixture
-def switch_lifted_for_processes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The test starts a process behind one of whose doors a fake of the test stands (the made-up pmtiles program on its PATH, which is given the address of a map server that does not exist): NEOAPRS_NO_DEVICES, which
-    tests/conftest.py sets for every process a test starts, is taken out of the environment that process inherits. Nothing but the test then keeps the process from a real device or service: it gives it fakes only."""
-    monkeypatch.delenv("NEOAPRS_NO_DEVICES")
-
-
 def reorder_files(items: "list[pytest.Item]", order: str) -> None:
     """NEOAPRS_TEST_ORDER=reverse|shuffle[:SEED] runs the test FILES in another order (the tests of a file stay in theirs): a test that only passes because of what an earlier
     file left behind fails in one of the two (tests/README.md)."""

@@ -1,5 +1,5 @@
-"""The command line of the base map (`python -m neoaprs.services.mapfetch`, `scripts/fetch-basemap`) as a process, with the fake pmtiles program first on the PATH: the same jobs as the page's buttons, the flags over
-the settings of the data folder, the settings read from its database, and the way it fails."""
+"""The command line of the base map (`python -m neoaprs.services.mapfetch`, `scripts/fetch-basemap`) as a process, cutting the made-up planet of tests/support/madepmtiles.py from a file: the same jobs as the page's
+buttons, the flags over the settings of the data folder, the settings read from its database, and the way it fails."""
 import asyncio
 import os
 import subprocess
@@ -9,63 +9,69 @@ from pathlib import Path
 import pytest
 
 from neoaprs.config import Config
-from neoaprs.pmtilestool import UNREACHABLE
+from neoaprs.geo import box_around
+from neoaprs.pmtilesarchive import read_header
 from tests.conftest import ROOT
-from tests.support.fakepmtiles import FakePmtiles, install_fake
+from tests.support.madepmtiles import every_tile, planet, tiles_of
 from tests.support.storedb import store_at
-
-SOURCE = "https://build.example/20261020.pmtiles"
 
 
 @pytest.fixture
-def fake(tmp_path: Path, switch_lifted_for_processes: None) -> FakePmtiles:
-    return install_fake(tmp_path / "tools")
+def source(tmp_path: Path) -> Path:
+    file = tmp_path / "20261020.pmtiles"
+    file.write_bytes(planet())
+    return file
 
 
-def mapfetch(tmp_path: Path, fake: FakePmtiles, *args: str) -> subprocess.CompletedProcess[str]:
+def mapfetch(tmp_path: Path, source: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
-    env["PATH"] = str(fake.path.parent)
-    return subprocess.run([sys.executable, "-m", "neoaprs.services.mapfetch", "--data", str(tmp_path / "data"), "--source", SOURCE, *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
+    return subprocess.run([sys.executable, "-m", "neoaprs.services.mapfetch", "--data", str(tmp_path / "data"), "--source", str(source), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
 
 
-def test_a_dry_run_says_the_size_for_the_flags_and_makes_no_file(tmp_path: Path, fake: FakePmtiles) -> None:
-    done = mapfetch(tmp_path, fake, "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "14", "--dry-run")
+def test_a_dry_run_says_the_size_for_the_flags_and_makes_no_file(tmp_path: Path, source: Path) -> None:
+    done = mapfetch(tmp_path, source, "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "6", "--dry-run")
     assert done.returncode == 0, done.stderr
-    assert "493 MB for 40 km round us to zoom 14 (41233 tiles)" in done.stdout
+    tiles = len(tiles_of(box_around(60.17, 24.94, 40), 0, 6))
+    line = done.stdout.strip().splitlines()[-1]
+    assert line.endswith(f"MB for 40 km round us to zoom 6 ({tiles} tiles), from build 20261020"), line
     assert not list((tmp_path / "data").glob("*.pmtiles*"))
-    assert "--maxzoom=14" in fake.calls()[0] and "--dry-run" in fake.calls()[0]
 
 
-def test_a_download_makes_the_area_only_because_the_world_ships_with_the_program_and_says_how_far_it_is(tmp_path: Path, fake: FakePmtiles) -> None:
-    fake.mode("linger")
-    done = mapfetch(tmp_path, fake, "--lat", "60.17", "--lon", "24.94")
+def test_a_download_makes_the_area_only_because_the_world_ships_with_the_program(tmp_path: Path, source: Path) -> None:
+    done = mapfetch(tmp_path, source, "--lat", "60.17", "--lon", "24.94")
     assert done.returncode == 0, done.stderr
     assert sorted(p.name for p in (tmp_path / "data").glob("*.pmtiles*")) == ["basemap.pmtiles"]
-    assert done.stdout.strip().splitlines()[-1].startswith("basemap.pmtiles: ")
-    assert "area: 75%" in done.stdout and "world" not in done.stdout
+    assert done.stdout.strip().splitlines()[-1].startswith("basemap.pmtiles: ") and "world" not in done.stdout
+    made = tmp_path / "data" / "basemap.pmtiles"
+    assert len(every_tile(made.read_bytes())) == len(tiles_of(box_around(60.17, 24.94, 150), 0, 6))
+    header = read_header(made)
+    assert header is not None and header.bbox == pytest.approx(box_around(60.17, 24.94, 150), abs=1e-5)
 
 
-async def test_the_position_and_the_map_settings_are_read_from_the_database_of_the_data_folder(tmp_path: Path, fake: FakePmtiles) -> None:
+async def test_the_position_and_the_map_settings_are_read_from_the_database_of_the_data_folder(tmp_path: Path, source: Path) -> None:
     (tmp_path / "data").mkdir()
     store = await store_at(tmp_path / "data" / "neoaprs.sqlite")
     await store.put_settings(Config.checked(Config(), {"station/lat": "64.5", "station/lon": "26.0", "map/radius_km": "30", "map/maxzoom": "10"}).to_data())
-    done = await asyncio.to_thread(mapfetch, tmp_path, fake, "--dry-run")
+    done = await asyncio.to_thread(mapfetch, tmp_path, source, "--dry-run")
     assert done.returncode == 0, done.stderr
     assert "for 30 km round us to zoom 10" in done.stdout
 
 
-def test_no_position_is_said_with_exit_1_and_nothing_is_run(tmp_path: Path, fake: FakePmtiles) -> None:
-    done = mapfetch(tmp_path, fake, "--dry-run")
-    assert done.returncode == 1 and "no position" in done.stderr and fake.calls() == []
+def test_no_position_is_said_with_exit_1_and_nothing_is_cut(tmp_path: Path, source: Path) -> None:
+    done = mapfetch(tmp_path, source, "--dry-run")
+    assert done.returncode == 1 and "no position" in done.stderr and not list((tmp_path / "data").glob("*.pmtiles*"))
 
 
-def test_a_wrong_flag_is_refused_with_the_key_and_exit_2(tmp_path: Path, fake: FakePmtiles) -> None:
-    done = mapfetch(tmp_path, fake, "--lat", "60", "--lon", "24", "--radius", "5000", "--dry-run")
-    assert done.returncode == 2 and "map/radius_km" in done.stderr and fake.calls() == []
+def test_a_wrong_flag_is_refused_with_the_key_and_exit_2(tmp_path: Path, source: Path) -> None:
+    done = mapfetch(tmp_path, source, "--lat", "60", "--lon", "24", "--radius", "5000", "--dry-run")
+    assert done.returncode == 2 and "map/radius_km" in done.stderr
 
 
-def test_a_program_that_fails_is_said_with_exit_1(tmp_path: Path, fake: FakePmtiles) -> None:
-    fake.mode("fail")
-    done = mapfetch(tmp_path, fake, "--lat", "60", "--lon", "24")
-    assert done.returncode == 1 and UNREACHABLE in done.stderr
+def test_a_source_that_cannot_be_cut_is_said_with_exit_1_and_leaves_no_file(tmp_path: Path) -> None:
+    broken = tmp_path / "broken.pmtiles"
+    broken.write_bytes(b"not an archive" * 20)
+    done = mapfetch(tmp_path, broken, "--lat", "60", "--lon", "24")
+    assert done.returncode == 1 and "the map source cannot be cut: the file is not a PMTiles archive" in done.stderr
     assert not list((tmp_path / "data").glob("*.pmtiles*"))
+    missing = mapfetch(tmp_path, tmp_path / "none.pmtiles", "--lat", "60", "--lon", "24")
+    assert missing.returncode == 1 and "none.pmtiles cannot be read" in missing.stderr and str(tmp_path) not in missing.stderr

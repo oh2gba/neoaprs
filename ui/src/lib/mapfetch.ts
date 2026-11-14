@@ -6,13 +6,12 @@ import type { MapSizeEstimate, MapState } from "@/protocol/protocol";
 /** What `step` of the topic `map` is called in the progress line (the id of the words). */
 const STEP_TEXT: Record<MapState["step"], MessageId | ""> = {
   "": "",
-  tool: "settings.map.step.tool",
   build: "settings.map.step.build",
   world: "settings.map.step.world",
   area: "settings.map.step.area",
 };
 
-/** Bytes as the pmtiles program writes them (thousands): `15 kB`, `493 MB`, `1.2 GB`. */
+/** Bytes in thousands, as the sizes of the map are told: `15 kB`, `493 MB`, `1.2 GB`. */
 export function formatBytes(bytes: number): string {
   const units = ["B", "kB", "MB", "GB", "TB"];
   let value = bytes;

@@ -269,7 +269,7 @@ class ProcessGuard:
     def check(self, args: Any, env: Any) -> None:
         if env is None or not self.starts_neoaprs(args):
             return
-        doors_open = DEVICES_VARIABLE in os.environ and env.get(DEVICES_VARIABLE, "").strip() in ("", "0")       # (a test that asked for switch_lifted_for_processes took the variable out of its own environment: its process may go without)
+        doors_open = DEVICES_VARIABLE in os.environ and env.get(DEVICES_VARIABLE, "").strip() in ("", "0")       # (a test that took the variable out of its own environment: its process may go without)
         if not env.get(SEARCH_VARIABLE) or env.get(UPDATE_VARIABLE) != "0" or doors_open:
             self.refused.append(str(args))
             raise RadioTouched(errno.EACCES, f"a test may not start neoaprs without {SEARCH_VARIABLE}, {UPDATE_VARIABLE}=0 and {DEVICES_VARIABLE} in its environment: {args}")

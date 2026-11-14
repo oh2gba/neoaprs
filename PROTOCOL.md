@@ -557,7 +557,7 @@ Deletes a bulletin of ours: it is not sent again and leaves the board. Answered 
 ### `map_estimate`
 
 Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start
-(no position, or a job is running). The pmtiles program is fetched first when it is not there.
+(no position, or a job is running).
 
 ### `map_fetch`
 
@@ -1494,8 +1494,8 @@ The base map: the files, the area and detail the settings ask for, the size esti
 | field | type | | description |
 |---|---|---|---|
 | `state` | "none" \| "estimating" \| "downloading" \| "ready" \| "error" |  | `none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were |
-| `step` | "" \| "tool" \| "build" \| "world" \| "area" |  | what the running job is doing: fetching the pmtiles program (`tool`), looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs |
-| `percent` | integer \| null |  | how far the step is; null when it cannot say (the program and the build have no bar) (>= 0, <= 100) |
+| `step` | "" \| "build" \| "world" \| "area" |  | what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs |
+| `percent` | integer \| null |  | how far the step is; null when it cannot say (the build has no bar) (>= 0, <= 100) |
 | `downloaded` | integer \| null |  | the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet (>= 0) |
 | `note` | string |  | what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well |
 | `blocked` | string |  | why no job can be started now (no position, or a job is running); empty when one can |

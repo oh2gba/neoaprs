@@ -3,7 +3,7 @@ import { currentEstimate, downloadedLine, filesKey, formatBytes, isRunning, prog
 import { mapFile, mapState } from "@/test/fixtures";
 
 describe("formatBytes", () => {
-  it("writes thousands, as the pmtiles program does, with a digit only below ten", () => {
+  it("writes thousands, with a digit only below ten", () => {
     expect([0, 512, 15_000, 9_500_000, 15_400_000, 493_000_000, 1_240_000_000, 12_300_000_000].map(formatBytes)).toEqual([
       "0 B",
       "512 B",
@@ -51,7 +51,6 @@ describe("the job", () => {
   it("says what it is doing, with the percent when there is one", () => {
     expect(progressText(mapState({ state: "downloading", step: "world", percent: 42 }))).toBe("World map 42%");
     expect(progressText(mapState({ state: "downloading", step: "area", percent: 0 }))).toBe("Map of the area 0%");
-    expect(progressText(mapState({ state: "downloading", step: "tool", percent: null }))).toBe("Fetching the pmtiles program");
     expect(progressText(mapState({ state: "estimating", step: "build", percent: null }))).toBe("Finding the latest build");
     expect(progressText(mapState({ state: "estimating", step: "", percent: null }))).toBe("Estimating");
   });

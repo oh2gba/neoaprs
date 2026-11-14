@@ -43,9 +43,11 @@ Name: "autostart"; Description: "Start NeoAPRS when I sign in"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 
 ; The Mercury folder is made again by every install: the Mercury of 0.16.1 and before came with DLLs of its own (hamlib, libusb, the MinGW runtime) that the one built since
-; then needs none of, and that would otherwise stay there after an update.
+; then needs none of, and that would otherwise stay there after an update. The pmtiles program (56 MB) and its licence, which the app folder of earlier versions had in bin\, are not used any more: the map is cut by the app itself.
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\bin\mercury"
+Type: files; Name: "{app}\bin\pmtiles.exe"
+Type: files; Name: "{app}\bin\pmtiles-LICENSE.txt"
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion

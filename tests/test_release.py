@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import pmtilestool
 from tests.conftest import ROOT
 
 NOTES = ROOT / "scripts" / "release-notes.py"
@@ -167,22 +166,13 @@ def test_the_entry_of_the_frozen_app_tells_its_three_programs_apart_by_name(prog
     assert stop.value.code == 0 and called == [calls]
 
 
-def test_a_frozen_program_finds_the_pmtiles_beside_it_before_the_path(tmp_path: Path) -> None:
-    bundled, on_path = tmp_path / "app" / "bin", tmp_path / "path"
-    name = pmtilestool.tool_file()
-    for folder in (bundled, on_path):
-        folder.mkdir(parents=True)
-        (folder / name).write_bytes(b"x")
-        (folder / name).chmod(0o755)
-    assert pmtilestool.find(tmp_path / "data", search_path=str(on_path), bundled=bundled) == bundled / name
-    assert pmtilestool.find(tmp_path / "data", search_path=str(on_path), bundled=tmp_path / "empty") == on_path / name
-    assert pmtilestool.bundled_dir() is None, "a program run from Python has no bundle"
-
-
-def test_bundled_dir_is_bin_next_to_the_executable_of_a_frozen_program(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", str(tmp_path / "NeoAPRS" / "neoaprs.exe"))
-    assert pmtilestool.bundled_dir() == (tmp_path / "NeoAPRS").resolve() / "bin"
+def test_the_windows_app_carries_no_pmtiles_program_and_an_update_removes_the_one_of_an_earlier_version() -> None:
+    """The map is cut by the app itself: nothing bundles go-pmtiles, and the installer clears the 56 MB program and its licence out of bin\\ (the way it clears the Mercury of earlier versions)."""
+    cleared = INSTALLER.split("[InstallDelete]", 1)[1].split("[Files]", 1)[0]
+    assert 'Name: "{app}\\bin\\pmtiles.exe"' in cleared and 'Name: "{app}\\bin\\pmtiles-LICENSE.txt"' in cleared and 'Name: "{app}\\bin\\mercury"' in cleared
+    assert not (ROOT / "packaging" / "windows" / "bundle_pmtiles.py").exists()
+    for text in (WORKFLOW, INSTALLER.split("[InstallDelete]", 1)[0], INSTALLER.split("[Files]", 1)[1], (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")):
+        assert "bundle_pmtiles" not in text and "pmtiles.exe" not in text
 
 
 def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packages_under_fixed_names_too() -> None:
@@ -308,11 +298,11 @@ def test_mercury_for_windows_is_built_from_the_pinned_source_on_linux_with_the_p
     assert "WINDOWS_URL" not in WORKFLOW and "Rhizomatica/mercury/releases" not in WORKFLOW, "Rhizomatica's zip is not downloaded any more"
 
 
-def test_the_windows_job_puts_mercury_in_after_pmtiles_and_checks_it_before_and_after_the_installer() -> None:
+def test_the_windows_job_puts_mercury_in_and_checks_it_before_and_after_the_installer() -> None:
     windows = job("windows")
     bundle = "build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz"
     assert windows.index("name: mercury-windows") < windows.index(bundle), "the tarball of the job mercury-windows is downloaded first"
-    assert windows.index("bundle_pmtiles.py dist/NeoAPRS") < windows.index(bundle) < windows.index("Smoke test of the app folder") < windows.index("Inno Setup")
+    assert windows.index("PyInstaller, run where") < windows.index(bundle) < windows.index("Smoke test of the app folder") < windows.index("Inno Setup")
     assert "test -f dist/NeoAPRS/bin/mercury/mercury.exe" in windows and "dist/NeoAPRS/bin/mercury/mercury.exe -V" in windows
     folder = windows.split(bundle, 1)[1].split("Smoke test of the app folder", 1)[0]
     assert "build-venv/Scripts/python.exe packaging/windows/smoke_mercury.py dist/NeoAPRS/bin/mercury/mercury.exe" in folder, "the program of the app folder is started and its sockets read"
@@ -320,7 +310,7 @@ def test_the_windows_job_puts_mercury_in_after_pmtiles_and_checks_it_before_and_
     assert "'bin\\mercury\\mercury.exe'" in installed.split("foreach ($l in", 1)[0], "the installer put it in the app folder"
     assert "Programs\\\\NeoAPRS\\\\bin\\\\mercury\\\\mercury.exe\" -V" in installed, "and it starts from there"
     assert 'smoke_mercury.py "$LOCALAPPDATA\\\\Programs\\\\NeoAPRS\\\\bin\\\\mercury\\\\mercury.exe"' in installed, "and listens on 127.0.0.1 only from there"
-    assert "bundle_mercury.py dist-e2e/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz" in windows.split("bundle_pmtiles.py dist-e2e/NeoAPRS", 1)[1].split("neoaprs.exe --version", 1)[0], "the build of the next version for the update test has it too"
+    assert "bundle_mercury.py dist-e2e/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz" in windows.split("--workpath ../../build-e2e neoaprs.spec", 1)[1].split("neoaprs.exe --version", 1)[0], "the build of the next version for the update test has it too"
     assert r'Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion' in INSTALLER, "the installer packs bin\\mercury with the rest of the folder"
 
 

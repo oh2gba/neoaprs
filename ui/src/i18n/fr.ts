@@ -1539,7 +1539,6 @@ export const fr: Catalogue = {
   "settings.find.already": "La radio est sur {port}, comme réglé",
   "settings.find.cancelled": "Recherche annulée",
 
-  "settings.map.step.tool": "Récupération du programme pmtiles",
   "settings.map.step.build": "Recherche de la dernière version",
   "settings.map.step.world": "Carte du monde",
   "settings.map.step.area": "Carte de la zone",

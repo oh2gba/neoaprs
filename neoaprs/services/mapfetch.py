@@ -1,14 +1,14 @@
 """The base map, made by the daemon: a detailed map of the area round our station and a small map of the world under it.
 
-`data/basemap.pmtiles` is cut out of the Protomaps daily build (or of `map/source`) with the pmtiles tool (neoaprs/pmtilestool.py) for the box that `map/radius_km` makes round the station's position, down to
+`data/basemap.pmtiles` is cut out of the Protomaps daily build (or of `map/source`, a web address or a file; neoaprs/pmtilescut.py) for the box that `map/radius_km` makes round the station's position, down to
 `map/maxzoom`. The world under it and outside it is the one that ships with the program (neoaprs/worldmap.py, zoom 4); only when there is none (a clone that has not got the file) or the data folder's own is no good,
 `data/basemap-world.pmtiles` is made first, the world to zoom 5 (about 15 MB). A world map the data folder has of its own is the one that is served.
 
-A download that has stood still for `Patience.stall_sec` (neither the tool's percent nor the size of the `.part` file moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
-status (`note`); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of the `.part` file, so that a slow download is seen to move.
+A download that has stood still for `Patience.stall_sec` (neither the percent nor the size of what has come moved) is ended and tried again from the start, up to `Patience.tries` times in all, saying so in the
+status (`note`); after the last try the job fails with a text that says the server is too slow, and the map that was there stays. The status also tells the size of what has come, so that a slow download is seen to move.
 
 One job at a time: `estimate()` is a dry run that says how big the detailed map will be, `fetch()` makes the files, `cancel()` ends the job running. A file is made beside the final one (`.part`) and moved into
-place only when the tool has finished, so a failed or cancelled job leaves the map that was there. `status()` is what the page is told; `changed` is emitted with every change of it. The command line is `python -m neoaprs.services.mapfetch`
+place only when it is whole, so a failed or cancelled job leaves the map that was there. `status()` is what the page is told; `changed` is emitted with every change of it. The command line is `python -m neoaprs.services.mapfetch`
 (neoaprs/services/mapcli.py)."""
 import asyncio
 import contextlib
@@ -24,7 +24,8 @@ from pathlib import Path
 from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Box, Estimate, Job, MapError, MapFile, MapStatus, State, Step
-from neoaprs.pmtilestool import ToolError, ensure, extract, find, latest_build, read_header, replace_file, url_exists
+from neoaprs.pmtilesarchive import latest_build, read_header, url_exists
+from neoaprs.pmtilescut import CutError, extract, part_of
 from neoaprs.services.common import ConfigSource
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
@@ -36,16 +37,15 @@ DETAIL = "basemap.pmtiles"
 WORLD = WORLD_FILE
 WORLD_MAXZOOM = 5
 SLOW = "the map server is too slow now; try again later"
-NO_SIZE = "the size of the map could not be worked out; the download works without it"
 FAILED = "the map could not be made; the log says why"
 
 
 @dataclass(frozen=True)
 class Patience:
-    stall_sec: float = 120.0                    # how long neither the percent nor the size of the file may move
+    stall_sec: float = 120.0                    # how long neither the percent nor the size of what has come may move
     tries: int = 3                              # downloads begun in all before the job gives up
     pause_sec: float = 10.0                     # between the end of a stalled download and the next
-    poll_sec: float = 2.0                       # how often the size of the file is looked at
+    poll_sec: float = 2.0                       # how often the size of what has come is looked at
 
 
 PATIENCE = Patience()
@@ -72,7 +72,7 @@ def describe_file(path: Path) -> MapFile | None:
 
 
 def _remove(part: Path) -> None:
-    """Deletes a `.part` file; one that cannot be deleted now (a program that was just ended still holds it, on Windows) is told in the log and left, never an error that keeps the job busy."""
+    """Deletes a `.part` file; one that cannot be deleted now (a cut that was just ended still holds it, on Windows) is told in the log and left, never an error that keeps the job busy."""
     try:
         part.unlink(missing_ok=True)
     except OSError as e:
@@ -80,13 +80,12 @@ def _remove(part: Path) -> None:
 
 
 class MapFetch:
-    def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, installer: Callable[[Path], Awaitable[Path]] = ensure,
-                 probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE, world: Callable[[Path], Path | None] = world_file) -> None:
+    def __init__(self, data_dir: Path, config: ConfigSource, clock: Clock = utcnow, probe: Callable[[str], bool] = url_exists, patience: Patience = PATIENCE,
+                 world: Callable[[Path], Path | None] = world_file) -> None:
         self.data_dir = data_dir
         self.config = config
         self.clock = clock
         self.changed: Signal[[]] = Signal("map_changed")
-        self._installer = installer
         self._probe = probe
         self.patience = patience
         self._world = world
@@ -99,6 +98,7 @@ class MapFetch:
         self._step: Step = ""
         self._percent: int | None = None
         self._downloaded: int | None = None
+        self._arrived: int | None = None            # the size of what has come, as the cut tells it; looked at every `poll_sec`
         self._note = ""
         self._moved = 0.0
         self._problem = ""
@@ -170,12 +170,12 @@ class MapFetch:
         self.changed.emit()
 
     async def estimate(self) -> None:
-        """A dry run: how big the detailed map will be (`status().estimate`). Raises MapError, ToolError."""
+        """A dry run: how big the detailed map will be (`status().estimate`). Raises MapError, CutError."""
         self._claim("estimate")
         await self._run("estimate", raising=True)
 
     async def fetch(self) -> None:
-        """Makes the world map when it is not there, then the detailed map. Raises MapError, ToolError."""
+        """Makes the world map when it is not there, then the detailed map. Raises MapError, CutError."""
         self._claim("fetch")
         await self._run("fetch", raising=True)
 
@@ -206,7 +206,7 @@ class MapFetch:
         except asyncio.CancelledError:
             log.info("the map job was cancelled")
             raise
-        except (MapError, ToolError) as e:
+        except (MapError, CutError) as e:
             self._problem = str(e)
             log.warning("the map %s failed: %s", job, e)
             if raising:
@@ -225,80 +225,70 @@ class MapFetch:
                 self._busy, self._current, self._step, self._percent, self._downloaded, self._note = None, None, "", None, None, ""
                 self.changed.emit()
 
-    async def _program(self) -> Path:
-        bin_dir = self.data_dir / "bin"
-        found = find(bin_dir)
-        if found is not None:
-            return found
-        self._set("tool")
-        return await self._installer(bin_dir)
-
     async def _source(self) -> tuple[str, str]:
         """Where to cut from and the day of the build ("" for a source that is not a daily build)."""
         chosen = self.config().map_source
         if chosen:
             named = re.search(r"(\d{8})\.pmtiles$", chosen)
+            log.info("the map is cut from %s", chosen)
             return chosen, named.group(1) if named else ""
         self._set("build")
-        return await latest_build(self.clock(), self._probe)
+        found = await latest_build(self.clock(), self._probe)
+        log.info("the map is cut from %s", found[0])
+        return found
 
     async def _estimate_job(self) -> None:
         box, radius, zoom = self._plan()
-        program = await self._program()
         source, build = await self._source()
         self._set("area")
-        sizes = await extract(program, source, self.data_dir / (DETAIL + ".part"), box, zoom, dry_run=True)
-        if sizes is None:
-            raise ToolError(NO_SIZE)
-        self._estimate = Estimate(sizes.bytes, sizes.tiles, radius, zoom, box, build)
-        log.info("the map of %d km round us to zoom %d is %.0f MB (%d tiles)", radius, zoom, sizes.bytes / 1e6, sizes.tiles)
+        cut = await extract(source, self.data_dir / DETAIL, box, zoom, dry_run=True)
+        self._estimate = Estimate(cut.bytes, cut.tiles, radius, zoom, box, build)
+        log.info("the map of %d km round us to zoom %d is %.0f MB (%d tiles)", radius, zoom, cut.bytes / 1e6, cut.tiles)
 
     async def _fetch_job(self) -> None:
         box, radius, zoom = self._plan()
-        program = await self._program()
         source, build = await self._source()
         if self._world(self.data_dir) is None:
             self._set("world")
-            await self._make(program, source, build, WORLD, None, WORLD_MAXZOOM)
+            await self._make(source, build, WORLD, None, WORLD_MAXZOOM)
         self._set("area")
-        await self._make(program, source, build, DETAIL, box, zoom)
+        await self._make(source, build, DETAIL, box, zoom)
         self._estimate = None
         log.info("the map of %d km round us to zoom %d is in %s", radius, zoom, self.data_dir / DETAIL)
 
-    async def _make(self, program: Path, source: str, build: str, name: str, box: Box | None, zoom: int) -> None:
-        part, final = self.data_dir / (name + ".part"), self.data_dir / name
-        await self._download(program, source, part, box, zoom)
-        if not part.is_file():
-            raise ToolError(f"the pmtiles program ended without making {part.name}")
-        await asyncio.to_thread(replace_file, part, final)
+    async def _make(self, source: str, build: str, name: str, box: Box | None, zoom: int) -> None:
+        final = self.data_dir / name
+        await self._download(source, final, box, zoom)
         try:
             final.with_suffix(".json").write_text(json.dumps({"build": build}))
         except OSError as e:
             log.warning("the note on the build of %s could not be written: %s", name, e)
 
-    async def _download(self, program: Path, source: str, part: Path, box: Box | None, zoom: int) -> None:
-        """Runs the tool until it has made `part`; a run that stands still is ended and begun again from the start (the tool cannot take up a half-made file) after a pause, `tries` times in all; then ToolError."""
+    async def _download(self, source: str, final: Path, box: Box | None, zoom: int) -> None:
+        """Cuts the map into `final` (moved into place when it is whole); a cut that stands still is ended and begun again from the start after a pause, `tries` times in all; then CutError."""
+        part = part_of(final)
         for attempt in range(1, self.patience.tries + 1):
             part.unlink(missing_ok=True)
+            self._arrived = None
             try:
-                return await self._watched(extract(program, source, part, box, zoom, on_percent=self._progress), part)
+                return await self._watched(extract(source, final, box, zoom, on_percent=self._progress, on_size=self._sized))
             except _Stalled:
                 log.warning("the download of %s stood still for %g s (try %d of %d)", part.name, self.patience.stall_sec, attempt, self.patience.tries)
             if attempt == self.patience.tries:
-                raise ToolError(SLOW) from None
+                raise CutError(SLOW) from None
             self._percent, self._downloaded = None, None
             self._note = f"no progress: trying again ({attempt + 1} of {self.patience.tries})"
             self.changed.emit()
             await asyncio.sleep(self.patience.pause_sec)
 
-    async def _watched(self, run: Awaitable[object], part: Path) -> None:
-        """Waits for the tool, looking at the size of `part` now and then; _Stalled (the tool is ended) when neither that nor the percent has moved for `stall_sec`."""
+    async def _watched(self, run: Awaitable[object]) -> None:
+        """Waits for the cut, looking at the size of what has come now and then; _Stalled (the cut is ended) when neither that nor the percent has moved for `stall_sec`."""
         task = asyncio.ensure_future(run)
         self._moved = time.monotonic()
         try:
             while not task.done():
                 await asyncio.wait([task], timeout=self.patience.poll_sec)
-                self._look(part)
+                self._look()
                 if not task.done() and time.monotonic() - self._moved > self.patience.stall_sec:
                     raise _Stalled
             await task
@@ -308,12 +298,12 @@ class MapFetch:
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await task
 
-    def _look(self, part: Path) -> None:
-        try:
-            size = part.stat().st_size
-        except OSError:
-            return
-        if size != self._downloaded:
+    def _sized(self, size: int) -> None:
+        self._arrived = size
+
+    def _look(self) -> None:
+        size = self._arrived
+        if size is not None and size != self._downloaded:
             self._downloaded = size
             self._moves()
             self.changed.emit()

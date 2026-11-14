@@ -106,8 +106,8 @@ def host_list(text: str) -> str:
 
 
 def map_source(text: str) -> str:
-    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file, which may have blanks in it (the extract tool is started with the value as one argument); never a
-    control character, nor a word that starts with a dash, which the extract tool would take for an option."""
+    """Empty (the latest daily build of build.protomaps.com), a web address (http or https) or a path of a PMTiles file, which may have blanks in it; never a
+    control character, nor a value that starts with a dash."""
     value = text.strip()
     if value == "":
         return ""

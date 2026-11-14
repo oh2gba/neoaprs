@@ -2,7 +2,6 @@
 # `neoaprs.exe` (console), `neoaprsw.exe` (no console: the daemon) and `neoaprs-app.exe` (no console: the desktop app, with the icon), sharing one set of libraries. The app is not called NeoAPRS.exe: Windows
 # names are not case sensitive, and that would be neoaprs.exe. Run it from the repository root with NeoAPRS and its extra `app` installed in the build environment (the wheel, not the clone):
 #     pyinstaller --noconfirm --distpath dist --workpath build packaging/windows/neoaprs.spec
-# pmtiles.exe is added next to them in bin/ by packaging/windows/bundle_pmtiles.py (neoaprs/pmtilestool.py finds it there).
 import re
 import tempfile
 from pathlib import Path

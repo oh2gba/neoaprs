@@ -49,7 +49,6 @@ chmod +x NeoAPRS-<version>-x86_64.AppImage
 - **FUSE.** The file mounts itself with `fusermount`, which the `fuse3` (or `fuse`) package provides; `libfuse2` is not needed. Without FUSE (a container, a minimal install) start it with `--appimage-extract-and-run` as the first argument, which unpacks it into a temporary folder at every start. Or run `--appimage-extract` once and start `squashfs-root/AppRun`.
 - **Start at login.** `./NeoAPRS-<version>-x86_64.AppImage service install` writes a user service that starts the AppImage file. The tray menu's *Start at sign-in* writes the same file into the autostart entry. Move the file where you want it first, then run the command from there; after an update by hand run it again from the new file (**Update now** keeps the file's name, so there is nothing to do).
 - **The window.** The web engine's sandbox needs user namespaces. Where the system refuses them (the AppArmor of Ubuntu 24.04) the AppImage starts the engine without it, which is safe because the window shows only NeoAPRS's own page.
-- **The map tool.** The `pmtiles` program that cuts the map is fetched into the `bin/` folder of the data folder the first time the map is made ([page.md](page.md#the-base-map)).
 
 ## macOS
 
@@ -62,7 +61,6 @@ The app is not signed by Apple, so the first start takes a right-click on **NeoA
 - **The HF radio's sound card.** The first time the HF radio is switched on, macOS asks whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the HF radio hears nothing.
 - **Start at login.** `/Applications/NeoAPRS.app/Contents/MacOS/NeoAPRS service install` writes a launchd agent that starts the daemon at login ([Start at login](#start-at-login)). The tray menu has no *Start at sign-in* item on a Mac.
 - **The radio's port** is a `/dev/cu.*` device. The page lists the ports of the computer to pick from ([radio.md](radio.md)).
-- **The map tool.** The `pmtiles` program that cuts the map is fetched into the `bin/` folder of the data folder the first time the map is made ([page.md](page.md#the-base-map)).
 
 ## Raspberry Pi, Debian, Ubuntu (.deb)
 

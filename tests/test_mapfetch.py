@@ -1,47 +1,60 @@
-"""The base map service (neoaprs/services/mapfetch.py) with the fake pmtiles program of tests/support/fakepmtiles.py: the states and what the page is told, the box round the position, no position, the world map
-first, a file moved into place only when the program has finished, a cancel, one job at a time, the program fetched when it is missing, the latest daily build."""
+"""The base map service (neoaprs/services/mapfetch.py) cutting the made-up planet of tests/support/madepmtiles.py from a range server on the loopback: the states and what the page is told, the box round the position,
+no position, the world map first, a file moved into place only when it is whole, the numbers of the dry run, a cancel, one job at a time, the latest daily build, an old pmtiles program left alone."""
 import json
-import sys
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
-from neoaprs.config import Config
+import neoaprs.services.mapfetch as mapfetch
 from neoaprs.geo import box_around
 from neoaprs.mapstate import Job, MapError
-from neoaprs.pmtilestool import UNREACHABLE, ToolError
-from neoaprs.pmtilestool import latest_build
+from neoaprs.pmtilesarchive import latest_build
+from neoaprs.pmtilescut import CutError
 from neoaprs.services.mapfetch import DETAIL, FAILED, WORLD, MapFetch
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop, until
-from tests.support.maprig import MapRig, own_world
-from tests.support.fakepmtiles import FakePmtiles, alive, install_fake
+from tests.support.env import ON_AIR, remember_stop, until_started
+from tests.support.madepmtiles import every_tile, planet, tile_id, tiles_of
+from tests.support.maprig import MapRig, config_for, data_offset, own_world
+from tests.support.rangeserver import RangeServer, range_server
 
-SOURCE = "https://build.example/20261020.pmtiles"
-CONFIG = replace(ON_AIR, map_source=SOURCE)
 JOBS: tuple[Job, Job] = ("estimate", "fetch")
+ZOOMS = 6                                                                  # the deepest zoom of the planet
 
 
 class Rig(MapRig):
-    def __init__(self, data: Path, fake: FakePmtiles, config: Config) -> None:
-        super().__init__(data, fake, lambda: self.config)
-        self.config = config
+    def __init__(self, data: Path, server: RangeServer) -> None:
+        super().__init__(data, server, lambda: self.config)
+        self.config = config_for(server)
 
     def states(self) -> list[str]:
         return [s.state for s in self.seen]
 
+    def hold_tiles(self) -> None:
+        """The server gives the directories and holds every answer for tile data."""
+        self.server.hold_from = data_offset(planet())
 
-@pytest.fixture
-def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
-    monkeypatch.setenv("PATH", "")                                         # (a real pmtiles on this machine is not the one to run)
-    data = tmp_path / "data"
-    return Rig(data, install_fake(data / "bin"), CONFIG)
+
+@pytest_asyncio.fixture
+async def rig(tmp_path: Path) -> Rig:
+    return Rig(tmp_path / "data", await range_server(planet()))
+
+
+def tiles_in(path: Path) -> dict[int, bytes]:
+    return every_tile(path.read_bytes())
+
+
+def expected(box: tuple[float, float, float, float] | None, deepest: int) -> dict[int, bytes]:
+    """The tiles a cut of the planet must hold, by the tile numbers of the map, each with the bytes the planet stores for it."""
+    stored = every_tile(planet())
+    keys = tiles_of(box or (-180.0, -85.0511, 180.0, 85.0511), 0, deepest)
+    return {tile_id(*key): stored[tile_id(*key)] for key in keys}
 
 
 # ---- what is there
 
-def test_before_anything_is_done_there_is_no_map_and_the_area_follows_the_position(rig: Rig) -> None:
+async def test_before_anything_is_done_there_is_no_map_and_the_area_follows_the_position(rig: Rig) -> None:
     status = rig.status()
     assert (status.state, status.step, status.percent, status.problem, status.blocked) == ("none", "", None, "", "")
     assert status.detail is None and status.world is None and status.estimate is None
@@ -53,12 +66,12 @@ async def test_the_files_in_the_data_folder_are_described_by_their_headers(rig: 
     await rig.service.fetch()
     status = rig.status()
     assert status.state == "ready" and status.detail is not None and status.world is not None
-    assert status.detail.name == DETAIL and status.detail.max_zoom == 12 and status.detail.bbox == pytest.approx(box_around(60.17, 24.94, 150), abs=1e-5)
-    assert status.world.name == WORLD and status.world.max_zoom == 5 and status.world.bbox == (-180.0, -85.0, 180.0, 85.0)
+    assert status.detail.name == DETAIL and status.detail.max_zoom == ZOOMS and status.detail.bbox == pytest.approx(box_around(60.17, 24.94, 150), abs=1e-5)
+    assert status.world.name == WORLD and status.world.max_zoom == 5 and status.world.bbox == pytest.approx((-180.0, -85.0511287, 180.0, 85.0511287), abs=1e-6)
     assert status.detail.bytes == (rig.data / DETAIL).stat().st_size and status.detail.build == "20261020"
 
 
-def test_a_map_made_by_hand_has_a_header_and_no_build(rig: Rig) -> None:
+async def test_a_map_made_by_hand_has_a_header_and_no_build(rig: Rig) -> None:
     rig.data.mkdir(exist_ok=True)
     (rig.data / DETAIL).write_bytes(b"not a map")
     status = rig.status()
@@ -68,14 +81,14 @@ def test_a_map_made_by_hand_has_a_header_and_no_build(rig: Rig) -> None:
 # ---- the box
 
 async def test_the_area_is_the_box_round_the_position_for_the_radius_and_the_zoom_of_the_settings(rig: Rig) -> None:
-    rig.config = replace(CONFIG, station_lat=64.5, station_lon=26.0, map_radius_km=40, map_maxzoom=14)
-    await rig.service.estimate()
-    west, south, east, north = box_around(64.5, 26.0, 40)
-    call = rig.fake.calls()[0]
-    assert call[1] == SOURCE and call[2].endswith("basemap.pmtiles.part") and "--maxzoom=14" in call and "--dry-run" in call
-    assert f"--bbox={west:.5f},{south:.5f},{east:.5f},{north:.5f}" in call
+    rig.config = config_for(rig.server, station_lat=64.5, station_lon=26.0, map_radius_km=40, map_maxzoom=4)
+    await rig.service.fetch()
+    box = box_around(64.5, 26.0, 40)
+    west, south, east, north = box
     assert south < 64.5 < north and west < 26.0 < east
     assert (east - west) > (north - south), "a degree of longitude is shorter this far north"
+    assert tiles_in(rig.data / DETAIL) == expected(box, 4)
+    assert rig.status().detail is not None and rig.status().detail.max_zoom == 4     # type: ignore[union-attr]
 
 
 def test_the_box_is_clamped_at_the_edges_of_the_world() -> None:
@@ -92,26 +105,42 @@ def test_the_box_is_clamped_at_the_edges_of_the_world() -> None:
 async def test_an_estimate_is_a_dry_run_that_leaves_the_size_and_the_files_alone(rig: Rig) -> None:
     await rig.service.estimate()
     status = rig.status()
-    assert status.estimate is not None and (status.estimate.bytes, status.estimate.tiles, status.estimate.radius_km, status.estimate.maxzoom) == (493_000_000, 41233, 150, 12)
-    assert status.estimate.build == "20261020" and status.estimate.box == box_around(60.17, 24.94, 150)
+    box = box_around(60.17, 24.94, 150)
+    assert status.estimate is not None and (status.estimate.tiles, status.estimate.radius_km, status.estimate.maxzoom) == (len(tiles_of(box, 0, ZOOMS)), 150, 12)
+    assert status.estimate.build == "20261020" and status.estimate.box == box and status.estimate.bytes > 0
     assert status.state == "none" and status.detail is None
     assert not list(rig.data.glob("*.pmtiles*")), "a dry run makes no file"
+    assert rig.server.asked and all(last < data_offset(planet()) for _, last in rig.server.asked), "no tile data is fetched"
     assert "estimating" in rig.states() and rig.states()[-1] == "none"
 
 
-async def test_the_state_is_estimating_while_it_runs_and_the_steps_are_told(rig: Rig) -> None:
-    rig.config = replace(CONFIG, map_source="")
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: url.endswith("20261019.pmtiles"), world=own_world)
+async def test_the_numbers_of_a_dry_run_are_those_of_the_map_the_download_makes(rig: Rig) -> None:
+    await rig.service.estimate()
+    estimate = rig.status().estimate
+    assert estimate is not None
+    await rig.service.fetch()
+    detail = rig.status().detail
+    assert detail is not None and detail.bytes == estimate.bytes and len(tiles_in(rig.data / DETAIL)) == estimate.tiles
+    assert rig.status().estimate is None, "the estimate is told away once the map is made"
+
+
+async def test_the_state_is_estimating_while_it_runs_and_the_steps_are_told(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no source in the settings the latest daily build is looked for (the probe of the test knows the day before); the address it gives is the server of the test."""
+    asked: list[str] = []
+
+    async def latest(now: object, probe: object) -> tuple[str, str]:
+        asked.append("probed")
+        return rig.server.url, "20261019"
+    monkeypatch.setattr(mapfetch, "latest_build", latest)
+    rig.config = replace(ON_AIR, map_source="")
     steps: list[tuple[str, str]] = []
     rig.service.changed.connect(lambda: steps.append((rig.service.status().state, rig.service.status().step)))
-    remember_stop(rig.service.stop)
     await rig.service.estimate()
-    assert steps[0] == ("estimating", "build") and ("estimating", "area") in steps
-    assert rig.fake.calls()[0][1] == "https://build.protomaps.com/20261019.pmtiles"
+    assert steps[0] == ("estimating", "build") and ("estimating", "area") in steps and asked == ["probed"]
     assert rig.status().estimate is not None and rig.status().estimate.build == "20261019"      # type: ignore[union-attr]
 
 
-async def test_the_latest_build_is_found_back_to_a_week_and_no_build_is_an_error(rig: Rig) -> None:
+async def test_the_latest_build_is_found_back_to_a_week_and_no_build_is_an_error() -> None:
     seen: list[str] = []
 
     def probe(url: str) -> bool:
@@ -124,20 +153,20 @@ async def test_the_latest_build_is_found_back_to_a_week_and_no_build_is_an_error
         await latest_build(now, lambda url: False)
 
 
-async def test_a_job_with_no_daily_build_fails_with_the_reason_and_the_program_is_not_run(rig: Rig) -> None:
-    rig.config = replace(CONFIG, map_source="")
+async def test_a_job_with_no_daily_build_fails_with_the_reason_and_nothing_is_asked_of_the_server(rig: Rig) -> None:
+    rig.config = replace(ON_AIR, map_source="")
     rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), probe=lambda url: False, world=own_world)
     remember_stop(rig.service.stop)
     rig.service.begin("fetch")
     await rig.idle()
     status = rig.status()
-    assert status.state == "error" and "no daily build" in status.problem and rig.fake.calls() == []
+    assert status.state == "error" and "no daily build" in status.problem and rig.server.asked == []
 
 
 # ---- no position
 
 async def test_without_a_position_no_job_starts_and_the_reason_says_so(rig: Rig) -> None:
-    rig.config = replace(CONFIG, station_lat=None, station_lon=None)
+    rig.config = replace(rig.config, station_lat=None, station_lon=None)
     status = rig.status()
     assert status.box is None and "no position" in status.blocked and status.state == "none"
     for job in JOBS:
@@ -145,18 +174,17 @@ async def test_without_a_position_no_job_starts_and_the_reason_says_so(rig: Rig)
             rig.service.begin(job)
     with pytest.raises(MapError, match="no position"):
         await rig.service.fetch()
-    assert rig.status().state == "none" and rig.status().problem == "" and rig.fake.calls() == []
+    assert rig.status().state == "none" and rig.status().problem == "" and rig.server.asked == []
 
 
 # ---- the download
 
 async def test_the_world_map_is_made_first_and_then_the_detailed_one(rig: Rig) -> None:
     await rig.service.fetch()
-    calls = rig.fake.calls()
-    assert [c[2].rsplit("/", 1)[1] for c in calls] == ["basemap-world.pmtiles.part", "basemap.pmtiles.part"]
-    assert "--maxzoom=5" in calls[0] and not any(a.startswith("--bbox") for a in calls[0])
-    assert "--maxzoom=12" in calls[1] and any(a.startswith("--bbox=") for a in calls[1])
     assert sorted(p.name for p in rig.data.glob("*.pmtiles*")) == ["basemap-world.pmtiles", "basemap.pmtiles"]
+    assert tiles_in(rig.data / WORLD) == expected(None, 5), "every tile of the world to zoom 5, as the planet has them"
+    assert tiles_in(rig.data / DETAIL) == expected(box_around(60.17, 24.94, 150), ZOOMS)
+    assert [s.step for s in rig.seen if s.state == "downloading"][0] == "world" and rig.seen[-2].step == "area"
     assert json.loads((rig.data / "basemap.json").read_text(encoding="utf-8")) == {"build": "20261020"}
     status = rig.status()
     assert status.state == "ready" and status.estimate is None and status.step == "" and status.percent is None
@@ -166,16 +194,19 @@ async def test_the_world_map_is_not_made_again_when_it_is_there(rig: Rig) -> Non
     rig.data.mkdir(exist_ok=True)
     (rig.data / WORLD).write_bytes(b"the world")
     await rig.service.fetch()
-    assert len(rig.fake.calls()) == 1 and (rig.data / WORLD).read_bytes() == b"the world"
+    assert (rig.data / WORLD).read_bytes() == b"the world" and "world" not in {s.step for s in rig.seen}
+    assert (rig.data / DETAIL).is_file()
 
 
 async def test_the_page_is_told_the_steps_and_the_percent_of_each(rig: Rig) -> None:
     await rig.service.fetch()
     working = [s for s in rig.seen if s.state == "downloading"]
     assert [s.step for s in working][0] == "world" and working[-1].step == "area"
-    for step in ("world", "area"):
+    for step, name in (("world", WORLD), ("area", DETAIL)):
         percents = [s.percent for s in working if s.step == step and s.percent is not None]
-        assert percents[0] == 0 and percents[-1] == 100 and percents == sorted(percents) and {0, 25, 50, 75, 100} <= set(percents)
+        assert percents[-1] == 100 and percents == sorted(percents)
+        sizes = [s.downloaded for s in working if s.step == step and s.downloaded is not None]
+        assert sizes == sorted(sizes) and sizes[-1] == (rig.data / name).stat().st_size, "the size of what has come only grows, to the size of the map"
     assert rig.states()[-1] == "ready"
 
 
@@ -183,34 +214,43 @@ async def test_a_failure_leaves_the_map_that_was_there_and_no_part(rig: Rig) -> 
     rig.data.mkdir(exist_ok=True)
     (rig.data / DETAIL).write_bytes(b"the old map")
     (rig.data / WORLD).write_bytes(b"the old world")
-    rig.fake.mode("fail")
+    rig.server.mode = "missing"
     rig.service.begin("fetch")
     await rig.idle()
     status = rig.status()
-    assert status.state == "error" and status.problem == UNREACHABLE
+    assert status.state == "error" and status.problem == "the map server answered 404 Not Found"
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and (rig.data / WORLD).read_bytes() == b"the old world"
     assert not list(rig.data.glob("*.part")), "the half-made file is removed"
 
 
+async def test_the_error_text_names_no_address_and_no_folder(rig: Rig) -> None:
+    for mode in ("missing", "wrong", "whole"):
+        rig.server.mode = mode
+        rig.service.begin("estimate")
+        await rig.idle()
+        problem = rig.status().problem
+        assert rig.status().state == "error" and problem and "127.0.0.1" not in problem and str(rig.data) not in problem, problem
+
+
 async def test_a_failed_world_map_stops_the_job_before_the_detailed_one(rig: Rig) -> None:
-    rig.fake.mode("fail")
-    with pytest.raises(ToolError):
+    rig.server.mode = "missing"
+    with pytest.raises(CutError):
         await rig.service.fetch()
-    assert len(rig.fake.calls()) == 1 and not list(rig.data.glob("*.pmtiles*"))
+    assert not list(rig.data.glob("*.pmtiles*"))
     assert rig.status().state == "error" and rig.status().detail is None
 
 
 async def test_the_next_job_clears_the_error_and_a_stale_part_is_removed(rig: Rig) -> None:
     rig.data.mkdir(exist_ok=True)
     (rig.data / "basemap.pmtiles.part").write_bytes(b"left by a crash")
-    rig.fake.mode("fail")
     rig.service.begin("estimate")
     await rig.idle()
-    assert rig.status().state == "none" and rig.status().problem == "", "a dry run of the fake does not fail"
+    assert rig.status().state == "none" and rig.status().problem == ""
+    rig.server.mode = "missing"
     rig.service.begin("fetch")
     await rig.idle()
     assert rig.status().state == "error"
-    rig.fake.mode("ok")
+    rig.server.mode = "ranges"
     rig.service.begin("fetch")
     assert rig.status().problem == "" and rig.status().state == "downloading"
     await rig.idle()
@@ -219,19 +259,18 @@ async def test_the_next_job_clears_the_error_and_a_stale_part_is_removed(rig: Ri
 
 # ---- cancel, one at a time
 
-async def test_a_cancel_ends_the_program_removes_the_part_and_keeps_the_map(rig: Rig) -> None:
+async def test_a_cancel_ends_the_cut_removes_the_part_and_keeps_the_map(rig: Rig) -> None:
     rig.data.mkdir(exist_ok=True)
     (rig.data / DETAIL).write_bytes(b"the old map")
     (rig.data / WORLD).write_bytes(b"the world")
-    rig.fake.mode("slow")
+    rig.hold_tiles()
     rig.service.begin("fetch")
-    await until(lambda: rig.status().percent == 10)
-    pid = rig.fake.pid()
-    assert alive(pid) and rig.service.cancel()
+    await until_started(lambda: rig.server.holding > 0)
+    assert (rig.data / "basemap.pmtiles.part").exists() and rig.service.cancel()
     await rig.idle()
     status = rig.status()
     assert status.state == "ready" and status.problem == "" and status.step == "" and status.percent is None
-    assert not alive(pid), "the program was ended"
+    await until_started(lambda: rig.server.holding == 0)                  # (the connection that waited for the server was shut)
     assert (rig.data / DETAIL).read_bytes() == b"the old map" and not list(rig.data.glob("*.part"))
 
 
@@ -246,22 +285,22 @@ async def test_a_part_file_that_cannot_be_deleted_does_not_keep_the_job_busy(rig
         real(path, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", held)
-    rig.fake.mode("fail")
+    rig.server.mode = "missing"
     rig.service.begin("fetch")
     await rig.idle()
     status = rig.status()
     assert not rig.service.busy and status.state == "error" and status.blocked == "" and rig.seen[-1].state == "error"
     assert "could not be deleted" in caplog.text
     monkeypatch.setattr(Path, "unlink", real)
-    rig.fake.mode("ok")
+    rig.server.mode = "ranges"
     await rig.service.fetch()                                                # (a new job is accepted)
     assert rig.status().state == "ready"
 
 
 async def test_one_job_at_a_time(rig: Rig) -> None:
-    rig.fake.mode("slow")
+    rig.hold_tiles()
     rig.service.begin("fetch")
-    await until(lambda: rig.status().percent == 10)
+    await until_started(lambda: rig.server.holding > 0)
     assert rig.status().blocked == "a map job is running"
     for job in JOBS:
         with pytest.raises(MapError, match="running already"):
@@ -273,87 +312,56 @@ async def test_one_job_at_a_time(rig: Rig) -> None:
     assert not rig.service.cancel(), "nothing is running to be cancelled"
 
 
-async def test_stopping_the_service_ends_the_job(rig: Rig) -> None:
-    rig.fake.mode("slow")
+async def test_stopping_the_service_ends_the_cut_and_the_thread_of_it(rig: Rig) -> None:
+    rig.hold_tiles()
     rig.service.begin("fetch")
-    await until(lambda: rig.status().percent == 10)
-    pid = rig.fake.pid()
+    await until_started(lambda: rig.server.holding > 0)
     await rig.service.stop()
-    assert not alive(pid) and rig.status().state == "none"
+    assert rig.status().state == "none" and not list(rig.data.glob("*.part"))
+    await until_started(lambda: rig.server.holding == 0)
 
 
-# ---- the program
+# ---- the sources and the old program
 
-async def test_a_missing_program_is_fetched_first_and_the_step_says_so(rig: Rig, tmp_path: Path) -> None:
-    (rig.data / "bin" / "pmtiles").unlink()
-    asked: list[Path] = []
-
-    async def installer(bin_dir: Path) -> Path:
-        asked.append(bin_dir)
-        return install_fake(bin_dir).path
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
-    steps: list[str] = []
-    rig.service.changed.connect(lambda: steps.append(rig.service.status().step))
-    remember_stop(rig.service.stop)
+async def test_a_source_that_names_a_file_is_cut_from_the_file(rig: Rig, tmp_path: Path) -> None:
+    (tmp_path / "planet.pmtiles").write_bytes(planet())
+    rig.config = replace(rig.config, map_source=str(tmp_path / "planet.pmtiles"))
     await rig.service.estimate()
-    assert asked == [rig.data / "bin"] and steps[0] == "tool" and rig.status().estimate is not None
+    assert rig.status().estimate is not None and rig.status().estimate.build == "" and rig.server.asked == []      # type: ignore[union-attr]
+    await rig.service.fetch()
+    assert tiles_in(rig.data / DETAIL) == expected(box_around(60.17, 24.94, 150), ZOOMS)
 
 
-async def test_the_installed_windows_app_makes_the_map_with_the_tool_beside_it_and_fetches_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The frozen layout of the Windows installer: neoaprsw.exe (the daemon) in the app folder, the pinned tool in its bin/, the data folder elsewhere (%LOCALAPPDATA%\\NeoAPRS), nothing on the PATH."""
-    app, data = tmp_path / "Programs" / "NeoAPRS", tmp_path / "Local" / "NeoAPRS"
-    install_fake(app / "bin")
-    monkeypatch.setenv("PATH", "")
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", str(app / "neoaprsw.exe"))
-
-    async def installer(bin_dir: Path) -> Path:
-        raise AssertionError("nothing is fetched: the app has the tool")
-    service = MapFetch(data, lambda: CONFIG, FixedClock(), installer, world=own_world)
-    remember_stop(service.stop)
-    await service.fetch()
-    assert service.status().state == "ready" and not (data / "bin").exists()
-    assert [c[0] for c in FakePmtiles(app / "bin" / "pmtiles").calls()] == ["extract", "extract"], "the world (none ships in this test) and the area"
-
-
-async def test_a_program_that_cannot_be_had_is_the_error_of_the_job(rig: Rig) -> None:
-    (rig.data / "bin" / "pmtiles").unlink()
-
-    async def installer(bin_dir: Path) -> Path:
-        raise ToolError("could not download https://github.com/x: boom")
-    rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
-    remember_stop(rig.service.stop)
-    rig.service.begin("fetch")
+async def test_a_source_that_is_not_a_map_is_told_in_words(rig: Rig, tmp_path: Path) -> None:
+    (tmp_path / "text.pmtiles").write_bytes(b"not an archive" * 20)
+    rig.config = replace(rig.config, map_source=str(tmp_path / "text.pmtiles"))
+    rig.service.begin("estimate")
     await rig.idle()
-    assert rig.status().state == "error" and rig.status().problem == "could not download https://github.com/x: boom"
+    assert rig.status().state == "error" and rig.status().problem == "the map source cannot be cut: the file is not a PMTiles archive"
 
 
-async def test_a_failure_of_the_daemons_own_is_told_in_words_and_the_detail_goes_to_the_log(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+async def test_an_old_pmtiles_program_in_the_data_folder_is_left_alone_and_nothing_is_said(rig: Rig, caplog: pytest.LogCaptureFixture) -> None:
+    program = rig.data / "bin" / "pmtiles"
+    program.parent.mkdir(parents=True)
+    program.write_bytes(b"#!/bin/sh\nexit 1\n")
+    program.chmod(0o755)
+    await rig.service.fetch()
+    assert rig.status().state == "ready" and program.read_bytes() == b"#!/bin/sh\nexit 1\n" and sorted(p.name for p in program.parent.iterdir()) == ["pmtiles"]
+    assert "pmtiles program" not in caplog.text and not [r for r in caplog.records if r.levelname in ("WARNING", "ERROR")]
+
+
+async def test_a_failure_of_the_daemons_own_is_told_in_words_and_the_detail_goes_to_the_log(rig: Rig, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """The page never shows a Python exception name; a file that could not be written says what the system said."""
-    (rig.data / "bin" / "pmtiles").unlink()
+    async def broken(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("an invariant of the cut")
 
-    async def broken(bin_dir: Path) -> Path:
-        raise RuntimeError("an invariant of the installer")
-
-    async def no_room(bin_dir: Path) -> Path:
+    async def no_room(*args: object, **kwargs: object) -> None:
         raise OSError(28, "No space left on device")
-    for installer, problem in ((broken, FAILED), (no_room, f"{FAILED}: No space left on device")):
-        rig.service = MapFetch(rig.data, lambda: rig.config, FixedClock(), installer, world=own_world)
-        remember_stop(rig.service.stop)
+    for cut, problem in ((broken, FAILED), (no_room, f"{FAILED}: No space left on device")):
+        monkeypatch.setattr(mapfetch, "extract", cut)
         rig.service.begin("fetch")
         await rig.idle()
         assert rig.status().state == "error" and rig.status().problem == problem
-    assert "an invariant of the installer" in caplog.text and "RuntimeError" not in rig.status().problem
+    assert "an invariant of the cut" in caplog.text and "RuntimeError" not in rig.status().problem
 
 
-async def test_a_program_on_the_path_is_used_before_the_one_in_bin(rig: Rig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    first = install_fake(tmp_path / "first")
-    monkeypatch.setenv("PATH", str(tmp_path / "first"))
-    await rig.service.estimate()
-    assert len(first.calls()) == 1 and rig.fake.calls() == []
-
-
-async def test_a_source_that_names_a_file_is_used_as_it_is(rig: Rig) -> None:
-    rig.config = replace(CONFIG, map_source="/maps/planet.pmtiles")
-    await rig.service.estimate()
-    assert rig.fake.calls()[0][1] == "/maps/planet.pmtiles" and rig.status().estimate is not None and rig.status().estimate.build == ""      # type: ignore[union-attr]

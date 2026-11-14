@@ -391,7 +391,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.find.already": "O rádio já está em {port}, como configurado",
   "settings.find.cancelled": "Busca cancelada",
 
-  "settings.map.step.tool": "Baixando o programa pmtiles",
   "settings.map.step.build": "Procurando a versão mais recente",
   "settings.map.step.world": "Mapa-múndi",
   "settings.map.step.area": "Mapa da região",

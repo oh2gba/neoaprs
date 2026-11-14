@@ -1552,7 +1552,6 @@ export const de: Catalogue = {
   "settings.find.already": "Das Funkgerät ist schon auf {port} eingestellt",
   "settings.find.cancelled": "Suche abgebrochen",
 
-  "settings.map.step.tool": "Hole das Programm pmtiles",
   "settings.map.step.build": "Suche den neuesten Stand",
   "settings.map.step.world": "Weltkarte",
   "settings.map.step.area": "Karte des Gebiets",

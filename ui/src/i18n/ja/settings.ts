@@ -382,7 +382,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.find.already": "無線機は設定どおり {port} にあります",
   "settings.find.cancelled": "検索をキャンセルしました",
 
-  "settings.map.step.tool": "pmtilesプログラムを取得中",
   "settings.map.step.build": "最新のビルドを確認中",
   "settings.map.step.world": "世界地図",
   "settings.map.step.area": "周辺地図",

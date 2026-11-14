@@ -5,7 +5,7 @@ from typing import Literal
 
 Box = tuple[float, float, float, float]         # west, south, east, north, in degrees
 State = Literal["none", "estimating", "downloading", "ready", "error"]
-Step = Literal["", "tool", "build", "world", "area"]
+Step = Literal["", "build", "world", "area"]
 Job = Literal["estimate", "fetch"]
 
 
@@ -39,7 +39,7 @@ class MapStatus:
     state: State
     step: Step                                  # what the job is doing now; empty while none is
     percent: int | None                         # of the step; None when it cannot say
-    downloaded: int | None                      # what the file being made holds so far, in bytes; None before it exists and when no file is being made
+    downloaded: int | None                      # what has come of the file being made, in bytes; None before it exists and when no file is being made
     note: str                                   # what the job is doing about a download that does not move (trying again); empty otherwise
     blocked: str                                # why no job can be started now, empty if one can
     problem: str                                # why the last job failed, empty if it did not

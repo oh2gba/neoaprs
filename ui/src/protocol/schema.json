@@ -2155,7 +2155,7 @@
     },
     "MapEstimate": {
       "additionalProperties": false,
-      "description": "Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start\n(no position, or a job is running). The pmtiles program is fetched first when it is not there.",
+      "description": "Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start\n(no position, or a job is running).",
       "properties": {
         "cmd": {
           "const": "map_estimate",
@@ -2316,10 +2316,9 @@
           "type": "string"
         },
         "step": {
-          "description": "what the running job is doing: fetching the pmtiles program (`tool`), looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs",
+          "description": "what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs",
           "enum": [
             "",
-            "tool",
             "build",
             "world",
             "area"
@@ -2337,7 +2336,7 @@
               "type": "null"
             }
           ],
-          "description": "how far the step is; null when it cannot say (the program and the build have no bar)"
+          "description": "how far the step is; null when it cannot say (the build has no bar)"
         },
         "downloaded": {
           "anyOf": [

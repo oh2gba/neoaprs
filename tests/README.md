@@ -39,7 +39,7 @@
   no longer the Tnc's, a write that fails, the KISS entry's steps and the port's failed write, and the repeats of the KISS entry that wait 10, 20, 40 and 60 s.
 * `test_tncwatchdog.py`: the keep-alive's schedule (`neoaprs/tncwatchdog.py`) on a Tnc that is a record of what it was asked and a skipped clock: the quiet period, the check's steps, every exit of a check (no line, a write refused, a line replaced between two steps), the silent
   radio's probes and the reopen of every fifth, a Tnc that is not connected.
-* `test_worldcmd.py`: `neoaprs map --world` on the pmtiles stand-in: the build, source and zoom, the 8 MB refusal, a file that is no archive, a tool that is not the pinned one, a failed run. `test_selfreplace.py`, `test_servicelaunchd.py`, `test_opencmd_platforms.py`,
+* `test_worldcmd.py`: `neoaprs map --world` cutting the made-up planet from a range server: the build, source and zoom, the 8 MB refusal before a tile is fetched, a failed run. `test_selfreplace.py`, `test_servicelaunchd.py`, `test_opencmd_platforms.py`,
   `test_rigctld.py`, `test_aprsmiceout.py`, `test_support_gather.py`, `test_cli_small.py`: the branches of the small pieces that the larger tests do not reach (the Windows and macOS paths with the platform said and the system's calls faked, a server that answers badly, the
   system named on each system, the hooks for what nothing caught).
 * `test_silent.py`: the silent radio: a check that nothing answers makes the Tnc silent (the describe text, the lines, the log), command-mode text, a KISS frame
@@ -234,26 +234,23 @@
   in it and nothing of the daemon's, `messages/alert` off ignored, the saved command and not an older one, a failure with the exit code and the first line of
   stderr, a command that runs out of time, an empty command an `error`, a field the command does not take); `bulletin_delete` (the `del` on every page and the
   row gone from the database, a bulletin sent again new, an unknown entry an `error`).
-* `test_pmtilestool.py`: the pmtiles program (`neoaprs/pmtilestool.py`): the pinned table of the five systems (a digest each), which release a system and a
-  processor get and the refusal of one with none, the program found on the PATH before the data folder's `bin/`, fetched from a local web server that plays
-  GitHub (a tar.gz with the program, a zip with `pmtiles.exe`; checked, unpacked into `bin/`, nothing else left there; a wrong checksum, a 404, a server that is
-  gone and an archive without the program each refused with nothing kept), the sizes as the tool writes them, the percent of its bar, the sizes of a dry run,
-  the header of an archive, and runs of the fake program (the box and zoom asked for, the percent told as it goes, the world without a box, a failure told with
-  its last line, a program that cannot start, a task cancelled ending the program).
-* `test_mapfetch.py`, `test_mapwire.py`: the base map service (`neoaprs/services/mapfetch.py`) with the fake program: the files described by their headers, the
-  box round the position for the radius and zoom (and clamped at the edges of the world), an estimate that writes nothing and keeps the size, the latest daily
+* `test_pmtilescut.py`: the cut of the base map out of a big archive (`neoaprs/pmtilescut.py`, `pmtilesplan.py`, `pmtilesrange.py`, `pmtilesformat.py`) on made-up archives that a reader written apart
+  from the program's code checks (`support/madepmtiles.py`): the tiles a box holds to a zoom and no other, for every shape of directory (the root alone, leaves, leaves of leaves, plain or gzip, runs, shared
+  contents), the header, a `.part` file moved into place whole, the percent, the dry run (the size, no tile fetched), the size limit, archives that lie or cannot be cut (told in words; numbers that claim to be big
+  are refused without being allocated), the grouping of the requests, a range server that fails, cuts an answer short, answers busy, gives no ranges or changes the archive, and a stop or a cancel that ends the threads.
+* `test_pmtilesarchive.py`: the header of an archive read from a file, a file moved into place (a target Windows holds is tried again), whether a daily build is there.
+* `test_mapfetch.py`, `test_mapwire.py`: the base map service (`neoaprs/services/mapfetch.py`) cutting the made-up planet from a range server: the files described by their headers, the
+  box round the position for the radius and zoom (and clamped at the edges of the world), an estimate that writes nothing, fetches no tile and says what the download makes, the latest daily
   build looked for back a week, no position (nothing starts, the reason says so), the world map first and not again when it is there, the percent of each step
-  told, a failure leaving the old files and no `.part`, a cancel ending the program, one job at a time, a missing program fetched first, the program on the PATH
-  used before `bin/`; and over the socket the topic `map`, the commands (every refusal an `error` with the reason) and the two files served with byte ranges.
-* `test_mapstall.py`: a map download that stands still (`Patience` of `neoaprs/services/mapfetch.py`) with the fake program: it is ended and begun again with
-  the note "trying again (2 of 3)" in the status, after the last try the job fails with the text that the server is too slow, a failure of the program is not
+  told, a failure leaving the old files and no `.part`, a cancel ending the cut, one job at a time, an old pmtiles program in `bin/` left alone and never named, the words of an error without an address or a folder; and over the socket the topic `map`, the commands (every refusal an `error` with the reason),
+  the dry run's numbers, the two files served with byte ranges, a cancel and the end of the daemon while a cut runs.
+* `test_mapstall.py`: a map download that stands still (`Patience` of `neoaprs/services/mapfetch.py`) with a range server that holds its answers for tile data: the cut
+  is ended and begun again with the note "trying again (2 of 3)" in the status, after the last try the job fails with the text that the server is too slow, a failure that cannot get better is not
   retried, a download that moves only in the size of its file is no stall, the size of the `.part` file reaches the status, the old map is never touched, and a
   cancel still works, also while the job waits to try again.
 * `test_config_map.py`, `test_mapcli.py`: the settings of the base map (the ranges of `map/radius_km` and `map/maxzoom`, the forms `map/source` may have and the
   ones it refuses: an option, another kind of address, a word with a blank; a stored wrong value falling back) and the command line (`neoaprs map`,
-  `python -m neoaprs.services.mapfetch`) as a process with the fake program first on the PATH: a dry run for the flags, a download that makes both files and
-  says how far it is, the position and the map settings read from the database of the data folder, no position (exit 1), a wrong flag (exit 2), a failing
-  program (exit 1, no file).
+  `python -m neoaprs.services.mapfetch`) as a process cutting a made-up archive from a file: a dry run for the flags, a download that makes the detailed map only, the position and the map settings read from the database of the data folder, no position (exit 1), a wrong flag (exit 2), a source that cannot be cut (exit 1, no file).
 * `test_css_unused.py`: the unused-class check of the page's style sheets (`scripts/css-unused.py`, in the stage `ui-lint`): a class that a rule names and no
   source file writes is reported, as a whole word (comments, attribute selectors and declarations are no classes; a test file or `ui/src/test/` is no mention);
   a class the page builds at run time (a prefix of `PREFIXES`) and one of the map library are not, a prefix whose code or rules are gone is; and the style
@@ -291,7 +288,7 @@
   lingering, changes nothing when run again, `--remove`, leaves a unit it did not write alone, and says so without a venv.
 * `test_markers.py`, `test_guards.py`: the markers and the guards, each shown to fail when it should (the radio guard's own test is in `test_serialport.py`).
 * `test_no_devices.py`: the no-devices switch (`neoaprs/nodevices.py`, below): the values that set it (every one but an empty one and `0`, a typo too, and the line at the start of the daemon names the value), what counts as
-  this computer, the error each kind of port and address is refused with, the one line a door gets in the log, each door where it is (the serial line, the lists of ports, the fetches and the one POST, the map tool, rigctld, a
+  this computer, the error each kind of port and address is refused with, the one line a door gets in the log, each door where it is (the serial line, the lists of ports, the fetches and the one POST, the cut of the map, rigctld, a
   gpsd and the control port of a Mercury on another computer, the alert command, the player, the Mercury program), a server of this computer asked itself and not through a proxy of the environment, every script and part of
   the harness that starts a daemon setting the switch for it (the files are read; the two that do not are listed there), and a whole daemon whose settings name a serial port, a keying line and a GPS port that
   exist as pseudo-terminals, the Mercury type with a sound card, an iGate on a real server's name and a rigctld on another address: it comes up, every part waits as it does for a device that is away, nothing is opened, started
@@ -435,17 +432,14 @@ a fake on the loopback, the radio of `test_main.py` say, is still reached). The 
 an environment of its own passes the variable on with the rest of `os.environ`. In the test's own process the fixture `devices_are_fakes` of `conftest.py` lifts the switch for every test: there the guards watch the same
 doors and fail the test that reaches a real device, and behind those doors stand the fakes that the tests of them use (a pseudo-terminal for a serial port, the made-up Mercury program, a socket pair for Bluetooth,
 a player or an alert command of the test), which the switch would refuse as it refuses the real things. So a test of a real door needs nothing new, and a process started by a test gets the switch without asking. A
-test that is about the switch asks for the fixture `under_the_switch` (`test_no_devices.py`), which keeps it on in the test's process. A test that starts a process with a fake behind one of its doors (the map
-command with the made-up pmtiles program on its PATH and the address of a map server that does not exist) asks for `switch_lifted_for_processes`, which takes the variable out of the environment the process
-inherits; nothing but the test then keeps that process from a real device, as with `search_pattern_from_settings`.
+test that is about the switch asks for the fixture `under_the_switch` (`test_no_devices.py`), which keeps it on in the test's process.
 
 ## Support
 
 `support/fakeshell.py` (`FakeFrame`, the toolkit as the desktop app's logic sees it, and a shell that `neoaprs.desktop.cmd.run` can be given by name),
 `support/clock.py` (`FixedClock`), `support/stubtnc.py` (`StubTnc`, the one stub Tnc of the suite: a state, whether it takes a frame, the frames it was given as
 `sent`, `infos()` and `lines()`, and how often it was asked), `support/rig.py` (`ServiceRig`: the settings, the clock and the stub Tnc that the tests of a
-service that sends by a schedule start from; `OwnRig` for the own objects and bulletins), `support/maprig.py` (`MapRig`: the map download service on a fake
-pmtiles tool), `support/storedb.py` (`store_at`, `log_at`: a log of the daemon on a new database file of the test), `support/fakeversionpage.py`
+service that sends by a schedule start from; `OwnRig` for the own objects and bulletins), `support/maprig.py` (`MapRig`: the map download service on a range server), `support/storedb.py` (`store_at`, `log_at`: a log of the daemon on a new database file of the test), `support/fakeversionpage.py`
 (`version_page()`: the page the update check asks, on a free port of the loopback, with the requests it was sent), `support/fakerelease.py` (`FakeRelease`, the
 files of a release as Update now's downloads see them, and `FakeInstaller`, which writes down what it was given), `support/fakes.py` (`FakeLineServer`, a line
 server on a free port of the loopback, and `FakeRigctld`/`rigctld()`: `f` answered with the frequency in Hz, `m` with the mode and the passband, `RPRT -5` for
@@ -462,9 +456,8 @@ making a pair raises, `posix_only`, the mark of a test or a file that needs one,
 device file: the fixture `ptys`, registered by `conftest.py`, makes pairs and closes them, `feed` and `heard` are the radio's side, `close_pty` is the cable
 pulled, `held_by_a_program` is another process that has a port open), `support/air.py` (frames as the radio would say them and, with `await said(env)`, the
 frames the daemon has written: for the tests of messages), `support/wsclient.py` (`WsClient`: a tab that keeps every message and the topics as the page would
-have them: `expect`, `until`), `support/storedb.py` (`store_at`: a `Store` on its own `Db`), `support/fakepmtiles.py` (`install_fake`: a pmtiles program that is
-a Python script, answering `extract` the way go-pmtiles does and writing a file with a PMTiles header; modes `fail`, `slow` and `nosize`; its calls and its
-process id are kept for the test; nothing is fetched), `support/dbactor.py` (a `Db` on a table of numbers, connections that fail on demand, the leak guard for
+have them: `expect`, `until`), `support/storedb.py` (`store_at`: a `Store` on its own `Db`), `support/madepmtiles.py` (`archive`, `planet`, `every_tile`, `tiles_of`: made-up PMTiles archives and a reader of them written apart from the program's code), `support/rangeserver.py` (`range_server`: a web server on the loopback that serves one file
+with range requests and fails on demand: cut short, busy, no ranges, wrong bytes, 404, an answer held), `support/dbactor.py` (a `Db` on a table of numbers, connections that fail on demand, the leak guard for
 its thread), `support/safety.py` (`FaultyConnection`: the Nth statement fails with what a full disk raises; `raw`: a second connection that sees only what is
 committed), `support/migrated.py` (a file as the migrations leave it), `support/codemap.py` (what the architecture and size tests measure), `support/archdoc.py`
 (the tables of `docs/ARCHITECTURE.md` made from the architecture test), `support/settingsdoc.py` (the table of settings of `docs/manual/settings.md` made from

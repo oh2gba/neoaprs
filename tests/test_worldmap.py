@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.pmtilestool import read_header
+from neoaprs.pmtilesarchive import read_header
 from neoaprs.worldmap import MAPS_DIR, SHIPPED_ZOOM, WORLD_FILE, search_folders, shipped_world, usable, world_file
 from tests.conftest import ROOT
 from tests.support.env import Env

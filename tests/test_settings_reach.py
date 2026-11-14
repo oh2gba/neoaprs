@@ -23,7 +23,7 @@ def port_misread(value: str) -> bool:
 
 
 def source_misread(value: str) -> bool:
-    """map/source goes to the extract tool as one argument: not a word that starts with a dash, no control character, and an address only an http or https one."""
+    """map/source is where the cut reads the map from: not a word that starts with a dash, no control character, and an address only an http or https one."""
     return value.startswith("-") or not value.isprintable() or ("://" in value and (urlsplit(value).scheme not in ("http", "https") or " " in value))
 
 

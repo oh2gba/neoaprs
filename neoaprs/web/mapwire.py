@@ -33,9 +33,9 @@ class MapState(_Model):
     """The base map: the files, the area and detail the settings ask for, the size estimated, and the job that is running. The value of the topic `map`, told whole at most four times a second."""
     state: Literal["none", "estimating", "downloading", "ready", "error"] = Field(
         description="`none`: there is no detailed map. `ready`: there is one. `estimating` and `downloading`: a job is running (`step` and `percent` say how far). `error`: the last job failed and `problem` says why; the map files are as they were")
-    step: Literal["", "tool", "build", "world", "area"] = Field(
-        description="what the running job is doing: fetching the pmtiles program (`tool`), looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs")
-    percent: int | None = Field(ge=0, le=100, description="how far the step is; null when it cannot say (the program and the build have no bar)")
+    step: Literal["", "build", "world", "area"] = Field(
+        description="what the running job is doing: looking for the latest build (`build`), making the world map (`world`) or the detailed map (`area`); empty while no job runs")
+    percent: int | None = Field(ge=0, le=100, description="how far the step is; null when it cannot say (the build has no bar)")
     downloaded: int | None = Field(ge=0, description="the size so far of the file the step is making, in bytes (it grows while the download moves); null when no file is being made yet")
     note: str = Field(description="what the job says of a download that has not moved for a while: `no progress: trying again (2 of 3)`; empty when all is well")
     blocked: str = Field(description="why no job can be started now (no position, or a job is running); empty when one can")
@@ -53,7 +53,7 @@ class MapState(_Model):
 
 class MapEstimate(_Command):
     """Starts a dry run: how big the detailed map for `map/radius_km` and `map/maxzoom` round our position will be. Answered by the topic `map` (state `estimating`, then `estimate` filled in), or by an `error` when no job can start
-    (no position, or a job is running). The pmtiles program is fetched first when it is not there."""
+    (no position, or a job is running)."""
     cmd: Literal["map_estimate"]
 
 

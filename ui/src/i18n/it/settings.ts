@@ -391,7 +391,6 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.find.already": "La radio è già su {port}, come impostato",
   "settings.find.cancelled": "Ricerca annullata",
 
-  "settings.map.step.tool": "Recupero del programma pmtiles",
   "settings.map.step.build": "Ricerca dell’ultima versione",
   "settings.map.step.world": "Mappa del mondo",
   "settings.map.step.area": "Mappa della zona",

@@ -10,14 +10,12 @@ import pytest
 from neoaprs import PROGRAM, VERSION, cli
 from neoaprs.cli import capturecmd, dbcmd, servicecmd
 from tests.conftest import ROOT
-from tests.support.fakepmtiles import FakePmtiles, install_fake
+from tests.support.madepmtiles import planet
 
 
-def process(*args: str, home: Path, extra: dict[str, str] | None = None, path: str | None = None) -> subprocess.CompletedProcess[str]:
+def process(*args: str, home: Path, extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = {k: v for k, v in os.environ.items() if k not in ("NEOAPRS_DATA_DIR", "NEOAPRS_DEBUG")}
     env.update({"HOME": str(home), "PYTHONPATH": str(ROOT), **(extra or {})})
-    if path is not None:
-        env["PATH"] = path
     return subprocess.run([sys.executable, "-m", "neoaprs", *args], cwd=home, env=env, capture_output=True, text=True, timeout=120)
 
 
@@ -132,12 +130,11 @@ def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
 
 # ---- as processes ----
 
-def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path, switch_lifted_for_processes: None) -> None:
-    fake: FakePmtiles = install_fake(tmp_path / "tools")
-    done = process("map", "--data", str(tmp_path / "data"), "--source", "https://build.example/20261020.pmtiles", "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "14", "--dry-run",
-                   home=tmp_path, path=str(fake.path.parent))
+def test_map_is_the_map_command_line_under_the_main_command(tmp_path: Path) -> None:
+    (tmp_path / "20261020.pmtiles").write_bytes(planet())
+    done = process("map", "--data", str(tmp_path / "data"), "--source", str(tmp_path / "20261020.pmtiles"), "--lat", "60.17", "--lon", "24.94", "--radius", "40", "--maxzoom", "14", "--dry-run", home=tmp_path)
     assert done.returncode == 0, done.stderr
-    assert "493 MB for 40 km round us to zoom 14 (41233 tiles)" in done.stdout
+    assert "MB for 40 km round us to zoom 14 (" in done.stdout and " tiles), from build 20261020" in done.stdout
     helped = process("map", "--help", home=tmp_path)
     assert helped.returncode == 0 and "usage: neoaprs map" in helped.stdout and "--dry-run" in helped.stdout
 

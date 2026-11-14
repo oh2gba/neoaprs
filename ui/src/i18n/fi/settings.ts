@@ -390,7 +390,6 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.find.already": "Radio on portissa {port}, kuten on asetettu",
   "settings.find.cancelled": "Haku peruttu",
 
-  "settings.map.step.tool": "Haetaan pmtiles-ohjelmaa",
   "settings.map.step.build": "Etsitään uusinta versiota",
   "settings.map.step.world": "Maailmankartta",
   "settings.map.step.area": "Alueen kartta",

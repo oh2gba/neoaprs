@@ -19,7 +19,7 @@ def test_the_context_verifies_and_has_certifis_roots_beside_the_systems() -> Non
 
 
 def test_every_opener_that_goes_out_uses_it() -> None:
-    for name in ("updatefetch.py", "updatedownload.py", "pmtilestool.py"):
+    for name in ("updatefetch.py", "updatedownload.py", "pmtilesarchive.py", "pmtilesrange.py"):
         text = (ROOT / "neoaprs" / name).read_text(encoding="utf-8")
         assert "urlopen(" not in text, name
         assert text.count("build_opener(https_handler()") == text.count("build_opener("), name

@@ -13,8 +13,8 @@ from neoaprs.config import MAP_MAXZOOM, MAP_RADIUS_KM, Config
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.paths import default_data_dir
-from neoaprs.pmtilestool import ToolError
 from neoaprs.mapstate import MapError
+from neoaprs.pmtilescut import CutError
 from neoaprs.services.mapfetch import MapFetch
 from neoaprs.store import DB_NAME, Store
 
@@ -94,7 +94,7 @@ async def run(args: argparse.Namespace) -> int:
                 last = line
                 print(line, flush=True)
         await work
-    except (MapError, ToolError) as e:
+    except (MapError, CutError) as e:
         say(f"mapfetch: {e}")
         return 1
     print(describe(job, args.dry_run))

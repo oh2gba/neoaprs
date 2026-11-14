@@ -196,7 +196,7 @@ describe("the Map mark", () => {
       "set-map-fetch",
     ]);
     expect(running && t(running.title)).toBe("Downloading the map of your area. Settings → Map");
-    const working = mark(mapState({ state: "downloading", step: "tool", percent: null }));
+    const working = mark(mapState({ state: "downloading", step: "build", percent: null }));
     expect(working && t(working.text, working.textValues)).toBe("Map…");
     expect(mark(mapState({ state: "estimating" }))).toBeUndefined();
     expect(mark(mapState({ state: "ready" }))).toBeUndefined();

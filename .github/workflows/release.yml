@@ -143,8 +143,6 @@ jobs:
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
-      - name: The pinned pmtiles.exe, checked against its SHA-256, into bin/
-        run: build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist/NeoAPRS
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: mercury-windows
@@ -165,10 +163,8 @@ jobs:
         run: |
           dist/NeoAPRS/neoaprs.exe --version
           build-venv/Scripts/python.exe scripts/smoke.py --command "$(pwd -W)/dist/NeoAPRS/neoaprs.exe"
-      - name: The bundled pmtiles.exe is the one the app uses (a dry run of the map needs the tool and downloads none)
-        run: |
-          dist/NeoAPRS/neoaprs.exe map --data "$RUNNER_TEMP/mapdata" --lat 60.17 --lon 24.94 --radius 10 --maxzoom 8 --dry-run
-          [ ! -e "$RUNNER_TEMP/mapdata/bin/pmtiles.exe" ]
+      - name: The frozen app cuts the map itself (a dry run reads the directories of the latest build and downloads no tiles)
+        run: dist/NeoAPRS/neoaprs.exe map --data "$RUNNER_TEMP/mapdata" --lat 60.17 --lon 24.94 --radius 10 --maxzoom 8 --dry-run
       - name: Inno Setup
         shell: pwsh
         run: |
@@ -190,7 +186,7 @@ jobs:
           $p.WaitForExit()
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "setup ended with $($p.ExitCode)" }
           $app = "$env:LOCALAPPDATA\Programs\NeoAPRS"
-          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\pmtiles.exe', 'bin\mercury\mercury.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
+          foreach ($f in 'neoaprs.exe', 'neoaprsw.exe', 'neoaprs-app.exe', 'bin\mercury\mercury.exe', '_internal\neoaprs\maps\basemap-world.pmtiles', 'LICENSE.txt', 'unins000.exe') { if (-not (Test-Path "$app\$f")) { throw "$f is not in $app" } }
           foreach ($l in 'NeoAPRS', 'Stop NeoAPRS', 'NeoAPRS support logs') { if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\NeoAPRS\$l.lnk")) { throw "no Start menu entry $l" } }
           # the task: start at sign-in is the app in the tray (the app starts the daemon), not the daemon
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').NeoAPRS
@@ -307,7 +303,6 @@ jobs:
           grep -q "^VERSION = \"$next\"" "$init"
           rm -rf build-venv/Lib/site-packages/neoaprs/__pycache__
           (cd packaging/windows && ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist-e2e --workpath ../../build-e2e neoaprs.spec)
-          build-venv/Scripts/python.exe packaging/windows/bundle_pmtiles.py dist-e2e/NeoAPRS
           build-venv/Scripts/python.exe packaging/windows/bundle_mercury.py dist-e2e/NeoAPRS dist-mercury/mercury-*-windows-x86_64.tar.gz
           [ "$(dist-e2e/NeoAPRS/neoaprs.exe --version)" = "NeoAPRS $next" ]
       - name: "Update now: Inno Setup for the next version"
