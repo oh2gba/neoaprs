@@ -146,6 +146,7 @@ describe("the numbers and words of another language", () => {
       es: "NeoAPRS usa el 0,3 % de un núcleo del procesador y 56 MB de memoria, y lleva 3 h en marcha",
       it: "NeoAPRS usa il 0,3 % di un core del processore e 56 MB di memoria, in funzione da 3 h",
       ja: "NeoAPRSはプロセッサコア1つの0.3 %と56 MBのメモリを使用しています。稼働時間: 3時間",
+      nl: "NeoAPRS draait al 3 h, gebruikt 0,3 % van één processorkern en 56 MB geheugen",
       "pt-BR": "O NeoAPRS usa 0,3 % de um núcleo do processador e 56 MB de memória, em execução há 3 h",
     };
     for (const [language, text] of Object.entries(said)) {

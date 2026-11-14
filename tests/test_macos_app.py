@@ -357,7 +357,7 @@ def test_the_info_plist_names_the_launcher_the_icon_the_identifier_and_the_micro
     from neoaprs.cli.servicelaunchd import LABEL
     assert plist["CFBundleIdentifier"] == LABEL, "the launchd agent and the bundle are the same thing to the system"
     folders = sorted(p.name for p in (PACKAGING / "lproj").iterdir())
-    assert folders == sorted(f"{code}.lproj" for code in LANGUAGES) and LANGUAGES and len(LANGUAGES) == 8
+    assert folders == sorted(f"{code}.lproj" for code in LANGUAGES) and LANGUAGES and len(LANGUAGES) == 9
     english = ""
     for folder in folders:
         strings = (PACKAGING / "lproj" / folder / "InfoPlist.strings").read_text(encoding="utf-8")

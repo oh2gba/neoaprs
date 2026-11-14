@@ -127,8 +127,8 @@ describe("the words of the group in every language", () => {
         const text = String(messages[id]);
         const source = String(english[id]);
         expect(text, id).not.toBe("undefined");
-        // the name of the licence is kept in German as it is written there
-        if (!(locale.code === "de" && id === "settings.about.license_link")) expect(text, id).not.toBe(source);
+        // the name of the licence is kept in German and Dutch as it is written there
+        if (!(["de", "nl"].includes(locale.code) && id === "settings.about.license_link")) expect(text, id).not.toBe(source);
         for (const name of source.match(/\{\w+\}/g) ?? []) expect(text, id).toContain(name);
       }
     });

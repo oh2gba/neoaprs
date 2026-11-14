@@ -46,7 +46,7 @@ describe("igateLook", () => {
   });
 
   it("never says gated, a passcode or an iGate, in any language", () => {
-    for (const code of ["en", "de", "es", "fi", "fr", "it", "ja", "pt-BR"] as const) {
+    for (const code of ["en", "de", "es", "fi", "fr", "it", "ja", "nl", "pt-BR"] as const) {
       setLocale(code);
       const said = [igateState(), igateState({ state: "unverified" }), igateState({ state: "connecting" }), igateState({ state: "off" })].map((s) => {
         const look = igateLook(s, values, 2);

@@ -40,6 +40,13 @@ describe("detectLocale", () => {
     expect(detectLocale(["pt-BR"])).toBe("pt-BR");
   });
 
+  it("takes Dutch for the Netherlands and for Flanders, and not Frisian or Afrikaans", () => {
+    expect(detectLocale(["nl-NL"])).toBe("nl");
+    expect(detectLocale(["nl-BE", "fr-BE"])).toBe("nl");
+    expect(detectLocale(["nl"])).toBe("nl");
+    expect(detectLocale(["fy", "af"])).toBe("en");
+  });
+
   it("is English when the browser asks for nothing the page has", () => {
     expect(detectLocale(["sv", "nb"])).toBe("en");
     expect(detectLocale([])).toBe("en");
@@ -131,6 +138,10 @@ describe("numbers and weekdays", () => {
     expect(monthShort(new Date(2026, 9, 19))).toBe("Oct");
     setLocale("de");
     expect(monthShort(new Date(2026, 9, 19))).toBe("Okt");
+    setLocale("nl");
+    expect(formatNumber(1234.5, 1)).toBe("1234,5");
+    expect(weekdayShort(new Date(2026, 9, 19))).toBe("ma");
+    expect(monthShort(new Date(2026, 9, 19))).toMatch(/^okt\.?$/);
     setLocale("en");
   });
 });
@@ -142,6 +153,8 @@ describe("dayText", () => {
     expect(dayText(new Date(2026, 10, 14, 12), false)).toBe("Sat 14 Nov");
     setLocale("de");
     expect(dayText(new Date("2026-11-14T00:30:00Z"), true)).toMatch(/^Sa\.? 14\. Nov/);
+    setLocale("nl");
+    expect(dayText(new Date("2026-11-14T00:30:00Z"), true)).toMatch(/^za\.? 14 nov\.?$/);
     setLocale("en");
   });
 });

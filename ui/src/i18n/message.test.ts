@@ -27,6 +27,7 @@ describe("numberText", () => {
     expect(numberText(3, "en", 1)).toBe("3.0");
     expect(numberText(60.17, "en", 5)).toBe("60.17000");
     expect(numberText(60.17, "fi", 5)).toBe("60,17000");
+    expect(numberText(60.17, "nl", 5)).toBe("60,17000");
   });
 });
 
@@ -40,6 +41,8 @@ describe("pick", () => {
     expect(pick({ one: "o", few: "f", many: "m", other: "x" }, { n: 3 }, "ru")).toBe("f");
     expect(pick({ one: "o", few: "f", many: "m", other: "x" }, { n: 5 }, "ru")).toBe("m");
     expect(pick({ other: "x" }, { n: 1 }, "ja")).toBe("x");
+    expect(pick(messages, { n: 1 }, "nl")).toBe("{n} message");
+    expect(pick(messages, { n: 2 }, "nl")).toBe("{n} messages");
   });
 
   it("falls back to other when the form is not there, or n is none", () => {

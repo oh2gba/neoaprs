@@ -1,0 +1,60 @@
+// This translation has not yet been reviewed by a native-speaking ham; corrections are welcome.
+import type { stats as source } from "@/i18n/en/stats";
+import type { Message } from "@/i18n/message";
+
+export const stats: Record<keyof typeof source, Message> = {
+  "stats.title": "Statistieken",
+  "stats.label": "Statistiekenkaartje",
+  "stats.chart": "Pakketten per uur, de afgelopen 24 uur",
+  "stats.chart_unit": "pakketten",
+
+  "stats.section.stations": "Stations",
+  "stats.stations": "Gehoord",
+  "stats.on_map": "Op de kaart",
+  "stats.direct": "Direct gehoord",
+  "stats.internet_only": "Alleen internet",
+  "stats.objects": "Objecten en items",
+  "stats.digipeaters": "Digipeaters",
+  "stats.igates": "iGates",
+  "stats.weather": "Weerstations",
+  "stats.devices": "Meest gebruikte apparaten",
+
+  "stats.section.reach": "Bereik",
+  "stats.aloha": "ALOHA-cirkel",
+  "stats.farthest_direct": "Verste direct",
+  "stats.farthest_rf": "Verste via de radio",
+  "stats.most_used": "Meest gebruikte digipeaters",
+
+  "stats.section.packets": "Pakketten",
+  "stats.packets_total": "In de database",
+  "stats.packets_hour": "In het afgelopen uur",
+  "stats.busiest": "Drukste station",
+  "stats.by_kind": "Laatste {n} per soort",
+  "stats.by_channel": "Per kanaal",
+  "stats.direct_share": "Direct gehoord",
+  "stats.rate": "Tempo",
+
+  "stats.section.radio": "Sinds de daemon gestart is",
+  "stats.running": "Draait al",
+  "stats.frames": "Frames van de TNC",
+  "stats.bytes": "Bytes in · uit",
+  "stats.digipeated": "Herhaald voor anderen",
+  "stats.gated": "Op internet gezet",
+
+  "stats.counted": "{name} ({n})",
+  "stats.station_km": "{call}, {km} km",
+  "stats.km": "{km} km",
+  "stats.busiest_value": "{call}, {n} in het afgelopen uur",
+  "stats.kind_count": "{n} {kind}",
+  "stats.kind.position": "posities",
+  "stats.kind.message": "berichten",
+  "stats.kind.object": "objecten",
+  "stats.kind.item": "items",
+  "stats.kind.status": "statussen",
+  "stats.kind.other": "overige",
+  "stats.kind.undecoded": "onleesbaar",
+  "stats.percent_of_radio": "{percent} % van wat via de radio kwam",
+  "stats.per_minute": "{n} per minuut",
+  "stats.frames_value": "{n}, {bad} onleesbaar",
+  "stats.in_out": "{in} · {out}",
+};

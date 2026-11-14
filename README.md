@@ -35,7 +35,7 @@ Then run `neoaprs open`, or open <http://127.0.0.1:7303/>; a setup guide of four
 - **Objects and items** of your own, placed and moved on the map and sent on the specification's schedule, each on FM, on HF or on both
 - **APRS over HF** with the Mercury modem, a second radio beside the FM one or on its own: an SSB radio with a sound card, the modem inside NeoAPRS, the sound card and the keying picked for you, Tune and a keying Test, the waterfall of the channel (also on a card over the map) and the signal of each packet heard, no path (every frame goes direct), the beacon at 30 minutes or more; one map and one station book for both radios, with an FM or HF tag on every station
 - **A fill-in digipeater** and a receive-only **iGate**, both optional; the stations of APRS-IS on the map with a tick
-- **A page for a phone, a tablet and a desktop**, over the home network with an access key and optional https, in English, German, Spanish, Finnish, French, Italian, Japanese and Brazilian Portuguese
+- **A page for a phone, a tablet and a desktop**, over the home network with an access key and optional https, in English, German, Spanish, Finnish, French, Italian, Japanese, Dutch and Brazilian Portuguese
 - **The packet log**, every frame with the radio it came on and the path it took; APRS queries from the station menu (position, status, heard direct, trace)
 
 ## Radios

@@ -14,6 +14,7 @@ const CHOOSE_ON_MAP: Record<string, string> = {
   fr: "Choisir sur la carte",
   it: "Scegli sulla mappa",
   ja: "地図で選択",
+  nl: "Op kaart kiezen",
   "pt-BR": "Escolher no mapa",
 };
 const names = (m: Message): string[] => [...new Set(texts(m).flatMap(placeholders))].sort();

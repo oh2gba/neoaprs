@@ -1,0 +1,2 @@
+/* What macOS shows when NeoAPRS first opens the sound card of the HF radio (Info.plist, NSMicrophoneUsageDescription), in the language of the Mac. One file for each language of the page. */
+"NSMicrophoneUsageDescription" = "NeoAPRS luistert via de geluidskaart naar de HF-set; macOS telt een geluidskaart als microfoon.";

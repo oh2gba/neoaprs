@@ -10,6 +10,7 @@ import { fi } from "@/i18n/fi";
 import { fr } from "@/i18n/fr";
 import { it } from "@/i18n/it";
 import { ja } from "@/i18n/ja";
+import { nl } from "@/i18n/nl";
 import { ptBR } from "@/i18n/pt-BR";
 
 export interface LocaleInfo {
@@ -28,6 +29,7 @@ export const LOCALES: readonly LocaleInfo[] = [
   { code: "fr", name: "Français", messages: fr },
   { code: "it", name: "Italiano", messages: it },
   { code: "ja", name: "日本語", messages: ja },
+  { code: "nl", name: "Nederlands", messages: nl },
   { code: "pt-BR", name: "Português (Brasil)", messages: ptBR },
 ];
 

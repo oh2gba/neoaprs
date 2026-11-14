@@ -427,7 +427,7 @@ async def shot_beacon(s: Shots, _: str) -> None:
 
 
 async def shot_beacon_de(s: Shots, _: str) -> None:
-    """The My station tab of a browser that speaks German: the page starts in the browser's language (seven are there)."""
+    """The My station tab of a browser that speaks German: the page starts in the browser's language (nine are there)."""
     await s.since_start(45)
     page = await s.page(DESKTOP, tab="beacon", view=CITY, panel=WIDE_PANEL, locale="de-DE")
     await page.locator("#pane-beacon summary").filter(has_text="Erweitert").click()
