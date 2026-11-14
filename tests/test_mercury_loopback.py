@@ -19,7 +19,7 @@ SCRIPT = ROOT / "scripts" / "build-mercury"
 
 def test_the_patch_binds_both_listeners_to_the_loopback_and_the_build_applies_and_checks_it() -> None:
     text = PATCH.read_text(encoding="utf-8")
-    assert text.count("-    local_addr.sin_addr.s_addr = INADDR_ANY;") == 2 and text.count("+    local_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);") == 2, "the two binds of Mercury 1.9.21, and nothing else"
+    assert text.count("-    local_addr.sin_addr.s_addr = INADDR_ANY;") == 2 and text.count("+    local_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);") == 2, "the two binds of Mercury 1.9.24, and nothing else"
     assert text.count("--- a/data_interfaces/tcp_interfaces.c") == 1 and "+++ b/data_interfaces/tcp_interfaces.c" in text
     script = SCRIPT.read_text(encoding="utf-8")
     assert "loopback.patch" in script and '"patch", "-p1"' in script and "INADDR_ANY" in script, "applied before the build, and the file checked after it"

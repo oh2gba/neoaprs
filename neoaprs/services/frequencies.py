@@ -1,5 +1,5 @@
 """The frequencies the project suggests for the HF radio: a small file on the project's server (`FREQUENCIES_URL`, site/frequencies.json: bands and dials, edited by hand and uploaded with the site, no release) that the daemon asks for a minute after
-its start and whenever a page shows the HF radio's box (`wanted`), and never more often than every FREQUENCIES_EVERY_SEC however many pages ask. Every entry is checked (the band `40 m`, the dial `7.0541 MHz USB`, at most three), the last good list is
+its start and whenever a page shows the HF radio's box (`wanted`), and never more often than every FREQUENCIES_EVERY_SEC however many pages ask. Every entry is checked (the band `40 m`, the dial `7.0541 MHz USB`, at most four), the last good list is
 kept in the settings table (the row FREQUENCIES_ROW) and told at the start before the server is asked, and a file that is not a list, or cannot be fetched, leaves it as it was. The box shows this list, else the dial the version page names (the daily check:
 services/updatecheck.py), else the built-in two (`neoaprs/mercury.py` SUGGESTED). It is part of the update check's kind of traffic and goes off with it: `NEOAPRS_UPDATE_CHECK=0` in the environment (the tests, the demo) asks nothing, and a test or a bench that
 needs a server names one on this computer with `NEOAPRS_FREQUENCIES_URL`."""

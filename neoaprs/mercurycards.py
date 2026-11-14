@@ -126,7 +126,7 @@ def stable_alsa_id(ident: str, card_names: Mapping[int, str]) -> str:
 
 
 def parse_sound_cards(text: str, card_names: Mapping[int, str] | None = None) -> list[SoundCard]:
-    """The sound cards of `mercury -z` (Mercury 1.9.21: "playback devices:" and "capture devices:" each followed by `device: name: 'USB Audio CODEC'  id: 'plughw:1,0'  (system default)` lines, or `device #1: Default (system route)
+    """The sound cards of `mercury -z` (Mercury 1.9.24, as 1.9.21: "playback devices:" and "capture devices:" each followed by `device: name: 'USB Audio CODEC'  id: 'plughw:1,0'  (system default)` lines, or `device #1: Default (system route)
     id=default` where the backend lists none). A card that is in both lists is one card, which is what a radio's sound card is."""
     cards: dict[str, SoundCard] = {}
     section = ""

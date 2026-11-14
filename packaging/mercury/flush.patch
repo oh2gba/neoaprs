@@ -1,15 +1,15 @@
-Each log line on its way out at once. Mercury 1.9.21 writes its log lines to stderr with fprintf (common/hermes_log.c, print_entry) and never flushes stderr. The C library of Linux and macOS
+Each log line on its way out at once. Mercury 1.9.24 writes its log lines to stderr with fprintf (common/hermes_log.c, print_entry) and never flushes stderr (it flushes the log file it may also write, not stderr). The C library of Linux and macOS
 leaves stderr unbuffered, so the daemon reads each line as it is written; the C runtime of Windows buffers stderr when it is a pipe, as it is under NeoAPRS, so there the lines came only when the
 buffer filled or the program ended. The line that says the sound card could not be opened (neoaprs/mercury.py: audio_open_error), which Mercury writes and then runs on without the card, reached the
 daemon 20 minutes late on a Windows test station (3 November 2026), when Mercury ended on the next frame; the HF radio showed connected all that time. This adds one fflush(stderr) after each line.
-Mercury 1.9.22 writes the same way (checked 4 November 2026).
+This was seen on 1.9.21; 1.9.22 to 1.9.24 write the same way (checked on the source of 1.9.24, 13 November 2026).
 
 scripts/build-mercury applies this file after dsound.patch (`patch -p1`) on every system and checks that the source holds the flush; made from the source of the pinned commit (neoaprs/mercury.py:
 SOURCE_COMMIT), so a new pin that moves these lines fails the build loudly, which is right.
 
 --- a/common/hermes_log.c
 +++ b/common/hermes_log.c
-@@ -217,6 +217,7 @@
+@@ -331,6 +331,7 @@
          if (dropped > 0)
              fprintf(stderr, "%s %s [WRN] [log] dropped %lu messages\n",
                      tsbuf, upbuf, dropped);

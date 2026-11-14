@@ -1,4 +1,4 @@
-// The suggested frequencies row of the HF radio's box (HfFrequencies.vue, composables/useWhenShown.ts): the label says "suggested", the entries are plain text one to a line, band then the dial in the monospace font, the room of two lines is kept,
+// The suggested frequencies row of the HF radio's box (HfFrequencies.vue, composables/useWhenShown.ts): the label says "suggested", the entries are plain text one to a line, band then the dial in the monospace font, the room of four lines is kept,
 // the list follows what the daemon says, and the daemon is asked to look at the project's file when the row comes into view, at most once a minute from one page.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -31,7 +31,7 @@ describe("the suggested frequencies row", () => {
     expect(lines.map((line) => line.find(".band").text())).toEqual(["40 m", "20 m"]);
   });
 
-  it("follows the list the daemon says: one entry, three, none", async () => {
+  it("follows the list the daemon says: one entry, four, none", async () => {
     const daemon = fakeDaemon({ hf: withModem([{ band: "30 m", dial: "10.1462 MHz USB" }]) });
     const wrapper = mount(HfFrequencies, { global: withDaemon(daemon) });
     expect(wrapper.findAll(".freq").map((line) => line.text())).toEqual(["30 m 10.1462 MHz USB"]);
@@ -40,17 +40,18 @@ describe("the suggested frequencies row", () => {
         { band: "40 m", dial: "7.0541 MHz USB" },
         { band: "20 m", dial: "14.1070 MHz USB" },
         { band: "17 m", dial: "18.1000 MHz USB" },
+        { band: "80 m", dial: "3.5850 MHz USB" },
       ]),
     });
-    expect(wrapper.findAll(".freq")).toHaveLength(3);
+    expect(wrapper.findAll(".freq")).toHaveLength(4);
     await tell(daemon, { hf: withModem([]) });
     expect(wrapper.findAll(".freq")).toHaveLength(0);
     expect(wrapper.find("#hf-frequencies").exists()).toBe(true);
   });
 
-  it("keeps the room of three lines, the most the list has, so that nothing moves when it changes", () => {
+  it("keeps the room of four lines, the most the list has, so that nothing moves when it changes", () => {
     const source = readFileSync(join(HERE, "HfFrequencies.vue"), "utf-8");
-    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 4.5em;[^}]*line-height: 1\.5;/);
+    expect(source).toMatch(/\.freqs \{[^}]*display: block;[^}]*min-height: 6em;[^}]*line-height: 1\.5;/);
     expect(source).toMatch(/\.freq \{\s*display: block;/);
   });
 });

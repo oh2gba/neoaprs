@@ -66,7 +66,7 @@ class Tuning:
 
     async def _retune(self) -> None:
         """The transmit gain moved while the tune tone is on: Mercury keeps the tone out of its gain, so the tone is asked for again at the level that follows it. Mercury 1.9.21 refuses a TUNE while one is running (its source
-        says it retunes, but `modem_tune_start` refuses first, "transmit in progress", measured with the real Mercury), so the tone is ended and begun again, a second or so of silence in which the radio is unkeyed and keyed
+        says it retunes, but `modem_tune_start` refuses first, "transmit in progress", measured with the real Mercury; 1.9.24's `modem_tune_start` is the same), so the tone is ended and begun again, a second or so of silence in which the radio is unkeyed and keyed
         again, the lines being taken in order. The hold stays on (`test` is still the tune), and our own timer starts over, since the operator is watching the meter."""
         if self.test != "tune":
             return

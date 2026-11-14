@@ -20,6 +20,7 @@ from dataclasses import replace
 
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
+from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
 from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
@@ -288,6 +289,65 @@ async def test_stop_ends_the_program_and_the_control_line_and_a_second_start_is_
 
 # ---- the control port
 
+async def test_a_control_port_another_program_holds_is_open_only_once_mercury_writes_on_it(caplog: pytest.LogCaptureFixture) -> None:
+    """A Mercury from 1.9.24 on keeps its control port for the host that is connected and closes another one at once, before a word (its tcp_interfaces.c, refuse_client): the line of an attached Mercury whose port
+    another program keeps is not open and lost again at every try, and it opens once Mercury takes it and writes on it."""
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    held, tries = [True], [0]
+
+    async def mercury(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        tries[0] += 1
+        if not held[0]:
+            writer.write(b"IAMALIVE\r")
+            await writer.drain()
+            await reader.read(4096)
+        writer.close()
+
+    server = await asyncio.start_server(mercury, "127.0.0.1", 0)
+    states: list[tuple[bool, str]] = []
+    events: list[str] = []
+    line = ControlLine("127.0.0.1", server.sockets[0].getsockname()[1], lambda e: events.append(e.kind), lambda up, why: states.append((up, why)), Backoff([0.01]))
+    line.start()
+    try:
+        await until_started(lambda: tries[0] >= 4)
+        assert states == [(True, ""), (False, EMPTY)] and not line.connected, "what was seen, once, and not open meanwhile"
+        assert [r.getMessage() for r in caplog.records].count(f"mercury control port {line.port}: {HELD}") == 1
+        held[0] = False
+        await until_started(lambda: states[-1] == (True, "") and events == ["alive"])
+        assert line.connected and len(states) == 3
+    finally:
+        await line.stop()
+        server.close()
+        await server.wait_closed()
+
+
+async def test_a_mercury_that_ends_before_it_writes_a_line_is_not_said_to_be_held_by_another_program(caplog: pytest.LogCaptureFixture) -> None:
+    """One connection that Mercury closes before its first line is Mercury ending as often as a refusal: the log says what was seen, and nothing of another program when the next connection is Mercury's again."""
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    tries = [0]
+
+    async def mercury(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        tries[0] += 1
+        if tries[0] > 1:
+            writer.write(b"IAMALIVE\r")
+            await writer.drain()
+            await reader.read(4096)
+        writer.close()
+
+    server = await asyncio.start_server(mercury, "127.0.0.1", 0)
+    states: list[tuple[bool, str]] = []
+    events: list[str] = []
+    line = ControlLine("127.0.0.1", server.sockets[0].getsockname()[1], lambda e: events.append(e.kind), lambda up, why: states.append((up, why)), Backoff([0.01]))
+    line.start()
+    try:
+        await until_started(lambda: events == ["alive"])
+        assert states == [(True, ""), (False, EMPTY), (True, "")]
+        assert not any(HELD in r.getMessage() for r in caplog.records)
+    finally:
+        await line.stop()
+        server.close()
+        await server.wait_closed()
+
 async def test_the_control_lines_of_a_station_are_the_hold_and_the_words_of_the_status(tmp_path: Path) -> None:
     air = Air(frame_sec=0.3)
     station = air.station()
@@ -404,6 +464,27 @@ async def test_a_frame_from_a_station_of_the_fake_air_reaches_the_tnc_with_the_s
         await tnc.stop()
         await air.aclose()
     logging.getLogger("neoaprs.tnc").info("done")
+
+
+async def test_a_station_message_another_program_sent_on_the_frequency_is_passed_over_and_the_next_frame_is_heard() -> None:
+    """Mercury 1.9.23 on hands every station message it hears (packet type 0x07, the HERMES beacon) to its broadcast client whole, under the KISS command 0x03: no packet, not a frame the line spoiled, and the line goes on."""
+    air = Air(frame_sec=0.05)
+    b = air.station()
+    await air.start()
+    tnc = Tnc(b.url, profile=MERCURY, check_sec=0.0, backoff=Backoff([0.05, 0.05]), fallback_probe=False)
+    heard: list[str] = []
+    tnc.packet.connect(lambda p: heard.append(p.source))
+    await tnc.start()
+    try:
+        await b.connected()
+        beacon = bytes([0x07 << 5 | 1]) + bytes(range(40))
+        b.feed(kiss.encode(beacon, command=3) + kiss.encode(ax25.encode(ui_frame("OH2XYZ"))))
+        await until_started(lambda: heard == ["OH2XYZ"])
+        assert tnc.stats.rejected == 0 and tnc.stats.packets == 1
+        assert any("another program's station message, not APRS: passed over (41 bytes)" in line for line in tnc.lines)
+    finally:
+        await tnc.stop()
+        await air.aclose()
 
 
 # ---- the rest of the shipped program's path: no free pair of ports, a data folder that cannot be written, a program that ignores the request to end (and lists no sound card)
@@ -690,8 +771,9 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
 def test_a_warning_the_program_repeats_is_in_the_log_the_first_tenth_and_every_hundredth_time(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, "neoaprs.mercury.program")
     program = mercuryhelper.Program(lambda code, lines: None)
-    for _ in range(250):
-        program._tell("[WRN] [audio] snd_pcm_readi: Input/output error")
+    for n in range(250):                                                   # (each with the time Mercury wrote in front of it, in the forms of 1.9.21, of 1.9.22 on and of an ini with log_utc, and none)
+        stamp = (f"22:16:{n % 60:02d}.{n:03d} [+{n}.003s] ", f"2026-11-13 22:16:{n % 60:02d}.{n:03d} [+{n}.003s] ", f"2026-11-13 20:16:{n % 60:02d}.{n:03d}Z [+{n}.003s] ", "")[n % 4]
+        program._tell(stamp + "[WRN] [audio] snd_pcm_readi: Input/output error")
     program._tell("[INF] [engine] Mercury engine initialised")
     said = [r for r in caplog.records if r.name == "neoaprs.mercury.program"]
     assert [r.levelno for r in said if "snd_pcm" in r.getMessage()] == [logging.INFO] * 4, "the 1st, the 10th, the 100th and the 200th"

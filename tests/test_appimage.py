@@ -129,11 +129,11 @@ def test_the_build_puts_mercury_at_usr_tools_without_its_simulators_after_the_cl
 def test_a_build_without_mercury_must_say_so(tmp_path: Path) -> None:
     refused = build("--out", str(tmp_path / "out"))
     assert refused.returncode == 2 and "--mercury TARBALL" in refused.stderr and "--no-mercury" in refused.stderr, "a release can never silently lack Mercury"
-    tarball = tmp_path / "mercury-1.9.21-linux-x86_64.tar.gz"
+    tarball = tmp_path / "mercury-1.9.24-linux-x86_64.tar.gz"
     tarball.write_bytes(b"")
     both = build("--mercury", str(tarball), "--no-mercury")
     assert both.returncode == 2 and "exclude each other" in both.stderr
-    wrong = tmp_path / "mercury-1.9.21-linux-aarch64.tar.gz"
+    wrong = tmp_path / "mercury-1.9.24-linux-aarch64.tar.gz"
     wrong.write_bytes(b"")
     arm = build("--mercury", str(wrong))
     assert arm.returncode == 2 and "x86_64" in arm.stderr, "the program is for the machine the AppImage is for"

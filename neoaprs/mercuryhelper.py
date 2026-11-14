@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment, windows_program
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
 
 log = logging.getLogger("neoaprs.mercury")
 mercury_log = logging.getLogger("neoaprs.mercury.program")         # what Mercury itself prints, one line each
@@ -353,7 +353,7 @@ class Program:
 
     def _tell(self, line: str) -> None:
         """One line of the program into the log: its warnings and errors at INFO the first, the tenth and every hundredth time the same line comes (a stuck sound device repeats one warning every millisecond, which
-        would rotate the log in minutes and bury the day's lines; the count is said with the line); the first STARTUP_LINES lines of a run at INFO whatever they say (how it found its sound card and its keying is
+        would rotate the log in minutes and bury the day's lines; the count is said with the line, and a line is the same one whatever time Mercury wrote in front of it); the first STARTUP_LINES lines of a run at INFO whatever they say (how it found its sound card and its keying is
         what a person helping from the log needs), everything else at DEBUG."""
         self.lines_read += 1
         if "[WRN]" not in line and "[ERR]" not in line:
@@ -361,7 +361,8 @@ class Program:
             return
         if len(self._said) >= SAID_MAX:
             self._said.clear()
-        count = self._said[line] = self._said.get(line, 0) + 1
+        said = unstamped(line)                                  # (each line carries the time it was written: the same warning again is the same words after it)
+        count = self._said[said] = self._said.get(said, 0) + 1
         if count in (1, 10) or count % 100 == 0:
             mercury_log.info("%s%s", line, f" (the {count}th time)" if count > 1 else "")
 

@@ -31,7 +31,7 @@ from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
 from .dummyscene import Scene
 from .interlock import Interlock
-from .mercury import frame_words, too_long
+from .mercury import frame_words, station_message, too_long
 from .packet import Packet
 from .radiorules import RadioRules
 from .reading import NO_READING, Reading
@@ -273,6 +273,10 @@ class Tnc(TimedSource):
             self._reader.read(port, chunk)
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
+        if self.rules.kind == "hf" and station_message(kiss_frame.command, kiss_frame.payload):
+            self._reading()                                          # (what the modem said of this frame's signal is taken with it, and does not wait for the next frame)
+            self._saw(f"another program's station message, not APRS: passed over ({len(kiss_frame.payload)} bytes)")      # (a HERMES beacon on the same frequency: neither a packet nor a fault of the line)
+            return
         read = read_frame(kiss_frame, self.now(), self.is_dummy, self.rules.kind, self._reading() if kiss_frame.command == 0 else NO_READING)
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")

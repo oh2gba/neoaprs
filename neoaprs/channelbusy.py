@@ -1,5 +1,5 @@
 """Channel-busy detectors that work on the bands of the spectrum (neoaprs/mercuryscope.py `bands_db`: the mean power of each 150 Hz band of 300 to 2700 Hz in dB, twenty times a second), as pure streaming objects: `update(now_sec, bands)`
-returns whether the channel is busy. Two are here. `MercuryBusy` is Mercury's own detector (`modem/channel_busy.c` of 1.9.21), worked again so that it can be held beside another on the very spectra it sees: a peak band over a floor that
+returns whether the channel is busy. Two are here. `MercuryBusy` is Mercury's own detector (`modem/channel_busy.c` of 1.9.21; that of 1.9.24 decides the same way and only reports more), worked again so that it can be held beside another on the very spectra it sees: a peak band over a floor that
 is tracked slowly. `OccupancyBusy` asks another question of the same bands: is there a signal as wide as a frame, whatever the noise round it is doing. The comparison, its channels and its numbers are in docs/mercury.md."""
 import math
 from collections.abc import Sequence

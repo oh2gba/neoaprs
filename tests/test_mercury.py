@@ -511,6 +511,25 @@ def test_the_lines_that_say_the_sound_card_could_not_be_opened_are_known_and_the
     assert mercury.audio_open_error("[ERR] [audio-play] Error in audio->init(): PulseAudio is not in this build")
     for line in ("[WRN] [modem-rx] decoder ring full (mode=12): dropped 100 samples so far", "[INF] [audio-play] opened plughw:1,0", "[ERR] [tcp-ctl] Control recv returned 0 (err=0), closing", "[ERR] [audio-play] Failed to allocate playback buffers"):
         assert not mercury.audio_open_error(line), line
+    assert mercury.audio_open_error("2026-11-13 22:16:22.912 [+0.003s] [ERR] [audio-cap] error in audio->open(): -1: No such device"), "the stamp of 1.9.22 on, with the date"
+    assert mercury.audio_open_error("2026-11-13 20:16:22.912Z [+0.003s] [ERR] [audio-play] Error in audio->init(): PulseAudio is not in this build"), "and in UTC"
+    assert not mercury.audio_open_error("2026-11-13 22:16:22.912 [+412.003s] [ERR] [audio-cap] the capture device delivers no audio: 3 reopens in a row brought nothing (unplugged, or its USB codec reset?) -- still trying it"), \
+        "1.9.24's dead capture device is Mercury still trying, not a card that could not be opened"
+
+
+def test_the_time_in_front_of_a_line_of_mercury_is_taken_off_in_every_form_mercury_writes_it() -> None:
+    said = "[WRN] [audio] snd_pcm_readi: Input/output error"
+    for line in (f"22:16:22.912 [+0.003s] {said}", f"2026-11-13 22:16:22.912 [+0.003s] {said}", f"2026-11-13 20:16:22.912Z [+1234.567s] {said}", said):
+        assert mercury.unstamped(line) == said, line
+    assert mercury.unstamped("Rhizomatica Mercury Version 1.9.24 (git 1b13fab1)") == "Rhizomatica Mercury Version 1.9.24 (git 1b13fab1)"
+    assert mercury.unstamped("[INF] [main] at 22:16:22.912 [+0.003s] nothing") == "[INF] [main] at 22:16:22.912 [+0.003s] nothing", "only at the front"
+
+
+def test_a_station_message_of_another_program_is_told_from_a_frame_by_its_command_and_its_packet_type() -> None:
+    beacon = bytes([0x07 << 5 | 1]) + b"OH2XYZ position"            # (Mercury 1.9.23 on: modem/framer.h PACKET_TYPE_STATION in the top three bits, a layout below)
+    assert mercury.station_message(0x03, beacon) and mercury.station_message(0x03, bytes([0xFF]))
+    assert not mercury.station_message(0x00, beacon), "a data frame is a packet whatever its first byte"
+    assert not mercury.station_message(0x03, bytes([0x04 << 5]) + b"x") and not mercury.station_message(0x03, b""), "a modem frame of another type, and none at all"
 
 
 def test_a_windows_radio_whose_two_devices_carry_different_numbers_is_one_card_and_two_alike_radios_stay_two() -> None:

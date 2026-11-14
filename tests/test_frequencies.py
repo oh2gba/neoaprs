@@ -10,7 +10,7 @@ import pytest
 from neoaprs import mercury
 from neoaprs.mercurymodem import Mercury
 from neoaprs.services.frequencies import ENV_SWITCH, ENV_URL, FREQUENCIES_EVERY_SEC, Frequencies
-from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, Frequency, frequencies_text, on_this_computer, parse_frequencies, suggested
+from neoaprs.versions import FREQUENCIES_ROW, FREQUENCIES_URL, MAX_FREQUENCIES, Frequency, frequencies_text, on_this_computer, parse_frequencies, suggested
 from tests.support.env import Env, remember_stop, until
 from tests.support.fakemercury import Air
 from tests.support.storedb import store_at
@@ -57,7 +57,7 @@ def test_the_file_of_the_site_is_a_list_the_daemon_understands_and_the_site_chec
     assert [(int(f.band.split()[0]), f.dial.split()[0]) for f in TWO] == [(b, dict(mercury.FREQUENCIES)[b]) for b in (40, 20, 6)], "the file ships the dials of FREQUENCIES"
 
 
-def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_three_at_most() -> None:
+def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_four_at_most() -> None:
     good = {"band": "30 m", "dial": "10.1462 MHz USB"}
     assert parse_frequencies(json.dumps({"frequencies": [good]})) == [Frequency("30 m", "10.1462 MHz USB")]
     for bad in ({"band": "40", "dial": "7.0541 MHz USB"}, {"band": "40 m", "dial": "7.0541"}, {"band": "40 m", "dial": "7.0541 MHz FM"}, {"band": "<b>40 m</b>", "dial": "7.0541 MHz USB"}, {"band": "40 m"}, {"dial": "7.0541 MHz USB"},
@@ -67,8 +67,10 @@ def test_every_entry_is_checked_and_a_bad_one_is_dropped_a_band_once_and_three_a
     def entry(band: str, dial: str) -> dict[str, str]:
         return {"band": band, "dial": dial}
 
-    found = parse_frequencies(json.dumps({"frequencies": [entry("40 m", "7.0541 MHz USB"), entry("40 m", "7.0600 MHz USB"), entry(" 20 m ", " 14.1070 MHz USB "), entry("30 m", "10.1462 MHz USB"), entry("17 m", "18.1000 MHz USB")]}))
-    assert found == [Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("30 m", "10.1462 MHz USB")], "a band once, spaces cut, three at most"
+    found = parse_frequencies(json.dumps({"frequencies": [entry("40 m", "7.0541 MHz USB"), entry("40 m", "7.0600 MHz USB"), entry(" 20 m ", " 14.1070 MHz USB "), entry("30 m", "10.1462 MHz USB"), entry("17 m", "18.1000 MHz USB"),
+                                                           entry("80 m", "3.5850 MHz USB")]}))
+    assert found == [Frequency("40 m", "7.0541 MHz USB"), Frequency("20 m", "14.1070 MHz USB"), Frequency("30 m", "10.1462 MHz USB"), Frequency("17 m", "18.1000 MHz USB")], "a band once, spaces cut, four at most (MAX_FREQUENCIES: the room of the HF box)"
+    assert MAX_FREQUENCIES == 4
 
 
 def test_a_file_that_is_no_list_or_has_no_good_entry_is_none() -> None:

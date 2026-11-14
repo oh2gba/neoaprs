@@ -3,7 +3,7 @@
 audio says how the sound card is driven, not how strong the station is, and is no RSSI.
 
 The reading is tied to its frame where the frame is made (the Tnc's frame reader, tnc.py), not taken as "the latest the radio said". Mercury says the SNR on its control port (`SN -2.5`) before it hands the frame
-to its broadcast port (1.9.21's modem.c: `tnc_send_sn` comes first in `process_received_frame`, and the broadcast port's thread looks for a whole frame every 100 ms), on another connection. So a reading that comes
+to its broadcast port (modem.c of 1.9.24, as of 1.9.21: `tnc_send_sn` comes first in `process_received_frame`, and the broadcast port's thread looks for a whole frame every 100 ms), on another connection. So a reading that comes
 alone waits (`Pending`) for the next frame, which takes it once; it waits at most PAIR_SEC, far less than the time a frame takes on the air (3.8 s for DATAC3), so that a reading whose frame never came (one
 Mercury did not hand over, or one that came first) is never given to the frame after it, which is a whole frame's time later. Pure code."""
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-DirectSound loaded on first use instead of linked. Mercury 1.9.21's Windows build links dsound.dll (the Makefile's
+DirectSound loaded on first use instead of linked. Mercury 1.9.24's Windows build links dsound.dll (the Makefile's
 FFAUDIO_LINKFLAGS), so Windows loads it before the program starts. On a Windows without the Media Feature Pack (the
 "N" editions) dsound.dll needs ResampleDmo.dll, which is not there: Windows then stops the program at load time with a
 "ResampleDmo.DLL was not found" dialog, and `mercury -z` and the modem hang until NeoAPRS gives up on them (John's

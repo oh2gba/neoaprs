@@ -3,7 +3,7 @@ NeoAPRS sends (the waterfall on or off, the transmit gain), and the row meter an
 dB on the modem's scale, two spectra to a row, and the level of the passband; the floor under it is the page's, lib/waterfallfloor.ts). No I/O: the link is
 mercuryui.py, and the part of the modem that owns it mercuryscoping.py.
 
-The spectrum (Mercury 1.9.21, `gui_interface/ui_communication.c`, `spectrum_publisher_thread`, and `modem_stats_get_rx_spectrum` in `modem/freedv/modem_stats.c`): a binary frame of the magic 0x4D435259, the number of bins and the sample rate
+The spectrum (Mercury 1.9.24, the same as 1.9.21's, `gui_interface/ui_communication.c`, `spectrum_publisher_thread`, and `modem_stats_get_rx_spectrum` in `modem/freedv/modem_stats.c`): a binary frame of the magic 0x4D435259, the number of bins and the sample rate
 as two little-endian 16-bit numbers, and that many little-endian 32-bit floats; every 50 ms while the waterfall is on. The bins are the first half of a 1024-point FFT of the last 1024 samples of the audio through a Hann window,
 512 bins from 0 Hz to half the sample rate (7.8 Hz each at 8 kHz), in dB, scaled by the modem's own full scale (`FDMDV_SCALE` 825, so that a tone of amplitude 1650 of 32768 reads 0 dB). While the radio transmits, the buffer
 holds the audio Mercury plays (`tx_spectrum`), so the spectrum is of the transmission then. The level is worked back to the audio's own level from that scale: the power of a bin, 10^((dB + 112.5) / 10) over the window's 384,

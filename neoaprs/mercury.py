@@ -2,7 +2,7 @@
 setting keeps it, the command line the daemon starts the program with and the configuration it writes for it, and what the program prints (its sound cards, the lines of its control port). No I/O: the program itself is
 started and watched by mercuryhelper.py and mercurycontrol.py, and the Tnc reaches its broadcast port as it reaches any KISS server over TCP.
 
-Mercury's broadcast port is KISS over TCP: unconnected datagrams, one modem frame each, no ack, heard by every station that runs the same mode on the same frequency (Mercury 1.9.21, `docs/TNC.md`). The mode
+Mercury's broadcast port is KISS over TCP: unconnected datagrams, one modem frame each, no ack, heard by every station that runs the same mode on the same frequency (Mercury 1.9.24, `docs/TNC.md`). The mode
 is fixed in the program and is not a setting, because a station on another mode hears nothing and nothing on the air says which mode a station is on: DATAC3, the narrowest of Mercury's modes that carries a whole
 APRS packet. A frame is always its full size on the air, 3.8 s from PTT ON to PTT OFF (FRAME_SEC), and carries 126 bytes, of which Mercury takes 3 for a header and a length; a KISS payload longer than the 123 that are left is
 cut off by Mercury without a word to the client, so the daemon refuses or shortens such a packet before it goes (`overflow`). Nothing listens before it transmits (there is no carrier sense on the broadcast
@@ -26,10 +26,10 @@ from .mercurycards import (  # (the sound cards are read in mercurycards.py; the
 
 # The one Mercury NeoAPRS ships: every release carries this version, built from this source on every system (scripts/build-mercury: natively on Linux and on a Mac, cross-compiled with MinGW-w64 for Windows), so that what
 # the suite and the simulators ran against is what the operator has. A new Mercury is a change of these constants (docs/MAINTAINING.md, "Moving the Mercury pin"), tried by the suite, never something that happens on the operator's computer.
-VERSION = "1.9.21"
-SOURCE_COMMIT = "edca701ba2e432aecd7d4e217ec8fa717ed23aa3"           # the commit the tag v1.9.21 points at
+VERSION = "1.9.24"
+SOURCE_COMMIT = "1b13fab15ac477a1987b6308df7203593f1965e4"           # the commit the tag v1.9.24 points at
 SOURCE_URL = f"https://github.com/Rhizomatica/mercury/archive/{SOURCE_COMMIT}.tar.gz"
-SOURCE_SHA256 = "d991640df2672fa6df29ab973ebf3cd57b65ce2bb12417033e5aa2354cac0191"
+SOURCE_SHA256 = "3f5c016239b4c3983df985f8af6ced83c749ebd3a49da7e9b6aa742c1336b03d"
 
 # Every number here is justified in docs/mercury.md (where it comes from, and what was measured with scripts/mercury-measure on 2 November 2026 against Mercury 1.9.21 on the simulated channel).
 MODE = "DATAC3"                        # the one mode, for every station (Mercury's `-m 1`, its default): the narrowest of its modes that carries a whole APRS packet (docs/MODES.md of Mercury: 9 carriers, 562 Hz)
@@ -70,7 +70,7 @@ SUGGESTED: tuple[tuple[str, str], ...] = (("40 m", "7.0541 MHz USB"), ("20 m", "
 PTT_KINDS = ("vox", "cm108", "rts", "dtr")           # how the radio is keyed: by itself (VOX, or the radio's own data mode), a CM108 sound chip's GPIO pin (an AIOC, some dongles), or the RTS or DTR line of a serial port (a DigiRig, a home-made interface)
 PTT_WITH_DEVICE = ("rts", "dtr")                     # the kinds that name a serial port after a colon: `rts:/dev/ttyUSB0`, `dtr:COM3`
 
-# Tune and the keying test go through Mercury's own TUNE command on its control port (Mercury 1.9.21, mercury(1): `TUNE -dB` keys the transmitter through the keying it was started with and holds a steady tone at
+# Tune and the keying test go through Mercury's own TUNE command on its control port (Mercury 1.9.24, mercury(1): `TUNE -dB` keys the transmitter through the keying it was started with and holds a steady tone at
 # that level in dBFS, `TUNE OFF` unkeys; Mercury unkeys by itself after 60 s whatever the host does), so that the same keying and the same sound card as the frames use are what is tried, and nothing of ours touches
 # the serial port or the sound card that Mercury holds. The tone is Mercury's: 1000 Hz, the frequency VARA's TUNE sends too (the control port takes no other), inside the 1200 to 1800 Hz the modes occupy, so an
 # antenna tuner matches where the signal will be. Its level is Mercury's own default for TUNE, the example the manual gives, and is set at the sound card as the frames' level is, so the radio's ALC at the tone is
@@ -88,7 +88,7 @@ TUNE_OFF = "TUNE OFF"
 
 def tune_level(gain_db: float) -> float:
     """The level of the tune tone for a transmit gain: TUNE_LEVEL_DBFS moved by the gain, as far as TUNE takes (-60 to 0 dBFS). Mercury keeps the tone out of its own gain ("TUNE -15" means -15 dBFS at the sound card, modem.c),
-    so the tone follows the gain here: the radio's ALC on the tone moves with the gain as it will on the frames. (A tone that is on cannot be retuned: Mercury 1.9.21 refuses a second TUNE, so the modem part ends it and begins it again, mercurytune.py.)"""
+    so the tone follows the gain here: the radio's ALC on the tone moves with the gain as it will on the frames. (A tone that is on cannot be retuned: Mercury 1.9.24 refuses a second TUNE, as 1.9.21 did, so the modem part ends it and begins it again, mercurytune.py.)"""
     return max(KEY_TEST_LEVEL_DBFS, min(0.0, TUNE_LEVEL_DBFS + gain_db))
 
 
@@ -271,12 +271,33 @@ def propose_keying(cards: Sequence[SoundCard], card: str, ports: Sequence[Serial
 
 # ---- what the program prints
 
-_AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\] .*audio->(?:open|init)\(\)")       # Mercury 1.9.21's audioio.c when the sound card cannot be opened: `[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument`, `Error in audio->init(): ...`
+_AUDIO_OPEN_ERROR = re.compile(r"\[ERR\] \[audio-(?:play|playback|cap|capture)\] .*audio->(?:open|init)\(\)")       # Mercury's audioio.c (1.9.21 to 1.9.24, the same words) when the sound card cannot be opened: `[ERR] [audio-play] error in audio->open(): 1: snd_pcm_hw_params_set_access: (-22) Invalid argument`, `Error in audio->init(): ...`
 
 
 def audio_open_error(line: str) -> bool:
     """Whether a line Mercury printed says its sound card could not be opened for playback or capture (the program runs on all the same, deaf and mute: the daemon ends it and says so)."""
     return _AUDIO_OPEN_ERROR.search(line) is not None
+
+
+# Mercury begins each log line with the time it was written and how long the program has run (common/hermes_log.c): `23:15:57.123 [+0.003s] ` up to 1.9.21, `2026-11-02 23:15:57.123 [+0.003s] ` from 1.9.22 on,
+# with a `Z` after the time when its ini says `log_utc` (an attached Mercury may). A Mercury older than either, and the fake of the tests, print the line without it.
+_STAMP = re.compile(r"^(?:\d{4}-\d{2}-\d{2} )?\d{2}:\d{2}:\d{2}\.\d{3}Z? \[\+\d+\.\d{3}s\] ")
+
+
+def unstamped(line: str) -> str:
+    """A line Mercury printed without the time and the run time in front of it: what stays the same when the program says the same thing again."""
+    return _STAMP.sub("", line, count=1)
+
+
+# What another station's program may send on the broadcast plane beside APRS: a station message (Mercury 1.9.23 on, modem/framer.h PACKET_TYPE_STATION, the position beacon of HERMES), which every Mercury that hears it
+# hands to its broadcast client whole, header byte first, under the KISS command 0x03 (CMD_MODEM_FRAME) instead of a data frame's 0x00. It is no packet of ours: the Tnc passes it over.
+STATION_MESSAGE_COMMAND = 0x03
+STATION_MESSAGE_TYPE = 0x07                        # the packet type in the top three bits of the header byte
+
+
+def station_message(command: int, payload: bytes) -> bool:
+    """Whether a KISS frame from Mercury's broadcast port is another station's station message (its command and the packet type of its first byte), not a frame that carries a packet."""
+    return command == STATION_MESSAGE_COMMAND and bool(payload) and payload[0] >> 5 == STATION_MESSAGE_TYPE
 
 
 # ---- the control port (CR-terminated lines, as VARA's)

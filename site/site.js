@@ -76,7 +76,7 @@
       .then((data) => {
         const good = (data && Array.isArray(data.frequencies) ? data.frequencies : [])
           .filter((f) => f && /^\d{1,3} m$/.test(f.band) && /^\d{1,2}\.\d{3,4} MHz (USB|LSB)$/.test(f.dial))
-          .slice(0, 3);
+          .slice(0, 4);
         const body = dial.querySelector("tbody");
         if (!good.length || !body) return;
         // padded with no-break spaces in the mono font, so that the bands end and the decimal points stand one under another

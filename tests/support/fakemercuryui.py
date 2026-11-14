@@ -1,4 +1,4 @@
-"""The UI interface of a Mercury that is not one (tests/support/fakemercury.py, and the tests of the websocket client): a WebSocket server on the loopback that speaks as Mercury 1.9.21's does (`gui_interface/websocket`,
+"""The UI interface of a Mercury that is not one (tests/support/fakemercury.py, and the tests of the websocket client): a WebSocket server on the loopback that speaks as Mercury 1.9.24's does (the same as 1.9.21's) (`gui_interface/websocket`,
 `ui_communication.c`): it upgrades a GET of /websocket, tells a `status` message twice a second (the transmit gain, the peak of the latest transmission, the audio's health), answers a text command with
 `{"status":"ok"}` (an unknown one with `{"status":"error","code":-1}`), takes `set_waterfall` and `set_tx_gain`, and while the waterfall is on sends a binary spectrum frame (the magic, the number of bins, the sample rate and
 the floats) every `spectrum_sec`. `commands` keeps every command it was given, as (command, value). The spectrum is white noise of a level the test sets (`noise_db`) with a tone of `tone_hz` at `tone_db` over it."""

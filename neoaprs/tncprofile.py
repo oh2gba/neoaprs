@@ -75,10 +75,10 @@ KANTRONICS = Profile("kantronics", "Kantronics KPC-3+", "serial", 9600, ((b"\rIN
                      "The host speed has been reported to change after RESET on some units.")
 
 # Rhizomatica's Mercury HF modem (neoaprs/mercury.py): a program the daemon starts and stops itself, with the radio's sound card and the way the radio is keyed as its two settings, reached on its broadcast port, which is
-# KISS over TCP (Mercury 1.9.21, docs/TNC.md). Its frame carries 123 bytes of a packet and a longer one is cut off by Mercury without a word, so the daemon refuses or shortens it first. Only stations with the same
+# KISS over TCP (Mercury 1.9.24, docs/TNC.md). Its frame carries 123 bytes of a packet and a longer one is cut off by Mercury without a word, so the daemon refuses or shortens it first. Only stations with the same
 # modem on the same frequency hear each other; the mode is fixed in the program so that every NeoAPRS station is on it.
 MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem", None, (), None, False, False,
-                  "Mercury 1.9.21 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", rules=HF, readings=("snr",))
+                  "Mercury 1.9.24 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", rules=HF, readings=("snr",))
 
 # The Dummy radio (neoaprs/dummyline.py): no radio, no port, no speed; the daemon makes the traffic itself and swallows what it sends. It is last in the list: it is for trying NeoAPRS out, and a person looking
 # for their radio should find the real ones first.

@@ -584,7 +584,7 @@ library that does not share Qt's event loop on Linux, while Qt has both.
 
 ### The project page
 
-`site/` is the project page, <https://neo.oh2gba.eu/> (uploaded there by `server/deploy.sh --site`, with `server/neo/`: the host's `.htaccess`, the page-view endpoint, Send logs and the sked board's endpoint), (the old address <https://oh2gba.github.io/neoaprs/> redirects there; `site/frequencies.json` is the list of suggested frequencies the HF radio's box shows, edited by hand and uploaded with the site, no release: at most three entries `{"band": "40 m", "dial": "7.0541 MHz USB"}`): plain files (`index.html`, `style.css`, `site.js`, the icons and `shots/`), a system font
+`site/` is the project page, <https://neo.oh2gba.eu/> (uploaded there by `server/deploy.sh --site`, with `server/neo/`: the host's `.htaccess`, the page-view endpoint, Send logs and the sked board's endpoint), (the old address <https://oh2gba.github.io/neoaprs/> redirects there; `site/frequencies.json` is the list of suggested frequencies the HF radio's box shows, edited by hand and uploaded with the site, no release: at most four entries `{"band": "40 m", "dial": "7.0541 MHz USB"}`): plain files (`index.html`, `style.css`, `site.js`, the icons and `shots/`), a system font
 stack, no external file, tracker or framework, and a Content-Security-Policy that lets it load its own files only. `.github/workflows/pages.yml` publishes the
 redirect of the old address (`packaging/pages-redirect/`), by hand. `robots.txt` and `sitemap.xml` are the site's own, and every picture has a `.webp` beside its `.png` (made with the thumbnails), which the page offers first. To look
 at it: `python -m http.server --directory site`.

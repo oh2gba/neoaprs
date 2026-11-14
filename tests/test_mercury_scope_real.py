@@ -79,7 +79,7 @@ async def test_the_ui_interface_of_the_real_mercury_gives_the_spectrum_the_level
         await until(lambda: any((s := parse_status(t)) is not None and s.tx_peak_dbfs == -15.0 for t in texts[-6:]), timeout_sec=10.0)
         control_writer.write(b"TUNE -9\r")
         await asyncio.sleep(0.5)
-        assert not any((s := parse_status(t)) is not None and s.tx_peak_dbfs == -9.0 for t in texts[-3:]), "Mercury 1.9.21 refuses a TUNE while the tone is on, whatever its comment says"
+        assert not any((s := parse_status(t)) is not None and s.tx_peak_dbfs == -9.0 for t in texts[-3:]), "Mercury refuses a TUNE while the tone is on, whatever its comment says (measured on 1.9.21)"
         control_writer.write(b"TUNE OFF\r")
         await asyncio.sleep(1.0)
         control_writer.write(b"TUNE -9\r")

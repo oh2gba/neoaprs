@@ -26,8 +26,8 @@ Files: opt/neoaprs/tools/mercury/*
 Copyright: Rhizomatica and the authors of Mercury, the HF modem that NeoAPRS starts for the radio type "Mercury HF modem"
 License: GPL-3.0-or-later
 Comment: Mercury is built for this package from the source at
- https://github.com/Rhizomatica/mercury/archive/edca701ba2e432aecd7d4e217ec8fa717ed23aa3.tar.gz
- (SHA-256 d991640df2672fa6df29ab973ebf3cd57b65ce2bb12417033e5aa2354cac0191),
+ https://github.com/Rhizomatica/mercury/archive/1b13fab15ac477a1987b6308df7203593f1965e4.tar.gz
+ (SHA-256 3f5c016239b4c3983df985f8af6ced83c749ebd3a49da7e9b6aa742c1336b03d),
  which /opt/neoaprs/tools/mercury/SOURCE.txt names as well. Its licence is in
  /opt/neoaprs/tools/mercury/LICENSE.
 
