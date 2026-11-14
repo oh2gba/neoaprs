@@ -1,5 +1,141 @@
 {
   "$defs": {
+    "AircraftRow": {
+      "additionalProperties": false,
+      "description": "An aircraft of the ADS-B feed (adsb.fi).",
+      "properties": {
+        "hex": {
+          "description": "the ICAO address of its transponder, six hex digits in lower case (a `~` in front: one made up by the ground station)",
+          "type": "string"
+        },
+        "flight": {
+          "description": "the call sign it flies under (`FIN1336`); empty when it gives none",
+          "type": "string"
+        },
+        "registration": {
+          "description": "`OH-LZR`; empty when unknown",
+          "type": "string"
+        },
+        "type_code": {
+          "description": "the ICAO type designator (`A321`); empty when unknown",
+          "type": "string"
+        },
+        "description": {
+          "description": "what the type is (`AIRBUS A-321`); empty when unknown",
+          "type": "string"
+        },
+        "category": {
+          "description": "the emitter category of ADS-B (`A3`); empty when it gives none",
+          "type": "string"
+        },
+        "kind": {
+          "description": "the icon, by the category",
+          "enum": [
+            "light",
+            "small",
+            "jet",
+            "heavy",
+            "rotor",
+            "glider",
+            "balloon",
+            "drone",
+            "other"
+          ],
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "altitude_ft": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the barometric altitude in feet, else the geometric one; null on the ground and when not given"
+        },
+        "on_ground": {
+          "type": "boolean"
+        },
+        "speed_kn": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the ground speed in knots"
+        },
+        "track_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "where it is going (the icon points this way)"
+        },
+        "vertical_fpm": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the rate of climb in feet a minute, negative in a descent"
+        },
+        "squawk": {
+          "type": "string"
+        },
+        "emergency": {
+          "description": "the emergency it declares (`general`, `lifeguard`, `minfuel`, `nordo`, `unlawful`, `downed`); empty for none",
+          "type": "string"
+        },
+        "position_at": {
+          "description": "when the position was last received",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "distance_km": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "hex",
+        "flight",
+        "registration",
+        "type_code",
+        "description",
+        "category",
+        "kind",
+        "lat",
+        "lon",
+        "altitude_ft",
+        "on_ground",
+        "speed_kn",
+        "track_deg",
+        "vertical_fpm",
+        "squawk",
+        "emergency",
+        "position_at",
+        "distance_km"
+      ],
+      "title": "AircraftRow",
+      "type": "object"
+    },
     "AlertResultMsg": {
       "additionalProperties": false,
       "description": "The answer to `alert_test`, when the command has ended or run out of its 20 s.",
@@ -1318,6 +1454,64 @@
         "area"
       ],
       "title": "ExtensionValues",
+      "type": "object"
+    },
+    "FeedState": {
+      "additionalProperties": false,
+      "description": "One feed of the map's traffic.",
+      "properties": {
+        "enabled": {
+          "description": "its switch as in force",
+          "type": "boolean"
+        },
+        "state": {
+          "description": "`off`: the switch is off; `waiting`: there is no position to ask round (`problem` says so); `connecting`: the first answer has not come; `receiving`: the latest answer was read; `failing`: the latest question failed (`problem` says why), and it is asked again later",
+          "enum": [
+            "off",
+            "waiting",
+            "connecting",
+            "receiving",
+            "failing"
+          ],
+          "type": "string"
+        },
+        "problem": {
+          "description": "why it is waiting or failing, in the server's or the system's words; empty otherwise",
+          "type": "string"
+        },
+        "count": {
+          "description": "how many it shows now",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "radius_km": {
+          "description": "how far round our position it reads",
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest answer was read; null before the first"
+        }
+      },
+      "required": [
+        "enabled",
+        "state",
+        "problem",
+        "count",
+        "radius_km",
+        "updated_at"
+      ],
+      "title": "FeedState",
       "type": "object"
     },
     "FindRadio": {
@@ -4754,6 +4948,228 @@
       "title": "SetStationRfOnlyCommand",
       "type": "object"
     },
+    "ShipRow": {
+      "additionalProperties": false,
+      "description": "A ship of the AIS feed (Digitraffic): where it is and what it said of itself. A field AIS gives as \"not available\" is null (or empty).",
+      "properties": {
+        "mmsi": {
+          "description": "the Maritime Mobile Service Identity, nine digits",
+          "type": "integer"
+        },
+        "name": {
+          "description": "the name it gives, in full; empty until its voyage data has come",
+          "type": "string"
+        },
+        "call_sign": {
+          "description": "its radio call sign (`OJAA`); empty when it gives none",
+          "type": "string"
+        },
+        "imo": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "its IMO number; null when it gives none"
+        },
+        "ship_type": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the ship type of AIS, two digits (70 to 79 cargo, 80 to 89 tanker ...); null when it gives none"
+        },
+        "kind": {
+          "description": "what the ship is, by its type, for the words of the page",
+          "enum": [
+            "cargo",
+            "tanker",
+            "passenger",
+            "highspeed",
+            "fishing",
+            "sailing",
+            "pleasure",
+            "tug",
+            "towing",
+            "pilot",
+            "sar",
+            "military",
+            "law",
+            "dredging",
+            "diving",
+            "tender",
+            "antipollution",
+            "medical",
+            "wig",
+            "other"
+          ],
+          "type": "string"
+        },
+        "category": {
+          "description": "the group of kinds whose colour the map draws it in",
+          "enum": [
+            "cargo",
+            "tanker",
+            "passenger",
+            "highspeed",
+            "fishing",
+            "pleasure",
+            "special",
+            "other"
+          ],
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        },
+        "speed_kn": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the speed over ground in knots"
+        },
+        "course_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the course over ground"
+        },
+        "heading_deg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "where the bow points"
+        },
+        "bearing_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "where the icon points: the heading, else the course of a ship that moves; null for a still ship without a heading (a round icon)"
+        },
+        "nav_status": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the navigational status of AIS (0 under way using engine, 1 at anchor, 5 moored ...); null when it is not given or not defined"
+        },
+        "length_m": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "beam_m": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draught_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination": {
+          "description": "the destination as the crew typed it",
+          "type": "string"
+        },
+        "eta": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the estimated time of arrival (AIS gives no year: the nearest year to now)"
+        },
+        "position_at": {
+          "description": "when the position was received",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "type": "string"
+        },
+        "distance_km": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "mmsi",
+        "name",
+        "call_sign",
+        "imo",
+        "ship_type",
+        "kind",
+        "category",
+        "lat",
+        "lon",
+        "speed_kn",
+        "course_deg",
+        "heading_deg",
+        "bearing_deg",
+        "nav_status",
+        "length_m",
+        "beam_m",
+        "draught_m",
+        "destination",
+        "eta",
+        "position_at",
+        "distance_km"
+      ],
+      "title": "ShipRow",
+      "type": "object"
+    },
     "SkedDelete": {
       "additionalProperties": false,
       "description": "Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the\nboard is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board.",
@@ -6651,6 +7067,24 @@
         "general": {
           "$ref": "#/$defs/GeneralState",
           "description": "asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes"
+        },
+        "ships": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ShipRow"
+          },
+          "description": "the ships of the AIS feed round us (`ais/enabled`) by MMSI (as text): one that came, moved or was named is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere",
+          "type": "object"
+        },
+        "aircraft": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AircraftRow"
+          },
+          "description": "the aircraft of the ADS-B feed round us (`adsb/enabled`) by ICAO address: one that came or moved is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere",
+          "type": "object"
+        },
+        "traffic": {
+          "$ref": "#/$defs/TrafficState",
+          "description": "the state of the two feeds of ships and aircraft; told whole as it changes, at most once a second"
         }
       },
       "required": [
@@ -6671,9 +7105,32 @@
         "igate",
         "qru",
         "skeds",
-        "general"
+        "general",
+        "ships",
+        "aircraft",
+        "traffic"
       ],
       "title": "TopicValues",
+      "type": "object"
+    },
+    "TrafficState": {
+      "additionalProperties": false,
+      "description": "The two feeds of the map's traffic, told whole as either changes.",
+      "properties": {
+        "ais": {
+          "$ref": "#/$defs/FeedState",
+          "description": "the ships (Digitraffic's AIS, `ais/enabled`)"
+        },
+        "adsb": {
+          "$ref": "#/$defs/FeedState",
+          "description": "the aircraft (adsb.fi's ADS-B, `adsb/enabled`)"
+        }
+      },
+      "required": [
+        "ais",
+        "adsb"
+      ],
+      "title": "TrafficState",
       "type": "object"
     },
     "Unsubscribe": {

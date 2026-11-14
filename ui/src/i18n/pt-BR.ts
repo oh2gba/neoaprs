@@ -18,6 +18,7 @@ import { skeds } from "@/i18n/pt-BR/skeds";
 import { stations } from "@/i18n/pt-BR/stations";
 import { symbols } from "@/i18n/pt-BR/symbols";
 import { time } from "@/i18n/pt-BR/time";
+import { traffic } from "@/i18n/pt-BR/traffic";
 import { weather } from "@/i18n/pt-BR/weather";
 
 export const ptBR: Catalogue = {
@@ -37,6 +38,7 @@ export const ptBR: Catalogue = {
   ...weather,
   ...symbols,
   ...settings,
+  ...traffic,
   ...beacon,
   ...setup,
   ...help,

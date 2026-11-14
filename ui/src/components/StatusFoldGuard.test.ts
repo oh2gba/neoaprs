@@ -10,8 +10,9 @@ import IgateStatus from "@/components/IgateStatus.vue";
 import ObjectsQru from "@/components/ObjectsQru.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import StatusReportRow from "@/components/StatusReportRow.vue";
+import TrafficStatus from "@/components/TrafficStatus.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, igateState, NOW, qruState, status, tncState } from "@/test/fixtures";
+import { ago, feedState, igateState, NOW, qruState, status, tncState } from "@/test/fixtures";
 
 const SRC = resolve(__dirname, "..");
 const later = new Date(NOW + 38 * 60_000).toISOString();
@@ -51,6 +52,14 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
   RadioStatus: {
     bare: null,
     full: () => mount(RadioStatus, { props: { tnc: tncState(), now: NOW } }),
+  },
+  TrafficStatus: {
+    bare: null, // (whose data it is is always behind it)
+    full: () =>
+      mount(TrafficStatus, {
+        props: { feed: "ais", draft: { "ais/enabled": "true" } },
+        global: withDaemon(fakeDaemon({ traffic: { ais: feedState(), adsb: feedState() } })),
+      }),
   },
 };
 

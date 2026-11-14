@@ -24,6 +24,8 @@
  "config": [
   {
    "defaults": {
+    "adsb/enabled": "false",
+    "ais/enabled": "false",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -85,6 +87,8 @@
    },
    "urls": [],
    "values": {
+    "adsb/enabled": "false",
+    "ais/enabled": "false",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -141,6 +145,8 @@
   },
   {
    "defaults": {
+    "adsb/enabled": "false",
+    "ais/enabled": "false",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",
@@ -204,6 +210,8 @@
     "http://192.168.1.2:8730"
    ],
    "values": {
+    "adsb/enabled": "false",
+    "ais/enabled": "false",
     "beacon/antenna_direction": "omni",
     "beacon/antenna_gain_db": "0",
     "beacon/antenna_height_m": "0",

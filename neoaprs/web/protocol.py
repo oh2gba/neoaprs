@@ -26,6 +26,7 @@ from .configwire import ConfigValues, SetConfig
 from .generalwire import GeneralQuery, GeneralState
 from .gpswire import GpsState
 from .igatewire import IgateState
+from .trafficwire import AircraftRow, ShipRow, TrafficState
 from .historywire import PacketHistory, PacketHistoryMsg, SpeedSeries, SpeedSeriesMsg
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
@@ -78,12 +79,15 @@ class TopicValues(_Model):
     qru: QruState = Field(description="local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes")
     skeds: SkedsState = Field(description="the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes")
     general: GeneralState = Field(description="asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes")
+    ships: dict[str, ShipRow] = Field(description="the ships of the AIS feed round us (`ais/enabled`) by MMSI (as text): one that came, moved or was named is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere")
+    aircraft: dict[str, AircraftRow] = Field(description="the aircraft of the ADS-B feed round us (`adsb/enabled`) by ICAO address: one that came or moved is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere")
+    traffic: TrafficState = Field(description="the state of the two feeds of ships and aircraft; told whole as it changes, at most once a second")
 
 
 TOPIC_NAMES: tuple[str, ...] = tuple(get_type_hints(TopicValues))
 TOPIC_VALUES = {name: TypeAdapter(annotation) for name, annotation in get_type_hints(TopicValues).items()}
 """A validator for the value of each topic, by the topic's name: the outgoing check looks at `state` and `patch` with it (neoaprs/web/outbound.py)."""
-TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref), "station_keys": TypeAdapter(StationKey), "own_objects": TypeAdapter(OwnObjectRow), "own_bulletins": TypeAdapter(OwnBulletinRow)}
+TOPIC_ITEMS: dict[str, "TypeAdapter[Any]"] = {"stations": TypeAdapter(StationRow), "packets": TypeAdapter(PacketRow), "messages": TypeAdapter(MessageRow), "bulletins": TypeAdapter(BulletinRow), "station_prefs": TypeAdapter(StationPref), "station_keys": TypeAdapter(StationKey), "own_objects": TypeAdapter(OwnObjectRow), "own_bulletins": TypeAdapter(OwnBulletinRow), "ships": TypeAdapter(ShipRow), "aircraft": TypeAdapter(AircraftRow)}
 """A validator for one item of a table topic: the outgoing check looks at the `set` ops with it."""
 
 

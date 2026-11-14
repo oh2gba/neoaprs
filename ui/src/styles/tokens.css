@@ -62,6 +62,16 @@
   --map-select-wash: rgba(255, 109, 0, 0.18);
   --map-plate: rgba(255, 255, 255, 0.88);
   --map-track: #2f80ed;
+  --map-ship-cargo: #2e9d3a;
+  --map-ship-tanker: #d32f2f;
+  --map-ship-passenger: #1e5fd9;
+  --map-ship-highspeed: #e0b000;
+  --map-ship-fishing: #ec7a1c;
+  --map-ship-pleasure: #a347c9;
+  --map-ship-special: #0b9aa8;
+  --map-ship-other: #7d8790;
+  --map-aircraft: #3949ab;
+  --map-aircraft-alert: #d50000;
   --wx-temp: #d84315;
   --wx-pressure: #7b1fa2;
   --wx-wind: #00838f;

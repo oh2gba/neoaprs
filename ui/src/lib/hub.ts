@@ -2,6 +2,8 @@
 // no Vue: what the messages say is handed to a `Store`, which the composable (composables/useDaemon.ts) makes reactive; the socket and the timers can be replaced, so the tests drive it.
 // The socket is opened again by itself when it closes (1, 2, 4 ... 30 seconds), at once when the daemon has said nothing on it for 25 s or the page is woken (`wake`: a phone that slept may never see the close), and a topic whose revision skips is asked for again with `subscribe`.
 import type {
+  AircraftRow,
+  ShipRow,
   AlertResultMessage,
   BulletinRow,
   Command,
@@ -53,7 +55,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys, ships, aircraft) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general, skeds, traffic) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -91,6 +93,9 @@ export interface Store {
   replaceQru(value: TopicValues["qru"]): void;
   replaceGeneral(value: TopicValues["general"]): void;
   replaceSkeds(value: TopicValues["skeds"]): void;
+  replaceShips(rows: Record<string, ShipRow>): void;
+  replaceAircraft(rows: Record<string, AircraftRow>): void;
+  replaceTraffic(value: TopicValues["traffic"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
   setMessage(key: string, row: MessageRow): void;
@@ -99,6 +104,8 @@ export interface Store {
   setStationKey(call: string, key: StationKey): void;
   setOwnObject(name: string, row: OwnObjectRow): void;
   setOwnBulletin(slot: string, row: OwnBulletinRow): void;
+  setShip(mmsi: string, row: ShipRow): void;
+  setAircraft(address: string, row: AircraftRow): void;
   delStation(key: string): void;
   delPacket(key: string): void;
   delMessage(key: string): void;
@@ -107,6 +114,8 @@ export interface Store {
   delStationKey(call: string): void;
   delOwnObject(name: string): void;
   delOwnBulletin(slot: string): void;
+  delShip(mmsi: string): void;
+  delAircraft(address: string): void;
 }
 
 /** The method of the store that takes the whole value of each topic. */
@@ -129,6 +138,9 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   qru: "replaceQru",
   general: "replaceGeneral",
   skeds: "replaceSkeds",
+  ships: "replaceShips",
+  aircraft: "replaceAircraft",
+  traffic: "replaceTraffic",
 };
 
 /** What the hub needs of a WebSocket: the browser's has more. */
@@ -374,6 +386,8 @@ export class Hub {
     else if (topic === "station_keys") this.store.setStationKey(key, value as StationKey);
     else if (topic === "own_objects") this.store.setOwnObject(key, value as OwnObjectRow);
     else if (topic === "own_bulletins") this.store.setOwnBulletin(key, value as OwnBulletinRow);
+    else if (topic === "ships") this.store.setShip(key, value as ShipRow);
+    else if (topic === "aircraft") this.store.setAircraft(key, value as AircraftRow);
   }
 
   private del(topic: TopicName, key: string): void {
@@ -385,5 +399,7 @@ export class Hub {
     else if (topic === "station_keys") this.store.delStationKey(key);
     else if (topic === "own_objects") this.store.delOwnObject(key);
     else if (topic === "own_bulletins") this.store.delOwnBulletin(key);
+    else if (topic === "ships") this.store.delShip(key);
+    else if (topic === "aircraft") this.store.delAircraft(key);
   }
 }

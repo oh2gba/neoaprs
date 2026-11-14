@@ -11,6 +11,7 @@ import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
+import { feedSwitches } from "@/lib/settingsfeeds";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
@@ -61,7 +62,7 @@ const plain =
     text;
 
 /** What a field is, in ids: the words are looked up when they are read. */
-interface FieldSpec {
+export interface FieldSpec {
   label: Say;
   name?: Say;
   unit?: string;
@@ -119,12 +120,7 @@ const SPECS: Record<string, FieldSpec> = {
     empty: plain("145.500MHz QRV"),
     tip: ["settings.station_status.tip1", ["settings.station_status.tip2", { max: LIMITS.status.max }]],
   },
-  "beacon/power_w": {
-    label: "settings.power.label",
-    unit: "W",
-    empty: "settings.none",
-    tip: ["settings.power.tip1", "settings.power.tip2"],
-  },
+  "beacon/power_w": { label: "settings.power.label", unit: "W", empty: "settings.none", tip: ["settings.power.tip1", "settings.power.tip2"] },
   "beacon/antenna_height_m": {
     label: "settings.antenna_height.label",
     unit: "m",
@@ -251,6 +247,7 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.igate.tip1"],
     picture: "internet",
   },
+  ...feedSwitches(),
   "messages/alert": { name: "settings.alert.label", label: "settings.alert.label", kind: "bool", tip: ["settings.alert.tip1"] },
   "messages/alert_command": { name: "settings.alert_command.name", label: "settings.alert_command.label", tip: ["settings.alert_command.tip1"] },
   "status/source": {
@@ -365,6 +362,8 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
     also: ["station/transmit", "fm/enabled", "hf/enabled", "hf/profile"],
   },
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
+  { id: "ais", title: "settings.group.ais", prefixes: ["ais/"] },
+  { id: "adsb", title: "settings.group.adsb", prefixes: ["adsb/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
   { id: "map", title: "settings.group.map", prefixes: ["map/"] },
@@ -377,7 +376,7 @@ const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[
 export type Scope = "settings" | "beacon";
 const SCOPE_GROUPS: Record<Scope, readonly string[]> = {
   beacon: ["station", "beacon", "status"],
-  settings: ["serial", "igate", "digi", "web", "notifications", "map"],
+  settings: ["serial", "igate", "ais", "adsb", "digi", "web", "notifications", "map"],
 };
 
 /** Settings that stay in the daemon (`neoaprs db set`) and are not on the page: the address the update check asks, the APRS-IS server and the passcode of the Internet switch (igate/server, whose default is the round-robin name of the volunteer servers, and igate/password, which only a person who gates for the radio sets), which ports the search for the radio looks at and leaves alone, and the port and the host names of the page itself

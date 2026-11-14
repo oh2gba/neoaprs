@@ -43,6 +43,8 @@ describe("SettingsForm", () => {
       "FM radio", // (the two radios' boxes are in the Radio group)
       "HF radio",
       "Internet stations",
+      "Ships (AIS)",
+      "Aircraft (ADS-B)",
       "Digipeater",
       "Web page",
       "Notifications",
@@ -56,6 +58,8 @@ describe("SettingsForm", () => {
     expect(wrapper.findAll("form > fieldset").map((f) => f.find("legend").text())).toEqual([
       "Radio",
       "Internet stations",
+      "Ships (AIS)",
+      "Aircraft (ADS-B)",
       "Digipeater",
       "Web page",
       "Notifications",

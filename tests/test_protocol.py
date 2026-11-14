@@ -249,7 +249,7 @@ def test_the_values_of_the_examples_are_of_the_type_of_their_topic() -> None:
                 TOPIC_VALUES[message["topic"]].validate_json(json.dumps(op["value"]))
             elif op["op"] == "set":
                 TOPIC_ITEMS[message["topic"]].validate_json(json.dumps(op["value"]))
-    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs", "station_keys", "own_objects", "own_bulletins"}
+    assert set(TOPIC_VALUES) == set(TOPIC_NAMES) and set(TOPIC_ITEMS) == {"stations", "packets", "messages", "bulletins", "station_prefs", "station_keys", "own_objects", "own_bulletins", "ships", "aircraft"}
 
 
 def test_every_kind_of_decoded_packet_has_a_model_and_the_kinds_are_the_parsers() -> None:

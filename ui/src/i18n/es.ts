@@ -18,6 +18,7 @@ import { skeds } from "@/i18n/es/skeds";
 import { stations } from "@/i18n/es/stations";
 import { symbols } from "@/i18n/es/symbols";
 import { time } from "@/i18n/es/time";
+import { traffic } from "@/i18n/es/traffic";
 import { weather } from "@/i18n/es/weather";
 
 export const es: Catalogue = {
@@ -37,6 +38,7 @@ export const es: Catalogue = {
   ...weather,
   ...symbols,
   ...settings,
+  ...traffic,
   ...beacon,
   ...setup,
   ...help,

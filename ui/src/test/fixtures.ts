@@ -1,6 +1,9 @@
 // Rows of the protocol for the tests: every field present, the ones a test cares about given.
 import type {
+  AircraftRow,
   BulletinRow,
+  FeedState,
+  ShipRow,
   ConfigValues,
   ErrorMessage,
   GpsState,
@@ -524,6 +527,8 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "igate/enabled": "false",
     "igate/server": "rotate.aprs2.net:14580",
     "igate/password": "",
+    "ais/enabled": "false",
+    "adsb/enabled": "false",
     "gps/source": "off",
     "gps/host": "127.0.0.1:2947",
     "gps/device": "",
@@ -617,4 +622,62 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
 /** The map of a station table: call to row. */
 export function table(...rows: StationRow[]): Map<string, StationRow> {
   return new Map(rows.map((r) => [r.call, r]));
+}
+
+/** A ship of the topic `ships`: a tug moored at Helsinki, named and with its voyage data. */
+export function ship(extra: Partial<ShipRow> = {}): ShipRow {
+  return {
+    mmsi: 230145760,
+    name: "DUNKER",
+    call_sign: "OJSU",
+    imo: 8701014,
+    ship_type: 52,
+    kind: "tug",
+    category: "special",
+    lat: 60.16,
+    lon: 24.95,
+    speed_kn: 0,
+    course_deg: 145.2,
+    heading_deg: 101,
+    bearing_deg: 101,
+    nav_status: 5,
+    length_m: 31,
+    beam_m: 10,
+    draught_m: 5,
+    destination: "HARBOUR ASSISTANCE",
+    eta: "2026-10-22T17:15:00Z",
+    position_at: ago(60),
+    distance_km: 1.2,
+    ...extra,
+  };
+}
+
+/** An aircraft of the topic `aircraft`: an airliner climbing out of Helsinki. */
+export function aircraftRow(extra: Partial<AircraftRow> = {}): AircraftRow {
+  return {
+    hex: "461fa7",
+    flight: "FIN1336",
+    registration: "OH-LZR",
+    type_code: "A321",
+    description: "AIRBUS A-321",
+    category: "A3",
+    kind: "jet",
+    lat: 60.45,
+    lon: 24.75,
+    altitude_ft: 3850,
+    on_ground: false,
+    speed_kn: 220.2,
+    track_deg: 84,
+    vertical_fpm: -640,
+    squawk: "1144",
+    emergency: "",
+    position_at: ago(5),
+    distance_km: 31.6,
+    ...extra,
+  };
+}
+
+/** The state of a feed of the topic `traffic`. */
+export function feedState(extra: Partial<FeedState> = {}): FeedState {
+  return { enabled: true, state: "receiving", problem: "", count: 3, radius_km: 450, updated_at: "2026-10-21T11:59:00Z", ...extra };
 }

@@ -301,3 +301,17 @@
 .station-speed {
   margin: 6px 0 2px;
 }
+/* the card of a ship or an aircraft (components/TrafficCard.vue): at the top right of the map, under the line about the map that stands at the top, clear of the station cards at the left and the statistics card at the bottom right */
+.trafficcard {
+  left: auto;
+  right: 10px;
+  top: 72px;
+  bottom: auto;
+  width: min(300px, calc(100% - 20px));
+  max-height: calc(100% - 114px);
+}
+.traffic-received {
+  margin: 0 10px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}

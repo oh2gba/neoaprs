@@ -89,7 +89,7 @@ class Controller(Services):
         self.start_tnc()                                                # (last of the parts that take its packets: the source after its consumers)
         await self._start_web()
         await self.mapauto.start()
-        for asks in (self.updatecheck, self.frequencies, self.skeds):       # (what asks the project's server: the update check, the suggested frequencies and the sked board)
+        for asks in (self.updatecheck, self.frequencies, self.skeds, self.ships, self.aircraft):       # (what asks the internet: the project's server for the update check, the suggested frequencies and the sked board; the open data of the map's ships and aircraft, while switched on)
             await asks.start()
         self.tasks.spawn(self._prune_daily(), "prune")
         self.tasks.spawn(self._recount_minutely(), "recount")
@@ -121,7 +121,7 @@ class Controller(Services):
         return [("the page", self._stop_web), ("Find my radio", self.radiofinder.stop), ("the Tnc", self._stop_tnc), ("the update check", self.updatecheck.stop), ("the suggested frequencies", self.frequencies.stop), ("the sked board", self.skeds.stop), ("the ALOHA circle", self.aloha.stop),
                 ("Update now", self.selfupdate.stop), ("the automatic map", self.mapauto.stop), ("the map job", self.mapfetch.stop), ("the queries", self.queries.stop), ("the QRU server", self.qru.stop),
                 ("asking QRU", self.qruask.stop), ("messaging", self.messaging.stop), ("the alerts", self.alerts.stop), ("the status", self.rigstatus.stop), ("the bulletins of ours", self.ownbulletins.stop),
-                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the HF beacon", self.hf_beacon.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the radio choices", self.radios.flush), ("the tasks", self.tasks.cancel_all)]
+                ("the objects of ours", self.ownobjects.stop), ("the iGate", self.igate.stop), ("the ships", self.ships.stop), ("the aircraft", self.aircraft.stop), ("the HF beacon", self.hf_beacon.stop), ("the beacon", self.beacon.stop), ("the GPS", self.gps.stop), ("the radio choices", self.radios.flush), ("the tasks", self.tasks.cancel_all)]
 
     # ---- the page
     async def _start_web(self) -> None:

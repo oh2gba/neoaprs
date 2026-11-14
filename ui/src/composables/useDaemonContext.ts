@@ -16,6 +16,7 @@ import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type { ScopeRow } from "@/lib/scoperow";
 import type {
+  AircraftRow,
   AlertResultMessage,
   Command,
   ConfigValues,
@@ -30,12 +31,14 @@ import type {
   PositionHistoryMessage,
   QruState,
   ReleaseNotesMessage,
+  ShipRow,
   SkedsState,
   SpeedSeriesMessage,
   StationTrafficMessage,
   StationRow,
   StatusMessage,
   TncState,
+  TrafficState,
   UpdateResultMessage,
   UpdateState,
   WeatherSeriesMessage,
@@ -67,6 +70,12 @@ export interface DaemonContext {
   general: Read<GeneralState | null>;
   /** the sked board: where it stands, the dials the project suggests and the skeds to come; null until the daemon has told */
   skeds: Read<SkedsState | null>;
+  /** the ships round us (Digitraffic's AIS, `ais/enabled`) by MMSI: only received, never sent; empty while the switch is off */
+  ships: ReadonlyMap<string, ShipRow>;
+  /** the aircraft round us (adsb.fi's ADS-B, `adsb/enabled`) by ICAO address: only received, never sent; empty while the switch is off */
+  aircraft: ReadonlyMap<string, AircraftRow>;
+  /** the state of the two feeds of ships and aircraft; null until the daemon has told */
+  traffic: Read<TrafficState | null>;
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;

@@ -1,0 +1,50 @@
+[
+ {
+  "callSign": "OJSU",
+  "destination": "HARBOUR ASSISTANCE",
+  "draught": 50,
+  "eta": 740431,
+  "imo": 8701014,
+  "mmsi": 230145760,
+  "name": "DUNKER",
+  "posType": 1,
+  "referencePointA": 9,
+  "referencePointB": 22,
+  "referencePointC": 7,
+  "referencePointD": 3,
+  "shipType": 52,
+  "timestamp": 1794596826871
+ },
+ {
+  "callSign": "PGDL",
+  "destination": "TALLINN",
+  "draught": 39,
+  "eta": 717263,
+  "imo": 9361744,
+  "mmsi": 244854000,
+  "name": "SOLENTBANK",
+  "posType": 1,
+  "referencePointA": 75,
+  "referencePointB": 15,
+  "referencePointC": 13,
+  "referencePointD": 1,
+  "shipType": 70,
+  "timestamp": 1794596793366
+ },
+ {
+  "callSign": "D5BI8",
+  "destination": "FIPRV",
+  "draught": 136,
+  "eta": 748382,
+  "imo": 9358541,
+  "mmsi": 636015526,
+  "name": "SAKURA PRINCESS",
+  "posType": 1,
+  "referencePointA": 194,
+  "referencePointB": 34,
+  "referencePointC": 16,
+  "referencePointD": 26,
+  "shipType": 80,
+  "timestamp": 1794596659543
+ }
+]

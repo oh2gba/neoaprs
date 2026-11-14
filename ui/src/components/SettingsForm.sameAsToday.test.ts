@@ -53,6 +53,8 @@ const NOTIFICATIONS = box(
 const only = (title: string, ids: string[]): Box => box(ids, ids.length, [title]);
 const SETTINGS_TAB = {
   "Internet stations": only("Internet stations", ["set-igate-enabled"]),
+  "Ships (AIS)": only("Ships (AIS)", ["set-ais-enabled"]),
+  "Aircraft (ADS-B)": only("Aircraft (ADS-B)", ["set-adsb-enabled"]),
   Digipeater: only("Digipeater", ["set-digi-enabled"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,

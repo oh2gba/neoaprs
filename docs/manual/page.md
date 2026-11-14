@@ -116,6 +116,7 @@ The tab has no Save button ([start.md](start.md#how-settings-apply)). Each group
 - the **FM radio** box has the radio's status in one line with **Reconnect**, and behind its arrow the **Radio type**, the **Port** and **Speed** (or the **TCP host** and **TCP port**), **Find my radio** and the **Terminal**, and the type **Dummy** for trying NeoAPRS without a radio;
 - the **HF radio** box has its status line, and behind its arrow the **Radio type** (the Mercury modem or the Dummy HF radio), the **Sound card** and **Keying** (NeoAPRS's proposal chosen for you), the **Frequency** to read, and **Test** beside the keying, **Tune**, and its **Terminal** ([radio.md](radio.md#the-mercury-hf-modem));
 - **Internet stations**: the one tickbox **Enable**, which shows the stations of APRS-IS within the map's radius, and its status row under it ([igate.md](igate.md)); without a call it says **Set your call first**;
+- **Ships (AIS)** and **Aircraft (ADS-B)**: one tickbox **Enable** each, which shows the ships or the aircraft within 450 km on the map, receive only, and the status row under it ([traffic.md](traffic.md));
 - **Digipeater**: the tickbox **Enable** of the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater));
 - **Web page**: **Allow access from the network**, with the access key and the addresses once it is on, and the secure connection ([network.md](network.md));
 - **Notifications**, in two boxes: **On the NeoAPRS computer** and **In this browser** ([notifications.md](notifications.md));

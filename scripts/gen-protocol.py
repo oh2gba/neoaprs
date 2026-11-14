@@ -381,8 +381,8 @@ holds more than 4 MiB it has not read is sent no patches and is sent the topic w
 ## Following the state of the daemon
 
 The state of the daemon that a page shows and that changes is held in named *topics* (`neoaprs/web/hub.py`; what changes each is in the table of `neoaprs/web/topics.py`). The value of each topic is in *Topics*
-below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`), which changes by `replace`, and a **table of items** by
-key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
+below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`, `skeds`, `traffic`), which changes by `replace`, and a **table of items** by
+key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot, `ships` by MMSI as text, `aircraft` by ICAO address), which changes by `set` and `del` of one item.
 
 ### `subscribe` and `unsubscribe`
 

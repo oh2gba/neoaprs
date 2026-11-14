@@ -53,8 +53,8 @@ holds more than 4 MiB it has not read is sent no patches and is sent the topic w
 ## Following the state of the daemon
 
 The state of the daemon that a page shows and that changes is held in named *topics* (`neoaprs/web/hub.py`; what changes each is in the table of `neoaprs/web/topics.py`). The value of each topic is in *Topics*
-below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`), which changes by `replace`, and a **table of items** by
-key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
+below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `general`, `skeds`, `traffic`), which changes by `replace`, and a **table of items** by
+key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot, `ships` by MMSI as text, `aircraft` by ICAO address), which changes by `set` and `del` of one item.
 
 ### `subscribe` and `unsubscribe`
 
@@ -853,6 +853,9 @@ The value of each topic (`state` carries it, a `replace` op brings a new one).
 | `qru` | QruState | local info (QRU): the last request sent from here and the servers that answered it, forgotten an hour after; told whole as it changes |
 | `skeds` | SkedsState | the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes |
 | `general` | GeneralState | asking around: the last general query of each kind sent from here (?APRS?, ?IGATE?, ?WX?) and the stations heard after it that had been quiet before it; told whole as it changes |
+| `ships` | { [key: string]: ShipRow } | the ships of the AIS feed round us (`ais/enabled`) by MMSI (as text): one that came, moved or was named is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere |
+| `aircraft` | { [key: string]: AircraftRow } | the aircraft of the ADS-B feed round us (`adsb/enabled`) by ICAO address: one that came or moved is a `set`, one that went a `del`; empty while the switch is off. Only received, never sent anywhere |
+| `traffic` | TrafficState | the state of the two feeds of ships and aircraft; told whole as it changes, at most once a second |
 
 ## Objects
 
@@ -1217,6 +1220,31 @@ The whole value of the topic is `value`.
 | `op` | "replace" |  |  |
 | `value` | any |  |  |
 
+### AircraftRow
+
+An aircraft of the ADS-B feed (adsb.fi).
+
+| field | type | | description |
+|---|---|---|---|
+| `hex` | string |  | the ICAO address of its transponder, six hex digits in lower case (a `~` in front: one made up by the ground station) |
+| `flight` | string |  | the call sign it flies under (`FIN1336`); empty when it gives none |
+| `registration` | string |  | `OH-LZR`; empty when unknown |
+| `type_code` | string |  | the ICAO type designator (`A321`); empty when unknown |
+| `description` | string |  | what the type is (`AIRBUS A-321`); empty when unknown |
+| `category` | string |  | the emitter category of ADS-B (`A3`); empty when it gives none |
+| `kind` | "light" \| "small" \| "jet" \| "heavy" \| "rotor" \| "glider" \| "balloon" \| "drone" \| "other" |  | the icon, by the category |
+| `lat` | number |  |  |
+| `lon` | number |  |  |
+| `altitude_ft` | integer \| null |  | the barometric altitude in feet, else the geometric one; null on the ground and when not given |
+| `on_ground` | boolean |  |  |
+| `speed_kn` | number \| null |  | the ground speed in knots |
+| `track_deg` | number \| null |  | where it is going (the icon points this way) |
+| `vertical_fpm` | integer \| null |  | the rate of climb in feet a minute, negative in a descent |
+| `squawk` | string |  |  |
+| `emergency` | string |  | the emergency it declares (`general`, `lifeguard`, `minfuel`, `nordo`, `unlawful`, `downed`); empty for none |
+| `position_at` | time |  | when the position was last received |
+| `distance_km` | number |  | (>= 0) |
+
 ### AlertWhen
 
 When the operator is told about a station: any of the three, each once for each time it happens (it is not told again for every packet), by the message `station_alert` to every page and by the alert command of
@@ -1302,6 +1330,19 @@ The data extensions after the symbol of an uncompressed position (taken off the 
 | `dfs` | DfsValues \| null |  |  |
 | `df_bearing` | DfBearingValues \| null |  |  |
 | `area` | AreaValues \| null |  |  |
+
+### FeedState
+
+One feed of the map's traffic.
+
+| field | type | | description |
+|---|---|---|---|
+| `enabled` | boolean |  | its switch as in force |
+| `state` | "off" \| "waiting" \| "connecting" \| "receiving" \| "failing" |  | `off`: the switch is off; `waiting`: there is no position to ask round (`problem` says so); `connecting`: the first answer has not come; `receiving`: the latest answer was read; `failing`: the latest question failed (`problem` says why), and it is asked again later |
+| `problem` | string |  | why it is waiting or failing, in the server's or the system's words; empty otherwise |
+| `count` | integer |  | how many it shows now (>= 0) |
+| `radius_km` | number |  | how far round our position it reads (> 0) |
+| `updated_at` | time \| null |  | when the latest answer was read; null before the first |
 
 ### FrequencyRow
 
@@ -1661,6 +1702,34 @@ One route a packet of a station came by, which the map draws (a line, or none fo
 | `lat` | number \| null |  | where the station was when the packet was heard (the position it reported, else the one it had before); null when that is not known: the map takes its position now |
 | `lon` | number \| null |  |  |
 
+### ShipRow
+
+A ship of the AIS feed (Digitraffic): where it is and what it said of itself. A field AIS gives as "not available" is null (or empty).
+
+| field | type | | description |
+|---|---|---|---|
+| `mmsi` | integer |  | the Maritime Mobile Service Identity, nine digits |
+| `name` | string |  | the name it gives, in full; empty until its voyage data has come |
+| `call_sign` | string |  | its radio call sign (`OJAA`); empty when it gives none |
+| `imo` | integer \| null |  | its IMO number; null when it gives none |
+| `ship_type` | integer \| null |  | the ship type of AIS, two digits (70 to 79 cargo, 80 to 89 tanker ...); null when it gives none |
+| `kind` | "cargo" \| "tanker" \| "passenger" \| "highspeed" \| "fishing" \| "sailing" \| "pleasure" \| "tug" \| "towing" \| "pilot" \| "sar" \| "military" \| "law" \| "dredging" \| "diving" \| "tender" \| "antipollution" \| "medical" \| "wig" \| "other" |  | what the ship is, by its type, for the words of the page |
+| `category` | "cargo" \| "tanker" \| "passenger" \| "highspeed" \| "fishing" \| "pleasure" \| "special" \| "other" |  | the group of kinds whose colour the map draws it in |
+| `lat` | number |  |  |
+| `lon` | number |  |  |
+| `speed_kn` | number \| null |  | the speed over ground in knots |
+| `course_deg` | number \| null |  | the course over ground |
+| `heading_deg` | integer \| null |  | where the bow points |
+| `bearing_deg` | number \| null |  | where the icon points: the heading, else the course of a ship that moves; null for a still ship without a heading (a round icon) |
+| `nav_status` | integer \| null |  | the navigational status of AIS (0 under way using engine, 1 at anchor, 5 moored ...); null when it is not given or not defined |
+| `length_m` | integer \| null |  |  |
+| `beam_m` | integer \| null |  |  |
+| `draught_m` | number \| null |  |  |
+| `destination` | string |  | the destination as the crew typed it |
+| `eta` | time \| null |  | the estimated time of arrival (AIS gives no year: the nearest year to now) |
+| `position_at` | time |  | when the position was received |
+| `distance_km` | number |  | (>= 0) |
+
 ### SkedFrequency
 
 A dial the project suggests for the HF radio.
@@ -1793,6 +1862,15 @@ One line of the TNC's log.
 |---|---|---|---|
 | `at` | time |  | when the line was written |
 | `text` | string |  | what the TNC saw (TNC2 text and what it understood of it) or did (`NeoAPRS: ...`), without the time |
+
+### TrafficState
+
+The two feeds of the map's traffic, told whole as either changes.
+
+| field | type | | description |
+|---|---|---|---|
+| `ais` | FeedState |  | the ships (Digitraffic's AIS, `ais/enabled`) |
+| `adsb` | FeedState |  | the aircraft (adsb.fi's ADS-B, `adsb/enabled`) |
 
 ### UpdateInfo
 

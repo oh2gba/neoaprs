@@ -58,6 +58,16 @@ Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a l
 | `--map-select-wash` | `rgba(255, 109, 0, 0.18)` | `rgba(255, 109, 0, 0.18)` | the map: the wash of the selected station |
 | `--map-plate` | `rgba(255, 255, 255, 0.88)` | `rgba(255, 255, 255, 0.88)` | the map: the plate under a symbol in the dark theme |
 | `--map-track` | `#2f80ed` | `#2f80ed` | the map: a track |
+| `--map-ship-cargo` | `#2e9d3a` | `#2e9d3a` | the map: a cargo ship |
+| `--map-ship-tanker` | `#d32f2f` | `#d32f2f` | the map: a tanker |
+| `--map-ship-passenger` | `#1e5fd9` | `#1e5fd9` | the map: a passenger ship |
+| `--map-ship-highspeed` | `#e0b000` | `#e0b000` | the map: a high-speed craft |
+| `--map-ship-fishing` | `#ec7a1c` | `#ec7a1c` | the map: a fishing vessel |
+| `--map-ship-pleasure` | `#a347c9` | `#a347c9` | the map: a sailing or pleasure craft |
+| `--map-ship-special` | `#0b9aa8` | `#0b9aa8` | the map: a tug, a pilot, rescue and other special craft |
+| `--map-ship-other` | `#7d8790` | `#7d8790` | the map: any other ship |
+| `--map-aircraft` | `#3949ab` | `#3949ab` | the map: an aircraft |
+| `--map-aircraft-alert` | `#d50000` | `#d50000` | the map: an aircraft that declares an emergency |
 | `--wx-temp` | `#d84315` | `#ff8a65` | the weather graphs: temperature |
 | `--wx-pressure` | `#7b1fa2` | `#ce93d8` | the weather graphs: pressure |
 | `--wx-wind` | `#00838f` | `#4dd0e1` | the weather graphs: wind |

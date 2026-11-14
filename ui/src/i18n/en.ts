@@ -18,6 +18,7 @@ import { stats } from "@/i18n/en/stats";
 import { stations } from "@/i18n/en/stations";
 import { symbols } from "@/i18n/en/symbols";
 import { time } from "@/i18n/en/time";
+import { traffic } from "@/i18n/en/traffic";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -38,6 +39,7 @@ export const en = {
   ...weather,
   ...symbols,
   ...settings,
+  ...traffic,
   ...beacon,
   ...setup,
   ...help,

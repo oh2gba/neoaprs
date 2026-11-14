@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the fifteen topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -25,6 +25,7 @@ import { useAnswers } from "@/composables/useAnswers";
 import { useOwnTables } from "@/composables/useOwnTables";
 import { useScopeRows } from "@/composables/useScopeRows";
 import { useStationTables } from "@/composables/useStationTables";
+import { useTrafficTables } from "@/composables/useTrafficTables";
 import { usePageErrorReport } from "@/composables/usePageErrorReport";
 import { probe } from "@/lib/access";
 import { Hub, type Connection, type Store } from "@/lib/hub";
@@ -123,6 +124,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const bulletins = shallowReactive(new Map<string, BulletinRow>());
   const own = useOwnTables();
   const station = useStationTables();
+  const traffic = useTrafficTables();
   const answers = useAnswers();
   const whole = useWholeTopics();
   const status = shallowRef<StatusMessage | null>(null);
@@ -145,6 +147,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceBulletins: (rows) => fill(bulletins, rows),
     ...own.handlers,
     ...station.handlers,
+    ...traffic.handlers,
     ...answers.handlers,
     ...whole.handlers,
     setStation: (key, row) => void stations.set(key, row),
@@ -183,6 +186,9 @@ export function useDaemon(url: () => string = socketUrl) {
     stationKeys: station.stationKeys,
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
+    ships: traffic.ships,
+    aircraft: traffic.aircraft,
+    traffic: traffic.traffic,
     ...whole.refs,
     status,
     connection,

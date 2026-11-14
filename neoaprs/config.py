@@ -44,17 +44,11 @@ STATION_HOURS = (1, 3, 6, 12, 24)  # map/station_hours: the hours after its last
 DEFAULT_STATION_HOURS = 3
 LATITUDE, LONGITUDE = (-90.0, 90.0), (-180.0, 180.0)
 RANGES: dict[str, tuple[int, int]] = {          # the whole numbers of the settings and what each may be, from the least to the most: also the page's (LIMITS of ui/src/protocol/lists.ts)
-    "serial/baud": (300, 921600),
-    "tcp/port": (1, 65535),
-    "beacon/power_w": (0, 9999),
-    "beacon/antenna_height_m": (0, 9999),
-    "beacon/antenna_gain_db": (0, 9),
-    "beacon/interval_min": (MIN_BEACON_INTERVAL_MIN, 1440),
-    "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
-    "map/radius_km": MAP_RADIUS_KM,
-    "map/maxzoom": MAP_MAXZOOM,
-    "gps/baud": (300, 921600),
-    "mercury/tx_gain_db": (TX_GAIN_MIN_DB, TX_GAIN_MAX_DB),
+    "serial/baud": (300, 921600), "tcp/port": (1, 65535),
+    "beacon/power_w": (0, 9999), "beacon/antenna_height_m": (0, 9999), "beacon/antenna_gain_db": (0, 9),
+    "beacon/interval_min": (MIN_BEACON_INTERVAL_MIN, 1440), "status/interval_min": (MIN_STATUS_INTERVAL_MIN, 1440),
+    "map/radius_km": MAP_RADIUS_KM, "map/maxzoom": MAP_MAXZOOM,
+    "gps/baud": (300, 921600), "mercury/tx_gain_db": (TX_GAIN_MIN_DB, TX_GAIN_MAX_DB),
 }
 DEFAULT_SERIAL_PATTERN = "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*"     # the ports the search listens to: by-id first, so that the stable name of a device is the one kept
 STATUS_KEYS = frozenset({"status/source", "status/rigctld"})            # the settings that decide whether the radio can be the status's source
@@ -149,6 +143,8 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("igate_enabled", "igate/enabled", boolean),                       # true: what the radio hears is put on APRS-IS by a receive-only iGate (services/igate.py); nothing from the internet is ever sent on the air
     Setting("igate_server", "igate/server", aprsis_server),                   # host:port of the APRS-IS server the iGate logs in to (the filtered port 14580 of the round-robin name)
     Setting("igate_password", "igate/password", passcode),                    # the APRS-IS passcode of station/call (digits; a secret; -1, the read-only login, is refused). NeoAPRS does not work it out: the operator types it
+    Setting("ais_enabled", "ais/enabled", boolean),                           # true: the ships within 450 km (Digitraffic's AIS, over the internet) are drawn on the map (services/ais.py); received only, never sent on the air or to APRS-IS
+    Setting("adsb_enabled", "adsb/enabled", boolean),                         # true: the aircraft within 450 km (adsb.fi's ADS-B, over the internet) are drawn on the map (services/adsb.py); received only, never sent on the air or to APRS-IS
     Setting("gps_source", "gps/source", word_among(GPS_SOURCES)),             # where the position of a moving station comes from: off, gpsd (a gpsd daemon, gps/host) or serial (a GPS receiver's NMEA on gps/device)
     Setting("gps_host", "gps/host", hostport),                                # host:port of the gpsd that gps/source gpsd reads; 2947 is gpsd's port
     Setting("gps_device", "gps/device", port_address),                        # the serial port of the GPS receiver for gps/source serial, such as /dev/ttyUSB1; a socket://host:port address too
@@ -217,6 +213,8 @@ class Config:
     igate_enabled: bool = False
     igate_server: str = "rotate.aprs2.net:14580"
     igate_password: str = ""
+    ais_enabled: bool = False
+    adsb_enabled: bool = False
     gps_source: str = "off"
     gps_host: str = "127.0.0.1:2947"
     gps_device: str = ""

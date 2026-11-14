@@ -15,6 +15,7 @@ Every Markdown file of the repository. `tests/test_hygiene.py` fails when a docu
 | `docs/manual/beacon.md` | the My station tab: the beacon status, Position (fixed or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, PHG, the location and the symbol, the status, answers to queries, the fill-in digipeater |
 | `docs/manual/messages.md` | sending and receiving messages, acks, retries, routes, paths, a station heard on HF, encrypted messages, deleting |
 | `docs/manual/igate.md` | the Internet group: stations of APRS-IS on the map, the radius and the server, and advanced use as an iGate |
+| `docs/manual/traffic.md` | the groups Ships (AIS) and Aircraft (ADS-B): the ships and aircraft round you on the map, receive only, their icons, cards and status rows |
 | `docs/manual/email.md` | email through the APRS gateway |
 | `docs/manual/bulletins.md` | the message board and posting to it |
 | `docs/manual/skeds.md` | the Skeds tab: when stations will be on the air, the board on the project page, posting and joining a sked |

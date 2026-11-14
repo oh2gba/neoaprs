@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// The ships and the aircraft of the open feeds (ais/enabled, adsb/enabled) are layers of their own under the markers, each turned the way it heads, with a card for the one clicked (composables/useTrafficMap.ts); only received, never sent.
 // The map: the base map the daemon serves (no request leaves the machine), a marker with the APRS symbol and the call for every station that has a position, and a line for the track of
 // every station that has more than one (the selected station's heavier, solid, on a pale casing and with a dot at each position: lib/tracklayers.ts); a mouse resting on a marker shows a small card with the station's main facts (lib/hovercard.ts), and the selected station has the route its packets come by drawn
 // to our own station (lib/routeline.ts). A marker dims and a track fades on the way to the station's timeout, and a station heard direct within the hour has a ring round its marker; a station past it is not drawn (unless it is the selected one, whose marker shows). The daemon always has a world map (the one that ships with the program), so the map is drawn from the first second; without any base map file, or when the files cannot be read, the background is blank and a line says so (over the first-run guide too: it is
@@ -12,8 +13,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import { t } from "@/i18n";
 import MapAttribution from "@/components/MapAttribution.vue";
-import { archiveUrl, archivesPresent, glyphsUrl, loadMapEngine } from "@/lib/basemap";
-import { BASEMAP_FILE, WORLD_FILE, basemapStyle, MAX_ZOOM, OPEN_ZOOM, type Archives } from "@/lib/basemapstyle";
+import { archivesPresent, loadMapEngine } from "@/lib/basemap";
+import { MAX_ZOOM, OPEN_ZOOM } from "@/lib/basemapstyle";
+import { useBasemapStyle } from "@/composables/useBasemapStyle";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useMapCircles } from "@/composables/useMapCircles";
 import { useMapControlLabels } from "@/composables/useMapControlLabels";
@@ -26,7 +28,6 @@ import { buildMarkerDom, paintMarker } from "@/lib/markerdom";
 import { readView, writeView, type Focus, type Home, type Placed } from "@/lib/mapview";
 import { markerStep, timedOut } from "@/lib/aging";
 import { HoverCard } from "@/lib/hovercard";
-import { filesKey } from "@/lib/mapfetch";
 import { rangeCircleOf } from "@/lib/nearby";
 import { heardDirectRecently } from "@/lib/routes";
 import { routeFeatures } from "@/lib/routeline";
@@ -36,6 +37,8 @@ import { placePin } from "@/lib/pinmarker";
 import MapMenu from "@/components/MapMenu.vue";
 import { useMapMenu } from "@/composables/useMapMenu";
 import ReplayBar from "@/components/ReplayBar.vue";
+import TrafficCard from "@/components/TrafficCard.vue";
+import { useTrafficMap } from "@/composables/useTrafficMap";
 import { useMapReplay } from "@/composables/useMapReplay";
 import { hasPosition } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
@@ -68,8 +71,6 @@ const emit = defineEmits<{
   replay: [open: boolean];
 }>();
 const page = useDaemonContext();
-/** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
-const mapFiles = computed(() => filesKey(page.map.value));
 
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
@@ -81,12 +82,17 @@ const labelControls = useMapControlLabels(host);
 useResized(host, () => map?.resize());
 const { following, canFollow, followAt, release } = useFollowMe(page.gps);
 const { files, engineFailed, unreadable, note, offerDownload, onMapError } = useMapNote(page);
+const basemap = useBasemapStyle(
+  page,
+  files,
+  unreadable,
+  () => map,
+  () => gone,
+); // the style from the files the daemon has, set again when they or the colour scheme change
+const traffic = useTrafficMap(() => map, page); // the ships and the aircraft (ais/enabled, adsb/enabled): layers of their own under the station markers, and the card of the one clicked
 const placed = new Map<string, Placed>();
 let map: MapLibreMap | null = null;
 let engine: Awaited<ReturnType<typeof loadMapEngine>> | null = null;
-let generation = 0; // counts the times the files were made again: the addresses carry it, so that the reader of the archives starts afresh
-let seenKey: string | null = mapFiles.value;
-let shown = ""; // the addresses the style on the map was made with
 let centred = true; // the view is the one of the last visit, or has been set to where we are
 let gone = false;
 let pinMarker: Marker | null = null;
@@ -97,23 +103,6 @@ const markerPick = ref<Focus | null>(null); // the marker clicked last: the map 
 
 /** The tracks are drawn again once a minute, and when a station changes; the fading is in steps that wide anyway. */
 const minute = computed(() => Math.floor(page.now.value / 60_000));
-
-const archives = (): Archives => ({
-  detail: files.value.detail ? archiveUrl(BASEMAP_FILE, generation > 0 ? String(generation) : "") : null,
-  world: files.value.world ? archiveUrl(WORLD_FILE, generation > 0 ? String(generation) : "") : null,
-});
-const styleFor = (dark: boolean) => basemapStyle(archives(), dark, glyphsUrl());
-
-/** The daemon has other files: ask which it has, and set the style again if the addresses are other ones. */
-async function refreshBasemap(): Promise<void> {
-  files.value = await archivesPresent();
-  if (gone || !map) return;
-  const now = JSON.stringify(archives());
-  if (now === shown) return;
-  shown = now;
-  unreadable.value = [];
-  map.setStyle(styleFor(page.dark.value));
-}
 
 function drawRoute(): void {
   const row = props.selected === null ? undefined : page.stations.value.get(props.selected);
@@ -127,6 +116,7 @@ function addLayers(): void {
   drawTracks();
   addRouteLayers(map, routeFeatures(undefined, page.stations.value, null));
   drawRoute();
+  traffic.add();
   replay.add(); // (last: over the live layers, which it hides while it plays)
 }
 
@@ -223,7 +213,6 @@ async function create(): Promise<void> {
     return;
   }
   if (gone || !host.value) return;
-  shown = JSON.stringify(archives());
   const view = readView();
   centred = view !== null;
   const home = view ?? (page.home.value ? { ...page.home.value, zoom: OPEN_ZOOM } : WORLD_VIEW);
@@ -231,7 +220,7 @@ async function create(): Promise<void> {
   try {
     map = new engine.Map({
       container: host.value,
-      style: styleFor(page.dark.value),
+      style: basemap.first(),
       center: [home.lon, home.lat],
       zoom: home.zoom,
       maxZoom: MAX_ZOOM,
@@ -247,6 +236,7 @@ async function create(): Promise<void> {
   map.addControl(new engine.NavigationControl({ showCompass: false }), "top-left");
   labelControls();
   map.on("style.load", addLayers);
+  traffic.listen(map);
   circles.listen(map);
   map.on("movestart", () => hover?.hide());
   map.on("dragstart", release); // (a drag by the person; the map's own easing is none)
@@ -294,14 +284,6 @@ watch(
     if (map && at && !clicked) map.flyTo({ center: [at.lon, at.lat], zoom: Math.max(map.getZoom(), OPEN_ZOOM) });
   },
 );
-watch(mapFiles, (key) => {
-  if (key === null || key === seenKey) return;
-  if (seenKey !== null) generation += 1; // (the first word from the daemon is not a change)
-  seenKey = key;
-  void refreshBasemap();
-});
-watch(page.dark, (dark) => map?.setStyle(styleFor(dark)));
-
 onMounted(() => {
   if (root.value) hover = new HoverCard(root.value, stationOf, () => page.now.value, page.radiosNamed);
   void create();
@@ -326,6 +308,14 @@ onBeforeUnmount(() => {
     <div ref="host" class="mapbox" role="application" :aria-label="t('map.label')"></div>
     <MapMenu v-if="mapMenu.menu.value" :key="mapMenu.key.value" v-bind="mapMenu.menu.value" :trigger="host" v-on="menuEvents" />
     <ReplayBar v-if="props.replay" :replay="replay.clock" @close="emit('replay', false)" />
+    <TrafficCard
+      v-if="traffic.picked.value"
+      :pick="traffic.picked.value"
+      :ship="traffic.ship.value"
+      :aircraft="traffic.aircraft.value"
+      :now="page.now.value"
+      @close="traffic.close"
+    />
     <button v-if="canFollow" class="btn followme" :class="{ primary: following }" type="button" :aria-pressed="following" @click="following = !following">
       {{ t("map.follow_me") }}
     </button>

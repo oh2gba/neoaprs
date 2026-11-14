@@ -15,7 +15,7 @@ import { useStationPrefs } from "@/composables/useStationPrefs";
 import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { hfOn, type RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
+import type { AircraftRow, Command, PacketRow, ShipRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
 import { NOW, configValues } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
@@ -29,6 +29,11 @@ export type Given = { [K in keyof DaemonContext]?: DaemonContext[K] extends Read
 /** Who looks at the scope: the one a test gave, else the page's own counting over the given parts. */
 function scopeOf(over: Given, send: FakeDaemon["send"], hf: Ref<TncState | null>, connection: Ref<Connection>): ScopeLooks {
   return over.scope ?? useScopeLooks(send, hf, connection, pageVisible());
+}
+
+/** The ships and the aircraft of the map: the tables a test gave, else empty ones that it can fill. */
+function trafficTables(over: Given): Pick<DaemonContext, "ships" | "aircraft"> {
+  return { ships: over.ships ?? shallowReactive(new Map<string, ShipRow>()), aircraft: over.aircraft ?? shallowReactive(new Map<string, AircraftRow>()) };
 }
 
 /** The context a test mounts a pane in; a part given as a value is put in a ref. */
@@ -59,6 +64,8 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     qru: part(over.qru, null),
     general: part(over.general, null),
     skeds: part(over.skeds, null),
+    ...trafficTables(over),
+    traffic: part(over.traffic, null),
     map,
     selfUpdate: part(over.selfUpdate, null),
     ports,

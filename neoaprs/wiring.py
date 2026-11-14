@@ -164,6 +164,8 @@ def wire(parts: Services) -> None:
     parts.frequencies.changed.connect(lambda: _show_frequencies(parts))
     parts.config_changed.connect(lambda config: parts.mercury.set_tx_gain(config.mercury_tx_gain_db))                  # (the transmit gain is set live in the modem, and the tune tone follows it)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
+    for feed in (parts.ships, parts.aircraft):                                           # the ships and the aircraft of the map: their switches, and our position to read round (they send nothing, and nothing is handed to them)
+        parts.config_changed.connect(feed.config_changed)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
     parts.gps_feed.changed.connect(parts.gps.feed_changed)
     parts.gps.moved.connect(lambda: place_me(parts))

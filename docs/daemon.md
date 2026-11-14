@@ -228,6 +228,29 @@ sent again when the position is more than `FILTER_MOVE_KM` (10) from where the l
 Tests: `tests/test_aprsis.py` (the login with its filter, the read-only login, the lines read, the lines that are none), `tests/test_igate_service.py` (the filter that moves, the states, nothing gated while listening) and `tests/test_igate_wiring.py`
 (a whole daemon on a fake server: stations of the internet in the book and the log, nothing written to the radio, nothing sent back to the server).
 
+## The ships and the aircraft of the map
+
+Two feeds of open data are drawn over the map, each behind its switch (`ais/enabled`, `adsb/enabled`, both off by default; the groups Ships (AIS) and Aircraft (ADS-B) of the Settings tab): the ships of Fintraffic's Digitraffic
+(`https://meri.digitraffic.fi/api/ais/v1`, CC BY 4.0) and the aircraft of adsb.fi (`https://opendata.adsb.fi/api/v2`), each within 450 km (`RADIUS_KM`) of `stationbook.me_position`. They are not packets and not stations: a ship
+or an aircraft never enters the station book, the packet log, the database, the iGate or anything that sends. The services (`services/ais.py`, `services/adsb.py` on `services/trafficfeed.py`) have no Tnc, no `Radio`, no
+sender and no connection to APRS-IS; nothing is handed to them but the settings (`Controller.config_changed`, in `wiring.py`), and what they read goes only to the page's topics `ships`, `aircraft` and `traffic`.
+
+**The ships.** `locations?latitude=LAT&longitude=LON&radius=450` every minute, and `vessels` every ten minutes: whole the first time, after that `?from=` the newest `timestamp` it had (epoch milliseconds). Digitraffic answers 406 without
+`Accept-Encoding: gzip` and asks an application to name itself in `Digitraffic-User` (`NeoAPRS/VERSION`); `neoaprs/trafficfetch.py` sends both and unpacks at most 20 MB (50 MB for the first `vessels`). `neoaprs/ais.py` reads them: a
+ship is an MMSI of nine digits whose first is 2 to 7 (or a search and rescue aircraft's 111), a position older than an hour is left out, and the numbers of AIS that mean "not available" (heading 511, course 360, speed 102.3, draught 0,
+an ETA without month or day, hour 24 or minute 60) are null. The ETA is packed (`month << 16 | day << 11 | hour << 6 | minute`) and has no year: the year nearest to the fix is taken. The length is A + B and the beam C + D
+of the reference point of its GPS. The kind follows the ship type (70 to 79 cargo, 80 to 89 tanker, 60 to 69 passenger, 40 to 49 high-speed, 30 fishing, 36 sailing, 37 pleasure, 52 tug ...), and the kind's category the colour
+on the map. The icon points the way of the heading, else of the course while the ship moves at half a knot or more, else nowhere (a round icon).
+
+**The aircraft.** `lat/LAT/lon/LON/dist/243` (nautical miles: 450 km) every 15 seconds; the feed allows one question a second for each address. `neoaprs/adsb.py` reads readsb's JSON: the vehicles of an airport (emitter
+categories C1 to C7) are left out, `alt_baro` `ground` is on the ground, and an aircraft whose position is more than a minute old is not shown.
+
+**The rounds.** A feed runs while its switch is on, asks at once when it is switched on or the settings are saved, and waits for a position when there is none (`waiting`). A failure (`FetchError`: the system's words, or
+`HTTP 503`) is `failing` with the reason; what was shown stays until it is old (an hour for a ship, a minute for an aircraft), and the next question waits 30 s, 1, 2 and then 5 minutes (`Backoff`), never less than the
+feed's own interval. Switching it off forgets every item at once (`cleared`) and the topic is empty. Under `NEOAPRS_NO_DEVICES` the servers are not there (`nodevices.check_url`), as for every connection that leaves this computer.
+Tests: `tests/test_traffic.py` (the decoders on captured answers in `tests/fixtures/traffic/`) and `tests/test_traffic_feed.py` (the rounds, the switch, a page that sees them, and that nothing reaches the station book, the packet
+log or the iGate).
+
 ## Messaging
 
 The commands are `send_message`, `query` (a directed query, once, with no id: `neoaprs/services/asking.py`), `message_retry`, `message_cancel`, `message_delete`, `conversation_delete` and `overheard_delete`. Messages to bulletins and

@@ -6,9 +6,11 @@ import { beaconOff, disabledByValues } from "@/lib/beaconoff";
 import { PORT_OTHER, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
-  it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
+  it("gives the Settings tab the serial and TNC, Internet, ships, aircraft, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
-    expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
+    expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "ais", "adsb", "digi", "web", "notifications", "map"]);
+    expect(groups.find((g) => g.id === "ais")?.keys).toEqual(["ais/enabled"]);
+    expect(groups.find((g) => g.id === "adsb")?.keys).toEqual(["adsb/enabled"]);
     expect(groups[0]?.keys).toEqual([
       "station/transmit",
       "fm/enabled",
@@ -26,11 +28,13 @@ describe("groupKeys", () => {
     ]);
     expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
-    expect(groups[2]?.title).toBe("Digipeater");
-    expect(groups[2]?.keys).toEqual(["digi/enabled"]);
-    expect(groups[4]?.title).toBe("Notifications");
-    expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
-    expect(groups[5]?.keys).toEqual(["map/radius_km"]);
+    expect(groups[2]?.title).toBe("Ships (AIS)");
+    expect(groups[3]?.title).toBe("Aircraft (ADS-B)");
+    expect(groups[4]?.title).toBe("Digipeater");
+    expect(groups[4]?.keys).toEqual(["digi/enabled"]);
+    expect(groups[6]?.title).toBe("Notifications");
+    expect(groups[6]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
+    expect(groups[7]?.keys).toEqual(["map/radius_km"]);
   });
   it("gives the My station tab the station keys first (the call, the place, the symbol), then how often and what the beacon says, the antenna and the path, and the status keys", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "beacon");

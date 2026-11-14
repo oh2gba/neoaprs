@@ -6,6 +6,8 @@
 - **New:** the HF **Spectrum** is a sharper waterfall with a frequency ruler, the spectrum as a curve and what was heard written on it.
 - **New:** **Monitor** in the map's menu shows the waterfall on a card over the map.
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
+- **New:** **Ships (AIS)** in the Settings tab draws the ships within 450 km on the map, turned by their heading, with name and voyage data.
+- **New:** **Aircraft (ADS-B)** in the Settings tab draws the aircraft within 450 km on the map. Both are received only: nothing is sent.
 - **Changed:** the recommended path of a fixed station is WIDE2-2.
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
