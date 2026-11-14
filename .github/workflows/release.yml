@@ -88,7 +88,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - name: Build the wheel and the sdist (the wheel is built from the sdist)
         run: |
           uv build --out-dir dist
@@ -124,7 +124,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - name: The version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
@@ -434,7 +434,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       # the tools the build scripts fetch (the CPython of python-build-standalone, appimagetool and its runtime), kept between runs for as long as their pins in the scripts stay
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -485,7 +485,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -547,7 +547,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
@@ -602,7 +602,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-          enable-cache: true
+          enable-cache: false     # (a release is built from what the lock names, fetched anew: a cache that another run filled has no part in it)
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/neoaprs-build
