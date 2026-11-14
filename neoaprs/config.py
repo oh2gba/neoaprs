@@ -13,10 +13,12 @@ from .callsign import call_problem
 from .coded import CodedError, Param
 from .configlegacy import with_legacy
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
+from .configradios import RadioViews, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings: views of the flat keys until they are stored)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .radiorules import HF
+from .radiotype import stored_text as _show
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import DEFAULT as DEFAULT_PROFILE, HF_DEFAULT as DEFAULT_HF_PROFILE, Profile, names_tcp, profile_of
@@ -64,16 +66,6 @@ GPS_SOURCES = ("off", "gpsd", "serial")                                # where t
 
 
 # ---- the types a setting can have: text to value (raising ValueError with the reason), value to text (the ones that are more than a number or a word are in configvalues.py)
-
-def _show(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, float):
-        return f"{value:.6f}".rstrip("0").rstrip(".")
-    return str(value)
-
 
 def _host_port(text: str) -> tuple[str, int] | None:
     """A `host:port` as the pair (the name may be an IPv6 address in brackets); None for an empty text."""
@@ -168,7 +160,7 @@ HF_DIAL = "update/hf_dial"                   # the HF dial the version page name
 
 
 @dataclass(frozen=True)
-class Config:
+class Config(RadioViews):
     tnc_profile: str = DEFAULT_PROFILE.key
     serial_port: str = ""
     serial_baud: int | None = None

@@ -34,6 +34,7 @@ from .interlock import Interlock
 from .mercury import frame_words, station_message, too_long
 from .packet import Packet
 from .radiorules import RadioRules
+from .radiotype import FM_ID, HF_ID, RadioId
 from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
@@ -129,6 +130,8 @@ class Tnc(TimedSource):
         self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
         self.modem: Modem | None = None                                  # the modem program behind the line of a `modem` profile (the Mercury HF modem, set by app.py): its hold, its words and its problem count while the profile is a modem's
+        self.radio_id: RadioId = HF_ID if profile.rules.kind == "hf" else FM_ID   # the radio it is the line of (radiotype.py), which its driver sets; until then today's by its kind: the FM radio 1, the HF radio 2
+        self.radio_name = ""                                             # the radio's name for the log (radiospec.log_name), which its driver sets; `label` goes by the kind until then
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
         self.packet: Signal[[Packet]] = Signal("tnc.packet")             # every packet in and out

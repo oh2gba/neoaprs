@@ -13,6 +13,7 @@ from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT, MessageError
 from neoaprs.ax25 import MAX_PATH
 from neoaprs.coded import CodedError
 from neoaprs.callsign import format_call, normal_name, parse_call
+from neoaprs.radiotype import RadioId, radio_id_of
 from neoaprs.route import DIRECT_ONLY, rf_only_path
 
 State = Literal["sending", "acked", "rejected", "failed", "unconfirmed", "cancelled", "received", "overheard"]
@@ -76,6 +77,11 @@ class MessageRecord:
     failure: Failure | None = None                        # why a failed message of ours failed (`FAILURES`); None while it has not failed and for one that failed for want of an answer
     snr: float | None = None                              # the signal of the packet that carried it (neoaprs/reading.py), SNR in dB and RSSI in dBm: a message that came in, its own packet's; one of ours, the ack's or
     rssi: float | None = None                             # the reject's that settled it; None until then, and when that packet's radio gave none
+
+    @property
+    def radio_id(self) -> RadioId | None:
+        """The id of the radio a message that came in came on (`radio` as an id); None for one of ours and for one kept before there were two."""
+        return radio_id_of(self.radio)
 
     @property
     def peer(self) -> str:

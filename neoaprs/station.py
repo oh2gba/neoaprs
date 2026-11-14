@@ -11,6 +11,7 @@ from .aprsweather import Weather
 from .geo import distance_km
 from .hourcount import HourCount
 from .packet import IS, Via
+from .radiospec import FM_ID, HF_ID, NOT_HEARD, RadioHeard, RadioId
 from .reach import Reach, RouteMark
 from .route import Deliveries, Route
 
@@ -111,6 +112,18 @@ class Station:
     deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
     internet_reach: Reach | None = None         # how its latest internet packet got there: heard by an iGate, or sent from an app (neoaprs/reach.py; not kept in the cache: it is read again from the latest packets at the start)
     route_marks: tuple[RouteMark, ...] = ()     # the route of its latest packet and the one before it that came another way, any channel, newest first, for the map (not kept in the cache either)
+
+    @property
+    def heard_by(self) -> dict[RadioId, RadioHeard]:
+        """What each radio heard of it (rule 3.3), from today's counts by slot: the FM radio's and the HF radio's, each while it heard a packet; the path of the latest packet of the air goes with the radio that
+        heard last (the FM radio on a tie)."""
+        fm_last = self.last_fm_at is not None and (self.last_hf_at is None or self.last_fm_at >= self.last_hf_at)
+        found = {FM_ID: RadioHeard(self.heard_fm, self.last_fm_at, self.last_path if fm_last else ()), HF_ID: RadioHeard(self.heard_hf, self.last_hf_at, () if fm_last else self.last_path)}
+        return {radio: heard for radio, heard in found.items() if heard.count > 0}
+
+    def heard_on(self, radio: RadioId) -> RadioHeard:
+        """What the radio heard of it; nothing (a count of 0) for a radio that never heard it."""
+        return self.heard_by.get(radio, NOT_HEARD)
 
     @property
     def has_position(self) -> bool:

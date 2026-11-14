@@ -9,6 +9,7 @@ HEARD_PATH_WINDOW_MIN = 60           # the automatic path of a message goes by t
 HEARD_PATH_MIN_PACKETS = 2           # ... and at least this many came that way within the window (a single packet is luck)
 HEARD_PATH_MAX_DIGIPEATERS = 3       # a route of more digipeaters than this is not sent by (heard that way, but too long a path to repeat)
 HEARD_PATH_ATTEMPTS = 2              # attempts 1 to this many of a message go by the heard path, the later ones by `beacon/path`
+MESSAGE_RADIO_RECENT_HOURS = 6       # a message to a station goes on the radio it was heard on most recently within this many hours, a local kind (FM, LoRa) before HF when both heard it (rule 3.2 of the radio round: neoaprs/messagerule.py)
 
 # The ALOHA circle (Bob Bruninga WB4APR, "The ALOHA Circle", aprs.org/aloha/ALOHAcir.txt, 7 Nov 2011, and aprs.org/aloha.html): the radius round our station within which the stations heard on RF fill the 1200 baud channel.
 ALOHA_PACKETS = 1800                 # the load that fills the channel: about 60 packets a minute, 1800 in 30 minutes; the circle ends at the station where the stations nearer than it add up to this

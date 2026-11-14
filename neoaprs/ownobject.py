@@ -23,6 +23,7 @@ from neoaprs.config import MAX_COMMENT, MAX_COMMENT_PHG, SYMBOL_TABLES
 from neoaprs.coded import CodedError
 from neoaprs.configtypes import over_the_air_refusal
 from neoaprs.message import path_choice
+from neoaprs.radiotype import FM_ID, HF_ID, RadioId
 from neoaprs.route import DIRECT_ONLY
 from neoaprs.units import KNOT_KMH
 
@@ -65,6 +66,11 @@ class OwnObject:
     qru_group: str = ""                          # the group of QRU (services/qru.py) it is offered in to a station that asks; empty: none
     on_request: bool = False                     # True: never sent on the schedule, only to a station that asks for it
     radio: str = "fm"                            # the radio it goes out on: `fm`, `hf` or `both` (neoaprs/radios.py); with one radio on it goes on that one, whatever is kept
+
+    @property
+    def radios(self) -> tuple[RadioId, ...]:
+        """The ids of the radios it goes out on, ascending (`radio` as ids: fm 1, hf 2, both 1 and 2)."""
+        return (FM_ID, HF_ID) if self.radio == "both" else (HF_ID,) if self.radio == "hf" else (FM_ID,)
 
     @property
     def path_calls(self) -> tuple[str, ...] | None:

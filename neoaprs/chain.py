@@ -10,6 +10,7 @@ Pure code."""
 from dataclasses import dataclass, replace
 from datetime import datetime
 
+from neoaprs.radiotype import RadioId, radio_id_of
 from neoaprs.route import digipeaters, is_alias, is_marker
 
 AT_GATE = 0                                         # the position of "a copy came back over the internet, by this iGate"
@@ -30,6 +31,11 @@ class Attempt:
     path: tuple[str, ...]                           # the digipeaters it went by, as sent (WIDE1-1 stays WIDE1-1)
     seen: tuple[HopSeen, ...] = ()
     radio: str = ""                                 # the radio it went out on (`fm`, `hf`; empty for an attempt kept before there were two)
+
+    @property
+    def radio_id(self) -> RadioId | None:
+        """The id of the radio it went out on (`radio` as an id); None for an attempt kept before there were two."""
+        return radio_id_of(self.radio)
 
     def with_seen(self, found: HopSeen) -> "Attempt":
         return replace(self, seen=(*self.seen, found))

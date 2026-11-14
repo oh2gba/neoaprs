@@ -15,13 +15,10 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, RadioSet, fit_frame, our_frame, radio_path, radios_on
 from neoaprs.services.pace import SPACING_SEC
+from neoaprs.services.radioset import SendError as SendError          # (services/radioset.py's, where the one fit function raises it; here under its old name)
 from neoaprs.source import Source
 
 log = logging.getLogger("neoaprs.sender")
-
-
-class SendError(ValueError):
-    """The settings and the values make no frame."""
 
 
 class Sender:

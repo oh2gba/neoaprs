@@ -14,6 +14,8 @@ Why each number is what it is:
   Frames up to the 123 bytes the mode carries."""
 from dataclasses import dataclass
 
+from .radiotype import RadioType
+
 FM_BEACON_MIN_MIN = 20
 HF_BEACON_MIN_MIN = 30                 # the floor of beacon/interval_min while the HF radio is on (the FM radio's alone: FM_BEACON_MIN_MIN)
 HF_BEACON_JITTER_SEC = 300             # measured: the smallest pause that puts stations started together within a point of the random-phase floor (the docstring above; docs/mercury.md)
@@ -36,3 +38,8 @@ class RadioRules:
 
 FM = RadioRules("fm", True, True, True, FM_BEACON_MIN_MIN, 0, None)
 HF = RadioRules("hf", False, False, False, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_MAX_FRAME, HF_RETRY_JITTER_SEC)
+
+
+def rules_of(t: RadioType) -> RadioRules:
+    """The rules of a type of radio (neoaprs/radiotypes/), as the services read them until RadioRules goes: a view of the type's limits and of what it is allowed."""
+    return RadioRules(t.kind, t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon, t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.max_frame, t.limits.retry_jitter_sec)

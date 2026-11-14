@@ -26,6 +26,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from . import nodevices
+from .claims import Claims
 from .clock import Clock, utcnow
 from .config import Config
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, propose_keying, propose_sound_card, speaker_audio
@@ -36,6 +37,7 @@ from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
 from .mercuryspeaker import SpeakerAudio, SpeakerLine
+from .radiotype import HF_ID, RadioId
 from .serialprobe import PortInfo, available_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
@@ -81,8 +83,10 @@ def _address(url: str) -> tuple[str, int]:
 
 
 class Mercury(Channel, Tuning, Scoping):
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None) -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, finder: Callable[[], Command | None] | None = None, backoff: Backoff | None = None, control_backoff: Backoff | None = None, *,
+                 claims: Claims | None = None, holder: RadioId = HF_ID, folder: Path | None = None) -> None:
         self.data_dir, self.clock = data_dir, clock
+        self.claims, self.holder, self.folder = claims, holder, folder   # the station's table of resources, the radio this modem is, its own folder: kept for the radio's driver (C2), used by nothing yet
         self._finder = finder or find                                # the shipped program (mercuryhelper.find); a test gives its own
         self.backoff = backoff or Backoff()                          # between two starts of a program that died
         self._control_backoff = control_backoff

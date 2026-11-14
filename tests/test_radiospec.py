@@ -1,0 +1,88 @@
+"""A radio as it is stored (neoaprs/radiospec.py): the live and the enabled radios by position, the number within a kind and the log's name of a radio, the main radio, a station's choice and a set of radios
+read against the radios that are enabled (plan §2), the name the operator types, and a radio's own value with its field's default for one that is missing or wrong."""
+import logging
+
+import pytest
+
+from neoaprs.clock import utc
+from neoaprs.radiospec import FM_ID, HF_ID, MAX_NAME, RadioError, RadioSpec, check_name, enabled, in_force_choice, in_force_set, live, log_name, main_radio, number_in_kind
+from neoaprs.radiotypes import type_of
+
+GONE = utc(2026, 11, 14, 9, 0)
+
+
+def radio(id: int, kind: str = "fm", enabled: bool = True, position: int | None = None, name: str = "", removed: bool = False, **settings: str) -> RadioSpec:
+    return RadioSpec(id, kind, {"fm": "kiss", "hf": "mercury", "lora": "dummy-lora"}[kind], name, enabled, id if position is None else position, GONE if removed else None, settings)  # type: ignore[arg-type]
+
+
+SIX = [radio(1), radio(2, "hf", position=5), radio(3, "hf", enabled=False, position=2), radio(4, "fm", removed=True, position=0), radio(5, "lora", position=3), radio(6, "hf", name="20m", position=4)]
+
+
+def test_the_live_radios_are_the_ones_not_removed_and_the_enabled_ones_are_also_on_both_by_position() -> None:
+    assert [s.id for s in live(SIX)] == [1, 3, 5, 6, 2]
+    assert [s.id for s in enabled(SIX)] == [1, 5, 6, 2]
+    assert [s.id for s in live([radio(2, position=1), radio(1, position=1)])] == [1, 2], "the id after the position"
+    assert enabled([]) == []
+
+
+def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_keeps_its_number() -> None:
+    assert [number_in_kind(s, SIX) for s in SIX] == [1, 1, 2, 2, 1, 3]
+    assert [log_name(s, SIX) for s in SIX] == ["FM", "HF", "HF 2", "FM 2", "LoRa", "20m"]
+    one = [radio(4, removed=True), radio(7)]
+    assert log_name(one[1], one) == "FM", "the live one is the first FM radio once the other is removed"
+    two_gone = [radio(1, removed=True), radio(3, removed=True), radio(5)]
+    assert [log_name(s, two_gone) for s in two_gone] == ["FM", "FM 2", "FM"], "a removed radio is numbered by id among all of its kind, a live one among the live ones"
+
+
+def test_the_main_radio_is_the_chosen_one_while_it_is_enabled_else_the_first_enabled_by_position() -> None:
+    assert main_radio(SIX, 6) == 6
+    assert main_radio(SIX, 3) == 1 and main_radio(SIX, 4) == 1 and main_radio(SIX, None) == 1 and main_radio(SIX, 99) == 1
+    assert main_radio([radio(1, enabled=False), radio(2, "hf")], None) == 2, "today's default radio: FM while it is on, else HF"
+    assert main_radio([radio(1, enabled=False)], 1) is None and main_radio([], None) is None
+
+
+def test_a_stations_choice_that_names_no_enabled_radio_is_automatic_and_with_one_radio_that_one() -> None:
+    assert in_force_choice(6, SIX) == 6 and in_force_choice(3, SIX) is None and in_force_choice(4, SIX) is None and in_force_choice(None, SIX) is None
+    alone = [radio(1, enabled=False), radio(2, "hf")]
+    assert in_force_choice(1, alone) == 2 and in_force_choice(None, alone) == 2
+    assert in_force_choice(1, []) is None
+
+
+def test_a_set_of_radios_is_its_enabled_ticks_else_the_main_radio_and_with_one_radio_that_one() -> None:
+    assert in_force_set([2, 1, 3], SIX, 1) == (1, 2), "the enabled ticks by position"
+    assert in_force_set([3, 4], SIX, 6) == (6,) and in_force_set([], SIX, 1) == (1,)
+    assert in_force_set([3], SIX, None) == ()
+    assert in_force_set([1], [radio(1, enabled=False), radio(2, "hf")], 2) == (2,)
+
+
+def test_a_name_is_stripped_short_printable_ascii_and_unique_among_the_live_radios() -> None:
+    assert check_name("  ", SIX, None) == "" and check_name(" 2m ", SIX, None) == "2m"
+    assert check_name("20M", SIX, 6) == "20M", "its own name, in other letters"
+    assert check_name("x" * MAX_NAME, SIX, None) == "x" * MAX_NAME
+    with pytest.raises(RadioError, match="radio 6's already"):
+        check_name("20M", SIX, 1)
+    with pytest.raises(RadioError, match="at most 8"):
+        check_name("x" * (MAX_NAME + 1), SIX, None)
+    for bad in ("Kälte", "a\tb"):
+        with pytest.raises(RadioError, match="printable ASCII"):
+            check_name(bad, SIX, None)
+    assert check_name("old", [radio(4, name="old", removed=True)], None) == "old", "a removed radio's name is free"
+
+
+def test_a_radios_value_is_parsed_by_its_field_and_a_missing_or_wrong_one_is_the_default(caplog: pytest.LogCaptureFixture) -> None:
+    spec = radio(1, port="/dev/ttyUSB0", baud="19200", digipeat="yes", tcp_port="0")
+    assert spec.rtype is type_of("kiss") and not spec.removed and radio(4, removed=True).removed
+    assert (spec.value("port"), spec.value("baud"), spec.value("digipeat"), spec.value("beacon"), spec.value("tcp_host")) == ("/dev/ttyUSB0", 19200, True, True, "127.0.0.1")
+    with caplog.at_level(logging.WARNING, "neoaprs.radiospec"):
+        assert spec.value("tcp_port") == 8001
+    assert "radio/1/tcp_port" in caplog.text and "the default 8001 is used" in caplog.text
+    with pytest.raises(RadioError, match="radio/1/sound_card"):
+        spec.value("sound_card")
+    assert radio(2, "hf").value("tx_gain_db") == 0
+    assert (FM_ID, HF_ID) == (1, 2)
+
+
+def test_a_spec_is_a_value() -> None:
+    assert radio(1, port="a") == radio(1, port="a") and hash(radio(1, port="a")) == hash(radio(1, port="a"))
+    assert radio(1, port="a") != radio(1, port="b")
+    assert len({radio(1), radio(1), radio(2, "hf")}) == 2

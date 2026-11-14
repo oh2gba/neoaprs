@@ -11,6 +11,7 @@ from .aprslocator import Locator
 from .aprsstorm import Storm, storm_text
 from .aprstelemetry import Telemetry
 from .aprsweather import Weather, weather_text
+from .radiotype import RadioId, radio_id_of
 
 
 DuplicateKey = tuple[str, str, bytes]
@@ -219,6 +220,11 @@ class Packet:
             raise ValueError("a packet sent by us never goes by the internet")
         if (self.via == RF_GATED) != (self.third_party is not None and self.via not in (IS, DUMMY)):
             raise ValueError("a packet is rf-gated exactly when it came on the radio as a third-party packet")
+
+    @property
+    def radio_id(self) -> RadioId | None:
+        """The id of the radio it came on or went out on (`radio` as an id: fm 1, hf 2); None for a packet from the internet and for one made without a radio."""
+        return radio_id_of(self.radio)
 
     @property
     def kind(self) -> str:

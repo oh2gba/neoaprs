@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from tests import test_architecture as arch
 
 BLOCK = re.compile(r"(<!-- doc-arch:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-arch -->)", re.S)
-SPECIAL = {"services": ", and everything in `neoaprs/services/`", "delivery": ""}
+SPECIAL = {layer: ", and " + " and ".join(f"everything in `{package.replace('.', '/')}/`" for package, of in arch.PACKAGE_LAYERS.items() if of == layer) for layer in set(arch.PACKAGE_LAYERS.values())} | {"delivery": ""}     # the packages that are one layer whole
 
 
 def _row(*cells: object) -> str:

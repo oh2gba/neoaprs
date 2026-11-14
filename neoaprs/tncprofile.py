@@ -4,16 +4,15 @@
 The strings and their pauses are the ones the manufacturers and the projects named below publish. `enter` is a list of steps, each the
 bytes to write and the seconds to wait after them; the wait after the last step is the settle time, in which what the TNC says is thrown away."""
 from dataclasses import dataclass
-from typing import Literal
 
 from .coded import CodedError
 from .radiorules import FM, HF, RadioRules
+from .radiotype import Transport as Transport      # how a line is reached: a type of radio's (radiotype.py), named here as before
 from .reading import ReadingKind
 
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
 Step = tuple[bytes, float]
-Transport = Literal["serial", "tcp", "dummy", "modem"]
 
 
 @dataclass(frozen=True)
