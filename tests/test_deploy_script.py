@@ -140,3 +140,21 @@ def test_a_tracked_name_with_a_line_end_or_a_tab_stops_the_upload(repo: Path, to
         assert done.returncode == 2 and "control character" in done.stderr and args == [], option
         assert "/public_html/neo/.env" not in done.stdout
 
+
+
+@pytest.mark.parametrize(("script", "args"), [("deploy.sh", []), ("skeds.sh", ["rm", "0123456789ab"]), ("support-fetch.sh", []), ("usage-report.sh", [])])
+def test_a_token_file_that_was_named_and_is_missing_is_never_replaced_by_the_one_beside_the_checkout(repo: Path, tmp_path: Path, script: str, args: list[str]) -> None:
+    """The scripts fall back to ../../oh2gba/.secrets only when no file was named: with SECRETS_FILE naming a missing one (as a test does), the developer's real token stays unread and nothing is asked."""
+    shutil.copy(ROOT / "server" / script, repo / "server" / script)
+    beside = tmp_path / "oh2gba"
+    beside.mkdir()
+    (beside / ".secrets").write_text(f"{MADE_UP}\n", encoding="utf-8")
+    asked = tmp_path / "bws-was-asked"
+    bws = tmp_path / "bws"
+    bws.write_text(f"#!/usr/bin/env bash\necho \"$BWS_ACCESS_TOKEN\" > {asked}\necho '[]'\n", encoding="utf-8")
+    bws.chmod(0o755)
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "SECRETS_FILE": str(tmp_path / "none"), "BWS": str(bws)}
+    done = subprocess.run(["bash", str(repo / "server" / script), *args], capture_output=True, text=True, env=env, timeout=60)
+    assert done.returncode == 1 and "no .secrets file" in done.stderr, (done.returncode, done.stderr)
+    assert not asked.exists(), "the token of the file beside the checkout went to the secrets program"
+    assert MADE_UP not in done.stdout + done.stderr

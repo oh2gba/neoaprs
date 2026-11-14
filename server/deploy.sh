@@ -69,7 +69,7 @@ esac
 [ ! -e "$SITE/skeds.json" ] || { echo "deploy.sh: site/skeds.json would be uploaded over the live sked board; remove it" >&2; exit 1; }
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
-[ -f "$ENVFILE" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"
+[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"   # a file that was named and is not there is never replaced by another one
 [ -f "$ENVFILE" ] || { echo "no .secrets file (set SECRETS_FILE)" >&2; exit 1; }
 BWS="${BWS:-$(command -v bws || echo "$HOME/.local/bin/bws")}"
 export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(grep -v '^#' "$ENVFILE" | head -1 | tr -d '\r\n')}"

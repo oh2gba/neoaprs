@@ -37,7 +37,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # server/
 REMOTE="${VERSION_PAGE_REMOTE:-/public_html/oh2gba.eu/neoaprs}"
 
 ENVFILE="${SECRETS_FILE:-$(d="$ROOT"; until [ -f "$d/.secrets" ] || [ "$d" = / ]; do d="$(dirname "$d")"; done; echo "${d%/}/.secrets")}"
-[ -f "$ENVFILE" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"
+[ -f "$ENVFILE" ] || [ -n "${SECRETS_FILE:-}" ] || ENVFILE="$ROOT/../../oh2gba/.secrets"   # a file that was named and is not there is never replaced by another one
 EXPLICIT_IGNORE="$IGNORE"
 [ -n "$IGNORE" ] || IGNORE="$(dirname "$ENVFILE")/usage-ignore"
 if [ -n "$EXPLICIT_IGNORE" ] && [ ! -f "$IGNORE" ]; then echo "no ignore list at $IGNORE" >&2; exit 1; fi
