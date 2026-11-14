@@ -6,17 +6,27 @@ when the pattern is the default one, the Bluetooth devices that are paired. On W
 the paired Bluetooth serial ports among them, or the `/dev/cu.*` devices), USB adapters first, without the boards and the ports on the skip list; one that another program has open cannot be opened, which the open says
 ("in use by another program"), and it is passed over. A KISS TCP address is not a port of the machine and is never tried. The TNC's own line is closed
 for the time (`hold`) and opened again after it (`release`), found or not. The search is one asyncio task, so a cancel (from the page, or the daemon's stop) ends it between two awaits and the port that was open is closed.
-A speed is not tried on a port that has none (a Bluetooth port, of Linux or a COM port of Windows). Each try takes `listen_sec` + `answer_sec` (2.5 s) when nothing answers, so a port costs 7 tries, about 18 s; a command-mode TNC is found at 9600 in a few seconds."""
+A speed is not tried on a port that has none (a Bluetooth port, of Linux or a COM port of Windows). Each try takes `listen_sec` + `answer_sec` (2.5 s) when nothing answers, so a port costs 7 tries, about 18 s; a command-mode TNC is found at 9600 in a few seconds.
+
+With radios side by side the search is for one radio (`find(trying, radio)`): that radio's line is let go and taken again (`hold(radio)`, `release(radio)`), the serial devices another radio or the GPS receiver holds in
+the station's table (`claims`) are not tried (looked at again once the turn is this search's), and the search takes the station's one search at a time (`search_lock`, RadioRegistry's), waiting for its turn while
+another radio's search runs (which gives it up for a while: tncsearch.take_turn); the Tnc of the radio itself lets go of its turn when it is held. Without a radio the search is the one radio's of before, its hold and
+release called with nothing."""
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection
+from contextlib import asynccontextmanager
+from typing import cast
 
 from neoaprs import serialprobe
+from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.coded import CodedError
+from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.radiosearch import Found, Trying
 from neoaprs.serialholders import held_by, port_key
 from neoaprs.serialport import SerialError, is_socket
 from neoaprs.tasks import TaskSet
+from neoaprs.tncsearch import WAITING, take_turn, turn_wanted
 
 from .radioprobe import Ear, Timing, try_line
 
@@ -24,6 +34,8 @@ log = logging.getLogger("neoaprs.tnc")
 
 SPEEDS = (9600, 57600, 19200, 38400, 115200, 4800, 1200)          # the usual speeds of a TNC on a serial line, the likeliest first
 NO_SPEED = 9600                                                      # what a port with no speed is opened at (pyserial wants a number)
+Hold = Callable[[], Awaitable[None]] | Callable[[RadioId], Awaitable[None]]      # the radio's line let go: of the one radio of before (app.py's call today), or of the radio `find` is given
+Release = Callable[[], None] | Callable[[RadioId], None]
 
 
 class RadioSearchError(CodedError):
@@ -51,10 +63,11 @@ def candidates(pattern: str, skip: tuple[str, ...]) -> list[str]:
 
 
 class RadioFinder:
-    def __init__(self, ports: Callable[[], Awaitable[list[str]]], hold: Callable[[], Awaitable[None]], release: Callable[[], None], timing: Timing | None = None,
-                 line: Callable[[str, int], Ear] = Ear) -> None:
+    def __init__(self, ports: Callable[[], Awaitable[list[str]]], hold: Hold, release: Release, timing: Timing | None = None,
+                 line: Callable[[str, int], Ear] = Ear, *, claims: Claims | None = None, search_lock: asyncio.Lock | None = None) -> None:
         self.ports = ports                              # the ports to try, in order
-        self._hold, self._release = hold, release        # the TNC lets go of its line, and takes it again
+        self._hold, self._release = hold, release        # the radio's line is let go, and taken again: given the radio's id when `find` is given one (`hold(radio)`), called with nothing when it is not (one radio's search, as before)
+        self.claims, self.search_lock = claims, search_lock      # the station's table of resources and its one search at a time (claims.py, RadioRegistry.search_lock)
         self.timing = timing or Timing()
         self._line = line
         self._tasks = TaskSet(log, "radio search")
@@ -66,19 +79,19 @@ class RadioFinder:
     def running(self) -> bool:
         return self._busy
 
-    async def find(self, trying: Callable[[Trying], None]) -> Found | None:
-        """The first port with a TNC behind it; None when the search was cancelled. RadioSearchError when a search is running already, when there is no port to try (`radio.no_ports`) and when none answered (`radio.not_found`).
-        `trying` is told before each try."""
+    async def find(self, trying: Callable[[Trying], None], radio: RadioId | None = None) -> Found | None:
+        """The first port with a TNC behind it, for the radio `radio` (None: the one radio of before); None when the search was cancelled. RadioSearchError when a search is running already, when there is no port to try
+        (`radio.no_ports`) and when none answered (`radio.not_found`). `trying` is told before each try."""
         if self._busy:
             raise RadioSearchError("a search for the radio is running already", "radio.busy")
         self._busy = True
         try:
-            paths = await self.ports()
+            paths = self._unclaimed(await self.ports(), radio)
             log.info("find the radio: trying %s", ", ".join(paths) or "no port")
             if not paths:
                 raise RadioSearchError("there is no port to try: none is listed that the search looks at", "radio.no_ports")
             outcome: list[Found | None] = []
-            self._task = self._tasks.spawn(self._run(paths, trying, outcome), "radio-search")
+            self._task = self._tasks.spawn(self._run(paths, trying, outcome, radio), "radio-search")
             try:
                 await asyncio.wait([self._task])
             finally:
@@ -110,21 +123,55 @@ class RadioFinder:
     async def stop(self) -> None:
         await self._tasks.cancel_all()
 
-    async def _run(self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None]) -> None:
+    def _unclaimed(self, paths: list[str], radio: RadioId | None) -> list[str]:
+        """The ports without the serial devices that another radio or the GPS receiver holds (each said in the log as it is passed over)."""
+        mine = FM_ID if radio is None else radio
+        held = {c.value: c.holder for c in (self.claims.all() if self.claims is not None else ()) if c.holder != mine and c.kind in PORT_KINDS}
+        for path in (p for p in paths if port_key(p) in held):
+            log.info("find the radio: passing over %s: held by %s", path, serialprobe.holder_words(held[port_key(path)]))
+        return [p for p in paths if port_key(p) not in held]
+
+    async def _run(self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None], radio: RadioId | None) -> None:
         self._speedless = await asyncio.to_thread(serialprobe.bluetooth_com_keys)
-        total = sum(len(speeds_for(p, self._speedless)) for p in paths)
-        number = 0
         try:
-            await self._hold()
-            for path in paths:
-                found = await self._try_port(path, number, total, trying)
-                number += len(speeds_for(path, self._speedless))
-                if found is not None:
-                    outcome.append(found)
-                    return
-            outcome.append(None)
+            await self._let_go(radio)
+            async with self._turn():
+                paths = self._unclaimed(paths, radio)                    # (what another radio's search found and holds while this one waited for its turn)
+                total, number = sum(len(speeds_for(p, self._speedless)) for p in paths), 0
+                for path in paths:
+                    found = await self._try_port(path, number, total, trying)
+                    number += len(speeds_for(path, self._speedless))
+                    if found is not None:
+                        outcome.append(found)
+                        return
+                outcome.append(None)
         finally:
-            self._release()
+            if radio is None:
+                cast(Callable[[], None], self._release)()
+            else:
+                cast(Callable[[RadioId], None], self._release)(radio)
+
+    async def _let_go(self, radio: RadioId | None) -> None:
+        """The radio's line is let go for the search: the one radio's of before when there is no radio (app.py's call, which takes none), else the radio's."""
+        if radio is None:
+            await cast(Callable[[], Awaitable[None]], self._hold)()
+        else:
+            await cast(Callable[[RadioId], Awaitable[None]], self._hold)(radio)
+
+    @asynccontextmanager
+    async def _turn(self) -> AsyncIterator[None]:
+        """The station's one search at a time, held for the tries (nothing to hold without the lock); waiting for it is said in the log."""
+        lock = self.search_lock
+        if lock is None:
+            yield
+            return
+        if lock.locked() or turn_wanted(lock):
+            log.info("find the radio: %s", WAITING)
+        await take_turn(lock)
+        try:
+            yield
+        finally:
+            lock.release()
 
     async def _try_port(self, path: str, number: int, total: int, trying: Callable[[Trying], None]) -> Found | None:
         """The port at each of its speeds, until a TNC answers; a port that cannot be opened or whose line dies is passed over."""

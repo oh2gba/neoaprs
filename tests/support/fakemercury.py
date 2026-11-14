@@ -18,7 +18,8 @@ Mercury does on the air (what the bench of two real Mercury 1.9.21 instances ove
 A `FakeMercury` is a `FakeRadio` (tests/support/fakeradio.py) with the air behind it, so an `Env` takes it as its radio. Run as a program (`python -m tests.support.fakemercury -b PORT -p PORT ...`) it stands in for the
 `mercury` binary itself, for the tests of the daemon starting, watching and stopping the program: it takes Mercury's flags, listens on the two ports, echoes nothing, prints a Mercury-like line or two, lists made-up sound
 cards for `-z`, and ends on SIGTERM; `--die-after SECONDS` in its command (or `FAKE_MERCURY_DIE_AFTER` in its environment) makes it die by itself, as a crashed Mercury would. What a client writes to its KISS port
-is kept in `fake-mercury-broadcast.bin` in its working directory (the daemon's data folder), so that a test of the Dummy HF radio's speaker can see the frames handed to it.
+is kept in `fake-mercury-broadcast.bin` in its working directory (the modem's folder, `Mercury.home`: the radio's own, or the data folder of a modem made without one), so that a test of the Dummy HF radio's speaker can see the frames handed to it.
+`of_radio` gives the keywords a radio's driver gives the modem it makes: the station's table of resources, the radio it is and its own folder.
 
 Both answer Mercury's `TUNE` command on the control port as Mercury does (1.9.21 to 1.9.24, the same code): `TUNE -15` is `OK` and `PTT ON`, `TUNE OFF` is `OK` and `PTT OFF` (`tuned` keeps the lines a station was given)."""
 import asyncio
@@ -31,8 +32,12 @@ import time
 from pathlib import Path
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from neoaprs import kiss
+from neoaprs.claims import Claims
+from neoaprs.mercuryclaims import radio_folder
+from neoaprs.radiotype import HF_ID, RadioId
 from neoaprs.mercury import CONTROL_OFFSET, FRAME_SEC, MAX_PAYLOAD, SOURCE_COMMIT, VERSION
 from tests.support.fakemercuryui import FakeUi
 from tests.support.fakeradio import FakeRadio
@@ -262,6 +267,12 @@ STARTED = time.monotonic()
 def say(line: str) -> None:
     """A log line of the program as Mercury prints it, the stamp first."""
     print(f"{stamp(time.time(), time.monotonic() - STARTED)} {line}", flush=True)
+
+
+def of_radio(data_dir: Path, holder: RadioId = HF_ID, claims: Claims | None = None) -> dict[str, Any]:
+    """The keywords of `Mercury` for the modem of radio `holder`, as its driver makes it: the station's table of resources (a table of its own unless one is given, which radios side by side share), the radio's id and its
+    own folder in the data folder (mercuryclaims.radio_folder)."""
+    return {"claims": Claims() if claims is None else claims, "holder": holder, "folder": radio_folder(data_dir, holder)}
 
 
 def program(die_after_sec: float | None = None, audio_error: bool = False, no_ui: bool = False) -> list[str]:

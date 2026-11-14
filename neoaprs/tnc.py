@@ -26,6 +26,7 @@ from datetime import datetime
 from typing import Protocol
 
 from . import ax25, kiss, nodevices, serialprobe
+from .claims import Claims
 from .clock import Clock, utcnow
 from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
@@ -47,7 +48,7 @@ from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
 from .tncport import TncPort
 from .tncreader import Reader
-from .tncsearch import PortSearch
+from .tncsearch import PortSearch, held_elsewhere, hold_port, release_port
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
 
@@ -95,8 +96,8 @@ def _describe(tnc: "Tnc") -> str:
         return f"dummy {'HF ' if tnc.rules.kind == 'hf' else ''}radio, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
     if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
         return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
-    if tnc.searching:
-        return f"listening on {', '.join(tnc.searching)} for the radio"
+    if tnc._port is None and (words := tnc._search.words):
+        return words                                                               # (the ports it listens to, or that it waits for another radio's search)
     if (modem := tnc._modem()) is not None:
         return f"{modem.describe()}, {tnc.stats.packets} packets"                 # (never the socket the modem is reached on: the page shows this line, the log has the ports)
     if tnc._port is None:
@@ -121,22 +122,22 @@ class Tnc(TimedSource):
 
     def __init__(self, port: str = "", baud: int = 9600, profile: Profile = KENWOOD_TNC2, pattern: str = "", clock: Clock = utcnow, probe_seconds: float = 0.0,
                  backoff: Backoff | None = None, settle_sec: float | None = None, pace: float = 1.0, fallback_probe: bool = True, probe_nudge_sec: float = serialprobe.NUDGE_SEC,
-                 skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC) -> None:
+                 skip: tuple[str, ...] = (), check_sec: float = TNC_CHECK_SEC, check_pause_sec: float = CHECK_PAUSE_SEC, reply_sec: float = REPLY_SEC, answer_sec: float = ANSWER_SEC, probe_sec: float = PROBE_SEC, *, claims: Claims | None = None, search_lock: asyncio.Lock | None = None) -> None:
         super().__init__("tnc", clock)
         self.stats = TncStats()
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
         self.probe_seconds = probe_seconds                                                                 # the whole wait of the search, 0 = no limit
-        self.probe_nudge_sec, self.skip = probe_nudge_sec, skip          # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip)
+        self.probe_nudge_sec, self.skip, self.claims, self.search_lock = probe_nudge_sec, skip, claims, search_lock     # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip); the station's table of resources and its one search at a time (claims.py, RadioRegistry.search_lock; set by the radio's driver): the search leaves out what others hold, the port found or opened is held for `radio_id`
         self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
         self.modem: Modem | None = None                                  # the modem program behind the line of a `modem` profile (the Mercury HF modem, set by app.py): its hold, its words and its problem count while the profile is a modem's
         self.radio_id: RadioId = HF_ID if profile.rules.kind == "hf" else FM_ID   # the radio it is the line of (radiotype.py), which its driver sets; until then today's by its kind: the FM radio 1, the HF radio 2
-        self.radio_name = ""                                             # the radio's name for the log (radiospec.log_name), which its driver sets; `label` goes by the kind until then
+        self.radio_name = ""                                             # the radio's name for the log (radiospec.log_name), which its driver sets: the log's `label`, by the kind until then
         self.fallback_probe, self._probe_next = fallback_probe, False    # a port that was named and cannot be opened: the next attempt listens to the ports that match the pattern instead
         self.backoff = backoff or Backoff()
         self.packet: Signal[[Packet]] = Signal("tnc.packet")             # every packet in and out
         self.path = ""                                                   # the port in use
-        self._search = PortSearch(self._spawn, self._note, PROMPT)
+        self._search = PortSearch(self._spawn, self._note, PROMPT, lambda: self.label)
         self._entry = KissEntry(self._spawn, lambda data: self._port is not None and self._write(self._port, data), settle_sec, pace)    # the wait after the last step (None: the profile's), the factor on the others
         self._port: TncPort | None = None
         self._follow = AdapterFollow()                                   # the USB adapter of the named port, found again when the system gives it another name
@@ -168,6 +169,7 @@ class Tnc(TimedSource):
         await self._cancel_tasks()
         self._watchdog_task = None
         self.watchdog.probes = 0
+        release_port(self.claims, self.radio_id)
         self._set_state(Source.State.STOPPED)
 
     async def _connect(self, reopen: str = "", silent: bool = False) -> None:
@@ -197,16 +199,17 @@ class Tnc(TimedSource):
 
     async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
         """The line, open, with its path and what the search heard on it; None when `stop` came meanwhile. Raises SerialError."""
-        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well)
+        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port, claims=self.claims, holder=self.radio_id, lock=self.search_lock)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well; what other radios hold is not)
         if generation != self._generation:
             return None
-        if named and not self.is_dummy and not nodevices.on() and (held := await asyncio.to_thread(held_by, path)):       # (under the no-devices switch the port is not there, whoever holds it: nobody is asked)
+        if named and not self.is_dummy and (held := held_elsewhere(self.claims, self.radio_id, path) or (not nodevices.on() and await asyncio.to_thread(held_by, path))):       # (another radio's port is never opened; under the no-devices switch the port is not there, whoever holds it: nobody is asked)
             raise SerialError(f"{path}: {held}")
         asked = path
         port, path = await self._follow.open(path, named and not self.is_dummy, lambda where: open_port(self, where), self._note)
         if generation != self._generation:                               # (stopped while the port was being opened: no one is to have it)
             port.close()
             return None
+        hold_port(None if self.is_dummy else self.claims, self.radio_id, path, port.close)      # (the port opened is this radio's in the station's table; SerialError when another took it meanwhile)
         if self._follow.following(path, named and not self.is_dummy):
             self._spawn(self._follow.remember(asked, path))              # (a task of the Tnc, which starts after `_opened`: the memory is for the next time)
         return port, path, heard
@@ -244,8 +247,8 @@ class Tnc(TimedSource):
 
     @property
     def label(self) -> str:
-        """What the log calls this radio: `tnc` for the FM radio, `hf radio` for the HF one (both are a Tnc, and a line of the log must say which it is about)."""
-        return "hf radio" if self.rules.kind == "hf" else "tnc"
+        """What the log calls this radio: its name (`radio_name`, "FM", "HF 2", the operator's), and until its driver gives one `tnc` for the FM radio, `hf radio` for the HF one (each is a Tnc, and a line of the log must say which it is about)."""
+        return self.radio_name or ("hf radio" if self.rules.kind == "hf" else "tnc")
 
     @property
     def rules(self) -> RadioRules:
@@ -393,6 +396,5 @@ class Tnc(TimedSource):
         return True
 
     @property
-    def searching(self) -> list[str]:
-        """The ports the search for the radio is listening to; none while a port is open or no search is under way."""
+    def searching(self) -> list[str]:                                    # the ports the search for the radio is listening to; none while a port is open or no search is under way
         return list(self._search.listening) if self._port is None else []

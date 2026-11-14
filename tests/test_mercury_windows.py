@@ -1,7 +1,8 @@
 """The Mercury for Windows that NeoAPRS builds itself, as far as it can be held on any system without MinGW or a Windows machine: scripts/build-mercury's Windows options (the make commands, the folder it stages, the check
 of the program's import table, which reads a PE file by itself), packaging/windows/bundle_mercury.py (the tarball of the release workflow's job `mercury-windows` into the app folder, and nothing that is not the pinned
 Mercury's), and packaging/windows/smoke_mercury.py (the reading of `netstat -ano` and the verdict on the program's sockets, the Windows half of the check that it listens on 127.0.0.1 only). The workflow's wiring is in
-tests/test_release.py; the cross compile itself is done by the release workflow's job, and the Windows job starts the program it makes."""
+tests/test_release.py; the cross compile itself is done by the release workflow's job, and the Windows job starts the program it makes. The ports the smoke test frees are the four a modem of the daemon listens on, the
+ones by which the station's table keeps two radios' modems apart (mercuryhelper.pair_ports)."""
 import importlib.machinery
 import importlib.util
 import io
@@ -16,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import mercury
+from neoaprs import mercury, mercuryhelper
 from tests.conftest import ROOT
 
 SCRIPT = ROOT / "scripts" / "build-mercury"
@@ -356,4 +357,5 @@ def test_the_smoke_test_is_a_script_that_says_what_it_is_and_the_free_ports_are_
     assert done.returncode == 0 and "127.0.0.1" in done.stdout and "netstat" in done.stdout
     broadcast, control, data, ui = smoke.free_ports()
     assert control == broadcast + 200 and data == control + 1 and ui == broadcast + mercury.UI_OFFSET, "the UI interface's port is the daemon's own (neoaprs/mercury.py)"
+    assert (broadcast, control, data) == mercuryhelper.pair_ports(broadcast)[:3] and mercuryhelper.pair_ports(broadcast)[3] == broadcast + mercuryhelper.UI_OFFSET, "the four ports of a pair as the daemon hands pairs out to the radios' modems (the UI port nearer in the tests: tests/support/fixtures.py)"
     assert subprocess.run([sys.executable, str(ROOT / "packaging" / "windows" / "smoke_mercury.py"), "nothing-here.exe"], check=False, capture_output=True, text=True, timeout=60).returncode == 1

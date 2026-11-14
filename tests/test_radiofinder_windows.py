@@ -1,5 +1,6 @@
 """Find my radio on Windows and macOS (neoaprs/serialprobe.py, neoaprs/services/radiofinder.py): the ports are the ones the system lists (COM ports, the paired Bluetooth serial ports among them, or /dev/cu.*), USB adapters
-first, tried one after the other like on Linux, and a port that another program has is passed over. The system's list and the serial open are fakes: no port of the machine is listed or opened, and the platform is said."""
+first, tried one after the other like on Linux, and a port that another program has is passed over, as one that another radio of the station holds (a COM port by its name, in any case) is. The system's list and the
+serial open are fakes: no port of the machine is listed or opened, and the platform is said."""
 import logging
 import sys
 import threading
@@ -8,10 +9,11 @@ import pytest
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
 from neoaprs import ax25, kiss, serialport, serialprobe
+from neoaprs.claims import Claim, Claims
 from neoaprs.radiosearch import Found
 from neoaprs.serialprobe import PortInfo
 from neoaprs.services import radiofinder
-from neoaprs.services.radiofinder import SPEEDS, speeds_for
+from neoaprs.services.radiofinder import SPEEDS, RadioFinder, speeds_for
 from tests.support.faketnc import TncBrain, ears
 from tests.support.finderrig import Rig
 from tests.support.virtualtime import virtual_time
@@ -170,3 +172,24 @@ async def test_a_port_that_another_program_has_is_passed_over_with_the_words_of_
     assert fake.opens == ["COM3", "COM4"]  # type: ignore[attr-defined]                                                       # (COM3 is refused once, not at each of its seven speeds)
     assert "COM3: in use by another program" in caplog.text
     assert [(t.port, t.baud, t.number, t.total) for t in rig.tried] == [("COM3", 9600, 1, 21), ("COM4", 9600, 8, 21)]
+
+
+async def test_a_com_port_another_radio_holds_is_passed_over_whatever_case_it_is_written_in_and_never_opened(windows: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    packet = ax25.encode(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("Q1ABC"), (ax25.Address.parse("WIDE1-1"),), info=b"!6010.00N/02456.00E-"))
+    fake = type("Fake", (FakeSerial,), {"opens": [], "in_use": set(), "said": {"COM4": kiss.encode(packet)}})
+    monkeypatch.setattr(serialport.serial, "serial_for_url", lambda url, **settings: fake(url))
+    monkeypatch.setattr(serialport.os, "name", "nt")
+    caplog.set_level(logging.INFO, logger="neoaprs.tnc")
+    claims = Claims()
+    claims.hold(Claim("serial", serialprobe.claim_value("com3") or "", 1))               # (the FM radio's port, as its Tnc holds it: COM3 whatever case it was written in)
+    rig = Rig(["COM3", "COM4", "COM5"])
+    released: list[int] = []
+
+    async def hold(radio: int) -> None:
+        pass
+
+    finder = RadioFinder(rig.finder.ports, hold, released.append, rig.finder.timing, claims=claims)
+    found = await finder.find(rig.tried.append, 3)
+    assert found == Found("COM4", 9600, "kiss") and released == [3]
+    assert fake.opens == ["COM4"] and "find the radio: passing over COM3: held by radio 1" in caplog.text  # type: ignore[attr-defined]
+    assert [(t.port, t.baud, t.number, t.total) for t in rig.tried] == [("COM4", 9600, 1, 14)]

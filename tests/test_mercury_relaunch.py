@@ -1,6 +1,8 @@
 """The HF radio after its Mercury dies, through the daemon (neoaprs/controller.py, neoaprs/wiring.py, neoaprs/mercurymodem.py): the program is started again on the ports it had, so the HF Tnc, which was told its port when
 the radios started, finds the modem where it left it and the radio comes back by itself; and when something else took that pair while the modem was down, the modem takes another and the controller points the HF Tnc at
-it (`Mercury.ports_changed`, wired to `repoint_hf`). Before this the relaunch took the next free pair every time (the old one looked busy with its connections in TIME_WAIT) and the Tnc waited on the dead port for ever."""
+it (`Mercury.ports_changed`, wired to `repoint_hf`). Before this the relaunch took the next free pair every time (the old one looked busy with its connections in TIME_WAIT) and the Tnc waited on the dead port for ever.
+The modem is given the station's table of resources, as a radio's driver gives it: the radio holds its pair across the relaunch, so that no other radio's modem is handed it while the program is down, and holds the new
+pair in the place of the old when it had to take another."""
 import random
 import socket
 from pathlib import Path
@@ -8,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import mercurymodem
+from neoaprs.claims import Claim, Claims
 from neoaprs.mercury import BROADCAST_PORT
 from neoaprs.mercuryhelper import PORT_TRIES, free_ports
 from neoaprs.source import Backoff, Source
@@ -25,12 +28,19 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
 async def hf_station(tmp_path: Path, backoff: Backoff) -> Env:
     e = Env(tmp_path, settings={"hf/enabled": "true"})
     e.ctl.mercury._finder = fakemercury.program
+    e.ctl.mercury.claims = Claims()
     e.ctl.mercury.backoff = backoff
     e.ctl.mercury._control_backoff = Backoff([0.05, 0.05])
     e.hf.backoff = Backoff([0.05, 0.1])
     await e.start()
     await until_started(lambda: e.ctl.mercury.running and e.hf.usable)
     return e
+
+
+def pairs(e: Env) -> list[Claim]:
+    claims = e.ctl.mercury.claims
+    assert claims is not None
+    return [c for c in claims.all() if c.kind == "modem_ports"]
 
 
 def kill(e: Env) -> None:
@@ -43,11 +53,14 @@ async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_i
     e = await hf_station(tmp_path, Backoff([0.1, 0.1]))
     try:
         port, pid = e.hf.port, e.ctl.mercury.pid
+        held = pairs(e)
+        assert held == [Claim("modem_ports", str(e.ctl.mercury.broadcast_port), e.ctl.mercury.holder)]
         kill(e)
         await until_started(lambda: e.ctl.mercury.state == "waiting" and e.hf.state is not Source.State.CONNECTED)
         assert not e.hf.usable, "while the modem is down the radio does not say it listens"
+        assert pairs(e) == held, "the pair stays the radio's while its program is down"
         await until_started(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running and e.hf.usable)
-        assert e.hf.port == port == f"socket://127.0.0.1:{e.ctl.mercury.broadcast_port}" and e.ctl.mercury.pid != pid
+        assert e.hf.port == port == f"socket://127.0.0.1:{e.ctl.mercury.broadcast_port}" and e.ctl.mercury.pid != pid and pairs(e) == held
     finally:
         await e.stop()
 
@@ -64,7 +77,7 @@ async def test_when_the_pair_was_taken_meanwhile_the_hf_radio_is_pointed_at_the_
             holder.listen()
             await until_started(lambda: e.ctl.mercury.starts == 2 and e.ctl.mercury.running)
             new = e.ctl.mercury.broadcast_port
-            assert new != old
+            assert new != old and pairs(e) == [Claim("modem_ports", str(new), e.ctl.mercury.holder)], "the new pair is held in the place of the old"
             await until_started(lambda: e.hf.port == f"socket://127.0.0.1:{new}" and e.hf.usable)
     finally:
         await e.stop()

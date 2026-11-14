@@ -1,5 +1,6 @@
 """Find my radio (neoaprs/services/radiofinder.py, radioprobe.py): the order the ports and speeds are tried in, that the search stops at the first TNC that answers, which profile fits what answers, what a cancel leaves,
-and which ports are listed at all. The TNCs are fakes (tests/support/faketnc.py): a TCP server on the loopback, or a port that is not one and takes a speed. No device of the machine is listed or opened."""
+and which ports are listed at all; with radios side by side, that the search is for one radio, whose line alone is let go and taken again, that what another radio or the GPS receiver holds is not tried, and that
+one radio searches at a time. The TNCs are fakes (tests/support/faketnc.py): a TCP server on the loopback, or a port that is not one and takes a speed. No device of the machine is listed or opened."""
 import asyncio
 import logging
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import serialprobe
+from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
 from neoaprs.radiosearch import Found
 from neoaprs.serialprobe import PortInfo
@@ -21,6 +23,18 @@ from tests.support.virtualtime import virtual_time
 
 async def serve(*kinds: str) -> list[FakeTncServer]:
     return [await FakeTncServer(kind).start() for kind in kinds]
+
+
+class RadioRig(Rig):
+    """A finder for one radio among others, as the registry makes it: its hold and release are told the radio's id, and it is given the station's table of resources and its one search at a time."""
+
+    def __init__(self, ports: list[str], claims: Claims | None = None, lock: asyncio.Lock | None = None, **finder: object) -> None:
+        super().__init__(ports, **finder)
+
+        async def hold(radio: int) -> None:
+            self.events.append(f"hold {radio}")
+
+        self.finder = RadioFinder(self.finder.ports, hold, lambda radio: self.events.append(f"release {radio}"), self.finder.timing, claims=claims, search_lock=lock, **finder)
 
 
 async def test_a_tnc_in_kiss_mode_that_has_heard_a_packet_is_found_without_a_word_being_written() -> None:
@@ -96,6 +110,70 @@ async def test_nothing_that_answers_is_not_found_and_the_radios_line_is_given_ba
     assert rig.events == ["hold", "release"]
     assert not rig.finder.running
     await silent.aclose()
+
+
+async def test_a_search_for_one_radio_lets_go_of_that_radios_line_alone_and_gives_it_back() -> None:
+    [tnc] = await serve("kiss")
+    rig = RadioRig([tnc.url])
+    assert await rig.finder.find(rig.tried.append, 3) == Found(tnc.url, None, "kiss")
+    assert rig.events == ["hold 3", "release 3"]
+    await tnc.aclose()
+
+
+async def test_what_another_radio_or_the_gps_receiver_holds_is_not_tried_and_the_radios_own_port_is(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.tnc")
+    other, gps, own = await serve("kiss", "kiss", "kiss")
+    claims = Claims()
+    claims.hold(Claim("serial", serialprobe.claim_value(other.url) or other.url.lower(), 1))       # (a socket holds nothing in the table; a Bluetooth port would, by the same value)
+    claims.hold(Claim("gps", gps.url.lower(), None))
+    claims.hold(Claim("serial", own.url.lower(), 3))
+    rig = RadioRig([other.url, gps.url, own.url], claims=claims)
+    assert await rig.finder.find(rig.tried.append, 3) == Found(own.url, None, "kiss")
+    assert [t.port for t in rig.tried] == [own.url] and other.connections == gps.connections == 0, "never opened"
+    assert f"find the radio: passing over {other.url}: held by radio 1" in caplog.text and f"passing over {gps.url}: held by the GPS receiver" in caplog.text
+    with pytest.raises(CodedError) as caught:
+        await RadioRig([other.url, gps.url], claims=claims).finder.find(rig.tried.append, 3)
+    assert caught.value.code == "radio.no_ports", "with every port held by others there is none to try"
+    for server in (other, gps, own):
+        await server.aclose()
+
+
+async def test_a_search_waits_for_its_turn_while_another_radio_searches_and_is_cancelled_while_it_waits(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.tnc")
+    [tnc] = await serve("kiss")
+    lock = asyncio.Lock()
+    await lock.acquire()                                                           # (another radio's search runs)
+    rig = RadioRig([tnc.url], lock=lock)
+    task = asyncio.create_task(rig.finder.find(rig.tried.append, 3))
+    await until(lambda: rig.events == ["hold 3"] and "waiting while another radio looks for its port" in caplog.text)
+    assert rig.tried == [] and tnc.connections == 0, "nothing is tried before its turn"
+    lock.release()
+    assert await task == Found(tnc.url, None, "kiss")
+    assert rig.events == ["hold 3", "release 3"] and not lock.locked(), "the turn is given back with the line"
+    await lock.acquire()
+    task = asyncio.create_task(rig.finder.find(rig.tried.append, 3))
+    await until(lambda: rig.events[-1] == "hold 3")
+    assert rig.finder.cancel() and await task is None
+    assert rig.events[-1] == "release 3" and lock.locked(), "a cancel while it waits gives the line back and takes no turn"
+    lock.release()
+    await tnc.aclose()
+
+
+async def test_a_port_another_radios_search_takes_while_this_one_waits_for_its_turn_is_passed_over_and_not_counted(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.tnc")
+    taken, own = await serve("kiss", "kiss")
+    claims, lock = Claims(), asyncio.Lock()
+    await lock.acquire()                                                           # (another radio's search runs)
+    rig = RadioRig([taken.url, own.url], claims=claims, lock=lock)
+    task = asyncio.create_task(rig.finder.find(rig.tried.append, 3))
+    await until(lambda: rig.events == ["hold 3"])
+    claims.hold(Claim("serial", taken.url.lower(), 1))                             # (the other search found its radio there, and holds the port)
+    lock.release()
+    assert await task == Found(own.url, None, "kiss")
+    assert [(t.port, t.number, t.total) for t in rig.tried] == [(own.url, 1, 1)] and taken.connections == 0, "looked at again in its turn: never opened, and not in the totals"
+    assert f"find the radio: passing over {taken.url}: held by radio 1" in caplog.text
+    await taken.aclose()
+    await own.aclose()
 
 
 async def test_no_port_to_try_is_said_before_the_radios_line_is_let_go() -> None:

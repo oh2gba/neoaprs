@@ -7,7 +7,7 @@ It is started with `subprocess.Popen` and read by a thread, as the serial line i
 to the daemon's log, never to the page. A thread waits for it to end and tells the loop with `call_soon_threadsafe`, with the exit code and its last lines, so that the owner (mercurymodem.py) can start it again. Two
 NeoAPRS on one computer, or a Mercury that something else runs, must not fight over the ports: `free_ports` finds the first pair (the broadcast port and the control port 200 above it) that is free, from the defaults
 up (a port whose last connection is still in TIME_WAIT counts as free, as it does for Mercury, which binds with SO_REUSEADDR: the pair a Mercury that died held is free for the one started in its place, so the HF Tnc finds
-the modem where it left it). The program NeoAPRS ships listens on 127.0.0.1 only (packaging/mercury/loopback.patch, on every system), and `foreign_listeners` reads the kernel's table of sockets to
+the modem where it left it; the modems of radios side by side are handed their pairs by the station's table of claims, `next_modem_ports`). The program NeoAPRS ships listens on 127.0.0.1 only (packaging/mercury/loopback.patch, on every system), and `foreign_listeners` reads the kernel's table of sockets to
 hold a started program to that: its ports have no password, so one that listened on every interface would let any host on the LAN key the radio. A Mercury of ours left behind by a crash of the daemon holds the sound card: its process id is written beside the configuration (and removed again by a clean stop), and the next start ends a process of that id
 that is still a Mercury (on Windows, one whose program file is mercury.exe; where that cannot be read, nothing is ended)."""
 import asyncio
@@ -19,11 +19,13 @@ import subprocess
 import sys
 import threading
 from collections import deque
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from pathlib import Path
 
 from .bundled import tools_dir
 from .childenv import child_environment, windows_program
+from .claims import Claims
+from .radiotype import RadioId
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, PAIR, UI_OFFSET, WASAPI_CAPTURE, WASAPI_PLAYBACK, Keying, SerialPort, SoundCard, audio_open_error, card_reason, card_with, choose_keying, choose_sound_card, keying_of, parse_sound_cards, unstamped
 
 log = logging.getLogger("neoaprs.mercury")
@@ -88,9 +90,14 @@ def _free(port: int) -> bool:
     return True
 
 
+def pair_ports(broadcast_port: int) -> tuple[int, int, int, int]:
+    """The ports a Mercury of this broadcast port listens on: the broadcast port, its control port, the ARQ data port one above that (Mercury's too) and the UI port."""
+    return broadcast_port, broadcast_port + CONTROL_OFFSET, broadcast_port + CONTROL_OFFSET + 1, broadcast_port + UI_OFFSET
+
+
 def pair_free(broadcast_port: int) -> bool:
-    """Whether this broadcast port, its control port, the ARQ data port one above that (Mercury's too) and the UI port are all free."""
-    return _free(broadcast_port) and _free(broadcast_port + CONTROL_OFFSET) and _free(broadcast_port + CONTROL_OFFSET + 1) and _free(broadcast_port + UI_OFFSET)
+    """Whether every port of the pair (`pair_ports`) is free."""
+    return all(_free(port) for port in pair_ports(broadcast_port))
 
 
 def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[int, int]:
@@ -102,34 +109,25 @@ def free_ports(first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> tuple[in
     raise OSError(f"no free pair of ports from {first} to {first + tries}")
 
 
-class HeldPorts:
-    """The pair of ports of one start of the program: chosen once (`choose`), and kept for a program started again in the place of one that died, so that the HF Tnc, which waits on its port with its back-off, finds
-    the modem where it left it (the pair is free for the new program: the old connections are in TIME_WAIT, which the probe and Mercury's own bind allow); another pair only when something else took the old one
-    meanwhile, which `choose` says by giving the pair that was taken, so that the owner can point the Tnc at the new one. `forget` is a fresh start."""
-
-    def __init__(self) -> None:
-        self.pair: tuple[int, int] = (BROADCAST_PORT, BROADCAST_PORT + CONTROL_OFFSET)
-        self._held = False
-
-    def forget(self) -> None:
-        self._held = False
-
-    def choose(self, free: Callable[[], tuple[int, int]] = free_ports) -> tuple[int, int] | None:
-        """The pair to start the program on, kept in `pair`: the one held when it is still free, else a fresh one from `free` (OSError from it when none is); the pair that was taken, when one was, else None."""
-        if self._held and pair_free(self.pair[0]):
-            return None
-        taken, self.pair, self._held = self.pair if self._held else None, free(), True
-        return taken
+def next_modem_ports(claims: Claims, holder: RadioId, free: Callable[[int], bool] = pair_free, first: int = BROADCAST_PORT, tries: int = PORT_TRIES) -> int:
+    """The broadcast port of the pair the modem of radio `holder` is to start on: the first from `first` up that no other radio's modem holds in the station's table (claims.py: the kind `modem_ports`, the broadcast
+    port as text), none of whose four ports is one of such a pair's (pairs one apart share a port: the ARQ data port of the one is the control port of the next), and that `free` finds free on this computer. The table
+    hands the pairs out, so that two modems started side by side never take one pair between the probe and the bind; the probe still passes over what another program holds. OSError when none of `tries` is."""
+    taken = {port for held in claims.held_by_others(holder, "modem_ports") for port in pair_ports(int(held))}
+    for port in range(first, first + tries):
+        if taken.isdisjoint(pair_ports(port)) and free(port):
+            return port
+    raise OSError(f"no free pair of ports from {first} to {first + tries} that no other radio's modem holds")
 
 
-def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]], leave: Sequence[str] = ()) -> tuple[str, Keying]:
+def choose_setup(program: Command, sound_card: str, keying: str, ports: Callable[[], list[SerialPort]], leave: Sequence[str] = (), held_cards: Collection[str] = ()) -> tuple[str, Keying]:
     """The sound card and the keying the modem runs with: the settings (`mercury/sound_card`, `mercury/keying`) where they are set, else the daemon's own choice from the sound cards Mercury lists and the serial ports the
     system lists (`ports`; mercury.py says how and why), the ports in `leave` left out of the choice (the FM radio's, the GPS receiver's, the skipped ones: the one USB serial port the choice keys the radio on must not be
-    one that another part of the station holds, or Mercury toggles its RTS at every frame). Runs the program and reads the system's lists: for a thread."""
+    one that another part of the station holds, or Mercury toggles its RTS at every frame), and the cards in `held_cards` (another radio's modem runs on them) out of the choice of a card. Runs the program and reads the system's lists: for a thread."""
     lone = PAIR not in sound_card and sound_card.startswith((WASAPI_CAPTURE, WASAPI_PLAYBACK))        # (one device of a Windows card: a setting made before the two were one choice)
     cards = list_sound_cards(program) if not sound_card or not keying or lone else []
     paired = card_with(cards, sound_card) if lone else ""
-    card = paired or sound_card or choose_sound_card(cards)
+    card = paired or sound_card or choose_sound_card([c for c in cards if c.id not in held_cards])
     if paired:
         log.info("Mercury sound card: %r, both devices of the card whose one device the setting names (%s)", next((c.name for c in cards if c.id == paired), paired), sound_card)
     else:

@@ -1,7 +1,11 @@
 """The Mercury HF modem as a part of the daemon (neoaprs/mercurymodem.py, mercuryhelper.py, mercurycontrol.py) on the program that stands in for Mercury (tests/support/fakemercury.py, run as the binary) and on a station of the
 fake air: the program found, given free ports and the configuration, started, read, started again when it dies, stopped with nothing left behind; a program that is not installed, that cannot be started, whose ports are taken;
 the control port's `PTT ON/OFF`, `BUSY ON/OFF` and `SN` as the hold the Tnc asks about and the words of the status line; and the Tnc on a Mercury station: the frame cap as the last guard, the hold while a frame is on the
-air, the modem's problem as the radio's."""
+air, the modem's problem as the radio's.
+
+Every modem here is a radio's, as its driver makes it (`fakemercury.of_radio`): with the station's table of resources, in the radio's own folder (`Mercury.home`), holding its sound card, its keying line and its pair of
+ports while it runs; the tests of the files are made for the modem of today's station too (`SHAPES`: no table and no folder, its files in the data folder). What a radio's folder takes over from the data folder is
+tests/test_mercury_folder.py; radios side by side, tests/test_claims_search.py."""
 import asyncio
 import itertools
 import logging
@@ -23,14 +27,16 @@ from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, 
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
 from neoaprs import mercuryhelper, mercurymodem
 from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards, pair_free
+from neoaprs.claims import Claim, Claims
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
-from neoaprs.serialprobe import PortInfo
+from neoaprs.radiotype import HF_ID
+from neoaprs.serialprobe import PortInfo, claim_value
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
 from tests.support.env import until_started
-from tests.support.fakemercury import Air
+from tests.support.fakemercury import Air, of_radio
 from tests.test_tnc import Rigs, stops_rigs, ui_frame
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
@@ -57,8 +63,11 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
 
 
-def modem(tmp_path: Path, program: bool = True) -> Mercury:
-    m = Mercury(tmp_path, finder=(fakemercury.program if program else lambda: None), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+SHAPES = pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])      # a radio's modem, and the modem of today's station (no table, no folder: the data folder)
+
+
+def modem(tmp_path: Path, program: bool = True, radio: bool = True) -> Mercury:
+    m = Mercury(tmp_path, finder=(fakemercury.program if program else lambda: None), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **(of_radio(tmp_path) if radio else {}))
     m.ports = lambda: []                                                  # (never the operator's serial ports)
     return m
 
@@ -175,7 +184,7 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
     try:
         await until_started(lambda: m.state == "running")
         assert (m.sound_card, m.keying) == ("", Keying("rts", "/dev/ttyUSB0")), "the fake program lists a USB Audio CODEC that is the system's default (a computer whose only card is the radio's): Mercury's default device is right, and the one CP2102 port keys it"
-        assert "line = rts" in (tmp_path / INI_FILE).read_text()
+        assert "line = rts" in (m.home / INI_FILE).read_text()
     finally:
         await m.stop()
     m.ports = lambda: []
@@ -193,25 +202,34 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
         await stopped(m)
 
 
-async def test_the_modem_writes_its_configuration_starts_the_program_on_free_ports_and_hears_its_control_port(tmp_path: Path) -> None:
-    m = modem(tmp_path)
+@SHAPES
+async def test_the_modem_writes_its_configuration_starts_the_program_on_free_ports_and_hears_its_control_port(tmp_path: Path, radio: bool) -> None:
+    m = modem(tmp_path, radio=radio)
     await m.start(HF)
     try:
         assert m.state == "starting" and m.starts == 1 and _alive(m.pid)
-        ini = (tmp_path / INI_FILE).read_text()
-        assert "busy_detect = true" in ini and "line = rts" in ini and (tmp_path / PID_FILE).read_text() == str(m.pid)
+        ini = (m.home / INI_FILE).read_text()
+        assert "busy_detect = true" in ini and "line = rts" in ini and (m.home / PID_FILE).read_text() == str(m.pid)
+        if radio:
+            assert m.home == tmp_path / "radios" / "2" and not (tmp_path / INI_FILE).exists() and not (tmp_path / PID_FILE).exists(), "the files are the radio's, in its own folder"
+        else:
+            assert m.home == tmp_path and m.claims is None and [p.name for p in tmp_path.iterdir() if p.is_dir()] == [], "today's modem: its files in the data folder, no folder made"
         await until_started(lambda: m.state == "running")
         assert await connects(m.broadcast_port) and m.control_port == m.broadcast_port + CONTROL_OFFSET
         assert m.describe() == "Mercury DATAC3, listening" and m.hold() == "" and m.problem == "", "the ports are the log's, not the status line's"
+        held = [Claim("sound_card", "plughw:1,0", HF_ID), Claim("keying", claim_value("/dev/ttyUSB0"), HF_ID), Claim("modem_ports", str(m.broadcast_port), HF_ID)]
+        assert m.held() == (held if radio else []), "the radio holds what its modem runs with; without the table nothing is held"
     finally:
         pid = m.pid
         await stopped(m)
     assert not _alive(pid) and m.describe() == "Mercury DATAC3, stopped"
+    assert m.held() == [] and (m.claims is None or m.claims.all() == ()), "a stopped modem holds nothing"
+    assert not (m.home / PID_FILE).exists() and (m.home / INI_FILE).exists(), "a clean stop removes the id where it was written"
 
 
 async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_after_the_back_off(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.mercury.program")
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     changes: list[tuple[str, str]] = []
     m.changed.connect(lambda: changes.append((m.state, m.problem)))
     await m.start(HF)
@@ -219,6 +237,7 @@ async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_afte
         await until_started(lambda: m.state == "waiting")
         assert m.problem.startswith("Mercury stopped (exit 3)") and "dies as told" in caplog.text
         await until_started(lambda: m.starts >= 2)
+        assert sorted(c.kind for c in m.held()) == ["keying", "modem_ports", "sound_card"], "a program that died and is started again keeps what the radio holds"
         after = changes[[state for state, _ in changes].index("waiting"):]
         assert all(state == "running" or (state == "waiting" and problem.startswith("Mercury stopped (exit 3)")) for state, problem in after), f"the problem stands through the next start until it is running: {after}"
     finally:
@@ -228,40 +247,41 @@ async def test_a_program_that_dies_is_said_in_the_problem_and_started_again_afte
 async def test_a_program_that_is_not_installed_is_one_plain_problem_and_nothing_is_started(tmp_path: Path) -> None:
     m = modem(tmp_path, program=False)
     await m.start(HF)
-    assert m.state == "waiting" and m.problem == NOT_INSTALLED and m.starts == 0 and not (tmp_path / INI_FILE).exists()
+    assert m.state == "waiting" and m.problem == NOT_INSTALLED and m.starts == 0 and not m.home.exists() and m.held() == [], "nothing is made and nothing held"
     assert m.describe() == f"Mercury DATAC3: {NOT_INSTALLED}" and m.sound_cards() == []
     await stopped(m)
 
 
 async def test_a_program_that_cannot_be_started_is_said_in_the_systems_words(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK)
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK, **of_radio(tmp_path))
     await m.start(HF)
     assert m.state == "waiting" and m.problem.startswith("Mercury could not be started: ") and "No such file" in m.problem
     await stopped(m)
 
 
-async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that_is_not_a_mercury_is_left_alone(tmp_path: Path) -> None:
+@SHAPES
+async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that_is_not_a_mercury_is_left_alone(tmp_path: Path, radio: bool) -> None:
     pid_file = tmp_path / PID_FILE
     assert not end_stale(pid_file), "no file: nothing to end"
     pid_file.write_text("not a number")
     assert not end_stale(pid_file) and not pid_file.exists()
     pid_file.write_text(str(os.getpid()))
     assert not end_stale(pid_file), "our own process is never a Mercury"
-    first = modem(tmp_path)
+    first = modem(tmp_path, radio=radio)
     await first.start(HF)
     await until_started(lambda: first.state == "running")
     orphan = first.pid
     first._program._process = None                                        # (the daemon crashed: the program lives on, the pid file stays)
     await first.stop()
-    assert _alive(orphan) and pid_file.read_text() == str(orphan)
+    assert _alive(orphan) and (first.home / PID_FILE).read_text() == str(orphan) and (first.home == tmp_path) is not radio
     try:
         if sys.platform == "win32":
             pytest.skip("the command line of another process is not read on Windows")
-        second = modem(tmp_path)
+        second = modem(tmp_path, radio=radio)
         await second.start(HF)
         try:
             await until_started(lambda: not _alive(orphan))
-            assert second.pid != orphan and _alive(second.pid)
+            assert second.pid != orphan and _alive(second.pid) and (second.home / PID_FILE).read_text() == str(second.pid), "ended where its file is, and the new id written there"
         finally:
             await stopped(second)
     finally:
@@ -500,7 +520,17 @@ async def test_no_free_pair_of_ports_is_said_and_nothing_is_started(tmp_path: Pa
 
 
 async def test_a_data_folder_that_cannot_be_written_is_said_in_the_systems_words(tmp_path: Path) -> None:
-    m = modem(tmp_path / "gone")                    # (no such folder: the configuration cannot be written there)
+    m = modem(tmp_path / "gone", radio=False)       # (today's modem, and no such folder: the configuration cannot be written there)
+    await m.start(HF)
+    assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
+    await stopped(m)
+    (tmp_path / "file").write_text("not a folder")
+    m = modem(tmp_path / "file")                    # (the radio's folder cannot be made in it)
+    await m.start(HF)
+    assert m.state == "waiting" and m.problem.startswith("Mercury's folder could not be made in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0 and m.held() == []
+    await stopped(m)
+    m = modem(tmp_path)
+    (m.home / INI_FILE).mkdir(parents=True)          # (the folder is there, and the configuration cannot be written in it)
     await m.start(HF)
     assert m.state == "waiting" and m.problem.startswith("Mercury's configuration could not be written in the data folder: ") and str(tmp_path) not in m.problem and m.starts == 0
     await stopped(m)
@@ -510,7 +540,7 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
     """Mercury is asked to end (SIGTERM) and killed after STOP_WAIT_SEC when it does not; a `-z` that lists nothing leaves the sound card the system's default and the keying VOX."""
     monkeypatch.setattr(mercuryhelper, "STOP_WAIT_SEC", 0.2)
     stubborn = [sys.executable, "-c", "import signal, sys, time\nif '-z' in sys.argv: sys.exit(0)\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nprint('up', flush=True)\ntime.sleep(60)"]
-    m = Mercury(tmp_path, finder=lambda: stubborn, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: stubborn, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
     pid = m.pid
@@ -522,7 +552,7 @@ async def test_a_program_that_ignores_the_request_to_end_is_killed_and_one_that_
 
 async def test_a_sound_card_the_program_cannot_open_ends_the_program_and_is_the_problem_of_the_modem_and_the_radio_until_a_start_succeeds(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """On a station with two USB sound cards Mercury ran on deaf and mute after `[ERR] [audio-play] error in audio->open()`, and the status said "running"."""
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(audio_error=True), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     seen: list[tuple[str, str]] = []
     m.changed.connect(lambda: seen.append((m.state, m.problem)))
@@ -600,7 +630,7 @@ async def test_a_program_that_dies_is_started_again_on_the_same_ports_and_the_tn
 
 
 async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_owner_is_told_to_point_the_tnc_at_it(tmp_path: Path) -> None:
-    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([4.0, 4.0]), control_backoff=Backoff([0.05, 0.05]))          # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=Backoff([4.0, 4.0]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))          # (the back-off is the time the test has to take the port: a machine that stalls for a second does not end it)
     m.ports = lambda: []
     told: list[int] = []
     m.ports_changed.connect(lambda: told.append(m.broadcast_port))
@@ -618,6 +648,7 @@ async def test_a_pair_taken_while_the_program_was_down_gives_another_and_the_own
             await until_started(lambda: m.starts == 2 and m.running)
             assert m.broadcast_port != old and m.control_port == m.broadcast_port + CONTROL_OFFSET
             assert told == [m.broadcast_port], "told once, after the new pair was chosen"
+            assert [c.value for c in m.held() if c.kind == "modem_ports"] == [str(m.broadcast_port)], "the radio holds the new pair in the place of the old"
         finally:
             await stopped(m)
 
@@ -683,7 +714,7 @@ async def test_a_launch_that_fails_for_a_reason_that_may_pass_is_tried_again_aft
         await stopped(m)
 
 
-async def test_the_fm_radios_the_gpss_and_the_skipped_ports_are_never_chosen_to_key_the_radio(tmp_path: Path) -> None:
+async def test_the_fm_radios_the_gpss_the_skipped_and_another_radios_ports_are_never_chosen_to_key_the_radio(tmp_path: Path) -> None:
     m = modem(tmp_path)
     m.ports = lambda: [SerialPort("/dev/ttyUSB0", 0x10C4, 0xEA60), SerialPort("/dev/ttyUSB1", 0x10C4, 0xEA60)]
     await m.start(replace(HF, mercury_sound_card="", mercury_keying="", serial_port="/dev/ttyUSB0"))
@@ -697,6 +728,15 @@ async def test_the_fm_radios_the_gpss_and_the_skipped_ports_are_never_chosen_to_
         await until_started(lambda: m.running)
         assert m.keying == Keying("vox"), "the GPS's port and a skipped port leave no serial port: VOX"
     finally:
+        await m.stop()
+    assert m.claims is not None
+    m.claims.hold(Claim("serial", claim_value("/dev/ttyUSB0"), 3))
+    m.claims.hold(Claim("gps", claim_value("/dev/ttyUSB1"), None))
+    await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))
+    try:
+        await until_started(lambda: m.running)
+        assert m.keying == Keying("vox"), "another radio's port and the port the GPS receiver holds in the station's table leave no serial port: VOX"
+    finally:
         await stopped(m)
 
 
@@ -707,6 +747,11 @@ def test_the_page_is_proposed_the_card_and_the_keying_the_daemon_would_choose_an
     assert proposal(cards, usb, replace(DEFAULTS, serial_port="/dev/ttyUSB0")) == ("plughw:1,0", "vox"), "the FM radio's port keys no HF radio"
     assert proposal(cards[1:], usb, DEFAULTS) == ("plughw:0,0", "vox"), "the system's default device, named, and no radio's sound card to key a line by"
     assert proposal([], usb, DEFAULTS) == ("", "")
+    claims = Claims()
+    claims.hold(Claim("serial", claim_value("/dev/ttyUSB0"), 1))
+    claims.hold(Claim("sound_card", "plughw:1,0", 5))
+    assert proposal(cards, usb, DEFAULTS, claims=claims, holder=HF_ID) == ("plughw:0,0", "vox"), "what other radios hold in the station's table is proposed to none: another radio's card, the FM radio's port"
+    assert proposal(cards, usb, DEFAULTS, claims=claims, holder=5) == ("plughw:1,0", "vox"), "a radio's own card is its to be proposed"
 
 
 async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_the_ports_are_chosen_last(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -753,7 +798,7 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
     monkeypatch.setattr(mercuryhelper, "tools_dir", lambda: tmp_path / "tools")
     assert mercuryhelper.is_shipped([str(shipped)]) and not mercuryhelper.is_shipped([str(tmp_path / "mercury.exe")]) and not mercuryhelper.is_shipped(fakemercury.program())
     caplog.set_level(logging.INFO, "neoaprs.mercury")
-    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: [str(shipped)], backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []                                                  # (never the operator's serial ports)
     await m.start(HF)
     try:
@@ -762,7 +807,7 @@ async def test_the_shipped_program_is_started_with_no_question_asked_of_the_syst
         assert not [call for call in asked if "powershell" in call.lower() or "netsh" in call.lower()], asked
     finally:
         await stopped(m)
-    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK)          # (a program named by its path elsewhere: said not to be the shipped one; what it is said to be is the system's words)
+    m = Mercury(tmp_path, finder=lambda: [str(tmp_path / "not-there")], backoff=QUICK, **of_radio(tmp_path))          # (a program named by its path elsewhere: said not to be the shipped one; what it is said to be is the system's words)
     await m.start(HF)
     assert m.reason == "not_started" and "(not the one NeoAPRS ships)" in caplog.text
     await stopped(m)

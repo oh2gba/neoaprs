@@ -15,7 +15,8 @@ from neoaprs.packet import Message, Other, Packet, Position, ThirdParty
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, KISS_EXIT, Tnc
 from neoaprs.tncmode import Mode, ModeDetector, looks_valid
-from neoaprs.tncprofile import KENWOOD_TNC2, KISS_TCP
+from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.tncprofile import KENWOOD_TNC2, KISS_TCP, MERCURY
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, until
 from tests.support.fakeradio import REFUSED, FakeRadio
@@ -343,6 +344,29 @@ async def test_a_radio_that_is_not_there_is_waiting_and_a_later_one_is_found() -
         assert tnc.stats.opens == 0 and tnc.problem == f"{radio.url}: {REFUSED}"
         await radio.accept()
         await until(lambda: tnc.state is Source.State.CONNECTED)
+    finally:
+        await tnc.stop()
+        await radio.aclose()
+
+
+# ---- what the log calls the radio
+
+def test_the_log_calls_a_radio_by_its_name_and_until_it_has_one_by_its_kind() -> None:
+    fm, hf = Tnc(), Tnc(profile=MERCURY)
+    assert (fm.label, hf.label) == ("tnc", "hf radio") and (fm.radio_id, hf.radio_id) == (FM_ID, HF_ID), "today's two, before a driver names them"
+    fm.radio_name, hf.radio_name = "FM", "HF 2"
+    assert (fm.label, hf.label) == ("FM", "HF 2")
+
+
+async def test_the_lines_of_the_log_of_a_named_radio_begin_with_its_name(caplog: pytest.LogCaptureFixture) -> None:
+    radio = FakeRadio()
+    await radio.start()
+    tnc = Tnc(radio.url, fallback_probe=False, backoff=tiny_backoff(), check_sec=0.0)
+    tnc.radio_id, tnc.radio_name = 3, "FM 2"
+    try:
+        with caplog.at_level(logging.INFO, logger="neoaprs.tnc"):
+            await tnc.start()
+        assert tnc.state is Source.State.CONNECTED and f"FM 2: opened {radio.url}" in [r.getMessage() for r in caplog.records]
     finally:
         await tnc.stop()
         await radio.aclose()

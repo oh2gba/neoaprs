@@ -1,6 +1,7 @@
 """What the log says of the HF radio and the Mercury modem, because a person who sends the support bundle is helped from it: the program found or not (and where it was looked for), the sound card with the reason it was
 chosen, the keying, the ports, the command line, Mercury's own first lines, every busy channel and every keyed radio with how long it lasted, a hold that gives up, why the program ended, and each frame over HF with its
-size and the modem's SNR. The lines are the evidence, so the tests read them."""
+size and the modem's SNR; and, with radios side by side, a sound card or a keying line another radio holds, with the holder, and the files an older version left in the data folder that could not be moved into
+the radio's folder. The modems are radios' (`fakemercury.of_radio`). The lines are the evidence, so the tests read them."""
 import logging
 import time
 from dataclasses import replace
@@ -8,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, kiss, mercuryhelper
+from neoaprs import ax25, kiss, mercurymodem, mercuryhelper
+from neoaprs.claims import Claim
 from neoaprs.mercury import SerialPort, SoundCard, card_reason, frame_words
 from neoaprs.mercurymodem import Mercury
 from neoaprs.source import Backoff
@@ -16,7 +18,7 @@ from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
 from tests.support.env import until_started
-from tests.support.fakemercury import Air
+from tests.support.fakemercury import Air, of_radio
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test, modem  # noqa: F401 (the fixture keeps two tests from taking the same ports)
 from tests.test_tnc import ui_frame
 
@@ -72,6 +74,34 @@ async def test_the_sound_card_and_the_keying_of_the_settings_are_said_as_the_set
     assert "Mercury sound card: 'plughw:1,0', from the settings" in said and "Mercury keys the radio by rts:/dev/ttyUSB0, from the settings" in said
 
 
+async def test_a_sound_card_or_a_keying_line_another_radio_holds_is_said_with_its_holder_and_nothing_is_started(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    m = modem(tmp_path)
+    assert m.claims is not None
+    m.claims.hold(Claim("sound_card", "plughw:1,0", 5))
+    await m.start(HF)
+    try:
+        assert m.state == "waiting" and m.reason == "not_started" and m.starts == 0
+        said = lines(caplog)
+        assert "Mercury cannot be started: the sound card plughw:1,0 is held by radio 5" in said and "Mercury: waiting: the sound card plughw:1,0 is held by radio 5" in said
+    finally:
+        await m.stop()
+
+
+async def test_an_old_file_that_cannot_be_moved_into_the_radios_folder_is_a_line_and_the_start_goes_on(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.mercury")
+    stuck = tmp_path / mercurymodem.CAPTURE_FIFO
+    stuck.mkdir()                                                                  # (something that is not the old pipe and cannot be removed as one)
+    (stuck / "inside").write_text("x")
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.state == "running")
+        assert any(line.startswith(f"Mercury's old {mercurymodem.CAPTURE_FIFO} in the data folder could not be moved to {m.home}: ") for line in lines(caplog))
+    finally:
+        await m.stop()
+
+
 async def test_a_program_that_is_not_there_is_said_with_the_place_it_was_looked_for(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     m = modem(tmp_path, program=False)
     await m.start(HF)
@@ -100,7 +130,7 @@ async def test_mercurys_own_first_lines_are_in_the_log_and_the_rest_only_when_th
 
 async def test_a_program_that_ends_is_said_with_its_last_lines_and_the_start_after_the_back_off(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, "neoaprs.mercury")
-    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, finder=lambda: fakemercury.program(die_after_sec=0.3), backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     await m.start(HF)
     try:

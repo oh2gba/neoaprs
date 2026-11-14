@@ -1,6 +1,6 @@
 """The silent radio: the line is open and nothing at all comes back, as when the TH-D7 is switched off and the USB adapter is still there. The keep-alive's check decides, the probes look for the radio
 coming back, the first byte ends the silence cleanly (KISS is entered afresh and nothing is sent until it has settled), and every sender treats the state as not usable. The Tnc runs on a fake radio (a TCP server
-on the loopback) with short periods; the senders' own cases are in their test files."""
+on the loopback) with short periods; the senders' own cases are in their test files. The log says the silence and the return of a radio by its name (`Tnc.radio_name`, which its driver gives), and by its kind until it has one."""
 import asyncio
 import logging
 from dataclasses import replace
@@ -58,9 +58,14 @@ async def test_a_check_that_nothing_answers_makes_the_radio_silent_and_describe_
     assert r.tnc.send_frame(ui_frame()) is False and any("not sent: the radio is silent" in line for line in r.tnc.lines)
 
 
+NAMES = [("", "tnc"), ("FM 2", "FM 2")]          # (the radio's name, and what the log calls it: its kind's word until its driver names it)
+
+
+@pytest.mark.parametrize(("name", "label"), NAMES)
 @stops_rigs
-async def test_command_mode_text_while_silent_enters_kiss_and_connects_but_nothing_is_usable_until_the_settle_has_passed(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
+async def test_command_mode_text_while_silent_enters_kiss_and_connects_but_nothing_is_usable_until_the_settle_has_passed(rig: Rigs, caplog: pytest.LogCaptureFixture, name: str, label: str) -> None:
     r, clock = await silent_rig(rig)
+    r.tnc.radio_name = name
     clock.advance(17 * 60)
     caplog.set_level(logging.INFO)
     caplog.clear()
@@ -68,7 +73,7 @@ async def test_command_mode_text_while_silent_enters_kiss_and_connects_but_nothi
     assert await hear_until(r.radio, ENTER_KISS, 1.0)
     assert r.tnc.state is Source.State.CONNECTED and r.tnc.silent_since is None
     assert r.tnc.usable is False and r.tnc.send_frame(ui_frame()) is False, "the TNC is restarting"
-    assert news(caplog) == ["tnc: the radio answers again after 17 min; entering KISS"]
+    assert news(caplog) == [f"{label}: the radio answers again after 17 min; entering KISS"]
     assert any(line.endswith("NeoAPRS: the radio answers again after 17 min; entering KISS") for line in r.tnc.lines)
     await until(lambda: r.tnc.usable, 1.0)
     assert r.tnc.send_frame(ui_frame()) is True
@@ -336,17 +341,19 @@ async def test_a_fresh_tnc2_line_is_checked_at_once_and_nothing_else_is_written_
     assert news(caplog) == [] and r.tnc.problem == ""
 
 
+@pytest.mark.parametrize(("name", "label"), NAMES)
 @stops_rigs
-async def test_a_fresh_line_whose_radio_does_not_answer_is_silent_within_the_answer_time_with_one_warning(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
+async def test_a_fresh_line_whose_radio_does_not_answer_is_silent_within_the_answer_time_with_one_warning(rig: Rigs, caplog: pytest.LogCaptureFixture, name: str, label: str) -> None:
     caplog.set_level(logging.INFO)
     r = await rig(clock=FixedClock(), **SHORT)
+    r.tnc.radio_name = name                                                   # (before the loop runs again: the check's answer time is not over)
     caplog.clear()
     begun = asyncio.get_running_loop().time()
     await until(lambda: r.tnc.state is Source.State.SILENT, 2.0)
     assert asyncio.get_running_loop().time() - begun < 0.5
     assert await hear_until(r.radio, CHECK + ENTER_KISS, 1.0) == CHECK + ENTER_KISS
     assert await r.radio.said(1, 0.2) == b"", "the check and nothing else"
-    assert news(caplog) == ["tnc: the radio is silent: nothing heard since 12:00 UTC, no answer to a check; probing every 30 s"]
+    assert news(caplog) == [f"{label}: the radio is silent: nothing heard since 12:00 UTC, no answer to a check; probing every 30 s"]
     assert [rec.levelno for rec in caplog.records if rec.name.startswith("neoaprs")] == [logging.WARNING]
     assert r.tnc.usable is False and r.tnc.send_frame(ui_frame()) is False and any("not sent: the radio is silent" in line for line in r.tnc.lines)
 

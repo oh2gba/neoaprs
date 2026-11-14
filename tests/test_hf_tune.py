@@ -1,21 +1,24 @@
 """Tune and the keying test of the HF radio (neoaprs/mercurymodem.py, Mercury's own TUNE command on its control port, neoaprs/mercury.py): the tone keys the radio through the modem and stops by itself, a second press
 stops it early, the keying test is the quiet second, both hold our frames meanwhile, both are refused while the modem is not running or the radio is not free, and the page asks for them with `hf_tune` and
-`hf_key_test` and is refused while RX only is ticked (`transmit.off`)."""
+`hf_key_test` and is refused while RX only is ticked (`transmit.off`). The modem is a radio's (`fakemercury.of_radio`), on a Mercury something else runs (`attach`): the radio holds that Mercury's pair while it is
+attached, and the tone goes through the keying the settings name."""
 import asyncio
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from neoaprs.claims import Claim
 from neoaprs.coded import CodedError
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import KEY_TEST_LEVEL_DBFS, key_test_level, KEY_TEST_SEC, TUNE_LEVEL_DBFS, TUNE_OFF, TUNE_SEC, TUNE_TONE_HZ, tune_command
 from neoaprs.mercurymodem import TRANSMITTING, Mercury
 from neoaprs import mercurytune
 from neoaprs.mercurytune import NOT_RUNNING
+from neoaprs.radiotype import HF_ID
 from neoaprs.source import Backoff
 from tests.support.env import START_SEC, Env, until_started
-from tests.support.fakemercury import Air, FakeMercury
+from tests.support.fakemercury import Air, FakeMercury, of_radio
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 
@@ -30,7 +33,7 @@ def test_the_tone_and_its_length_are_mercurys_own_numbers_and_the_keying_test_is
 async def running(tmp_path: Path, air: Air) -> tuple[Mercury, FakeMercury]:
     station = air.station()
     await air.start()
-    m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]))
+    m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
     m.ports = lambda: []
     await m.start(HF, attach=station.url)
     await until_started(lambda: m.state == "running")
@@ -43,6 +46,7 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
     m, station = await running(tmp_path, air)
     try:
         assert m.test == "" and m.hold() == ""
+        assert m.held() == [Claim("modem_ports", str(m.broadcast_port), HF_ID)], "the attached Mercury's pair is the radio's; its card and keying are the program's own, chosen by nobody here"
         await m.tune()
         assert m.test == "tune" and m.hold() == TRANSMITTING and m.describe() == "Mercury DATAC3, tuning"
         await until_started(lambda: station.tuned == ["TUNE -15"] and m.keyed)
@@ -52,6 +56,7 @@ async def test_tune_keys_the_radio_with_the_tone_holds_our_frames_and_stops_by_i
     finally:
         await m.stop()
         await air.aclose()
+    assert m.held() == [], "let go at the stop"
 
 
 async def test_a_second_press_stops_the_tone_early_and_the_keying_test_is_one_quiet_second(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,7 +89,7 @@ async def test_the_keying_test_of_a_radio_that_keys_on_audio_sends_the_tune_tone
         air = Air(frame_sec=0.2)
         station = air.station()
         await air.start()
-        m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]))
+        m = Mercury(tmp_path, backoff=Backoff([0.1, 0.1]), control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path))
         m.ports = lambda: []
         await m.start(replace(HF, mercury_keying=keying), attach=station.url)
         try:

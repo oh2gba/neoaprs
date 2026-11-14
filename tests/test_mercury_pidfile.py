@@ -1,6 +1,7 @@
 """The file that holds the id of the Mercury the daemon started (`mercury.pid`) and the stopping of that Mercury (neoaprs/mercuryhelper.py): a clean stop leaves no file behind, the next start ends a process of the file's
 id only when it is a Mercury (on Windows, which reuses ids and has no /proc, by the name of its program file), and a Mercury that does not end at the first request is asked a second time, as its own handling of a second
-SIGTERM drops the transmitter, before it is killed."""
+SIGTERM drops the transmitter, before it is killed. The modem is a radio's (`fakemercury.of_radio`), whose file is in the radio's own folder, `radios/<id>/mercury.pid`, and the modem of today's station, whose
+file is in the data folder; the one an older NeoAPRS left in the data folder is tests/test_mercury_folder.py's."""
 import asyncio
 import random
 import sys
@@ -17,6 +18,7 @@ from neoaprs.mercurymodem import PID_FILE, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
 from tests.support.env import until_started
+from tests.support.fakemercury import of_radio
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 QUICK = Backoff([0.1, 0.1])
@@ -29,22 +31,24 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
 
 
-def modem(tmp_path: Path) -> Mercury:
-    m = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
+def modem(tmp_path: Path, radio: bool = True) -> Mercury:
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **(of_radio(tmp_path) if radio else {}))
     m.ports = lambda: []                                                  # (never the operator's serial ports)
     return m
 
 
 # ---- the file of a clean stop
 
-async def test_a_clean_stop_removes_the_pid_file_that_the_start_wrote(tmp_path: Path) -> None:
+@pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])
+async def test_a_clean_stop_removes_the_pid_file_that_the_start_wrote(tmp_path: Path, radio: bool) -> None:
     """The file is for a daemon that crashed; a clean stop leaves none, so that no later start looks at an id that something else may have by then."""
-    m = modem(tmp_path)
+    m = modem(tmp_path, radio)
     await m.start(HF)
-    pid_file = tmp_path / PID_FILE
-    assert m.pid is not None and pid_file.read_text(encoding="ascii") == str(m.pid)
+    pid_file = (tmp_path / "radios" / "2" if radio else tmp_path) / PID_FILE
+    assert m.pid is not None and pid_file.read_text(encoding="ascii") == str(m.pid), "the radio's own file in its folder; today's modem's in the data folder"
+    assert not radio or not (tmp_path / PID_FILE).exists()
     await m.stop()
-    assert not pid_file.exists()
+    assert not pid_file.exists() and pid_file.parent.is_dir(), "the file goes, the folder stays"
 
 
 # ---- which process is a Mercury

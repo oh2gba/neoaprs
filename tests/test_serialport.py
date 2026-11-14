@@ -1,5 +1,5 @@
 """The serial port (neoaprs/serialport.py, serialprobe.py, serialholders.py) on a fake radio (a TCP server on the loopback, tests/support/fakeradio.py), which runs the same on every system, and with stand-ins for the
-pyserial object where a failure has to be made: reading and writing through the threads, the line settings, the open in a thread, a line that dies, the list of ports, the search (`probe`) and the guard that keeps a
+pyserial object where a failure has to be made: reading and writing through the threads, the line settings, the open in a thread, a line that dies, the list of ports, the search (`probe`: with radios side by side it never touches a port another radio of the station holds, `claimed`, nor one on the skip list) and the guard that keeps a
 test away from the radio's device files. What is about a real device file (the lock, a vanished device, the holders in /proc, the globs) is in tests/test_serialport_pty.py."""
 import asyncio
 import logging
@@ -23,7 +23,7 @@ from neoaprs import serialport, serialprobe
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, holders, port_key
 from neoaprs.serialport import SerialError, SerialPort, is_socket, normalize
-from neoaprs.serialprobe import PortInfo, available_ports, can_search, candidate_ports, probe
+from neoaprs.serialprobe import PortInfo, available_ports, can_search, candidate_ports, claim_value, holder_words, probe
 from tests.conftest import ROOT
 from tests.support import guards
 from tests.support.env import idle_for, until
@@ -716,6 +716,30 @@ async def test_probe_never_touches_a_path_in_skip_however_it_is_written(listed_a
         await stop_feeding(feeder)
     assert found == radio.url and told == [[radio.url]] and excluded.connections == 0, "nothing was opened on a port on the skip list"
     assert [r.levelno for r in caplog.records if "on the skip list" in r.getMessage()] == [logging.INFO]
+
+
+@pytest.mark.parametrize("listed_as", ["socket://{}", "tcp://{}", "SOCKET://{}"])
+async def test_probe_never_touches_a_port_another_radio_holds_however_it_is_written_and_says_who_holds_it(listed_as: str, radios: Radios, caplog: pytest.LogCaptureFixture) -> None:
+    held, radio = await radios(2)
+    feeder = asyncio.get_running_loop().create_task(keep_feeding(radio, b"x"))
+    told: list[list[str]] = []
+    try:
+        with caplog.at_level(logging.INFO, logger="neoaprs.serialport"):
+            found = await probe([listed_as.format(held.url.removeprefix("socket://")), radio.url], 9600, 2.0, lambda data: bool(data), on_open=told.append, claimed={port_key(held.url): "held by radio 3"})
+    finally:
+        await stop_feeding(feeder)
+    assert found == radio.url and told == [[radio.url]] and held.connections == 0, "nothing was opened on a port another radio holds"
+    assert [r.getMessage() for r in caplog.records if "held by radio 3" in r.getMessage()] == [f"probe: skipping {listed_as.format(held.url.removeprefix('socket://'))}: held by radio 3"]
+
+
+def test_a_claim_of_a_port_is_the_device_by_what_it_is_and_a_kiss_tcp_address_is_none(tmp_path: Path) -> None:
+    device = tmp_path / "ttyUSB0"
+    device.write_text("")
+    (tmp_path / "by-id").symlink_to(device)
+    assert claim_value(str(tmp_path / "by-id")) == claim_value(str(device)) == port_key(str(device)), "two names of one device are one claim"
+    assert claim_value("bt://00:11:22:33:44:55") == claim_value("BT://00:11:22:33:44:55"), "a Bluetooth radio is a device too"
+    assert claim_value("socket://127.0.0.1:8001") is None and claim_value("tcp://127.0.0.1:8001") is None and claim_value("") is None and claim_value("  ") is None
+    assert holder_words(3) == "radio 3" and holder_words(None) == "the GPS receiver"
 
 
 async def test_probe_with_every_path_skipped_finds_nothing_at_once(radios: Radios) -> None:
