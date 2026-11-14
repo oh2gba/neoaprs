@@ -6,7 +6,8 @@ A daemon that ends to start again as a new version (Update now of an AppImage) l
 waits for the new daemon while the note is fresh.
 
 While the database is brought up to date (a migration: minutes for a large file on a slow card) `neoaprs.migrating` is beside it, written again every few seconds and deleted at the end: what waits
-for the daemon's page (`neoaprs open`, the desktop app) waits as long as the note is fresh, and a note that a kill left goes stale by itself."""
+for the daemon's page (`neoaprs open`, the desktop app) waits as long as the note is fresh, and a note that a kill left goes stale by itself. The migration also holds the lock `neoaprs.migrate.lock`
+(the kind of instancelock.py, which the system lets go of when its process ends, however it ends): a second NeoAPRS that is to migrate the file waits for it (migrations.py)."""
 import asyncio
 import contextlib
 import threading
@@ -69,6 +70,7 @@ def clear_restart(data_dir: Path) -> None:
 MIGRATING_NAME = "neoaprs.migrating"
 MIGRATING_BEAT_SEC = 5.0                  # how often the note is written again while the migration runs
 MIGRATING_FRESH_SEC = 30.0                # a note older than this is of a migration that a kill ended
+MIGRATE_LOCK_NAME = "neoaprs.migrate.lock"   # held by the process that migrates, from before its copy to its last step (the file stays, as every lock file of the folder does)
 
 
 class MigratingNote:

@@ -3,7 +3,9 @@ MIGRATIONS below), one after the other; a file from
 a newer NeoAPRS than this one is refused, not damaged. Before the first migration step that is going to run on a file that holds anything, the file is copied whole into backup/ next to it
 (premigrate-v<from>-to-v<to>-<time>.sqlite), unless the copy this migration stands on is there already from a start that was cut short (backupfolder.py has the rule); once the whole migration has
 succeeded every other copy taken before a migration is removed, so the folder holds that one: a migration that fails, or is cut short, removes none. If no copy stands and none can be made, or the
-disk has no room for the migration, nothing is migrated. While a migration runs, the note `neoaprs.migrating` beside the file says so (stopfile.py). Every step that ran is written to the table
+disk has no room for the migration, nothing is migrated. While a migration runs, the note `neoaprs.migrating` beside the file says so (stopfile.py), and the process holds the lock
+`neoaprs.migrate.lock`: a second NeoAPRS that is to migrate the file (the daemon started while `neoaprs db` migrates it) waits for the first while its note stays fresh, then goes on from what it left
+(`_migration_lock`). Every step that ran is written to the table
 schema_history (version, name, a checksum of the function's source, the time). A migration that has been applied is never edited: a change is a new migration (the checksum of the
 source of each step is pinned by tests/test_migrations.py; the steps keep the names and the annotations they were written with, which is why they name sqlite3 and not dberror.py's aliases).
 
@@ -13,6 +15,7 @@ import hashlib
 import inspect
 import shutil
 import sqlite3
+import threading
 import time
 from collections.abc import Callable
 from datetime import datetime
@@ -22,13 +25,14 @@ from .backupfolder import cut_short, drop_older_copies, drop_still, file_version
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
+from .instancelock import AlreadyRunning, InstanceLock
 from .migrationlog import log
 from .migrationsteps12to21 import _v12, _v13, _v14, _v15, _v16, _v17, _v18, _v19, _v20, _v21
 from .migrationsteps1to11 import _v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v10, _v11
 from .migrationsteps22on import _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30
 from .migrationsteps31 import _v31
 from .migrationsteps32 import _v32, _v33
-from .stopfile import MigratingNote, clear_stale_migrating, migrating
+from .stopfile import MIGRATE_LOCK_NAME, MigratingNote, clear_stale_migrating, migrating
 
 
 def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
@@ -60,9 +64,13 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
     none can be made, nothing is migrated and the file is as it was."""
     db: sqlite3.Connection | None = None
     note = MigratingNote(Path(path).absolute().parent)      # (written only while a migration runs: what waits for the daemon waits as long as the note is fresh)
+    lock: InstanceLock | None = None
     try:
         db = sqlite3.connect(str(path), isolation_level=None, timeout=busy_ms / 1000.0)         # the transactions are ours: BEGIN and COMMIT where a write needs more than one statement
         version = schema_version(db)                        # first: nothing of a file is changed before it is known to be ours
+        if _to_migrate(db, path, version):
+            lock = _migration_lock(Path(path), busy_ms)     # (another NeoAPRS that migrates the file is waited for: what it left is read again)
+            version = schema_version(db)
 
         if version > SCHEMA_VERSION:
             db.close()
@@ -91,6 +99,7 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
         return _refused(db, f"the database {path} was not migrated: {type(e).__name__}: {e} (the step that failed is rolled back; the copy taken before it is in backup/)")
     finally:
         note.stop()
+        _let_go(lock)                                       # (after the note is gone: one who takes the lock next writes a note of its own, which this one's end must not remove)
 
     if str(path) != ":memory:":
         sweep(Path(path).absolute().parent / "backup", clock().timestamp())      # the temporary files of a copy that a kill ended before this start
@@ -103,6 +112,67 @@ def _refused(db: sqlite3.Connection | None, why: str) -> tuple[None, str]:
     if db is not None:
         db.close()
     return None, why
+
+
+def _to_migrate(db: sqlite3.Connection, path: str | Path, version: int) -> bool:
+    """Whether a migration with its copy is to run: a file below this NeoAPRS's version that holds anything (a new file gets its steps at once, with no copy, no note and no lock)."""
+    return version < SCHEMA_VERSION and str(path) != ":memory:" and db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None
+
+
+MIGRATION_WAIT_SEC = 3600.0         # the longest a start waits for another NeoAPRS's migration. The note is written by a thread of its own, so it shows that the other process lives, not that its migration
+                                    # moves: one stuck in a step (a disk that stopped answering) would keep it fresh for ever. A gigabyte's file migrates in seconds on an SSD and in minutes on a slow card,
+                                    # with the five minutes of the litter's wait (`_room`) on a tight disk: an hour is many times that, and a real migration is not cut short by it
+WAIT_POLL_SEC = 0.25                # how often the lock is tried while it is waited for
+_HELD_HERE: set[Path] = set()       # the data folders whose migration lock this process holds
+_HELD_GUARD = threading.Lock()
+
+
+def _migration_lock(path: Path, busy_ms: int) -> InstanceLock | None:
+    """The lock of the folder's migration (`neoaprs.migrate.lock`), taken; held from before the copy to the end of the last step. The system lets go of a lock when its process ends, however it ends (a
+    kill, the OOM killer, TerminateProcess), so one that is held is a living NeoAPRS's that migrates the file now: this one waits for it, saying so once, for as long as its note stays fresh (stopfile.py:
+    neither stale nor dated ahead of the clock) and at most MIGRATION_WAIT_SEC, and then takes the lock and goes on from what it left. Raises StoreError, nothing changed, when the other holds it with no fresh
+    note for the busy time, or past the bound. None when this process holds it already (an open within an open, which only the tests make: the lock is between processes) or its file cannot be made (the
+    folder cannot be written): the open goes on as before, and the steps' own check keeps a step from running twice."""
+    folder = path.absolute().parent
+    lock = InstanceLock(folder, MIGRATE_LOCK_NAME)
+    began = heard = time.monotonic()
+    told = False
+    while True:
+        with _HELD_GUARD:
+            if folder in _HELD_HERE:
+                return None
+            try:
+                lock.acquire()
+            except AlreadyRunning:
+                pass
+            except OSError:
+                return None
+            else:
+                _HELD_HERE.add(folder)
+                return lock
+        now = time.monotonic()
+        if migrating(folder):
+            heard = now
+            if not told:
+                log.info("the database %s is being brought up to date by another NeoAPRS (a command, or a start beside this one): this one waits until that is done", path)
+                told = True
+        elif now - heard >= busy_ms / 1000.0:
+            raise StoreError("another NeoAPRS has its migration in hand but shows no sign that it is still at it (stopped, or stuck); start this one again once that one has ended")       # (no seconds: its note went stale half a minute before the busy time began)
+        if now - began >= MIGRATION_WAIT_SEC:
+            raise StoreError(f"another NeoAPRS has been bringing it up to date for {_span(MIGRATION_WAIT_SEC)}, longer than a migration takes: this one waited no longer; "
+                             "let that one end, or end it, and start again")
+        _sleep(WAIT_POLL_SEC)
+
+
+def _let_go(lock: InstanceLock | None) -> None:
+    if lock is not None:
+        with _HELD_GUARD:
+            _HELD_HERE.discard(lock.path.parent)
+            lock.release()
+
+
+def _span(seconds: float) -> str:
+    return f"{round(seconds / 60)} minutes" if seconds >= 120 else f"{seconds:g} seconds"
 
 
 def _step(db: sqlite3.Connection, number: int, clock: Clock) -> bool:
@@ -128,7 +198,7 @@ def _step(db: sqlite3.Connection, number: int, clock: Clock) -> bool:
 def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: Clock, note: MigratingNote) -> Path | None:
     """Before the first step on a file that holds anything: the note that a migration runs, and the copy the migration stands on (backupfolder.py says the rule), made now or found from a start
     that was cut short; None when no step is to run or the file is empty. Raises StoreError when no copy stands and none can be made, or the disk has no room for the migration."""
-    if version >= SCHEMA_VERSION or str(path) == ":memory:" or db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is None:
+    if not _to_migrate(db, path, version):
         return None
     if not migrating(Path(path).absolute().parent):
         drop_still(litter(Path(path).absolute().parent / "backup"))      # (no other NeoAPRS migrates the file now, each keeps the note fresh from before its copy to its end: a copy's temporary file is dead)

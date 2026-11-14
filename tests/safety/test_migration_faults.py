@@ -2,6 +2,7 @@
 full at the commit, a file another writer holds, another process that migrated first, a history that cannot be read or a source that cannot be hashed. In each the file is as it was or at the step before,
 the copy taken before the first step is in backup/, and the next start with the cause gone migrates it."""
 import logging
+import os
 import signal
 import sqlite3
 import subprocess
@@ -134,6 +135,8 @@ def test_a_file_that_another_writer_holds_is_refused_as_locked_and_not_touched_a
 
 
 def test_a_step_that_another_process_has_run_meanwhile_is_not_run_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """The other gets there between this one's lock and its first step: one that takes no migration lock (a NeoAPRS before 0.20, or an open within an open, as here); the step's own check keeps it from
+    running twice."""
     clock = FixedClock()
     path = tmp_path / DB_NAME
     opened(path, clock).close()
@@ -310,6 +313,49 @@ def test_a_start_killed_after_the_last_step_leaves_the_copies_of_the_migration_b
     assert tables_and_version(path)[0] == NEXT + 2
     names = taken(folder)
     assert len(names) == 2 and names[0] == "premigrate-v29-to-v30-20261001-120000.sqlite" and at_the_old_version_as_it_was(folder / names[1], held)
+
+
+def test_a_migration_killed_while_two_others_wait_for_it_is_taken_over_by_one_and_the_third_waits_for_that_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """A tool migrates (in a step longer than any busy time), and two more NeoAPRS start meanwhile: this process (the daemon) and a child (another tool). Both wait. The tool is killed in its step (on
+    Windows TerminateProcess, the parent's kill: it runs everywhere). One of the two takes over: it stands on the tool's copy, makes none and runs the step the kill ended; the other waits for that one and
+    finds the file at the newest version. The file ends whole, each step in it once, and backup/ holds one copy, of the old version."""
+    from tests.test_migration_waits import NEWEST, WAITS, a_station_to_migrate, another_neoaprs, ended, in_the_second_step, open_in_a_thread, said, until, version_of
+    caplog.set_level(logging.INFO, MIGRATION_LOG)
+    path, held = a_station_to_migrate(tmp_path, monkeypatch)
+    tool = another_neoaprs(path, held)
+    second: subprocess.Popen[bytes] | None = None
+    try:
+        until(lambda: tool.pid in in_the_second_step(held), "the tool runs the second step")
+        second = another_neoaprs(path, held, busy_ms=300)
+        thread, out = open_in_a_thread(path, busy_ms=300)
+        child_log = held / f"log-{second.pid}"
+        until(lambda: said(caplog, WAITS) == 1 and child_log.is_file() and WAITS in child_log.read_text(encoding="utf-8"), "both say that they wait")
+        tool.kill()
+        tool.wait(60)
+        assert version_of(path) == SCHEMA_VERSION + 1, "killed in its second step: the first is in"
+        (held / "go").touch()
+        thread.join(60)
+        assert second.wait(60) == 0, second.communicate()[0]
+    finally:
+        (held / "go").touch()
+        ended(tool)
+        if second is not None:
+            ended(second)
+    assert out == [("", NEWEST)]
+    took_over = in_the_second_step(held) - {tool.pid}
+    assert len(took_over) == 1 and took_over <= {second.pid, os.getpid()}, "the step the kill ended ran once more, in one of the two"
+    lines = [r.getMessage() for r in caplog.records if r.name == MIGRATION_LOG] + child_log.read_text(encoding="utf-8").splitlines()
+    assert sum("taken by a start that did not get through; no other is made" in line for line in lines) == 1 and not any("a copy of it is in" in line for line in lines)
+    assert sum(WAITS in line for line in lines) == 2, "each said once that it waits"
+    [copy] = taken(tmp_path / "backup")
+    assert copy.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEWEST}-") and tables_and_version(tmp_path / "backup" / copy)[0] == SCHEMA_VERSION
+    version, tables = tables_and_version(path)
+    assert version == NEWEST and {"k2_first", "k2_second"} <= set(tables)
+    db = raw(path)
+    assert db.execute("SELECT value FROM settings WHERE key = 'station/call'").fetchone() == ("OH2GBA (and the second step)",), "each step ran once whole"
+    assert [r[0] for r in db.execute("SELECT version FROM schema_history ORDER BY version")][-2:] == [SCHEMA_VERSION + 1, NEWEST]
+    db.close()
+    assert not (tmp_path / "neoaprs.migrating").exists()
 
 
 def test_a_source_that_cannot_be_read_hashes_as_unknown_and_is_not_held_against_the_file() -> None:
