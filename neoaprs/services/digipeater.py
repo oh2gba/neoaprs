@@ -1,4 +1,4 @@
-"""The fill-in digipeater, switched on by `digi/enabled` (off unless the operator turns it on): a packet heard on the radio is sent again, once, when its path asks for a hop that we can be.
+"""The fill-in digipeater, switched on for each radio by its own `digipeat` (radio 1's is `digi/enabled`; off unless the operator turns it on): a packet heard on the radio is sent again, once, when its path asks for a hop that we can be.
 
 The first digipeater of the path that has not been used yet decides. `WIDE1-1` (the fill-in hop) is replaced by our call marked as used: `OH2XYZ>APRS,WIDE1-1,WIDE2-1` goes out as `OH2XYZ>APRS,OH2GBA*,WIDE2-1`.
 Our own call, with our SSID (a station that routes through us on purpose), is marked as used where it stands. Any other first hop (WIDE2-1, WIDE2-2, another station's call) is not ours to be, and a path with
@@ -12,20 +12,22 @@ Nothing goes while the interlock refuses (no call set: config.can_transmit) or t
 ten seconds between our scheduled frames; instead at most BURST_MAX digipeated frames go out in any BURST_WINDOW_SEC and the rest are dropped (the TNC's own channel access, its random
 delay of PERSIST and SLOTTIME, still decides when a frame is on the air: a software fill-in is never as quick as one in the TNC).
 
-The radios are the station's (services/radioset.py's `RadioPick`): a packet heard on a radio is repeated on that radio, and the duplicate check, the burst limit and the counts (the radio's `stats`) are each
-radio's own. Only radio 1, the FM radio, repeats, where its type allows it (no digipeater on HF: every station hears every frame, a repeat would only fill the channel) and `digi/enabled` is on."""
+The digipeater is a table of rows "heard on radio A, sent on radio B" (`DigiRow`, plan rule 3.4). Only A to A is made: one row for each enabled radio whose type may repeat (`allowed.digipeat`: no digipeater
+on HF, where every station hears every frame and a repeat would only fill the channel) and whose own `digipeat` the operator turned on (radio 1's is `digi/enabled`). A packet heard on a radio is repeated by
+the rows of that radio, and the duplicate check, the burst limit and the counts (the radio's `stats`) are each outgoing radio's own. A row from one radio to another, and its filter, are for later."""
 import logging
 from collections import deque
-from dataclasses import replace
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from neoaprs import ax25
 from neoaprs.callsign import parse_call
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.config import Config
 from neoaprs.packet import DuplicateKey, Packet, duplicate_key
 from neoaprs.policy import DIGI_DUPLICATE_SEC
+from neoaprs.radiospec import RadioError
 from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.recent import Recent
 from neoaprs.route import INTERNET_MARKERS
@@ -38,6 +40,28 @@ BURST_MAX = 4
 BURST_WINDOW_SEC = 10.0
 FILL_IN = ("WIDE1", 1)
 ADDRESS_LEN = 7
+
+
+@dataclass(frozen=True)
+class DigiRow:
+    """One row of the digipeater: what is heard on the radio `heard` is sent again on the radio `sent` (today always the same radio)."""
+    heard: RadioId
+    sent: RadioId
+
+
+def repeats(radio: AirRadio) -> bool:
+    """Whether the radio repeats what it hears: its type may digipeat and its own `digipeat` is on (a type that may has the setting; a radio that cannot read it repeats nothing)."""
+    if not radio.allowed.digipeat:
+        return False
+    try:
+        return bool(radio.choice("digipeat"))
+    except RadioError:
+        return False
+
+
+def digi_rows(radios: Iterable[AirRadio]) -> tuple[DigiRow, ...]:
+    """The rows of the digipeater for these radios (the enabled ones), in their order: "heard on A, sent on A" for each radio that repeats."""
+    return tuple(DigiRow(radio.id, radio.id) for radio in radios if repeats(radio))
 
 
 def repeat(frame: ax25.Frame, ours: tuple[str, int]) -> ax25.Frame | None:
@@ -69,19 +93,29 @@ class Digipeater:
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock
-        self._seen: dict[RadioId, Recent[DuplicateKey]] = {}          # by radio: the packets heard or sent on it lately, for the duplicate check
-        self._sent: dict[RadioId, deque[datetime]] = {}             # by radio: when the latest frames it digipeated went out
+        self._seen: dict[RadioId, Recent[DuplicateKey]] = {}          # by outgoing radio: the packets heard or sent on it lately, for the duplicate check
+        self._sent: dict[RadioId, deque[datetime]] = {}             # by outgoing radio: when the latest frames it digipeated went out
 
     def seen_on(self, radio: RadioId) -> Recent[DuplicateKey]:
-        """The radio's table of what was heard or sent on it lately."""
+        """The outgoing radio's table of what was heard or sent on it lately."""
         return self._seen.setdefault(radio, Recent(DIGI_DUPLICATE_SEC))
 
+    def rows(self) -> tuple[DigiRow, ...]:
+        """The rows in force: one "heard on A, sent on A" for each enabled radio that repeats (`digi_rows`)."""
+        return digi_rows(self._radios.enabled())
+
     def on_packet(self, packet: Packet) -> None:
-        """A radio heard a packet, or sent one (it is remembered for the duplicate check of that radio, and ours is never repeated)."""
-        config = self._config()
-        radio = self._radios.get(FM_ID if packet.radio_id is None else packet.radio_id) if packet.on_air else None
-        if radio is None or not self._repeats(radio, config):     # (a packet from the internet was never on the air: there is nothing to repeat)
+        """A radio heard a packet, or sent one: each row of that radio remembers it for the duplicate check of its outgoing radio, and repeats it there when it asks for us (ours is never repeated)."""
+        if not packet.on_air:                                       # (a packet from the internet was never on the air: there is nothing to repeat)
             return
+        came = FM_ID if packet.radio_id is None else packet.radio_id
+        for row in self.rows():
+            if row.heard == came and (radio := self._radios.get(row.sent)) is not None:
+                self._row(radio, packet)
+
+    def _row(self, radio: AirRadio, packet: Packet) -> None:
+        """The packet through one row, `radio` its outgoing radio."""
+        config = self._config()
         now = self.clock()
         duplicate = self.seen_on(radio.id).seen(duplicate_key(packet.source, packet.destination, packet.info), now)
         if packet.direction != "in" or duplicate:
@@ -97,11 +131,6 @@ class Digipeater:
         if (frame := repeat(heard, ours)) is None or self._interlock.refused("digipeat"):
             return
         self._send(radio, heard, frame, spliced(packet.raw, heard, frame), now)
-
-    @staticmethod
-    def _repeats(radio: AirRadio, config: Config) -> bool:
-        """Whether this radio repeats what it hears: radio 1 (the FM radio) alone, while its type allows a digipeater and digi/enabled is on."""
-        return radio.id == FM_ID and radio.allowed.digipeat and config.digi_enabled
 
     def _send(self, radio: AirRadio, heard: ax25.Frame, frame: ax25.Frame, raw: bytes, now: datetime) -> None:
         if not radio.usable:

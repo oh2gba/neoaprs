@@ -13,7 +13,7 @@ from neoaprs.message import MessagingError
 from neoaprs.packet import GATEABLE, Message, Packet, ThirdParty, Via
 from neoaprs.aprsparse import parse
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
-from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, QruAsk
+from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, AskedOn, QruAsk
 from neoaprs.source import Source
 from neoaprs.radiotype import FM_ID, HF_ID
 from tests.support.air import message_info, on_air
@@ -60,14 +60,20 @@ class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.paths: dict[str, tuple[str, ...]] = {}
+        self.paths_asked: list[tuple[str, int | None, int]] = []               # (the call, the attempt and the radio the path of messages was asked for)
         self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
-        self.qru = QruAsk(self.radios, lambda: self.config, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock)
+        self.qru = QruAsk(self.radios, lambda: self.config, self.path_for, self.clock)
         remember_stop(self.qru.stop)
         self.told = 0
         self.qru.changed.connect(self.tell)
 
     def tell(self) -> None:
         self.told += 1
+
+    def path_for(self, call: str, attempt: int | None, radio: int) -> tuple[str, ...]:
+        """The path of messages to the station on the radio (PrefBook.path_for): the one the test set, else beacon/path."""
+        self.paths_asked.append((call, attempt, radio))
+        return self.paths.get(call, self.config.beacon_path_calls)
 
     def hear(self, source: str, text: str, to: str = "OH2GBA", via: Via = "rf", msg_id: str | None = None) -> None:
         info = b":" + format_message(to, text, msg_id, None if msg_id is None else "")
@@ -155,6 +161,49 @@ async def test_a_request_goes_on_the_main_radio_by_the_path_that_radio_carries()
     rig.clock.advance(61)
     rig.qru.ask("INFO")
     assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"] and len(hf.sent) == 1
+
+
+async def test_a_request_goes_on_the_radio_named_by_its_path_there_and_records_it(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.qru")
+    rig = Rig(hf_enabled=True)
+    hf = with_hf(rig, rig.radios)
+    rig.qru.ask("INFO", radio=HF_ID)
+    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == [], "on the radio named (HF: no path)"
+    assert rig.paths_asked == [("QRU", None, HF_ID)], "the path of messages to QRU is asked for that radio"
+    assert isinstance(rig.qru.asked, AskedOn) and (rig.qru.asked.text, rig.qru.asked.radio) == ("INFO", HF_ID), "the request records its radio"
+    assert [r.getMessage() for r in caplog.records] == ["asked QRU: INFO on HF"], "with two radios on the log says which"
+    rig.radios.on.discard(HF_ID)
+    with pytest.raises(MessagingError, match="no such radio"):
+        rig.qru.ask("RP70", radio=HF_ID)
+    assert len(hf.sent) == 1
+
+
+async def test_the_waits_between_requests_are_each_radios_own() -> None:
+    rig = Rig(hf_enabled=True)
+    hf = with_hf(rig, rig.radios)
+    rig.qru.ask("INFO", radio=HF_ID)
+    rig.qru.ask("INFO")                                                                          # the main radio, the FM one: neither the gap nor the minute of HF holds it
+    assert len(hf.sent) == 1 and len(rig.tnc.sent) == 1
+    with pytest.raises(MessagingError) as refused:
+        rig.qru.ask("RP70")
+    assert refused.value.code == "qru.too_soon", "the gap on FM is FM's own"
+    rig.clock.advance(ASK_GAP_SEC)
+    with pytest.raises(MessagingError) as refused:
+        rig.qru.ask("INFO", radio=HF_ID)
+    assert refused.value.params == {"seconds": ASK_EVERY_SEC - ASK_GAP_SEC}, "the same text on HF within its minute"
+    rig.qru.ask("RP70", radio=HF_ID)
+    assert len(hf.sent) == 2 and len(rig.tnc.sent) == 1
+
+
+async def test_the_objects_counted_for_an_answer_are_those_heard_on_the_radio_of_its_request() -> None:
+    rig = Rig(hf_enabled=True)
+    with_hf(rig, rig.radios)
+    rig.qru.ask("TEST 150", radio=HF_ID)
+    rig.qru.on_packet(replace(object_report("OH2DPN", "ONHF", rig.clock()), radio_id=HF_ID))
+    rig.qru.on_packet(replace(object_report("OH2DPN", "ONFM", rig.clock()), radio_id=FM_ID))
+    rig.qru.on_packet(object_report("OH2DPN", "NAMELESS", rig.clock()))                    # (a packet that names no radio counts for every request)
+    rig.hear("OH2DPN", "Sent 3 TEST Objects Max 5@150km de OH2DPN")
+    assert arrived(rig, "OH2DPN") == ("NAMELESS", "ONHF")
 
 
 async def test_a_text_that_is_no_request_is_not_sent() -> None:

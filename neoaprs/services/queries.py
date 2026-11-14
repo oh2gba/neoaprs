@@ -4,8 +4,9 @@ A message to us (our call with its SSID exactly: our base call is not ours when 
 
     ?APRSP   is answered with our position packet (the beacon's frame, `Beacon.frame()`)
     ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)
-    ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour (the one heard last first; at most MAX_TEXT bytes, in two messages at the most, "Directs= none"
-             when there is none)
+    ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour on the radio the query came on (the one heard last first; at most MAX_TEXT bytes, in two
+             messages at the most, "Directs= none" when there is none): on a radio that carries paths, a station heard direct (by the station's routes) and heard on that radio in the hour; on one that carries
+             none (HF), where every frame comes direct, a station that radio heard in the hour
     ?APRST   (and ?PING?) with a message to the asker, "OH2GBA>APZNEO,OH2RCH-2*:": the header of the query as we heard it, the digipeaters it went by with their stars
     ?APRSH N0QBF   (the call after the query, a blank between them or not) with a message to the asker, "N0QBF HEARD: 1 3 2 . . 4 5 6": how many packets of that station we heard in each of the last 8 hours, the
              hour just gone first, a dot for an hour with none (the packet log; "N0QBF NOT HEARD" for a station we have no trace of at all). APRS 1.0.1 (chapter 15) also has the answer carry the station's position
@@ -199,6 +200,17 @@ def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
     return counts
 
 
+def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> datetime | None:
+    """When the station was last heard direct within DIRECT_WINDOW of `now`, None when it was not: by any radio (`radio` None: the station's routes); on a radio that carries paths, heard direct by the routes
+    and heard on that radio in that time; on one that carries none, where every frame comes direct, the last time that radio heard it."""
+    def lately(at: datetime | None) -> bool:
+        return at is not None and now - at <= DIRECT_WINDOW
+    there = None if radio is None else station.heard_on(radio.id).last_at
+    if radio is not None and not radio.allowed.paths:
+        return there if lately(there) else None
+    return station.last_direct_at if lately(station.last_direct_at) and (radio is None or lately(there)) else None
+
+
 def heard_text(call: str, counts: Sequence[int] | None) -> str:
     """The answer to ?APRSH as the example of APRS 1.0.1 has it: "N0QBF HEARD: 1 3 2 . . 4 5 6", a dot for an hour with none; "N0QBF NOT HEARD" for a station that was never heard (`counts` None)."""
     if counts is None:
@@ -279,7 +291,7 @@ class Queries:
         if query == "status":
             return [self._status(radio)]
         if query == "directs":
-            return [self._answers.message(asker, text) for text in directs_messages(self._directs(packet.heard_at))]
+            return [self._answers.message(asker, text) for text in directs_messages(self._directs(packet.heard_at, radio))]
         if query == "objects":
             return [our_frame(self._config(), (), info_of(o, self.clock())) for o in self._objects.records() if o.alive][:ANSWER_FRAMES_MAX]
         if query == "messages":
@@ -380,7 +392,7 @@ class Queries:
         self._answers.send(asker, frames, radio=radio)
 
     # ---- the answers
-    def _directs(self, now: datetime) -> list[str]:
-        """The calls heard direct within DIRECT_WINDOW, the one heard last first (not us, not an object)."""
-        heard = [(s.last_direct_at, s.call) for s in self._book.stations() if s.kind == "station" and not s.is_me and s.last_direct_at is not None and now - s.last_direct_at <= DIRECT_WINDOW]
+    def _directs(self, now: datetime, radio: AirRadio | None = None) -> list[str]:
+        """The calls heard direct within DIRECT_WINDOW, the one heard last first (not us, not an object): by every radio, or by `radio` alone (`direct_on`)."""
+        heard = [(at, s.call) for s in self._book.stations() if s.kind == "station" and not s.is_me and (at := direct_on(s, radio, now)) is not None]
         return [call for _, call in sorted(heard, reverse=True)]

@@ -1,6 +1,8 @@
 """?APRSH and the general query that is never answered (neoaprs/services/queries.py): the hours a station was heard in, told from the packet log; the station never heard; the forms of the query; and `?WX?`,
-which passes without an answer and without a word above DEBUG (`?IGATE?`, answered while the iGate gates, is tests/test_queries_igate.py's)."""
+which passes without an answer and without a word above DEBUG (`?IGATE?`, answered while the iGate gates, is tests/test_queries_igate.py's). Then ?APRSD with two radios: each radio's answer is what that
+radio heard direct in the last hour."""
 import logging
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -10,12 +12,14 @@ from neoaprs.aprsisline import parse_is_line
 from neoaprs import aprsparse
 from neoaprs.packet import Message, Other, Packet, Status, Undecoded
 from neoaprs.packetlog import PacketLog
+from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.services.queries import HEARD_HOURS, Queries, heard_text, hourly_counts
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
 from tests.support.storedb import log_at
+from tests.support.stubtnc import StubTnc
 from tests.test_queries import Rig
-from tests.test_messaging import pick_of
+from tests.test_messaging import LineAir, pick_of
 
 
 class Log:
@@ -177,3 +181,55 @@ async def test_a_general_query_of_our_own_station_or_another_kind_of_packet_is_l
     rig.q.on_packet(rig.packet("OH2RDG", Message("ALL", "?WX?")))
     await idle_for(0.1)
     assert rig.tnc.sent == []
+
+
+# ---- ?APRSD on the radio it came on (plan rule 3.6's "what that radio heard")
+
+async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -> None:
+    rig = Rig()
+    hf = StubTnc(max_frame=123)
+    pick = pick_of(rig, hf)
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: (), rig.clock)
+    remember_stop(rig.q.stop)
+
+    def heard(call: str, radio: int, minutes: float, path: tuple[str, ...] = ()) -> None:
+        now = rig.clock()
+        rig.clock.set(now - timedelta(minutes=minutes))
+        rig.book.take(replace(rig.packet(call, Status("hello"), path=path), radio_id=radio))
+        rig.clock.set(now)
+
+    heard("OH2FMD", FM_ID, 10)                                          # direct on FM
+    heard("OH2DIG", FM_ID, 5, ("OH2RCH-2*",))                           # by a digipeater on FM
+    heard("OH2HFX", HF_ID, 5)                                           # on HF, where every frame is direct
+    heard("OH2OLD", HF_ID, 90)                                          # on HF, but not in the last hour
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
+    rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=HF_ID))
+    await until(lambda: len(rig.tnc.sent) == 1 and len(hf.sent) == 1)
+    assert rig.message_of(rig.tnc.sent[0]) == ("OH2RDG", "Directs= OH2FMD", None), "asked on FM: the stations FM heard direct"
+    assert rig.message_of(hf.sent[0]) == ("OH2PU", "Directs= OH2HFX", None), "asked on HF: the stations HF heard in the last hour"
+
+
+async def test_aprsd_on_a_radio_that_carries_paths_leaves_out_a_station_heard_direct_only_on_another() -> None:
+    rig = Rig()
+    pick = pick_of(rig)
+    third = StubTnc()
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))      # a second radio that carries paths
+    pick.on.add(3)
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: (), rig.clock)
+    remember_stop(rig.q.stop)
+
+    def heard(call: str, radio: int, minutes: float) -> None:
+        now = rig.clock()
+        rig.clock.set(now - timedelta(minutes=minutes))
+        rig.book.take(replace(rig.packet(call, Status("hello"), path=()), radio_id=radio))
+        rig.clock.set(now)
+
+    heard("OH2ONE", FM_ID, 20)                                          # direct on radio 1
+    heard("OH2LONG", FM_ID, 90)                                         # direct on radio 1, but not in the last hour,
+    heard("OH2LONG", 3, 10)                                             # and direct on radio 3 since
+    heard("OH2THREE", 3, 5)                                             # direct on radio 3 alone
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
+    rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=3))
+    await until(lambda: len(rig.tnc.sent) == 1 and len(third.sent) == 1)
+    assert rig.message_of(rig.tnc.sent[0]) == ("OH2RDG", "Directs= OH2ONE", None), "asked on radio 1: not the stations radio 1 did not hear in the hour"
+    assert rig.message_of(third.sent[0]) == ("OH2PU", "Directs= OH2THREE OH2LONG", None), "asked on radio 3: what radio 3 heard direct, the one heard last first"

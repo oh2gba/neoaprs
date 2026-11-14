@@ -6,7 +6,10 @@ confirmed or settling after KISS ON, or (the HF modem) transmitting or hearing a
 and it goes out when the radio is back. The radio is the radio of the frame (services/radioset.py: the radios by id, `RadioPick`, each an `AirRadio`): `ready(kind)` says whether some enabled radio takes a frame now,
 `ready(kind, radio)` whether that one does, and `send` refuses a frame for a radio that does not (the owner tries again at its next tick), so that an object on two radios goes on the one that is up while the other
 is away, and an object on the HF radio alone does not wait for the FM radio. A frame for no radio in particular (a bulletin) goes on the main radio; while there is none, nothing goes (NO_RADIO). Our own frames go
-out one at a time: after one, `spacing_sec` pass before the next, so that a restart with many objects due at once, or a radio that comes back, never sends a burst. The frame is the one fit function's
+out one at a time on each radio: after one, `spacing_sec` pass before the next on that radio (plan rule 3.1: the pause between our scheduled frames is per radio), so that a restart with many objects due at once,
+or a radio that comes back, never sends a burst, and a frame due on one radio does not wait for the pause of another. An object on several radios goes on each in the first tick that radio's pause allows (so it may go on one a few seconds after
+the other); its round ends when every connected radio has taken it (services/ownobjects.py). An object
+whose radios are all off goes on the main radio (`radios_for`), so that a station with one radio sends every object on it, and the object's own radios are in force again once one of them is on. The frame is the one fit function's
 (`radioset.fit`): from `station/call` to the tocall by the path given, else the radio's own path, none where the radio carries none, its comment cut to what the radio carries; one that cannot be made (a path of
 more than 8 digipeaters, an information field that is too long) is a SendError."""
 import logging
@@ -34,7 +37,7 @@ class Sender:
         self.clock = clock
         self.spacing_sec = spacing_sec
         self.problem = ""                                       # why the latest try did not send (the interlock's or the radio's reason); empty when it could
-        self._last: datetime | None = None                      # when the latest frame went out
+        self._last: dict[RadioId, datetime] = {}                # by radio: when the latest frame of ours went out on it
         self._told = False
 
     @property
@@ -42,14 +45,20 @@ class Sender:
         """The station's radios (services/common.as_pick: the registry as it is, an old shape read as one)."""
         return as_pick(self._radios, self._config)
 
+    def too_soon(self, radio: AirRadio) -> bool:
+        """Whether the pause after our latest frame on the radio is not over."""
+        last = self._last.get(radio.id)
+        return last is not None and (self.clock() - last).total_seconds() < self.spacing_sec
+
     def ready(self, kind: str, radio: AirRadio | None = None) -> bool:
-        """May a frame of this kind (a word for the log: "object", "bulletin") go out now, on `radio`, or, when none is named, on some enabled radio (the one a frame goes to is asked again by `send`)?"""
-        if self._last is not None and (self.clock() - self._last).total_seconds() < self.spacing_sec:
+        """May a frame of this kind (a word for the log: "object", "bulletin") go out now, on `radio`, or, when none is named, on some enabled radio (the one a frame goes to is asked again by `send`)?
+        Not while the pause after our latest frame is running on every radio asked about."""
+        radios = [radio] if radio is not None else list(self.radios.enabled())
+        if radios and all(self.too_soon(r) for r in radios):
             return False
         if refusal := self._interlock.refused(kind):
             self.problem = refusal
             return False
-        radios = [radio] if radio is not None else list(self.radios.enabled())
         if not any(r.usable for r in radios):
             away = radios[0] if radios else None
             self.problem = away.why_unusable() if away is not None else NO_RADIO
@@ -77,15 +86,17 @@ class Sender:
         return fit(target, self._config(), info, path)
 
     def send(self, info: bytes, path: tuple[str, ...] | None, radio: AirRadio | None = None) -> bool:
-        """Sends the frame on `radio`, else the main radio; False when there is none, or it is not usable now (`problem` says why) or would not take the frame (it is settling, or the write failed): it is tried
-        again at the next tick. Raises SendError."""
+        """Sends the frame on `radio`, else the main radio; False when there is none, or it is not usable now (`problem` says why), its pause after our latest frame on it is running, or it would not take
+        the frame (it is settling, or the write failed): it is tried again at the next tick. Raises SendError."""
         target = radio if radio is not None else self.radios.main
         if target is None or not target.usable:
             self.problem = NO_RADIO if target is None else target.why_unusable()
+            return False
+        if self.too_soon(target):
             return False
         frame = self.frame(info, path, target)
         if not target.send_frame(frame):
             self.problem = "the TNC did not take the frame (it is restarting into KISS mode, or the write failed)"
             return False
-        self._last = self.clock()
+        self._last[target.id] = self.clock()
         return True

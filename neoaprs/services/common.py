@@ -19,7 +19,7 @@ from neoaprs.radiospec import log_name
 from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, radio_id_of
 from neoaprs.radiotypes import kind_field
 from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
-from neoaprs.services.radioset import AirRadio, RadioPick
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick
 from neoaprs.services.radioset import FRAME_ERRORS as FRAME_ERRORS, fit_frame as fit_frame, fixed_prefix as fixed_prefix, our_frame as our_frame     # (the parts of the one fit function, under their old names)
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
@@ -190,6 +190,30 @@ def is_pick(radios: object) -> TypeGuard[RadioPick]:
 def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
     """The radios as a RadioPick: the registry as it is, an old shape as OldRadios."""
     return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
+
+
+def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId | None = None) -> AirRadio:
+    """The radio a request of the operator's to no station in particular goes on (asking around, asking QRU: plan rule 3.6): the one named, else the main radio. MessagingError while there is none, the one
+    named is not on, or it does not take frames now (why not)."""
+    pick = as_pick(radios, config)
+    if radio is None:
+        chosen = pick.main
+        if chosen is None:
+            raise MessagingError(NO_RADIO)
+    else:
+        found = next((r for r in pick.enabled() if r.id == radio), None)
+        if found is None:
+            named = pick.get(radio)
+            raise MessagingError("there is no such radio" if named is None else f"the radio {named.name} is off" if named.name else "that radio is off")
+        chosen = found
+    if not chosen.usable:
+        raise MessagingError(chosen.why_unusable())
+    return chosen
+
+
+def on_words(radio: AirRadio, radios: RadioPick | Radio, config: ConfigSource) -> str:
+    """" on <name>" for the log while more than one radio is on (which one it went on is then worth saying), else nothing."""
+    return f" on {radio.name}" if radio.name and len(as_pick(radios, config).enabled()) > 1 else ""
 
 
 RX_ONLY = "RX only: nothing is sent"                                # what a refusal to the page says while station/transmit is off (its code is `transmit.off`)
