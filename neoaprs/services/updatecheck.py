@@ -1,4 +1,4 @@
-"""The daily update check: a minute after the start and then every 24 hours the daemon asks the version page (`update/url`) which version is the latest, sending its own version and platform and the random number of this installation (made once, the first time it is asked, and kept as the row `update/install_id` of the database: state of the daemon, not
+"""The daily update check: a minute after the start and then every 24 hours the daemon asks the version page (`update/url`) which version is the latest, sending its own version and platform and the random number of this installation (or 0 from a run of the source tree or while the row `update/not_counted` is true, which the project does not count; made once, the first time it is asked, and kept as the row `update/install_id` of the database: state of the daemon, not
 a setting; it comes from nowhere on the machine, so that the project can count installations) and nothing else. When the answer is a
 newer version, `latest` has it; the page is told in its next status and shows it beside the version. It is always on; `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run (the tests set it), and is looked at again an hour later while it is off.
 A page that cannot be reached or understood is only a line in the debug log: the next try is the next day. Nothing but that number is kept between runs. `check_now` is the same question asked on request (the Settings tab's Check now): it works whatever the switches
@@ -15,13 +15,14 @@ from dataclasses import dataclass
 from typing import Literal
 
 from neoaprs.config import HF_DIAL, INSTALL_ID
+from neoaprs.configtypes import boolean
 from neoaprs.releasenotes import MAX_BYTES, Section, between, changelog_url, section_of, sections
 from neoaprs.services.common import ConfigSource
 from neoaprs.services.memory import Memory
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet, every
 from neoaprs.updatefetch import fetch_url
-from neoaprs.versions import Update, compare_versions, parse_update
+from neoaprs.versions import NOT_COUNTED, Update, compare_versions, parse_update
 
 log = logging.getLogger("neoaprs.update")
 
@@ -32,6 +33,7 @@ ENV_SWITCH = "NEOAPRS_UPDATE_CHECK"             # "0" is off for this run, whate
 Fetch = Callable[[str, str, str, str], Awaitable[bytes | None]]     # (address, version, platform, installation number) to the body of the answer
 FetchUrl = Callable[[str, str, str, int], Awaitable[bytes | None]]  # (address, version, platform, the most bytes wanted) to the body of the answer
 INSTALL_ID_FORM = re.compile(r"[0-9a-f]{32}")
+NOT_COUNTED_ID = "0"                            # sent in place of the installation's number by a run that is not a user's: a run from the source tree, or one the row NOT_COUNTED marks (the project's report leaves it out)
 NO_ANSWER = "no answer from the update server; is there a connection?"
 NO_VERSION = "the update server gave no usable answer; try again later"
 NOTES_UNREACHABLE = "the release notes could not be fetched"
@@ -48,7 +50,7 @@ class CheckResult:
 
 class UpdateCheck:
     def __init__(self, config: ConfigSource, version: str, platform: str, fetch: Fetch, first_sec: float = FIRST_SEC, every_sec: float = EVERY_SEC,
-                 environ: Mapping[str, str] = os.environ, memory: Memory | None = None, fetch_url: FetchUrl = fetch_url) -> None:
+                 environ: Mapping[str, str] = os.environ, memory: Memory | None = None, fetch_url: FetchUrl = fetch_url, developer: bool = False) -> None:
         self._config = config
         self.version = version
         self.platform = platform
@@ -59,6 +61,7 @@ class UpdateCheck:
         self.every_sec = every_sec
         self._environ = environ
         self._memory = memory
+        self.developer = developer                               # a run from the source tree: its question carries the number 0 (NOT_COUNTED_ID)
         self._install_id: str | None = None                     # kept in the row INSTALL_ID; without a memory (the tests) it lasts as long as this object
         self.latest: Update | None = None                       # the answer, while it names a version newer than ours
         self.hf_dial = ""                                       # the HF dial the page named last (kept in the row HF_DIAL); empty: none yet, the built-in one stands
@@ -106,10 +109,21 @@ class UpdateCheck:
                     await self._memory.put_settings({INSTALL_ID: self._install_id})
         return self._install_id
 
+    async def sent_id(self) -> str:
+        """What the question carries as `id`: the number of this installation, or `NOT_COUNTED_ID` for a run from the source tree and while the row NOT_COUNTED is true. The installation's own number is made and kept all the same, so that it is the one sent again when the row is taken away (the row is read at each question)."""
+        number = await self.install_id()
+        if self.developer:
+            return NOT_COUNTED_ID
+        marked = None if self._memory is None else await self._memory.setting(NOT_COUNTED)
+        try:
+            return NOT_COUNTED_ID if marked is not None and boolean(marked) else number
+        except ValueError:
+            return number
+
     async def _ask(self) -> tuple[Update | None, str]:
         """(the answer of the page, ''), or (None, why not)."""
         address = self._config().update_url
-        body = await self._fetch(address, self.version, self.platform, await self.install_id())
+        body = await self._fetch(address, self.version, self.platform, await self.sent_id())
         if body is None:
             return None, NO_ANSWER
         answer = parse_update(body)

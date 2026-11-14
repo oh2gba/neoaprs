@@ -46,6 +46,11 @@ def is_checkout(tree: Path | None) -> bool:
     return tree is not None and (tree / ".git").exists()
 
 
+def developers_run(install: InstallInfo) -> bool:
+    """Is this run a developer's, which the update check keeps out of the project's count: the kind `source`, or a package imported from a clone whatever kind `NEOAPRS_INSTALL_KIND` simulates?"""
+    return install.kind == "source" or is_checkout(servicecmd.source_tree())
+
+
 def detect(frozen: bool, appimage: str | None, prefix: str, tree: Path | None, service: bool, environ: Mapping[str, str] = os.environ, machine: str | None = None) -> InstallInfo:
     kind = install_kind(frozen, appimage, deb_environment(prefix), is_checkout(tree), uv_tool_environment(prefix, environ), app_bundle_environment(prefix))
     found = machine if machine is not None else platform.machine()

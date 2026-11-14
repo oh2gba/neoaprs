@@ -6,7 +6,7 @@ The settings are rows of the database, read at the start. Most are on the page, 
 - `neoaprs db get KEY` shows one.
 - `neoaprs db set KEY VALUE` changes one. The value is checked as the daemon checks it, and the daemon takes it at its next start.
 
-The daemon may be running while you use them. A key that is not a setting is refused.
+The daemon may be running while you use them. `db set` refuses a key that is not a setting, except `update/not_counted`; `db get` also shows a row of the state below, such as `update/install_id`, the number of this installation.
 
 The settings the page does not show (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`, `web/port`, `web/allowed_hosts`, `igate/server`, `igate/password`) are for the command line only. The first five went back to their defaults once, when this version first started on a database; each reset is a line in the log with the old value, and a value you set afterwards with `neoaprs db set` stays. `web/port` and `web/allowed_hosts` were never reset.
 
@@ -102,6 +102,7 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 - `hf/beacon_last_sent_at`: the same for the HF radio's beacon.
 - `messages/radio_by_station`: the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on.
 - `update/install_id`: the random number of this installation that the update check sends.
+- `update/not_counted`: `true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page.
 - `update/sked_token`: the secret of this installation that goes with each sked it posts, so that only it can delete them; never shown in the log or the support bundle.
 <!-- /doc-settings -->
 

@@ -1,5 +1,5 @@
 """The version page (server/version.php) under PHP's own web server on the loopback, with a fake GitHub (tests/support/fakeversionpage.py) for the releases and a stand-in status library: the answer names the latest release, the call is logged as time, version, platform
-and the installation's id (32 lowercase hex characters, else -), the status application is handed the call, GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
+and the installation's id (32 lowercase hex characters, or the one character 0 of a run that is not a user's, else -), the status application is handed the call (not one with the id 0), GitHub is asked once an hour and the last good answer is kept while it fails. Skipped without `php`."""
 import asyncio
 import json
 import os
@@ -108,7 +108,15 @@ async def test_an_id_of_32_lowercase_hex_characters_is_the_fourth_column(page: P
     assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [f"neoaprs|0.1.0|linux|{ID}"], "the status application is handed the number as its key"
 
 
-@pytest.mark.parametrize("bad", ["", ID.upper(), ID[:-1], ID + "0", "g" * 32, ID[:-1] + "%0A", ID + "%0A", "%20" + ID[1:], "<b>" + ID[3:], "x%09y" + ID[3:]])
+async def test_the_id_0_of_a_run_that_is_not_a_users_is_logged_as_0_and_not_handed_to_the_status_application(page: Page) -> None:
+    assert (await page.ask("v=0.20.0&os=linux&id=0"))["version"] == "0.2.0"
+    assert [row[1:] for row in page.log()] == [["0.20.0", "linux", "0"]], "0 is false in PHP: it must not become -"
+    assert not (page.folder / "lib" / "calls.txt").exists(), "the status page counts no developer's run"
+    assert (await page.ask(f"v=0.20.0&os=linux&id={ID}"))["version"] == "0.2.0"
+    assert (page.folder / "lib" / "calls.txt").read_text(encoding="utf-8").splitlines() == [f"neoaprs|0.20.0|linux|{ID}"]
+
+
+@pytest.mark.parametrize("bad", ["", ID.upper(), ID[:-1], ID + "0", "g" * 32, ID[:-1] + "%0A", ID + "%0A", "%20" + ID[1:], "<b>" + ID[3:], "x%09y" + ID[3:], "00", "01", "0%0A", "%200", "0.0", "-0"])
 async def test_an_id_that_is_not_exactly_that_is_ignored_and_the_call_still_answers_and_is_logged(page: Page, bad: str) -> None:
     assert (await page.ask(f"v=0.1.0&os=linux&id={bad}"))["version"] == "0.2.0"
     assert [row[1:] for row in page.log()] == [["0.1.0", "linux", "-"]]

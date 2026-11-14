@@ -138,8 +138,10 @@
   (`support/fakeversionpage.py`): the query and the User-Agent carry the version and the platform and nothing else, a page that says no, hangs or sends too much
   is none; the service (`neoaprs/services/updatecheck.py`) with a stub page: the first question and the daily ones, a newer version kept, the same or an older
   one and a failed question not, the setting and `NEOAPRS_UPDATE_CHECK` switching it off, and through the whole daemon to the `status` message of a page; and
-  `server/version.php` under PHP's own web server (skipped without `php`) with a fake GitHub: the answer, the log line, the status hand-off, the hour of the
+  `server/version.php` under PHP's own web server (skipped without `php`) with a fake GitHub: the answer, the log line, the status hand-off (none for the id 0), the hour of the
   cache and the last good answer kept while GitHub fails, the note in `message.txt`. Every other test runs with the check off.
+* `test_notcounted.py`: the developers' own runs are not counted: the update check sends `id=0` from a run of the source tree (a clone that simulates another kind too) and while the row `update/not_counted` is true (and no other kind of install does), keeps and gives back the installation's number, no other request to the project's server carries an id, `neoaprs db` sets and reads the row and prints the number of the installation.
+* `test_usage_report.py` (POSIX only): `server/usage-report.sh --local` on made-up logs: id 0 and the ignore list left out of every count and said in a line each, the old lines without an id, a list with a byte-order mark, no logs at all, and the logs of the present and the fixed version page.
 * `test_updateasset.py`, `test_updatedownload.py`, `test_selfupdate.py`, `test_selfinstall.py`, `test_selfupdate_wire.py`: Update now. The file of the release for
   each kind and architecture, its address built from the announced version alone and the hosts a download may go to, the line of SHA256SUMS; the downloads
   with a stand-in opener (progress, cancel, a file cut short or too large, a redirect away from GitHub); the job with a fake release and installer

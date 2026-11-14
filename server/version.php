@@ -13,9 +13,10 @@
 // Each call is appended to a monthly log file in log/ (not web-readable, see
 // log/.htaccess) as time, version, platform and id, tab-separated: the id is the
 // random number the installation made once for itself (32 lowercase hex
-// characters; anything else is ignored and logged as -), so that installations
+// characters, or the one character 0 that a run from the source tree or of a test sends, which the project's
+// own count leaves out (server/usage-report.sh); anything else is ignored and logged as -), so that installations
 // can be counted. The call is handed to the status application as version and
-// platform. No IP address or anything else about the caller is kept.
+// platform, except a call with the id 0, which is not a user's. No IP address or anything else about the caller is kept.
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -34,18 +35,19 @@ $version = $clean((string)($_GET['v'] ?? ''), 20);
 $os      = $clean((string)($_GET['os'] ?? ''), 40);
 
 $id      = $_GET['id'] ?? '';
-if (!is_string($id) || !preg_match('/\A[0-9a-f]{32}\z/', $id)) {
+// ("0" is false in PHP: the column is chosen by the length, not by ?:)
+if (!is_string($id) || !preg_match('/\A(?:[0-9a-f]{32}|0)\z/', $id)) {
     $id = '';
 }
 
-$line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\t" . ($id ?: '-') . "\n";
+$line = gmdate('Y-m-d\TH:i') . "Z\t" . ($version ?: '-') . "\t" . ($os ?: '-') . "\t" . ($id !== '' ? $id : '-') . "\n";
 @file_put_contents(__DIR__ . '/log/starts-' . gmdate('Y-m') . '.log', $line, FILE_APPEND | LOCK_EX);
 
 // The version, the platform and the number also go to the status application on this account,
 // which shows them on status.oh2gba.eu. Its library connects with its own
 // credentials; a missing or failing library must never change the answer.
 $lib = getenv('STATUS_LIB') ?: (getenv('HOME') ?: '/usr/home/ohjgba') . '/public_html/status/private/lib';
-if (is_readable("$lib/starts.php")) {
+if ($id !== '0' && is_readable("$lib/starts.php")) {
     try {
         require_once "$lib/starts.php";
         // the installation's random number is the per-installation key on the

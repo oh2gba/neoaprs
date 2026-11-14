@@ -21,6 +21,7 @@ from neoaprs.services.updatecheck import EVERY_SEC as UPDATE_EVERY_SEC
 from neoaprs.skeds import SKED_TOKEN
 from neoaprs.smartbeacon import PRESETS
 from neoaprs.tncprofile import PROFILES
+from neoaprs.versions import NOT_COUNTED
 
 BLOCK = re.compile(r"(<!-- doc-settings:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-settings -->)", re.S)
 DB_ONLY = "`neoaprs db set` only"           # the settings the page does not show (ui/src/lib/settings.ts, NOT_ON_THE_PAGE: tests/test_docs.py holds the two lists together)
@@ -157,13 +158,14 @@ STATE_WORDS = {
     cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
     cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
+    NOT_COUNTED: "`true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page",
     SKED_TOKEN: "the secret of this installation that goes with each sked it posts, so that only it can delete them; never shown in the log or the support bundle",
 }
 
 
 def state() -> str:
-    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS`, the update check's number and the sked token)."""
-    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, SKED_TOKEN)) + "\n"
+    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS`, the update check's number and its switch, and the sked token)."""
+    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, NOT_COUNTED, SKED_TOKEN)) + "\n"
 
 
 MAKERS = {"settings": settings, "fixed": fixed, "state": state}

@@ -179,7 +179,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     log = logging.getLogger("neoaprs")
     _private_data_dir(data_dir, log)
     log.info(START_FORMAT, PROGRAM, VERSION, data_dir)
-    from .cli.installkind import detect_here               # (the imports of what runs the daemon come after the first line of the log, and `neoaprs --version` and `--help` import none of them)
+    from .cli.installkind import detect_here, developers_run               # (the imports of what runs the daemon come after the first line of the log, and `neoaprs --version` and `--help` import none of them)
     from .cli.systemdescription import system_description
     from .config import Config
     from .controller import Controller
@@ -195,6 +195,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
 
     controller = Controller(data_dir, busy_ms=3000, port=args.port, hf_port=getattr(args, "hf_port", ""), web=page, install=install, auto_map=True, encryption=args.encryption)         # the daemon must not stand still behind another writer: a few seconds
     controller.debug = args.debug
+    controller.updatecheck.developer = developers_run(install)      # (a clone that simulates another kind is still a developer's run)
     stop = _stop_on_signals(asyncio.get_running_loop())
     stopfile.clear(data_dir)                                 # (a request left by a stop that found nobody running is not for this run)
     helpers = [asyncio.create_task(stopfile.watch(data_dir, stop))]

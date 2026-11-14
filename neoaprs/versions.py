@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 
 UPDATE_URL = "https://neo.oh2gba.eu/version.php"              # the default of the setting update/url: the version page on the project's own name (since 0.16)
 OLD_UPDATE_URL = "https://oh2gba.eu/neoaprs/version.php"      # where the copies before 0.16 ask: the same page, kept there for them (migration 26 moves a stored default over)
+NOT_COUNTED = "update/not_counted"           # `true`: the update check sends the number 0 in place of this installation's own, so that the project does not count this run (services/updatecheck.py); set with `neoaprs db set`, never on the page; state of the daemon too, not a setting
 FREQUENCIES_URL = "https://neo.oh2gba.eu/frequencies.json"      # the frequencies the project suggests, a file edited by hand and uploaded with the site (site/frequencies.json); the HF radio's box shows them (services/frequencies.py)
 FREQUENCIES_ROW = "update/frequencies"                         # the last good list, kept by the daemon in the settings table (not a setting)
 SUPPORT_URL = "https://neo.oh2gba.eu/support/send.php"      # where Send feedback / logs of the Help group posts the support file (neoaprs/web/supportsend.py); the server stores it and tells the project

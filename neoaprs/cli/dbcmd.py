@@ -2,8 +2,9 @@
 seconds for it.
 
     neoaprs db list                      every setting with its value and whether it is stored or the default
-    neoaprs db get station/call          one setting
+    neoaprs db get station/call          one setting, or one of the rows the daemon keeps that are not settings (`update/install_id`: the number of this installation)
     neoaprs db set station/call OH2GBA-9 a setting, checked like the daemon checks it against the settings stored; the daemon reads settings at its start (or when the page saves them)
+    neoaprs db set update/not_counted true  the update check sends the number 0 in place of this installation's own, so that the project does not count this run; `false` takes it away (read at each check)
     neoaprs db stations                  the stations the daemon knows: call, kind, last heard, position, packets
     neoaprs db packets -n 50             the latest packets, oldest first, as TNC2 line -> what the parser made of it
     neoaprs db restore                   the copies in the backup folder: date, version of the schema, size, and whether this NeoAPRS can open it
@@ -20,6 +21,7 @@ from typing import Any
 from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, can_open, copies, restore, stamp as copy_stamp
 from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, STATE_KEYS, Config
+from neoaprs.configtypes import boolean
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.dbopen import open_connection
@@ -29,6 +31,7 @@ from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir
 from neoaprs.skeds import SKED_TOKEN
+from neoaprs.versions import NOT_COUNTED
 from neoaprs.store import DB_NAME, Store
 
 from .output import say
@@ -71,6 +74,8 @@ def kept_note(key: str) -> str:
         return "kept by the daemon (the HF dial the version page named last), not a setting"
     if key == SKED_TOKEN:
         return "kept by the daemon (the secret that goes with the skeds of this installation), not a setting"
+    if key == NOT_COUNTED:
+        return "whether the update check sends the number 0, so that this run is not counted (set with db set), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"
 
 
@@ -79,6 +84,9 @@ async def show_settings(store: Any, only: str | None) -> int:
     defaults = DEFAULTS.to_data()
     if only is not None:
         if only not in BY_KEY:
+            if only in rows:                                # (a row the daemon keeps that is not a setting; a secret one is shown as its length only)
+                print(shown_value(only, rows[only]))
+                return 0
             say(f"{PROG}: {only}: no such setting (try list)")
             return 2
         print(rows.get(only, defaults[only]))
@@ -110,10 +118,19 @@ async def show_packets(log: Any, count: int) -> int:
     return 0
 
 
+def checked_row(key: str, value: str) -> str:
+    """The text of `update/not_counted` as it is kept, `true` or `false`; ValueError naming the key when `value` is neither."""
+    try:
+        return "true" if boolean(value) else "false"
+    except ValueError as e:
+        raise ValueError(f"{key}: {e}") from None
+
+
 async def store_setting(store: Store, key: str, value: str, text: str) -> int:
     """`set`: the value `text` (`value` as the setting keeps it) stored when it goes with the settings stored, by the rules between settings that a save of the page applies; the exit code."""
     try:
-        Config.checked(Config.from_data(await store.settings()), {key: value})
+        if key != NOT_COUNTED:
+            Config.checked(Config.from_data(await store.settings()), {key: value})
     except ValueError as e:
         say(f"{PROG}: {e}")
         return 2
@@ -155,7 +172,7 @@ async def run(args: argparse.Namespace) -> int:
     writing = args.command == "set"
     if writing:
         try:
-            text = Config.check(args.key, args.value)
+            text = checked_row(args.key, args.value) if args.key == NOT_COUNTED else Config.check(args.key, args.value)
         except ValueError as e:
             say(f"{PROG}: {e}")
             return 2
