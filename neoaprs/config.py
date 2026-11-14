@@ -153,12 +153,14 @@ BY_KEY = {s.key: s for s in SETTINGS}
 KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings form and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
 LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
 STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
-BEACON_SENT = "beacon/last_sent_at"          # the rows the beacons and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
-HF_BEACON_SENT = "hf/beacon_last_sent_at"    # the HF beacon's (neoaprs/radios.py: the two beacons share the interval and have each their own last send)
-STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"
+BEACON_SENT = "beacon/last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
+HF_BEACON_SENT = "hf/beacon_last_sent_at"
+STATE_BEFORE_31 = (BEACON_SENT, HF_BEACON_SENT)
+RADIO_STATE = ("beacon_last_sent_at", "last_port")    # a radio's own state rows, radio_state_key(id, name): when its beacon last went out (services/beacon.py), the port its search found (LAST_PORT)
+STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"     # the rows the status report keeps to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
 MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON, by the radio's id since migration 31 ({"OH2GAX-2": 2}; neoaprs/radioregistry.py)
-STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO, HF_BEACON_SENT, MESSAGE_RADIOS)
+STATE_KEYS = (STATUS_SENT, STATUS_TEXT, MAP_AUTO, MESSAGE_RADIOS)       # the station's state rows; each radio's are RADIO_STATE's
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 HF_DIAL = "update/hf_dial"                   # the HF dial the version page named last ("7.0541 MHz USB"; services/updatecheck.py): the frequency the group meets on moves with the page, not with a release; empty: the built-in one (mercury.DIAL_TEXT)
 

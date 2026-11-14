@@ -7,6 +7,7 @@ import pytest
 
 from neoaprs.clock import utc
 from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LAST_PORT, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RANGES, SETTINGS, STATION_KEYS, Config, radios_from_flat
+from neoaprs.cli.radiosettings import flat_view
 from neoaprs.configradios import DEFAULT_RADIOS, FLAT_HOMES, flat_value, with_flat
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioSpec
 from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
@@ -509,6 +510,17 @@ def test_a_flat_key_of_a_radio_that_is_not_there_makes_it_as_the_flat_keys_defau
         with_flat(lora, {"fm_enabled": True})
     removed = (replace(DEFAULT_RADIOS[0], removed_at=utc(2026, 11, 14)), DEFAULT_RADIOS[1])
     assert flat_value(removed, "fm_enabled") is False, "a removed radio is not on"
+
+
+def test_the_flat_keys_of_a_removed_radio_2_say_the_kinds_defaults_on_the_page_and_on_the_command_line_alike() -> None:
+    hf = RadioSpec(HF_ID, "hf", "dummy-hf", "", True, 2, utc(2026, 11, 14), {"sound_card": "plughw:1,0", "keying": "vox", "tx_gain_db": "-4"})
+    config = Config.from_data({"station/call": "OH2GBA"}, radios=(DEFAULT_RADIOS[0], hf))
+    hf_keys = [key for key in KEYS if BY_KEY[key].attr in FLAT_HOMES and FLAT_HOMES[BY_KEY[key].attr][0] == HF_ID]
+    assert {key: config.to_data()[key] for key in hf_keys} == {key: DEFAULTS.to_data()[key] for key in hf_keys}, "the config topic: not the removed radio's sound card, keying and type"
+    assert flat_view({"station/call": "OH2GBA"}, config.radios) == config.to_data(), "neoaprs db list and get show what the page shows"
+    assert replace(config, mercury_keying="").radios == config.radios, "the default the view says changes nothing"
+    changed = replace(config, mercury_keying="rts:/dev/ttyUSB1").radios[1]
+    assert changed.removed and changed.settings["keying"] == "rts:/dev/ttyUSB1", "a change of it stays on the removed row, which the store refuses to change"
 
 
 def test_a_save_keeps_the_radios_of_the_settings_it_is_made_of_and_puts_the_flat_keys_into_radios_1_and_2() -> None:

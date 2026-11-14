@@ -123,8 +123,8 @@ def radio_key_of(text: str) -> tuple[RadioId, str] | None:
 # ---- the flat keys as a view of radios 1 and 2
 
 def _flat_radio(radios: Iterable[RadioSpec], id: RadioId) -> RadioSpec | None:
-    """The radio a flat key of radio `id` is a view of: the one with that id, of the kind it has today; None when there is none."""
-    return next((s for s in radios if s.id == id and s.kind == FLAT_KINDS[id]), None)
+    """The radio a flat key of radio `id` is a view of: the one with that id, of the kind it has today, not removed; None when there is none (a removed radio's flat keys say the kind's defaults)."""
+    return next((s for s in radios if s.id == id and s.kind == FLAT_KINDS[id] and not s.removed), None)
 
 
 def flat_value(radios: Iterable[RadioSpec], attr: str) -> Any:
@@ -164,7 +164,9 @@ def with_flat(radios: Iterable[RadioSpec], values: Mapping[str, Any]) -> tuple[R
             continue
         id, key = FLAT_HOMES[attr]
         spec = _flat_radio(found.values(), id)
-        if spec is None:
+        if spec is None and id in found and found[id].removed:
+            spec = found[id]                # (a removed radio keeps its row and takes no change: the store refuses the save)
+        elif spec is None:
             if id in found:
                 raise RadioError(f"radio {id} is of the kind {found[id].kind}: {attr} names no radio")
             spec = replace(_default_radio(id), settings={})

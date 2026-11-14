@@ -69,6 +69,7 @@ What each layer is for:
   * `aloha`: the ALOHA circle of WB4APR, the distance round our position within which the stations heard on RF fill the channel (`policy.py` has the numbers). The service
     `services/aloha.py` works it out again every minute and when our position moves.
   * `config`: the settings as one immutable value, each key checked.
+  * `stationchoices`: the operator's radio by station, kept by the radio's id in the state row `messages/radio_by_station` (the registry is one of these).
   * `ownobject` and `ownbulletin`: an object, an item or a bulletin of ours as a value, what it must keep to be sent, and the information field it makes.
 * **adapters**: the world outside, the serial line and the TNC.
   * `serialport` is the line on every system: a device path, or a `socket://`, `tcp://`, `bt://` or `ble://` address (no other pyserial scheme) (KISS over TCP), opened in a thread with DTR and RTS set low as soon as the open allows,
@@ -127,7 +128,7 @@ What each layer is for:
   * The alerts set on stations (`services/stationalerts.py`): watched as the station book changes (on the air after half an hour of silence, within N km of us, heard direct), each fired once for each crossing, to the alert command and, by the page's topics, to every page.
   * What the services that send share (`services/common.py`): `ConfigSource`, the interlock's refusal and our call, the old `Radio` of the Tnc, which only the tests still give, and `as_pick`, which reads an old shape as the `RadioPick` of `services/radioset.py`, whose `fit` makes every frame of the sender, our objects and the digipeater.
   * The alert (`services/alerts.py`), the base map (`services/mapfetch.py`, `services/mapcli.py`, and `services/mapauto.py`, which begins it without a click when a place is set or the guide asks, unless the map there covers the place), the update check (`services/updatecheck.py`) Update now (`services/selfupdate.py`, `services/selfinstall.py`) and Find my radio (`services/radiofinder.py`, `services/radioprobe.py`).
-* **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down (each radio on its own tickbox; the Mercury HF modem, `mercury`, with the HF Tnc: started before it, stopped with it), `radioregistry.py` is the radios at run time and the one place that chooses between them, which every service that sends or answers is given (`radios.py`, the two radios as one, is what the tests hold its choices to until the round's removals), and `wiring.py` connects the
+* **app**: the composition root. `app.py` makes the parts, `controller.py` is the object of the parts and brings them up and down (each radio on its own tickbox; the Mercury HF modem, `mercury`, with the HF Tnc: started before it, stopped with it), `radioregistry.py` is the radios at run time and the one place that chooses between them, which every service that sends or answers is given (`radios.py`, the two radios as one, is what the tests hold its choices to until the round's removals), `radioedits.py` checks what the operator adds, changes and removes of the radios and gives a database without radios today's first (the stand-in, until the round's removals), and `wiring.py` connects the
   signals (both radios' packets go the same way, each stamped with its radio), connects each radio's line, modem and beacon when the registry makes it (`wire_radio`), and fills the station book from the database at the start.
 * **delivery**: one package each.
   * `neoaprs/web/`: Tornado, the pydantic wire models (`*wire.py`), the state hub and its topics, the commands. `server.py` is the coordinator (routes, Host
@@ -192,7 +193,7 @@ What each layer is for:
 | `install` | how this copy was installed, worked out by the process in `neoaprs/cli/installkind.py` and given to the controller. The page's `hello` carries it, so that the page can say how to update |
 | `internet_packet` | the signal of the packets received from APRS-IS (`Packet.via` is `is`), entered through `hear_internet`; only the packet log, the station book and the weather log are connected to it (and the page's topics) |
 | `config_changed` | the signal that every save of the settings emits |
-| `config_lock` | the lock held while the settings are stored and put in force (`save_config`, `change_config`, the port the search found as `serial/last_port`): a change is made of the settings as they are then, so two that overlap keep each other's keys |
+| `config_lock` | the lock held while the settings are stored and put in force (`save_config`, `change_config`, the port the search found, in radio 1's row `radio/1/last_port`): a change is made of the settings as they are then, so two that overlap keep each other's keys |
 | `web` | the page's server, which the controller makes, once the settings are read, from the factory the process gave it (`Controller(web=WebServer)`: this layer does not import `neoaprs/web/`, it knows a `Frontend` that starts and stops) |
 | `db` | the `Db`, once it is open |
 | `tasks` | the `TaskSet` of what the parts start on the loop |
@@ -211,7 +212,7 @@ A part gets what it needs as constructor arguments (objects of a lower layer, Pr
 - Our objects go to the station book as stations of their own (`own`).
 - The GPS feed's fixes go to the GPS service; when our position moved far enough the service's `moved` puts our own row at the fix and works the ALOHA circle out again.
 - What the book changes or removes goes to the station cache in the database.
-- The port a search found is stored as `serial/last_port` and tried first next time.
+- The port a search found is stored in radio 1's own row `radio/1/last_port` and tried first next time.
 - `wire_radio` connects one radio (its line to `radio_packet`, its changes to `radio_changed`), and `seed_station_book` fills the book at the start.
 
 `neoaprs/controller.py` (`Controller`, which extends `Services`) is the start and the stop.

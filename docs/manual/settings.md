@@ -46,7 +46,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `mercury/sound_card` | empty | Settings tab, Radio (HF radio, Sound card) | the HF radio's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a station that has it empty runs on the daemon's own choice as before. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem)) |
 | `mercury/tx_gain_db` | `0` | Settings tab, Radio (HF radio, Transmit level) | the HF radio's transmit gain in dB, a whole number from -20 to 20 (`0`: the modem's own level, a frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame. Default `0` |
 | `mercury/keying` | empty | Settings tab, Radio (HF radio, Keying) | how the HF radio (the Mercury modem) keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a station that has it empty runs on the daemon's own choice as before. The other types ignore it |
-| `serial/last_port` | empty | the daemon's own memory | the port the search found last time, tried first while `serial/port` is empty. Written by the daemon; the page shows it as `found: PORT` beside an automatic Port |
+| `serial/last_port` | empty | the daemon's own memory | the port the search found last time, tried first while `serial/port` is empty. Written by the daemon, in radio 1's own row `radio/1/last_port`; the page shows it as `found: PORT` beside an automatic Port |
 | `serial/pattern` | `/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*` | `neoaprs db set` only | the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search, and **Find my radio** tries the same ports ([radio.md](radio.md#finding-the-radio)) |
 | `serial/skip` | empty | `neoaprs db set` only | ports the search never opens, nor does **Find my radio**, separated by commas (`/dev/brainbox_2`, a rotator's adapter, say) |
 | `web/network` | `false` | Settings tab, Web page | `true` lets other devices on the network open the page: it then listens on every interface, and a device other than this computer logs in with `web/key` first. It counts at once, with no restart ([network.md](network.md)) |
@@ -72,6 +72,38 @@ The table below is made from the program, so it lists every setting there is, wi
 | `beacon/travel` | `car` | My station tab, Beacon (Travelling) | how you travel while the beacon follows the GPS: `car`, `bicycle`, `foot` or `boat`. It decides when SmartBeaconing beacons: `car` every 60 seconds from 100 km/h, a turn of more than 30 degrees (at least 15 seconds after the last beacon); `bicycle` every 60 seconds from 30 km/h, a turn of more than 35 degrees (at least 20 seconds after the last beacon); `foot` every 120 seconds from 7 km/h, a turn of more than 45 degrees (at least 60 seconds after the last beacon); `boat` every 60 seconds from 40 km/h, a turn of more than 20 degrees (at least 30 seconds after the last beacon). Below the slow speed a station counts as standing still, so there is a beacon only every 30 minutes and no turn is beaconed. The car's numbers are Dire Wolf's; the others are NeoAPRS's own choice |
 <!-- /doc-settings -->
 
+## The radios' own settings
+
+Each radio keeps settings of its own, under `radio/<id>/<key>`. `neoaprs db radios` lists the radios with theirs, and `neoaprs db get` and `neoaprs db set` take such a key as they take a setting (`neoaprs db set radio/1/port /dev/ttyUSB0`). Which settings a radio has is its type's.
+
+Radio 1 is the FM radio and radio 2 the HF radio of the keys above (`tnc/profile`, `serial/port`, `hf/enabled`, `mercury/sound_card` and the others of the two radios): they are the same settings, and a set of one of those goes to its radio. A station that has no HF radio refuses a key of the HF radio until it has one.
+
+<!-- doc-settings:radios -->
+| type | kind | what it is | its own settings |
+| --- | --- | --- | --- |
+| `kenwood-tnc2` | fm | Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2 | `port`, `baud`, `beacon`, `path`, `digipeat` |
+| `kenwood-d710` | fm | Kenwood TM-D710 / TH-D72 | `port`, `baud`, `beacon`, `path`, `digipeat` |
+| `kantronics` | fm | Kantronics KPC-3+ | `port`, `baud`, `beacon`, `path`, `digipeat` |
+| `kiss` | fm | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | `port`, `baud`, `beacon`, `path`, `digipeat` |
+| `kiss-tcp` | fm | KISS over TCP (Direwolf, soundmodem) | `port`, `tcp_host`, `tcp_port`, `beacon`, `path`, `digipeat` |
+| `dummy` | fm | Dummy (no radio, made-up traffic) | `beacon`, `path`, `digipeat` |
+| `dummy-hf` | hf | Dummy HF radio (no radio, made-up distant stations) | `beacon` |
+| `mercury` | hf | Mercury HF modem (sound card, SSB radio) | `sound_card`, `keying`, `tx_gain_db`, `beacon` |
+
+| key | default | types | where | what it is |
+| --- | --- | --- | --- | --- |
+| `radio/<id>/port` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp` | Settings tab, TNC (Port) | the radio's port, as `serial/port` says it for radio 1: a serial port, `socket://host:port`, `bt://` or `ble://`; empty: the port the search finds |
+| `radio/<id>/baud` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss` | Settings tab, TNC (Speed) | the speed of its serial line, as `serial/baud` (300 to 921600); empty: the type's own |
+| `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp` | Settings tab, TNC | where a `kiss-tcp` radio connects while its port is empty, as `tcp/host` |
+| `radio/<id>/tcp_port` | `8001` | `kiss-tcp` | Settings tab, TNC | the KISS port there (1 to 65535), as `tcp/port` |
+| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
+| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it |
+| `radio/<id>/digipeat` | `false` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats what asks for it, as `digi/enabled` says it for radio 1 |
+| `radio/<id>/sound_card` | empty | `mercury` | Settings tab, Radio (HF radio, Sound card) | the Mercury modem's sound card, as `mercury/sound_card` says it for radio 2 |
+| `radio/<id>/keying` | empty | `mercury` | Settings tab, Radio (HF radio, Keying) | how the Mercury modem keys the transmitter, as `mercury/keying` says it for radio 2 |
+| `radio/<id>/tx_gain_db` | `0` | `mercury` | Settings tab, Radio (HF radio, Transmit level) | the Mercury modem's transmit gain in dB (-20 to 20), as `mercury/tx_gain_db` says it for radio 2 |
+<!-- /doc-settings -->
+
 ## Values the program decides
 
 These are not settings. They are fixed by design, and no field or `neoaprs db set` changes them.
@@ -95,12 +127,12 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 These rows are written by the daemon so that a restart goes on where it stopped. They are not settings and are not listed above:
 
 <!-- doc-settings:state -->
-- `beacon/last_sent_at`: when the FM radio's beacon last went out, so that a restart waits out the rest of the interval.
+- `radio/<id>/beacon_last_sent_at`: when the radio's beacon last went out, so that a restart waits out the rest of the interval.
+- `radio/<id>/last_port`: the port radio 1's search found (only radio 1 remembers one), which `serial/last_port` reads.
 - `status/last_sent_at`: when the status report last went out.
 - `status/last_text`: the text of that status report, which ?APRSS answers with and the page shows.
 - `map/auto`: whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`).
-- `hf/beacon_last_sent_at`: the same for the HF radio's beacon.
-- `messages/radio_by_station`: the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on.
+- `messages/radio_by_station`: the radio the operator chose for messages to a station, by call and the radio's number (1 the FM radio, 2 the HF radio), while both radios are on.
 - `update/install_id`: the random number of this installation that the update check sends.
 - `update/not_counted`: `true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page.
 - `update/sked_token`: the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle.

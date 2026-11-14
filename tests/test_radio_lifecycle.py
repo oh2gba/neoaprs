@@ -2,6 +2,7 @@
 the checks in neoaprs/radioedits.py): each stored before it is put in force, the radio it is of restarted and no other, every refusal a RadioError of neoaprs/radiospec.py naming the radio (uncoded until
 the wire names a radio: W1 gives each its code) and a type that is none a RadioTypeError. Remove takes the radio's id out of the objects' sets, the stations' paths and choices and its own state rows in
 one transaction, stops it for good and keeps its row; the last enabled radio is neither switched off nor removed."""
+import asyncio
 import json
 import sqlite3
 from dataclasses import replace
@@ -9,13 +10,14 @@ from pathlib import Path
 
 import pytest
 
+from neoaprs.claims import Claim
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError
 from neoaprs.radiotype import RadioTypeError
 from neoaprs.services.beacon import memory_key_of
 from neoaprs.source import Source
 from neoaprs.store import DB_NAME
 from tests.support.air import on_air
-from tests.support.env import Env, until, until_async
+from tests.support.env import Env, idle_for, until, until_async
 
 
 async def test_a_radio_is_added_off_given_its_port_switched_on_and_then_heard_and_the_others_are_not_touched(tmp_path: Path) -> None:
@@ -172,6 +174,57 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
     assert again.ctl.radios.get(HF_ID) is None and again.ctl.config.radio(HF_ID).removed and [r.id for r in again.ctl.radios.all()] == [FM_ID]     # type: ignore[union-attr]
     assert not again.ctl.config.hf_enabled and again.ctl.radios.choice("OH2GAX-2") is None
     await again.stop()
+
+
+async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_stops_it_and_its_beacon_for_good(tmp_path: Path) -> None:
+    e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e.ctl.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    await e.start()
+    hf = e.ctl.radios.get(HF_ID)
+    assert hf is not None
+    await until(lambda: e.hf.usable and hf.beacon.running)
+    stopping, stops, stop = asyncio.Event(), [], hf.driver.stop
+
+    async def slow_stop() -> None:
+        stops.append(len(stops))
+        if len(stops) == 1:
+            stopping.set()
+            await asyncio.Event().wait()                                 # (the removal's stop of the radio is still on its way when the daemon stops: it is cancelled there)
+        await stop()
+    hf.driver.stop = slow_stop                                           # type: ignore[method-assign]
+    assert await e.ctl.remove_radio(HF_ID)
+    await asyncio.wait_for(stopping.wait(), 5)
+    await e.stop()
+    assert stops == [0, 1] and not hf.beacon.running and hf.state is Source.State.STOPPED, "stopped for good by the daemon's stop, its beacon with it"
+
+
+async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_beacon_and_its_claims(tmp_path: Path) -> None:
+    """Nothing of the program takes a removed radio back today; the registry's `sync` does take back one it dropped, and the stop that was under way then leaves the radio as `sync` has it."""
+    e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e.ctl.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    await e.start()
+    hf, before = e.ctl.radios.get(HF_ID), e.ctl.config
+    assert hf is not None
+    await until(lambda: e.hf.usable and hf.beacon.running)
+    stopping, go, stopped, stop = asyncio.Event(), asyncio.Event(), asyncio.Event(), hf.driver.stop
+
+    async def held_stop() -> None:
+        stopping.set()
+        await go.wait()
+        await stop()
+        stopped.set()
+    hf.driver.stop = held_stop                                           # type: ignore[method-assign]
+    assert e.ctl.radios.claims.hold(Claim("gps", "/dev/ttyACM9", HF_ID)) is None
+    assert await e.ctl.remove_radio(HF_ID)
+    await asyncio.wait_for(stopping.wait(), 5)
+    e.ctl.radios.sync(before)                                            # (radio 2 wanted again while its line is still being stopped)
+    go.set()
+    await asyncio.wait_for(stopped.wait(), 5)
+    await idle_for(0.1)
+    assert e.ctl.radios.get(HF_ID) is hf and hf.beacon.running, "the radio taken back keeps its beacon"
+    assert e.ctl.radios.claims.holder_of("gps", "/dev/ttyACM9") == HF_ID, "and what it holds that its line does not let go of"
+    hf.driver.stop = stop                                                # type: ignore[method-assign]
+    await e.stop()
 
 
 async def test_a_radio_the_settings_name_by_todays_flat_keys_is_changed_in_its_own_rows(tmp_path: Path) -> None:

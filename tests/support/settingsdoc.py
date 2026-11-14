@@ -4,7 +4,7 @@ constants of the program.
 The keys, the defaults and every number come from the code; the words are the `DESCRIPTIONS` below (and `RADIO_DESCRIPTIONS` for a radio's own settings, `radio/<id>/<key>`), with the numbers as `{name}`
 fields that are filled in from the code, so a limit cannot be changed in one place only. The tables are blocks between `<!-- doc-settings:NAME -->` and `<!-- /doc-settings -->` in the document;
 `scripts/doc-settings --write` makes them and `tests/test_docs.py` fails when one differs, when a setting or a field of a type has no description, or when a description names one that is gone. A
-block of `PENDING` is held to the code once the document has it, and is not yet asked of it (the integration of the radio round puts it in).
+block of `PENDING` is held to the code once the document has it, and is not yet asked of it.
 """
 import re
 
@@ -76,7 +76,7 @@ DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "mercury/sound_card": ("Settings tab, Radio (HF radio, Sound card)", "the HF radio's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a station that has it empty runs on the daemon's own choice as before. The other types ignore it ([radio.md](radio.md#the-mercury-hf-modem))"),
     "mercury/tx_gain_db": ("Settings tab, Radio (HF radio, Transmit level)", "the HF radio's transmit gain in dB, a whole number from -20 to 20 (`0`: the modem's own level, a frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame. Default `0`"),
     "mercury/keying": ("Settings tab, Radio (HF radio, Keying)", "how the HF radio (the Mercury modem) keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a station that has it empty runs on the daemon's own choice as before. The other types ignore it"),
-    "serial/last_port": (DAEMON_MEMORY, "the port the search found last time, tried first while `serial/port` is empty. Written by the daemon; the page shows it as `found: PORT` beside an automatic Port"),
+    "serial/last_port": (DAEMON_MEMORY, "the port the search found last time, tried first while `serial/port` is empty. Written by the daemon, in radio 1's own row `radio/1/last_port`; the page shows it as `found: PORT` beside an automatic Port"),
     "serial/pattern": (DB_ONLY, "the device files the search listens to (Linux only): shell globs (`*`, `?`, `[0-3]`), each an absolute path, separated by spaces. A device that several globs match keeps the name of the earliest glob, so a stable `by-id` name comes first. A change restarts the search, and **Find my radio** tries the same ports ([radio.md](radio.md#finding-the-radio))"),
     "serial/skip": (DB_ONLY, "ports the search never opens, nor does **Find my radio**, separated by commas (`/dev/brainbox_2`, a rotator's adapter, say)"),
     "web/network": ("Settings tab, Web page", "`true` lets other devices on the network open the page: it then listens on every interface, and a device other than this computer logs in with `web/key` first. It counts at once, with no restart ([network.md](network.md))"),
@@ -159,13 +159,15 @@ def fixed() -> str:
     return "\n".join(f"- {item}" for item in items) + "\n"
 
 
+RADIO_STATE_WORDS = {           # a radio's own state rows, `radio/<id>/<name>` (config.RADIO_STATE)
+    "beacon_last_sent_at": "when the radio's beacon last went out, so that a restart waits out the rest of the interval",
+    "last_port": "the port radio 1's search found (only radio 1 remembers one), which `serial/last_port` reads",
+}
 STATE_WORDS = {
-    cfg.BEACON_SENT: "when the FM radio's beacon last went out, so that a restart waits out the rest of the interval",
-    cfg.HF_BEACON_SENT: "the same for the HF radio's beacon",
     cfg.STATUS_SENT: "when the status report last went out",
     cfg.STATUS_TEXT: "the text of that status report, which ?APRSS answers with and the page shows",
     cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
-    cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on",
+    cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station, by call and the radio's number (1 the FM radio, 2 the HF radio), while both radios are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
     NOT_COUNTED: "`true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page",
     SKED_TOKEN: "the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle",
@@ -173,8 +175,9 @@ STATE_WORDS = {
 
 
 def state() -> str:
-    """The rows the daemon keeps that are not settings (`neoaprs.config.STATE_KEYS`, the update check's number and its switch, and the sked token)."""
-    return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, NOT_COUNTED, SKED_TOKEN)) + "\n"
+    """The rows the daemon keeps that are not settings: each radio's (`neoaprs.config.RADIO_STATE`), then the station's (`STATE_KEYS`, the update check's number and its switch, and the sked token)."""
+    radio = [f"- `radio/<id>/{name}`: {RADIO_STATE_WORDS[name]}." for name in cfg.RADIO_STATE]
+    return "\n".join([*radio, *(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, NOT_COUNTED, SKED_TOKEN))]) + "\n"
 
 
 # a radio's own setting, `radio/<id>/<key>`: (where it is on the page, what it is). The order is the order of the table. Radio 1 is the FM radio and radio 2 the HF radio of today's flat keys.
@@ -206,7 +209,7 @@ def radios() -> str:
 
 
 MAKERS = {"settings": settings, "fixed": fixed, "state": state, "radios": radios}
-PENDING = frozenset({"radios"})         # blocks the document need not have yet: docs/manual/settings.md gets the block of the radios with the radio round's integration, which then empties this
+PENDING: frozenset[str] = frozenset()     # blocks the document need not have yet (a new block that lands before the document has it)
 
 
 def blocks_of(text: str) -> dict[str, str]:

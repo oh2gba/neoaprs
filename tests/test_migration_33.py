@@ -154,19 +154,20 @@ def test_with_both_radios_enabled_an_object_is_on_the_radios_its_word_named(tmp_
     db.close()
 
 
-def test_with_one_radio_enabled_every_object_is_on_that_radio(tmp_path: Path) -> None:
-    """Today an object goes out on the one radio that is on, whatever word it holds: that radio is what it keeps."""
+def test_with_one_radio_enabled_an_object_keeps_the_radios_its_word_named(tmp_path: Path) -> None:
+    """The operator's choice outlives a radio that is off at the update: an object on hf or on both keeps those radios, and goes out on the radio that is on meanwhile, as it did (the sender puts an
+    object none of whose radios is on onto the main radio); when the other radio is switched on again the object is where the operator put it."""
     db = at_32(tmp_path, objects, settings={"station/call": "OH2GBA"})
     assert db.execute("SELECT id, enabled FROM radio ORDER BY id").fetchall() == [(1, 1), (2, 0)], "an object on hf made migration 31 make radio 2; it is not enabled"
     run(db, _v33)
-    assert radios_of(db) == {"ONFM": "1", "ONHF": "1", "ONBOTH": "1"}
+    assert radios_of(db) == {"ONFM": "1", "ONHF": "2", "ONBOTH": "1,2"}
     db.close()
 
 
-def test_with_the_hf_radio_alone_enabled_every_object_is_on_radio_two(tmp_path: Path) -> None:
+def test_with_the_hf_radio_alone_enabled_an_object_keeps_the_radios_its_word_named(tmp_path: Path) -> None:
     db = at_32(tmp_path, objects, settings={"fm/enabled": "false", "hf/enabled": "true"})
     run(db, _v33)
-    assert radios_of(db) == {"ONFM": "2", "ONHF": "2", "ONBOTH": "2"}
+    assert radios_of(db) == {"ONFM": "1", "ONHF": "2", "ONBOTH": "1,2"}
     db.close()
 
 
@@ -192,7 +193,7 @@ def test_objects_in_a_database_without_settings_are_on_radio_one_which_31_made(t
     assert db.execute("SELECT id, kind, enabled FROM radio ORDER BY id").fetchall() == [(1, "fm", 1), (2, "hf", 0)], \
         "objects are rows of an installation: migration 31 makes radio 1, and radio 2 for the objects on hf and both"
     run(db, _v33)
-    assert radios_of(db) == {"ONFM": "1", "ONHF": "1", "ONBOTH": "1"}, "one radio enabled: every object is on it"
+    assert radios_of(db) == {"ONFM": "1", "ONHF": "2", "ONBOTH": "1,2"}, "each object keeps the radios its word named, radio 2 off or not"
     assert db.execute("INSERT INTO radio (kind, type, enabled, position) VALUES ('fm', 'kiss', 1, 3)").lastrowid == 3, "a radio added later inherits nothing"
     db.close()
 

@@ -321,12 +321,18 @@ class RadioRegistry(StationChoices, Generic[B]):
             await (radio.beacon.start() if radio.spec.enabled else radio.beacon.stop())
 
     async def _let_go(self, id: RadioId) -> None:
-        """A radio the settings no longer have is stopped for good, its beacon with it, and what it held is let go."""
-        gone = self._leaving.pop(id, None)
-        if gone is not None:
-            await gone.driver.stop()
-            await gone.beacon.stop()
+        """A radio the settings no longer have is stopped for good, its beacon with it, and what it held is let go. It stays among the leaving until all of that is done, so that a daemon stopped
+        while its restart is still at it (the restart is cancelled) stops it in `stop_all`."""
+        gone = self._leaving.get(id)
+        if gone is None:
+            return
+        await gone.driver.stop()
+        if self._leaving.get(id) is not gone:                    # (wanted again while its line stopped: `sync` took it back, its beacon and claims with it)
+            return
+        await gone.beacon.stop()
+        if self._leaving.get(id) is gone:
             self.claims.release(id)
+            del self._leaving[id]
 
     async def stop_all(self) -> None:
         """Every radio is stopped: its line, and its modem with it; one the settings no longer have whose restart did not get so far is stopped for good (`_let_go`)."""

@@ -46,10 +46,10 @@ The zip holds plain text files. `README.txt` inside it says the same as here. Op
 | file | what it has |
 |---|---|
 | `README.txt` | what the file is and what to do with it |
-| `summary.txt` | one screen: the version, the system, the station, the radio, the GPS, the web page, the database, and the warnings and errors of the log, each message once with how many times and when last |
+| `summary.txt` | one screen: the version, the system, the station, every radio, the GPS, the web page, the database, and the warnings and errors of the log, each message once with how many times and when last |
 | `logs/` | the log of the program, the rotated ones too, the log of the desktop app when there is one, and on Linux what the system's journal has of the service |
 | `settings.json` | every setting with its value; the access key is only said to be set |
-| `state.json` | what the running daemon knows now: the radio, the GPS, the beacon, the base map, the update, the serial ports and who holds them |
+| `state.json` | what the running daemon knows now: every radio, the GPS, the beacon, the base map, the update, the serial ports and who holds them |
 | `doctor.txt` | the checks of `neoaprs doctor` ([commands.md](commands.md#neoaprs-doctor)) |
 | `database.txt` | the version of the database, the number of rows in each table, the sizes of the files and whether the file is sound |
 | `packets.txt` | the last packets heard and sent, and the last ones that could not be decoded |

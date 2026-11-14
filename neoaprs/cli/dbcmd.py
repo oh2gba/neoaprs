@@ -25,7 +25,7 @@ from typing import Any
 
 from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, can_open, copies, restore, stamp as copy_stamp
 from neoaprs.cli.redaction import shown_value
-from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, LAST_PORT, STATE_KEYS, Config
+from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, LAST_PORT, RADIO_STATE, STATE_BEFORE_31, STATE_KEYS, Config
 from neoaprs.configradios import FLAT_KINDS, radio_key_of, radios_from_rows
 from neoaprs.configtypes import boolean
 from neoaprs.radiospec import KIND_WORDS, RadioSpec, log_name
@@ -95,8 +95,14 @@ def stamp(t: datetime) -> str:
     return t.strftime("%Y-%m-%d %H:%M:%SZ")
 
 
+def daemon_state(key: str) -> bool:
+    """A row only the daemon writes, which `set` refuses: the station's state, a radio's own (its beacon's last send, the port its search found), and the two rows of before migration 31."""
+    radio = radio_key_of(key)
+    return key in STATE_KEYS or key in STATE_BEFORE_31 or (radio is not None and radio[1] in RADIO_STATE)
+
+
 def kept_note(key: str) -> str:
-    if key in STATE_KEYS:
+    if key in STATE_KEYS or key in STATE_BEFORE_31:
         return "kept by the daemon (when it last sent, how the map stands), not a setting"
     if key == HF_DIAL:
         return "kept by the daemon (the HF dial the version page named last), not a setting"
@@ -299,6 +305,9 @@ def restore_copy(data: Path, name: str) -> int:
 def before_opening(args: argparse.Namespace, path: Path) -> int | str:
     """What is checked before the database is opened: for `set`, the value of a setting of the station by its key (the text as it is kept), and that the data folder can be made; for any other
     command, and for a radio's own setting (checked by its radio's field once the database is read), that the file is there. The text, or the exit code of the refusal."""
+    if args.command == "set" and daemon_state(args.key):
+        say(f"{PROG}: {args.key}: {kept_note(args.key)}" + ("; db set serial/last_port sets it" if args.key == LAST_PORT else ""))
+        return 2
     if args.command == "set" and args.key.startswith("radio/") and radio_key_of(args.key) is None:
         say(f"{PROG}: {args.key}: a radio's setting is radio/<number>/<key> (try radios)")
         return 2

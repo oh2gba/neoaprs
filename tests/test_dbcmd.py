@@ -334,3 +334,14 @@ def test_the_port_the_search_found_is_set_in_radio_1s_own_state_row_once_the_rad
     assert db("get", "serial/last_port", data=stored) == 0 and capsys.readouterr().out.strip() == "/dev/ttyUSB8", "the row that is read is the one that was set"
     assert db("set", "serial/last_port", "/dev/ttyUSB7", data=data) == 0, "a database without radios keeps it under its own name, as before"
     assert rows_of(data, "SELECT key, value FROM settings WHERE key LIKE '%last_port'") == [("serial/last_port", "/dev/ttyUSB7")]
+
+
+def test_set_refuses_the_rows_the_daemon_keeps_each_radios_own_and_the_two_of_before_and_writes_none(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    before = rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key")
+    capsys.readouterr()
+    for key in ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/1/last_port", "radio/3/last_port", "beacon/last_sent_at", "hf/beacon_last_sent_at", "status/last_sent_at"):
+        assert db("set", key, "2026-11-14T10:00:00Z", data=stored) == 2, key
+        assert capsys.readouterr().err.strip().startswith(f"neoaprs db: {key}: kept by the daemon ("), key
+    assert rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key") == before, "nothing written"
+    assert db("set", "radio/1/last_port", "/dev/ttyUSB9", data=stored) == 2 and capsys.readouterr().err.strip().endswith("; db set serial/last_port sets it"), "radio 1's is told the setting that sets it"
+    assert db("set", "serial/last_port", "/dev/ttyUSB9", data=stored) == 0, "the setting of the port found is still set, in radio 1's own row"

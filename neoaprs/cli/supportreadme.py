@@ -9,13 +9,13 @@ SEND_WORDS = "what you did, what you expected, what happened instead, and roughl
 
 FILE_HELP: dict[str, str] = {
     "README.txt": "this file",
-    "summary.txt": "the one screen to read first: version, system, station, radio, GPS, web page, database, and the warnings and errors of the log, each message once",
+    "summary.txt": "the one screen to read first: version, system, station, every radio, GPS, web page, database, and the warnings and errors of the log, each message once",
     "logs/neoaprs.log": "the log of the program (and neoaprs.log.1 and so on, the rotated ones, newest first); the newest lines are kept within a size budget",
     "logs/neoaprs-app.log": "the log of the desktop app (its window and tray icon), when there is one",
     "logs/journal.txt": "the last 3000 lines of what the system's journal has of the NeoAPRS service (Linux)",
     "settings.json": "every setting with its value; the access key, the alert command and a changed update address are only said to be set",
-    "state.json": "what the running daemon knows now: the radio and its latest lines, the GPS, the beacon, the base map, the update, the serial ports and who holds them, the size of the process",
-    "doctor.txt": "the checks of `neoaprs doctor`: Python, folders, database, call, serial ports, the daemon, the map, the service",
+    "state.json": "what the running daemon knows now: every radio and its latest lines, the GPS, the beacon, the base map, the update, the serial ports and who holds them, the size of the process",
+    "doctor.txt": "the checks of `neoaprs doctor`: Python, folders, database, call, the radios, serial ports, the daemon, the map, the service",
     "database.txt": "the version of the database, its migrations, the rows of each table, the sizes of the files and whether SQLite finds the file sound",
     "packets.txt": "the last 1000 packets the radio heard and sent, and the last 200 that could not be decoded",
     "page.json": "what the page (the browser) told about itself when it asked for this bundle",

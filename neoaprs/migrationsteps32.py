@@ -33,8 +33,8 @@ def _v33(db: sqlite3.Connection) -> None:
     heard the station last (radio 1 when both did at the same time; the one row when there is one); the five columns leave the station. The path the operator gave a station is the path on a radio,
     `station_path` (the station, the radio, the path, when it was set): every `station_pref.path` is the station's path on radio 1, the column leaves `station_pref` (rebuilt: its CHECK names the column),
     and a row that said nothing but a path is gone with it; RF only and the alerts stay by station. An object of ours names the radios it goes out on, `own_object.radios` (their ids, ascending, separated
-    by commas) in place of `radio`: `fm` is 1, `hf` is 2, `both` is 1,2; `hf` and `both` are 1 on a database without radio 2; and where exactly one radio is enabled every object is on that one, which is
-    where it went. The table `_m31`, migration 31's note of what it decided, is dropped: the table `radio` says it. Any doubt raises: the rollback leaves everything as it was."""
+    by commas) in place of `radio`: `fm` is 1, `hf` is 2, `both` is 1,2; `hf` and `both` are 1 on a database without radio 2. A radio that is off keeps its
+    objects: the operator's choice is there when it is switched on again. The table `_m31`, migration 31's note of what it decided, is dropped: the table `radio` says it. Any doubt raises: the rollback leaves everything as it was."""
     form = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'"
     fm_last = "(last_fm_at IS NOT NULL AND (last_hf_at IS NULL OR last_fm_at >= last_hf_at))"
     db.execute("""CREATE TABLE station_radio (
@@ -80,10 +80,7 @@ def _v33(db: sqlite3.Connection) -> None:
     db.execute("DROP TABLE station_pref_old")
     db.execute("ALTER TABLE own_object ADD COLUMN radios TEXT NOT NULL DEFAULT '1' CONSTRAINT own_object_radios CHECK "
                "(radios GLOB '[1-9]*' AND radios NOT GLOB '*[^0-9,]*' AND radios NOT GLOB '*,' AND radios NOT GLOB '*,,*' AND radios NOT GLOB '*,0*')")
-    enabled = [int(row[0]) for row in db.execute("SELECT id FROM radio WHERE enabled = 1 AND removed_at IS NULL ORDER BY id")]
-    if len(enabled) == 1:
-        db.execute("UPDATE own_object SET radios = ?", (str(enabled[0]),))
-    elif db.execute("SELECT 1 FROM radio WHERE id = 2").fetchone() is not None:
+    if db.execute("SELECT 1 FROM radio WHERE id = 2").fetchone() is not None:
         db.execute("UPDATE own_object SET radios = CASE radio WHEN 'hf' THEN '2' WHEN 'both' THEN '1,2' ELSE '1' END")
     db.execute("ALTER TABLE own_object DROP COLUMN radio")
     db.execute("DROP TABLE IF EXISTS _m31")

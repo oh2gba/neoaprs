@@ -40,6 +40,8 @@ def stored_rows(settings: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]
     unstored = set(settings.get("defaults_are_used_for", []))
     differs: Mapping[str, str] = settings.get("stored_text_differs", {})
     told = {**{key: differs.get(key, value) for key, value in settings.get("values", {}).items() if key not in unstored}, **settings.get("other_rows", {})}
+    if "radios" in settings and "messages/radio_by_station" in told:          # (a bundle of a database whose radios are rows: the choices are by id, which migration 31 reads by word)
+        told["messages/radio_by_station"] = json.dumps({call: {1: "fm", 2: "hf"}.get(radio, radio) for call, radio in json.loads(told["messages/radio_by_station"]).items()}, sort_keys=True)
     hidden = sorted(key for key, text in told.items() if HIDDEN.fullmatch(str(text)))
     return {key: "" if text == "(empty)" and (is_secret(key) or key in FREE_TEXT_SECRETS) else str(text) for key, text in told.items() if key not in hidden}, hidden
 

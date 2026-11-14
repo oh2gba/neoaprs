@@ -1,6 +1,6 @@
 """The beacon and the status report keep their schedule across a restart (neoaprs/services/memory.py): the rows `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store on a
 temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again. In the whole daemon each radio of the registry has its own
-beacon, which keeps its last send in a row of its own: radio 1's in `beacon/last_sent_at` and radio 2's in `hf/beacon_last_sent_at`, as before."""
+beacon, which keeps its last send in the radio's own row, `radio/<id>/beacon_last_sent_at`, and nothing under the two rows of before."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, STATE_KEYS, Config
+from neoaprs.config import BEACON_SENT, DEFAULTS, HF_BEACON_SENT, RADIO_STATE, STATE_BEFORE_31, STATE_KEYS, STATUS_SENT, STATUS_TEXT, Config
+from neoaprs.configradios import radio_state_key
 from neoaprs.rigctld import read_rig
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.services.beacon import Beacon, memory_key_of
@@ -20,8 +21,8 @@ from tests.support.env import Env, idle_for, ON_AIR, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
-BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS[:3]
-HF_BEACON_ROW = STATE_KEYS[4]
+BEACON_ROW, STATUS_ROW, TEXT_ROW = BEACON_SENT, STATUS_SENT, STATUS_TEXT       # (the beacons here are made without the station's maker of frames, and keep beacon/last_sent_at)
+HF_BEACON_ROW = HF_BEACON_SENT
 
 
 class Daemon:
@@ -166,7 +167,8 @@ async def test_the_time_and_the_text_of_a_status_are_written_to_the_rows_after_t
     assert await store.setting(STATUS_ROW) is None and await store.setting(TEXT_ROW) is None
     await first_run(store, clock, station_status="QRV 145.500")
     assert await store.setting(STATUS_ROW) == "2026-10-21T12:00:00Z" and await store.setting(TEXT_ROW) == "QRV 145.500"
-    assert not set(STATE_KEYS) & set(DEFAULTS.to_data()) and Config.from_data(await store.settings()) == DEFAULTS, "state, not settings: the form does not list them and reading the settings leaves them alone"
+    state = {*STATE_KEYS, *STATE_BEFORE_31, *(radio_state_key(id, name) for id in (FM_ID, HF_ID) for name in RADIO_STATE)}       # (the station's, the two of before and each radio's own)
+    assert not state & set(DEFAULTS.to_data()) and Config.from_data(await store.settings()) == DEFAULTS, "state, not settings: the form does not list them and reading the settings leaves them alone"
 
 
 async def test_a_restart_inside_the_interval_sends_no_status_even_when_the_text_differs(tmp_path: Path) -> None:

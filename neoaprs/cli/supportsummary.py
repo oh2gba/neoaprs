@@ -110,7 +110,7 @@ def _position(c: Config) -> str:
 def _beacon(f: Facts, c: Config) -> str:
     if not c.beacon_on:
         return "off (interval 0)" + ("" if c.station_transmit else "; receive only")
-    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {c.beacon_interval_min} min"
+    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {c.beacon_interval()} min"
     if not c.station_transmit:
         text += "; receive only: nothing is sent"
     beacon = (f.live or {}).get("beacon")

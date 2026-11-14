@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **New:** `neoaprs db radios` lists the radios, `neoaprs db set radio/1/port ...` sets one of their settings, and `neoaprs doctor` names each radio.
 - **New:** the page speaks Nederlands.
 - **New:** a right-click on the monitor card sets how fast its waterfall scrolls.
 - **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
