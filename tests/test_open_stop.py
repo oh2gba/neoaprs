@@ -22,6 +22,7 @@ from neoaprs.cli.logfile import LAUNCH_NAME, LOG_NAME, PAGE_FILE, read_page, rem
 from tests.conftest import ROOT
 from tests.support.env import idle_for
 from tests.support.proc import NEW_GROUP
+from tests.support.httpthread import serve
 
 
 def environment() -> dict[str, str]:
@@ -214,7 +215,7 @@ class Answer(http.server.BaseHTTPRequestHandler):
 
 def test_the_page_of_the_daemon_is_asked_for_directly_whatever_proxy_the_environment_names(monkeypatch: pytest.MonkeyPatch) -> None:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Answer)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    serve(server)
     try:
         for name in ("http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"):
             monkeypatch.setenv(name, "http://127.0.0.1:9")                  # (nothing listens there: a request that goes by the proxy fails)

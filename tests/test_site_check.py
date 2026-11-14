@@ -7,7 +7,6 @@ import importlib.util
 import os
 import subprocess
 import sys
-import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +15,7 @@ from types import ModuleType
 import pytest
 
 from tests.support.ptyline import posix_only
+from tests.support.httpthread import serve
 
 pytestmark = posix_only
 
@@ -79,7 +79,7 @@ class Host:
             handler.wfile.write(body)
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        serve(self.server)
         return f"http://127.0.0.1:{self.server.server_address[1]}"
 
     def stop(self) -> None:

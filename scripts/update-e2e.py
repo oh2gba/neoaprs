@@ -155,6 +155,7 @@ class Release:
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+        self.server.socket.settimeout(1.0)                               # (a connection gone between the question and the taking would leave accept, and then shutdown, waiting for ever)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def close(self) -> None:

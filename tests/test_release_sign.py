@@ -7,7 +7,6 @@ import hashlib
 import http.server
 import secrets
 import shutil
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from neoaprs.updateasset import signed_message, sign
 from tests.support.ptyline import posix_only
 from tests.test_release_script import ASSETS, SIGNED, SUMS, TAG, VERSION, Downloads, Rig, assert_released, make_executable
+from tests.support.httpthread import serve
 
 pytestmark = posix_only
 
@@ -30,7 +30,7 @@ def rig(tmp_path: Path, downloads: str) -> Rig:
 def downloads() -> Iterator[str]:
     Downloads.missing = set()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Downloads)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    serve(server)
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
     server.server_close()

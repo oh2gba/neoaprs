@@ -3,7 +3,6 @@ ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data fold
 import http.server
 import sqlite3
 import sys
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -15,6 +14,7 @@ from neoaprs.cli.daemonstate import describe, is_running, page_answers, page_url
 from neoaprs.instancelock import InstanceLock
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.serialprobe import PortInfo
+from tests.support.httpthread import serve
 
 
 @pytest.fixture(autouse=True)
@@ -151,8 +151,7 @@ def page() -> Iterator[int]:
             return None
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    thread = serve(server)
     yield int(server.server_address[1])
     server.shutdown()
     server.server_close()

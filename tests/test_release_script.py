@@ -13,7 +13,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -25,6 +24,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from neoaprs.updateasset import PUBLIC_KEY
 from tests.support.ptyline import posix_only
+from tests.support.httpthread import serve
 
 pytestmark = posix_only      # (bash scripts and a script with a shebang: a development tool, not the product)
 
@@ -276,7 +276,7 @@ class Rig:
 def downloads() -> Iterator[str]:
     Downloads.missing = set()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Downloads)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    serve(server)
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
     server.server_close()

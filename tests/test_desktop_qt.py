@@ -28,6 +28,7 @@ from neoaprs.desktop.session import NoPage, Opening, Session  # noqa: E402
 from neoaprs.desktop.shell import Launch, ShellContext  # noqa: E402
 from neoaprs.desktop.single import SingleApp  # noqa: E402
 from tests.test_desktop_logic import FakeAutoStart, FakeDaemon  # noqa: E402
+from tests.support.httpthread import serve
 
 pytestmark = pytest.mark.xdist_group("desktop-qt")      # (one worker: one process holds the Qt application, which a second one in the same run would disturb)
 HTML = b"""<!doctype html><html><head><title>fake page</title></head><body>
@@ -52,7 +53,7 @@ class Page(http.server.BaseHTTPRequestHandler):
 @pytest.fixture(scope="module")
 def page_url() -> Iterator[str]:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Page)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    serve(server)
     yield f"http://127.0.0.1:{server.server_address[1]}/"
     server.shutdown()
     server.server_close()
