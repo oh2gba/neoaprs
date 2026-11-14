@@ -147,6 +147,7 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
     await until_async(hf_sent_kept)
     hf_beacon, hf = e.ctl.hf_beacon, e.ctl.radios.get(HF_ID)
     assert await e.ctl.remove_radio(HF_ID)
+    assert e.ctl.ownobjects.get("SKED").radios == (FM_ID,), "and out of the object in memory"       # type: ignore[union-attr]
     assert e.ctl.radios.get(HF_ID) is None and e.ctl.config.radio(HF_ID).removed and not e.ctl.config.hf_enabled      # type: ignore[union-attr]
     assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2GBA")) == (None, FM_ID) and e.ctl.stationbook.get("OH2GAX-2").message_radio == ""     # type: ignore[union-attr]
     assert e.ctl.prefbook.path_on("OH2GAX-2", HF_ID) is None and e.ctl.prefbook.path_on("OH2GAX-2", FM_ID) == ("WIDE1-1",)

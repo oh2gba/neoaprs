@@ -29,7 +29,7 @@ programs above do: the limit of group size that turns a long group into a messag
 import logging
 import re
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
@@ -42,7 +42,7 @@ from neoaprs.geo import distance_km
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import RF_GATED, Message, Packet
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
-from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.common import ConfigSource, Paths, Radio, our_frame
 from neoaprs.services.radioset import RadioPick
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
@@ -103,7 +103,7 @@ def info_texts(call: str, groups: Sequence[tuple[str, int]], km: int) -> list[st
 
 
 class Qru:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Paths, clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
                  first_wait_sec: float = FIRST_WAIT_SEC, budget: AnswerBudget | None = None) -> None:
         self._config = config
         self.first_wait_sec = first_wait_sec

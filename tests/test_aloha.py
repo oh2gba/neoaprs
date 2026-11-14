@@ -222,3 +222,15 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     e.ctl.aloha.refresh()
     await page.until(lambda: page.topics["map"]["aloha_km"] is not None)
     assert page.topics["map"]["aloha_km"] == pytest.approx(900.0, abs=0.1)
+
+
+async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_path: Path) -> None:
+    """The composition root gives the circle the main radio (app.py `Aloha(..., main=...)`): 900 stations heard over HF alone make no circle round an FM station (rule 3.8)."""
+    e = Env(tmp_path, web=True, radio=False)
+    await e.start(connected=False)
+    lat, lon = e.ctl.config.station_position or (0.0, 0.0)
+    now = e.ctl.clock()
+    e.ctl.stationbook.seed([Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/",
+                                    last_position_at=now, heard_by={HF_ID: RadioHeard(1, now)}) for n in range(900)])
+    e.ctl.aloha.refresh()
+    assert e.ctl.aloha.radius_km is None

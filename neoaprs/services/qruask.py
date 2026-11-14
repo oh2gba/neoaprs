@@ -19,7 +19,6 @@ ASK_GAP_SEC) are that radio's, and the objects counted as arrived for a server's
 names the radio while more than one is on."""
 import asyncio
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
@@ -30,7 +29,7 @@ from neoaprs.message import MessagingError, addressed_to, request_path, same_cal
 from neoaprs.packet import ItemReport, Message, ObjectReport, Packet
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
 from neoaprs.radiotype import RadioId
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, asked_radio, on_words, our_call, our_frame
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Paths, Radio, asked_radio, on_words, our_call, our_frame
 from neoaprs.services.radioset import RadioPick, path_on
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
@@ -42,8 +41,6 @@ CONTINUE_SEC = 120                      # a list that ends in `+` is continued b
 KEEP_FOR = timedelta(hours=1)           # how long a server and the last request are remembered
 REQUESTS_MAX = 16                       # the requests kept to tell which one an answer is for
 HEARD_MAX = 2000                        # the objects (by sender and name) kept to be counted against an answer
-
-Paths = Callable[[str, int | None, RadioId], tuple[str, ...]]       # the digipeaters of what we send to a station on a radio (PrefBook.path_for: the call, the attempt, the radio's id)
 
 
 @dataclass(frozen=True, slots=True)

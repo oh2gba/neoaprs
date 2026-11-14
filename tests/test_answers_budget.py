@@ -18,7 +18,7 @@ class Rig(ServiceRig):
     def __init__(self) -> None:
         super().__init__()
         self.budget = AnswerBudget(self.clock)
-        self.answers = Answers(pick_of(self), lambda: self.config, lambda call: (), budget=self.budget)
+        self.answers = Answers(pick_of(self), lambda: self.config, lambda call, attempt=None, radio=1: (), budget=self.budget)
         remember_stop(self.answers.stop)
 
     def ask(self, asker: str, query: str = "objects", frames: int = 1, paced: bool = False) -> bool:
@@ -71,7 +71,7 @@ def test_a_single_frame_sent_without_an_answer_counts_too_and_is_refused_when_th
 
 def test_two_services_that_share_a_budget_are_held_to_it_together() -> None:
     rig = Rig()
-    other = Answers(pick_of(rig), lambda: rig.config, lambda call: (), budget=rig.budget)
+    other = Answers(pick_of(rig), lambda: rig.config, lambda call, attempt=None, radio=1: (), budget=rig.budget)
     for n in range(ANSWERS_PER_WINDOW // 2):
         assert rig.ask(f"OH2C{n}", "position")
         assert other.deliver(f"OH2D{n}", "position", [other.message(f"OH2D{n}", "x")], rig.clock(), False)

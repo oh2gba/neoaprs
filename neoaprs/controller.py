@@ -306,7 +306,7 @@ class Controller(Services):
             if radioedits.held(self._stand_in, f"radio {id} is not removed") or not await self.store.remove_radio(id):
                 return False
             log.info("the %s radio (radio %d) is removed", self.radios.name_of(id), id)
-            self.radios.forget_radio(id)
+            self.forget_radio(id)
             self._in_force(radioedits.put(self.config, replace(spec, removed_at=self.clock())))
             await self.prefbook.load()                                  # (the stations' paths as the removal left them)
             return True

@@ -28,7 +28,7 @@ from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Pos
 from neoaprs.packetcodec import decode_decoded, encode_decoded, packet_of, packet_row, parse_stamp, stamp, tnc2
 from neoaprs.packetlog import PacketLog, heard_of, heard_rows, station_of, station_row
 from neoaprs.packetsql import packets_since, station_columns
-from neoaprs.radiospec import RadioHeard
+from neoaprs.radiospec import HF_ID, RadioHeard
 from neoaprs.station import Station
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -292,10 +292,10 @@ async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_send
     for n, p in enumerate([heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2BBB", ()), aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"), heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1"))]):
         log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party, p.via))
     log.append(made(POSITION, T0 + timedelta(seconds=9), "out"))
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None),
-                                      ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], \
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 2, T0 + timedelta(seconds=1), T0, None), ("OH2BBB", (), "", 1, T0 + timedelta(seconds=2), None, None),
+                                      ("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None)], \
         "with when the latest of each was heard, and the one before it"
-    assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None)], "only the latest packets are looked at"
+    assert await log.deliveries(2) == [("OH2DPN", ("OH2RCH-3*",), "OH7JHF-1", 1, T0 + timedelta(seconds=3), None, None), ("OH2AAA", ("OH2RCH-3*", "TRACE2-1"), "", 1, T0 + timedelta(seconds=4), None, None)], "only the latest packets are looked at"
     assert await log.deliveries(0) == []
 
 
@@ -333,12 +333,12 @@ def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherw
         packet_of(packet_row(plain)._replace(via="tcp"))
 
 
-async def test_the_deliveries_leave_out_what_the_hf_radio_heard(tmp_path: Path) -> None:
+async def test_the_deliveries_keep_what_the_hf_radio_heard_as_its_own(tmp_path: Path) -> None:
     store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
     log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio="hf"))
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None)]
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None), ("OH2AAA", (), "", 1, T0 + timedelta(seconds=1), None, HF_ID)]
 
 
 async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
@@ -352,7 +352,7 @@ async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_s
     assert [p.via for p in await log.since(T0)] == ["rf", "is", "is", "is"]
     assert await log.heard_since("OH2AAA", T0) == [T0], "heard on the radio: the internet is not the air (?APRSH)"
     assert await log.heard_since("OH2NET", T0) == []
-    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None)], "the routes are those of the radio"
+    assert await log.deliveries() == [("OH2AAA", ("OH2RCH-2*",), "", 1, T0, None, None)], "the routes are those of the radio"
     assert [w[0] for w in await log.positions(30)] == ["OH2AAA", "OH2NET"], "the tracks take the positions of the internet too"
     assert await log.count() == 4
     assert (await sql(store, "SELECT via, COUNT(*) FROM packet GROUP BY via ORDER BY via")) == [("is", 3), ("rf", 1)]
@@ -561,9 +561,9 @@ async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_st
 
 
 @NEW
-async def test_the_deliveries_leave_out_every_radio_of_the_kind_hf_and_keep_a_packet_of_no_radio(tmp_path: Path) -> None:
-    """The exception of the routes is by the kind of the radio, not by its number: a second HF radio is left out as the first is, a radio of another kind is not, and a packet of the air that names
-    no radio (or one the table does not have) counts as it did."""
+async def test_the_deliveries_keep_every_radio_by_its_id_and_a_packet_of_no_radio(tmp_path: Path) -> None:
+    """The routes are every radio's, each with its id: two HF radios, a radio of another kind, a packet of the air that names no radio or one the table does not have; which of them are the station's
+    routes as a whole is the station book's to say (stationbook.carries_path)."""
     store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "hf", "dummy-hf", 0, 3), (4, "lora", "dummy-lora", 1, 4))))
     log = PacketLog(store.db, FixedClock())
     for n, source in enumerate(("OH2A", "OH2B", "OH2C", "OH2D", "OH2E", "OH2F")):
@@ -571,4 +571,4 @@ async def test_the_deliveries_leave_out_every_radio_of_the_kind_hf_and_keep_a_pa
     await log.count()
     for source, radio in (("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)):
         await sql(store, "UPDATE packet SET radio = ? WHERE source = ?", radio, source)
-    assert [d[0] for d in await log.deliveries()] == ["OH2A", "OH2D", "OH2E", "OH2F"]
+    assert [(d[0], d[6]) for d in await log.deliveries()] == [("OH2A", 1), ("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)]

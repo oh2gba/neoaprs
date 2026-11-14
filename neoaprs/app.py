@@ -65,7 +65,7 @@ from .services.frequencies import Frequencies
 from .services.skeds import Skeds
 from .services.updatecheck import UpdateCheck
 from .signal import Signal
-from .stationbook import StationBook
+from .stationbook import StationBook, carries_path
 from .store import Store
 from .tasks import TaskSet
 from .tnc import Tnc
@@ -105,7 +105,7 @@ class Services:
         claims = Claims()                                               # the station's one table of resources (the registry's): what each radio and the GPS receiver hold
         self.mercury = Mercury(data_dir, clock, claims=claims, holder=HF_ID, folder=radio_folder(data_dir, HF_ID))       # radio 2's modem, the Mercury HF modem: the program its driver starts with the line while the radio is on, its control port, and the hold while it transmits or the channel is busy
         interlock = Interlock(lambda: self.config)                     # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
-        self.stationbook = StationBook(clock)                           # who was heard, where, and on which radio
+        self.stationbook = StationBook(clock, carries_path=lambda radio: carries_path(self.config.radios, radio))      # who was heard, where, and on which radio; the routes of the radios that may carry a path are the station's as a whole
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")    # every packet of every radio, in and out, stamped with its radio: what the parts take (neoaprs/wiring.py connects each radio's line to it)
         self.radio_changed: Signal[[RadioId]] = Signal("radio.changed")       # a radio's state, lines, counters or modem changed: its id
         kept = Remembered(self.store)                                    # (the operator's radio by station, in a state row: neoaprs/radioregistry.py)
@@ -117,7 +117,7 @@ class Services:
         self.igate = Igate(self.aprsis, lambda: self.config, self.beacon_frames.position_info, lambda: self.stationbook.me_position, clock)       # the iGate (igate/enabled): what the radio hears is put on APRS-IS (with a passcode), the stations of the internet round us are read; nothing of APRS-IS goes to the radio, which this service does not have; started by the controller after the beacon; made before the queries, which answer ?IGATE? while it gates
         self._make_messaging(clock)
         self._make_map_and_update(data_dir, install, auto_map, clock)
-        self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, radio 1 alone (services/digipeater.py); each radio's own duplicates, burst and counts; nothing to start
+        self.digipeater = Digipeater(self.radios, lambda: self.config, clock)     # the fill-in digipeater (digi/enabled): a packet that asks for WIDE1-1 or for our call is sent again on the radio that heard it, where that radio's type may repeat and its own digipeater is on (services/digipeater.py `digi_rows`); each radio's own duplicates, burst and counts; nothing to start
         self.internet_packet: Signal[[Packet]] = Signal("internet.packet")   # a packet received from APRS-IS (Packet.via `is`): the packet log, the station book and the weather log take it, the page's topics follow it, nothing else (neoaprs/wiring.py)
         self.igate.made_up = lambda: any(radio.line.is_dummy for radio in self.radios.enabled())       # (a Dummy radio that is on makes up its traffic: neither it nor our position goes to APRS-IS)
         self.config_changed: Signal[[Config]] = Signal("config_changed")   # every save of the settings, though nothing differs: the page's settings form waits for it
@@ -191,7 +191,7 @@ class Services:
         """The base map, the ALOHA circle, Find my radio and the update parts."""
         self.mapfetch = MapFetch(data_dir, lambda: self.config, clock)  # the base map: the detailed map round our position and the world map under it, made on request from the page; nothing to start
         self.mapauto = MapAuto(self.mapfetch, lambda: self.config, self.store, auto_map)    # the detailed map made once without a click, when a place is first set (only where the process asks for it: the daemon); started by the controller
-        self.aloha = Aloha(self.stationbook, clock)                      # the ALOHA circle round our station, worked out again every minute and when our position moves; started by the controller
+        self.aloha = Aloha(self.stationbook, clock, main=lambda: self.radios.main)      # the ALOHA circle round our station, the main radio's (rule 3.8), worked out again every minute and when our position moves; started by the controller
         self.radiofinder = RadioFinder(self._radio_ports, self.hold_tnc, self.release_tnc)       # Find my radio: on the page's request only; nothing to start
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")   # once a day: which version is the latest (update/check); started by the controller
@@ -206,6 +206,11 @@ class Services:
         if packet.via != IS or packet.direction != "in":
             raise ValueError("only a packet received from the internet (Packet.via is) enters here")
         self.internet_packet.emit(packet)
+
+    def forget_radio(self, id: RadioId) -> None:
+        """A removed radio leaves what the parts keep of it in memory: the registry's sets, choices and paths, and the radios of every object (the removal's transaction took it out of their rows)."""
+        self.radios.forget_radio(id)
+        self.ownobjects.forget_radio(id)
 
     def _deliveries(self, call: str) -> Deliveries | None:
         """How the packets of the station reached us, for the path of a message to it (None for a station not in the book)."""

@@ -209,7 +209,7 @@ async def test_with_no_radio_at_all_a_message_that_comes_gets_no_ack_and_an_answ
     await rig.settled()
     assert rig.tnc.sent == [] and rig.radios.lines[HF_ID].sent == [] and rig.m.acks.waiting == []
     assert any(r.getMessage() == "no ack for message 7 from OH2NEAR: there is no radio" for r in caplog.records)
-    answers = Answers(rig.radios, lambda: rig.config, lambda call: ())
+    answers = Answers(rig.radios, lambda: rig.config, lambda call, attempt=None, radio=1: ())
     assert not answers.deliver("OH2NEAR", "position", [answers.message("OH2NEAR", "an answer")], rig.clock(), False)
     assert any(r.getMessage() == "a query of OH2NEAR is not answered: there is no radio" for r in caplog.records)
     assert rig.tnc.sent == [] and rig.radios.lines[HF_ID].sent == []

@@ -436,7 +436,7 @@ class QueryRig(Rig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.book = StationBook(self.clock)
-        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda radio=None: None, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
+        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda radio=None: None, self.book, lambda call, attempt=None, radio=1: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
         remember_stop(self.q.stop)
 
     def ask(self, text: str) -> None:

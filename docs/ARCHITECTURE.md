@@ -109,7 +109,7 @@ What each layer is for:
   * Messaging (`services/messaging.py`): messages to and from other stations through the Tnc, acks, the retry schedule, the messages kept in the database. Its
     parts are `services/inbox.py` (what the Tnc hears: a message to us kept and acked, an ack or a rej settling a message, a message to another station
     overheard), `services/heard.py` (the repeats of a message already heard and when each was last acked), `services/delivery.py` (the attempts of each
-    message and the hops heard back), `services/retries.py` (when each message being sent needs attention, and the ticker that makes the attempt that is due)
+    message and the hops heard back), `services/messageradio.py` (the radio each message keeps from its first attempt), `services/retries.py` (when each message being sent needs attention, and the ticker that makes the attempt that is due)
     and `services/acks.py` (the message ids we give and the acks we send).
   * The message board (`services/bulletins.py`): the bulletins, announcements, group bulletins and group messages the inbox hands over, one for each sender and
     slot, kept until the operator deletes it.
@@ -164,7 +164,7 @@ What each layer is for:
 | `stationbook` | the stations as the packets tell them |
 | `gps_feed`, `gps` | the GPS: `gps_feed` reads a gpsd or a serial receiver (`neoaprs/gpsfeed.py`, an adapter), `gps` is the service that keeps the latest fix and how fresh it is (`services/gps.py`) and tells the station book and the ALOHA circle when we have moved. The maker of our frames (`beacon_frames`) is given `gps`, and each beacon follows the maker's |
 | `beacon_frames` | the one maker of our frames (`services/beaconframe.py`): the position, the status report and the position field for any radio, from the settings and the GPS fix; each radio's beacon, `rigstatus`, `queries` and `igate` take theirs from it |
-| `beacon`, `hf_beacon` | the position packet, a service, one per radio: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) on the FM radio; on the HF radio by the HF rules (the one beacon interval, raised to a floor of 30 minutes while the HF radio is on, the random pause, no SmartBeaconing), its last send in a row of its own |
+| `beacon`, `hf_beacon` | the position packet, a service, one per radio: on an interval for a station that stays, on SmartBeaconing from the GPS fix for a moving one (`services/mobilebeacon.py`, `neoaprs/smartbeacon.py`) on the FM radio; on the HF radio by the HF rules (the one beacon interval, raised on that radio to its floor of 30 minutes, the random pause, no SmartBeaconing; each radio's beacon only where its Send on is ticked, neoaprs/beaconrule.py), its last send in a row of its own |
 | `rigstatus` | the status report, a service. It reads rigctld through `neoaprs/rigctld.py`, it goes on the main radio, its frames are `beacon_frames`'s, and `queries` is given its `status_frame` |
 | `alerts` | the alert command, a service. Messaging is given its `alert`, and the wiring connects the alerts of the stations to its `station` |
 | `packetlog`, `messagelog`, `weatherlog`, `bulletinlog`, `ownlog` | the logs of the database: the packets and the station cache, the messages, the weather observations, the message board, our own objects and bulletins |

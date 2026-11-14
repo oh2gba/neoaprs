@@ -25,6 +25,7 @@ from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
 
 ConfigSource = Callable[[], Config]
+Paths = Callable[[str, int | None, RadioId], tuple[str, ...]]       # the digipeaters of what we send to a station on a radio (PrefBook.path_for: the call, the attempt, the radio's id)
 
 
 class Radio(Protocol):

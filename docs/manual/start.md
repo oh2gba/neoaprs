@@ -54,7 +54,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 - `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors, and the lines of a database migration (what an upgrade changed), also go to stderr, which `systemctl status` and the journal show.
 - `basemap.pmtiles` is the detailed base map of your area (the world map ships with NeoAPRS and is not in this folder, unless an earlier version made `basemap-world.pmtiles` here); an earlier version fetched a `pmtiles` tool into `bin/`, which is not used any more and can be deleted; `tls/` holds the certificates of the secure connection.
 - `message.key` is your private key for [encrypted messages](messages.md#encrypted-messages), made the first time it is needed (the daemon has to be started with `--encryption`). It is private to your user; keep it out of any copy you share.
-- `neoaprs.lock` shows that a daemon holds the folder. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
+- `neoaprs.lock` shows that a daemon holds the folder. `neoaprs.migrate.lock` is held while the database is brought up to date. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
 
 ## How settings apply
 

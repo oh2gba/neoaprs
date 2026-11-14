@@ -133,9 +133,8 @@ async def find_radio_cancel(ctx: Ctx, cmd: FindRadioCancel) -> None:
 
 @command(BeaconNow)
 async def beacon_now(ctx: Ctx, cmd: BeaconNow) -> None:
-    """A beacon on every radio that is on (each by its own rules: the HF one direct, the FM one by the path); refused with the reason when none went out."""
-    c = ctx.ctl.config
-    beacons = [b for b, on in ((ctx.ctl.beacon, c.fm_enabled), (ctx.ctl.hf_beacon, c.hf_enabled)) if on] or [ctx.ctl.beacon]
+    """A beacon on every radio the beacon goes out on (each by its own rules: the HF one direct, the FM one by the path; Send on: RadioRegistry.beaconing); refused with the reason when none went out."""
+    beacons = [radio.beacon for radio in ctx.ctl.radios.beaconing()] or [ctx.ctl.beacon]
     sent = [b.send_now("request") for b in beacons]
     if not any(sent):
         beacon = beacons[0]

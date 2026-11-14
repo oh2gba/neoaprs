@@ -5,7 +5,7 @@ A message to us (our call with its SSID exactly: our base call is not ours when 
     ?APRSP   is answered with our position packet (the beacon's frame, `Beacon.frame()`)
     ?APRSS   with our status report as it was last sent (services/rigstatus.py; nothing while none has been sent)
     ?APRSD   with a message to the asker, "Directs= OH2PU-9 OH2RCH-2", the calls heard direct in the last hour on the radio the query came on (the one heard last first; at most MAX_TEXT bytes, in two
-             messages at the most, "Directs= none" when there is none): on a radio that carries paths, a station heard direct (by the station's routes) and heard on that radio in the hour; on one that carries
+             messages at the most, "Directs= none" when there is none): on a radio that carries paths, a station that radio heard direct in the hour (its own routes); on one that carries
              none (HF), where every frame comes direct, a station that radio heard in the hour
     ?APRST   (and ?PING?) with a message to the asker, "OH2GBA>APZNEO,OH2RCH-2*:": the header of the query as we heard it, the digipeaters it went by with their stars
     ?APRSH N0QBF   (the call after the query, a blank between them or not) with a message to the asker, "N0QBF HEARD: 1 3 2 . . 4 5 6": how many packets of that station we heard in each of the last 8 hours, the
@@ -33,7 +33,7 @@ station capabilities packet (data type `<`, APRS 1.0.1 chapter 15), `capabilitie
     <IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812
 
 MSG_CNT, the messages gated from APRS-IS to the radio, is always 0: the iGate is receive only and nothing of the internet is ever sent on the air. LOC_CNT, the "local" stations, is the stations heard direct within
-DIRECT_WINDOW (the last hour: those ?APRSD lists, not us, not an object), counted when the answer goes. UPL_CNT, one of the counts Dire Wolf adds, is the packets the iGate has put on APRS-IS since the daemon
+DIRECT_WINDOW on the radios that may carry a path (the last hour: those ?APRSD asked on such a radio lists, which over HF are HF's alone; not us, not an object), counted when the answer goes. UPL_CNT, one of the counts Dire Wolf adds, is the packets the iGate has put on APRS-IS since the daemon
 started (`Igate.gated`); Dire Wolf's others (PKT_CNT, DIR_CNT, RF_CNT, DNL_CNT) are not sent, for nothing here counts them as Dire Wolf does. A message with the text ?IGATE? is not answered, as one with
 ?APRS? is not.
 
@@ -58,7 +58,7 @@ from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
-from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.common import ConfigSource, Paths, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.station import Station
@@ -201,14 +201,16 @@ def hourly_counts(times: Sequence[datetime], now: datetime) -> list[int]:
 
 
 def direct_on(station: Station, radio: AirRadio | None, now: datetime) -> datetime | None:
-    """When the station was last heard direct within DIRECT_WINDOW of `now`, None when it was not: by any radio (`radio` None: the station's routes); on a radio that carries paths, heard direct by the routes
-    and heard on that radio in that time; on one that carries none, where every frame comes direct, the last time that radio heard it."""
-    def lately(at: datetime | None) -> bool:
-        return at is not None and now - at <= DIRECT_WINDOW
-    there = None if radio is None else station.heard_on(radio.id).last_at
-    if radio is not None and not radio.allowed.paths:
-        return there if lately(there) else None
-    return station.last_direct_at if lately(station.last_direct_at) and (radio is None or lately(there)) else None
+    """When the station was last heard direct within DIRECT_WINDOW of `now`, None when it was not: by any radio that may carry a path (`radio` None: the station's routes); on a radio that carries
+    paths, by that radio's own routes (Station.routes_on); on one that carries none, where every frame comes direct, the last time that radio heard it."""
+    if radio is None:
+        at = station.last_direct_at
+    elif not radio.allowed.paths:
+        at = station.heard_on(radio.id).last_at
+    else:
+        routes = station.routes_on(radio.id)
+        at = None if routes is None else routes.last_direct_at
+    return at if at is not None and now - at <= DIRECT_WINDOW else None
 
 
 def heard_text(call: str, counts: Sequence[int] | None) -> str:
@@ -219,7 +221,7 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 
 class Queries:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, beacon: Frames, status: Callable[[AnswerRadio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, beacon: Frames, status: Callable[[AnswerRadio], ax25.Frame | None], book: Stations, paths: Paths,
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
         self._config = config

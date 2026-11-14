@@ -12,7 +12,7 @@ from neoaprs.emailrule import email_radio, gateway_heard
 from neoaprs.message import EMAIL_GATEWAY, MessagingError
 from neoaprs.radiospec import RadioSpec, main_radio
 from neoaprs.radiotype import FM_ID, HF_ID, Kind
-from neoaprs.services.messaging import station_radio
+from neoaprs.services.messageradio import station_radio
 from tests.support.rig import ServiceRig
 from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.stubtnc import StubTnc

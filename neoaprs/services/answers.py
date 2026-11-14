@@ -10,7 +10,7 @@ answer and the messaging take the radios as a `RadioPick` (services/radioset.py)
 `as_pick` (services/common.py, given here under its name) reads as one at each call."""
 import asyncio
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
 from typing import cast
@@ -23,7 +23,7 @@ from neoaprs.message import MessagingError
 from neoaprs.radiotype import FM_ID, HF_ID
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
-from neoaprs.services.common import ConfigSource, OldAir, Radio, our_frame
+from neoaprs.services.common import ConfigSource, OldAir, Paths, Radio, our_frame
 from neoaprs.services.common import as_pick as as_pick      # (the one adapter of the old shapes, under the name the services of messages and answers import it by)
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
@@ -86,7 +86,7 @@ class Share:
 
 
 class Answers:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Paths, spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
         self._given = radios                                    # the station's radios (the registry; which app.py gives; an old shape of a test's: `as_pick`)
         self._config = config
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
@@ -190,7 +190,7 @@ class Answers:
             log.warning("a query of %s is not answered: %s", asker, NO_RADIO if tnc is None else tnc.why_unusable())
             return False
         try:
-            calls = self._paths(asker)
+            calls = self._paths(asker, None, tnc.id)
             calls = path_on(tnc, self._config(), rf_only_path(calls) if rf_only else calls)
             if len(calls) > ax25.MAX_PATH:
                 raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")

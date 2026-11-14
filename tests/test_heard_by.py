@@ -12,7 +12,7 @@ from neoaprs.messagerule import message_radio
 from neoaprs.ownobject import OwnObject
 from neoaprs.packetcodec import parse_stamp
 from neoaprs.packetlog import PacketLog
-from neoaprs.packetsql import heard_routes, radio_routes
+from neoaprs.packetsql import radio_routes
 from neoaprs.packet import IS, ObjectReport, Packet, Position, Status
 from neoaprs.radiospec import FM_ID, HF_ID, NOT_HEARD, RadioHeard, RadioSpec
 from neoaprs.station import OLD_NAMES, Station
@@ -21,6 +21,7 @@ from neoaprs.store import DB_NAME
 from neoaprs.web.stationwire import StationRow
 from neoaprs.web.views import station_row
 from tests.support.clock import FixedClock
+from tests.support.env import Env
 from tests.support.migrated32 import shaped
 from tests.support.storedb import store_at
 
@@ -251,7 +252,7 @@ def test_the_book_takes_the_routes_of_every_radio_from_the_packets_kept() -> Non
 
 
 async def test_the_routes_of_every_radio_hfs_too_are_read_from_the_packets_the_database_kept(tmp_path: Path) -> None:
-    """packetsql.radio_routes: the packets heard on any radio, with the radio, the internet's left out; what the packet log reads before it is by radio (`heard_routes`) still leaves HF's out."""
+    """packetsql.radio_routes: the packets heard on any radio, with the radio, the internet's left out."""
     store = await store_at(shaped(tmp_path / DB_NAME))
     assert store.db is not None
     log = PacketLog(store.db, FixedClock())
@@ -264,7 +265,6 @@ async def test_the_routes_of_every_radio_hfs_too_are_read_from_the_packets_the_d
     rows = await store.db.read(lambda conn: radio_routes(conn, 10))
     assert [(r[0], r[1], r[4]) for r in rows] == [("OH2AAA", "OH2RCH-2*", FM_ID), ("OH2AAA", "", HF_ID), ("OH2AAA", "OH2RCH-2*", FM_ID)]
     assert route_groups((str(s), str(p), bytes(r), parse_stamp(str(a)), radio) for s, p, r, a, radio in rows) == [("OH2AAA", (), "", 1, at(1), None, HF_ID), ("OH2AAA", DIGI, "", 2, at(3), at(0), FM_ID)]
-    assert [r[1] for r in await store.db.read(lambda conn: heard_routes(conn, 10))] == ["OH2RCH-2*", "OH2RCH-2*"], "the shape of before: no HF"
 
 
 def test_the_path_of_the_packet_noted_last_is_the_latest_on_one_radio_and_with_two_the_radio_heard_last_says_it() -> None:
@@ -317,3 +317,17 @@ def test_the_page_is_told_of_radios_1_and_2_as_before_whatever_else_heard_the_st
     StationRow.model_validate_json(json.dumps(row))
     assert (row["heard_fm"], row["heard_hf"], row["last_fm_at"], row["last_hf_at"], row["last_path"]) == (1, 1, "2026-11-14T12:00:00Z", "2026-11-14T12:01:00Z", ["OH2LGW*"])
     assert "heard_by" not in row and "own_path" not in row, "the wire is what it was"
+
+
+async def test_the_daemon_counts_the_routes_of_an_hf_radio_that_is_not_radio_2_as_that_radios_alone(tmp_path: Path) -> None:
+    """The composition root gives the station book the radios' types (app.py `StationBook(..., carries_path=...)`): a station heard direct only on a second HF radio, radio 3, is not near for the
+    station's routes as a whole, so a message to it on the FM radio goes by the FM radio's path, not direct (rule 3.3)."""
+    e = Env(tmp_path, radio=False)
+    await e.start(connected=False)
+    assert await e.ctl.add_radio("mercury", enabled=False) == HF_ID and await e.ctl.add_radio("mercury", enabled=False) == LORA_ID, "two HF radios, the second one radio 3"
+    e.ctl.stationbook.take(replace(packet(LORA_ID, path=()), heard_at=e.ctl.clock()))
+    s = e.ctl.stationbook.get("OH2AAA")
+    assert s is not None and s.routes_on(LORA_ID) is not None and s.routes_on(LORA_ID).direct == 1, "radio 3 keeps its own route"     # type: ignore[union-attr]
+    assert s.deliveries.direct == 0 and s.last_direct_at is None, "an HF radio's direct packets are not the station's routes, whatever its id"
+    assert e.ctl.prefbook.path_for("OH2AAA", 1) == e.ctl.config.beacon_path_calls != (), "the first attempt on FM goes by the FM radio's path"
+    await e.stop()

@@ -36,7 +36,7 @@ class Rig(ServiceRig):
         self.objects = Held()
         self.paths: dict[str, tuple[str, ...]] = {}
         self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
-        self.qru = Qru(self.radios, lambda: self.config, self.objects, self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
+        self.qru = Qru(self.radios, lambda: self.config, self.objects, self.book, lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
         remember_stop(self.qru.stop)
 
     def add(self, name: str, group: str, lat: float = 60.2, lon: float = 24.9, on_request: bool = False, kind: str = "object", comment: str = "") -> OwnObject:

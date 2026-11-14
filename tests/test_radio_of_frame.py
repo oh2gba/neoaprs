@@ -251,7 +251,7 @@ class Rig(ServiceRig):
             self.beacon = Beacon(fm, lambda: self.config, self.clock, frames=maker)
             self.status = RigStatus(self.pick, lambda: self.config, maker, self.clock)
         self.status.last_text = "QRV 14.074 MHz USB"
-        self.q = Queries(self.radios if old else self.pick, lambda: self.config, self.beacon, self.status.status_frame, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0,
+        self.q = Queries(self.radios if old else self.pick, lambda: self.config, self.beacon, self.status.status_frame, self.book, lambda call, attempt=None, radio=1: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0,
                          heard=Log({}))
         remember_stop(self.q.stop)
 

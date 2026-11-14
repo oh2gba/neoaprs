@@ -11,12 +11,15 @@ import pytest
 from neoaprs.aprsisline import parse_is_line
 from neoaprs import aprsparse
 from neoaprs.packet import Message, Other, Packet, Status, Undecoded
+from neoaprs.messagelog import MessageLog
 from neoaprs.packetlog import PacketLog
 from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.services.prefbook import PrefBook
 from neoaprs.services.queries import HEARD_HOURS, Queries, heard_text, hourly_counts
+from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
-from tests.support.storedb import log_at
+from tests.support.storedb import log_at, store_at
 from tests.support.stubtnc import StubTnc
 from tests.test_queries import Rig
 from tests.test_messaging import LineAir, pick_of
@@ -37,7 +40,7 @@ def rig_with(heard: dict[str, tuple[int, ...]] | None = None, no_log: bool = Fal
     """A rig whose queries read the packet log `heard`: for each call the minutes ago its packets were heard (a station heard now is `(0,)`)."""
     rig = Rig()
     log = Log({call: [rig.clock() - timedelta(minutes=m) for m in minutes] for call, minutes in (heard or {}).items()})
-    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock, heard=None if no_log else log)
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock, heard=None if no_log else log)
     remember_stop(rig.q.stop)
     return rig, log
 
@@ -189,7 +192,7 @@ async def test_aprsd_is_answered_with_what_the_radio_it_came_on_heard_direct() -
     rig = Rig()
     hf = StubTnc(max_frame=123)
     pick = pick_of(rig, hf)
-    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: (), rig.clock)
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: (), rig.clock)
     remember_stop(rig.q.stop)
 
     def heard(call: str, radio: int, minutes: float, path: tuple[str, ...] = ()) -> None:
@@ -215,7 +218,7 @@ async def test_aprsd_on_a_radio_that_carries_paths_leaves_out_a_station_heard_di
     third = StubTnc()
     pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))      # a second radio that carries paths
     pick.on.add(3)
-    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: (), rig.clock)
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: (), rig.clock)
     remember_stop(rig.q.stop)
 
     def heard(call: str, radio: int, minutes: float) -> None:
@@ -233,3 +236,65 @@ async def test_aprsd_on_a_radio_that_carries_paths_leaves_out_a_station_heard_di
     await until(lambda: len(rig.tnc.sent) == 1 and len(third.sent) == 1)
     assert rig.message_of(rig.tnc.sent[0]) == ("OH2RDG", "Directs= OH2ONE", None), "asked on radio 1: not the stations radio 1 did not hear in the hour"
     assert rig.message_of(third.sent[0]) == ("OH2PU", "Directs= OH2THREE OH2LONG", None), "asked on radio 3: what radio 3 heard direct, the one heard last first"
+
+
+async def test_aprsd_on_a_radio_that_carries_paths_counts_only_what_that_radio_heard_direct() -> None:
+    rig = Rig()
+    pick = pick_of(rig)
+    third = StubTnc()
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))      # a second radio that carries paths
+    pick.on.add(3)
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: (), rig.clock)
+    remember_stop(rig.q.stop)
+
+    def heard(call: str, radio: int, minutes: float, path: tuple[str, ...] = ()) -> None:
+        now = rig.clock()
+        rig.clock.set(now - timedelta(minutes=minutes))
+        rig.book.take(replace(rig.packet(call, Status("hello"), path=path), radio_id=radio))
+        rig.clock.set(now)
+
+    heard("OH2BOTH", 3, 10)                                             # direct on radio 3,
+    heard("OH2BOTH", FM_ID, 5, ("OH2RCH-2*",))                          # and only by a digipeater on radio 1 since
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
+    rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=3))
+    await until(lambda: len(rig.tnc.sent) == 1 and len(third.sent) == 1)
+    assert rig.message_of(rig.tnc.sent[0]) == ("OH2RDG", "Directs= none", None), "radio 1 never heard it direct"
+    assert rig.message_of(third.sent[0]) == ("OH2PU", "Directs= OH2BOTH", None)
+
+
+# ---- the path of an answer is the asker's on the radio the answer goes on (plan rule 3.3)
+
+async def test_an_answer_goes_by_the_askers_path_on_the_radio_it_is_sent_on() -> None:
+    """With two radios that carry paths, an answer on radio 3 goes by the asker's path on radio 3 (PrefBook.path_for asked for that radio), not radio 1's."""
+    rig = Rig()
+    pick = pick_of(rig)
+    third = StubTnc()
+    pick.radios.append(LineAir(third, lambda: rig.config, id=3, name="FM 3"))
+    pick.on.add(3)
+    by_radio = {FM_ID: ("WIDE1-1",), 3: ("OH2RD3",)}
+    rig.q = Queries(pick, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: by_radio[radio], rig.clock)
+    remember_stop(rig.q.stop)
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSD", None)), radio_id=FM_ID))
+    rig.q.on_packet(replace(rig.packet("OH2PU", Message("OH2GBA", "?APRSD", None)), radio_id=3))
+    await until(lambda: len(rig.tnc.sent) == 1 and len(third.sent) == 1)
+    assert (rig.tnc.sent[0].path_text, third.sent[0].path_text) == ("WIDE1-1", "OH2RD3")
+
+
+async def test_an_rf_only_asker_whose_fm_path_is_too_long_for_rfonly_is_answered_over_hf_direct(tmp_path: Path) -> None:
+    """The operator's path belongs to the radio it was set on: a path of eight digipeaters set on FM for an RF-only station leaves no room for RFONLY there, so the answer on FM is not sent; over HF, whose
+    frames carry no path, the same question is answered, direct."""
+    rig = Rig()
+    hf = StubTnc(max_frame=123)
+    store = await store_at(tmp_path / DB_NAME, rig.clock)
+    assert store.db is not None
+    prefs = PrefBook(MessageLog(store.db, rig.clock), lambda: rig.config, clock=rig.clock)
+    await prefs.load()
+    await prefs.set_path("OH2RDG", ",".join(f"OH2RC{n}" for n in range(8)))
+    await prefs.set_rf_only("OH2RDG", True)
+    rig.q = Queries(pick_of(rig, hf), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, prefs.path_for, rig.clock)
+    remember_stop(rig.q.stop)
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSP", None)), radio_id=FM_ID))
+    rig.q.on_packet(replace(rig.packet("OH2RDG", Message("OH2GBA", "?APRSP", None)), radio_id=HF_ID))
+    await until(lambda: len(hf.sent) == 1)
+    await idle_for(0.1)
+    assert rig.tnc.sent == [] and hf.sent[0].path_text == ""

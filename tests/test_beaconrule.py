@@ -7,6 +7,7 @@ import logging
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +18,9 @@ from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.radiotypes import TYPES
 from neoaprs.services.beacon import NOT_ON_THIS_RADIO, Beacon
 from neoaprs.services.beaconframe import BeaconFrames
+from neoaprs.web.beaconwire import BeaconNow
+from neoaprs.web.handlers import beacon_now
+from neoaprs.web.dispatch import UserError
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, idle_for, until
 from tests.support.fakedriver import registry_of, spec, with_radios
@@ -189,6 +193,29 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
     finally:
         await e.stop()
         await air.aclose()
+
+
+async def test_beacon_now_of_the_page_goes_on_the_radios_the_registry_says_the_beacon_goes_out_on_and_on_no_other() -> None:
+    """The page's Beacon now (web/handlers.py `beacon_now`) asks the registry's `beaconing`, not the flat tickboxes: with radios 1 and 2 on and ticked by the old keys but the beacon going out on radios 1
+    and 3, it goes on 1 and 3; when none of them sends, the refusal is the first one's reason."""
+    sent: list[str] = []
+
+    class Stub:
+        def __init__(self, name: str, goes: bool = True) -> None:
+            self.name, self.goes, self.problem = name, goes, "" if goes else f"{name} is not connected"
+
+        def send_now(self, reason: str) -> bool:
+            sent.append(self.name)
+            return self.goes
+
+    fm, hf, third = Stub("fm"), Stub("hf"), Stub("third")
+    ctl = SimpleNamespace(config=replace(DEFAULTS, hf_enabled=True), beacon=fm, hf_beacon=hf, radios=SimpleNamespace(beaconing=lambda: [SimpleNamespace(beacon=fm), SimpleNamespace(beacon=third)]))
+    await beacon_now(SimpleNamespace(ctl=ctl), BeaconNow(cmd="beacon_now"))       # type: ignore[arg-type]
+    assert sent == ["fm", "third"]
+    quiet = Stub("third", goes=False)
+    ctl.radios = SimpleNamespace(beaconing=lambda: [SimpleNamespace(beacon=quiet)])
+    with pytest.raises(UserError, match="third is not connected"):
+        await beacon_now(SimpleNamespace(ctl=ctl), BeaconNow(cmd="beacon_now"))   # type: ignore[arg-type]
 
 
 # ---- which radios a save leaves the beacon on, at the registry

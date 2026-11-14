@@ -220,8 +220,8 @@ class RadioRegistry(StationChoices, Generic[B]):
         return self._of(self._config().main_radio)
 
     def for_station(self, call: str) -> LiveRadio[B] | None:
-        """The radio a message of ours to the station goes out on (messagerule.message_radio, on what each radio heard of it and the operator's choice for it). Every attempt of a message asks again, so a
-        choice made between two attempts holds for the next."""
+        """The radio a message of ours to the station goes out on (messagerule.message_radio, on what each radio heard of it and the operator's choice for it). A message asks it at its first attempt and keeps
+        that radio until it ends, unless the operator's choice for the station in force changes or that radio is switched off (services/messageradio.py)."""
         config, station = self._config(), self._book.get(call)
         return self._of(messagerule.message_radio(self.choice(call), station.heard_by if station is not None else {}, config.radios, config.main_radio, self._clock()))
 

@@ -14,6 +14,8 @@
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
 - **Changed:** the recommended path of a fixed station is WIDE2-2.
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
+- **Changed:** with the HF radio on, an FM beacon set under 30 minutes is no longer slowed to 30; HF still waits 30.
+- **Changed:** a message goes on the radio that heard the station in the last six hours, FM first, and keeps that radio for its retries.
 - **Changed:** the page has the colours and shapes of the project's site, in the light and the dark theme, and so has the icon.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
@@ -22,9 +24,11 @@
 - **Fixed:** the HF radio's status lost the reason the modem had stopped at its next try. It now keeps it until the modem runs again.
 - **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts a backup copy back.
 - **Fixed:** after an update, the app gave up after a minute while a large database was still being brought up to date. It now waits.
+- **Fixed:** NeoAPRS stopped with an error when started while `neoaprs db` was bringing the database up to date. It now waits.
 - **Fixed:** an update interrupted again and again (a power cut) could fill the disk. NeoAPRS now keeps one copy of your data from before it.
 - **Fixed:** a burst of questions could make NeoAPRS send a flood of answers. It now sends at most ten frames of answers a minute.
 - **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
+- **Fixed:** the ALOHA circle on the map counted the stations heard over HF too. It now counts only those the FM radio hears.
 - **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.
 - **Fixed:** with network access off, the page opened on a Raspberry Pi by its own name could not connect.
 - **Fixed:** a click on a tab could move the whole page a little to the left.

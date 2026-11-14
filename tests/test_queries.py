@@ -28,7 +28,7 @@ class Rig(ServiceRig):
         self.paths: dict[str, tuple[str, ...]] = {}
         self.status_text = ""                                          # what the status service says it sent last
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
-        self.q = Queries(pick_of(self), lambda: self.config, self.beacon, lambda radio=None: self.beacon.status_frame(self.status_text, radio), self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, delay=lambda: delay)
+        self.q = Queries(pick_of(self), lambda: self.config, self.beacon, lambda radio=None: self.beacon.status_frame(self.status_text, radio), self.book, lambda call, attempt=None, radio=1: self.paths.get(call, self.config.beacon_path_calls), self.clock, delay=lambda: delay)
         remember_stop(self.q.stop)
 
     def packet(self, source: str, decoded: object, path: tuple[str, ...] = ("OH2RCH-2*",), direction: str = "in", destination: str = "APZNEO", third: object = None) -> Packet:
@@ -312,7 +312,7 @@ async def test_a_status_that_cannot_be_made_does_not_take_the_position_with_it()
     def broken(radio: object = None) -> ax25.Frame | None:
         raise BeaconError("the status is too long")
 
-    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, broken, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, broken, rig.book, lambda call, attempt=None, radio=1: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
     remember_stop(rig.q.stop)
     general(rig)
     await until(lambda: len(rig.tnc.sent) == 1)
@@ -366,7 +366,7 @@ class Held:
 
 def paced_rig(objects: tuple[object, ...] = (), messages: tuple[object, ...] = ()) -> Rig:
     rig = Rig()
-    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock,
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call, attempt=None, radio=1: rig.config.beacon_path_calls, rig.clock,
                     objects=Held(list(objects)), messages=Held(list(messages)), spacing_sec=0.05)                     # type: ignore[arg-type]
     remember_stop(rig.q.stop)
     return rig

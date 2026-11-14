@@ -19,11 +19,12 @@ from .dblog import DbLog
 from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
-                        position_packets, prune_packets_slice, radio_position_packets, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
+from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
+                        position_packets, prune_packets_slice, radio_position_packets, radio_routes, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
 from .radiospec import RadioHeard, RadioId
 from .route import route_of
 from .station import Station
+from .stationbook import RouteGroup, route_groups
 
 log = logging.getLogger("neoaprs.packetlog")
 
@@ -205,21 +206,11 @@ class PacketLog(DbLog):
         rows: list[Row] = await self._read(lambda conn: station_readings(conn, source, text, count), [])
         return [(parse_stamp(str(at)), _number(snr), _number(rssi)) for at, path, snr, rssi in rows if route_of(tuple(str(path).split(",")) if path else ()).direct]
 
-    async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
-        """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the
-        stations' packets reached us, for the station book to start with. A third-party packet is the sender inside it, with the iGate that put it on the air."""
-        rows: list[Row] = await self._read(lambda conn: heard_routes(conn, count), [])
-        groups: dict[tuple[str, tuple[str, ...], str], tuple[int, datetime, datetime | None]] = {}
-        for source, path_text, raw, heard_at in rows:
-            at = parse_stamp(str(heard_at))
-            try:
-                opened = header_of(ax25.decode(bytes(raw)).info)
-            except ax25.Ax25Error:
-                continue
-            key = (str(source) if opened is None else opened[0].source, tuple(str(path_text).split(",")) if path_text else (), "" if opened is None else str(source))
-            packets, earlier, _ = groups.pop(key, (0, at, None))
-            groups[key] = (packets + 1, at, earlier if packets else None)       # (a group moves to the end each time: the order is that of the latest packet)
-        return [(sender, path, gate, packets, at, before) for (sender, path, gate), (packets, at, before) in groups.items()]
+    async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[RouteGroup]:
+        """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was, the radio) over the latest `count` packets heard on any radio, the group whose latest packet is
+        the oldest first: how the stations' packets reached us on each radio, for the station book to start with (stationbook.route_groups). A third-party packet is the sender inside it, with the iGate that put it on the air."""
+        rows: list[Row] = await self._read(lambda conn: radio_routes(conn, count), [])
+        return route_groups((str(source), str(path), bytes(raw), parse_stamp(str(at)), None if radio is None else int(radio)) for source, path, raw, at, radio in rows)
 
     async def positions(self, keep_days: int, count: int = TRACKS_SEEN) -> list[tuple[str, datetime, float, float]]:
         """(station, when, lat, lon) of the latest `count` positions heard within `keep_days` days, the oldest first: the station is the sender (the one inside a third-party packet) or the name of a live
