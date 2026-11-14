@@ -1,46 +1,55 @@
 /* THE PALETTE: the only place in ui/src where a colour is written (ui/src/styles/palette.test.ts fails for a colour literal anywhere else, but for the map's style, lib/basemapstyle.ts, and the map layers that read these tokens, lib/*layers.ts). The colour scheme follows the system (prefers-color-scheme);
    every token has a value for light and one for dark. What each is for, and the swatches, are in CONVENTIONS.md ("The palette") and docs/palette.md.
 
-   - Neutrals: --bg (the page behind), --panel (a surface), --raised (what stands over a surface: a note, a menu), --text, --muted (quiet text), --border, --row-hover, --row-selected, --input-bg.
-   - One accent, the blue: --accent and the --accent-text that is read on it (a primary button, the selected tab).
-   - Four meanings, ok (green), warn (amber), bad (red) and info (teal), each in a STRONG form (--ok, --warn, --bad, --info: a line, a word, a loud fill with --on-strong on it, as Daemon offline) and a SOFT pair for a tag
-     (--ok-soft-bg with --ok-soft-fg, and so on, low in saturation and AA-readable at 11 px), and the accent and the neutral have a soft pair too (--accent-soft-*, --neutral-soft-*), and so has the HF radio's tag (--hf-soft-*, a violet: the FM radio's tag is the neutral grey, and the blue, green, amber, red and teal mean something else).
-   - What the map draws with: --map-* and --wx-*.
+   The colours are the project page's (site/style.css): petrol #0a2a3d, #0e1f2c, #182a34; white, #eff0f2, #5d5d5d; mint #a6d7d4, sage #91c1b9; sky #bbdaed, blue #60addb, #2972a3; lime #dbf93a; orange #fb6432, #e54615.
+   A tone is one of them, or one of them mixed toward another ("x% toward"), or laid on the theme's own ground, white or petrol, at a lower alpha ("x% on"): written here as the solid result, its recipe in the comment, so that the test reads hex.
+   The palette has no green, no amber and no red: ok is the plain text (the check mark says it), warn is a plate of lime (petrol on it in the light theme, lime on a dark lime plate in the dark), bad is the orange.
+
+   - Neutrals: --bg (the page behind), --panel (a surface), --raised (what stands over a surface: a note, a menu), --text, --muted (quiet text), --border, --row-hover, --row-selected, --selection (a drag across text), --input-bg.
+   - One accent, the blue: --accent and the --accent-text that is read on it (a primary button, the selected tab, a link).
+   - Four meanings, ok, warn, bad and info, each in a STRONG form (--ok, --warn, --bad, --info: a line, a word, a loud fill with --on-strong on it, as Daemon offline; --warn itself is never a word, only a line or a plate: a warn word is its soft pair) and a SOFT pair for a tag
+     (--ok-soft-bg with --ok-soft-fg, and so on, AA-readable at 11 px), and the accent, the neutral and the LoRa radio have a soft pair too (--accent-soft-*, --neutral-soft-*, --lora-soft-*). The HF radio's tag is the site's inverse pill (--hf-soft-*: a petrol plate in the light theme,
+     a mint one in the dark), told from every soft tone by its lightness; the FM radio's tag is the neutral.
+   - The shapes: --radius (a control), --radius-box (a group, a card, a menu), --radius-pill (the tag); the fonts --font and --mono; --shadow, petrol.
+   - What the map draws with: --map-* and --wx-* (the map keeps its own colours: the palette does not reach it). The receive level bar: --level-*, an instrument's scale, as it was.
    - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the strongest, the same in both themes. */
 :root {
   color-scheme: light dark;
-  --bg: #f4f5f3;
-  --panel: #ffffff;
-  --raised: #ffffff;
-  --text: #1d2125;
-  --muted: #5d6670;
-  --border: #d3d7da;
-  --row-hover: #eef3f9;
-  --row-selected: #d9e7f8;
-  --input-bg: #ffffff;
-  --accent: #1565c0;
-  --accent-text: #ffffff;
-  --ok: #2e7d32;
-  --warn: #b26a00;
-  --bad: #c62828;
-  --info: #00697f;
-  --on-strong: #ffffff;
-  --on-strong-wash: rgb(255 255 255 / 20%);
-  --accent-soft-bg: #dce8f8;
-  --accent-soft-fg: #0d4a94;
-  --ok-soft-bg: #e2f0e3;
-  --ok-soft-fg: #1b5e20;
-  --warn-soft-bg: #fbe9c8;
-  --warn-soft-fg: #764600;
-  --attention-bg: #fff0a3; /* the flash of a group a link brought into view (lib/attention.ts): a soft yellow */
-  --bad-soft-bg: #fbe0e0;
-  --bad-soft-fg: #9b1c1c;
-  --info-soft-bg: #dcedf5;
-  --info-soft-fg: #0b5570;
-  --neutral-soft-bg: #e9ecee;
-  --neutral-soft-fg: #454f58;
-  --hf-soft-bg: #eadcf8;
-  --hf-soft-fg: #5b2a91;
+  --bg: #eff0f2; /* the site's grey */
+  --panel: #ffffff; /* white */
+  --raised: #ffffff; /* white */
+  --text: #0a2a3d; /* petrol */
+  --muted: #5d5d5d; /* the site's grey text */
+  --border: #d8dde0; /* petrol 16% on white: the site's rule */
+  --row-hover: #eef6fb; /* sky 25% on white */
+  --row-selected: #ddedf6; /* sky 50% on white */
+  --selection: #bbdaed; /* sky: a drag across text, apart from every ground it is dragged over */
+  --input-bg: #ffffff; /* white */
+  --accent: #266b99; /* blue #2972a3 10% toward petrol */
+  --accent-text: #ffffff; /* white */
+  --ok: #0a2a3d; /* the plain text */
+  --warn: #dbf93a; /* lime: a line or a plate, never a word */
+  --bad: #b9401d; /* orange #e54615 20% toward petrol */
+  --info: #2972a3; /* blue */
+  --on-strong: #ffffff; /* white */
+  --on-strong-wash: rgb(255 255 255 / 20%); /* white 20% */
+  --accent-soft-bg: #dfeff8; /* blue #60addb 20% on white */
+  --accent-soft-fg: #205c84; /* blue #2972a3 30% toward petrol */
+  --ok-soft-bg: #cae7e5; /* mint 60% on white */
+  --ok-soft-fg: #0a2a3d; /* petrol */
+  --warn-soft-bg: #dbf93a; /* lime */
+  --warn-soft-fg: #0a2a3d; /* petrol */
+  --attention-bg: #f1fdb0; /* the flash of a group a link brought into view (lib/attention.ts): lime 40% on white */
+  --bad-soft-bg: #fee0d6; /* orange #fb6432 20% on white */
+  --bad-soft-fg: #a33e21; /* orange #e54615 30% toward petrol */
+  --info-soft-bg: #bbdaed; /* sky */
+  --info-soft-fg: #0a2a3d; /* petrol */
+  --neutral-soft-bg: #e7eaec; /* petrol 10% on white */
+  --neutral-soft-fg: #475f6e; /* petrol 75% on white */
+  --lora-soft-bg: #91c1b9; /* sage */
+  --lora-soft-fg: #0a2a3d; /* petrol */
+  --hf-soft-bg: #0a2a3d; /* the inverse pill: petrol */
+  --hf-soft-fg: #ffffff; /* white */
   --waterfall-0: #000828;
   --waterfall-1: #0834be;
   --waterfall-2: #00aaff;
@@ -51,11 +60,24 @@
   --waterfall-grid: rgba(255, 255, 255, 0.16);
   --waterfall-rx: #3ddc84;
   --waterfall-tx: #ff5a47;
-  --scrim: rgba(0, 0, 0, 0.45);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --level-band: #e2f0e3; /* the receive level bar (components/HfLevelBar.vue): its good range */
+  --level-low: #5d6670; /* the level bar: too low */
+  --level-good: #2e7d32; /* the level bar: in the good range */
+  --level-high: #b26a00; /* the level bar: high */
+  --level-clip: #c62828; /* the level bar: the sound card clips */
+  --scrim: rgba(10, 42, 61, 0.5); /* petrol 50% */
+  --shadow: 0 2px 8px rgba(10, 42, 61, 0.12); /* the site's: petrol 12% */
   --map-label: #1d2125;
   --map-halo: rgba(255, 255, 255, 0.9);
   --map-ring: #ffffff;
+  --map-mark: #1565c0; /* the map: a plain marker */
+  --map-own: #1565c0; /* the map: my station and my objects, their outline and their call */
+  --map-direct: #2e7d32; /* the map: the ring of a station heard direct */
+  --map-net: #5d6670; /* the map: the dotted outline of a station heard only over the internet */
+  --map-route: #1565c0; /* the map: the route of the station picked (lib/routelayers.ts) */
+  --map-route-old: #5d6670; /* the map: the route of the packet before it */
+  --map-internet: #00697f; /* the map: a hop of the internet on a route */
+  --map-range: #1565c0; /* the map: the circle of a digipeater's range (lib/rangelayers.ts) */
   --map-sign-bg: #ffd600;
   --map-sign-ink: #000000;
   --map-select: #ff6d00;
@@ -68,47 +90,70 @@
   --wx-rain: #1565c0;
   --speed: #2e7d32; /* the speed graph of a moving station's card */
   --signal: #ad1457; /* the signal graph of a station's card */
+  --radius: 4px; /* a control: a button, an input, a small box in a line */
+  --radius-box: 6px; /* a group, a card, a menu, a dialog, a bubble */
+  --radius-pill: 999px; /* the tag, a grip: round ends whatever the height */
   --control-h: 32px; /* every text button, input and select of a form or a toolbar */
   --control-h-small: 24px; /* .btn.small: the compact button inside a list row, a bubble or a line of text */
   --action-w: 11em; /* the least width of the button that is the action of a row: Beacon now, Test sound, Check now, Find my radio, Choose on map; the button at the end of a row after a field (Test, Download map) is as wide as its words */
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Ubuntu, Cantarell, sans-serif; /* the site's */
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; /* the page's own: every column of figures is measured in it */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14171a;
-    --panel: #1c2024;
-    --raised: #232930;
-    --text: #e3e6e8;
-    --muted: #98a2ab;
-    --border: #343a40;
-    --row-hover: #252b31;
-    --row-selected: #24395a;
-    --input-bg: #14171a;
-    --accent: #6aa9ee;
-    --accent-text: #0b1a2b;
-    --ok: #66bb6a;
-    --warn: #ffb74d;
-    --bad: #ef5350;
-    --info: #4dc4de;
-    --accent-soft-bg: #1c3555;
-    --accent-soft-fg: #aacdf6;
-    --ok-soft-bg: #1f3a24;
-    --ok-soft-fg: #a5d6a7;
-    --warn-soft-bg: #41310f;
-    --warn-soft-fg: #ffcc80;
-    --attention-bg: #574b12;
-    --bad-soft-bg: #4a2323;
-    --bad-soft-fg: #f2a5a5;
-    --info-soft-bg: #163744;
-    --info-soft-fg: #86d6ea;
-    --neutral-soft-bg: #2a3036;
-    --neutral-soft-fg: #b6c0c9;
-    --hf-soft-bg: #3a2958;
-    --hf-soft-fg: #d5bff5;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    --bg: #0e1f2c; /* the site's dark page */
+    --panel: #0a2a3d; /* petrol: the site's dark surface */
+    --raised: #1b394b; /* white 7% on petrol */
+    --text: #ffffff; /* white */
+    --muted: #91c1b9; /* sage: the site's dark muted */
+    --border: #2c4858; /* white 14% on petrol: the site's rule */
+    --row-hover: #193749; /* white 6% on petrol */
+    --row-selected: #173e55; /* blue #60addb 15% on petrol */
+    --selection: #2c5e7c; /* blue #60addb 40% on petrol */
+    --input-bg: #0e1f2c; /* the site's dark page */
+    --accent: #60addb; /* blue */
+    --accent-text: #0e1f2c; /* the site's dark page */
+    --ok: #ffffff; /* the plain text */
+    --warn: #dbf93a;
+    --bad: #fc8b65; /* orange #fb6432 25% toward white */
+    --info: #bbdaed; /* sky */
+    --on-strong: #0a2a3d; /* petrol on the light fills of the dark theme */
+    --on-strong-wash: rgb(10 42 61 / 20%); /* petrol 20% */
+    --accent-soft-bg: #224f69; /* blue #60addb 28% on petrol */
+    --accent-soft-fg: #bbdaed; /* sky */
+    --ok-soft-bg: #294d5b; /* mint 20% on petrol */
+    --ok-soft-fg: #a6d7d4; /* mint */
+    --warn-soft-bg: #304f3c; /* lime 18% on petrol */
+    --warn-soft-fg: #dbf93a; /* lime */
+    --attention-bg: #1f3f3d; /* lime 10% on petrol */
+    --bad-soft-bg: #3f373b; /* orange #fb6432 22% on petrol */
+    --bad-soft-fg: #fc8b65; /* orange #fb6432 25% toward white */
+    --info-soft-bg: #2a4a5d; /* sky 18% on petrol */
+    --info-soft-fg: #ffffff; /* white */
+    --neutral-soft-bg: #233f50; /* white 10% on petrol */
+    --neutral-soft-fg: #ced4d8; /* white 80% on petrol */
+    --lora-soft-bg: #284b58; /* sage 22% on petrol */
+    --lora-soft-fg: #91c1b9; /* sage */
+    --hf-soft-bg: #a6d7d4; /* the inverse pill: mint */
+    --hf-soft-fg: #0a2a3d; /* petrol */
+    --level-band: #1f3a24;
+    --level-low: #98a2ab;
+    --level-good: #66bb6a;
+    --level-high: #ffb74d;
+    --level-clip: #ef5350;
+    --scrim: rgba(0, 0, 0, 0.5);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.5); /* the site's */
     --map-label: #e3e6e8;
     --map-halo: rgba(20, 23, 26, 0.9);
+    --map-mark: #6aa9ee;
+    --map-own: #6aa9ee;
+    --map-direct: #66bb6a;
+    --map-net: #98a2ab;
+    --map-route: #6aa9ee;
+    --map-route-old: #98a2ab;
+    --map-internet: #4dc4de;
+    --map-range: #6aa9ee;
     --wx-temp: #ff8a65;
     --wx-pressure: #ce93d8;
     --wx-wind: #4dd0e1;

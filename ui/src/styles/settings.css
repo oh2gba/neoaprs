@@ -11,7 +11,7 @@ fieldset.composebox {
   margin: 8px 0;
   padding: 4px 10px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
 }
 .settings legend,
 .nearbypane legend,
@@ -89,7 +89,7 @@ fieldset.composebox > legend {
   min-height: var(--control-h);
   padding: 2px 4px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--text);
   font: inherit;
@@ -161,7 +161,12 @@ fieldset.composebox > legend {
   color: var(--accent);
   font: inherit;
   text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+.linkbutton:hover {
+  text-decoration-thickness: 2px;
 }
 /* the Help and About groups: a text, one plain button, quiet lines and links, one under the other; the result of a download stands last, so that nothing above it moves */
 .help-logs p,
@@ -250,7 +255,7 @@ fieldset.composebox > legend {
   min-width: 0;
   padding: 3px 4px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--text);
   font: inherit;
@@ -294,7 +299,9 @@ fieldset.composebox > legend {
 .statetext.gps-connecting,
 .statetext.gps-no_fix,
 .statetext.gps-stale {
-  color: var(--warn);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
 /* the Internet stations group of the Settings tab: the status row of the radio (StatusFold) and, behind its arrow, two quiet lines */
 .igatefold {
@@ -426,13 +433,15 @@ fieldset.composebox > legend {
   color: var(--accent);
 }
 .statetext.update-failed {
-  color: var(--warn);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
-/* the group a link to a setting has brought into view (lib/attention.ts): a soft yellow that fades in and out once, after the tab is drawn. A fade of a colour is no movement,
+/* the group a link to a setting has brought into view (lib/attention.ts): a soft lime that fades in and out once, after the tab is drawn. A fade of a colour is no movement,
    so it is the same with reduced motion (a static highlight read as "on and off") */
 .attend {
   animation: attend 1.2s ease-in-out;
-  border-radius: 6px;
+  border-radius: var(--radius-box);
 }
 @keyframes attend {
   0% {

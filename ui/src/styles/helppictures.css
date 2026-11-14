@@ -45,6 +45,10 @@
 .hp-ok {
   stroke: var(--ok);
 }
+/* the picture of the receive level bar (help/ScopePicture.vue): its good range in the bar's own green, as the bar draws it */
+.hp[data-picture="scope"] .hp-ok {
+  stroke: var(--level-good);
+}
 .hp-bad {
   stroke: var(--bad);
 }

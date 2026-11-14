@@ -3,7 +3,7 @@
   height: var(--control-h);
   padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--input-bg);
   color: var(--text);
   font: inherit;
@@ -41,7 +41,7 @@ tbody tr:focus-visible {
   min-height: var(--control-h);
   padding: 5px 12px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   font: inherit;
@@ -71,6 +71,14 @@ tbody tr:focus-visible {
   border-color: var(--bad);
   color: var(--on-strong);
 }
+/* the site's buttons under the pointer: the plain one takes the accent's edge, a filled one lightens; colours only, nothing of the size */
+.btn:not(.primary):not(.danger):not(:disabled):hover {
+  border-color: var(--accent);
+}
+.btn.primary:not(:disabled):hover,
+.btn.danger:not(:disabled):hover {
+  filter: brightness(1.08);
+}
 .btn.small {
   min-height: var(--control-h-small);
   padding: 0 8px;
@@ -97,12 +105,14 @@ a.btn {
   text-align: center;
   color: var(--muted);
 }
+/* a problem is a warn: petrol on the lime plate (the dark theme: lime on a dark lime plate), its 1-px edge the plate's own */
 .problem {
   margin: 0 8px;
   padding: 6px 8px;
-  border: 1px solid var(--warn);
-  border-radius: 4px;
-  color: var(--warn);
+  border: 1px solid var(--warn-soft-bg);
+  border-radius: var(--radius);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
 }
 /* the (i) beside a field and the text it opens (InfoTip) */
 .infotip {
@@ -145,7 +155,7 @@ a.btn {
   margin: 0;
   padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   font-size: 12px;
@@ -162,6 +172,11 @@ button.linkbtn {
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+button.linkbtn:hover {
+  text-decoration-thickness: 2px;
 }
 button.linkbtn {
   font-size: inherit;

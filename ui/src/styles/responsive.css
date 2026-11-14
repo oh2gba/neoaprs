@@ -197,7 +197,7 @@ button,
   max-height: 88%;
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--border);
-  border-radius: 14px 14px 0 0;
+  border-radius: var(--radius-box) var(--radius-box) 0 0;
   background: var(--panel);
   box-shadow: var(--shadow);
   pointer-events: auto;
@@ -227,7 +227,7 @@ button,
 .sheet-grip span {
   width: 40px;
   height: 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   background: var(--muted);
   opacity: 0.6;
 }
@@ -256,7 +256,7 @@ button,
   gap: 10px;
   padding: 6px 6px 6px 12px;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-box);
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -333,7 +333,7 @@ button,
     width: min(380px, 56%);
     max-height: calc(100% - 14px);
     border-right: 1px solid var(--border);
-    border-radius: 0 14px 0 0;
+    border-radius: 0 var(--radius-box) 0 0;
   }
   .size-phone .sheet:not(.expanded) .card-body {
     max-height: 64px;

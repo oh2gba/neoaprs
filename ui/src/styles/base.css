@@ -1,6 +1,14 @@
 * {
   box-sizing: border-box;
 }
+/* the tickboxes, the radio buttons and the sliders in the accent; a drag across text in a tone of its own, told from every ground it is dragged over (our own bubble and the selected row too) */
+:root {
+  accent-color: var(--accent);
+}
+::selection {
+  background: var(--selection);
+  color: var(--text);
+}
 html,
 body,
 #app {
@@ -10,12 +18,7 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font:
-    14px/1.4 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font: 14px/1.4 var(--font);
 }
 .mono {
   font-family: var(--mono);
@@ -23,8 +26,14 @@ body {
 .muted {
   color: var(--muted);
 }
+/* the site's link: a thin underline a little below the letters, thicker under the pointer (a line's paint: nothing moves) */
 a {
   color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-thickness: 2px;
 }
 .strong {
   font-weight: 600;
@@ -95,10 +104,15 @@ h4,
   color: inherit;
   font-weight: inherit;
   text-decoration: none;
-  border-radius: 2px;
+  border-radius: var(--radius);
 }
 .brand:hover {
   text-decoration: underline;
+}
+/* the two-colour name of the site's masthead: Neo in the text, APRS in the accent */
+.brand b {
+  color: var(--accent);
+  font-weight: inherit;
 }
 .brand:focus-visible {
   outline: 2px solid var(--accent);
@@ -107,12 +121,15 @@ h4,
 .nocall {
   font: inherit;
   font-weight: 600;
-  color: var(--warn);
-  background: none;
+  color: var(--warn-soft-fg);
+  background: var(--warn-soft-bg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
   border: 0;
+  border-radius: var(--radius);
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .main {
   display: flex;

@@ -24,7 +24,7 @@
   min-height: 38px;
   padding: 5px 9px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-box);
 }
 .bulletin p {
   margin: 0;
@@ -153,8 +153,13 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+/* fewer arrived than were sent: the warn plate round the line's words and its button, not the width of the column (the line keeps its place) */
 .qru-sent.warn {
-  color: var(--warn);
+  width: fit-content;
+  max-width: 100%;
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
 .qru-group:disabled {
   cursor: default;
@@ -172,7 +177,7 @@
   min-height: 38px;
   padding: 5px 9px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-box);
 }
 .sked.mine {
   border-color: var(--accent);

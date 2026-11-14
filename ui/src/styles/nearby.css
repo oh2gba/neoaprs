@@ -40,8 +40,15 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* a refused Ask: the warn plate round the words, not the width of the box (it keeps its height and its place), and widened sideways only, so that it does not reach the count line under it */
 .ask-line.warn {
-  color: var(--warn);
+  width: fit-content;
+  max-width: 100%;
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow:
+    2px 0 0 var(--warn-soft-bg),
+    -2px 0 0 var(--warn-soft-bg);
 }
 .nearby-empty {
   padding: 6px 0 8px;

@@ -10,7 +10,7 @@
   max-width: min(560px, calc(100% - 24px));
   padding: 8px 8px 8px 14px;
   transform: translateX(-50%);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
   background: var(--bad);
   color: var(--on-strong);
   box-shadow: var(--shadow);

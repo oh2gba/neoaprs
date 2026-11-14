@@ -1,7 +1,7 @@
 /* the path builder (components/PathBuilderDialog.vue): the frame of the update dialog, narrower, on a phone too (it is put at the end of the body, out of the page's root and its size class). The (i) of WIDEn-N sits beside the
    title. Hops is a row of buttons as the weather's period is (the one chosen filled), with As its packets come beside it, and the tick under them. The picture of the path (PathDrawing) is one line high, a fixed height, and
-   scrolls sideways when a long path does not fit; each element is a chip with its nodes (a drawing and who takes the hop) over the element as the field writes it and its ×; a hop after the second is amber, an element that
-   is no path red. The path has room for two lines of text and its count a width of its own, the list of digipeaters a height of its own, so that nothing under them moves as hops come and go; the numbers are tabular and
+   scrolls sideways when a long path does not fit; each element is a chip with its nodes (a drawing and who takes the hop) over the element as the field writes it and its ×; a hop after the second is on the warn plate, an element
+   that is no path orange. The path has room for two lines of text and its count a width of its own, the list of digipeaters a height of its own, so that nothing under them moves as hops come and go; the numbers are tabular and
    right-aligned in columns of their own */
 .pathbuild {
   display: flex;
@@ -56,7 +56,7 @@
   overflow-y: hidden;
   list-style: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--bg);
 }
 .pathbuild-drawing > li {
@@ -79,7 +79,7 @@
   align-items: stretch;
   gap: 2px;
   padding: 4px 4px 2px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-box);
   background: var(--accent-soft-bg);
   color: var(--accent-soft-fg);
 }
@@ -99,7 +99,9 @@
   min-width: 44px;
 }
 .pathbuild-node.over {
-  color: var(--warn);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
 .pathbuild-kind {
   font-size: 11px;
@@ -181,7 +183,7 @@
   overflow-y: auto;
   list-style: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 .pathbuild-choice {
   display: grid;

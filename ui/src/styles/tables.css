@@ -227,7 +227,9 @@
   color: var(--ok);
 }
 .querystate[data-state="no_answer"] {
-  color: var(--warn);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
 }
 /* the two words of a button that asks twice ("Forget", "Really forget?") in one place, the one not said hidden: the button is as wide as the longer, so that the first press moves nothing */
 .twowords {
@@ -336,8 +338,9 @@
 .grid .in {
   color: var(--ok);
 }
+/* a packet we sent: in the accent, as our own station is on the map (the palette has no amber, and a warn is no direction) */
 .grid .out {
-  color: var(--warn);
+  color: var(--accent);
   font-weight: 600;
 }
 .json,
@@ -367,7 +370,7 @@
   overflow-y: auto;
   list-style: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
   background: var(--panel);
   box-shadow: var(--shadow);
 }
@@ -378,7 +381,7 @@
   min-height: 32px;
   padding: 5px 12px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--text);
   font: inherit;

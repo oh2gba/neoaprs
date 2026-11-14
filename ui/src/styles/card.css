@@ -12,7 +12,7 @@
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
   box-shadow: var(--shadow);
 }
 .card-body {
@@ -240,7 +240,9 @@
   gap: 6px;
 }
 .timedword {
-  color: var(--warn);
+  background: var(--warn-soft-bg);
+  color: var(--warn-soft-fg);
+  box-shadow: 0 0 0 2px var(--warn-soft-bg);
   font-weight: 600;
 }
 
@@ -291,7 +293,7 @@
   overflow: hidden;
   background: var(--waterfall-0);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 /* the picture takes the focus, for the menu key that opens the card's menu */
 .monitor-picture:focus-visible {

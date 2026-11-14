@@ -47,6 +47,21 @@ describe("the sizes of the buttons", () => {
     expect(found).toEqual([]);
   });
 
+  it("change only their colours under the pointer, as the site's do: the plain one takes the accent's edge, a filled one lightens", () => {
+    const sheet = strip(readFileSync(resolve(STYLES, "controls.css"), "utf8"));
+    const hovers = [...sheet.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].filter((match) => /\.btn(?![\w-])[^{]*:hover/.test(match[1] ?? ""));
+    expect(hovers.map((match) => (match[1] ?? "").trim().replace(/\s+/g, " "))).toEqual([
+      ".btn:not(.primary):not(.danger):not(:disabled):hover",
+      ".btn.primary:not(:disabled):hover, .btn.danger:not(:disabled):hover",
+    ]);
+    for (const [, , body] of hovers) {
+      const properties = [...(body ?? "").matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+      expect(properties.every((p) => p === "border-color" || p === "filter")).toBe(true);
+    }
+    expect(cssRule(".btn:not(.primary):not(.danger):not(:disabled):hover")).toContain("border-color: var(--accent);");
+    expect(cssRule(".btn.danger:not(:disabled):hover")).toContain("filter: brightness(1.08);");
+  });
+
   it("are not given an inline style in a component", () => {
     const inline = /<(button|a)\b[^>]*\s:?style=/s;
     const found = files(SRC, ".vue").filter((file) => inline.test(readFileSync(file, "utf8").replaceAll("=>", "")));

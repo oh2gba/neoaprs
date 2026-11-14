@@ -18,7 +18,7 @@
   width: 26px;
   height: 26px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
@@ -125,7 +125,7 @@
   padding: 4px;
   list-style: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
   background: var(--panel);
   box-shadow: var(--shadow);
 }

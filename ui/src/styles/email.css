@@ -30,7 +30,7 @@
   padding: 2px 4px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-box);
   background: var(--panel);
   box-shadow: var(--shadow);
   list-style: none;
