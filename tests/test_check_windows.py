@@ -420,6 +420,17 @@ with open(folder + "/ssh-calls", "a") as calls:
 def flag(name):
     return os.path.exists(folder + "/" + name)
 
+if "LastBootUpTime" in script:
+    if flag("uptimes"):
+        left = open(folder + "/uptimes").read().split()
+        if left:
+            open(folder + "/uptimes", "w").write(" ".join(left[1:]))
+            if left[0] == "away":
+                sys.exit(255)
+            print(left[0])
+            sys.exit(0)
+    print("ran fine")
+    sys.exit(0)
 if "shutdown.exe /s" in script:
     if not flag("stays-on") and not flag("deaf-to-shutdown"):
         open(folder + "/state", "w").write("poweroff")
@@ -559,6 +570,22 @@ def test_the_machine_is_started_without_a_window_and_shut_down_from_inside_and_w
     assert script.vm_state("Windows 11") == "poweroff"
     assert bench.scripts("shutdown.exe /s"), "Windows is asked from inside to shut down"
     assert not [call for call in bench.vbox_calls() if call.startswith("controlvm")], "and the power button is not needed when that turns it off"
+
+
+def test_a_machine_just_started_is_waited_for_until_it_has_been_up_two_minutes_through_a_moment_without_ssh(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Windows restarts its SSH service once in its first minute: a step begun then ended with "closed by remote host" (14 Nov 2026)."""
+    bench.use(monkeypatch)
+    settings = settings_of(script, bench)
+    (bench.folder / "uptimes").write_text("25 away 70 119 121 500", encoding="utf-8")
+    script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)
+    assert (bench.folder / "uptimes").read_text(encoding="utf-8").split() == ["500"], "asked until the machine said 121 s, through the moment its SSH was away"
+    assert "has just started" in capsys.readouterr().err
+    (bench.folder / "uptimes").write_text("300", encoding="utf-8")
+    script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)
+    assert "has just started" not in capsys.readouterr().err, "a machine that has been up long enough is not waited for"
+    (bench.folder / "uptimes").unlink()
+    script.wait_until_settled(settings, patience_sec=30.0, interval_sec=0.01)                 # (a machine that says no number: nothing to wait for is known)
+    assert "has just started" not in capsys.readouterr().err
 
 
 def test_a_machine_that_does_not_go_off_is_left_as_it_is_and_never_powered_off_hard(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

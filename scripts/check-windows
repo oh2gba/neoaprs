@@ -15,7 +15,7 @@ Where the machine is comes from the environment, and nothing is guessed (CONVENT
   NEOAPRS_WINVM_USER         the user on the machine, default John; its profile folder is C:\\Users\\USER
 It is never a stage of scripts/check: it needs a machine that only some developers have, and minutes.
 
-The machine. Powered off, it is started without a window (`VBoxManage startvm NAME --type headless`), the script waits for its SSH to answer, and when the run is over the machine is shut down by
+The machine. Powered off, it is started without a window (`VBoxManage startvm NAME --type headless`), the script waits for its SSH to answer and until the machine has been up for two minutes (Windows restarts its SSH service once in its first minute), and when the run is over the machine is shut down by
 Windows's own shutdown, asked from inside over SSH and, when that has not turned it off, by the ACPI power button, and waited for; never a hard power-off, and if it does not go off in time it is left as it is and the script says so. A machine that was running
 is left running. One run at a time: a lock file in the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build), one for each machine; a second run says so and stops.
 
@@ -67,6 +67,8 @@ LOOPBACK = "127.0.0.1"
 KEEP_RUNS = 2                                          # the folders of runs left on the machine: this run's and the one before
 TAIL_LINES = 40                                        # of a failed step's output under its line
 SSH_PATIENCE_SEC = 300.0                               # a Windows that was powered off answers SSH after a minute or two
+SETTLED_SEC = 120.0                                    # how long a Windows this run started must have been up before the steps begin: it restarts its SSH service once in its first minute, and a step in that moment ends with "closed by remote host"
+UPTIME_SCRIPT = "[int]((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalSeconds; exit 0"
 OFF_PATIENCE_SEC = 300.0                               # and shuts down in about as long
 REMOTE_LINE_MAX = 8000                                 # cmd.exe, which may be the machine's SSH shell, takes 8191 characters of a command line
 NEVER_STOPS = float("inf")
@@ -495,6 +497,29 @@ def wait_for_ssh(settings: Settings, patience_sec: float = SSH_PATIENCE_SEC, int
         raise Refused(f"the SSH of {settings.vm} did not answer within {int(patience_sec)} s (port {settings.port}, user {settings.user}): is the machine's forward and its sshd right? try the ssh line by hand")
 
 
+def uptime_sec(settings: Settings) -> float | None:
+    """How long the machine has been up, by its own word; None when it could not be asked (its SSH is away), and endless when its answer is no number (nothing to wait for is known)."""
+    done = ssh_run(settings, UPTIME_SCRIPT, timeout_sec=60.0)
+    if done.returncode != 0:
+        return None
+    words = done.stdout.split()
+    return float(words[-1]) if words and words[-1].isdigit() else NEVER_STOPS
+
+
+def wait_until_settled(settings: Settings, patience_sec: float = SSH_PATIENCE_SEC, interval_sec: float = 5.0) -> None:
+    """For a machine this run has just started: waits until it has been up for SETTLED_SEC, so that no step meets the restart of its SSH service (seen twice on 14 November 2026: the first step after the
+    boot ended with "Connection closed by remote host" ten seconds after the SSH had first answered)."""
+    def settled() -> bool:
+        up = uptime_sec(settings)
+        return up is not None and up >= SETTLED_SEC
+    first = uptime_sec(settings)
+    if first is not None and first >= SETTLED_SEC:
+        return
+    say(f"{settings.vm} has just started: waiting until it has been up for {int(SETTLED_SEC)} s")
+    if not wait_for(settled, patience_sec, interval_sec):
+        raise Refused(f"{settings.vm} did not say how long it has been up within {int(patience_sec)} s: its SSH comes and goes")
+
+
 def power_off(settings: Settings, patience_sec: float = OFF_PATIENCE_SEC, interval_sec: float = 5.0) -> None:
     """The machine shut down by Windows itself and waited for: asked from inside over SSH (`shutdown.exe /s`), and when that has not turned it off, by the ACPI power button. (The button alone was not
     enough: a Windows that nobody is looking at did nothing with it for two minutes, 13 November 2026.) Never a hard power-off: one that is not off in time is left as it is, and said."""
@@ -714,6 +739,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     started_by_us = True
                     start_vm(settings, plan, args.snapshot)
                 wait_for_ssh(settings, SSH_PATIENCE_SEC if plan.start else 60.0)
+                if plan.start:
+                    wait_until_settled(settings)
                 return execute(settings, chosen_steps(args.only), pytest_args, tar, cache, args.tty)
         except (Refused, Busy) as error:
             say(str(error))
