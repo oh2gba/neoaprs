@@ -12,12 +12,14 @@ import sqlite3
 import stat
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from typing import IO
 
 import pytest
 
@@ -67,7 +69,39 @@ def environment() -> dict[str, str]:
 
 def start(data: Path, *extra: str) -> "subprocess.Popen[str]":
     port = () if "--port" in extra else ("--port", radio()[1])
-    return subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
+    proc = subprocess.Popen([sys.executable, "-m", "neoaprs", "--data", str(data), *port, "--web-port", "0", *extra], cwd=ROOT, env=environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", creationflags=NEW_GROUP)
+    assert proc.stdout is not None and proc.stderr is not None
+    _said[proc.pid] = (_Drain(proc.stdout), _Drain(proc.stderr))
+    return proc
+
+
+class _Drain(threading.Thread):
+    """Reads what the daemon writes to one of its pipes while it runs. A pipe nobody reads fills (4 KB on Windows, which the lines of a migration from an old version reach), and the daemon then stops in
+    the middle of the line it is writing: in the middle of its migration. (The lines must come by a pipe: the daemon repeats them on stderr only where stderr is not a file.)"""
+
+    def __init__(self, stream: IO[str]) -> None:
+        super().__init__(daemon=True)
+        self.stream, self.parts = stream, list[str]()
+        self.start()
+
+    def run(self) -> None:
+        for line in self.stream:
+            self.parts.append(line)
+
+
+_said: dict[int, tuple[_Drain, _Drain]] = {}
+
+
+def said(proc: "subprocess.Popen[str]") -> tuple[str, str]:
+    """What the daemon wrote to stdout and to stderr: all of it once it has ended, what has come so far while it runs (of one that another test started with pipes of its own: what it wrote, once it has ended)."""
+    if proc.pid not in _said:
+        out, err = proc.communicate()
+        return out or "", err or ""
+    drains = _said[proc.pid]
+    if proc.poll() is not None:
+        for drain in drains:
+            drain.join(10)
+    return "".join(drains[0].parts), "".join(drains[1].parts)
 
 
 PATIENCE_SEC = 120          # a daemon started or stopped on a machine that is busy with a whole test run takes its time: this is the longest a test waits for it, not how long it takes
@@ -86,7 +120,7 @@ def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: floa
     while time.monotonic() < deadline:
         if text in (text_if_readable(path) or ""):
             return
-        assert proc.poll() is None, f"the daemon ended early: {proc.communicate()}\nits log:\n{log_of(path.parent)}"
+        assert proc.poll() is None, f"the daemon ended early: {said(proc)}\nits log:\n{log_of(path.parent)}"
         time.sleep(0.02)
     proc.kill()
     raise AssertionError(f"{text!r} did not appear in {path} in {seconds} s; its log:\n{log_of(path.parent)}")
@@ -95,10 +129,12 @@ def wait_for(path: Path, text: str, proc: "subprocess.Popen[str]", seconds: floa
 def ended(proc: "subprocess.Popen[str]", data: Path, seconds: float = PATIENCE_SEC) -> tuple[str, str]:
     """Waits for the daemon to end and gives what it wrote to stdout and stderr; one that is still there when the time is up is killed and the test fails with its log."""
     try:
-        return proc.communicate(timeout=seconds)
+        proc.wait(timeout=seconds)
+        return said(proc)
     except subprocess.TimeoutExpired:
         proc.kill()
-        out, err = proc.communicate()
+        proc.wait()
+        out, err = said(proc)
         raise AssertionError(f"the daemon did not end in {seconds} s\nstdout: {out}\nstderr: {err}\nits log:\n{log_of(data)}") from None
 
 
