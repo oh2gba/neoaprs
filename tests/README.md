@@ -340,6 +340,8 @@
   for the page): starts, serves the page at the address its log tells, moves the page to the next free port when its port is in use (the ten after it) and goes
   on without the page when none is free, refuses a second daemon on the same data folder with exit 2, makes its database and log, keeps the capture it is fed,
   stops on SIGTERM / SIGINT / SIGHUP within the unit's 10 s, exit code 2 on a database it cannot use.
+* `test_startup_imports.py`: what is imported before the program works, read from `python -X importtime`: `--version` and `--help` load neither the web server nor Tornado, pydantic or cryptography; a plain start of the
+  daemon, up to its "is running" line, loads neither the certificates' library, the secure connection's code nor the support bundle's modules; with `--encryption` the library is loaded at once, for the key.
 * `test_open_stop.py`: the stop file (`neoaprs/stopfile.py`) and the commands on it: `neoaprs open` starts a detached daemon (given a fake radio on the loopback
   and `web/port` 0 in its database first, so that it never listens to the operator's serial ports or takes port 7303), waits for its page, prints the address,
   and finds the daemon again instead of starting a second; `neoaprs stop` ends it cleanly through the file (the log ends `NeoAPRS ended`, the lock is free); a
@@ -355,7 +357,14 @@
   own). `test_desktop_single.py`: the one-app rule (the lock, the loopback port and `show` / `quit`). `test_desktop_winshell.py`: the Windows shell against
   stand-ins for pywebview, pystray and Pillow in `sys.modules`. `test_desktop_qt.py`: the Qt shell headless with the real PySide6-WebEngine
   (`QT_QPA_PLATFORM=offscreen`; skipped when the extra `app` is not installed: `uv sync --frozen --extra app`): the window, its size, the stored page data, the
-  links, the tray menu.
+  links, the tray menu, and the window that shows the loading page before the daemon answers and closes when no page comes.
+* `test_desktop_splash.py`: the splash of Windows (`neoaprs/desktop/splash.py`) but its Win32 calls: the quick look at the app's arguments against the real parser's
+* `test_desktop_splash_shown.py` (a Windows desktop that is shown: GitHub's Windows runner; skipped in a service's or an SSH session's hidden window station and on every other system): the loading window of `neoaprs/desktop/splash.py` made with the Win32 calls themselves: there and shown, of its size at the screen's scale, in the middle of the work area, a tool window with no button on the taskbar, without the focus, and gone when it is taken away.
+  options, the look at a data folder an app holds already (no lock taken), the place at the DPI and the page's dark colours, the handle that closes it once from
+  anywhere, every place the app takes it away (before a message box of its own, which the splash would cover), and the entry's way to it importing nothing heavy (`-X importtime` in a process of its own).
+* `test_desktop_startup.py`: the desktop app's start: the loading page (`neoaprs/desktop/loading.py`: the page's icon and colours, nothing that moves), the session
+  opened in a thread of its own, the wait for the page every 0.05 s that looks at the lock only once the page answers, and `neoaprs app` on a slow daemon and on
+  one that never comes in virtual time (the wait's clock and sleep are the test's); the Windows shell's window before the page and with no page.
 * `test_release.py`: the release's files as far as a test can see them: the notes `scripts/release-notes.py` takes from a changelog, the ten files the workflow
   assembles (the wheel taken out), the `macos` job, the workflow's pins by major version and its one `contents: write`, the
   installer script's promises (per user, the autostart task on by default, the uninstaller order), and the bundled pmtiles found before the PATH.

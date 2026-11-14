@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 
 from neoaprs.paths import default_data_dir
@@ -17,7 +18,7 @@ from .daemonstate import is_running, page_answers, page_url
 from .logfile import LAUNCH_NAME, LOG_NAME
 from .output import say
 
-POLL_SEC = 0.25
+POLL_SEC = 0.05
 
 
 def parser() -> argparse.ArgumentParser:
@@ -54,17 +55,18 @@ def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
             return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
 
 
-def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float) -> str | None:
-    """The page's address once a daemon holds the folder and its page answers; None when `seconds` pass, or the daemon we started ended and none holds the folder."""
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        if is_running(data):
-            url = page_url(data)
-            if url is not None and page_answers(url):
-                return url
-        elif child is not None and child.poll() is not None:
+def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> str | None:
+    """The page's address once a daemon holds the folder and its page answers; None when `seconds` pass, or the daemon we started ended and none holds the folder. The page is asked before the lock is: a look
+    at the lock takes it for a moment, which must not be the moment the daemon that is starting takes it (it would find it held and end), and a daemon whose page answers has held it since before it listened.
+    `clock` and `sleep` are a test's virtual time."""
+    deadline = clock() + seconds
+    while clock() < deadline:
+        url = page_url(data)
+        if url is not None and page_answers(url) and is_running(data):
+            return url
+        if child is not None and child.poll() is not None and not is_running(data):
             return None
-        time.sleep(POLL_SEC)
+        sleep(POLL_SEC)
     return None
 
 

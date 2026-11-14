@@ -2,19 +2,21 @@
 menu bar on macOS), QWebEngineView in qtwindow.py the window. Without the web engine (no PySide6-WebEngine installed) it is the tray alone and the page goes to the browser. Closing the window hides it;
 with no tray to bring it back from (a desktop that has none), closing it quits, as the menu's Quit would. Other threads (a second app's `show`, the end of the daemon, the quit that runs while the daemon
 stops) reach the toolkit through the signals of `QtFrame`, which Qt queues to the main thread.
-`build(ctx)` makes everything and `run(ctx)` runs it; the headless test and the screenshot use `build`."""
+The window is made first, with the loading page in it (loading.py), and the Qt loop runs while the daemon comes up; the tray, the menu and the page come with the session (`Opening`, whose end reaches
+the main thread as a signal). `build(ctx)` makes everything for a session and `run(launch)` runs it; the headless test and the screenshot use `build`."""
 import logging
 import webbrowser
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-from .menu import AppActions
-from .shell import ShellContext
+from .menu import QUIT, AppActions
+from .session import NoPage
+from .shell import Launch, ShellContext
 
 if TYPE_CHECKING:
     from .qtwindow import AppWindow
@@ -151,11 +153,17 @@ def application() -> QApplication:
     return existing
 
 
-def build(ctx: ShellContext, app: QApplication | None = None) -> Built:
-    """The window, the tray and their wiring, nothing shown yet and nothing started: the app is `app` or the one that is running or a new one."""
+def prepared(app: QApplication | None = None) -> QApplication:
+    """The app (`app`, or the one that is running, or a new one) as the shell runs it: it goes on when its last window is closed (into the tray)."""
     app = app or application()
     app.setApplicationName("NeoAPRS")
     app.setQuitOnLastWindowClosed(False)
+    return app
+
+
+def build(ctx: ShellContext, app: QApplication | None = None, window: "AppWindow | None" = None) -> Built:
+    """The window (`window`, the one that shows the loading page, or a new one), the tray and their wiring for the session, nothing shown and nothing started: the app is `app` or the one that is running or a new one."""
+    app = prepared(app)
     icon = QIcon(str(icon_path()))
     frame = QtFrame(ctx.window)
     actions = ctx.actions_for(frame)
@@ -163,7 +171,9 @@ def build(ctx: ShellContext, app: QApplication | None = None) -> Built:
     tray = make_tray(built, icon)
     if ctx.window:
         from .qtwindow import AppWindow
-        frame.window = AppWindow(ctx.session.data, ctx.session.url, icon, lambda: close_hides(tray, actions))
+        window = window or AppWindow(ctx.session.data, ctx.session.url, icon, lambda: True)
+        window.on_close = lambda: close_hides(tray, actions)
+        frame.window = window
     return built
 
 
@@ -175,21 +185,78 @@ def close_hides(tray: QSystemTrayIcon, actions: AppActions) -> bool:
     return False
 
 
-def run(ctx: ShellContext) -> int:
-    built = build(ctx)
+class Opened(QObject):
+    """The session's arrival, from the thread that brought it to the main one (queued: it is heard once the loop runs)."""
+    arrived = Signal()
+
+
+def start(built: Built, ctx: ShellContext) -> None:
+    """The session is there: the tray, the end of the wait for it, the page in the window (or in the browser, with no window)."""
     window = built.window
     if built.tray is None or (window is None and not QSystemTrayIcon.isSystemTrayAvailable()):
         raise RuntimeError("this desktop has no system tray and the web engine is not installed: there is nothing to show")
     await_tray(built, built.tray)
     ctx.ready(built.actions)
     if window is not None:
-        window.load()
-        if not ctx.hidden:
-            window.raise_up()
+        window.load(ctx.session.url)
     elif not ctx.hidden:
         webbrowser.open(ctx.session.url)
     log.info("the Qt shell runs (%s)", "window and tray" if window is not None else "tray only")
-    code = int(built.app.exec())
-    if window is not None:
-        window.dispose()
-    return code
+
+
+def loading_window(launch: Launch) -> "AppWindow":
+    """The window as the app starts: at the size and place it was left, with the loading page, raised unless the app starts in the tray. Its close button is `close_while_loading`'s once `run` has it."""
+    from .qtwindow import AppWindow
+    window = AppWindow(launch.data, None, QIcon(str(icon_path())), lambda: True)
+    window.show_loading()
+    if not launch.hidden:
+        window.raise_up()
+    return window
+
+
+def close_while_loading(closed: list[bool]) -> bool:
+    """The close button before the session is there: the window hides while the desktop has a tray (the tray comes with the session); with none, the window closes and the close is kept, and the app
+    ends as soon as the session is there (the daemon too, if the app started it), as the close button of a window with no tray does."""
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        return True
+    closed.append(True)
+    return False
+
+
+def run(launch: Launch) -> int:
+    app = prepared()
+    if not launch.window:
+        try:
+            ctx = launch.context(launch.opening.result())
+        except NoPage as e:
+            return launch.no_page(e)
+        built = build(ctx, app)
+        start(built, ctx)
+        return int(built.app.exec())
+    window = loading_window(launch)
+    closed: list[bool] = []
+    window.on_close = lambda: close_while_loading(closed)
+    failed: list[NoPage] = []
+    kept: list[Built] = []
+
+    def arrived() -> None:
+        try:
+            ctx = launch.context(launch.opening.result())
+        except NoPage as e:
+            failed.append(e)
+            window.hide()
+            QApplication.exit(1)                                     # (the loop ends; no window is asked to close)
+            return
+        kept.append(build(ctx, app, window))
+        if closed:
+            log.info("the window was closed before the page came and this desktop has no tray: the app ends")
+            kept[0].actions.run(QUIT)
+            return
+        start(kept[0], ctx)
+
+    opened = Opened()
+    opened.arrived.connect(arrived, Qt.ConnectionType.QueuedConnection)
+    launch.opening.when_done(opened.arrived.emit)
+    code = int(app.exec())
+    window.dispose()
+    return launch.no_page(failed[0]) if failed else code

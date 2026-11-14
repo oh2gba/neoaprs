@@ -12,7 +12,6 @@ from typing import Any, Protocol
 
 import tornado.web
 
-from neoaprs.cli.supportmake import make_bundle
 from neoaprs.controller import Controller
 
 from .headers import origin_is_host
@@ -49,6 +48,7 @@ class Bundler:
             recorded = errors.snapshot()
 
             def build() -> tuple[str, bytes]:
+                from neoaprs.cli.supportmake import make_bundle       # (the modules that write the bundle are loaded by the first one, not by every start of the daemon)
                 with tempfile.TemporaryDirectory(prefix="neoaprs-support-") as folder:
                     made = make_bundle(ctl.data_dir, Path(folder), live=live, page=page, page_errors=recorded, install=ctl.install, running=True, by="the running daemon, asked by the page", now=ctl.clock, call=ctl.config.station_call)
                     return made.path.name, made.path.read_bytes()

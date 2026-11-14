@@ -12,10 +12,10 @@ from typing import Any
 
 import pytest
 
-from neoaprs.desktop import appstate, winplace, winshell
+from neoaprs.desktop import appstate, loading, winplace, winshell
 from neoaprs.desktop.menu import AUTOSTART, OPEN, QUIT
 from neoaprs.desktop.session import Session
-from neoaprs.desktop.shell import ShellContext
+from neoaprs.desktop.shell import Launch, ShellContext
 from neoaprs.desktop.single import SingleApp
 from tests.test_desktop_logic import PAGE, FakeAutoStart, FakeDaemon
 
@@ -115,6 +115,8 @@ class FakeWindow:
         self.events = types.SimpleNamespace(closing=Hook(), before_show=Hook(), shown=Hook(), resized=Hook(), moved=Hook(), maximized=Hook(), minimized=Hook(), restored=Hook(), loaded=Hook())
         self.calls: list[str] = []
         self.scripts: list[str] = []
+        self.loaded: list[str] = []
+        self.shown = True
         self.destroyed = threading.Event()
         self.user32 = user32
         self.native = types.SimpleNamespace(Handle=types.SimpleNamespace(ToInt64=lambda: FakeUser32.hwnd))      # (pywebview's WinForms Form, with its HWND)
@@ -141,6 +143,11 @@ class FakeWindow:
 
     def evaluate_js(self, script: str) -> None:
         self.scripts.append(script)
+
+    def load_url(self, url: str) -> None:
+        if not self.shown:
+            raise RuntimeError("Main window failed to start")            # (pywebview's load_url, when the window's `shown` does not come in time)
+        self.loaded.append(url)
 
 
 class FakeIcon:
@@ -245,7 +252,7 @@ class Rig:
         self.ctx = ShellContext(Session(self.data, PAGE, owned=False), hidden, window, self.auto, self.single, self.daemon)
 
     def run(self) -> int:
-        return winshell.run(self.ctx)
+        return winshell.run(Launch.of(self.ctx))
 
 
 def until(condition: Any, seconds: float = 10.0) -> None:
@@ -289,13 +296,15 @@ def test_the_window_has_the_size_it_had_is_hidden_in_the_tray_and_starts_on_edge
     appstate.save_window(rig.data, kept(False))
     thread = launch(rig)
     (window,) = rig.toolkits.windows
-    assert window.args == ("NeoAPRS", PAGE + "#app") and (window.kwargs["width"], window.kwargs["height"]) == (1000, 700) and window.kwargs["hidden"] is True and window.kwargs["text_select"] is True
+    assert window.args == ("NeoAPRS",) and window.kwargs["html"] == loading.HTML and window.loaded == [PAGE + "#app"], "the loading page first, then the daemon's"
+    assert (window.kwargs["width"], window.kwargs["height"]) == (1000, 700) and window.kwargs["hidden"] is True and window.kwargs["text_select"] is True
+    assert window.kwargs["background_color"] == loading.background(winshell.dark_scheme()), "the page's background in the scheme of the system, before anything is painted"
     assert (window.kwargs["x"], window.kwargs["y"], window.kwargs["maximized"]) == (100, 60, False), "the placement's rectangle, as a first guess"
     assert isinstance(window.kwargs["js_api"], winshell.LinkApi)
     assert rig.toolkits.started == [{"gui": "edgechromium", "private_mode": False, "storage_path": str(rig.data / "webview")}]
     assert rig.toolkits.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] is True and rig.browser == []
     icon = rig.toolkits.icons[0]
-    assert (icon.name, icon.title, icon.image[0]) == ("NeoAPRS", "NeoAPRS", "image") and icon.image[1].endswith("icon.png") and icon.calls == ["run_detached"]
+    assert (icon.name, icon.title, icon.image[0]) == ("NeoAPRS", "NeoAPRS", "image") and icon.image[1].endswith("icon.png") and icon.calls == ["run_detached", "update_menu"]
     quit_through_the_menu(rig, thread)
     assert icon.calls[-1] == "stop" and window.calls[-1] == "destroy"
 
@@ -495,6 +504,29 @@ def test_a_window_started_in_the_tray_gets_its_placement_when_it_is_opened(tmp_p
     assert user32.placed == [(winplace.SW_HIDE, NORMAL)] and "window: start: in the tray, the placement is applied when the window is opened" in lines(caplog)
     menu_item(rig, "Open NeoAPRS").action(rig.toolkits.icons[0], menu_item(rig, "Open NeoAPRS"))
     assert user32.placed[-1] == (winplace.SW_SHOWMAXIMIZED, NORMAL) and user32.visible
+    quit_through_the_menu(rig, thread)
+
+
+def test_a_window_in_the_tray_that_cannot_load_its_page_yet_leaves_the_app_listening_and_gets_the_page_when_it_is_shown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                                                                                                       caplog: pytest.LogCaptureFixture) -> None:
+    rig = Rig(tmp_path, monkeypatch, hidden=True)
+    create = rig.toolkits.create_window
+
+    def unshown(*args: Any, **kwargs: Any) -> FakeWindow:
+        window = create(*args, **kwargs)
+        window.shown = False
+        return window
+
+    monkeypatch.setattr(sys.modules["webview"], "create_window", unshown)
+    thread = launch(rig)
+    window = rig.toolkits.windows[0]
+    until(lambda: "window: the page is loaded when the window is shown (Main window failed to start)" in lines(caplog, logging.WARNING))
+    assert rig.ctx.watch is not None and window.loaded == [], "the app heard the session (the daemon watched, the one-app lock answered) though the page waits"
+    window.shown = True
+    for shown in window.events.shown.handlers:
+        shown()
+    window.events.shown.handlers[-1]()
+    assert window.loaded == [PAGE + "#app"], "the page once, at the first show"
     quit_through_the_menu(rig, thread)
 
 

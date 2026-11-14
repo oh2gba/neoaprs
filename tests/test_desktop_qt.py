@@ -1,6 +1,7 @@
 """The Qt shell with the real toolkit, headless (QT_QPA_PLATFORM=offscreen; PySide6-WebEngine from the extra `app`, the whole module skipped without it): the window is made with its title and size and shows a page
 served on the loopback, remembers its size, hides when it is closed, keeps what the page stores in the data folder, sends the links to other sites (and the new windows `target="_blank"` asks for) to the browser
 and never shows them, and the tray menu is made from the data of the actions. There is no tray in the offscreen platform, so the tray itself is what only a real desktop can say."""
+import contextlib
 import http.server
 import os
 import threading
@@ -14,15 +15,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--no-sandbox --disable-gpu")         # (the sandbox of Chromium needs what a container or a test runner may not give; this is a test of ours)
 pytest.importorskip("PySide6.QtWebEngineWidgets")
 
+from shiboken6 import delete  # noqa: E402
 from PySide6.QtCore import QEventLoop, QTimer, QUrl  # noqa: E402
 from PySide6.QtWebEngineCore import QWebEnginePage  # noqa: E402
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon  # noqa: E402
 
-from neoaprs.desktop import appstate, qtshell  # noqa: E402
+from neoaprs.cli import opencmd  # noqa: E402
+from neoaprs.desktop import appstate, loading, qtshell  # noqa: E402
 from neoaprs.desktop.menu import AUTOSTART, QUIT, SUPPORT  # noqa: E402
 from neoaprs.desktop.qtwindow import AppWindow  # noqa: E402
-from neoaprs.desktop.session import Session  # noqa: E402
-from neoaprs.desktop.shell import ShellContext  # noqa: E402
+from neoaprs.desktop.session import NoPage, Opening, Session  # noqa: E402
+from neoaprs.desktop.shell import Launch, ShellContext  # noqa: E402
 from neoaprs.desktop.single import SingleApp  # noqa: E402
 from tests.test_desktop_logic import FakeAutoStart, FakeDaemon  # noqa: E402
 
@@ -283,6 +286,93 @@ def test_the_app_that_runs_is_the_one_the_shell_uses(qapp: QApplication) -> None
     assert qtshell.application() is qapp
 
 
+# ---- the start: the window with the loading page before the daemon answers, its page after, and no page
+
+def gone(windows: list[AppWindow], qapp: QApplication) -> None:
+    """The windows a run made are deleted (Qt's quit of a later test would close them, and a window whose page is gone is not one to close)."""
+    for window in windows:
+        window.on_close = lambda: True
+        delete(window)                                                       # (a deleteLater waits for a loop that this test does not run)
+    qapp.processEvents()
+
+
+@contextlib.contextmanager
+def app_loop(monkeypatch: pytest.MonkeyPatch, seconds: float = 60.0) -> Iterator[None]:
+    """The app's loop as a loop of the test's: exec runs it, quit and exit end it. A real quit of the application is once in a process (the web engine is taken down at it), and a later test would crash;
+    the loop is ended after `seconds` if the test has not ended it (a failure ends the loop, not the run)."""
+    loop = QEventLoop()
+    monkeypatch.setattr(QApplication, "exec", lambda self: loop.exec())
+    monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: loop.exit(0)))
+    monkeypatch.setattr(QApplication, "exit", staticmethod(lambda code=0: loop.exit(code)))
+    timer = QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(lambda: loop.exit(99))
+    timer.start(int(seconds * 1000))
+    try:
+        yield
+    finally:
+        timer.stop()
+
+
+def test_the_window_shows_the_loading_page_before_the_daemon_answers_and_then_its_page(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    gate = threading.Event()
+    opening = Opening(tmp_path, lambda: (gate.wait(30), Session(tmp_path, page_url, owned=False))[1]).start()
+    launch = Launch(tmp_path, opening, False, True, FakeAutoStart(), SingleApp(tmp_path), FakeDaemon(up=True))
+    seen: list[tuple[str, object]] = []
+    monkeypatch.setattr(qtshell, "await_tray", lambda built, tray: seen.append(("tray", None)))
+    made = qtshell.loading_window
+
+    windows: list[AppWindow] = []
+
+    def watched(launch: Launch) -> AppWindow:
+        window = made(launch)
+        windows.append(window)
+        seen.append(("window", (window.isVisible(), opening.done())))
+
+        def finished(ok: bool) -> None:
+            if window.view.url().scheme() == "http":
+                seen.append(("page", window.page.url().toString()))
+                QTimer.singleShot(0, QApplication.quit)
+            elif not gate.is_set():
+                seen.append(("loading", (window.view.grab().toImage().pixelColor(8, 8).name(), opening.done())))
+                gate.set()                                                   # the daemon answers only now
+        window.view.loadFinished.connect(finished)
+        return window
+
+    monkeypatch.setattr(qtshell, "loading_window", watched)
+    with app_loop(monkeypatch):
+        try:
+            assert qtshell.run(launch) == 0
+        finally:
+            gate.set()
+            launch.close()
+            gone(windows, qapp)
+    assert [name for name, _ in seen] == ["window", "loading", "tray", "page"]
+    assert seen[0][1] == (True, False), "the window is up while the daemon is not"
+    assert seen[1][1] in {(colour, False) for colour in loading.BACKGROUND.values()}, "the loading page, on the page's background, while the daemon is not up"
+    assert seen[3][1] == page_url + "#app"
+
+
+def test_when_no_page_comes_the_window_closes_and_the_app_says_why(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_page() -> Session:
+        raise NoPage(f"no page came up on {tmp_path} within 60 s; see the log, neoaprs.log in that folder")
+
+    told: list[str] = []
+    monkeypatch.setattr(opencmd, "tell_the_user", told.append)
+    single = SingleApp(tmp_path)
+    assert single.acquire()
+    disposed: list[bool] = []
+    windows: list[AppWindow] = []
+    dispose = AppWindow.dispose
+    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (disposed.append(not self.isVisible()), windows.append(self), dispose(self)))
+    launch = Launch(tmp_path, Opening(tmp_path, no_page).start(), False, True, FakeAutoStart(), single, FakeDaemon(up=True))
+    with app_loop(monkeypatch):
+        assert qtshell.run(launch) == 1
+    gone(windows, qapp)
+    assert disposed == [True] and told == [f"app: NeoAPRS did not come up: no page came up on {tmp_path} within 60 s; see the log, neoaprs.log in that folder. The log is {tmp_path / 'neoaprs.log'}"]
+    assert not SingleApp(tmp_path).running()
+
+
 # ---- the edges: the shell that runs, a tray that comes late, a message to a tray, and a frame with no window
 
 class FakeTray:
@@ -305,13 +395,13 @@ class FakeTray:
 
 
 class Ran:
-    """What `run` did, written down: the app's exec ends at once with a code, and the tray's wait is a record."""
+    """What `run` did, written down: the app's exec delivers what is waiting (the session's arrival) and ends with a code, and the tray's wait is a record."""
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch, tray_available: bool) -> None:
         self.waited: list[object] = []
         self.opened: list[str] = []
         self.ready: list[object] = []
-        monkeypatch.setattr(QApplication, "exec", lambda self: 7)
+        monkeypatch.setattr(QApplication, "exec", lambda self: (QApplication.processEvents(), 7)[1])
         monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: tray_available))
         monkeypatch.setattr(qtshell, "await_tray", lambda built, tray: self.waited.append(tray))
         monkeypatch.setattr(qtshell.webbrowser, "open", self.opened.append)
@@ -328,13 +418,13 @@ def test_the_shell_with_a_window_and_a_tray_loads_the_page_raises_the_window_and
     ctx = context(tmp_path, page_url, window=True, hidden=False, ran=ran)
     shown: list[bool] = []
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.raise_up", lambda self: shown.append(True))
-    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self: shown.append(False))
+    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self, url=None: shown.append(False))
     disposed: list[bool] = []
     dispose = AppWindow.dispose
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (disposed.append(True), dispose(self)))
     with caplog.at_level("INFO", "neoaprs.desktop"):
-        assert qtshell.run(ctx) == 7
-    assert shown == [False, True] and disposed == [True] and len(ran.waited) == 1 and len(ran.ready) == 1 and ran.opened == []
+        assert qtshell.run(Launch.of(ctx)) == 7
+    assert shown == [True, False] and disposed == [True] and len(ran.waited) == 1 and len(ran.ready) == 1 and ran.opened == []
     assert "the Qt shell runs (window and tray)" in caplog.text
 
 
@@ -343,26 +433,48 @@ def test_a_shell_started_hidden_does_not_raise_the_window(tmp_path: Path, qapp: 
     ctx = context(tmp_path, page_url, window=True, hidden=True, ran=ran)
     shown: list[str] = []
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.raise_up", lambda self: shown.append("raised"))
-    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self: shown.append("loaded"))
+    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.load", lambda self, url=None: shown.append("loaded"))
     dispose = AppWindow.dispose
     monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.dispose", lambda self: (shown.append("disposed"), dispose(self)))
-    assert qtshell.run(ctx) == 7
+    assert qtshell.run(Launch.of(ctx)) == 7
     assert shown == ["loaded", "disposed"]
 
 
 def test_the_shell_with_a_tray_and_no_window_opens_the_page_in_the_browser_unless_it_starts_hidden(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     ran = Ran(monkeypatch, tray_available=True)
     with caplog.at_level("INFO", "neoaprs.desktop"):
-        assert qtshell.run(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran)) == 7
+        assert qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran))) == 7
     assert ran.opened == ["http://127.0.0.1:7303/"] and "tray only" in caplog.text
-    assert qtshell.run(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=True, ran=ran)) == 7
+    assert qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=True, ran=ran))) == 7
     assert ran.opened == ["http://127.0.0.1:7303/"], "(started hidden: nothing is opened)"
+
+
+def test_a_window_closed_while_it_loads_on_a_desktop_with_no_tray_ends_the_app_once_the_session_is_there(tmp_path: Path, qapp: QApplication, page_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    ran = Ran(monkeypatch, tray_available=False)
+    ctx = context(tmp_path, page_url, window=True, hidden=False, ran=ran)
+    monkeypatch.setattr("neoaprs.desktop.qtwindow.AppWindow.raise_up", lambda self: None)
+    windows: list[AppWindow] = []
+    made = qtshell.loading_window
+    monkeypatch.setattr(qtshell, "loading_window", lambda launch: (windows.append(made(launch)), windows[-1])[1])
+    monkeypatch.setattr(QApplication, "exec", lambda self: (windows[0].close(), QApplication.processEvents(), 7)[2])     # the close button, before the session's arrival is heard
+    asked: list[str] = []
+    monkeypatch.setattr("neoaprs.desktop.menu.AppActions.run", lambda self, key: asked.append(key))
+    assert qtshell.run(Launch.of(ctx)) == 7
+    assert asked == [QUIT] and ran.waited == [] and ran.ready == [], "the app ends (its daemon too, if it started it), no tray is waited for and the window does not come back"
+
+
+def test_a_window_closed_while_it_loads_hides_where_the_desktop_has_a_tray(monkeypatch: pytest.MonkeyPatch) -> None:
+    closed: list[bool] = []
+    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: True))
+    assert qtshell.close_while_loading(closed) is True and closed == []
+    monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: False))
+    assert qtshell.close_while_loading(closed) is False and closed == [True]
 
 
 def test_a_desktop_with_no_tray_and_no_web_engine_has_nothing_to_show_and_the_shell_says_so(tmp_path: Path, qapp: QApplication, monkeypatch: pytest.MonkeyPatch) -> None:
     ran = Ran(monkeypatch, tray_available=False)
     with pytest.raises(RuntimeError, match="no system tray and the web engine is not installed"):
-        qtshell.run(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran))
+        qtshell.run(Launch.of(context(tmp_path, "http://127.0.0.1:7303/", window=False, hidden=False, ran=ran)))
     assert ran.ready == [] and ran.waited == []
 
 

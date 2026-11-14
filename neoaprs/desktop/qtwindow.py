@@ -7,12 +7,12 @@ from pathlib import Path
 
 from shiboken6 import delete
 from PySide6.QtCore import QObject, QPoint, Qt, QTimer, QUrl
-from PySide6.QtGui import QCloseEvent, QGuiApplication, QIcon, QMoveEvent, QResizeEvent
+from PySide6.QtGui import QCloseEvent, QColor, QGuiApplication, QIcon, QMoveEvent, QResizeEvent
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineProfileBuilder
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMainWindow
 
-from . import appstate
+from . import appstate, loading
 from .links import open_external, route, window_url
 
 log = logging.getLogger("neoaprs.desktop")
@@ -33,22 +33,27 @@ def make_profile(data: Path, parent: QObject | None = None) -> QWebEngineProfile
 
 class AppPage(QWebEnginePage):
     """The page of the window: it follows the daemon's own address and hands every other one to the browser. The page the engine makes for a new window (a link with `target="_blank"`) is an `AppPage` too, which
-    never shows: the first thing it is asked to load is routed and the page is dropped."""
+    never shows: the first thing it is asked to load is routed and the page is dropped. Until the daemon's page is there (`page_url` None) it shows the loading page, the one `data:` address it lets in,
+    once, when `loading` says that it is the one asked for."""
 
-    def __init__(self, profile: QWebEngineProfile, page_url: str, parent: QObject | None = None, opener_of: "AppPage | None" = None) -> None:
+    def __init__(self, profile: QWebEngineProfile, page_url: str | None, parent: QObject | None = None, opener_of: "AppPage | None" = None) -> None:
         super().__init__(profile, parent)
         self.page_url = page_url
+        self.loading = False
         self._main = opener_of
 
     def acceptNavigationRequest(self, url: QUrl | str, type: QWebEnginePage.NavigationType, isMainFrame: bool) -> bool:  # noqa: A002  (Qt's names)
         address = url.toString() if isinstance(url, QUrl) else str(url)
-        where = route(address, self.page_url)
+        if self.loading and isMainFrame and address.startswith("data:text/html"):
+            self.loading = False
+            return True
+        where = route(address, self.page_url or "")
         if where == "window":
             if self._main is not None:
                 self._main.setUrl(QUrl(address))                   # a new window for our own page: it is the window we have
                 return False
             return True
-        if where == "browser" and not open_external(address, self.page_url):
+        if where == "browser" and not open_external(address, self.page_url or ""):
             log.warning("no browser could be started for %s", address)
         elif where == "block":
             log.info("not opened: %s", address)
@@ -60,12 +65,13 @@ class AppPage(QWebEnginePage):
 
 class AppWindow(QMainWindow):
     """Title "NeoAPRS", the page, the size and place it had last time (the place only when a screen has it still), maximized if it was left so. `on_close` is asked when the close button is used: it says whether the window
-    should be hidden (True: NeoAPRS goes on in the tray) or the app ends."""
+    should be hidden (True: NeoAPRS goes on in the tray) or the app ends. Made with no `url`, it shows the loading page (`show_loading`) until `load(url)` gives it the daemon's; the engine paints the page's
+    background of the system's scheme until either has painted."""
 
-    def __init__(self, data: Path, url: str, icon: QIcon, on_close: Callable[[], bool]) -> None:
+    def __init__(self, data: Path, url: str | None, icon: QIcon, on_close: Callable[[], bool]) -> None:
         super().__init__()
         self.data = data
-        self.url = url
+        self.url = url or ""                                  # ("": not there yet)
         self.on_close = on_close
         self.setWindowTitle("NeoAPRS")
         self.setWindowIcon(icon)
@@ -77,6 +83,7 @@ class AppWindow(QMainWindow):
             self.setWindowState(Qt.WindowState.WindowMaximized)
         self.profile = make_profile(data, self)
         self.page = AppPage(self.profile, url, self)
+        self.page.setBackgroundColor(QColor(loading.background(QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark)))
         self.view = QWebEngineView(self)
         self.view.setPage(self.page)
         self.setCentralWidget(self.view)
@@ -85,7 +92,14 @@ class AppWindow(QMainWindow):
         self._saver.setInterval(SAVE_SIZE_MS)
         self._saver.timeout.connect(self.remember_geometry)
 
-    def load(self) -> None:
+    def show_loading(self) -> None:
+        self.page.loading = True
+        self.page.setHtml(loading.HTML)
+
+    def load(self, url: str | None = None) -> None:
+        """The daemon's page (`url`, or the one the window was made with) in place of what the window shows."""
+        if url is not None:
+            self.url = self.page.page_url = url
         self.view.setUrl(QUrl(window_url(self.url)))
 
     def dispose(self) -> None:

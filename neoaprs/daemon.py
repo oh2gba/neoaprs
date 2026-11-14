@@ -22,21 +22,18 @@ import time
 from dataclasses import replace
 from pathlib import Path
 from types import FrameType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from . import PROGRAM, VERSION, selfreplace, stopfile
-from .config import Config
-from .controller import Controller
 from .dberror import SqlError, StoreError
 from .instancelock import AlreadyRunning, InstanceLock
 from .migrationlog import MIGRATION_LOG
 from .paths import default_data_dir
 from .cli import uncaught
 from .cli.logfile import LOG_NAME, START_FORMAT
-from .cli.installkind import detect_here
-from .cli.supportgather import system_description
-from .cli.servicecmd import appimage_file
-from .web.server import WebServer
+
+if TYPE_CHECKING:
+    from .controller import Controller
 
 DATABASE_UNUSABLE = 2
 FOLDER_UNUSABLE = 1
@@ -182,6 +179,11 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
     log = logging.getLogger("neoaprs")
     _private_data_dir(data_dir, log)
     log.info(START_FORMAT, PROGRAM, VERSION, data_dir)
+    from .cli.installkind import detect_here               # (the imports of what runs the daemon come after the first line of the log, and `neoaprs --version` and `--help` import none of them)
+    from .cli.systemdescription import system_description
+    from .config import Config
+    from .controller import Controller
+    from .web.server import WebServer
     install = detect_here(data_dir)
     log.info("running on %s, %s, Python %s, installed as %s, pid %d", system_description(), platform.machine(), platform.python_version(), install.kind, os.getpid())
     log.info("encrypted messages: %s", "allowed (--encryption)" if args.encryption else "off (the daemon was started without --encryption)")      # (a support report says which)
@@ -214,7 +216,7 @@ async def _run_locked(args: argparse.Namespace, data_dir: Path, after: list[list
         restore()
 
 
-async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logger) -> int:
+async def _serve(controller: "Controller", stop: asyncio.Event, log: logging.Logger) -> int:
     try:
         await controller.start()
     except (StoreError, SqlError) as e:
@@ -226,6 +228,7 @@ async def _serve(controller: Controller, stop: asyncio.Event, log: logging.Logge
         raise
     log.info("%s is running", PROGRAM)
     stopfile.clear_restart(controller.data_dir)              # (a restart as a new version is over)
+    from .cli.servicecmd import appimage_file
     selfreplace.remove_old(appimage_file())
     await stop.wait()
     log.info("%s is closing", PROGRAM)

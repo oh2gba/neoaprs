@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import daemon as entry
+from neoaprs import controller as controller_module
 from neoaprs import migrations as migrations_module
 from neoaprs import selfreplace
 from neoaprs.controller import Controller
@@ -178,8 +179,8 @@ async def test_a_file_that_another_writer_holds_ends_the_daemon_with_2_untouched
     version_three(data / DB_NAME, FixedClock())
     holder = raw(data / DB_NAME)
     holder.execute("BEGIN IMMEDIATE")
-    real = entry.Controller
-    monkeypatch.setattr(entry, "Controller", lambda *args, **kwargs: real(*args, **{**kwargs, "busy_ms": 20}))     # (the daemon waits seconds for a writer; the test does not)
+    real = Controller
+    monkeypatch.setattr(controller_module, "Controller", lambda *args, **kwargs: real(*args, **{**kwargs, "busy_ms": 20}))     # (the daemon waits seconds for a writer; the test does not)
     try:
         first = InProcess(data)
         assert await first.ended() == DATABASE_UNUSABLE

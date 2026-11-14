@@ -13,9 +13,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Literal
-
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from typing import TYPE_CHECKING, Literal
 
 from neoaprs.coded import CodedError
 from neoaprs.signal import Signal
@@ -25,6 +23,9 @@ from neoaprs.updatedownload import Allowed, Cancelled, DownloadError, Progress, 
 from neoaprs.versions import InstallInfo
 
 from .selfinstall import Installer, InstallError
+
+if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 log = logging.getLogger("neoaprs.update")
 
@@ -57,8 +58,11 @@ class UpdateNowError(CodedError):
 
 
 class SelfUpdate:
+    def _release_key(self) -> "Ed25519PublicKey":
+        return self._key() if callable(self._key) else self._key if self._key is not None else public_key()
+
     def __init__(self, install: InstallInfo, installer: Installer | None, latest: Callable[[], str | None], source: tuple[str, Allowed], fetch_sums: FetchSums = fetch_bytes,
-                 fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC, end: Callable[[], None] = lambda: None, key: Ed25519PublicKey | None = None) -> None:
+                 fetch: FetchFile = fetch_file, restart_grace_sec: float = RESTART_GRACE_SEC, end: Callable[[], None] = lambda: None, key: "Ed25519PublicKey | Callable[[], Ed25519PublicKey] | None" = None) -> None:
         self.install = install
         self.installer = installer
         self._latest = latest                   # the version the update check announced, None while there is none
@@ -66,7 +70,7 @@ class SelfUpdate:
         self._fetch_sums = fetch_sums
         self._fetch = fetch
         self.restart_grace_sec = restart_grace_sec
-        self._key = key if key is not None else public_key()          # the project's key (a test's own with NEOAPRS_UPDATE_KEY: neoaprs/services/selfinstall.py, release_key)
+        self._key = key                         # the project's key when None (a test's own with NEOAPRS_UPDATE_KEY: neoaprs/services/selfinstall.py, release_key); a function gives it when it is first needed, so that the library is not loaded by a daemon that never checks a download
         self._end = end                         # ends the daemon when the installer asked for a restart into the new file (an AppImage); nothing otherwise
         self.changed: Signal[[]] = Signal("update_changed")
         self._tasks = TaskSet(log, "update")
@@ -150,7 +154,7 @@ class SelfUpdate:
             self._fail("unverified", f"the update to {version} could not be checked: {e}; nothing is installed")
             return
         try:
-            expected = signed_checksum(sums, signature, version, name, self._key)
+            expected = signed_checksum(sums, signature, version, name, self._release_key())
         except Unverified as e:
             self._fail("unverified", f"the update to {version} could not be checked: {e}; nothing is installed")
             return

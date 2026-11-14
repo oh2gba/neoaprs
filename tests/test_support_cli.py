@@ -16,6 +16,7 @@ from neoaprs.cli import supportcmd, supportmake, uncaught
 from neoaprs.cli import main as neoaprs
 from neoaprs.cli.supportmake import Made
 from neoaprs.cli.supportreadme import MAIL
+from neoaprs.cli.systemdescription import system_description
 from neoaprs.desktop import menu
 from neoaprs.desktop.menu import SUPPORT, AppActions
 from neoaprs.desktop.session import Session
@@ -213,7 +214,7 @@ def test_the_start_has_a_second_line_that_says_where_it_runs(tmp_path: Path) -> 
     assert found, second
     if sys.platform != "win32":                                     # (on Windows the venv's python.exe is a launcher that starts the real interpreter: another process id)
         assert int(found.group(2)) == pid
-    assert "running on " + entry.system_description() in second
+    assert "running on " + system_description() in second
     assert "running on" not in err, "the rest of the INFO lines stay in the log file"
 
 

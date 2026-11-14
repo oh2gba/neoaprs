@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.web import access as web_access
+from neoaprs.cli import supportmake
 from neoaprs.web import supporthandler
 from neoaprs.web.access import COOKIE
 from neoaprs.web.browser import browser_of
@@ -136,13 +137,13 @@ async def test_a_body_over_256_kilobytes_is_refused_and_one_a_little_under_it_is
 async def test_only_one_bundle_is_made_at_a_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     e = await served(tmp_path)
     started, release = threading.Event(), threading.Event()
-    real = supporthandler.make_bundle
+    real = supportmake.make_bundle
 
     def slow(*args: object, **kwargs: object) -> object:
         started.set()
         assert release.wait(10)
         return real(*args, **kwargs)  # type: ignore[arg-type]
-    monkeypatch.setattr(supporthandler, "make_bundle", slow)
+    monkeypatch.setattr(supportmake, "make_bundle", slow)
     assert e.server is not None
     first = asyncio.create_task(bundle(e))
     await until(started.is_set)
@@ -159,7 +160,7 @@ async def test_a_bundle_that_cannot_be_made_is_a_500_that_says_to_look_in_the_lo
 
     def broken(*args: object, **kwargs: object) -> object:
         raise OSError("the disk is full")
-    monkeypatch.setattr(supporthandler, "make_bundle", broken)
+    monkeypatch.setattr(supportmake, "make_bundle", broken)
     answer = await e.fetch("/support/bundle", method="POST", body=BODY)
     assert answer.code == 500 and b"the log says why" in answer.body
     assert any("could not be made" in r.getMessage() and r.exc_info for r in caplog.records)

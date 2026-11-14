@@ -22,12 +22,6 @@ import binascii
 import hashlib
 import secrets
 
-from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-
 from neoaprs.aprsmessage import MAX_TEXT
 from neoaprs.coded import CodedError
 
@@ -59,12 +53,15 @@ def _unb64(text: str) -> bytes | None:
 
 
 # ---- keys
+# The library (cryptography) is imported where a key is used, not at the top: a daemon without --encryption that has no key of its own never loads it (it makes its key at the start when it has the flag).
 def new_private() -> bytes:
     """A new private key, 32 random bytes."""
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
     return X25519PrivateKey.generate().private_bytes_raw()
 
 
 def public_of(private: bytes) -> bytes:
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
     return X25519PrivateKey.from_private_bytes(private).public_key().public_bytes_raw()
 
 
@@ -76,6 +73,9 @@ def fingerprint(public: bytes) -> str:
 
 def shared_key(private: bytes, peer_public: bytes) -> bytes:
     """The 32-byte key two stations share: X25519 of our private and their public key, through HKDF-SHA256. The same from either side. Raises ValueError for a public key no key is shared with (`is_usable_key`)."""
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     secret = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(peer_public))
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=_INFO).derive(secret)
 
@@ -85,6 +85,7 @@ def is_usable_key(public: bytes) -> bool:
     the exchange), so a station that announces such a key is announcing nothing, and keeping it would fail every message to and from it."""
     if len(public) != KEY_LEN:
         return False
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
     try:
         X25519PrivateKey.generate().exchange(X25519PublicKey.from_public_bytes(public))
     except ValueError:
@@ -129,6 +130,7 @@ def check_locked_text(text: str) -> bytes:
 def seal(key: bytes, sender: str, addressee: str, text: str, nonce: bytes | None = None) -> str:
     """The text of the message that carries `text` encrypted from `sender` to `addressee` with the pair's key: `!E` and base64 of the nonce, the ciphertext and the tag, at most MAX_TEXT characters.
     Raises CipherError as `check_locked_text` does. `nonce` is for the tests; else six random bytes."""
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     data = check_locked_text(text)
     salt = secrets.token_bytes(NONCE_LEN) if nonce is None else nonce
     encryptor = Cipher(algorithms.AES(key), modes.GCM(salt + b"\0" * (_GCM_NONCE_LEN - NONCE_LEN), None, TAG_LEN)).encryptor()
@@ -142,6 +144,8 @@ def open_sealed(key: bytes, sender: str, addressee: str, wire: str) -> str | Non
     or not UTF-8 inside."""
     if not is_locked(wire):
         return None
+    from cryptography.exceptions import InvalidTag
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     data = _unb64(wire[len(LOCK_MARK):].rstrip())
     if data is None or len(data) < NONCE_LEN + TAG_LEN + 1:
         return None

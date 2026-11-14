@@ -24,6 +24,7 @@ log = logging.getLogger("neoaprs.desktop")
 
 OPEN, BROWSER, AUTOSTART, SUPPORT, QUIT = "open", "browser", "autostart", "support", "quit"
 KEEPS_RUNNING = "NeoAPRS keeps running as a service"
+OPEN_LABEL = "Open NeoAPRS"
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,7 @@ class AppActions:
 
     def items(self) -> list[Item]:
         owned = self.session.owned
-        items = [Item(OPEN, "Open NeoAPRS")]
+        items = [Item(OPEN, OPEN_LABEL)]
         if self.frame.has_window:
             items.append(Item(BROWSER, "Open in browser"))
         if self.autostart is not None:

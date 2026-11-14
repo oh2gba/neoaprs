@@ -28,7 +28,6 @@ from .addresses import as_address
 
 log = logging.getLogger("neoaprs.web")
 
-FOLDER = "tls"
 CA_DAYS = 3650
 SERVER_DAYS = 800
 RENEW_BEFORE_DAYS = 30

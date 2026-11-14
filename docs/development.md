@@ -623,6 +623,7 @@ A user with a problem sends one zip ([the log and the support bundle](daemon.md#
 | `neoaprs/cli/supportreadme.py` | `README.txt`, with the one line for each file (`FILE_HELP`) and what is left out |
 | `neoaprs/cli/supportmake.py` | `make_bundle` runs the gatherers (a failed one is `<name>.error.txt`), finds the Desktop and starts the file manager; the daemon, the command and the tray all call it |
 | `neoaprs/cli/supportcmd.py` | `neoaprs support` |
+| `neoaprs/cli/systemdescription.py` | the system's name for `summary.txt` and for the daemon's second line of the log, apart so that the daemon does not load the modules above to say it |
 | `neoaprs/supportsql.py` | the statements, read-only (a home of SQL in `tests/test_architecture.py`) |
 | `neoaprs/web/supporthandler.py`, `supportstate.py` | `POST /support/bundle`, and `state.json` from the running parts |
 | `neoaprs/web/supportsend.py`, `neoaprs/updatefetch.py` (`post_form`) | `POST /support/send`: the same bundle posted with the note to the project's server (`SUPPORT_URL` of `neoaprs/versions.py`) |

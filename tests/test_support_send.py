@@ -210,12 +210,12 @@ async def test_only_one_is_made_and_sent_at_a_time(tmp_path: Path, monkeypatch: 
 
 @pytest.mark.expects_errors
 async def test_a_bundle_that_cannot_be_made_is_a_500_and_nothing_is_sent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from neoaprs.web import supporthandler
+    from neoaprs.cli import supportmake
     e, fake = await served(tmp_path, monkeypatch)
 
     def broken(*args: object, **kwargs: object) -> object:
         raise OSError("the disk is full")
-    monkeypatch.setattr(supporthandler, "make_bundle", broken)
+    monkeypatch.setattr(supportmake, "make_bundle", broken)
     assert (await send(e))[0] == 500
     assert fake.requests == [] and e.server is not None and not e.server.bundles.sending
 

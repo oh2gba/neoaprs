@@ -16,15 +16,16 @@ import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 from urllib.parse import urlsplit
 
 from neoaprs.instancelock import APP_LOCK_NAME, is_held
 from neoaprs.selfreplace import keep_old
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
 from neoaprs.updateasset import RELEASES, SELF_UPDATING, public_key, url_allowed
 from neoaprs.versions import InstallInfo
+
+if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 log = logging.getLogger("neoaprs.update")
 
@@ -201,7 +202,7 @@ def _fake_release(environ: Mapping[str, str]) -> str:
     return loopback_folder(environ.get(ENV_FROM, "")) if wanted else ""
 
 
-def release_key(environ: Mapping[str, str] = os.environ) -> Ed25519PublicKey:
+def release_key(environ: Mapping[str, str] = os.environ) -> "Ed25519PublicKey":
     """The key the signature of SHA256SUMS must hold with: the project's (neoaprs/updateasset.py, PUBLIC_KEY); `NEOAPRS_UPDATE_KEY` only while Update now downloads from the fake server of `NEOAPRS_UPDATE_FROM`,
     and never a key that is not one."""
     text = environ.get(ENV_KEY, "")

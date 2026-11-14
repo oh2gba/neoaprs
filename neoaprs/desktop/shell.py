@@ -9,11 +9,16 @@ import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from neoaprs.cli import opencmd
+from neoaprs.cli.logfile import LOG_NAME
+
+from . import splash
 from .autostart import AutoStart
 from .menu import QUIT, AppActions, Frame
-from .session import Daemon, DaemonWatch, Session
+from .session import Daemon, DaemonWatch, NoPage, Opening, Session
 from .single import SingleApp
 
 log = logging.getLogger("neoaprs.desktop")
@@ -107,3 +112,43 @@ class ShellContext:
         if self.watch is not None:
             self.watch.cancel()
         self.single.close()
+
+
+@dataclass
+class Launch:
+    """What a shell starts with, before the daemon's page is there: the data folder, the session on its way, whether to start with the window hidden, whether a window can be had, the start at sign-in and the
+    one-app lock. The shell makes its window at once (with the page of loading.py in it) and asks `context(session)` for its ShellContext once `opening` has the session; when it never comes, `no_page` is
+    the end, in the words the app has always said it with. `describe` is what the shell can do, for the log line of the session."""
+    data: Path
+    opening: Opening
+    hidden: bool
+    window: bool
+    autostart: AutoStart | None
+    single: SingleApp
+    daemon: Daemon = field(default_factory=Daemon)
+    describe: str = ""
+    ctx: ShellContext | None = None
+
+    @classmethod
+    def of(cls, ctx: ShellContext) -> "Launch":
+        """The launch of a context whose session is there already."""
+        return cls(ctx.session.data, Opening.opened(ctx.session), ctx.hidden, ctx.window, ctx.autostart, ctx.single, ctx.daemon, ctx=ctx)
+
+    def context(self, session: Session) -> ShellContext:
+        if self.ctx is None:
+            log.info("NeoAPRS app on %s, page %s, %s daemon; %s", self.data, session.url, "its own" if session.owned else "a running", self.describe)
+            self.ctx = ShellContext(session, self.hidden, self.window, self.autostart, self.single, self.daemon)
+        return self.ctx
+
+    def no_page(self, error: NoPage) -> int:
+        """No page came: the app lets go of the folder and says so (a message box too, where there is no console, with the splash taken away first: it is on top of everything); exit code 1."""
+        self.single.close()
+        splash.done()
+        opencmd.tell_the_user(f"app: NeoAPRS did not come up: {error}. The log is {self.data / LOG_NAME}")
+        return 1
+
+    def close(self) -> None:
+        if self.ctx is not None:
+            self.ctx.close()
+        else:
+            self.single.close()

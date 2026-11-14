@@ -14,17 +14,20 @@ import ssl
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from neoaprs.clock import Clock
 
 from .addresses import lan_addresses
 from .connections import LimitedHTTPServer
 from .listen import listen_first, ports_near
-from .tls import Certificates, CertificateStore, TlsError
+
+if TYPE_CHECKING:
+    from .tls import Certificates, CertificateStore
 
 log = logging.getLogger("neoaprs.web")
 
+FOLDER = "tls"                                              # in the data folder: the authority and the certificate of the computer
 RECHECK_SEC = 3600.0
 RETRY_SEC = 300.0
 ServerFactory = Callable[[ssl.SSLContext], LimitedHTTPServer]
@@ -51,7 +54,8 @@ class SecureSide:
     """`SecureSide(folder, clock, names)`: `names()` gives the extra names of `web/allowed_hosts` for the certificate. `follow` is told what is wanted and where the plain server listens."""
 
     def __init__(self, folder: Path, clock: Clock, names: Callable[[], list[str]]) -> None:
-        self._store = CertificateStore(folder, clock)
+        self._folder, self._clock = folder, clock
+        self._store: CertificateStore | None = None                 # made when the secure side is first wanted: neoaprs/web/tls.py loads the cryptography library, which a daemon that serves no https never needs
         self._names = names
         self.state = SecureState()
         self._certs: Certificates | None = None
@@ -86,6 +90,9 @@ class SecureSide:
         return before != self.state
 
     async def _ensure(self, address: str, plain_port: int, make_server: ServerFactory) -> None:
+        from .tls import CertificateStore, TlsError
+        if self._store is None:
+            self._store = CertificateStore(self._folder, self._clock)
         try:
             self._certs = await asyncio.to_thread(self._store.ensure, socket.gethostname().lower(), lan_addresses(), self._names())
         except TlsError as e:

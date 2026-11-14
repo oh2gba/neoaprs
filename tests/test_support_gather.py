@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.cli import supportgather
+from neoaprs.cli import supportgather, systemdescription
 from neoaprs.config import DEFAULTS
 from neoaprs.cli.logfile import START_LINE
 from neoaprs.migrations import MIGRATIONS, source_hash
@@ -35,14 +35,14 @@ def test_the_system_is_named_as_a_person_names_it(monkeypatch: pytest.MonkeyPatc
             raise found
         return found  # type: ignore[return-value]
 
-    platform = supportgather.platform
+    platform = systemdescription.platform
     monkeypatch.setattr(platform, "system", lambda: system)
     monkeypatch.setattr(platform, "release", lambda: facts.get("release", ""))
     monkeypatch.setattr(platform, "version", lambda: facts.get("version", ""))
     monkeypatch.setattr(platform, "mac_ver", lambda: facts.get("mac_ver", ("", ("", "", ""), "")))
     monkeypatch.setattr(platform, "platform", lambda: facts.get("platform", ""))
     monkeypatch.setattr(platform, "freedesktop_os_release", os_release)
-    assert supportgather.system_description() == words
+    assert systemdescription.system_description() == words
 
 
 # ---- the logs

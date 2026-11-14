@@ -39,10 +39,9 @@ from .pagefiles import Basemap, Page
 from .pagesnapshot import PageSnapshot
 from .pagesocket import Socket
 from .securehandlers import CA_PATH, CaCertificate, secure_target
-from .secureside import SecureSide
+from .secureside import FOLDER, SecureSide
 from .supporthandler import Bundler, SupportBundle
 from .supportsend import SupportSend
-from .tls import FOLDER
 
 log = logging.getLogger("neoaprs.web")
 

@@ -58,9 +58,9 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> World:
 
 def test_the_app_started_with_encryption_starts_its_daemon_so_and_start_at_sign_in_too(world: World) -> None:
     world.choice = Choice(None, False)
-    assert world.run("--tray") == 0 and world.encryption == [("daemon", False), ("autostart", False)]
+    assert world.run("--tray") == 0 and sorted(world.encryption) == [("autostart", False), ("daemon", False)]         # (the daemon is opened in a thread of its own, beside the rest)
     world.encryption.clear()
-    assert world.run("--tray", "--encryption") == 0 and world.encryption == [("daemon", True), ("autostart", True)], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
+    assert world.run("--tray", "--encryption") == 0 and sorted(world.encryption) == [("autostart", True), ("daemon", True)], "OH2GAX, 4 Nov 2026: Windows had no way to start the daemon with it"
 
 
 def test_with_no_shell_the_page_goes_to_the_browser_and_the_daemon_is_left_running(world: World, capsys: pytest.CaptureFixture[str]) -> None:

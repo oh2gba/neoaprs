@@ -155,15 +155,16 @@ def test_the_entry_of_the_frozen_app_tells_its_three_programs_apart_by_name(prog
     import runpy
 
     from neoaprs import cli
-    from neoaprs.desktop import cmd
+    from neoaprs.desktop import cmd, splash
     called: list[str] = []
+    monkeypatch.setattr(splash, "show", lambda argv: called.append("splash"))
     monkeypatch.setattr(cli, "main", lambda *a: called.append("main") or 0)
     monkeypatch.setattr(cli, "gui_main", lambda *a: called.append("gui_main") or 0)
     monkeypatch.setattr(cmd, "gui_main", lambda *a: called.append("app_main") or 0)
     monkeypatch.setattr(sys, "executable", f"/Program Files/NeoAPRS/{program}")
     with pytest.raises(SystemExit) as stop:
         runpy.run_path(str(ROOT / "packaging" / "windows" / "neoaprs_entry.py"), run_name="__main__")
-    assert stop.value.code == 0 and called == [calls]
+    assert stop.value.code == 0 and called == (["splash", calls] if calls == "app_main" else [calls]), "the app's role shows the splash first (tests/test_desktop_splash.py); the others do not"
 
 
 def test_the_windows_app_carries_no_pmtiles_program_and_an_update_removes_the_one_of_an_earlier_version() -> None:

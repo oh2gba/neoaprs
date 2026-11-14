@@ -12,14 +12,13 @@ import webbrowser
 from pathlib import Path
 
 from neoaprs.cli import opencmd, uncaught
-from neoaprs.cli.logfile import LOG_NAME
 from neoaprs.cli.output import say
 from neoaprs.paths import default_data_dir
 
-from . import appstate, shell
+from . import appstate, shell, splash
 from .autostart import autostart_for
-from .session import NoPage, Session, open_session
-from .shell import Choice, ShellContext
+from .session import NoPage, Opening, Session, open_session
+from .shell import Choice, Launch
 from .single import SingleApp, process_alive
 
 log = logging.getLogger("neoaprs.desktop")
@@ -50,15 +49,20 @@ def browser_only(session: Session, choice: Choice, tray: bool) -> int:
     return 0
 
 
-def run_shell(choice: Choice, ctx: ShellContext) -> int:
-    """Runs the shell the choice names; 1 when it fails to start, with the page in the browser so that the run is not wasted."""
+def run_shell(choice: Choice, launch: Launch) -> int:
+    """Runs the shell the choice names; 1 when it fails to start, with the page in the browser so that the run is not wasted (once the page is there; when it never comes, that is said instead)."""
     assert choice.module is not None
     try:
-        return int(importlib.import_module(choice.module).run(ctx))
+        return int(importlib.import_module(choice.module).run(launch))
     except Exception:
         log.exception("the desktop shell %s could not run", choice.module)
-        say(f"app: the window could not be started ({choice.module}; see {ctx.session.data / appstate.LOG_NAME}): opening the page in the browser instead")
-        browser_only(ctx.session, Choice(None, False), ctx.hidden)
+        splash.done()
+        say(f"app: the window could not be started ({choice.module}; see {launch.data / appstate.LOG_NAME}): opening the page in the browser instead")
+        try:
+            session = launch.opening.result()
+        except NoPage as e:
+            return launch.no_page(e)
+        browser_only(session, Choice(None, False), launch.hidden)
         return 1
 
 
@@ -81,31 +85,40 @@ def quit_the_app(data: Path, wait_sec: float) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
+    """The daemon is attached to or started first, without waiting for it: the toolkit is looked for (imported) and the shell makes its window while the daemon comes up."""
     data = Path(args.data).expanduser().resolve()
     single = SingleApp(data)
     if not single.acquire():
+        splash.done()
         if not args.tray:
             single.tell_the_other("show")
         return 0
-    try:
-        session = open_session(data, timeout=args.timeout, encryption=args.encryption)
-    except NoPage as e:
-        single.close()
-        opencmd.tell_the_user(f"app: NeoAPRS did not come up: {e}. The log is {data / LOG_NAME}")
-        return 1
+    opening = Opening(data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption)).start()
     choice = shell.choose()
-    log.info("NeoAPRS app on %s, page %s, %s daemon; %s", data, session.url, "its own" if session.owned else "a running", choice.describe())
-    ctx = ShellContext(session, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single)
+    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe())
     try:
         if choice.module is None:
+            splash.done()
+            try:
+                session = launch.context(opening.result()).session
+            except NoPage as e:
+                return launch.no_page(e)
             single.close()
             return browser_only(session, choice, args.tray)
-        return run_shell(choice, ctx)
+        return run_shell(choice, launch)
     finally:
-        ctx.close()
+        launch.close()
 
 
 def main(argv: list[str] | None = None) -> int:
+    """The app's run; the splash of Windows (splash.py) goes when it ends, however it ends, if the window has not taken it away before."""
+    try:
+        return _main(argv)
+    finally:
+        splash.done()
+
+
+def _main(argv: list[str] | None) -> int:
     args = parser().parse_args(sys.argv[1:] if argv is None else argv)
     data = Path(args.data).expanduser().resolve()
     if args.quit:
@@ -113,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         data.mkdir(parents=True, exist_ok=True)
     except OSError as e:
+        splash.done()                               # (before the message box, which the splash would cover)
         opencmd.tell_the_user(f"app: the data folder {data} cannot be made or used: {e.strerror or e}")
         return 1
     appstate.setup_logging(data, args.debug)

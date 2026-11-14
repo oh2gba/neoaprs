@@ -61,6 +61,67 @@ def open_session(data: Path, daemon: Daemon | None = None, timeout: float = STAR
     return Session(data, url, owned)
 
 
+class Opening:
+    """The session on its way: `opener` (an `open_session` with its arguments) runs in a thread of its own from `start` on, so that the app makes its window while the daemon comes up. `result()` waits for
+    it and is the Session, or raises its NoPage; `when_done(callback)` calls back once it is there (at once when it is), in the thread that brought it. What else goes wrong on the way (the daemon's program
+    cannot be started) is a NoPage that says so, with the traceback in the log: the window waits for no longer than the opener does."""
+
+    def __init__(self, data: Path, opener: Callable[[], Session]) -> None:
+        self.data = data
+        self.opener = opener
+        self._done = threading.Event()
+        self._session: Session | None = None
+        self._error: NoPage | None = None
+        self._callbacks: list[Callable[[], None]] = []
+        self._guard = threading.Lock()
+        self.thread = threading.Thread(target=self._run, name="neoaprs-app-open", daemon=True)
+
+    @classmethod
+    def opened(cls, session: Session) -> "Opening":
+        """One that is there already (a test's, a shell's that is given a session)."""
+        opening = cls(session.data, lambda: session)
+        opening._finish(session, None)
+        return opening
+
+    def start(self) -> "Opening":
+        self.thread.start()
+        return self
+
+    def _run(self) -> None:
+        try:
+            self._finish(self.opener(), None)
+        except NoPage as e:
+            self._finish(None, e)
+        except Exception as e:
+            log.exception("the daemon on %s could not be started", self.data)
+            self._finish(None, NoPage(f"the daemon could not be started on {self.data}: {e.strerror if isinstance(e, OSError) and e.strerror else e}"))
+
+    def _finish(self, session: Session | None, error: NoPage | None) -> None:
+        with self._guard:
+            self._session, self._error = session, error
+            self._done.set()
+            callbacks, self._callbacks = self._callbacks, []
+        for callback in callbacks:
+            callback()
+
+    def done(self) -> bool:
+        return self._done.is_set()
+
+    def when_done(self, callback: Callable[[], None]) -> None:
+        with self._guard:
+            if not self._done.is_set():
+                self._callbacks.append(callback)
+                return
+        callback()
+
+    def result(self) -> Session:
+        self._done.wait()
+        if self._error is not None:
+            raise self._error
+        assert self._session is not None
+        return self._session
+
+
 def stop_owned(session: Session, daemon: Daemon | None = None) -> bool:
     """Quit's half that is the daemon's: stops it when the app started it, and only then. True when the daemon is not running after it."""
     daemon = daemon or Daemon()

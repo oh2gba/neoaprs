@@ -125,7 +125,7 @@ async def test_the_dials_of_the_topic_follow_the_dials_of_the_radio(tmp_path: Pa
     e.ctl.frequencies.listed = [Frequency("30 m", "10.1462 MHz USB")]
     e.ctl.frequencies.changed.emit()
     await page.until(lambda: page.topics["skeds"]["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}])
-    assert page.topics["hf"]["modem"]["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}], "the same dials as the HF box"
+    await page.until(lambda: page.topics["hf"]["modem"]["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}])    # the same dials as the HF box (the two topics come in either order)
     await e.stop()
 
 

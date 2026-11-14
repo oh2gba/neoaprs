@@ -11,10 +11,11 @@ out of the bytes that came with the download, so a signed list of an older relea
 import base64
 import binascii
 import re
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+if TYPE_CHECKING:             # (the library is imported where a key is made or checked: the daemon that finds no new version never loads it)
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from neoaprs.versions import InstallKind
 
@@ -86,8 +87,9 @@ class Unverified(Exception):
     """SHA256SUMS cannot be believed, or does not name the file once: the text says why, for the log."""
 
 
-def public_key(text: str = PUBLIC_KEY) -> Ed25519PublicKey:
+def public_key(text: str = PUBLIC_KEY) -> "Ed25519PublicKey":
     """The Ed25519 public key of the base64 of its 32 raw bytes; ValueError for text that is not one."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     try:
         raw = base64.b64decode(text.strip(), validate=True)
     except binascii.Error:
@@ -108,11 +110,13 @@ def sign(sums: bytes, version: str, seed: bytes) -> str:
     """The text of SHA256SUMS.sig for the list `sums` of the release `version`: the base64 of the Ed25519 signature with the key whose 32-byte seed is `seed` (scripts/release, at the moment it signs)."""
     if len(seed) != 32:
         raise ValueError(f"the signing key is a 32-byte seed, not {len(seed)} bytes")
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     return base64.b64encode(Ed25519PrivateKey.from_private_bytes(seed).sign(signed_message(sums, version))).decode("ascii") + "\n"
 
 
-def check_signature(sums: bytes, signature: bytes, version: str, key: Ed25519PublicKey) -> None:
+def check_signature(sums: bytes, signature: bytes, version: str, key: "Ed25519PublicKey") -> None:
     """Unverified unless `signature` (the text of SHA256SUMS.sig) is the signature of `sums` as the list of the release `version`, made with the key whose public half is `key`."""
+    from cryptography.exceptions import InvalidSignature
     try:
         raw = base64.b64decode(signature.strip(), validate=True)
     except (binascii.Error, ValueError):
@@ -147,7 +151,7 @@ def checksums(sums: bytes) -> dict[str, str]:
     return found
 
 
-def signed_checksum(sums: bytes, signature: bytes, version: str, name: str, key: Ed25519PublicKey) -> str:
+def signed_checksum(sums: bytes, signature: bytes, version: str, name: str, key: "Ed25519PublicKey") -> str:
     """The SHA-256 (lower case hex) that the signed SHA256SUMS of the release `version` gives the file `name`; Unverified when the signature does not hold for that version with `key`, the list is not one, or it
     does not name the file."""
     check_signature(sums, signature, version, key)
