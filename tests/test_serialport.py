@@ -733,10 +733,13 @@ async def test_probe_never_touches_a_port_another_radio_holds_however_it_is_writ
 
 
 def test_a_claim_of_a_port_is_the_device_by_what_it_is_and_a_kiss_tcp_address_is_none(tmp_path: Path) -> None:
-    device = tmp_path / "ttyUSB0"
-    device.write_text("")
-    (tmp_path / "by-id").symlink_to(device)
-    assert claim_value(str(tmp_path / "by-id")) == claim_value(str(device)) == port_key(str(device)), "two names of one device are one claim"
+    if sys.platform == "win32":                                            # (a port there is a name, not a file: no link to follow)
+        assert claim_value("com3") == claim_value("\\\\.\\COM3") == port_key("COM3") == "COM3", "two names of one device are one claim"
+    else:
+        device = tmp_path / "ttyUSB0"
+        device.write_text("")
+        (tmp_path / "by-id").symlink_to(device)
+        assert claim_value(str(tmp_path / "by-id")) == claim_value(str(device)) == port_key(str(device)), "two names of one device are one claim"
     assert claim_value("bt://00:11:22:33:44:55") == claim_value("BT://00:11:22:33:44:55"), "a Bluetooth radio is a device too"
     assert claim_value("socket://127.0.0.1:8001") is None and claim_value("tcp://127.0.0.1:8001") is None and claim_value("") is None and claim_value("  ") is None
     assert holder_words(3) == "radio 3" and holder_words(None) == "the GPS receiver"
