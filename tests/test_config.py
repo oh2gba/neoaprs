@@ -1,10 +1,14 @@
-"""The settings (neoaprs/config.py): the defaults, the text of each key and back, and a wrong value that falls back to its default and is told with its key."""
+"""The settings (neoaprs/config.py): the defaults, the text of each key and back, and a wrong value that falls back to its default and is told with its key; and the radios of the settings
+(neoaprs/configradios.py): stored fields of `Config`, given as they are stored or read from today's flat keys, with the flat keys a view of radios 1 and 2 that reads and writes them."""
 import logging
 from dataclasses import fields, replace
 
 import pytest
 
-from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RANGES, SETTINGS, Config
+from neoaprs.clock import utc
+from neoaprs.config import BY_KEY, DEFAULT_ALERT_COMMAND, DEFAULTS, KEYS, LAST_PORT, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, RANGES, SETTINGS, STATION_KEYS, Config, radios_from_flat
+from neoaprs.configradios import DEFAULT_RADIOS, FLAT_HOMES, flat_value, with_flat
+from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioSpec
 from neoaprs.smartbeacon import TRAVEL, PRESETS, SmartSettings
 from neoaprs.policy import LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.configstatus import MAX_STATUS, fill_template
@@ -23,9 +27,15 @@ def test_the_defaults_are_the_ones_of_the_brief() -> None:
     assert Config() == DEFAULTS
 
 
-def test_every_field_has_a_key_and_every_key_a_field() -> None:
-    assert [s.attr for s in SETTINGS] == [f.name for f in fields(Config)]
-    assert len(set(KEYS)) == len(KEYS) == len(BY_KEY)
+def test_every_field_has_a_key_or_is_the_radios_and_every_key_a_field_or_a_view_of_a_radio() -> None:
+    """Before the radios were stored every key was a field. Now a key is a field (the station's settings, and radio 1's last port) or one of today's flat keys of the radios, which is a view of
+    radio 1 or 2; and the radios and the choice of the main one are fields with no key."""
+    stored = [s.attr for s in SETTINGS if s.attr not in FLAT_HOMES]
+    assert [*stored, "radios", "main_choice"] == [f.name for f in fields(Config)]
+    assert len(set(KEYS)) == len(KEYS) == len(BY_KEY) and [s.attr for s in SETTINGS if s.attr in FLAT_HOMES] == sorted(FLAT_HOMES, key=[s.attr for s in SETTINGS].index) and len(FLAT_HOMES) == 13
+    assert all(isinstance(getattr(Config, attr), property) for attr in FLAT_HOMES) and not any(isinstance(getattr(Config, attr, None), property) for attr in stored)
+    assert STATION_KEYS == tuple(s.key for s in SETTINGS if s.attr in stored and s.key != "serial/last_port") and len(STATION_KEYS) == len(KEYS) - 14, "the rows of the table `settings` under their own key"
+    assert {key.split("/")[0] for key in set(KEYS) - set(STATION_KEYS)} == {"tnc", "serial", "tcp", "hf", "mercury", "fm", "beacon", "digi"} and {"serial/pattern", "serial/skip", "beacon/interval_min"} <= set(STATION_KEYS)
 
 
 def test_nothing_in_the_database_is_the_defaults_and_what_is_written_is_read_back() -> None:
@@ -424,3 +434,109 @@ def test_the_beacon_interval_is_the_stations_not_a_radios_raised_to_the_hf_floor
     assert replace(both, beacon_interval_min=45).beacon_interval() == 45 and replace(both, beacon_interval_min=0).beacon_interval() == 0
     assert replace(DEFAULTS, beacon_interval_min=20).beacon_interval() == 20 and replace(DEFAULTS, beacon_interval_min=25).beacon_interval() == 25
     assert replace(DEFAULTS, beacon_interval_min=20, fm_enabled=False, hf_enabled=True).beacon_interval() == 30
+
+
+# ---- the radios: stored fields, and today's flat keys as a view of radios 1 and 2
+
+THIRD = RadioSpec(3, "fm", "kiss-tcp", "Shack", True, 3, None, {"tcp_host": "::1", "path": "WIDE2-1"})
+
+
+def test_settings_that_say_nothing_have_todays_two_radios_and_the_flat_keys_read_them() -> None:
+    fm, hf = DEFAULTS.radios
+    assert DEFAULTS.radios == DEFAULT_RADIOS == radios_from_flat(DEFAULTS) and DEFAULTS.main_choice is None
+    assert (fm.id, fm.kind, fm.type, fm.enabled, fm.position) == (FM_ID, "fm", "kiss", True, 1) and (hf.id, hf.kind, hf.type, hf.enabled, hf.position) == (HF_ID, "hf", "mercury", False, 2)
+    assert (DEFAULTS.tnc_profile, DEFAULTS.fm_enabled, DEFAULTS.hf_profile, DEFAULTS.hf_enabled, DEFAULTS.serial_baud, DEFAULTS.tcp_port, DEFAULTS.mercury_tx_gain_db, DEFAULTS.digi_enabled) == ("kiss", True, "mercury", False, None, 8001, 0, False)
+    assert DEFAULTS.main_radio == FM_ID and [s.id for s in DEFAULTS.enabled_radios] == [FM_ID]
+
+
+def test_a_flat_name_given_to_the_constructor_or_to_replace_is_put_into_its_radio_and_the_other_radios_stay() -> None:
+    config = Config(station_call="OH2GBA", hf_enabled=True, tnc_profile="kenwood-d710", serial_port="/dev/ttyUSB0", mercury_tx_gain_db=-6)
+    fm, hf = config.radios
+    assert (fm.type, fm.settings["port"], hf.enabled, hf.settings["tx_gain_db"], config.station_call) == ("kenwood-d710", "/dev/ttyUSB0", True, "-6", "OH2GBA")
+    assert (config.tnc_profile, config.serial_port, config.hf_enabled, config.mercury_tx_gain_db) == ("kenwood-d710", "/dev/ttyUSB0", True, -6) and config.radios == radios_from_flat(config)
+    three = replace(config, radios=(*config.radios, THIRD))
+    assert three.radios[2] is THIRD and three.serial_port == "/dev/ttyUSB0" and three != config, "the radios are a field: replace keeps and sets them, and they are part of what the settings are"
+    changed = replace(three, fm_enabled=False, beacon_path="WIDE2-2", station_comment="x")
+    assert changed.radios[2] is THIRD and changed.radios[1] is three.radios[1] and (changed.fm_enabled, changed.beacon_path, changed.station_comment) == (False, "WIDE2-2", "x"), "a flat name changes its own radio alone"
+    assert replace(three, radios=config.radios, hf_enabled=False).radios == replace(config, hf_enabled=False).radios, "given both, the flat name is put into the radios given"
+    assert replace(three) == three and hash(replace(three)) == hash(three) and replace(three, hf_enabled=True).radios is not None and replace(three, hf_enabled=True) == three, "a value the radios say already changes nothing"
+    with pytest.raises(TypeError, match="lora_enabled"):
+        Config(lora_enabled=True)                  # type: ignore[call-arg]
+
+
+def test_a_value_put_into_the_settings_unchecked_is_carried_as_the_flat_field_carried_it() -> None:
+    """A test makes settings that no save would take by `replace`; the field held whatever it was given, and so does the view (a value read from the database is checked when it is read)."""
+    odd = replace(DEFAULTS, beacon_path="BAD CALL", tcp_port=0, mercury_tx_gain_db=99, tcp_host="two words", digi_enabled=True)
+    assert (odd.beacon_path, odd.beacon_path_calls, odd.tcp_port, odd.mercury_tx_gain_db, odd.tcp_host, odd.digi_enabled) == ("BAD CALL", ("BAD CALL",), 0, 99, "two words", True)
+    assert odd.radios == radios_from_flat(odd) and odd.to_data()["beacon/path"] == "BAD CALL" and replace(odd, beacon_path="WIDE2-2").beacon_path_calls == ("WIDE2-2",)
+    assert DEFAULT_RADIOS[0].settings["port"] == "" and replace(DEFAULTS, serial_port="/dev/x").radios[0].settings is not DEFAULT_RADIOS[0].settings
+    with pytest.raises(TypeError):
+        DEFAULT_RADIOS[0].settings["port"] = "/dev/x"            # type: ignore[index]  # (the radios of settings that say nothing are shared: read-only)
+
+
+def test_the_settings_are_given_their_radios_as_they_are_stored_and_do_not_read_the_flat_keys_then() -> None:
+    stored = (THIRD, RadioSpec(1, "fm", "kantronics", "", False, 2, None, {"port": "/dev/ttyUSB7", "baud": "19200"}), RadioSpec(2, "hf", "dummy-hf", "20 m", True, 1, None, {"keying": "vox"}))
+    rows = {"station/call": "oh2gba", "tnc/profile": "kiss-tcp", "fm/enabled": "true", "hf/enabled": "false", "serial/port": "/dev/other", "mercury/keying": "cm108", "beacon/path": "DIRECT", "tnc/enter_kiss": "true"}
+    config = Config.from_data(rows, radios=stored)
+    assert config.radios == (stored[1], stored[2], stored[0]) and config.station_call == "OH2GBA", "by id, as they were given; the station's rows are read as ever"
+    assert (config.tnc_profile, config.fm_enabled, config.hf_profile, config.hf_enabled, config.serial_port, config.serial_baud, config.mercury_keying, config.beacon_path) == \
+        ("kantronics", False, "dummy-hf", True, "/dev/ttyUSB7", 19200, "vox", ""), "the flat keys say what the radios say, not what a row left behind says"
+    assert config.main_radio == 2 and [s.id for s in config.enabled_radios] == [2, 3] and config.live_radios == [stored[2], stored[1], stored[0]]
+    data = config.to_data()
+    assert list(data) == list(KEYS) and {key: data[key] for key in ("tnc/profile", "fm/enabled", "hf/profile", "hf/enabled", "serial/port", "serial/baud", "mercury/keying", "tcp/port")} == \
+        {"tnc/profile": "kantronics", "fm/enabled": "false", "hf/profile": "dummy-hf", "hf/enabled": "true", "serial/port": "/dev/ttyUSB7", "serial/baud": "19200", "mercury/keying": "vox", "tcp/port": "8001"}
+    assert Config.from_data(data, radios=config.radios) == config and Config.from_data(data) != config, "what is written is read back with the radios; without them the flat keys make two radios, and the third is not among them"
+
+
+def test_a_database_without_radios_has_none_and_the_flat_keys_say_off_with_the_defaults() -> None:
+    config = Config.from_data({"station/call": "OH2GBA", "hf/enabled": "true"}, radios=())
+    assert config.radios == () and config.main_radio is None and config.enabled_radios == [] and config.radio(1) is None
+    assert (config.fm_enabled, config.hf_enabled, config.tnc_profile, config.hf_profile, config.tcp_host, config.tcp_port, config.beacon_path, config.profile.key, config.tnc_baud) == (False, False, "kiss", "mercury", "127.0.0.1", 8001, "", "kiss", 9600)
+    assert {**DEFAULTS.to_data(), "station/call": "OH2GBA", "fm/enabled": "false"} == config.to_data(), "no radio is neither tickbox ticked; every other flat key says its default"
+    assert config.beacon_path_calls == ("WIDE2-2",) and config.radio_refusal() is not None
+
+
+def test_a_flat_key_of_a_radio_that_is_not_there_makes_it_as_the_flat_keys_defaults_say() -> None:
+    none = Config.from_data({}, radios=())
+    assert replace(none, hf_enabled=False, tnc_profile="kiss", tcp_port=8001).radios == (), "a value the view says already makes no radio"
+    assert replace(none, serial_port="/dev/ttyUSB0").radios == (RadioSpec(1, "fm", "kiss", "", True, 1, None, {"port": "/dev/ttyUSB0"}),), "the FM radio is on unless it is said to be off"
+    assert replace(none, hf_profile="dummy-hf").radios == (RadioSpec(2, "hf", "dummy-hf", "", False, 2),) and replace(none, hf_enabled=True).radios == (RadioSpec(2, "hf", "mercury", "", True, 2),), "the HF radio is off unless ticked"
+    both = Config.checked(none, {"hf/enabled": "true", "tnc/profile": "kenwood-tnc2", "fm/enabled": "true"})
+    assert both.radios == (RadioSpec(1, "fm", "kenwood-tnc2", "", True, 1), RadioSpec(2, "hf", "mercury", "", True, 2)), "by id, whichever was named first"
+    lora = (RadioSpec(1, "lora", "dummy-lora", "", True, 1),)
+    assert flat_value(lora, "fm_enabled") is False and flat_value(lora, "tnc_profile") == "kiss", "a radio of the id and another kind is not the FM radio of the flat keys"
+    with pytest.raises(RadioError, match="radio 1 is of the kind lora"):
+        with_flat(lora, {"fm_enabled": True})
+    removed = (replace(DEFAULT_RADIOS[0], removed_at=utc(2026, 11, 14)), DEFAULT_RADIOS[1])
+    assert flat_value(removed, "fm_enabled") is False, "a removed radio is not on"
+
+
+def test_a_save_keeps_the_radios_of_the_settings_it_is_made_of_and_puts_the_flat_keys_into_radios_1_and_2() -> None:
+    base = replace(Config.from_data({"station/call": "OH2GBA"}, radios=(RadioSpec(1, "fm", "kiss", "Mobile", True, 5, None, {"port": "/dev/ttyUSB0"}), THIRD)), main_choice=3)
+    saved = Config.checked(base, {"serial/baud": " 4800 ", "station/comment": "saved", "hf/enabled": "true"})
+    assert saved.radios == (RadioSpec(1, "fm", "kiss", "Mobile", True, 5, None, {"port": "/dev/ttyUSB0", "baud": "4800"}), RadioSpec(2, "hf", "mercury", "", True, 2), THIRD)
+    assert (saved.main_choice, saved.main_radio, saved.station_comment, saved.station_call) == (3, 3, "saved", "OH2GBA"), "the name, the place, the third radio and the main radio are not the flat keys' to lose"
+    assert base.changed(saved) == ["serial/baud", "hf/enabled", "station/comment"] and Config.checked(base, {}) == base
+    with pytest.raises(ValueError, match="hf/enabled: a station has at least one radio"):
+        Config.checked(replace(base, radios=base.radios[:1]), {"fm/enabled": "false"})
+    with pytest.raises(ValueError, match="serial/baud"):
+        Config.checked(base, {"serial/baud": "fast"})
+
+
+def test_radio_1s_last_port_is_read_from_its_own_state_row_once_the_radios_are_stored() -> None:
+    assert LAST_PORT == "radio/1/last_port"
+    stored = Config.from_data({LAST_PORT: "/dev/ttyUSB1"}, radios=DEFAULT_RADIOS)
+    assert stored.serial_last_port == "/dev/ttyUSB1" and stored.to_data()["serial/last_port"] == "/dev/ttyUSB1"
+    assert Config.from_data({LAST_PORT: "/dev/ttyUSB1", "serial/last_port": "/dev/ttyUSB0"}, radios=DEFAULT_RADIOS).serial_last_port == "/dev/ttyUSB1", "radio 1's own row wins over one left under the old name"
+    assert Config.from_data({"serial/last_port": "/dev/ttyUSB0"}, radios=DEFAULT_RADIOS).serial_last_port == "/dev/ttyUSB0", "and the old name alone, written by a build before the writer followed, is read"
+    assert Config.from_data({LAST_PORT: "/dev/ttyUSB1"}).serial_last_port == "" and Config.from_data({"serial/last_port": "/dev/ttyUSB0"}).serial_last_port == "/dev/ttyUSB0", "the call from before the radios were rows reads the old row"
+
+
+def test_the_call_from_before_the_radios_were_rows_reads_the_two_radios_from_the_flat_keys(caplog: pytest.LogCaptureFixture) -> None:
+    rows = {"tnc/profile": "kenwood-d710", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "serial/port": "/dev/ttyUSB7", "serial/baud": "12", "mercury/keying": "vox", "beacon/path": "wide2-2", "digi/enabled": "yes"}
+    with caplog.at_level(logging.WARNING, logger="neoaprs.config"):
+        config = Config.from_data(rows)
+    assert config.radios == (RadioSpec(1, "fm", "kenwood-d710", "", False, 1, None, {**DEFAULT_RADIOS[0].settings, "port": "/dev/ttyUSB7", "path": "WIDE2-2", "digipeat": "true"}),
+                             RadioSpec(2, "hf", "dummy-hf", "", True, 2, None, {**DEFAULT_RADIOS[1].settings, "keying": "vox"})) == radios_from_flat(config)
+    assert [r.getMessage() for r in caplog.records] == ["serial/baud: 12 is not between 300 and 921600; the default (empty) is used"], "a wrong flat value is told with its flat key and is the default"
+    assert Config.from_data(config.to_data()) == config and Config.from_data(rows, radios=None) == config

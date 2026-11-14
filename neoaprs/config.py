@@ -1,27 +1,29 @@
-"""The operator's settings as one immutable value: `Config`. The database keeps them as rows of text (`settings(key, value, rev)`, store.py); this module is the table of the keys, what each one is, what it
-may be, and the two conversions: `Config.from_data(rows)` and `Config.to_data()`.
+"""The operator's settings as one immutable value: `Config`. The database keeps the station's as rows of text (`settings(key, value, rev)`, store.py) and the radios as rows of their own (`radio`,
+`radio_setting`, radiosql.py); this module is the table of the keys, what each one is, what it may be, and the two conversions: `Config.from_data(rows, radios=...)` and `Config.to_data()`.
+The radios of the settings and today's flat keys of radios 1 and 2, which are a view of them, are configradios.py's.
 
 A value that is wrong falls back to its default and is logged with its key (a row somebody edited by hand must not stop the daemon); `Config.check(key, text)` is the strict form for a tool that is
 about to write a value: it raises ValueError with the key in the text, or gives the text the way the program writes it."""
 import logging
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .alertcommand import DEFAULT_ALERT_COMMAND
 from .callsign import call_problem
 from .coded import CodedError, Param
-from .configlegacy import with_legacy
+from .configlegacy import with_legacy, with_network
 from .configstatus import DEFAULT_STATUS_TEMPLATE, MAX_STATUS, hostport, status_source, status_template, status_text
-from .configradios import RadioViews, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings: views of the flat keys until they are stored)
+from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, accepting_flat, radio_key_of as radio_key_of, radio_state_key as radio_state_key, radios_from_flat as radios_from_flat     # (the radios of the settings, and today's flat keys as a view of radios 1 and 2)
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .radiorules import HF
+from .radiospec import FM_ID, RadioId, RadioSpec
 from .radiotype import stored_text as _show
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
-from .tncprofile import DEFAULT as DEFAULT_PROFILE, HF_DEFAULT as DEFAULT_HF_PROFILE, Profile, names_tcp, profile_of
+from .tncprofile import Profile, names_tcp, profile_of
 from .versions import UPDATE_URL
 
 log = logging.getLogger("neoaprs.config")
@@ -148,35 +150,27 @@ SETTINGS: tuple[Setting, ...] = (
     Setting("beacon_travel", "beacon/travel", word_among(TRAVEL)),    # how a station that follows the GPS (gps/source is not off) travels: by car, bicycle, foot or boat, which decides how often SmartBeaconing beacons
 )
 BY_KEY = {s.key: s for s in SETTINGS}
-KEYS = tuple(s.key for s in SETTINGS)
+KEYS = tuple(s.key for s in SETTINGS)             # every key of the settings form and of the wire's `config`, in the form's order: the station's rows, and today's flat keys of radios 1 and 2 (configradios.FLAT_HOMES: a view until the wire names a radio)
+LAST_PORT = radio_state_key(FM_ID, "last_port")   # the row `serial/last_port` is kept in once the radios are stored: radio 1's own state
+STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.key != "serial/last_port")       # the settings that are the station's: the rows of the table `settings` under their own key
 BEACON_SENT = "beacon/last_sent_at"          # the rows the beacons and the status report keep to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 HF_BEACON_SENT = "hf/beacon_last_sent_at"    # the HF beacon's (neoaprs/radios.py: the two beacons share the interval and have each their own last send)
 STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
-MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON ({"OH2GAX-2": "hf"}; neoaprs/radios.py)
+MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON, by the radio's id since migration 31 ({"OH2GAX-2": 2}; neoaprs/radioregistry.py)
 STATE_KEYS = (BEACON_SENT, STATUS_SENT, STATUS_TEXT, MAP_AUTO, HF_BEACON_SENT, MESSAGE_RADIOS)
 INSTALL_ID = "update/install_id"             # the random number of this installation that the update check sends (services/updatecheck.py); state of the daemon too, but not one of STATE_KEYS, which are the schedule's rows
 HF_DIAL = "update/hf_dial"                   # the HF dial the version page named last ("7.0541 MHz USB"; services/updatecheck.py): the frequency the group meets on moves with the page, not with a release; empty: the built-in one (mercury.DIAL_TEXT)
 
 
+@accepting_flat
 @dataclass(frozen=True)
-class Config(RadioViews):
-    tnc_profile: str = DEFAULT_PROFILE.key
-    serial_port: str = ""
-    serial_baud: int | None = None
-    tcp_host: str = "127.0.0.1"
-    tcp_port: int = 8001
-    hf_enabled: bool = False
-    hf_profile: str = DEFAULT_HF_PROFILE.key
-    mercury_sound_card: str = ""
-    mercury_keying: str = ""
-    mercury_tx_gain_db: int = 0
+class Config(FlatFields, RadioViews):
     serial_last_port: str = ""
     serial_pattern: str = DEFAULT_SERIAL_PATTERN
     serial_skip: str = ""
     station_call: str = ""
     station_transmit: bool = True
-    fm_enabled: bool = True
     station_lat: float | None = None
     station_lon: float | None = None
     station_symbol_table: str = "/"
@@ -193,7 +187,6 @@ class Config(RadioViews):
     web_port: int = 7303
     web_allowed_hosts: str = ""
     beacon_interval_min: int = 0
-    beacon_path: str = ""
     messages_alert: bool = True
     messages_alert_command: str = DEFAULT_ALERT_COMMAND
     status_source: str = ""
@@ -205,7 +198,6 @@ class Config(RadioViews):
     map_station_hours: int = DEFAULT_STATION_HOURS
     map_source: str = ""
     update_url: str = UPDATE_URL
-    digi_enabled: bool = False
     igate_enabled: bool = False
     igate_server: str = "rotate.aprs2.net:14580"
     igate_password: str = ""
@@ -214,6 +206,8 @@ class Config(RadioViews):
     gps_device: str = ""
     gps_baud: int = 4800
     beacon_travel: str = TRAVEL[0]
+    radios: tuple[RadioSpec, ...] = DEFAULT_RADIOS         # every radio, removed ones too, by id, as they are stored (Store.radios()); settings that say nothing have today's two, the FM radio on and the HF radio off
+    main_choice: RadioId | None = None                    # the radio the operator chose as the main one (station/main_radio, from wave 4 on); None: the first enabled
 
     @property
     def mobile(self) -> bool:
@@ -323,9 +317,12 @@ class Config(RadioViews):
     @classmethod
     def checked(cls, base: "Config", values: Mapping[str, str]) -> "Config":
         """The settings in force with these values (key to text) put in, for a save: every value is checked and the first wrong one raises ValueError with its key, and when one of the
-        settings that decide the length of the comment is among them, so is the comment against the new settings. The error is a SettingError: its key, code and params are what the page goes by."""
+        settings that decide the length of the comment is among them, so is the comment against the new settings. The error is a SettingError: its key, code and params are what the page goes by.
+        The radios of `base` stay, with the flat keys among the values put into radios 1 and 2."""
         parsed = {key: cls.check(key, text) for key, text in values.items()}
-        config = cls.from_data({**base.to_data(), **parsed})
+        rows = {key: text for key, text in {**base.to_data(), **parsed}.items() if BY_KEY[key].attr not in FLAT_HOMES}
+        flat = {BY_KEY[key].attr: cls.parse(key, text) for key, text in parsed.items() if BY_KEY[key].attr in FLAT_HOMES}
+        config = replace(cls.from_data(rows, radios=base.radios), main_choice=base.main_choice, **flat)
         if COMMENT_KEYS & parsed.keys() and (refusal := config.comment_refusal()):
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
@@ -337,13 +334,16 @@ class Config(RadioViews):
         return config
 
     @classmethod
-    def from_data(cls, rows: Mapping[str, str]) -> "Config":
+    def from_data(cls, rows: Mapping[str, str], *, radios: Iterable[RadioSpec] | None = None) -> "Config":
         """The settings as the database keeps them (key to the raw text of the value). A key that is missing, and one whose value is wrong (logged, with the key), has its default;
-        a key that is not a setting is left alone."""
-        rows = with_legacy(rows)
-        values: dict[str, Any] = {}
+        a key that is not a setting is left alone. `radios`: the radios as they are stored (Store.radios()); the flat keys of radios 1 and 2 are then not read from the rows, and radio 1's last port
+        is its own state row. None, the call from before the radios were rows, reads today's two radios from the flat keys among the rows, with the rules of an older version (configlegacy.py)."""
+        rows = with_legacy(rows) if radios is None else with_network(rows)
+        if radios is not None and LAST_PORT in rows:
+            rows = {**rows, "serial/last_port": rows[LAST_PORT]}          # (radio 1's own row wins over one under the old name, which nothing writes once the radios are stored)
+        values: dict[str, Any] = {} if radios is None else {"radios": tuple(sorted(radios, key=lambda spec: spec.id))}
         for setting in SETTINGS:
-            if setting.key in rows:
+            if setting.key in rows and (radios is None or setting.attr not in FLAT_HOMES):
                 try:
                     values[setting.attr] = cls.parse(setting.key, rows[setting.key])
                 except ValueError as e:

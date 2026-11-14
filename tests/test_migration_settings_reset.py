@@ -1,16 +1,23 @@
 """Migration 16 (neoaprs/migrationsteps12to21.py): the settings that are no longer on the page (`map/maxzoom`, `map/source`, `update/url`, `serial/pattern`, `serial/skip`) go back to their defaults once, the rows of the
-settings that no longer exist are deleted, and everything else (the page's settings, `web/port`, `web/allowed_hosts`, the state of the daemon) is as it was."""
+settings that no longer exist are deleted, and everything else (the page's settings, `web/port`, `web/allowed_hosts`, the state of the daemon) is as it was.
+
+The settings are stored as a version 15 kept them, the radios' among them under their flat keys. They are read back where the newest migration leaves them (tests/support/migrated31.py): the station's rows in
+the table of the settings, the radios' through the settings in force (the stored radios, once the radios are rows), and a row of the daemon's state under the name it has."""
 import logging
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
-from neoaprs.config import DEFAULTS, KEYS, Config
+from neoaprs.config import DEFAULTS, KEYS, STATION_KEYS, Config
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.migrationlog import MIGRATION_LOG
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
+from tests.support.migrated31 import OWN_31, STATE_31, flat_row, has_table, state_row, station_rows, stored_config
 from tests.test_migrations import GOLDEN, raw
 
 RESET = {"map/maxzoom": "14", "map/source": "https://example.org/world.pmtiles", "update/url": "http://localhost:9/v.php",
@@ -39,25 +46,43 @@ def version_fifteen(path: Path, clock: FixedClock, stored: dict[str, str]) -> No
     db.close()
 
 
-def migrate(folder: Path, stored: dict[str, str]) -> dict[str, tuple[str, int]]:
+@contextmanager
+def migrate(folder: Path, stored: dict[str, str]) -> Iterator[sqlite3.Connection]:
+    """The database of a version 15 with these settings, brought up to date: every step from 16 on ran, each the frozen one."""
     clock = FixedClock()
     folder.mkdir(parents=True, exist_ok=True)
     old = folder / DB_NAME
     version_fifteen(old, clock, stored)
     migrated = opened(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 16
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(16, "_v16", GOLDEN[16]), (17, "_v17", GOLDEN[17]), (18, "_v18", GOLDEN[18]), (19, "_v19", GOLDEN[19]), (20, "_v20", GOLDEN[20]), (21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
-    found = {str(k): (str(v), int(rev)) for k, v, rev in migrated.db.execute("SELECT key, value, rev FROM settings")}
-    migrated.close()
-    return found
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][15:] == [(number, f"_v{number}", GOLDEN[number]) for number in range(16, SCHEMA_VERSION + 1)]
+    try:
+        yield migrated.db
+    finally:
+        migrated.close()
+
+
+def rows_of(db: sqlite3.Connection) -> dict[str, tuple[str, int]]:
+    """Every row of the settings table: key to (value, revision)."""
+    return {str(k): (str(v), int(rev)) for k, v, rev in db.execute("SELECT key, value, rev FROM settings")}
+
+
+RADIOS = [key for key in KEYS if key not in STATION_KEYS]              # today's flat keys of the radios (and the last port the search found): read back through the settings in force
+STATE = ["beacon/last_sent_at", "status/last_sent_at", "status/last_text"]
 
 
 def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_are_gone(tmp_path: Path) -> None:
-    found = migrate(tmp_path, {**RESET, **KEPT, **{key: "7" for key in REMOVED}})
-    assert not set(RESET) & found.keys() and not set(REMOVED) & found.keys(), "the rows are deleted, the default is in force"
-    assert {key: found[key] for key in KEPT} == {key: (value, 1) for key, value in KEPT.items()}, "everything else is as it was, revision included"
-    assert found.keys() == KEPT.keys()
-    config = Config.from_data({key: value for key, (value, _) in found.items()})
+    with migrate(tmp_path, {**RESET, **KEPT, **{key: "7" for key in REMOVED}}) as db:
+        found, config = rows_of(db), stored_config(db)
+        assert not set(RESET) & found.keys() and not set(REMOVED) & found.keys(), "the rows are deleted, the default is in force"
+        assert station_rows(db) == {key: (value, 1) for key, value in KEPT.items() if key in STATION_KEYS}, "every row of the station is as it was, revision included"
+        assert {key: config.to_data()[key] for key in RADIOS} == {key: KEPT[key] for key in RADIOS}, "and so is every setting of the radios, read through the radios"
+        assert {key: state_row(db, key) for key in STATE} == {key: (KEPT[key], 1) for key in STATE} and found["web/bind"] == ("0.0.0.0", 1), "the daemon's own rows and the row of an older version too"
+        assert {key: flat_row(db, key) for key in OWN_31} == {key: (KEPT[key], 1) for key in OWN_31}, "each radio's own setting with the revision it had, wherever it is kept"
+        radios = has_table(db, "radio")
+        gone = (set(RADIOS) | {"tnc/enter_kiss"}) - set(STATE_31) if radios else set()          # (once the radios are rows: their rows, moved or written as the radios' columns)
+        assert found.keys() == {STATE_31.get(key, key) if radios else key for key in KEPT if key not in gone}, "nothing else is in the table, and nothing of it is lost"
+        assert config.tnc_profile == "kenwood-tnc2", "the type that was chosen stands, whatever tnc/enter_kiss said"
     for attr in ("map_maxzoom", "map_source", "update_url", "serial_pattern", "serial_skip"):
         assert getattr(config, attr) == getattr(DEFAULTS, attr)
     assert config.web_port == 7777 and config.web_allowed_hosts == "radio.lan,shack" and config.map_radius_km == 300
@@ -65,20 +90,23 @@ def test_the_settings_off_the_page_go_back_to_the_defaults_and_the_removed_rows_
 
 def test_every_setting_that_is_not_reset_is_kept(tmp_path: Path) -> None:
     assert set(KEYS) - set(RESET) <= KEPT.keys(), "the test holds an odd value for every setting that stays"
-    found = migrate(tmp_path, {key: KEPT[key] for key in KEYS if key in KEPT})
-    assert {key: value for key, (value, _) in found.items()} == {key: KEPT[key] for key in KEYS if key in KEPT}
+    stored = {key: KEPT[key] for key in KEYS if key in KEPT}
+    with migrate(tmp_path, stored) as db:
+        assert {key: value for key, (value, _) in station_rows(db).items()} == {key: value for key, value in stored.items() if key in STATION_KEYS}
+        assert {key: value for key, value in stored_config(db).to_data().items() if key in stored} == stored, "the station's and the radios' alike are in force as they were stored"
 
 
 def test_a_value_that_is_already_the_default_is_deleted_without_a_line(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
-        found = migrate(tmp_path, {"map/maxzoom": "12", "map/source": "", "update/url": "https://oh2gba.eu/neoaprs/version.php", "serial/pattern": "/dev/serial/by-id/*  /dev/ttyUSB* /dev/ttyACM*", "serial/skip": ""})
-    assert found == {}
+        with migrate(tmp_path, {"map/maxzoom": "12", "map/source": "", "update/url": "https://oh2gba.eu/neoaprs/version.php", "serial/pattern": "/dev/serial/by-id/*  /dev/ttyUSB* /dev/ttyACM*", "serial/skip": ""}) as db:
+            assert rows_of(db) == {}
     assert not [r for r in caplog.records if "reset to the default" in r.getMessage()]
 
 
 def test_one_info_line_for_each_key_reset_with_the_old_value(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger=MIGRATION_LOG):
-        migrate(tmp_path, {**RESET, "station/call": "OH2GBA"})
+        with migrate(tmp_path, {**RESET, "station/call": "OH2GBA"}):
+            pass
     lines = [r.getMessage() for r in caplog.records if "reset to the default" in r.getMessage() and r.levelno == logging.INFO]
     assert lines == ["map/maxzoom reset to the default: 14 → 12",
                      "map/source reset to the default: https://example.org/world.pmtiles → (empty)",
@@ -88,7 +116,8 @@ def test_one_info_line_for_each_key_reset_with_the_old_value(tmp_path: Path, cap
 
 
 def test_a_database_with_no_such_rows_is_as_it_was(tmp_path: Path) -> None:
-    assert migrate(tmp_path, {"station/call": "OH2GBA"}) == {"station/call": ("OH2GBA", 1)}
+    with migrate(tmp_path, {"station/call": "OH2GBA"}) as db:
+        assert rows_of(db) == {"station/call": ("OH2GBA", 1)}
 
 
 def test_a_new_database_has_no_rows_to_reset(tmp_path: Path) -> None:

@@ -1,17 +1,21 @@
-"""The one database file: everything NeoAPRS keeps (the settings here; the packets and the stations are packetlog.py's, the messages and the preferences of the stations messagelog.py's). The only
+"""The one database file: everything NeoAPRS keeps (the settings and the radios here; the packets and the stations are packetlog.py's, the messages and the preferences of the stations messagelog.py's). The only
 thing outside it is the log of the program itself, a rotating text file.
 
-This is the part of it that the daemon uses through the database thread (db.py): the settings, the checkpoint of the write-ahead log and the copy of the file. The file is brought up to
+This is the part of it that the daemon uses through the database thread (db.py): the settings, the radios, the checkpoint of the write-ahead log and the copy of the file. The file is brought up to
 date before the thread uses it, by the migrations (migrations.py).
 """
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TypeVar
 
 from .clock import Clock, utcnow
+from .configradios import radios_from_rows
 from .db import Db
-from .dberror import Connection, DbClosed, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
+from .dberror import Connection, DbClosed, Row, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
+from .packetcodec import stamp
+from .radiospec import RadioId, RadioSpec
+from .radiosql import insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 
 log = logging.getLogger("neoaprs.store")
@@ -22,8 +26,8 @@ T = TypeVar("T")
 
 
 class Store:
-    """The settings of the one database, on the database thread (db.py): every method is an operation of the thread, awaited by the caller, in the order it was asked. A store whose
-    database is not open says no and does not raise: it has no settings and keeps nothing. The statements are those of storesql.py."""
+    """The settings and the radios of the one database, on the database thread (db.py): every method is an operation of the thread, awaited by the caller, in the order it was asked. A store whose
+    database is not open says no and does not raise: it has no settings, no radios and keeps nothing. The statements are those of storesql.py and radiosql.py."""
 
     def __init__(self, clock: Clock = utcnow) -> None:
         self.now = clock
@@ -103,6 +107,45 @@ class Store:
 
     async def delete_setting(self, key: str) -> None:
         await self._quietly(lambda db: delete_setting(db, key), f"the setting {key} could not be deleted")
+
+    # ---- the radios: the rows of `radio` and each radio's own settings (radiosql.py)
+    async def _stored(self, fn: Callable[[Connection], T], default: T, what: str) -> T:
+        """fn on the thread, in a write transaction (all of it or none), and what it gives; `default` when the database is not open or would not take it (told as an error, as `what`)."""
+        db = self.db
+        if db is None or not db.is_open:
+            return default
+        try:
+            return await db.write(fn)
+        except (SqlError, DbClosed) as e:
+            log.error("%s: %s", what, e)
+            return default
+
+    async def radios(self) -> tuple[RadioSpec, ...]:
+        """Every radio as it is stored, removed ones too, by id (configradios.radios_from_rows); none when the database is not open or cannot be read (told as a warning, as `settings()` does:
+        none can also mean that, so a caller that would write radios on none must not)."""
+        none: tuple[list[Row], list[Row]] = ([], [])
+        return radios_from_rows(*await self._read(lambda db: (radio_rows(db), radio_settings(db)), none, "the radios could not be read"))
+
+    async def add_radio(self, kind: str, type: str, name: str, enabled: bool, position: int, *, id: RadioId | None = None, settings: Mapping[str, str] | None = None) -> RadioId | None:
+        """A new radio with its own settings, in one transaction; its id, or None when it was not stored. `id`: the id it is to have (radiosql.insert_radio: radios 1 and 2 of today's flat keys)."""
+        def add(db: Connection) -> RadioId:
+            made = insert_radio(db, kind, type, name, enabled, position, id=id)
+            put_radio_settings(db, made, settings or {})        # (the radio was inserted just now: it takes them)
+            return made
+        return await self._stored(add, None, f"the new {kind} radio could not be stored")
+
+    async def change_radio(self, id: RadioId, /, **columns: object) -> bool:
+        """Sets columns of a radio (radiosql.CHANGEABLE: type, name, enabled, position); False when there is no such radio, it is removed or it was not stored."""
+        return bool(await self._stored(lambda db: update_radio(db, id, **columns), 0, f"radio {id} could not be changed"))
+
+    async def put_radio_settings(self, id: RadioId, values: Mapping[str, str]) -> bool:
+        """A radio's own settings (key to text) in one transaction (all of it or none); its other settings stay. False when there is no such radio, it is removed or they were not stored."""
+        return await self._stored(lambda db: put_radio_settings(db, id, values), False, f"the settings of radio {id} could not be stored")
+
+    async def remove_radio(self, id: RadioId) -> bool:
+        """Removes a radio and takes back what chooses it, in one transaction (radiosql.remove_radio); False when there is no such radio, it is removed already or it was not stored."""
+        at = stamp(self.now())
+        return bool(await self._stored(lambda db: remove_radio(db, id, at), 0, f"radio {id} could not be removed"))
 
     # ---- a consistent copy, whole, while the daemon runs
     async def backup(self, dest: Path) -> bool:

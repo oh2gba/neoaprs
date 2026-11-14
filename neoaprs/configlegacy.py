@@ -1,5 +1,9 @@
-"""Rows of the settings table that are read as another setting while that one has no row of its own, so that a database keeps meaning what it meant: `tnc/enter_kiss` (true selects the Kenwood TNC-2
-profile) and `web/bind` (an address other than the loopback means `web/network` is on). The first save writes the setting itself, and from then on the row is not looked at."""
+"""Rows of the settings table that are read as another setting while that one has no row of its own, so that a database keeps meaning what it meant. `web/bind` (an address other than the loopback
+means `web/network` is on) is read so at every start: the first save writes the setting itself, and from then on the row is not looked at.
+
+The two rules of the radios, `tnc/enter_kiss` (true selects the Kenwood TNC-2 type) and `tnc/profile = mercury` with neither tickbox stored (the HF radio on, the FM one off), are applied to a
+database once, by migration 31 (neoaprs/migrationsteps31.py, which has them written into it and deletes the rows). Here they are for the call of `Config.from_data` without stored radios only,
+which reads today's two radios from flat rows as a version before the radios were rows did; they go with that call."""
 from collections.abc import Mapping
 
 from .configtypes import boolean

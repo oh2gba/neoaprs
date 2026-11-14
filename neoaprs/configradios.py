@@ -1,17 +1,42 @@
-"""The radios of the settings, until they are stored as radios (package D1a): today's flat keys read as radio 1, the FM radio (tnc/profile, fm/enabled, serial/*, tcp/*, beacon/path, digi/enabled), and radio 2,
-the HF radio (hf/profile, hf/enabled, mercury/*), each a `RadioSpec` with its own settings as text (`radios_from_flat`). `RadioViews` gives `Config` the radios and what is read of them under the names the
-round writes against; nothing here changes what a setting means. The rows of a radio's own state (its beacon's last send, the port its search found) are `radio_state_key`'s. No I/O."""
-import re
-from functools import cached_property
-from typing import Protocol, cast
+"""The radios of the settings. `Config.radios` holds them as they are stored (`radios_from_rows`: the rows of the tables `radio` and `radio_setting`, neoaprs/radiosql.py), and `RadioViews` gives `Config`
+what is read of them. The rows of a radio's own state (its beacon's last send, the port its search found) are `radio_state_key`'s. No I/O.
 
+Until the page and the wire name a radio by its id (wave 4 of the radio round; the views go in W3), today's flat keys stay as a view of radio 1, the FM radio (tnc/profile, fm/enabled, serial/port,
+serial/baud, tcp/*, beacon/path, digi/enabled), and radio 2, the HF radio (hf/profile, hf/enabled, mercury/*): `FLAT_HOMES` says where each lives, `flat_value` reads one, `with_flat` puts values in, and
+`FlatFields` gives `Config` the old attributes (`config.hf_enabled`) and takes them as keywords (`replace(config, hf_enabled=True)`)."""
+import logging
+import re
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, replace
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Protocol
+
+from .packetcodec import parse_stamp
 from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio
-from .radiotype import stored_text
-from .radiotypes import kind_field
+from .radiotype import KINDS, Kind, stored_text
+from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields
+
+log = logging.getLogger("neoaprs.config")
+
+FLAT_HOMES: Mapping[str, tuple[RadioId, str]] = {       # a flat attribute of Config, and where it lives: the radio, and its column (`type`, `enabled`) or its own key
+    "tnc_profile": (FM_ID, "type"), "fm_enabled": (FM_ID, "enabled"), "serial_port": (FM_ID, "port"), "serial_baud": (FM_ID, "baud"), "tcp_host": (FM_ID, "tcp_host"), "tcp_port": (FM_ID, "tcp_port"),
+    "beacon_path": (FM_ID, "path"), "digi_enabled": (FM_ID, "digipeat"),
+    "hf_profile": (HF_ID, "type"), "hf_enabled": (HF_ID, "enabled"), "mercury_sound_card": (HF_ID, "sound_card"), "mercury_keying": (HF_ID, "keying"), "mercury_tx_gain_db": (HF_ID, "tx_gain_db"),
+}
+FLAT_KINDS: Mapping[RadioId, Kind] = {FM_ID: "fm", HF_ID: "hf"}       # the kind of the radio a flat key is a view of: a radio of the id and another kind is not it
+FLAT_ON: Mapping[RadioId, bool] = {FM_ID: True, HF_ID: False}         # whether such a radio is on when a flat key makes it (today's defaults of fm/enabled and hf/enabled)
+
+
+def _default_radio(id: RadioId) -> RadioSpec:
+    kind = FLAT_KINDS[id]
+    return RadioSpec(id, kind, DEFAULT_TYPE[kind], "", FLAT_ON[id], id, settings=MappingProxyType({f.key: f.default for f in kind_fields(kind)}))      # (read-only: every Config that says nothing shares them)
+
+
+DEFAULT_RADIOS: tuple[RadioSpec, ...] = (_default_radio(FM_ID), _default_radio(HF_ID))       # the radios of settings that say nothing: today's FM radio, on, and HF radio, off (a database without radios has none: Config.from_data(rows, radios=()))
 
 
 class FlatRadios(Protocol):
-    """The flat settings the two radios of today are made of (Config's fields)."""
+    """The flat settings the two radios of today are made of (Config's views)."""
     @property
     def tnc_profile(self) -> str: ...
     @property
@@ -42,11 +67,43 @@ class FlatRadios(Protocol):
 
 def radios_from_flat(config: FlatRadios) -> tuple[RadioSpec, ...]:
     """Radio 1 (fm: tnc/profile, fm/enabled, the port, the speed and the TCP server from serial/* and tcp/*, the path from beacon/path, the digipeater from digi/enabled) and radio 2 (hf: hf/profile, hf/enabled,
-    the sound card, the keying and the gain from mercury/*), the beacon on both: what `Config.radios` is until the radios are stored (D1a)."""
+    the sound card, the keying and the gain from mercury/*), the beacon on both: the two radios that flat values say."""
     fm = {"port": config.serial_port, "baud": stored_text(config.serial_baud), "tcp_host": config.tcp_host, "tcp_port": stored_text(config.tcp_port),
           "beacon": "true", "path": config.beacon_path, "digipeat": stored_text(config.digi_enabled)}
     hf = {"sound_card": config.mercury_sound_card, "keying": config.mercury_keying, "tx_gain_db": stored_text(config.mercury_tx_gain_db), "beacon": "true"}
     return (RadioSpec(FM_ID, "fm", config.tnc_profile, "", config.fm_enabled, 1, settings=fm), RadioSpec(HF_ID, "hf", config.hf_profile, "", config.hf_enabled, 2, settings=hf))
+
+
+def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[Any]]) -> tuple[RadioSpec, ...]:
+    """The radios as the database keeps them, by id: `rows` are radiosql.radio_rows (id, kind, type, name, enabled, position, removed_at) and `settings` radiosql.radio_settings (radio_id, key, value).
+    A radio has the settings of its kind that are stored, as text: a key that is no setting of the kind is left out (the table keeps it), and a value that is wrong is left out and told once, with
+    `radio/<id>/<key>`, so that the default is in force. A row whose kind is none is left out and told."""
+    own: dict[RadioId, dict[str, str]] = {}
+    for radio, key, value in settings:
+        own.setdefault(int(radio), {})[str(key)] = str(value)
+    found: list[RadioSpec] = []
+    for id, kind, type, name, on, position, removed_at in rows:
+        if kind not in KINDS:
+            log.warning("radio %s is of the kind %r, which is none: it is left out", id, kind)
+            continue
+        found.append(RadioSpec(int(id), kind, str(type), str(name), bool(on), int(position), None if removed_at is None else parse_stamp(str(removed_at)), _checked(int(id), kind, own.get(int(id), {}))))
+    return tuple(sorted(found, key=lambda spec: spec.id))
+
+
+def _checked(id: RadioId, kind: Kind, stored: Mapping[str, str]) -> dict[str, str]:
+    """The stored settings of a radio that are settings of its kind and values of them."""
+    kept: dict[str, str] = {}
+    for key, text in stored.items():
+        field = kind_field(kind, key)
+        if field is None:
+            continue
+        try:
+            field.parse(text)
+        except ValueError as e:
+            log.warning("radio/%d/%s: %s; the default %s is used", id, key, e, field.default or "(empty)")
+            continue
+        kept[key] = text
+    return kept
 
 
 def radio_state_key(radio: RadioId, name: str) -> str:
@@ -63,18 +120,114 @@ def radio_key_of(text: str) -> tuple[RadioId, str] | None:
     return (int(found[1]), found[2]) if found else None
 
 
+# ---- the flat keys as a view of radios 1 and 2
+
+def _flat_radio(radios: Iterable[RadioSpec], id: RadioId) -> RadioSpec | None:
+    """The radio a flat key of radio `id` is a view of: the one with that id, of the kind it has today; None when there is none."""
+    return next((s for s in radios if s.id == id and s.kind == FLAT_KINDS[id]), None)
+
+
+def flat_value(radios: Iterable[RadioSpec], attr: str) -> Any:
+    """What a flat attribute says of these radios: the radio's type, whether it is on, or its own setting; for a radio that is not there, a radio that is off with the defaults of its kind."""
+    id, key = FLAT_HOMES[attr]
+    spec = _flat_radio(radios, id)
+    if key == "enabled":
+        return spec is not None and spec.enabled and not spec.removed
+    spec = spec or _default_radio(id)
+    return spec.type if key == "type" else _own_value(spec, key)
+
+
+def _own_value(spec: RadioSpec, key: str) -> Any:
+    """A radio's own setting as the flat field of before held it: the value of the stored text, the default when there is none, and for a text that is no value (one put into a Config unchecked, as
+    `replace(config, beacon_path=...)` puts it: a stored one is checked when it is read from the database) the text itself, or the number it says, as the field kept whatever it was given."""
+    found = kind_field(spec.kind, key)
+    assert found is not None, key
+    text = spec.settings.get(key)
+    if text is None:
+        return found.parse(found.default)
+    try:
+        return found.parse(text)
+    except ValueError:
+        if found.kind == "bool":
+            return text == "true"
+        if found.kind == "int":
+            return int(text) if text.lstrip("-").isdigit() else found.parse(found.default)
+        return text
+
+
+def with_flat(radios: Iterable[RadioSpec], values: Mapping[str, Any]) -> tuple[RadioSpec, ...]:
+    """The radios with these flat values (attribute to value) put in, by id. A value that is what the radios say already changes nothing; one for a radio that is not there makes it (the FM radio on, the HF
+    radio off, as the flat keys' defaults say)."""
+    found = {s.id: s for s in radios}
+    for attr, value in values.items():
+        if flat_value(found.values(), attr) == value:
+            continue
+        id, key = FLAT_HOMES[attr]
+        spec = _flat_radio(found.values(), id)
+        if spec is None:
+            if id in found:
+                raise RadioError(f"radio {id} is of the kind {found[id].kind}: {attr} names no radio")
+            spec = replace(_default_radio(id), settings={})
+        if key == "type":
+            spec = replace(spec, type=str(value))
+        elif key == "enabled":
+            spec = replace(spec, enabled=bool(value))
+        else:
+            spec = replace(spec, settings={**spec.settings, key: stored_text(value)})
+        found[id] = spec
+    return tuple(found[id] for id in sorted(found))
+
+
+def _view(attr: str) -> property:
+    return property(lambda self: flat_value(self.radios, attr), doc=f"The flat view `{attr}` of radio {FLAT_HOMES[attr][0]} (configradios.FLAT_HOMES).")
+
+
+if TYPE_CHECKING:
+    @dataclass(frozen=True)
+    class FlatFields:
+        """For the type checker the flat names are fields of Config, as they were before the radios were stored, so that every `config.hf_enabled`, `Config(tnc_profile=...)` and
+        `replace(config, serial_port=...)` is checked as it was. At run time (below) they are views and keywords."""
+        tnc_profile: str = ""
+        serial_port: str = ""
+        serial_baud: int | None = None
+        tcp_host: str = ""
+        tcp_port: int = 0
+        hf_enabled: bool = False
+        hf_profile: str = ""
+        mercury_sound_card: str = ""
+        mercury_keying: str = ""
+        mercury_tx_gain_db: int = 0
+        fm_enabled: bool = True
+        beacon_path: str = ""
+        digi_enabled: bool = False
+else:
+    class FlatFields:
+        """Today's flat names of radios 1 and 2 on `Config`: each a property that reads the radios (`flat_value`), and a keyword the constructor takes and puts into the radios (`accepting_flat`)."""
+
+    for _attr in FLAT_HOMES:
+        setattr(FlatFields, _attr, _view(_attr))
+
+
+def accepting_flat[C](cls: type[C]) -> type[C]:
+    """The class with a constructor that also takes the flat names as keywords and puts them into its `radios` (with_flat), so that `Config(hf_enabled=True)` and `replace(config, hf_enabled=True)` work as
+    they did when the flat names were fields."""
+    made = cls.__init__
+
+    def __init__(self: Any, *args: Any, **values: Any) -> None:
+        flat = {attr: values.pop(attr) for attr in tuple(values) if attr in FLAT_HOMES}
+        made(self, *args, **values)
+        if flat:
+            object.__setattr__(self, "radios", with_flat(self.radios, flat))
+
+    __init__.__wrapped__ = made         # type: ignore[attr-defined]  # (what inspect shows)
+    setattr(cls, "__init__", __init__)  # noqa: B010  (assigning to __init__ by name is what mypy refuses)
+    return cls
+
+
 class RadioViews:
-    """The radios of the settings, as `Config` gives them (its base): views of the flat keys until D1a stores them."""
-
-    @cached_property
-    def radios(self) -> tuple[RadioSpec, ...]:
-        """Every radio, removed ones too, by id."""
-        return radios_from_flat(cast(FlatRadios, self))
-
-    @property
-    def main_choice(self) -> RadioId | None:
-        """The radio the operator chose as the main one (station/main_radio, from wave 4 on); None: the first enabled."""
-        return None
+    """What is read of the radios of the settings, as `Config` gives it (its base)."""
+    radios: tuple[RadioSpec, ...]
+    main_choice: RadioId | None
 
     def radio(self, id: RadioId) -> RadioSpec | None:
         return next((s for s in self.radios if s.id == id), None)
@@ -89,7 +242,7 @@ class RadioViews:
 
     @property
     def main_radio(self) -> RadioId | None:
-        """The main radio (radiospec.main_radio): today the FM radio while it is on, else the HF one, else none."""
+        """The main radio (radiospec.main_radio): the one chosen while it is enabled, else the first enabled by position, else none."""
         return main_radio(self.radios, self.main_choice)
 
     @staticmethod
@@ -102,3 +255,4 @@ class RadioViews:
             return stored_text(found.parse(text))
         except ValueError as e:
             raise RadioError(f"radio/{spec.id}/{key}: {e}") from None
+
