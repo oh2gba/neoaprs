@@ -3,26 +3,23 @@ the radios started, finds the modem where it left it and the radio comes back by
 it (`Mercury.ports_changed`, wired to `repoint_hf`). Before this the relaunch took the next free pair every time (the old one looked busy with its connections in TIME_WAIT) and the Tnc waited on the dead port for ever.
 The modem is given the station's table of resources, as a radio's driver gives it: the radio holds its pair across the relaunch, so that no other radio's modem is handed it while the program is down, and holds the new
 pair in the place of the old when it had to take another."""
-import random
 import socket
+import sys
 from pathlib import Path
 
 import pytest
 
-from neoaprs import mercurymodem
 from neoaprs.claims import Claim, Claims
-from neoaprs.mercury import BROADCAST_PORT
-from neoaprs.mercuryhelper import PORT_TRIES, free_ports
 from neoaprs.source import Backoff, Source
 from tests.support import fakemercury
 from tests.support.env import Env, until_started
+from tests.support.modemports import own_ports
 
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own, so that two tests side by side (pytest-xdist) do not both find 8100 free between the probe and the bind."""
-    base = random.randrange(20000, 40000, 500)             # (every port of the pair, and the UI port 2000 above, stays under 49152: Windows hands out and reserves the ports above it, and a base there found no free pair on CI's Windows runner)
-    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    own_ports(monkeypatch)
 
 
 async def hf_station(tmp_path: Path, backoff: Backoff) -> Env:
@@ -50,7 +47,8 @@ def kill(e: Env) -> None:
 
 
 async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_itself(tmp_path: Path) -> None:
-    e = await hf_station(tmp_path, Backoff([1.0, 1.0]))                      # (a second, not a tenth: Windows keeps the port of a process that was killed for a moment, and a modem started into that moment ends on "address in use" and comes back on the next start, which is not the one this test counts)
+    # (on Windows a second, not a tenth: it keeps the port of a process that was killed for a moment, and a modem started into that moment ends on "address in use" and comes back on a later start than the one counted here)
+    e = await hf_station(tmp_path, Backoff([1.0, 1.0] if sys.platform == "win32" else [0.1, 0.1]))
     try:
         port, pid = e.hf.port, e.ctl.mercury.pid
         held = pairs(e)

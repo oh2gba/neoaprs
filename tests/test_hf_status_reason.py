@@ -1,26 +1,25 @@
 """The code beside the Mercury modem's problem (`Mercury.reason`): the English `problem` is the log's and the doctor's, the page puts the reason in its own words in the viewer's language; the code is empty
 unless the modem is waiting, and it is what the hf topic's `modem.reason` tells."""
-import random
 from pathlib import Path
 
 import pytest
 
 from neoaprs import mercurymodem
 from neoaprs.mercury import BROADCAST_PORT
-from neoaprs.mercuryhelper import PORT_TRIES, free_ports
+from neoaprs.mercuryhelper import PORT_TRIES
 from neoaprs.mercurymodem import NOT_INSTALLED, OPEN_TO_NETWORK, REASONS, Mercury
 from neoaprs.source import Backoff
 from neoaprs.web.tncwire import ModemState
 from tests.support import fakemercury
 from tests.support.env import until_started
+from tests.support.modemports import own_ports
 from tests.test_mercury_modem import HF, QUICK, modem, stopped
 
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks for free ports from a base of its own (two tests side by side do not both find 8100 free)."""
-    base = random.randrange(20000, 40000, 500)             # (every port of the pair, and the UI port 2000 above, stays under 49152: Windows hands out and reserves the ports above it, and a base there found no free pair on CI's Windows runner)
-    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    own_ports(monkeypatch)
 
 
 def test_the_codes_of_the_modem_are_the_codes_of_the_wire() -> None:

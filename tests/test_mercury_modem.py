@@ -7,7 +7,6 @@ Every modem here is a radio's, as its driver makes it (`fakemercury.of_radio`): 
 ports while it runs; the tests of the files are made for the modem of today's station too (`SHAPES`: no table and no folder, its files in the data folder). What a radio's folder takes over from the data folder is
 tests/test_mercury_folder.py; radios side by side, tests/test_claims_search.py."""
 import asyncio
-import itertools
 import logging
 import os
 import shlex
@@ -26,7 +25,7 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
 from neoaprs import mercuryhelper, mercurymodem
-from neoaprs.mercuryhelper import PORT_TRIES, end_stale, environment, find, free_ports, list_sound_cards, pair_free
+from neoaprs.mercuryhelper import end_stale, environment, find, free_ports, list_sound_cards, pair_free
 from neoaprs.claims import Claim, Claims
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
 from neoaprs.radiotype import HF_ID
@@ -37,6 +36,7 @@ from neoaprs.tncprofile import MERCURY
 from tests.support import fakemercury
 from tests.support.env import until_started
 from tests.support.fakemercury import Air, of_radio
+from tests.support.modemports import own_ports
 from tests.test_tnc import Rigs, stops_rigs, ui_frame
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
@@ -48,19 +48,12 @@ def rig() -> Rigs:
     return Rigs()
 
 
-WORKER_SPAN = 1000                      # the ports of a pytest-xdist worker: its own thousand from 20000 up, all below the ephemeral ranges (Linux from 32768, Windows from 49152), so that nothing the system hands out lies in them
-WORKERS = 12                            # (scripts/check runs at most twelve; more wrap round to a worker that is not likely to run beside them)
-_tests_run = itertools.count()
 
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The modem asks for free ports from Mercury's defaults up; here each test asks from a base of its own, so that two tests running side by side (pytest-xdist) do not both find 8100 free between the probe and
-    the bind (one of them then started a program that could not listen). A worker has a range of its own and its tests, which run one after the other, take its two halves in turn: no two workers share a port, and a
-    test does not start where the one before it may still hold a port."""
-    worker = int("".join(c for c in os.environ.get("PYTEST_XDIST_WORKER", "") if c.isdigit()) or 0) % WORKERS
-    base = 20000 + WORKER_SPAN * worker + WORKER_SPAN // 2 * (next(_tests_run) % 2)
-    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    own_ports(monkeypatch)
 
 
 SHAPES = pytest.mark.parametrize("radio", [True, False], ids=["radio", "folderless"])      # a radio's modem, and the modem of today's station (no table, no folder: the data folder)

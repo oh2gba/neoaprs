@@ -3,22 +3,21 @@ id only when it is a Mercury (on Windows, which reuses ids and has no /proc, by 
 SIGTERM drops the transmitter, before it is killed. The modem is a radio's (`fakemercury.of_radio`), whose file is in the radio's own folder, `radios/<id>/mercury.pid`, and the modem of today's station, whose
 file is in the data folder; the one an older NeoAPRS left in the data folder is tests/test_mercury_folder.py's."""
 import asyncio
-import random
 import sys
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from neoaprs import mercuryhelper, mercurymodem
+from neoaprs import mercuryhelper
 from neoaprs.config import DEFAULTS, Config
-from neoaprs.mercury import BROADCAST_PORT
-from neoaprs.mercuryhelper import PORT_TRIES, Program, end_stale, free_ports, image_is_mercury
+from neoaprs.mercuryhelper import Program, end_stale, image_is_mercury
 from neoaprs.mercurymodem import PID_FILE, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
 from tests.support.env import until_started
 from tests.support.fakemercury import of_radio
+from tests.support.modemports import own_ports
 
 HF: Config = replace(DEFAULTS, hf_enabled=True, fm_enabled=False, mercury_keying="rts:/dev/ttyUSB0", mercury_sound_card="plughw:1,0", station_call="OH2GBA")
 QUICK = Backoff([0.1, 0.1])
@@ -26,9 +25,8 @@ QUICK = Backoff([0.1, 0.1])
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks for free ports from a base of its own, so that two tests running side by side (pytest-xdist) do not both find 8100 free between the probe and the bind."""
-    base = random.randrange(20000, 40000, 500)             # (every port of the pair, and the UI port 2000 above, stays under 49152: Windows hands out and reserves the ports above it, and a base there found no free pair on CI's Windows runner)
-    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    own_ports(monkeypatch)
 
 
 def modem(tmp_path: Path, radio: bool = True) -> Mercury:

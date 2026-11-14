@@ -1,27 +1,24 @@
 """The FM radio on a KISS server over TCP (a Direwolf on `socket://127.0.0.1:8001`, the setting `serial/port`) and the HF radio ticked with the Mercury type: the address in `serial/port` is the FM radio's and is never
 taken for a Mercury that something else runs, so the daemon starts a Mercury of its own for the HF radio (the program that stands in for it, tests/support/fakemercury.py) and the HF Tnc connects to that one's broadcast
 port, not to the Direwolf; only a port given for the run (`--hf-port`) is a Mercury something else runs (tests/test_mercury_modem.py)."""
-import random
 from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, kiss, mercurymodem
-from neoaprs.mercury import BROADCAST_PORT
+from neoaprs import ax25, kiss
 from neoaprs.mercurydriver import MercuryDriver
-from neoaprs.mercuryhelper import PORT_TRIES, free_ports
 from neoaprs.source import Backoff
 from neoaprs.tncdriver import TncDriver
 from tests.support import fakemercury
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeradio import FakeRadio
+from tests.support.modemports import own_ports
 
 
 @pytest.fixture(autouse=True)
 def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test asks the modem for free ports from a base of its own, so that two tests side by side (pytest-xdist) do not both find 8100 free between the probe and the bind."""
-    base = random.randrange(20000, 40000, 500)             # (every port of the pair, and the UI port 2000 above, stays under 49152: Windows hands out and reserves the ports above it, and a base there found no free pair on CI's Windows runner)
-    monkeypatch.setattr(mercurymodem, "free_ports", lambda first=BROADCAST_PORT, tries=PORT_TRIES: free_ports(base, tries))
+    """Each test asks the modem for free ports from a base of its own (tests/support/modemports.py): no other test running beside it is handed its ports."""
+    own_ports(monkeypatch)
 
 
 async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_something_else_runs(tmp_path: Path) -> None:
