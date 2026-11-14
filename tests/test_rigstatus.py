@@ -1,5 +1,6 @@
-"""The status report (neoaprs/services/rigstatus.py) on a Tnc that is a stub, the real beacon, a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the
-interval, the same status again at every interval, nothing while the radio is off (and one line in the log for that), the static text under the same rule, and what ?APRSS answers with."""
+"""The status report (neoaprs/services/rigstatus.py) on the station's radios as the registry gives them (`support/seamshapes.py` over stub lines), the station's one maker of frames (services/beaconframe.py),
+a fake rigctld on a free port and a clock the test holds: the first report after the first poll, nothing inside the interval, the same status again at every interval, nothing while the radio is off (and one
+line in the log for that), the static text under the same rule, what ?APRSS answers with; the report on the main radio (the HF one while the FM one is off, none while there is no radio), and the old call."""
 import logging
 import socket
 import sys
@@ -10,14 +11,20 @@ import pytest
 
 from neoaprs import ax25
 from neoaprs.config import RECEIVE_ONLY
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.rigctld import RigError, read_rig
 from neoaprs.services.beacon import Beacon
+from neoaprs.services.beaconframe import BeaconFrames
+from neoaprs.services.radioset import NO_RADIO
 from neoaprs.services.rigstatus import RigStatus, clipped, freq_text
 from neoaprs.source import Source
 from tests.support.rig import ServiceRig
 from tests.support.air import on_air
 from tests.support.env import Env, remember_stop, until
 from tests.support.fakes import FakeRigctld, rigctld
+from tests.support.seamshapes import RegistryShape
+from tests.support.stubtnc import StubTnc
+from tests.test_beaconframe import radio_of
 
 FIRST = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 14.074 MHz USB"
 
@@ -26,8 +33,10 @@ class Rig(ServiceRig):
     def __init__(self, rigd: FakeRigctld | None, **changes: object) -> None:
         super().__init__(**{"beacon_interval_min": 30, **({"status_rigctld": rigd.address} if rigd else {}), **changes})          # (the beacon is on: no status goes out while it is off)
         self.rigd = rigd
-        self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
-        self.status = RigStatus(self.tnc, lambda: self.config, self.beacon, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
+        self.hf = StubTnc(max_frame=123)                                    # (radio 2's line: the HF radio, off unless the changes switch it on)
+        self.radios = RegistryShape([radio_of(self.config, FM_ID, self.tnc), radio_of(self.config, HF_ID, self.hf)])
+        self.frames = BeaconFrames(lambda: self.config, None, self.clock)
+        self.status = RigStatus(self.radios, lambda: self.config, self.frames, self.clock, poll_sec=0.01, read=lambda host, port: read_rig(host, port, 0.3))
         remember_stop(self.status.stop)
 
 
@@ -296,6 +305,35 @@ async def test_settings_that_make_no_frame_send_nothing_and_do_not_stop_the_time
     rig.set(station_call="OH2GBA")
     await until(lambda: len(rig.tnc.sent) == 1)
     await rig.status.stop()
+
+
+# ---- the radio it goes on ------------------------------------------------------------------------------------------------------------------------
+
+async def test_the_status_goes_on_the_main_radio_the_hf_one_while_the_fm_one_is_off_and_by_its_path() -> None:
+    rig = Rig(None, station_status="QRV 145.500", fm_enabled=False, hf_enabled=True)
+    await rig.status.poll()
+    assert rig.tnc.sent == [] and rig.hf.lines() == ["OH2GBA>APZNEO:>211200zQRV 145.500"], "HF carries no path"
+    on_fm = rig.status.status_frame(rig.radios.get(FM_ID))
+    assert on_fm is not None and on_fm.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500", "?APRSS heard on the FM radio is answered for it"
+
+
+async def test_with_no_radio_no_status_goes_and_the_log_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs.status")
+    rig = Rig(None, station_status="QRV", fm_enabled=False)
+    await rig.status.poll()
+    await rig.status.poll()
+    assert await rig.status.send_now() == NO_RADIO and rig.tnc.sent == rig.hf.sent == [] and rig.status.last_sent_at is None
+    assert [r.getMessage() for r in caplog.records] == [f"no status sent: {NO_RADIO}"]
+
+
+async def test_the_old_call_with_a_line_and_a_beacon_sends_the_same_on_that_line_and_takes_the_beacons_maker() -> None:
+    rig = Rig(None, station_status="QRV 145.500")
+    beacon = Beacon(rig.tnc, lambda: rig.config, rig.clock)
+    old = RigStatus(rig.tnc, lambda: rig.config, beacon, rig.clock)                 # (neoaprs/app.py's call until the integration gives it the registry and the maker)
+    assert old.frames is beacon.frames
+    await old.poll()
+    await rig.status.poll()
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zQRV 145.500"] * 2
 
 
 # ---- ?APRSS and the timer ----------------------------------------------------------------------------------------------------------------------

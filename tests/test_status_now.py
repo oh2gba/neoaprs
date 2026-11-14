@@ -1,5 +1,6 @@
 """Where the status comes from (`status/source`) and "Send status now" (`RigStatus.send_now`, the command `status_now`): the choice follows the other settings while it is empty, off and text send nothing from the radio, and a
-status asked for goes out inside the interval and when nothing changed, by the same interlock, the same length and the same Tnc as the timer's, and says why when it cannot."""
+status asked for goes out inside the interval and when nothing changed, by the same interlock, the same length and the same radio as the timer's (the main radio, `tests/test_rigstatus.py`'s registry), and says
+why when it cannot; in the daemon the report is made by the beacons' maker of frames."""
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -131,6 +132,7 @@ async def test_the_command_sends_the_status_and_the_page_is_told_the_text(tmp_pa
     await page.until(lambda: any(r["tnc2"].endswith("QRV 145.500") and r["direction"] == "out" for r in page.topics["packets"].values()))
     await page.until(lambda: page.of("status")[-1]["station_status"] == "QRV 145.500")
     assert page.of("error") == []
+    assert e.ctl.rigstatus.frames is e.ctl.beacon.frames, "the report is made by the station's one maker of frames, the beacons'"
     await e.stop()
 
 

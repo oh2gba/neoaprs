@@ -1,5 +1,6 @@
 """What NeoAPRS knows of the Mercury HF modem without running it (neoaprs/mercury.py, the profile, the settings): the one mode and its frame, the frame cap on what the daemon sends (the beacon's comment cut, a message refused with
-a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor."""
+a reason, the Tnc's last guard), the keying as the setting keeps it, the command line and the configuration the daemon writes, what `mercury -z` and the control port print, and the moving station's floor. The
+beacon's frames and pause are those of radio 2 of the settings as the registry gives it (`support/seamshapes.py`), made by the station's one maker (services/beaconframe.py)."""
 import logging
 import random
 import re
@@ -15,7 +16,9 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.configlegacy import with_legacy
 from neoaprs.message import MessagingError
 from neoaprs.radiorules import FM, HF
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.services.beacon import Beacon, BeaconError
+from neoaprs.services.beaconframe import BeaconFrames
 from neoaprs.services.common import fit_frame, fixed_prefix, our_frame
 from neoaprs.services.sender import SendError, Sender
 from neoaprs.tncprofile import MERCURY, PROFILES, profile_of
@@ -24,6 +27,7 @@ from neoaprs.web.views import message_row
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR
 from tests.support.stubtnc import StubTnc
+from tests.test_beaconframe import capped_with_paths, radio_of
 from tests.test_messaging import Rig, started_rig
 
 HF_CONFIG: Config = replace(ON_AIR, hf_enabled=True, fm_enabled=False, beacon_path="DIRECT")
@@ -94,15 +98,16 @@ def test_a_frame_that_fits_or_has_no_limit_is_left_as_it_is_and_a_long_comment_i
 
 
 def test_the_beacon_cuts_its_comment_to_the_radios_frame_and_says_so_once(caplog: pytest.LogCaptureFixture) -> None:
-    tnc = StubTnc(max_frame=123, rules=replace(HF, paths=True))         # (a radio with a frame cap that carries paths: over HF itself no path goes, and a beacon with its 43-character comment is 86 bytes at most, under the cap)
     long = replace(HF_CONFIG, station_comment="A comment as long as the settings allow, 43", beacon_path="WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1,WIDE5-1,WIDE6-1,WIDE7-1")
-    beacon = Beacon(tnc, lambda: long, FixedClock())
-    frame = beacon.frame()
+    radio = capped_with_paths(long.radios[0])                           # (a radio with a frame cap that carries paths: over HF itself no path goes, and a beacon with its 43-character comment is 86 bytes at most, under the cap)
+    frames = BeaconFrames(lambda: long, None, FixedClock())
+    frame = frames.position(radio)
     assert len(ax25.encode(frame)) == 123 and frame.info == b"=6010.20N/02456.40E-A comment as long as the settings allo"
     assert len([r for r in caplog.records if "its comment is cut" in r.message]) == 1
-    beacon.frame()
+    frames.position(radio)
     assert len([r for r in caplog.records if "its comment is cut" in r.message]) == 1, "said once for the same cut"
-    assert len(ax25.encode(Beacon(StubTnc(), lambda: long, FixedClock()).frame())) > 123, "a radio with no limit sends it whole"
+    assert len(ax25.encode(frames.position(radio_of(long, FM_ID)))) > 123, "a radio with no limit sends it whole"
+    assert Beacon(StubTnc(max_frame=123, rules=replace(HF, paths=True)), lambda: long, FixedClock()).frame() == frame, "a line of the old shape with the same cap and rules: the same cut"
 
 
 def test_the_sender_cuts_an_objects_comment_and_refuses_what_cannot_be_cut() -> None:
@@ -387,11 +392,13 @@ def test_the_lines_of_the_control_port_are_read_as_mercury_writes_them() -> None
 def test_over_mercury_every_frame_goes_direct_whatever_the_path_settings_say_and_the_settings_are_kept() -> None:
     hf = replace(HF_CONFIG, beacon_path="WIDE1-1,WIDE2-1")
     tnc = StubTnc(max_frame=123)
-    beacon = Beacon(tnc, lambda: hf, FixedClock())
-    assert beacon.frame().path == () and hf.beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "the frame is direct, the setting untouched"
+    frames = BeaconFrames(lambda: hf, None, FixedClock())
+    assert frames.position(radio_of(hf, HF_ID, tnc)).path == () and hf.beacon_path_calls == ("WIDE1-1", "WIDE2-1"), "the frame is direct, the setting untouched"
+    status = frames.status("QRV", radio_of(hf, HF_ID, tnc))
+    assert status is not None and status.path == ()
     sender = Sender(tnc, lambda: hf, FixedClock())
     assert sender.frame(b">status", ("WIDE1-1",)).path == () and sender.frame(b">status", None).path == ()
-    assert Beacon(StubTnc(), lambda: hf, FixedClock()).frame().path_text == "WIDE1-1,WIDE2-1", "the FM radio carries it"
+    assert frames.position(radio_of(hf, FM_ID)).path_text == "WIDE1-1,WIDE2-1", "the FM radio carries it"
 
 
 async def test_over_mercury_a_message_and_its_ack_go_direct_even_to_a_station_with_a_path_of_its_own(tmp_path: Path) -> None:
@@ -408,17 +415,19 @@ async def test_over_mercury_a_message_and_its_ack_go_direct_even_to_a_station_wi
 def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the_one_interval_has_a_random_pause() -> None:
     moving = replace(HF_CONFIG, gps_source="gpsd", beacon_travel="car", beacon_interval_min=30)
     clock = FixedClock()
-    beacon = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
+    beacon = Beacon(radio_of(moving, HF_ID), lambda: moving, clock, frames=BeaconFrames(lambda: moving, None, clock))
     assert beacon.interval_min == 30, "the one interval of the station"
     with pytest.raises(BeaconError, match="no GPS|fix"):
         beacon.frame()                                                           # (a moving station on HF: the timed beacon says where it is now, and nothing without a fresh fix)
-    assert Beacon(StubTnc(max_frame=123), lambda: replace(moving, gps_source="off"), clock).frame().info.startswith(b"=6010.20N/02456.40E-"), "a fixed station: its home"
-    paused = Beacon(StubTnc(max_frame=123), lambda: moving, clock)
+    fixed = replace(moving, gps_source="off")
+    assert BeaconFrames(lambda: fixed, None, clock).position(radio_of(fixed, HF_ID)).info.startswith(b"=6010.20N/02456.40E-"), "a fixed station: its home"
+    paused = Beacon(radio_of(moving, HF_ID), lambda: moving, clock)
     paused.jitter = lambda most: most / 2
     paused.last_sent, paused._started = clock(), clock()
     paused._plan(30)
     assert paused.next_due == clock() + timedelta(minutes=30) + timedelta(seconds=150), "the interval, then the pause"
-    unpaused = Beacon(StubTnc(), lambda: replace(moving, gps_source="off", hf_enabled=False, fm_enabled=True, beacon_interval_min=20), clock)
+    fm_only = replace(moving, gps_source="off", hf_enabled=False, fm_enabled=True, beacon_interval_min=20)
+    unpaused = Beacon(radio_of(fm_only, FM_ID), lambda: fm_only, clock)
     unpaused.jitter = lambda most: 999.0
     unpaused.last_sent, unpaused._started = clock(), clock()
     unpaused._plan(20)

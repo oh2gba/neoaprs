@@ -1,5 +1,6 @@
-"""The beacon (neoaprs/services/beacon.py) on a Tnc that is a stub and a clock the test holds: the frame the settings make, byte for byte, and the timer (the first delay, the interval, the skip while
-the TNC is not connected, a changed interval)."""
+"""The beacon of a radio (neoaprs/services/beacon.py) and the frames of the station's one maker (services/beaconframe.py) for it, on radio 1 as the registry gives it (`support/seamshapes.py` over a stub
+line) and a clock the test holds: the frame the settings make, byte for byte, and the timer (the first delay, the interval, the skip while the TNC is not connected, a changed interval). The same for any radio
+and the old shape of the radio are tests/test_beaconframe.py's."""
 import logging
 from datetime import timedelta
 
@@ -10,24 +11,35 @@ from neoaprs.aprsparse import parse
 from neoaprs.aprsposition import parse_position
 from neoaprs.config import RECEIVE_ONLY, Config
 from neoaprs.packet import Position, Status
+from neoaprs.radiospec import FM_ID
 from neoaprs.services.beacon import Beacon, BeaconError, phg_text, uncompressed_position
+from neoaprs.services.beaconframe import BeaconFrames
 from neoaprs.source import Source
 from tests.support.rig import ServiceRig
-from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, ON_AIR, until
+from tests.test_beaconframe import radio_of
 
 
 class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**{"beacon_interval_min": 30, **changes})          # (on: the defaults are a beacon that is off)
-        self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0)
+        self.radio = radio_of(self.config, FM_ID, self.tnc)                 # (radio 1 of the settings, its frames on the stub)
+        self.frames = BeaconFrames(lambda: self.config, None, self.clock)
+        self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)
+
+    def frame(self) -> ax25.Frame:
+        """Our position on the radio, as the one maker makes it."""
+        return self.frames.position(self.radio)
+
+    def status(self, text: str) -> ax25.Frame | None:
+        return self.frames.status(text, self.radio)
 
 
 # ---- the frame -----------------------------------------------------------------------------------------------------------------------------------
 
 def test_the_default_beacon_is_the_uncompressed_position_with_the_comment_to_the_experimental_tocall_by_way_of_wide() -> None:
-    frame = Rig().beacon.frame()
+    frame = Rig().frame()
     assert frame.info == b"=6010.20N/02456.40E-NeoAPRS"
     assert (str(frame.destination), str(frame.source), frame.path_text, frame.is_ui) == ("APZNEO", "OH2GBA", "WIDE1-1,WIDE2-1", True)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
@@ -37,7 +49,7 @@ def test_the_default_beacon_is_the_uncompressed_position_with_the_comment_to_the
 @pytest.mark.parametrize("comment", ["144/430 MHz dual", "PHG2360 digi", "RNG0025 fill-in", "DFS2132 beam", "123/456", "PHG2360"])
 @pytest.mark.parametrize("power", [None, 25])
 def test_a_comment_that_starts_like_a_data_extension_gets_a_blank_before_it_so_that_every_receiver_reads_it_as_the_comment(comment: str, power: int | None) -> None:
-    frame = Rig(station_comment=comment, beacon_power_w=power, beacon_antenna_height_m=10 if power else None, beacon_antenna_gain_db=3 if power else None).beacon.frame()
+    frame = Rig(station_comment=comment, beacon_power_w=power, beacon_antenna_height_m=10 if power else None, beacon_antenna_gain_db=3 if power else None).frame()
     decoded = parse(frame.info, "OH2GBA", "APZNEO", FixedClock()())
     assert isinstance(decoded, Position) and decoded.comment.strip() == comment
     assert decoded.course_deg is None and decoded.speed_kmh is None
@@ -46,20 +58,20 @@ def test_a_comment_that_starts_like_a_data_extension_gets_a_blank_before_it_so_t
 
 
 def test_a_comment_that_starts_like_nothing_special_is_sent_as_it_is() -> None:
-    assert Rig(station_comment="144.390 MHz").beacon.frame().info == b"=6010.20N/02456.40E-144.390 MHz"
+    assert Rig(station_comment="144.390 MHz").frame().info == b"=6010.20N/02456.40E-144.390 MHz"
 
 
 def test_a_stored_destination_compressed_or_dao_is_ignored_and_the_tocall_is_the_codes() -> None:
     stored = Config.from_data({**ON_AIR.to_data(), "beacon/destination": "APRS", "beacon/compressed": "true", "beacon/dao": "true"})
     assert stored == ON_AIR and TOCALL == "APZNEO"
-    frame = Beacon(StubTnc(), lambda: stored, FixedClock()).frame()
+    frame = BeaconFrames(lambda: stored, None, FixedClock()).position(radio_of(stored, FM_ID))
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS"
 
 
 def test_the_frame_follows_the_settings() -> None:
-    frame = Rig(station_call="OH2GBA-9", beacon_path="DIRECT", station_symbol_table="\\", station_symbol_code=">", station_comment="").beacon.frame()
+    frame = Rig(station_call="OH2GBA-9", beacon_path="DIRECT", station_symbol_table="\\", station_symbol_code=">", station_comment="").frame()
     assert frame.tnc2() == "OH2GBA-9>APZNEO:=6010.20N\\02456.40E>"
-    assert Rig(beacon_path="WIDE2-2").beacon.frame().path_text == "WIDE2-2"
+    assert Rig(beacon_path="WIDE2-2").frame().path_text == "WIDE2-2"
 
 
 @pytest.mark.parametrize(("table", "code", "path"), [
@@ -68,15 +80,15 @@ def test_the_frame_follows_the_settings() -> None:
 ])
 def test_an_empty_path_is_the_recommended_path_of_the_symbol_for_the_beacon_and_the_status(table: str, code: str, path: str) -> None:
     rig = Rig(beacon_path="", station_symbol_table=table, station_symbol_code=code)
-    assert rig.beacon.frame().path_text == path
-    status = rig.beacon.status_frame("QRV")
+    assert rig.frame().path_text == path
+    status = rig.status("QRV")
     assert status is not None and status.path_text == path
-    assert Rig(beacon_path="WIDE2-1", station_symbol_table=table, station_symbol_code=code).beacon.frame().path_text == "WIDE2-1", "a path that is set is the owner's"
+    assert Rig(beacon_path="WIDE2-1", station_symbol_table=table, station_symbol_code=code).frame().path_text == "WIDE2-1", "a path that is set is the owner's"
 
 
 def test_an_empty_path_sends_a_fixed_station_by_wide2_2_and_a_mobile_one_by_wide1_1_and_wide2_1() -> None:
-    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code="-").beacon.frame().path_text == "WIDE2-2"
-    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code=">").beacon.frame().path_text == "WIDE1-1,WIDE2-1"
+    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code="-").frame().path_text == "WIDE2-2"
+    assert Rig(beacon_path="", station_symbol_table="/", station_symbol_code=">").frame().path_text == "WIDE1-1,WIDE2-1"
 
 
 @pytest.mark.parametrize("lat, lon, text", [
@@ -90,7 +102,7 @@ def test_the_position_is_rounded_to_the_hundredth_of_a_minute_and_never_ambiguou
 
 def test_the_uncompressed_position_reads_back_in_the_parser_within_a_hundredth_of_a_minute() -> None:
     for lat, lon in ((60.17, 24.94), (-33.8688, 151.2093), (0.0123, -0.0456), (89.99, 179.99)):
-        info = Rig(station_lat=lat, station_lon=lon).beacon.frame().info
+        info = Rig(station_lat=lat, station_lon=lon).frame().info
         position = parse_position(info[1:], FixedClock()(), messaging=True)
         assert position.lat == pytest.approx(lat, abs=1 / 6000 / 2 + 1e-9) and position.lon == pytest.approx(lon, abs=1 / 6000 / 2 + 1e-9)
         assert position.ambiguity == 0 and position.messaging and not position.compressed and position.comment == "NeoAPRS"
@@ -102,11 +114,12 @@ def test_the_uncompressed_position_reads_back_in_the_parser_within_a_hundredth_o
 def test_settings_that_make_no_frame_are_an_error_and_nothing_is_sent(changes: dict[str, object], caplog: pytest.LogCaptureFixture) -> None:
     rig = Rig(**changes)
     with pytest.raises(BeaconError):
-        rig.beacon.frame()
+        rig.frame()
     caplog.set_level(logging.WARNING, "neoaprs.beacon")
     assert not rig.beacon.send_now()
     assert rig.tnc.sent == [] and rig.beacon.last_sent is None and "no beacon" in rig.beacon.problem
     assert any("no beacon sent" in r.getMessage() for r in caplog.records)
+    assert not [r for r in caplog.records if r.name == "neoaprs.radiospec"], "a path the settings check refuses stops the frame (a hand-made Config holds one); it is not put by the default"
 
 
 # ---- the PHG extension ---------------------------------------------------------------------------------------------------------------------
@@ -135,22 +148,22 @@ def test_the_directivity_digit_runs_clockwise_from_omni_through_north_east_to_no
 
 
 def test_the_beacon_has_the_phg_right_after_the_symbol_and_before_the_comment() -> None:
-    frame = Rig(beacon_power_w=2, beacon_antenna_height_m=3, beacon_antenna_gain_db=2).beacon.frame()
+    frame = Rig(beacon_power_w=2, beacon_antenna_height_m=3, beacon_antenna_gain_db=2).frame()
     assert frame.info == b"=6010.20N/02456.40E-PHG1020NeoAPRS"
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-PHG1020NeoAPRS"
-    assert Rig(beacon_power_w=25, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="N", station_comment="").beacon.frame().info == b"=6010.20N/02456.40E-PHG5238"
+    assert Rig(beacon_power_w=25, beacon_antenna_height_m=12, beacon_antenna_gain_db=3, beacon_antenna_direction="N", station_comment="").frame().info == b"=6010.20N/02456.40E-PHG5238"
     assert ax25.decode(ax25.encode(frame)) == frame
 
 
 def test_without_a_power_there_is_no_phg_whatever_the_rest_says() -> None:
-    plain = Rig().beacon.frame()
+    plain = Rig().frame()
     assert plain.info == b"=6010.20N/02456.40E-NeoAPRS"
-    assert Rig(beacon_power_w=None, beacon_antenna_height_m=30, beacon_antenna_gain_db=9, beacon_antenna_direction="S").beacon.frame() == plain
-    assert Rig(beacon_power_w=0).beacon.frame().info == b"=6010.20N/02456.40E-PHG0000NeoAPRS", "a power of 0 is a power: only an empty one means no PHG"
+    assert Rig(beacon_power_w=None, beacon_antenna_height_m=30, beacon_antenna_gain_db=9, beacon_antenna_direction="S").frame() == plain
+    assert Rig(beacon_power_w=0).frame().info == b"=6010.20N/02456.40E-PHG0000NeoAPRS", "a power of 0 is a power: only an empty one means no PHG"
 
 
 def test_the_phg_is_read_back_by_the_parser_as_the_extension_and_not_the_comment() -> None:
-    info = Rig(beacon_power_w=25, beacon_antenna_height_m=6, beacon_antenna_gain_db=3, beacon_antenna_direction="E").beacon.frame().info
+    info = Rig(beacon_power_w=25, beacon_antenna_height_m=6, beacon_antenna_gain_db=3, beacon_antenna_direction="E").frame().info
     position = parse_position(info[1:], FixedClock()(), messaging=True)
     assert (position.lat, position.lon) == pytest.approx((60.17, 24.94), abs=1e-4) and position.comment == "NeoAPRS"
     assert position.extensions is not None and position.extensions.phg is not None
@@ -160,15 +173,15 @@ def test_the_phg_is_read_back_by_the_parser_as_the_extension_and_not_the_comment
 @pytest.mark.parametrize("changes, longest", [
     ({}, 43), ({"beacon_power_w": 5}, 36)])
 def test_the_comment_may_be_43_or_36_characters_for_what_the_beacon_sends_and_no_more(changes: dict[str, object], longest: int) -> None:
-    assert Rig(station_comment="x" * longest, **changes).beacon.frame().info.count(b"x") == longest
+    assert Rig(station_comment="x" * longest, **changes).frame().info.count(b"x") == longest
     with pytest.raises(BeaconError, match=rf"station/comment: {longest + 1} characters is more than the {longest} allowed"):
-        Rig(station_comment="x" * (longest + 1), **changes).beacon.frame()
+        Rig(station_comment="x" * (longest + 1), **changes).frame()
 
 
 @pytest.mark.parametrize("comment", ["a|b", "a~b", "Hyvää", "tab\t"])
 def test_the_frame_is_refused_for_a_comment_that_is_not_printable_ascii_without_the_switch_characters(comment: str) -> None:
     with pytest.raises(BeaconError, match="station/comment"):
-        Rig(station_comment=comment).beacon.frame()
+        Rig(station_comment=comment).frame()
 
 
 def test_a_beacon_that_cannot_be_built_is_not_sent_and_says_why(caplog: pytest.LogCaptureFixture) -> None:
@@ -181,15 +194,15 @@ def test_a_beacon_that_cannot_be_built_is_not_sent_and_says_why(caplog: pytest.L
 def test_a_frame_with_an_information_field_over_256_bytes_is_refused() -> None:
     rig = Rig()
     with pytest.raises(BeaconError, match="more than the 256"):
-        rig.beacon._frame_of(b"=" + b"x" * 256)
-    assert len(rig.beacon._frame_of(b"=" + b"x" * 255).info) == 256
+        rig.frames.frame_for(rig.radio, b"=" + b"x" * 256)
+    assert len(rig.frames.frame_for(rig.radio, b"=" + b"x" * 255).info) == 256
 
 
 # ---- on request ----------------------------------------------------------------------------------------------------------------------------------
 
 def test_send_now_sends_the_frame_and_notes_when_and_why() -> None:
     rig = Rig()
-    assert rig.beacon.send_now() and rig.tnc.sent == [rig.beacon.frame()]
+    assert rig.beacon.send_now() and rig.tnc.sent == [rig.frame()] == [rig.beacon.frame()], "the maker's frame, on the beacon's radio"
     assert (rig.beacon.last_sent, rig.beacon.last_reason, rig.beacon.problem) == (rig.clock(), "request", "")
     rig.clock.advance(90)
     assert rig.beacon.send_now("interval") and len(rig.tnc.sent) == 2 and (rig.beacon.last_sent, rig.beacon.last_reason) == (rig.clock(), "interval")
@@ -215,24 +228,24 @@ def test_send_now_when_the_tnc_will_not_take_the_frame_is_false_and_notes_nothin
 
 def test_the_status_frame_is_the_text_with_the_day_hour_and_minute_in_utc_by_the_destination_and_path_of_the_beacon() -> None:
     rig = Rig()
-    frame = rig.beacon.status_frame("On the road, QRV 145.500")
+    frame = rig.status("On the road, QRV 145.500")
     assert frame is not None and frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zOn the road, QRV 145.500" and frame.is_ui
     assert ax25.decode(ax25.encode(frame)) == frame
     rig.clock.advance(86400 * 3 + 3600 * 12 + 60 * 7)
-    again = rig.beacon.status_frame("On the road, QRV 145.500")
+    again = rig.beacon.status_frame("On the road, QRV 145.500")                    # (the old name of the maker's status, for the callers that ask the beacon)
     assert again is not None and again.info == b">250007zOn the road, QRV 145.500", "day 25, 00:07"
     assert isinstance(parse(again.info, "OH2GBA", "APZNEO", rig.clock()), Status)
 
 
 def test_the_status_text_is_ascii_of_at_most_55_characters_and_an_empty_status_makes_no_frame() -> None:
-    assert Rig().beacon.status_frame("") is None
-    frame = Rig().beacon.status_frame("Hello " + "x" * 49)
+    assert Rig().status("") is None
+    frame = Rig().status("Hello " + "x" * 49)
     assert frame is not None and len(frame.info) == 1 + 7 + 55
     decoded = parse(frame.info, "OH2GBA", "APZNEO", FixedClock()())
     assert isinstance(decoded, Status) and decoded.text == "Hello " + "x" * 49 and decoded.timestamp is not None
     for text, why in (("x" * 56, "56 characters"), ("a|b", "'|'"), ("a~b", "'~'"), ("Hyvää päivää", "ASCII")):
         with pytest.raises(BeaconError, match=why):
-            Rig().beacon.status_frame(text)
+            Rig().status(text)
 
 
 def test_the_beacon_sends_no_status_report_after_itself_whatever_station_status_says() -> None:
@@ -245,7 +258,7 @@ def test_the_beacon_sends_no_status_report_after_itself_whatever_station_status_
 
 def test_settings_that_make_no_frame_make_no_status_frame() -> None:
     with pytest.raises(BeaconError):
-        Rig(station_call="TOOLONGCALL").beacon.status_frame("QRV")
+        Rig(station_call="TOOLONGCALL").status("QRV")
 
 
 # ---- the timer -----------------------------------------------------------------------------------------------------------------------------------

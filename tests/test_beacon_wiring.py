@@ -1,11 +1,15 @@
 """The beacon (neoaprs/services/beacon.py) inside the whole daemon, the radio a pseudo-terminal: the timer and a request put a KISS frame on the line, the packet log has it as a packet we sent, the
-station book does not take it as a station we heard, a frame that comes back (the TNC's echo, a digipeater's copy) only moves the time we were last heard, and the controller starts and stops it."""
+station book does not take it as a station we heard, a frame that comes back (the TNC's echo, a digipeater's copy) only moves the time we were last heard, and the controller starts and stops it. Each radio has
+its own beacon, which keeps its last send in the radio's own row, and the frames of the beacon, the status report and the iGate are the station's one maker's (services/beaconframe.py)."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
 from neoaprs import TOCALL, ax25, kiss
+from neoaprs.config import BEACON_SENT, HF_BEACON_SENT
 from neoaprs.packet import Position
+from neoaprs.radiospec import FM_ID, HF_ID
+from neoaprs.services.beacon import memory_key_of
 from neoaprs.source import Source
 from tests.support.env import Env, idle_for, quick_start, until
 
@@ -37,6 +41,17 @@ async def test_the_timer_sends_the_beacon_when_the_clock_says_so_and_it_is_a_kis
     frame = await on_the_line(e)
     assert (str(frame.source), str(frame.destination), frame.path_text, frame.info) == ("OH2GBA", "APZNEO", "WIDE1-1,WIDE2-1", INFO) and frame.is_ui
     assert e.ctl.beacon.last_reason == "interval" and e.ctl.beacon.next_due == e.now() + timedelta(minutes=1)
+    await e.stop()
+
+
+async def test_each_radio_has_its_own_beacon_and_its_frames_are_the_one_makers(tmp_path: Path) -> None:
+    e = await started(tmp_path)
+    fm, hf = e.ctl.beacon, e.ctl.hf_beacon
+    assert (fm.radio.id, hf.radio.id, fm.radio.kind, hf.radio.kind) == (FM_ID, HF_ID, "fm", "hf")
+    assert (fm._memory_key, hf._memory_key) == (memory_key_of(FM_ID), memory_key_of(HF_ID)) == (BEACON_SENT, HF_BEACON_SENT), "each its radio's own row, today's for radios 1 and 2"
+    assert e.ctl.rigstatus.frames is fm.frames, "the status report's maker is the beacons'"
+    assert fm.position_info() == fm.frames.position_info() == INFO and fm.frame(hf.radio).path == (), "the iGate's position field, and the frame for the HF radio without its path"
+    assert hf.frames.position(hf.radio) == fm.frames.position(hf.radio), "the HF beacon's frame is the one maker's for radio 2"
     await e.stop()
 
 

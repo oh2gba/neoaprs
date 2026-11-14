@@ -3,8 +3,8 @@
 The information field is a compressed position (`=` and the 13 bytes of `compressed_position`: position, symbol, course and speed from the GPS fix) followed by the comment: the altitude `/A=aaaaaa` when the fix has one, then the station's
 comment, which is cut to the 40 characters a compressed report may carry. There is no PHG extension: a compressed position cannot hold one, and it belongs to a station that stays where it is.
 
-`MobilePlan` is the beacon's memory of its last beacon (when, the course the station had, why), the input of SmartBeaconing (neoaprs/smartbeacon.py), and the answer to the page about it. `Positions` is what the beacon needs of the
-GPS service: the fix to send now, or why there is none."""
+`MobilePlan` is a beacon's memory of its last beacon (when, the course the station had, why), the input of SmartBeaconing (neoaprs/smartbeacon.py), and the answer to the page about it. `Positions` is what the
+station's maker of frames (services/beaconframe.py) and a beacon's timer need of the GPS service: the fix to send now, or why there is none."""
 from datetime import datetime
 from typing import Protocol
 

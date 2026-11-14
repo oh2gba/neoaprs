@@ -1,88 +1,69 @@
-"""The beacon: our own position packet, built from the settings and sent through the Tnc every `beacon/interval_min` minutes and on request, or, for a moving station (`gps/source` is not `off`), from the GPS fix when SmartBeaconing says.
-
-The frame is `frame()`: the tocall (`neoaprs.TOCALL`, not a setting), the digipeaters and the symbol, the comment and the position (`=`, a station with messaging; always the plain uncompressed form, which every receiver reads, rounded to the
-hundredth of a minute and never ambiguous) come from the settings. Right after the position, before the comment, goes the PHG data extension (`PHGphgd`: power, height, gain and directivity of the antenna) when `beacon/power_w` is
-set; the comment may then be 36 characters, 43 otherwise (`Config.comment_limit`), and the frame is refused when it is longer. The Tnc puts a sent frame in the packet log as a packet with direction "out", so nothing here keeps it.
-A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC), a compressed position without PHG; the
+"""The beacon of one radio: our position packet sent on that radio every `beacon/interval_min` minutes and on request, or, for a moving station (`gps/source` is not `off`) on a radio with SmartBeaconing, when
+SmartBeaconing says. Every radio has its own (the composition root makes one for each, and the controller runs it while its radio is on); the frame is the station's one maker's (services/beaconframe.py:
+`BeaconFrames.position` for this radio), made when it is sent, from the settings then. The radio sends a sent frame to the packet log as a packet with direction "out", so nothing here keeps it.
+A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC); the
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
-The interval is the one setting `beacon/interval_min` for both radios (`Config.beacon_interval`: raised to 30 minutes while the HF radio is on), whose HF rules also add a random pause after each interval and leave a moving station fixed: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
-The status report (`status_frame(text)`: `>` and the time as `DDHHMMz`, then the text, at most 55 printable ASCII characters without `|` and `~`) is made here, by the same tocall and path, but sent by services/rigstatus.py, not after each beacon.
+The interval in force on the radio is neoaprs/beaconrule.py's (`beacon_interval`: the one setting `beacon/interval_min` of the station, raised to 30 minutes while an HF radio is on); a radio whose limits have a random pause
+adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
+The last send is kept in the radio's own row (`memory_key_of`: today's `beacon/last_sent_at` for radio 1 and `hf/beacon_last_sent_at` for radio 2).
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
-settle first) unless the last beacon of an earlier run (the row `beacon/last_sent_at`, written after each send) is less than an interval ago: then the first is due an interval after that one, so a restart does
-not send another; then one an interval after each beacon, whether it was sent by the timer or on request. A beacon that is due while the Tnc is not connected, or while the radio is silent (it is switched
-off at night), is not skipped: `next_due` stays where it was, in the past (told once per outage), and the first tick that finds the radio usable sends it, one beacon however many intervals went by. A Tnc that
-is settling after KISS ON is not usable either, and the beacon waits for it quietly. A frame the Tnc refuses (the write failed) is tried again `retry_sec` later, `ATTEMPTS` times in all; then the interval counts as skipped, and the next is the first interval boundary after now.
+settle first) unless the last beacon of an earlier run (the radio's row, written after each send) is less than an interval ago: then the first is due an interval after that one, so a restart does
+not send another; then one an interval after each beacon, whether it was sent by the timer or on request. A beacon that is due while the radio is not connected, or while it is silent (it is switched
+off at night), is not skipped: `next_due` stays where it was, in the past (told once per outage), and the first tick that finds the radio usable sends it, one beacon however many intervals went by. A TNC that
+is settling after KISS ON is not usable either, and the beacon waits for it quietly. A frame the radio refuses (the write failed) is tried again `retry_sec` later, `ATTEMPTS` times in all; then the interval counts as skipped, and the next is the first interval boundary after now.
+
+`frame()`, `status_frame()` and `position_info()` are the frames of the one maker under the names the callers of the old shape use (the queries, the status report and the iGate, until they are given the maker).
 """
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import random
-import math
-import re
 from datetime import datetime, timedelta
 
 from neoaprs import ax25
-from neoaprs.aprsposition import uncompressed_position
-from neoaprs.callsign import call_problem
+from neoaprs.aprsposition import uncompressed_position as uncompressed_position      # (the beacon's parts under their old names: services/beaconframe.py)
+from neoaprs.beaconrule import beacon_interval
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import ANTENNA_DIRECTIONS, BEACON_SENT, HF_BEACON_SENT, SYMBOL_TABLES, Config, can_transmit
-from neoaprs.configstatus import MAX_STATUS
-from neoaprs.configtypes import over_the_air_problem, over_the_air_refusal
+from neoaprs.config import BEACON_SENT, HF_BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, fit_frame, fixed_prefix, our_frame, radio_path
+from neoaprs.radiospec import FM_ID, HF_ID, RadioId
+from neoaprs.services.beaconframe import BeaconError as BeaconError, BeaconFrames, NoFix as NoFix, air_of, phg_text as phg_text
+from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
-from neoaprs.services.mobilebeacon import MobilePlan, Positions, mobile_info
+from neoaprs.services.mobilebeacon import MobilePlan, Positions
+from neoaprs.services.radioset import AirRadio
 from neoaprs.signal import Signal
 from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet, every
-from neoaprs.units import FOOT_M
 
-HF_BEACON_MEMORY = HF_BEACON_SENT        # the HF beacon's row (neoaprs/app.py gives it to the second Beacon)
+HF_BEACON_MEMORY = HF_BEACON_SENT        # radio 2's row, under the name the old call of neoaprs/app.py gives it
+MEMORY_KEYS: Mapping[RadioId, str] = {FM_ID: BEACON_SENT, HF_ID: HF_BEACON_SENT}        # the rows of radios 1 and 2 as they are today; any other radio's is radio/<id>/beacon_last_sent_at
 
 log = logging.getLogger("neoaprs.beacon")
 
 FIRST_DELAY_SEC = 30.0
 TICK_SEC = 1.0
 RETRY_SEC = 5.0
-MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the Tnc refused ATTEMPTS times is tried again this much later, with the fix of then
-ATTEMPTS = 6                                                    # the Tnc refusing the frame this many times in a row skips the interval
-_LOOKS_LIKE_EXTENSION = re.compile(r"\d{3}/\d{3}|PHG|RNG|DFS")        # the starts of the data extensions (course and speed, power-height-gain, range, signal strength): every receiver reads them right after the symbol or the PHG
+MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the radio refused ATTEMPTS times is tried again this much later, with the fix of then
+ATTEMPTS = 6                                                    # the radio refusing the frame this many times in a row skips the interval
 
 
-def _comment_text(comment: str) -> str:
-    """The comment as it follows the position: one blank before a comment that starts like a data extension (`144/430 MHz` would be read as a course of 144 degrees and a speed), which a receiver then takes as the comment."""
-    return " " + comment if _LOOKS_LIKE_EXTENSION.match(comment) else comment
-
-
-class BeaconError(ValueError):
-    """The settings do not make a frame."""
-
-
-class NoFix(BeaconError):
-    """A mobile station has no GPS fix to send (none yet, or none fresh): there is no beacon, and the home position is not sent instead."""
-
-
-def _round_half_up(x: float) -> int:
-    return math.floor(x + 0.5)
-
-
-def phg_text(power_w: int, height_m: float, gain_db: int, direction: str) -> str:
-    """The PHG data extension `PHGphgd`: p is the square root of the power in watts, h the base-2 logarithm of the height in tens of feet, g the gain in dB and d the directivity (0 omni, 1 NE,
-    2 E ... 7 NW, 8 N, the specification's order); p and h rounded and held to 0 to 9."""
-    p = min(9, _round_half_up(math.sqrt(power_w)))
-    feet = height_m / FOOT_M
-    h = 0 if feet <= 10 else min(9, _round_half_up(math.log2(feet / 10)))
-    return f"PHG{p}{h}{min(9, max(0, gain_db))}{ANTENNA_DIRECTIONS.index(direction)}"
+def memory_key_of(radio: RadioId) -> str:
+    """The row a radio's beacon keeps its last send in (services/memory.py)."""
+    return MEMORY_KEYS.get(radio) or radio_state_key(radio, "beacon_last_sent_at")
 
 
 class Beacon:
-    def __init__(self, tnc: Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
-                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None, memory_key: str = BEACON_SENT) -> None:
-        self._tnc = tnc
-        self._gps = gps
+    def __init__(self, radio: AirRadio | Radio, config: ConfigSource, clock: Clock = utcnow, first_delay_sec: float = FIRST_DELAY_SEC, tick_sec: float = TICK_SEC,
+                 memory: Memory | None = None, retry_sec: float = RETRY_SEC, gps: Positions | None = None, memory_key: str | None = None, *, frames: BeaconFrames | None = None) -> None:
+        if frames is not None and gps is not None and gps is not frames.gps:
+            raise ValueError("a beacon given the maker of frames follows the maker's GPS")
+        self._old = frames is None                              # made the old way (until W3): its radios are read as the old shape, by the station's beacon/path, and its row is beacon/last_sent_at
+        self._radio = air_of(radio, config, old=self._old)      # the radio it is the beacon of (services/beaconframe.py)
+        self._frames = frames if frames is not None else BeaconFrames(config, gps, clock)       # the station's one maker of frames, whose GPS it follows; a beacon made the old way has its own
         self._config = config
         self._interlock = Interlock(config)
         self.clock = clock
@@ -96,137 +77,67 @@ class Beacon:
         self._started: datetime | None = None
         self._earlier: datetime | None = None                   # the beacon of an earlier run, as the row kept it; None if there was none
         self._remembered = Remembered(memory)
-        self._memory_key = memory_key                            # the row the last send is kept in: the FM beacon's, or the HF beacon's own (HF_BEACON_MEMORY)
+        self._memory_key = memory_key or (BEACON_SENT if self._old else memory_key_of(self._radio.id))       # the row the last send is kept in: the radio's own (the old call's: beacon/last_sent_at)
         self._planned_min = 0                                   # the interval next_due was planned for
         self._planned_mobile = False                            # whether it was planned for a mobile station
         self.mobile = MobilePlan()                              # the last mobile beacon, for SmartBeaconing and the page
-        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)       # the random pause of an HF beacon, in seconds, drawn up to `most` (a test gives its own)  # noqa: S311  (a pause on the air, no secret)
+        self.jitter: Callable[[float], float] = lambda most: random.uniform(0.0, most)       # the random pause of a radio that has one, in seconds, drawn up to `most` (a test gives its own)  # noqa: S311  (a pause on the air, no secret)
         self.sent: Signal[[ax25.Frame]] = Signal("beacon.sent")  # the frame of every beacon that went out on the radio (the iGate puts a moving station's position on APRS-IS with it)
         self._no_fix_told = False
         self._skip_told = False
-        self._refused = 0                                       # how many times in a row the Tnc refused the due beacon
-        self._cut_told: bytes | None = None                     # the information field as it last went out cut to the radio's frame, so that the cut is said once in the log
+        self._refused = 0                                       # how many times in a row the radio refused the due beacon
         self._retry_at: datetime | None = None                  # when the refused beacon is tried again
         self._tasks = TaskSet(log, "beacon")
 
-    # ---- the frame
-    def frame(self, radio: Radio | None = None) -> ax25.Frame:
-        """The frame of our beacon for the settings as they are now (a mobile station's: for the GPS fix as it is now), for `radio` (this beacon's by default: an answer to a station asks for the radio the question
-        came on, whose path rules and frame cap the frame then has). Raises BeaconError when they do not make one (a call that is not a call, a comment too long), and NoFix, a BeaconError, for a mobile station with no
-        fresh fix."""
-        return self._build(radio)[0]
+    @property
+    def radio(self) -> AirRadio:
+        """The radio it is the beacon of."""
+        return self._radio
 
-    def _build(self, radio: Radio | None = None) -> tuple[ax25.Frame, Fix | None]:
-        """The frame and the fix it was made from (None for a station that stays where it is)."""
-        c = self._config()
-        if reason := can_transmit(c):
-            raise BeaconError(reason)
-        info, fix = self._position(c)
-        return self._frame_of(info, radio), fix
+    @property
+    def frames(self) -> BeaconFrames:
+        """The maker of its frames: the station's one."""
+        return self._frames
+
+    # ---- the frames, under the old names
+    def frame(self, radio: AirRadio | Radio | None = None) -> ax25.Frame:
+        """The frame of our position for the settings as they are now (a mobile station's: for the GPS fix as it is now), for `radio` (this beacon's by default: an answer to a station asks for the radio the
+        question came on). Raises BeaconError when they do not make one, and NoFix, a BeaconError, for a mobile station with no fresh fix."""
+        return self._frames.position(self._air(radio))
 
     def position_info(self) -> bytes:
-        """The information field of the position packet for the settings as they are now, for a receive-only iGate that puts our position on APRS-IS (services/igate.py): the same bytes the radio would carry, but nothing is transmitted, so the
-        transmit interlock is not asked, only that the call is one. Raises BeaconError (NoFix for a moving station with no fresh fix) as `frame()` does."""
-        c = self._config()
-        if problem := call_problem(c.station_call):
-            raise BeaconError(problem)
-        info = self._position(c)[0]
-        if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
-        return info
+        """The information field of our position for the receive-only iGate (BeaconFrames.position_info)."""
+        return self._frames.position_info()
 
-    def _position(self, c: Config) -> tuple[bytes, Fix | None]:
-        """The information field of the position packet and the fix it was made from (None for a station that stays where it is)."""
-        if self._mobile(c) or (c.mobile and not self._tnc.rules.smart_beacon):           # (a moving station on a radio without SmartBeaconing, HF: its timed beacon says where it is now, nothing without a fresh fix)
-            return self._mobile_info(c)
-        if problem := c.comment_problem():
-            raise BeaconError(problem)
-        if c.station_lat is None or c.station_lon is None:
-            raise BeaconError("set your position first")
-        if not (-90.0 <= c.station_lat <= 90.0 and -180.0 <= c.station_lon <= 180.0):
-            raise BeaconError(f"the position {c.station_lat}, {c.station_lon} is not on the earth")
-        self._check_symbol(c)
-        try:
-            position = uncompressed_position(c.station_lat, c.station_lon, c.station_symbol_table, c.station_symbol_code)
-        except ValueError as e:
-            raise BeaconError(str(e)) from None
-        return b"=" + position + self._phg(c) + _comment_text(c.station_comment).encode("ascii"), None
+    def status_frame(self, text: str, radio: AirRadio | Radio | None = None) -> ax25.Frame | None:
+        """The frame of a status report with this text for `radio` (this beacon's by default): BeaconFrames.status. None for an empty text; BeaconError when the settings make no frame."""
+        return self._frames.status(text, self._air(radio))
 
-    @staticmethod
-    def _check_symbol(c: Config) -> None:
-        if c.station_symbol_table not in SYMBOL_TABLES or len(c.station_symbol_table) != 1 or not "!" <= c.station_symbol_code <= "~" or len(c.station_symbol_code) != 1:
-            raise BeaconError(f"the symbol {c.station_symbol_table!r} {c.station_symbol_code!r} is not a table (/ \\ A-Z 0-9) and one printable character")
-
-    def _mobile_info(self, c: Config) -> tuple[bytes, Fix]:
-        fix = self._gps.current() if self._gps is not None else None
-        if fix is None:
-            raise NoFix(self._gps.why_none() if self._gps is not None else "no GPS is set up")
-        if refusal := over_the_air_refusal(c.station_comment):
-            raise BeaconError(f"station/comment: {refusal}")
-        self._check_symbol(c)
-        try:
-            return mobile_info(c, fix), fix
-        except ValueError as e:
-            raise BeaconError(str(e)) from None
-
-    @staticmethod
-    def _phg(c: Config) -> bytes:
-        if c.beacon_power_w is None:
-            return b""
-        return phg_text(c.beacon_power_w, c.beacon_antenna_height_m, c.beacon_antenna_gain_db, c.beacon_antenna_direction).encode("ascii")
-
-    def status_frame(self, text: str, radio: Radio | None = None) -> ax25.Frame | None:
-        """The frame of a status report with this text: `>`, the time as day, hour and minute in UTC with a `z` (`211200z`), then the text; by the beacon's destination and path, for `radio` (this beacon's by
-        default: the status service names the radio it sends on, an answer the radio the question came on). None for an empty text. Raises BeaconError when the settings make no frame."""
-        if not text:
-            return None
-        if problem := over_the_air_problem(text):
-            raise BeaconError(f"the status: {problem}")
-        if len(text) > MAX_STATUS:
-            raise BeaconError(f"the status is {len(text)} characters, more than the {MAX_STATUS} that fit after its time")
-        return self._frame_of(b">" + self.clock().strftime("%d%H%M").encode("ascii") + b"z" + text.encode("ascii"), radio)
-
-    def _frame_of(self, info: bytes, radio: Radio | None = None) -> ax25.Frame:
-        """Our frame with this information field for the radio it goes on (this beacon's by default): from `station/call` to the tocall by way of `beacon/path` where the radio has paths; its comment cut to what a
-        radio with a fixed frame carries (said once in the log), the report itself never."""
-        c = self._config()
-        tnc = radio or self._tnc
-        if reason := can_transmit(c):
-            raise BeaconError(reason)
-        if len(info) > ax25.MAX_INFO:
-            raise BeaconError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
-        try:
-            frame = our_frame(c, radio_path(tnc, c.beacon_path_calls), info)
-            fitted = fit_frame(frame, tnc.max_frame)
-        except FRAME_ERRORS as e:
-            raise BeaconError(str(e)) from None
-        if fitted is not frame and self._cut_told != fitted.info:
-            self._cut_told = fitted.info
-            log.warning("the beacon is %d bytes more than the radio carries (%d): its comment is cut to %r", len(ax25.encode(frame)), tnc.max_frame, fitted.info[fixed_prefix(info):].decode("ascii", "replace"))
-        return fitted
+    def _air(self, radio: AirRadio | Radio | None) -> AirRadio:
+        return self._radio if radio is None else air_of(radio, self._config, old=self._old)
 
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
-        """Sends the beacon through the Tnc and notes when and why; the next beacon counts from now: an interval and the radio's pause on, or, for a moving station on a radio with SmartBeaconing (FM), SmartBeaconing from this beacon; a moving station on HF has the interval, for it sends its fix by time only. False (and `problem` says why) when the Tnc is not connected or
-        the radio is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
+        """Sends the beacon on its radio and notes when and why; the next beacon counts from now: an interval and the radio's pause on, or, for a moving station on a radio with SmartBeaconing (FM), SmartBeaconing from this beacon; a moving station on a radio without it (HF) has the interval, for it sends its fix by time only. False (and `problem` says why) when the radio is not connected or
+        is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
         try:
-            frame, fix = self._build()
+            frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:
             return self._failed(f"no beacon: {e}")
         except BeaconError as e:
             return self._failed(f"the settings make no beacon: {e}", warn=True)
-        if not self._tnc.usable:
-            return self._failed(self._tnc.why_unusable())
-        if not self._tnc.send_frame(frame):
+        if not self._radio.usable:
+            return self._failed(self._radio.why_unusable())
+        if not self._radio.send_frame(frame):
             return self._failed("the TNC did not take the frame (it is restarting into KISS mode, or the write failed)", warn=True)
         self.last_sent, self.last_reason, self.problem, self._skip_told = self.clock(), reason, "", False
         self._refused, self._retry_at = 0, None
         log.info("beacon sent (%s): %s", reason, frame.tnc2())
         self.sent.emit(frame)
         self._remembered.put({self._memory_key: stamp(self.last_sent)})
-        smart = fix if self._mobile(self._config()) else None             # (a moving station on HF sends the fix but is planned as a fixed one: the interval and the pause)
+        smart = fix if self._mobile(self._config()) else None             # (a moving station on a radio without SmartBeaconing sends the fix but is planned as a fixed one: the interval and the pause)
         if smart is not None:
             self.mobile.sent(smart, self.last_sent, reason)
         self._plan_after_send(smart)
@@ -265,20 +176,23 @@ class Beacon:
 
     @property
     def interval_min(self) -> int:
-        return self._config().beacon_interval()
+        """The interval in force on this radio (neoaprs/beaconrule.py); 0 for one the settings do not have."""
+        c = self._config()
+        spec = c.radio(self._radio.id)
+        return 0 if spec is None else beacon_interval(c.beacon_interval_min, spec, c.radios)
 
     def _mobile(self, c: Config) -> bool:
         """Whether the beacon follows the GPS: a moving station on a radio that has SmartBeaconing (FM); on HF the station is fixed whatever the GPS source says."""
-        return c.mobile and self._tnc.rules.smart_beacon
+        return c.mobile and self._radio.allowed.smart_beacon
 
     def _pause(self) -> timedelta:
         """The random pause after an interval, where the radio has one (HF, radiorules.py says why); none elsewhere."""
-        most = self._tnc.rules.beacon_jitter_sec
+        most = self._radio.limits.beacon_jitter_sec
         return timedelta(seconds=self.jitter(most)) if most > 0 else timedelta()
 
     def _plan(self, interval_min: int) -> None:
         c = self._config()
-        if interval_min != c.beacon_interval_min and interval_min != self._planned_min:
+        if interval_min > c.beacon_interval_min and interval_min != self._planned_min:
             log.info("the beacon interval %d min is raised to %d: the HF radio is on, and over HF not very often is the rule", c.beacon_interval_min, interval_min)
         """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
         `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick."""
@@ -312,10 +226,11 @@ class Beacon:
         return "interval" if self.next_due is not None and now >= self.next_due else None
 
     def _mobile_reason(self, now: datetime) -> Reason | None:
-        fix = self._gps.current() if self._gps is not None else None
+        gps = self._frames.gps                                  # (the maker's: SmartBeaconing decides on the fix the frame carries)
+        fix = gps.current() if gps is not None else None
         if fix is None:
             self.next_due = None
-            self.problem = f"no beacon: {self._gps.why_none() if self._gps is not None else 'no GPS is set up'}"
+            self.problem = f"no beacon: {gps.why_none() if gps is not None else 'no GPS is set up'}"
             if not self._no_fix_told:
                 self._no_fix_told = True
                 log.warning("%s", self.problem)
@@ -329,7 +244,7 @@ class Beacon:
 
     def _tick(self) -> None:
         now = self.clock()
-        usable = self._tnc.usable
+        usable = self._radio.usable
         if usable:
             self._skip_told = False
         reason = self._due_reason(now)
@@ -339,9 +254,9 @@ class Beacon:
             self.problem = refusal
             return                                                  # (the beacon waits for the call, told once; it is sent at the first tick after the call is set)
         if not usable:
-            if not self._skip_told and self._tnc.state is not Source.State.CONNECTED:       # (a connected Tnc that is not usable is settling after KISS ON: the beacon waits for it, saying nothing)
+            if not self._skip_told and self._radio.state is not Source.State.CONNECTED:       # (a connected radio that is not usable is settling after KISS ON: the beacon waits for it, saying nothing)
                 self._skip_told = True
-                log.warning("the beacon is due and %s: it goes out when the radio is back", self._tnc.why_unusable())
+                log.warning("the beacon is due and %s: it goes out when the radio is back", self._radio.why_unusable())
             return
         if self._retry_at is not None and now < self._retry_at:
             return

@@ -1,5 +1,6 @@
-"""The beacon of a moving station (neoaprs/services/beacon.py with services/mobilebeacon.py and neoaprs/smartbeacon.py) on a Tnc that is a stub, a GPS that is a stand-in and a clock the test holds: the compressed frame byte for
-byte, the start beacon, the beacons by time at three speeds, the turn, no beacon without a fix, a request, `?APRSP`, and the timer's usual care (a radio that is away, a frame that is refused)."""
+"""The beacon of a moving station (neoaprs/services/beacon.py with services/mobilebeacon.py and neoaprs/smartbeacon.py, its frame the one maker's, services/beaconframe.py) on a radio of the settings as the
+registry gives it (`support/seamshapes.py` over a stub line), a GPS that is a stand-in and a clock the test holds: the compressed frame byte for byte, the start beacon, the beacons by time at three speeds, the
+turn, no beacon without a fix, a request, the HF radio sending the fix by time, `?APRSP`, and the timer's usual care (a radio that is away, a frame that is refused)."""
 import logging
 from datetime import timedelta
 
@@ -8,7 +9,9 @@ import pytest
 from neoaprs import ax25
 from neoaprs.aprsposition import parse_position
 from neoaprs.clock import utc
+from neoaprs.radiospec import FM_ID, HF_ID, RadioId
 from neoaprs.services.beacon import Beacon, BeaconError, NoFix
+from neoaprs.services.beaconframe import BeaconFrames
 from neoaprs.services.queries import Queries
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
@@ -16,18 +19,25 @@ from tests.support.env import idle_for, remember_stop, until
 from tests.support.gps import FakeFixes, fix_at
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
+from tests.test_beaconframe import radio_of
 
 # 60.43 N, 24.145 E, 54 km/h, 270 degrees, 31.4 m, as the compressed position of a car (symbol `>`)
 KNOWN_INFO = b"=//w5#TW?M>eM[/A=000103NeoAPRS"
 
 
 class Rig(ServiceRig):
-    def __init__(self, fix: bool = True, **changes: object) -> None:
+    def __init__(self, fix: bool = True, radio: RadioId = FM_ID, **changes: object) -> None:
         super().__init__(**{"gps_source": "gpsd", "station_symbol_code": ">", "beacon_interval_min": 30, **changes})
         self.gps = FakeFixes()
-        self.beacon = Beacon(self.tnc, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, gps=self.gps)
+        self.radio = radio_of(self.config, radio, self.tnc)                 # (the radio of the settings, its frames on the stub)
+        self.frames = BeaconFrames(lambda: self.config, self.gps, self.clock)
+        self.beacon = Beacon(self.radio, lambda: self.config, self.clock, first_delay_sec=30.0, tick_sec=0.01, retry_sec=5.0, frames=self.frames)       # (its GPS is the maker's)
         if fix:
             self.move(speed=54.0, course=270)
+
+    def frame(self) -> ax25.Frame:
+        """Our position on the radio, as the one maker makes it."""
+        return self.frames.position(self.radio)
 
     def move(self, speed: float | None = 54.0, course: int | None = 270, **changes: object) -> None:
         """The GPS gives a fix now, with this speed and course."""
@@ -41,14 +51,14 @@ class Rig(ServiceRig):
 
 def test_the_frame_of_a_known_fix_is_these_bytes() -> None:
     rig = Rig()
-    frame = rig.beacon.frame()
+    frame = rig.frame()
     assert frame.info == KNOWN_INFO and len(frame.info) == 1 + 13 + 9 + 7
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=//w5#TW?M>eM[/A=000103NeoAPRS" and frame.is_ui
     assert ax25.decode(ax25.encode(frame)) == frame
 
 
 def test_the_frame_reads_back_as_a_compressed_position_with_the_course_speed_altitude_and_comment() -> None:
-    p = parse_position(Rig().beacon.frame().info[1:], utc(2026, 10, 21, 12), messaging=True)
+    p = parse_position(Rig().frame().info[1:], utc(2026, 10, 21, 12), messaging=True)
     assert p.compressed and p.messaging and (p.symbol_table, p.symbol_code) == ("/", ">")
     assert (p.lat, p.lon) == (pytest.approx(60.43, abs=3e-6), pytest.approx(24.145, abs=3e-6))
     assert p.course_deg in (268, 272) and p.speed_kmh == pytest.approx(54.0, rel=0.04) and p.altitude_m == pytest.approx(31.4, abs=0.31) and p.comment == "NeoAPRS"
@@ -56,43 +66,43 @@ def test_the_frame_reads_back_as_a_compressed_position_with_the_course_speed_alt
 
 def test_the_home_position_of_the_settings_is_not_in_the_frame_and_need_not_be_set() -> None:
     rig = Rig(station_lat=None, station_lon=None)
-    assert rig.beacon.frame().info == KNOWN_INFO
-    assert Rig(station_lat=10.0, station_lon=10.0).beacon.frame().info == KNOWN_INFO
+    assert rig.frame().info == KNOWN_INFO
+    assert Rig(station_lat=10.0, station_lon=10.0).frame().info == KNOWN_INFO
 
 
 def test_there_is_no_phg_in_a_mobile_beacon_and_a_long_comment_is_cut_not_refused() -> None:
     with_power = Rig(beacon_power_w=25, beacon_antenna_height_m=6, beacon_antenna_gain_db=3, station_comment="x" * 43)
-    info = with_power.beacon.frame().info
+    info = with_power.frame().info
     assert b"PHG" not in info and info.endswith(b"/A=000103" + b"x" * 31) and len(info[14:]) == 40, "the 36 characters of a comment with PHG do not apply, and 40 is the most a compressed report may have"
     no_altitude = Rig(station_comment="y" * 43)
     no_altitude.move(altitude_m=None)
-    assert no_altitude.beacon.frame().info[14:] == b"y" * 40
+    assert no_altitude.frame().info[14:] == b"y" * 40
 
 
 def test_a_fix_without_speed_or_course_is_the_blank_form() -> None:
     rig = Rig(fix=False)
     rig.move(speed=None, course=None)
-    info = rig.beacon.frame().info
+    info = rig.frame().info
     assert info[10:14] == b"> sT" and info[14:] == b"/A=000103NeoAPRS", "after the symbol code: a space and the fillers, then the altitude"
 
 
 def test_the_comment_that_is_not_ascii_or_has_a_switch_character_makes_no_beacon() -> None:
     for comment in ("a|b", "a~b"):
         with pytest.raises(BeaconError):
-            Rig(station_comment=comment).beacon.frame()
+            Rig(station_comment=comment).frame()
 
 
 def test_the_beacon_of_a_station_that_stays_is_the_plain_position_whether_or_not_a_gps_is_there() -> None:
     rig = Rig(gps_source="off")
-    assert rig.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
+    assert rig.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
 
 
 @pytest.mark.parametrize("source", ["gpsd", "serial"])
 def test_the_gps_source_alone_makes_the_beacon_a_moving_stations(source: str) -> None:
     rig = Rig(gps_source=source)
-    assert rig.config.mobile and rig.beacon.frame().info == KNOWN_INFO
+    assert rig.config.mobile and rig.frame().info == KNOWN_INFO
     rig.set(gps_source="off")
-    assert not rig.config.mobile and rig.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
+    assert not rig.config.mobile and rig.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
 
 
 # ---- no fix, no beacon
@@ -100,7 +110,7 @@ def test_the_gps_source_alone_makes_the_beacon_a_moving_stations(source: str) ->
 def test_with_no_fix_there_is_no_frame_and_the_home_position_is_not_put_in_its_place() -> None:
     rig = Rig(fix=False)
     with pytest.raises(NoFix, match="no position fix"):
-        rig.beacon.frame()
+        rig.frame()
     assert issubclass(NoFix, BeaconError)
 
 
@@ -118,9 +128,18 @@ def test_with_no_fix_nothing_is_sent_by_the_timer_or_on_request_and_the_beacon_s
     assert len(told) == 1, "told once, not at every tick"
 
 
+def test_a_beacon_given_the_maker_follows_the_makers_gps_and_takes_no_other() -> None:
+    rig = Rig()
+    rig.tick()
+    assert rig.beacon.last_reason == "start" and rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1:" + KNOWN_INFO.decode()], "SmartBeaconing at the first tick, on the maker's fix"
+    assert Beacon(rig.radio, lambda: rig.config, rig.clock, gps=rig.gps, frames=rig.frames).frames is rig.frames, "the maker's GPS given again is the same"
+    with pytest.raises(ValueError, match="the maker's GPS"):
+        Beacon(rig.radio, lambda: rig.config, rig.clock, gps=FakeFixes(), frames=rig.frames)
+
+
 def test_a_mobile_beacon_without_any_gps_service_is_no_beacon() -> None:
     rig = Rig(fix=False)
-    bare = Beacon(rig.tnc, lambda: rig.config, rig.clock)
+    bare = Beacon(rig.radio, lambda: rig.config, rig.clock, frames=BeaconFrames(lambda: rig.config))
     with pytest.raises(NoFix, match="no GPS is set up"):
         bare.frame()
     bare._tick()
@@ -295,7 +314,8 @@ def test_a_request_sends_the_live_frame_and_the_times_count_from_it() -> None:
 
 
 async def test_a_moving_station_on_hf_sends_its_fix_by_the_timed_interval_and_not_by_smartbeaconing() -> None:
-    rig = Rig(tnc=StubTnc(max_frame=123), hf_enabled=True)
+    rig = Rig(radio=HF_ID, tnc=StubTnc(max_frame=123), hf_enabled=True)
+    assert rig.beacon.radio.id == HF_ID and not rig.beacon.radio.allowed.smart_beacon
     rig.beacon.jitter = lambda most: 0.0
     await rig.beacon.start()
     try:
