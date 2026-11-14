@@ -252,6 +252,20 @@ async def test_the_spectrum_is_not_judged_while_the_radio_transmits_and_for_a_mo
         await m.stop()
 
 
+async def test_a_radio_that_has_not_transmitted_is_judged_from_the_start_however_young_the_machines_clock_is(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The time of the last transmission began at the clock's zero, which on a computer just switched on is "a moment ago": GitHub's runners, minutes old, never judged the spectrum in the test above (13 Nov 2026)."""
+    monkeypatch.setattr(mercuryscoping, "AFTER_TX_SEC", 1e9)             # (longer than any machine has been up: only a radio that never transmitted is outside this moment)
+    m = modem(tmp_path)
+    await m.start(HF)
+    try:
+        await until_started(lambda: m.scope)
+        await asyncio.sleep(2.0)
+        air(tmp_path, [[1200, 1800, 15]])
+        await until_started(lambda: m.busy)
+    finally:
+        await m.stop()
+
+
 async def test_the_moment_after_our_own_frame_is_a_fraction_of_a_second_and_ends_by_itself(tmp_path: Path) -> None:
     assert 0.3 <= mercuryscoping.AFTER_TX_SEC <= 1.0, "longer than Mercury's own holdoff of 300 ms, and short enough not to hide a station that answers"
     m = modem(tmp_path)

@@ -15,8 +15,8 @@ Where the machine is comes from the environment, and nothing is guessed (CONVENT
   NEOAPRS_WINVM_USER         the user on the machine, default John; its profile folder is C:\\Users\\USER
 It is never a stage of scripts/check: it needs a machine that only some developers have, and minutes.
 
-The machine. Powered off, it is started without a window (`VBoxManage startvm NAME --type headless`), the script waits for its SSH to answer, and when the run is over the machine is shut down with
-the ACPI power button, which is Windows's own shutdown, and waited for; never a hard power-off, and if it does not go off in time it is left as it is and the script says so. A machine that was running
+The machine. Powered off, it is started without a window (`VBoxManage startvm NAME --type headless`), the script waits for its SSH to answer, and when the run is over the machine is shut down by
+Windows's own shutdown, asked from inside over SSH and, when that has not turned it off, by the ACPI power button, and waited for; never a hard power-off, and if it does not go off in time it is left as it is and the script says so. A machine that was running
 is left running. One run at a time: a lock file in the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build), one for each machine; a second run says so and stops.
 
 The tree goes over as it is on disk, packed by scripts/check-in-container (its functions are loaded from that file: one reading of git's list, one place that keeps what an ignore rule names and every
@@ -34,8 +34,8 @@ A test that is run over SSH has no console of its own, and some tests need one: 
 daemon tests, the replay commands of tests/test_scripts.py and tests/test_replay.py, and scripts/smoke.py) is ended with Ctrl+Break, which Windows delivers only inside a console that the sender is
 attached to. Before the pytest step the script runs a probe of that in the same kind of session (a child in a new process group, Ctrl+Break sent, it must end). A plain `ssh HOST COMMAND` is tried first:
 sshd starts the command with a hidden console, which should be enough. If the probe fails there, the step runs through `ssh -tt`, which gives it a pseudo console (ConPTY), and the output is cleaned of
-its escape sequences. Not known until it is tried on the machine: whether the probe passes in the plain session, whether `ssh -tt` with its input held open ends cleanly at the command's end, and
-whether the machine's own shutdown answers a power button without a user signed in; --tty skips the plain try.
+its escape sequences. Tried on the machine (13 November 2026): the probe passes in the plain session; the power button alone did not shut a Windows down that nobody was looking at, which is
+why the shutdown is asked from inside first. Not tried: whether `ssh -tt` with its input held open ends cleanly at the command's end; --tty skips the plain try.
 
 Exit code: 0 all steps passed, 1 a step failed, 2 not set up (a variable, a file, a program on the PATH, a tree that cannot be packed, a machine that is in no state to be used, a second run, the
 machine not answering, uv or the tree not put on it). Needs Linux, ssh, scp, VBoxManage and git."""
@@ -70,6 +70,7 @@ SSH_PATIENCE_SEC = 300.0                               # a Windows that was powe
 OFF_PATIENCE_SEC = 300.0                               # and shuts down in about as long
 REMOTE_LINE_MAX = 8000                                 # cmd.exe, which may be the machine's SSH shell, takes 8191 characters of a command line
 NEVER_STOPS = float("inf")
+SHUTDOWN_SCRIPT = "shutdown.exe /s /t 0 /f; exit 0"     # Windows's own shutdown, at once; programs that would hold it are closed (the machine is a test machine and the run is over)
 
 
 class Pin(NamedTuple):
@@ -495,8 +496,12 @@ def wait_for_ssh(settings: Settings, patience_sec: float = SSH_PATIENCE_SEC, int
 
 
 def power_off(settings: Settings, patience_sec: float = OFF_PATIENCE_SEC, interval_sec: float = 5.0) -> None:
-    """The machine shut down with Windows's own shutdown (the ACPI power button) and waited for. Never a hard power-off: one that is not off in time is left as it is, and said."""
+    """The machine shut down by Windows itself and waited for: asked from inside over SSH (`shutdown.exe /s`), and when that has not turned it off, by the ACPI power button. (The button alone was not
+    enough: a Windows that nobody is looking at did nothing with it for two minutes, 13 November 2026.) Never a hard power-off: one that is not off in time is left as it is, and said."""
     say(f"shutting {settings.vm} down")
+    ssh_run(settings, SHUTDOWN_SCRIPT, timeout_sec=60.0)
+    if wait_for(lambda: vm_state(settings.vm) == "poweroff", patience_sec, interval_sec):
+        return
     vboxmanage("controlvm", settings.vm, "acpipowerbutton")
     if wait_for(lambda: vm_state(settings.vm) == "poweroff", patience_sec, interval_sec):
         return

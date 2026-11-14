@@ -65,9 +65,11 @@ LOOPBACK_PATCH = ROOT / "packaging" / "mercury" / "loopback.patch"
 LEADIN_PATCH = ROOT / "packaging" / "mercury" / "leadin.patch"
 DSOUND_PATCH = ROOT / "packaging" / "mercury" / "dsound.patch"
 FLUSH_PATCH = ROOT / "packaging" / "mercury" / "flush.patch"
+FFCPU_PATCH = ROOT / "packaging" / "mercury" / "ffcpu.patch"
 DSOUND_FILE = "audioio/ffaudio/ffaudio/dsound.c"            # the DirectSound backend the dsound patch makes load dsound.dll on first use, which must hold the loader after it
 LEADIN_FILE, LEADIN_KEY = "common/cfg_utils.h", "audio:tx_leadin_ms"           # the key the lead-in patch adds, which the source must hold after it
 LOG_FILE, LOG_FLUSH = "common/hermes_log.c", "fflush(stderr);"           # the flush the flush patch adds after each log line, which the source must hold after it
+FFCPU_FILE, FFCPU_NAME = "audioio/audioio.c", "int _ffcpu_features;"           # the definition the ffcpu patch adds, which the link needs on a compiler whose default machine has SSE4.2
 LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the file with the two TCP listeners the loopback patch changes; no INADDR_ANY may be left in it
 WEBSOCKET_FILE = "gui_interface/websocket/mercury_websocket.c"          # the third place Mercury binds a socket (its UI interface and web page, which NeoAPRS turns on in the ini for the scope and the channel-busy control); the patch gives it the loopback too
 WEBSOCKET_BIND = 'opts.bind_addr = "127.0.0.1";'
@@ -210,12 +212,15 @@ def apply_patches(tree: Path, windows: bool = False) -> None:
     apply_patch(tree, LEADIN_PATCH)
     apply_patch(tree, DSOUND_PATCH)
     apply_patch(tree, FLUSH_PATCH)
+    apply_patch(tree, FFCPU_PATCH)
     if "LoadLibraryW(L\"dsound.dll\")" not in (tree / DSOUND_FILE).read_text(encoding="utf-8") or "-ldsound" in (tree / "Makefile").read_text(encoding="utf-8"):
         raise BuildError(f"{DSOUND_FILE} does not load DirectSound on first use, or the Makefile still links it, after {DSOUND_PATCH.name}")
     if LEADIN_KEY not in (tree / LEADIN_FILE).read_text(encoding="utf-8"):
         raise BuildError(f"{LEADIN_FILE} has no {LEADIN_KEY} after {LEADIN_PATCH.name}")
     if LOG_FLUSH not in (tree / LOG_FILE).read_text(encoding="utf-8"):
         raise BuildError(f"{LOG_FILE} has no {LOG_FLUSH} after {FLUSH_PATCH.name}")
+    if FFCPU_NAME not in (tree / FFCPU_FILE).read_text(encoding="utf-8"):
+        raise BuildError(f"{FFCPU_FILE} has no {FFCPU_NAME} after {FFCPU_PATCH.name}")
     listeners = (tree / LISTENERS_FILE).read_text(encoding="utf-8")
     if "INADDR_ANY" in listeners or listeners.count("htonl(INADDR_LOOPBACK)") != 2:
         raise BuildError(f"{LISTENERS_FILE} still binds a listener on every interface after {LOOPBACK_PATCH.name}")
@@ -356,6 +361,7 @@ def source_offer(flags: str, notes: str, last: str) -> str:
         f"Changes to the source: the ini key {LEADIN_KEY} plays a tone of that many milliseconds ahead of every frame's preamble, for a radio on VOX; 0 by default, no change (packaging/mercury/leadin.patch of NeoAPRS).\n"
         f"Changes to the source: on Windows the DirectSound backend loads dsound.dll the first time it is used instead of linking it, so that the program starts on a Windows without the Media Feature Pack (packaging/mercury/dsound.patch of NeoAPRS).\n"
         f"Changes to the source: {LOG_FILE} flushes stderr after each log line, so that the lines reach the program that reads them as they are written, also on Windows, whose C runtime buffers a pipe (packaging/mercury/flush.patch of NeoAPRS).\n"
+        f"Changes to the source: {FFCPU_FILE} defines `_ffcpu_features`, a name the audio code's library declares and leaves to the program, so that the program links with a compiler whose default machine has SSE4.2 (packaging/mercury/ffcpu.patch of NeoAPRS).\n"
         f"{last}"
         f"Date: {datetime.date.today().isoformat()}\n")
 

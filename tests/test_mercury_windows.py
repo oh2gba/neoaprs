@@ -128,6 +128,16 @@ def test_the_loopback_patch_covers_the_listeners_and_the_web_pages_socket_and_th
     assert "no firewall rule" in text.lower() or "firewall rule to stand in" in text, "the patch says that no firewall rule stands in for it any more"
 
 
+def test_the_ffcpu_patch_defines_the_name_the_link_needs_and_the_build_checks_for_it(build: types.ModuleType) -> None:
+    """GitHub's ubuntu-26.04 runner could not link Mercury (13 Nov 2026): its gcc takes a machine with SSE4.2, which compiles in a string search that needs a name the source declares and never defines."""
+    text = (ROOT / "packaging" / "mercury" / "ffcpu.patch").read_text(encoding="utf-8")
+    added = [line for line in text.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+    assert "--- a/audioio/audioio.c" in text and "+int _ffcpu_features;" in added and not [line for line in added if line.startswith("-")], "one definition, nothing taken away"
+    script = SCRIPT.read_text(encoding="utf-8")
+    assert "apply_patch(tree, FFCPU_PATCH)" in script and "FFCPU_NAME not in" in script and "ffcpu.patch" in script, "the build applies it on every system, looks for the definition after it and says so in SOURCE.txt"
+    assert build.FFCPU_FILE == "audioio/audioio.c" and build.FFCPU_NAME == "int _ffcpu_features;"
+
+
 def test_the_flush_patch_flushes_each_log_line_and_the_build_checks_for_it(build: types.ModuleType) -> None:
     """On Windows Mercury's log lines on stderr came only when the program ended (its C runtime buffers a pipe): the sound card error reached the daemon 20 minutes late on a test station (3 Nov 2026)."""
     text = (ROOT / "packaging" / "mercury" / "flush.patch").read_text(encoding="utf-8")

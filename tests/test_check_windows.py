@@ -420,6 +420,10 @@ with open(folder + "/ssh-calls", "a") as calls:
 def flag(name):
     return os.path.exists(folder + "/" + name)
 
+if "shutdown.exe /s" in script:
+    if not flag("stays-on") and not flag("deaf-to-shutdown"):
+        open(folder + "/state", "w").write("poweroff")
+    sys.exit(0)
 if script == "exit 0":
     if flag("down"):
         left = int(open(folder + "/down").read() or "0")
@@ -545,7 +549,7 @@ def test_a_machine_that_answers_after_a_few_tries_is_waited_for_and_one_that_doe
         script.wait_for_ssh(settings, patience_sec=0.0, interval_sec=0.01)
 
 
-def test_the_machine_is_started_without_a_window_and_shut_down_with_the_power_button_and_waited_for(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_machine_is_started_without_a_window_and_shut_down_from_inside_and_waited_for(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch) -> None:
     bench.use(monkeypatch)
     settings = settings_of(script, bench)
     assert script.vm_state("Windows 11") == "poweroff"
@@ -553,8 +557,8 @@ def test_the_machine_is_started_without_a_window_and_shut_down_with_the_power_bu
     assert script.vm_state("Windows 11") == "running"
     script.power_off(settings, patience_sec=5.0, interval_sec=0.01)
     assert script.vm_state("Windows 11") == "poweroff"
-    assert bench.vbox_calls() == ["showvminfo Windows 11 --machinereadable", "startvm Windows 11 --type headless", "showvminfo Windows 11 --machinereadable",
-                                  "controlvm Windows 11 acpipowerbutton", "showvminfo Windows 11 --machinereadable", "showvminfo Windows 11 --machinereadable"]
+    assert bench.scripts("shutdown.exe /s"), "Windows is asked from inside to shut down"
+    assert not [call for call in bench.vbox_calls() if call.startswith("controlvm")], "and the power button is not needed when that turns it off"
 
 
 def test_a_machine_that_does_not_go_off_is_left_as_it_is_and_never_powered_off_hard(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -563,6 +567,15 @@ def test_a_machine_that_does_not_go_off_is_left_as_it_is_and_never_powered_off_h
     bench.flag("stays-on")
     script.power_off(settings_of(script, bench), patience_sec=0.0, interval_sec=0.01)
     assert "left as it is" in capsys.readouterr().err
+    assert bench.scripts("shutdown.exe /s") and [call for call in bench.vbox_calls() if call.startswith("controlvm")] == ["controlvm Windows 11 acpipowerbutton"], "asked from inside, then the button, and nothing harder"
+
+
+def test_a_machine_that_does_not_shut_down_when_asked_from_inside_gets_the_power_button(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch) -> None:
+    bench.use(monkeypatch)
+    bench.state("running")
+    bench.flag("deaf-to-shutdown")
+    script.power_off(settings_of(script, bench), patience_sec=0.05, interval_sec=0.01)
+    assert script.vm_state("Windows 11") == "poweroff"
     assert [call for call in bench.vbox_calls() if call.startswith("controlvm")] == ["controlvm Windows 11 acpipowerbutton"]
 
 
@@ -701,7 +714,7 @@ def test_a_machine_that_is_off_is_started_headless_checked_and_powered_off_again
     assert [re.sub(r" +\d+\.\ds$", "", line) for line in result_lines(done.stdout)] == ["ok    sync", "ok    lock", "ok    ruff", "ok    pytest", "ok    smoke"]
     assert re.search(r"all green in \d+s$", done.stdout.strip())
     assert bench.vbox_calls()[0] == "showvminfo Windows 11 --machinereadable"
-    assert [call for call in bench.vbox_calls() if not call.startswith("showvminfo")] == ["startvm Windows 11 --type headless", "controlvm Windows 11 acpipowerbutton"]
+    assert [call for call in bench.vbox_calls() if not call.startswith("showvminfo")] == ["startvm Windows 11 --type headless"] and bench.scripts("shutdown.exe /s"), "shut down from inside"
     assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
     assert "starting Windows 11 without a window" in done.stderr and "waiting for the SSH" in done.stderr and "the logs are in" in done.stderr
     logs = re.search(r"the logs are in (\S+)", done.stderr)

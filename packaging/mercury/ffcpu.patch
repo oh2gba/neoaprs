@@ -1,0 +1,23 @@
+A name the link needs, defined. ffbase, the small library under Mercury's audio code, declares `_ffcpu_features` (audioio/ffaudio/ffbase/base.h) and uses it in two string searches that are compiled
+only for a machine with SSE4.2 (ffbase/string.h: ffs_findany and ffs_skip_ranges, under `#ifdef __SSE4_2__`); the definition is left to the program, and Mercury 1.9.21 has none. With a compiler whose
+default machine is the plain x86-64 that code is not there and nothing is missed. A compiler whose default is a newer machine keeps the reference, and the link of mercury ends with "undefined reference
+to `_ffcpu_features'": seen on GitHub's ubuntu-26.04 runner on 13 November 2026, the week `ubuntu-latest` became that image, which installs Ubuntu's amd64v3 packages (a gcc that compiles for x86-64-v3);
+made again here with `gcc -march=x86-64-v3` in a plain ubuntu:26.04, where the build fails without this file and passes with it. The release is built in ubuntu:22.04 and was not touched. This defines the
+name once, in the file that includes ffbase. Mercury 1.9.24 has the same declaration and no definition (checked 13 November 2026).
+
+scripts/build-mercury applies this file after flush.patch (`patch -p1`) on every system and checks that the source holds the definition; made from the source of the pinned commit (neoaprs/mercury.py:
+SOURCE_COMMIT), so a new pin that moves these lines fails the build loudly, which is right.
+
+--- a/audioio/audioio.c
++++ b/audioio/audioio.c
+@@ -34,6 +34,10 @@
+ #include <ffbase/stringz.h>
+ #include "os_interop.h"
+ #include <ffaudio/audio.h>
++
++/* ffbase declares this (ffbase/base.h) and leaves its definition to the program that uses it; Mercury has none.
++ * A compiler whose default machine has SSE4.2 keeps the reference (ffbase/string.h, ffs_findany). */
++int _ffcpu_features;
+ #include "std.h"
+ #ifndef FF_WIN
+ #include <time.h>
