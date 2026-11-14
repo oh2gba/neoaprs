@@ -7,9 +7,11 @@ works the first unused address), so the heard path `OH2RCH-2,OH2RDG*` shows both
 internet whose own path names no hop, with the iGate's call.
 
 Pure code."""
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
+from typing import TYPE_CHECKING
 
+from neoaprs.packet import old_keywords, radio_word
 from neoaprs.radiotype import RadioId, radio_id_of
 from neoaprs.route import digipeaters, is_alias, is_marker
 
@@ -24,18 +26,30 @@ class HopSeen:
     via_internet: bool                              # seen in a third-party copy, not by RF
 
 
+@old_keywords(radio="radio_id")
 @dataclass(frozen=True, slots=True)
 class Attempt:
+    """The radio is kept as its id (`radio_id`); the old word `radio` (`fm`, `hf`, "") is a view of it and is still taken by the constructor, by name and in its old place, until W3 (as Packet.radio)."""
     number: int                                     # 1 for the first transmission of the message
     sent_at: datetime
     path: tuple[str, ...]                           # the digipeaters it went by, as sent (WIDE1-1 stays WIDE1-1)
     seen: tuple[HopSeen, ...] = ()
-    radio: str = ""                                 # the radio it went out on (`fm`, `hf`; empty for an attempt kept before there were two)
+    if TYPE_CHECKING:                               # (what a type checker is told: the old word in its old place, the id by its name)
+        radio: str = ""
+        radio_id: RadioId | None = field(default=None, kw_only=True)
+    else:
+        radio_id: RadioId | None = None             # the id of the radio it went out on; None for an attempt kept before there were two
 
-    @property
-    def radio_id(self) -> RadioId | None:
-        """The id of the radio it went out on (`radio` as an id); None for an attempt kept before there were two."""
-        return radio_id_of(self.radio)
+    def __post_init__(self) -> None:
+        given: object = self.radio_id
+        if isinstance(given, str):                  # (the old word: one that names no radio is none, as it was)
+            object.__setattr__(self, "radio_id", radio_id_of(given))
+
+    if not TYPE_CHECKING:
+        @property
+        def radio(self) -> str:
+            """The old word for the radio it went out on (`radio_id` as the word of its slot: 1 `fm`, 2 `hf`); "" for none and for any other radio."""
+            return radio_word(self.radio_id)
 
     def with_seen(self, found: HopSeen) -> "Attempt":
         return replace(self, seen=(*self.seen, found))

@@ -49,7 +49,7 @@ class StationBook:
         return len(self._stations)
 
     def seed(self, stations: list[Station]) -> None:
-        """The stations a run starts with (the rows the database kept); nothing is signalled. Each one with a position has it as the one point of its track."""
+        """The stations a run starts with (the rows the database kept, each with what every radio heard of it: `Station.heard_by`); nothing is signalled. Each one with a position has it as the one point of its track."""
         for station in stations:
             station.is_me = station.call == self._me
             if station.has_position and station.last_position_at is not None and not station.track:
@@ -59,13 +59,14 @@ class StationBook:
 
     def seed_deliveries(self, counts: Iterable[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]) -> None:
         """The routes of the packets the database kept, as (sender, path, iGate or "", how many, when the latest of them was heard, when the one before it was) with the group of the oldest latest packet first; a sender that is not
-        in the book is left out. The latest group of a station says how its latest packet came. Nothing is signalled."""
+        in the book is left out. The latest group of a station says how its latest packet came: its path is the path of the latest packet of the radio that heard the station last, of the latest of the others while radio 2 did (`Station.seed_route_path`). Nothing is signalled."""
         for sender, path, gate, count, at, before in counts:
             note_gate(self._stations, gate, count)
             station = self._stations.get(sender)
             if station is not None:
                 station.deliveries.note(route_of(path, gate), count, at, before)
-                station.last_path, station.last_via = path, gate
+                station.seed_route_path(path)
+                station.last_via = gate
 
     def seed_tracks(self, positions: Iterable[tuple[str, datetime, float, float]]) -> None:
         """The tracks of the positions the database kept, as (station, when, lat, lon) oldest first (an object's own name for an object or an item): each station named replaces the one point it was seeded
@@ -203,7 +204,7 @@ class StationBook:
         station.reported_by, station.packets = self._me, obj.sent
         station.last_heard, station.last_position_at = obj.last_sent_at or obj.updated_at, obj.updated_at
         station.symbol_table, station.symbol_code, station.lat, station.lon = obj.symbol_table, obj.symbol_code, obj.lat, obj.lon
-        station.course_deg, station.speed_kmh, station.last_comment, station.last_path = obj.course_deg, obj.speed_kmh, obj.comment, obj.path_calls or ()
+        station.course_deg, station.speed_kmh, station.last_comment, station.own_path = obj.course_deg, obj.speed_kmh, obj.comment, obj.path_calls or ()
         self.changed.emit(station)
         return station
 

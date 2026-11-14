@@ -1,5 +1,6 @@
-"""The packet dataclasses: frozen, the kind and the summary of each decoded form, text decoding."""
-from dataclasses import FrozenInstanceError
+"""The packet dataclasses: frozen, the kind and the summary of each decoded form, text decoding; and the radio of a packet, kept as the radio's id, with the old word as its view and the frame reader that
+stamps it (neoaprs/tncmode.py)."""
+from dataclasses import FrozenInstanceError, fields, replace
 from datetime import UTC, datetime
 
 import pytest
@@ -9,7 +10,10 @@ from neoaprs.aprsfreq import Frequency
 from neoaprs.aprslocator import Locator
 from neoaprs.aprsstorm import Storm
 from neoaprs.aprstelemetry import Telemetry
-from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, channel_of, decode_text, duplicate_key, via_of
+from neoaprs import ax25, kiss
+from neoaprs.packet import RADIOS, ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded, channel_of, decode_text, duplicate_key, radio_word, via_of
+from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.tncmode import packet_of, read_frame
 
 T = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
 POS = Position(60.17, 24.94, "/", "-", "comment")
@@ -147,3 +151,60 @@ def test_two_copies_of_a_packet_are_one_by_source_destination_without_its_ssid_a
     assert duplicate_key("OH2XYZ-9", "APRS-3", b"!x") == duplicate_key("OH2XYZ-9", "APRS", b"!x") == ("OH2XYZ-9", "APRS", b"!x")
     assert duplicate_key("OH2XYZ-9", "APRS", b"!x") != duplicate_key("OH2XYZ-8", "APRS", b"!x")
     assert duplicate_key("OH2XYZ-9", "APRS", b"!x") != duplicate_key("OH2XYZ-9", "APRS", b"!y")
+
+
+# ---- the radio of a packet: its id, and the old word as a view of it
+
+def test_a_packet_keeps_the_id_of_its_radio_and_the_old_word_is_a_view_of_it() -> None:
+    assert [f.name for f in fields(Packet)].count("radio_id") == 1 and "radio" not in {f.name for f in fields(Packet)} and isinstance(Packet.radio, property)
+    by_id = {radio_id: replace(packet(POS), radio_id=radio_id) for radio_id in (None, FM_ID, HF_ID, 3, 12)}
+    assert [(p.radio_id, p.radio) for p in by_id.values()] == [(None, ""), (1, "fm"), (2, "hf"), (3, ""), (12, "")], "a radio after the second has no old word"
+    assert packet(POS).radio_id is None and packet(POS).radio == "", "one made without a radio (a test's, or the internet's)"
+    assert all(p.radio in RADIOS for p in by_id.values()) and [radio_word(n) for n in (None, 1, 2, 3)] == ["", "fm", "hf", ""]
+    with pytest.raises(FrozenInstanceError):
+        by_id[3].radio_id = 1  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        by_id[3].radio = "fm"  # type: ignore[misc]
+
+
+def test_the_constructor_and_replace_still_take_the_old_word() -> None:
+    old = {word: Packet(T, "in", b"raw", "OH2XYZ-9", "APRS", ("WIDE1-1",), b"info", POS, radio=word) for word in RADIOS}
+    assert [(p.radio, p.radio_id) for p in old.values()] == [("", None), ("fm", FM_ID), ("hf", HF_ID)]
+    assert old["hf"] == replace(packet(POS), radio_id=HF_ID) and hash(old["hf"]) == hash(replace(packet(POS), radio_id=HF_ID)), "the same packet, whichever name it was made with"
+    assert replace(old["fm"], radio="hf").radio_id == HF_ID and replace(old["fm"], radio="").radio_id is None, "replace by the old word: the word wins over the id the packet had"
+    assert replace(old["fm"], radio_id=3).radio_id == 3 and replace(old["hf"], snr=4.5).radio_id == HF_ID, "replace by the id, and of anything else"
+    in_place = Packet(T, "in", b"raw", "OH2XYZ-9", "APRS", ("WIDE1-1",), b"info", POS, None, "rf", "hf", 4.5)
+    assert (in_place.radio_id, in_place.snr) == (HF_ID, 4.5) and in_place == replace(old["hf"], snr=4.5), "the word in its old place, the eleventh value"
+
+
+def test_what_names_no_radio_is_refused() -> None:
+    for word in ("both", "FM", "vhf", "1"):
+        with pytest.raises(ValueError, match="is no radio"):
+            Packet(T, "in", b"", "A", "B", (), b"", POS, radio=word)
+    for bad in (0, -1, 1.0, True, "lora"):
+        with pytest.raises(ValueError, match="is no radio"):
+            replace(packet(POS), radio_id=bad)  # type: ignore[arg-type]
+
+
+def test_the_frame_reader_stamps_the_id_of_the_radio_and_radio_1_when_none_is_said() -> None:
+    frame = ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2XYZ-9"), (), info=b">hello")
+    raw = ax25.encode(frame)
+    [kiss_frame] = kiss.KissDecoder().feed(kiss.encode(raw))
+    for radio_id in (FM_ID, HF_ID, 3, None):
+        read = read_frame(kiss_frame, T, radio_id=radio_id)
+        assert not isinstance(read, str) and read[0].radio_id == radio_id and read[1] == frame
+        assert packet_of("out", raw, frame, T, radio_id=radio_id).radio_id == radio_id
+    plain = read_frame(kiss_frame, T)
+    assert not isinstance(plain, str) and plain[0].radio_id == FM_ID == packet_of("in", raw, frame, T).radio_id, "a caller that says no radio means radio 1, as it meant the FM radio"
+
+
+def test_the_frame_reader_still_takes_the_old_word_where_it_was() -> None:
+    frame = ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2XYZ-9"), (), info=b">hello")
+    raw = ax25.encode(frame)
+    [kiss_frame] = kiss.KissDecoder().feed(kiss.encode(raw))
+    for word, radio_id in (("fm", FM_ID), ("hf", HF_ID)):
+        by_place, by_name = read_frame(kiss_frame, T, True, word), packet_of("in", raw, frame, T, radio=word)
+        assert not isinstance(by_place, str) and by_place[0].radio_id == radio_id == by_name.radio_id and by_place[0].via == "dummy"
+    assert packet_of("in", raw, frame, T, False, "hf", radio_id=7).radio_id == HF_ID, "the word, where one is given, says the radio"
+    with pytest.raises(ValueError, match="is no radio"):
+        packet_of("in", raw, frame, T, radio="lora")

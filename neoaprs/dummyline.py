@@ -6,7 +6,9 @@ message and plays a digipeater's repeat of a position of ours; they are never se
 
 The Dummy HF radio is the same line with the HF scene (dummyhfscene.py: distant fixed stations, no digipeater) and, when a speaker is given, the frames the Tnc writes are also handed to it as the KISS bytes they
 came as (the Mercury modem started on the computer's own sound output, mercurymodem.py), so that the operator hears what the modem sounds like; a speaker that is not there changes nothing. Each frame is handed
-over with the reading the scene makes up for it (`take_reading`, neoaprs/reading.py: the HF scene an SNR for each station, the Dummy radio's scene none), as a modem says the reading of the frame it hands over."""
+over with the reading the scene makes up for it (`take_reading`, neoaprs/reading.py: the HF scene an SNR for each station, the Dummy radio's scene none), as a modem says the reading of the frame it hands over.
+
+The scene is made with a `seed`, which the Tnc gives as the id of its radio: each Dummy radio plays a world of its own (dummyscene.py: other stations at other places for another seed), the same at every start."""
 import asyncio
 import logging
 from collections.abc import Callable
@@ -48,7 +50,7 @@ class DummyPort(TncPort):
                  seed: int = 1, scene_of: SceneFactory = Scene, speaker: Speaker | None = None) -> None:
         super().__init__(DUMMY_PATH, 0, on_data, on_lost)
         self._where, self._clock, self._tick_sec, self._seed = where, clock, TICK_SEC if tick_sec is None else tick_sec, seed
-        self._scene_of, self._speaker = scene_of, speaker
+        self._scene_of, self._speaker = scene_of, speaker             # (`seed`: which world the scene makes, the id of the radio this is the line of; 1 when the Tnc gives none)
         self.scene: SceneLike | None = None
         self._task: asyncio.Task[None] | None = None
         self._reading = NO_READING                                       # the reading of the frame being handed over

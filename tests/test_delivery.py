@@ -1,6 +1,6 @@
 """The delivery chain of a message (neoaprs/services/delivery.py, chain.py) on messaging with a stub Tnc and a real database: a copy of our own message heard back is linked to the message and to the attempt it
-belongs to, shows which hops of the path were used, is kept across a restart and goes with the message; copies of anything else are not linked. Each attempt records the id of the radio it went on (kept as
-the word of the radio's slot, `fm` 1 and `hf` 2, until the database keeps the id)."""
+belongs to, shows which hops of the path were used, is kept across a restart and goes with the message; copies of anything else are not linked. Each attempt records the id of the radio it went on, whatever
+radio that is (the message log of today keeps it as the word of the radio's slot, `fm` 1 and `hf` 2, until migration 32 makes the column the id: an attempt on another radio is read back with none till then)."""
 from dataclasses import replace
 from pathlib import Path
 
@@ -78,15 +78,16 @@ async def test_every_attempt_keeps_the_time_it_was_sent_and_the_path_it_went_by(
     assert [a.radio_id for a in chain.rig.m.delivery.attempts_of(1)] == [FM_ID, FM_ID], "the id of the radio it went on"
 
 
-async def test_an_attempt_keeps_the_id_of_its_radio_as_the_word_of_its_slot_and_one_on_another_radio_with_none(chain: Chain) -> None:
+async def test_an_attempt_records_the_id_of_whatever_radio_it_went_on_and_the_log_of_today_keeps_radios_1_and_2(chain: Chain) -> None:
     record = await chain.rig.m.send("OH2RDG", "Hello Pekka")
     delivery = chain.rig.m.delivery
     for number, radio in ((2, HF_ID), (3, 3), (4, None)):
         delivery.sent(replace(record, attempts=number), ("OH2RCH-2",), chain.clock(), radio)
-    assert [a.radio_id for a in delivery.attempts_of(1)] == [FM_ID, HF_ID, None, None], "radio 3 has no word of its own in the database yet: none, as an attempt kept before there were two"
+    assert [a.radio_id for a in delivery.attempts_of(1)] == [FM_ID, HF_ID, 3, None], "the attempt holds the id itself, of a third radio too"
+    assert [a.radio for a in delivery.attempts_of(1)] == ["fm", "hf", "", ""], "the old word, which the page is told until the wire has the id: radio 3 has none"
     assert [row[1:2] + row[3:] for row in await chain.rows("message_attempt")] == [(1, "OH2RCH-2,OH2RDG", "fm"), (2, "OH2RCH-2", "hf"), (3, "OH2RCH-2", ""), (4, "OH2RCH-2", "")]
     again = await chain.restarted()
-    assert [a.radio_id for a in again.rig.m.delivery.attempts_of(1)] == [FM_ID, HF_ID, None, None], "and so after a restart"
+    assert [a.radio_id for a in again.rig.m.delivery.attempts_of(1)] == [FM_ID, HF_ID, None, None], "the column is a word until migration 32: radio 3's attempt comes back with none"
 
 
 async def test_a_copy_with_the_first_digipeater_used_marks_hop_1_and_a_later_copy_with_the_second_marks_hop_2(chain: Chain) -> None:

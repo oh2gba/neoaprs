@@ -1,9 +1,10 @@
 """What a heard or sent packet is to the rest of the program: the frame as printable strings and bytes, and what the parser made of it.
 
 Every datetime is timezone-aware UTC. Positions are decimal degrees, south and west negative, speeds km/h, altitudes metres."""
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from .aprsextension import Extensions, extension_lines
 from .aprsfreq import Frequency, frequency_text
@@ -11,7 +12,39 @@ from .aprslocator import Locator
 from .aprsstorm import Storm, storm_text
 from .aprstelemetry import Telemetry
 from .aprsweather import Weather, weather_text
-from .radiotype import RadioId, radio_id_of
+from .radiotype import FM_ID, HF_ID, RadioId, radio_id_of
+
+
+def old_keywords[T](**old: str) -> Callable[[type[T]], type[T]]:
+    """For a dataclass one of whose fields took a new name and form (the radio as an id: `radio` became `radio_id`): its constructor still takes the old keyword, `old="field"`, as the value of the field it
+    became; the class's own `__post_init__` turns a value of the old form (a word) in the field into the new, so the old value is taken by name and in its old place alike. `dataclasses.replace` goes through
+    the constructor, so it takes both names too; it hands over the field as it was beside the old keyword, so the old keyword wins where both are given. The old name is read through a view of the class's
+    own. Until W3 takes the old names away."""
+    def wrap(cls: type[T]) -> type[T]:
+        made = cls.__init__
+
+        def init(self: T, *args: Any, **values: Any) -> None:
+            for name, new in old.items():
+                if name in values:
+                    values[new] = values.pop(name)
+            made(self, *args, **values)
+
+        init.__wrapped__ = made                             # type: ignore[attr-defined]
+        cls.__init__ = init                                 # type: ignore[method-assign, assignment]
+        return cls
+    return wrap
+
+
+def radio_word(radio: RadioId | None) -> str:
+    """Today's word for the slot of a radio, as the old views say it (the inverse of radiotype.radio_id_of): `fm` for radio 1, `hf` for radio 2, "" for none and for any other radio, which had no word."""
+    return "fm" if radio == FM_ID else "hf" if radio == HF_ID else ""
+
+
+def id_of_word(word: str) -> RadioId | None:
+    """The id an old word names (`fm` 1, `hf` 2, "" none); ValueError for a word that was none of RADIOS."""
+    if word not in RADIOS:
+        raise ValueError(f"radio {word!r} is no radio: {RADIOS}")
+    return radio_id_of(word)
 
 
 DuplicateKey = tuple[str, str, bytes]
@@ -171,7 +204,7 @@ RF: Via = "rf"                         # heard on the radio, direct or by digipe
 RF_GATED: Via = "rf-gated"             # heard on the radio as a third-party packet: an iGate took it from the internet and put it on the air
 IS: Via = "is"                         # received from APRS-IS directly over the internet; it was never on the air
 DUMMY: Via = "dummy"                   # made up by the Dummy radio, which lets a person try the program with no radio: it goes everywhere a packet of the radio goes, and nowhere beyond this computer
-RADIOS: tuple[str, ...] = ("", "fm", "hf")      # what Packet.radio may be: the kind of the radio's slot (the FM radio, the KISS TNC of today, or the HF modem), or none for the internet
+RADIOS: tuple[str, ...] = ("", "fm", "hf")      # what the old view Packet.radio says: the word of the slot of radio 1 (`fm`) or radio 2 (`hf`), or none (the internet, no radio, and any other radio)
 
 GATEABLE: frozenset[str] = frozenset({RF, RF_GATED})
 """The channels whose packets a consumer that sends to the internet may take. An iGate (or anything else that puts a packet on APRS-IS) MUST check `packet.via in GATEABLE` before it sends: a packet from the internet (`is`)
@@ -191,10 +224,14 @@ def channel_of(third_party: "ThirdParty | None", internet: bool = False, dummy: 
     return IS if internet else DUMMY if dummy else (RF if third_party is None else RF_GATED)
 
 
+@old_keywords(radio="radio_id")
 @dataclass(frozen=True, slots=True)
 class Packet:
     """A packet that reached us, and how: `via` is the channel and is set once, where the packet is made (the Tnc's frame reader makes `rf`, `rf-gated` and, for the Dummy radio, `dummy`; `aprsisline.parse_is_line` makes `is`) and never
-    changes. An `is` packet has no AX.25 frame: its `raw` is the line of APRS-IS as it came (TNC2 text), `path` holds everything between the destination and the colon (the q-construct and the server too)."""
+    changes. An `is` packet has no AX.25 frame: its `raw` is the line of APRS-IS as it came (TNC2 text), `path` holds everything between the destination and the colon (the q-construct and the server too).
+
+    The radio is kept as its id (`radio_id`). The old word `radio` (`fm`, `hf`, "") is a view of it and is still taken by the constructor, by name (`Packet(..., radio="hf")`, `replace(packet, radio="fm")`)
+    and in its old place (the eleventh value), until W3."""
     heard_at: datetime
     direction: Literal["in", "out"]
     raw: bytes
@@ -205,7 +242,11 @@ class Packet:
     decoded: Decoded                  # what the information field says; for a third-party packet, what the wrapped packet says
     third_party: ThirdParty | None = None
     via: Via = RF
-    radio: str = ""                   # the radio it came on or went out on, by the kind of its slot (`fm`, `hf`: neoaprs/radiorules.py), set where the Tnc makes the packet; "" for a packet from the internet, and for one made without a radio (a test's), which counts as the FM radio's
+    if TYPE_CHECKING:                 # (what a type checker is told: the old word `radio` is taken in its old place and read, the id by its name; in the running program `radio` is the view below, no field)
+        radio: str = ""
+        radio_id: RadioId | None = field(default=None, kw_only=True)
+    else:
+        radio_id: RadioId | None = None   # the radio it came on or went out on, by its id (neoaprs/radiospec.py), set where the Tnc makes the packet; None for a packet from the internet, and for one made without a radio (a test's), which counts as radio 1's
     snr: float | None = None          # the signal-to-noise ratio the radio measured of the frame, dB, and the received strength, dBm (neoaprs/reading.py): set where the Tnc makes the packet, of the radio types that give
     rssi: float | None = None         # them; None for a packet of ours, one from the internet, and one of a radio that gives none
 
@@ -214,17 +255,21 @@ class Packet:
             raise ValueError("heard_at must be timezone-aware UTC")
         if self.via not in VIAS:
             raise ValueError(f"via {self.via!r} is no channel")
-        if self.radio not in RADIOS:
-            raise ValueError(f"radio {self.radio!r} is no radio: {RADIOS}")
+        given: object = self.radio_id
+        if isinstance(given, str):                                              # (the old word, by name or in its old place)
+            object.__setattr__(self, "radio_id", id_of_word(given))
+        if self.radio_id is not None and (type(self.radio_id) is not int or self.radio_id < 1):
+            raise ValueError(f"radio {self.radio_id!r} is no radio: an id from 1, or None")
         if self.via == IS and self.direction != "in":
             raise ValueError("a packet sent by us never goes by the internet")
         if (self.via == RF_GATED) != (self.third_party is not None and self.via not in (IS, DUMMY)):
             raise ValueError("a packet is rf-gated exactly when it came on the radio as a third-party packet")
 
-    @property
-    def radio_id(self) -> RadioId | None:
-        """The id of the radio it came on or went out on (`radio` as an id: fm 1, hf 2); None for a packet from the internet and for one made without a radio."""
-        return radio_id_of(self.radio)
+    if not TYPE_CHECKING:
+        @property
+        def radio(self) -> str:
+            """The old word for the radio (`radio_id` as the word of its slot: 1 `fm`, 2 `hf`); "" for none and for any other radio."""
+            return radio_word(self.radio_id)
 
     @property
     def kind(self) -> str:

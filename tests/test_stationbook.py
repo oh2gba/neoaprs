@@ -15,6 +15,7 @@ from neoaprs.clock import utc
 from neoaprs.kiss import KissDecoder
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
+from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard
 from neoaprs.station import TRACK_MAX, Station
 from neoaprs.stationbook import StationBook
 from neoaprs.stationnotes import DEFINITIONS_MAX
@@ -274,9 +275,19 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 def test_a_packet_heard_over_hf_is_no_route_for_a_message_by_fm() -> None:
     book = StationBook()
     book.take(packet(Status("x"), path=("OH2RCH-2*",)))
-    book.take(replace(packet(Status("x"), path=()), radio="hf"))
+    book.take(replace(packet(Status("x"), path=()), radio_id=HF_ID))
     station = book.get("OH2AAA")
-    assert station is not None and station.deliveries.direct == 0 and station.heard_hf == 1 and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
+    assert station is not None and station.deliveries.direct == 0 and station.heard_on(HF_ID).count == 1 and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
+    assert station.heard_by == {FM_ID: RadioHeard(1, T0, ("OH2RCH-2*",)), HF_ID: RadioHeard(1, T0, ())}, "a packet made without a radio is radio 1's; each radio keeps the path it heard the station by"
+    assert (station.heard_fm, station.heard_hf, station.last_fm_at, station.last_hf_at) == (1, 1, T0, T0), "the old names say the same"
+
+
+def test_a_packet_given_the_old_word_of_its_radio_is_counted_as_one_given_the_id() -> None:
+    old, new = StationBook(), StationBook()
+    for word, radio_id in (("fm", FM_ID), ("hf", HF_ID), ("", None)):
+        old.take(replace(packet(Status("x"), path=()), radio=word))
+        new.take(replace(packet(Status("x"), path=()), radio_id=radio_id))
+    assert old.get("OH2AAA") == new.get("OH2AAA") and old.get("OH2AAA").heard_by == {FM_ID: RadioHeard(2, T0, ()), HF_ID: RadioHeard(1, T0, ())}      # type: ignore[union-attr]
 
 
 def test_every_packet_of_a_station_counts_the_route_it_came_by() -> None:

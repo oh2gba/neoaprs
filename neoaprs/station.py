@@ -1,6 +1,8 @@
 """A station as the station book keeps it: who it is, where it was heard, what it sent last and how its packets reached us (stationbook.py is the book of them)."""
+from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass, field, replace
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from .aprsextension import Extensions
 from .aprsfreq import Frequency
@@ -78,15 +80,13 @@ class Station:
     last_is_at: datetime | None = None
     heard_dummy: int = 0                        # ... made up by the Dummy radio (`dummy`; they count as the air for everything but the internet)
     last_dummy_at: datetime | None = None
-    heard_fm: int = 0                           # how many of the packets of the air (rf, rf-gated and dummy alike) came on the FM radio, and how many on the HF modem (Packet.radio); with the times: a message goes out on the radio
-    heard_hf: int = 0                           # the station was last heard on (FM when on both: it is near, and HF airtime is everyone's)
-    last_fm_at: datetime | None = None
-    last_hf_at: datetime | None = None
+    heard_by: dict[RadioId, RadioHeard] = field(default_factory=dict)      # what each radio heard of it (rule 3.3), by the radio's id: how many of the packets of the air (rf, rf-gated and dummy alike) came on it, when the latest did and by which digipeaters; a radio that never heard it has no entry
     snr: float | None = None                    # the last reading of its signal (neoaprs/reading.py): the SNR in dB and the RSSI in dBm of the latest packet heard direct from it that had one (not by a digipeater,
     rssi: float | None = None                   # not as a third-party packet: those are another station's signal), each None when that packet's radio gave none
     signal_at: datetime | None = None           # when that packet was heard; None until one was
     position_via: Via | None = None             # the channel of the packet that gave the position (the latest one wins); None without a position and for our own station
-    last_path: tuple[str, ...] = ()             # the digipeaters of the latest packet heard on the radio (an `is` packet came by no route)
+    own_path: tuple[str, ...] = ()              # the digipeaters of a station that no radio heard: those an object of ours is sent by (the path of a packet that was heard is its radio's, in `heard_by`)
+    latest_path: tuple[str, ...] | None = field(default=None, repr=False, compare=False)   # the digipeaters of the packet noted last in this run whatever its time (a clock that stepped back, a tie), and after a restart the path of the latest route the database kept for a station radio 2 heard last (its packets are no route): what `last_path` says while it is set, as before the radios were by id; not kept in the cache (R2 deletes it with the HF exception)
     last_via: str = ""                          # the iGate, when the latest packet came as a third-party packet (not kept in the cache: it is read again from the packets at the start)
     weather: Weather | None = None              # the latest observation of a weather station (not kept in the cache: it is read again from the weather log at the start)
     weather_at: datetime | None = None          # when it was heard
@@ -113,17 +113,78 @@ class Station:
     internet_reach: Reach | None = None         # how its latest internet packet got there: heard by an iGate, or sent from an app (neoaprs/reach.py; not kept in the cache: it is read again from the latest packets at the start)
     route_marks: tuple[RouteMark, ...] = ()     # the route of its latest packet and the one before it that came another way, any channel, newest first, for the map (not kept in the cache either)
 
-    @property
-    def heard_by(self) -> dict[RadioId, RadioHeard]:
-        """What each radio heard of it (rule 3.3), from today's counts by slot: the FM radio's and the HF radio's, each while it heard a packet; the path of the latest packet of the air goes with the radio that
-        heard last (the FM radio on a tie)."""
-        fm_last = self.last_fm_at is not None and (self.last_hf_at is None or self.last_fm_at >= self.last_hf_at)
-        found = {FM_ID: RadioHeard(self.heard_fm, self.last_fm_at, self.last_path if fm_last else ()), HF_ID: RadioHeard(self.heard_hf, self.last_hf_at, () if fm_last else self.last_path)}
-        return {radio: heard for radio, heard in found.items() if heard.count > 0}
-
     def heard_on(self, radio: RadioId) -> RadioHeard:
         """What the radio heard of it; nothing (a count of 0) for a radio that never heard it."""
         return self.heard_by.get(radio, NOT_HEARD)
+
+    @property
+    def last_radio(self) -> RadioId | None:
+        """The radio that heard it last: the one with the latest time, the lowest id among equals (radio 1 on a tie; an entry without a time is before any time); None when no radio heard it."""
+        return self._latest_of(self.heard_by)
+
+    def _latest_of(self, radios: Iterable[RadioId]) -> RadioId | None:
+        found: RadioId | None = None
+        latest: datetime | None = None
+        for radio in sorted(radios):
+            at = self.heard_by[radio].last_at
+            if found is None or (at is not None and (latest is None or at > latest)):
+                found, latest = radio, at
+        return found
+
+    def note_on(self, radio: RadioId, at: datetime, path: tuple[str, ...]) -> None:
+        """A packet of it came on the radio at `at` by the digipeaters `path`: one more for that radio, which heard it last now, and its path is the station's latest."""
+        self.heard_by[radio] = RadioHeard(self.heard_on(radio).count + 1, at, path)
+        self.latest_path = path
+
+    def seed_route_path(self, path: tuple[str, ...]) -> None:
+        """The path of the latest route the database kept of it (the routes leave out the packets of radio 2, the HF radio of today): the path of the latest packet of the radio that heard it last; while
+        radio 2 heard it last, the path of the latest of the other radios, and what `last_path` says until the next packet, as before the radios were by id."""
+        if self.last_radio != HF_ID:
+            self.last_path = path
+            return
+        other = self._latest_of(radio for radio in self.heard_by if radio != HF_ID)
+        if other is not None:
+            self._heard_as(other, last_path=path)
+        self.latest_path = path
+
+    def _heard_as(self, radio: RadioId, **changed: Any) -> None:
+        """What the radio heard of it as `changed` says; a radio with a count of 0 heard nothing and has no entry (the time or the path of such a radio is dropped with it)."""
+        after = replace(self.heard_on(radio), **changed)
+        if after.count == 0:
+            self.heard_by.pop(radio, None)
+        else:
+            self.heard_by[radio] = after
+
+    # ---- the old names, until W3: the counts and times of radio 1 (`fm`) and radio 2 (`hf`), and the one path of the latest packet, as views of `heard_by` that are read, set and taken by the constructor
+    if TYPE_CHECKING:                           # (what a type checker is told of them; in the running program they are the properties below, no fields)
+        heard_fm: int = 0
+        heard_hf: int = 0
+        last_fm_at: datetime | None = None
+        last_hf_at: datetime | None = None
+        last_path: tuple[str, ...] = ()
+    else:
+        heard_fm = property(lambda self: self.heard_on(FM_ID).count, lambda self, count: self._heard_as(FM_ID, count=count))
+        heard_hf = property(lambda self: self.heard_on(HF_ID).count, lambda self, count: self._heard_as(HF_ID, count=count))
+        last_fm_at = property(lambda self: self.heard_on(FM_ID).last_at, lambda self, at: self._heard_as(FM_ID, last_at=at))
+        last_hf_at = property(lambda self: self.heard_on(HF_ID).last_at, lambda self, at: self._heard_as(HF_ID, last_at=at))
+
+        @property
+        def last_path(self) -> tuple[str, ...]:
+            """The digipeaters of the latest packet heard on a radio (an `is` packet came by no route): those of the packet noted last in this run (`latest_path`), else those of the radio that heard it
+            last; of a station no radio heard, `own_path`."""
+            if self.latest_path is not None:
+                return self.latest_path
+            radio = self.last_radio
+            return self.own_path if radio is None else self.heard_by[radio].last_path
+
+        @last_path.setter
+        def last_path(self, path: tuple[str, ...]) -> None:
+            self.latest_path = None
+            radio = self.last_radio
+            if radio is None:
+                self.own_path = path
+            else:
+                self._heard_as(radio, last_path=path)
 
     @property
     def has_position(self) -> bool:
@@ -180,3 +241,19 @@ class Station:
             return replace(view, lat=None, lon=None, last_position_at=None, position_via=None, altitude_m=None, course_deg=None, speed_kmh=None, track=[],
                            symbol_table="", symbol_code="", last_comment="", extensions=None, storm=None, sign=None)
         return view
+
+
+OLD_NAMES = ("heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "last_path")       # in the order they are set: the counts and the times, then the path, which goes with the radio that heard last
+_made = Station.__init__
+
+
+def _init(self: Station, *args: Any, **values: Any) -> None:
+    """The constructor still takes the old names beside `heard_by` (`dataclasses.replace` too, which goes through it): each is set through its view, over a `heard_by` that is the new station's own dict."""
+    old = [(name, values.pop(name)) for name in OLD_NAMES if name in values]
+    values["heard_by"] = {radio: heard for radio, heard in (values.get("heard_by") or {}).items() if heard.count > 0}     # (a radio with a count of 0 heard nothing: no entry)
+    _made(self, *args, **values)
+    for name, value in old:
+        setattr(self, name, value)
+
+
+Station.__init__ = _init                        # type: ignore[method-assign]

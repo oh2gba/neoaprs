@@ -4,19 +4,24 @@ it gives the frames that have come due, and told what we sent (`react`) it queue
 Every call here is made up on the ITU's Q prefix: the series QAA to QZZ is never allocated to any country, so none of these calls is, or can ever be, a real station's. A packet with such a source is never anyone's.
 The scene has fixed stations (a house, a club shack, a cottage), three cars and a walker on routes round the station, a weather station that reports every five minutes, two digipeaters with PHG that repeat the
 others (a path with `*`), two objects, a bulletin now and then, and a status. The stations that take messages (`=` positions) answer one: an ack after a moment and the text "Hello from the dummy radio" a few seconds
-later. The club station is a QRU server (dummyqru.py): a request to QRU is answered with its groups and objects. What we send is not carried anywhere; a position of ours is played back as a digipeater repeating it, now and then. The first transmissions come within half a minute of the start, and then a few packets a minute."""
+later. The club station is a QRU server (dummyqru.py): a request to QRU is answered with its groups and objects. What we send is not carried anywhere; a position of ours is played back as a digipeater repeating it, now and then. The first transmissions come within half a minute of the start, and then a few packets a minute.
+
+Each Dummy radio has a world of its own, by its seed, which is the radio's id (dummyline.py): the seed 1 gives the world above, and every other seed the same world with other calls (`call_of`: Q1ABC is Q3ABC for
+the seed 3), other names for the club's objects (`name_of`), every place turned round the station by TURN_DEG for each seed after the first, and its own draws of the times. So two Dummy radios show different
+stations in different places, and one radio shows the same ones at every start."""
 import heapq
 import math
 import random
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MessageError, parse_message
 
 from .dummyqru import answer as qru_answer
-from .dummyframes import PATH, ack, air, bulletin, compressed, cosine_day, fixed, is_position, mice, message, object_report, repeated, status, walking, weather
+from .dummyframes import PATH, ack, address, air, bulletin, compressed, cosine_day, fixed, is_position, mice, message, object_report, repeated, status, walking, weather
+from .dummyqru import SERVER
 from .dummyroutes import DELIVERY_ROUND, PARK_PATH, RING_ROAD, TOWN_LOOP, Route, around
 from .reading import NO_READING, Reading
 
@@ -27,6 +32,23 @@ ACK_AFTER_SEC = 1.5
 ANSWER_AFTER_SEC = (3.5, 6.0)                  # the text of an answer comes this long after the message
 REPEAT_AFTER_SEC = (0.8, 1.8)                  # a digipeater sends a frame again this long after it heard it
 ECHO_CHANCE = 0.6                              # of our positions after the first, which is always repeated
+TURN_DEG = 55                                  # the world of a seed after the first is turned clockwise round the station by this much for each seed, so that the stations of two Dummy radios are not at the same places
+NAME_MAX = 9                                   # the longest name of an object
+
+
+def call_of(call: str, seed: int) -> str:
+    """The call a made-up station has in the world of `seed`: its own for the seed 1; for another the digit after the Q is moved on by one for each seed after the first (Q1ABC is Q3ABC for the seed 3, Q4CAR-9
+    is Q6CAR-9) and, each time the digits have gone round, the last letter by one too, so that the worlds of the seeds share no call (for 260 seeds: the 261st is the world of the first again). It stays on the Q prefix, which is nobody's."""
+    turns = seed - 1
+    if turns == 0:
+        return call
+    base, dash, ssid = call.partition("-")
+    return f"Q{(int(base[1]) + turns) % 10}{base[2:-1]}{chr((ord(base[-1]) - ord('A') + turns // 10) % 26 + ord('A'))}{dash}{ssid}"
+
+
+def name_of(name: str, seed: int) -> str:
+    """The name an object of the made-up club has in the world of `seed`: its own for the seed 1, for another with the seed at its end (FIELDDAY3), cut to the length a name may have."""
+    return name if seed == 1 else f"{name[:NAME_MAX - len(str(seed))]}{seed}"
 
 
 @dataclass
@@ -46,6 +68,10 @@ class Scene:
     def __init__(self, centre: tuple[float, float] | None, now: datetime, seed: int = 1) -> None:
         self.centre = centre or HELSINKI
         self.started = now
+        self.seed = seed
+        self._turn_deg = TURN_DEG * (seed - 1) % 360
+        self._turn = (math.cos(math.radians(self._turn_deg)), math.sin(math.radians(self._turn_deg))) if self._turn_deg else (1.0, 0.0)
+        self.digipeaters = (self.call(DIGIPEATERS[0]), self.call(DIGIPEATERS[1]))
         self._rng = random.Random(seed)  # noqa: S311  (the made-up stations of the Dummy radio, the same for the same seed: nothing secret is drawn)
         self._queue: list[tuple[datetime, int, ax25.Frame]] = []
         self._count = 0
@@ -55,7 +81,13 @@ class Scene:
         self.actors: list[Actor] = self._build()
 
     def where(self, east_km: float, north_km: float) -> tuple[float, float]:
-        return around(self.centre, east_km, north_km)
+        """The place that far east and north of the centre, in this world: turned clockwise round the centre by the world's angle (none for the seed 1)."""
+        cos, sin = self._turn
+        return around(self.centre, east_km * cos + north_km * sin, north_km * cos - east_km * sin)
+
+    def call(self, call: str) -> str:
+        """The call of the station in this world (`call_of`)."""
+        return call_of(call, self.seed)
 
     @property
     def description(self) -> str:
@@ -100,7 +132,7 @@ class Scene:
         elif is_position(frame.info) and not str(frame.source).startswith("Q"):
             self._sent_positions += 1
             if self._sent_positions == 1 or self._rng.random() < ECHO_CHANCE:
-                self._put(now + self._after((1.2, 2.4)), repeated(frame, DIGIPEATERS[0]))
+                self._put(now + self._after((1.2, 2.4)), repeated(frame, self.digipeaters[0]))
 
     def _answer(self, frame: ax25.Frame, now: datetime) -> None:
         try:
@@ -109,7 +141,7 @@ class Scene:
             return
         if read.addressee == "QRU":
             for after, reply in qru_answer(read.text, str(frame.source), now, self.where):
-                self._put(now + timedelta(seconds=after), reply)
+                self._put(now + timedelta(seconds=after), self._from_club(reply))
             return
         talker = next((a for a in self.actors if a.answers and a.call == read.addressee), None)
         if talker is None or read.ack_id or read.rej_id:
@@ -123,6 +155,11 @@ class Scene:
             self._ids += 1
             self._put(now + self._after(ANSWER_AFTER_SEC), air(talker.call, message(us, HELLO, str(self._ids)), talker.path))
 
+    def _from_club(self, frame: ax25.Frame) -> ax25.Frame:
+        """A frame of the QRU server (dummyqru.py, which says it as the club of the seed 1) as this world's club sends it: under its call here, in the text too."""
+        club = self.call(SERVER)
+        return frame if club == SERVER else replace(frame, source=address(club), info=frame.info.replace(SERVER.encode("ascii"), club.encode("ascii")))
+
     # ---- who is there
     def _build(self) -> list[Actor]:
         actors = [*self._houses(), *self._movers(), *self._services()]
@@ -135,26 +172,29 @@ class Scene:
             lat, lon = self.where(east, north)
             return lambda now: [air(call, fixed(lat, lon, symbol, comment, True))]
 
+        home, club, cottage = self.call("Q1ABC"), self.call("Q1CLB"), self.call("Q8QTH")
         return [
-            Actor("Q1ABC", 420, 4, at(2.1, 1.4, "Q1ABC", "/-", "Home station, 2 m FM"), DIGIPEATERS[0], True),
-            Actor("Q1CLB", 480, 9, at(-1.8, 0.6, "Q1CLB", "/K", "Radio club shack, open on Thursdays"), None, True),
-            Actor("Q8QTH", 540, 14, at(5.2, -3.4, "Q8QTH", "/-", "Lake cottage"), DIGIPEATERS[1], True),
+            Actor(home, 420, 4, at(2.1, 1.4, home, "/-", "Home station, 2 m FM"), self.digipeaters[0], True),
+            Actor(club, 480, 9, at(-1.8, 0.6, club, "/K", "Radio club shack, open on Thursdays"), None, True),
+            Actor(cottage, 540, 14, at(5.2, -3.4, cottage, "/-", "Lake cottage"), self.digipeaters[1], True),
         ]
 
     def _movers(self) -> list[Actor]:
         return [
-            self._mover("Q4CAR-9", "/>", "]Commuting=", TOWN_LOOP, 46, 40, 3, DIGIPEATERS[0], mic_e=True, tocall="APK004"),
-            self._mover("Q5VAN-7", "/v", "Delivery round", DELIVERY_ROUND, 55, 50, 7, DIGIPEATERS[1], tocall="APOT21"),
-            self._mover("Q6CAR-1", "/>", "Ring road", RING_ROAD, 72, 45, 11, DIGIPEATERS[0], mic_e=True, answers=False),
-            self._mover("Q7WLK-7", "/[", "Dog walk", PARK_PATH, 4.5, 60, 16, DIGIPEATERS[1], tocall="APDR16", plain=True),
+            self._mover("Q4CAR-9", "/>", "]Commuting=", TOWN_LOOP, 46, 40, 3, self.digipeaters[0], mic_e=True, tocall="APK004"),
+            self._mover("Q5VAN-7", "/v", "Delivery round", DELIVERY_ROUND, 55, 50, 7, self.digipeaters[1], tocall="APOT21"),
+            self._mover("Q6CAR-1", "/>", "Ring road", RING_ROAD, 72, 45, 11, self.digipeaters[0], mic_e=True, answers=False),
+            self._mover("Q7WLK-7", "/[", "Dog walk", PARK_PATH, 4.5, 60, 16, self.digipeaters[1], tocall="APDR16", plain=True),
         ]
 
     def _mover(self, call: str, symbol: str, comment: str, route: Route, kmh: float, every: float, first: float, digi: str, mic_e: bool = False, tocall: str = "APRS", plain: bool = False, answers: bool = True) -> Actor:
+        call = self.call(call)
         phase = self._rng.uniform(0, route.length_km)
 
         def make(now: datetime) -> list[ax25.Frame]:
             east, north, course = route.at(phase + kmh * (now - self.started).total_seconds() / 3600)
             lat, lon = self.where(east, north)
+            course = (course + self._turn_deg) % 360
             speed = kmh * (0.9 + 0.1 * math.sin((now - self.started).total_seconds() / 37))
             if mic_e:
                 destination, info = mice(lat, lon, symbol, comment, course, speed)
@@ -169,30 +209,34 @@ class Scene:
             lat, lon = self.where(east, north)
             return lambda now: [air(call, fixed(lat, lon, "/#", f"PHG{phg} Fill-in digi"), "WIDE2-1")]
 
-        return [Actor("Q2DIG-2", 600, 6, beacon("Q2DIG-2", "5230", -1.5, 1.0)), Actor("Q7DIG-1", 600, 11, beacon("Q7DIG-1", "5340", 3.0, -1.5)), self._weather(), *self._club()]
+        first, second = self.digipeaters
+        return [Actor(first, 600, 6, beacon(first, "5230", -1.5, 1.0)), Actor(second, 600, 11, beacon(second, "5340", 3.0, -1.5)), self._weather(), *self._club()]
 
     def _weather(self) -> Actor:
         lat, lon = self.where(-4.1, -2.2)
+        call = self.call("Q3WX")
 
         def make(now: datetime) -> list[ax25.Frame]:
             minute = now.timestamp() / 60
             wind = 5 + 3 * math.sin(minute / 17)
             info = weather(lat, lon, "Backyard WX", int(200 + 40 * math.sin(minute / 90)), wind, wind * 1.6 + 1, 8 + 5 * cosine_day(now, 13), 0.0, 0.4, int(68 - 14 * cosine_day(now, 13)), 1012 + 3 * math.sin(minute / 700))
-            return [air("Q3WX", info, "WIDE1-1")]
+            return [air(call, info, "WIDE1-1")]
 
-        return Actor("Q3WX", 300, 12, make, DIGIPEATERS[1])
+        return Actor(call, 300, 12, make, self.digipeaters[1])
 
     def _club(self) -> list[Actor]:
+        home, club = self.call("Q1ABC"), self.call("Q1CLB")
+
         def objects(name: str, symbol: str, comment: str, east: float, north: float) -> Callable[[datetime], list[ax25.Frame]]:
             lat, lon = self.where(east, north)
-            return lambda now: [air("Q1CLB", object_report(name, now, lat, lon, symbol, comment))]
+            return lambda now: [air(club, object_report(name_of(name, self.seed), now, lat, lon, symbol, comment))]
 
         def text(call: str, info: bytes) -> Callable[[datetime], list[ax25.Frame]]:
             return lambda now: [air(call, info)]
 
         return [
-            Actor("Q1CLB", 600, 17, objects("FIELDDAY", "/;", "Field day on Saturday at 10:00", 4.6, 3.9)),
-            Actor("Q1CLB", 600, 23, objects("PARKING", "/P", "Parking, free at weekends", -2.0, 0.2)),
-            Actor("Q1CLB", 1200, 28, text("Q1CLB", bulletin("BLN1", "Net on Thursday at 20:00 on 145.500 MHz, all welcome"))),
-            Actor("Q1ABC", 900, 21, text("Q1ABC", status("Listening on 144.800 MHz"))),
+            Actor(club, 600, 17, objects("FIELDDAY", "/;", "Field day on Saturday at 10:00", 4.6, 3.9)),
+            Actor(club, 600, 23, objects("PARKING", "/P", "Parking, free at weekends", -2.0, 0.2)),
+            Actor(club, 1200, 28, text(club, bulletin("BLN1", "Net on Thursday at 20:00 on 145.500 MHz, all welcome"))),
+            Actor(home, 900, 21, text(home, status("Listening on 144.800 MHz"))),
         ]

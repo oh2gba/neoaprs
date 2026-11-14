@@ -4,8 +4,7 @@ A copy of one of our own messages that the Tnc hears again (the same addressee, 
 it belongs to, the latest attempt sent before the copy was heard, and the hops its path shows used are kept for that attempt (the first time each was heard stays). An ack, a reject and a copy of a message
 we did not send are not linked. The attempts and hops are held here for every message messaging holds and kept in the database (messagelog.py) so that a restart keeps them; they go with the message.
 
-Each attempt records the id of the radio it went out on (`Attempt.radio_id`). The database keeps it as the word of the radio's slot (`fm` radio 1, `hf` radio 2) until the attempts keep the id itself; an
-attempt on any other radio is kept with none."""
+Each attempt records the id of the radio it went out on (`Attempt.radio_id`), whatever radio that is; how the database keeps it is the message log's (messagelog.py)."""
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -13,10 +12,8 @@ from neoaprs.chain import AT_GATE, Attempt, HopSeen, attempt_before, hops_used, 
 from neoaprs.message import MessageRecord, same_call
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
-from neoaprs.radiotype import FM_ID, HF_ID, RadioId
+from neoaprs.radiotype import RadioId
 from neoaprs.route import digipeaters
-
-SLOTS: dict[RadioId, str] = {FM_ID: "fm", HF_ID: "hf"}         # the word an attempt's radio is kept as (the inverse of radiotype.radio_id_of), until the database keeps the id
 
 
 class Delivery:
@@ -34,7 +31,7 @@ class Delivery:
 
     def sent(self, record: MessageRecord, path: tuple[str, ...], at: datetime, radio: RadioId | None = None) -> None:
         """Message `record` was transmitted at `at` by `path` on the radio of the id `radio`; `record.attempts` is the number of this attempt. What is kept is the digipeaters: RFONLY, NOGATE and the like are not hops."""
-        attempt = Attempt(record.attempts, at, digipeaters(path), radio=SLOTS.get(radio, "") if radio is not None else "")
+        attempt = Attempt(record.attempts, at, digipeaters(path), radio_id=radio)
         self._chains.setdefault(record.id, []).append(attempt)
         self._log.add_attempt(record.id, attempt)
 

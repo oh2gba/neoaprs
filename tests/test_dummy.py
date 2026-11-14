@@ -139,6 +139,7 @@ def test_every_call_is_on_the_itu_q_prefix_which_no_country_has_so_none_is_a_rea
 def test_the_same_seed_makes_the_same_traffic_and_another_seed_another() -> None:
     a, b, c = (play(Scene(None, START, seed), 600) for seed in (1, 1, 2))
     assert a == b and a != c
+    assert not {str(f.source) for _, f in a} & {str(f.source) for _, f in c}, "another seed is another world: no station of the one is in the other (tests/test_dummy_seed.py)"
 
 
 def air_from_us(info: bytes, path: str = "WIDE1-1,WIDE2-1") -> ax25.Frame:

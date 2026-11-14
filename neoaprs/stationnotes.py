@@ -7,6 +7,7 @@ from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_
 from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
+from .radiotype import FM_ID, HF_ID
 from .reach import mark_of, pushed, reach_of
 from .route import route_of
 from .station import RadioPlace, Station, add_track_point
@@ -17,7 +18,8 @@ IGATE = "IGATE"                     # the token of a capabilities packet (`<IGAT
 
 def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
-    was last heard now. One heard on the radio (the Dummy radio's too) sets the path it came by and, with `route`, is counted for its route (one of the HF radio is not: it came by no digipeater); one from the internet came by no route and leaves them as they were.
+    was last heard now. One heard on a radio (a Dummy radio's too) is counted for that radio by its id, with the time and the path it came by (`heard_by`; one made without a radio, a test's, is radio 1's), and, with `route`, for its route
+    (one of the HF radio, radio 2, is not: it came by no digipeater); one from the internet came by no route and leaves them as they were.
     One heard direct with a reading of its signal is the station's last reading (`snr`, `rssi`, `signal_at`): a digipeater's copy or an iGate's third-party packet is the signal of another station, and an object or
     item transmits nothing (the reading of its report is its reporter's)."""
     station.packets += 1
@@ -28,18 +30,16 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
         station.hour_is.note(packet.heard_at)
         station.heard_is, station.last_is_at = station.heard_is + 1, packet.heard_at
         return
-    if packet.radio == "hf":
-        station.heard_hf, station.last_hf_at = station.heard_hf + 1, packet.heard_at
-    else:
-        station.heard_fm, station.last_fm_at = station.heard_fm + 1, packet.heard_at
+    radio = FM_ID if packet.radio_id is None else packet.radio_id
+    station.note_on(radio, packet.heard_at, packet.path)
     if packet.via == RF_GATED:
         station.heard_rf_gated, station.last_rf_gated_at = station.heard_rf_gated + 1, packet.heard_at
     elif packet.via == DUMMY:
         station.heard_dummy, station.last_dummy_at = station.heard_dummy + 1, packet.heard_at
     else:
         station.heard_rf, station.last_rf_at = station.heard_rf + 1, packet.heard_at
-    station.last_path, station.last_via = packet.path, packet.gate
-    if route and packet.radio != "hf":                            # (every frame over HF is direct: counted, it would send a message by FM direct)
+    station.last_via = packet.gate
+    if route and radio != HF_ID:                                  # (every frame over HF is direct: counted, it would send a message by FM direct)
         station.deliveries.note(route_of(packet.path, packet.gate), 1, packet.heard_at)
     if station.kind == "station" and (packet.snr is not None or packet.rssi is not None) and route_of(packet.path, packet.gate).direct:
         station.snr, station.rssi, station.signal_at = packet.snr, packet.rssi, packet.heard_at

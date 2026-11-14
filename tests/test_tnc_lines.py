@@ -1,11 +1,19 @@
 """What the page is told of the TNC's log (`TncState.lines`) and of a search (`searching`): every line has the time it was written, in full, and its text without the time of day that `Tnc.lines` shows in front of
-it; the ports of a search are a list and not a sentence."""
+it; the ports of a search are a list and not a sentence. And what the Tnc makes of a frame: every packet, heard or sent, carries the id of the Tnc's radio."""
+import asyncio
 from datetime import timedelta
 
+import pytest
+
+from neoaprs import ax25, dummyline
 from neoaprs.clock import iso
+from neoaprs.dummyline import DUMMY_PATH
+from neoaprs.packet import Packet
 from neoaprs.tnc import Tnc
 from neoaprs.tnclines import LINE_TIME_WIDTH
+from neoaprs.tncprofile import DUMMY, DUMMY_HF, Profile
 from tests.support.clock import FixedClock
+from tests.support.env import until
 
 
 def test_every_line_has_the_time_it_was_written_and_its_text_without_the_time_of_day() -> None:
@@ -37,3 +45,39 @@ def test_a_tnc_that_is_not_searching_lists_no_ports() -> None:
     assert tnc.searching == [] and "for the radio" not in tnc.describe()
     tnc._search.listening = ["/dev/ttyUSB0", "/dev/ttyUSB1"]
     assert tnc.searching == ["/dev/ttyUSB0", "/dev/ttyUSB1"] and tnc.describe() == "listening on /dev/ttyUSB0, /dev/ttyUSB1 for the radio"
+
+
+# ---- the radio of the packets the Tnc makes
+
+async def played(profile: Profile, radio_id: int | None) -> tuple[Tnc, list[Packet]]:
+    """A Tnc of the Dummy profile as the line of the radio `radio_id` (None: no driver set it), what it heard in a made-up quarter of an hour and the one frame it sent."""
+    clock = FixedClock()
+    tnc = Tnc(profile=profile, port=DUMMY_PATH, clock=clock)
+    if radio_id is not None:
+        tnc.radio_id = radio_id                                                 # (as its driver sets it: neoaprs/tncdriver.py, mercurydriver.py)
+    made: list[Packet] = []
+    tnc.packet.connect(made.append)
+    await tnc.start()
+    await until(lambda: tnc.confirmed)
+    assert tnc.send_frame(ax25.Frame(ax25.Address.parse("APRS"), ax25.Address.parse("OH2GBA"), (), info=b">on the air"))
+    for _ in range(30):
+        clock.advance(30)
+        await asyncio.sleep(0.02)
+    await tnc.stop()
+    return tnc, made
+
+
+async def test_every_packet_the_tnc_makes_heard_or_sent_carries_the_id_of_its_radio(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
+    for profile, radio_id in ((DUMMY, 1), (DUMMY, 4), (DUMMY_HF, 2), (DUMMY_HF, 5)):
+        tnc, made = await played(profile, radio_id)
+        assert {p.direction for p in made} == {"in", "out"} and len(made) > 3, profile.key
+        assert all(p.radio_id == radio_id for p in made), f"{profile.key} as radio {radio_id}: {[p.radio_id for p in made]}"
+        assert any("on the air" in line for line in tnc.lines) and any("  ->  " in line for line in tnc.lines), "the lines of its log are what they were"
+
+
+async def test_a_tnc_no_driver_has_set_stamps_radio_1_and_the_hf_one_radio_2_as_the_old_words_said(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
+    for profile, radio_id, word in ((DUMMY, 1, "fm"), (DUMMY_HF, 2, "hf")):
+        tnc, made = await played(profile, None)
+        assert tnc.radio_id == radio_id and made and all((p.radio_id, p.radio) == (radio_id, word) for p in made)
