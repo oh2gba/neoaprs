@@ -1,13 +1,18 @@
 """The Controller (neoaprs/controller.py) as the composition root's object: the database opens at the start and closes at the stop, and what cannot be opened is refused with a reason; the radios of the
 registry (neoaprs/radioregistry.py) take the settings that were read before any part is started and are themselves started last, each in a task of its own that the stop ends."""
 import asyncio
+import contextlib
+import os
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
 
 from dataclasses import replace
 
+from neoaprs import controller as controller_module
+from neoaprs.backupfolder import LITTER_AGE_SEC
 from neoaprs.config import DEFAULTS, Config
 from neoaprs.controller import Controller
 from neoaprs.message import MessageRecord
@@ -128,12 +133,36 @@ async def test_the_start_does_not_wait_for_the_search_and_the_stop_ends_it(tmp_p
 async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path) -> None:
     e = Env(tmp_path)
     await e.start()
-    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "station-flush"}
+    assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "backup-sweep", "station-flush"}
     assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.ctl.beacon.running and not e.ctl.hf_beacon.running
     await e.stop()
     assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
     assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)], "every radio of the registry, and its beacon (no HF radio was set up)"
     assert e.hf.state is Source.State.STOPPED and not e.ctl.hf_beacon.running, "and the HF radio's line and beacon, which stayed stopped"
+
+
+async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file_of_a_copy_a_kill_ended_does_not_stay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert controller_module.BACKUP_SWEEP_FIRST_SEC > LITTER_AGE_SEC, "the file of a copy a kill ended just before the start is dead by the time of the sweep"
+    monkeypatch.setattr(controller_module, "BACKUP_SWEEP_FIRST_SEC", 0.01)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    dead = folder / "premigrate-v30-to-v33-20261114-120000.sqlite.tmp"
+    written = folder / "premigrate-v31-to-v33-20261114-120500.sqlite.tmp"             # a copy being written at this moment (by a tool): it stays
+    kept = folder / "premigrate-v30-to-v33-20261114-120000.sqlite"
+    for f in (dead, written, kept):
+        f.write_bytes(b"x")
+    old = time.time() - 2 * LITTER_AGE_SEC
+    for f in (dead, kept):
+        os.utime(f, (old, old))
+    ctl = Controller(tmp_path, FixedClock())
+    task = asyncio.get_running_loop().create_task(ctl._sweep_backup())
+    try:
+        await until(lambda: not dead.exists())
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+    assert written.exists() and kept.exists()
 
 
 async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:

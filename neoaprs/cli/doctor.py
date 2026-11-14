@@ -22,6 +22,7 @@ from neoaprs.paths import default_data_dir
 from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.serialboards import board_kind
 from neoaprs.serialprobe import available_ports
+from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME, Store
 
 from . import servicecmd
@@ -100,6 +101,8 @@ def check_database(data: Path) -> tuple[Finding, Config | None, str]:
     version, config, unread = found.version, in_force(found.rows, found.radios), found.radios_problem
     if version > SCHEMA_VERSION:
         return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), config, ""
+    if version < SCHEMA_VERSION and migrating(data):
+        return Finding("ok", f"database version {version}: the daemon is bringing it up to date to version {SCHEMA_VERSION}"), config, ""
     if version < SCHEMA_VERSION:
         return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), config, ""
     return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), config, unread

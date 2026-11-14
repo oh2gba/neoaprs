@@ -2,8 +2,10 @@
 the serial devices, brltty and ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data folder). The ports and the start at sign-in are stand-ins: the test reads nothing of the
 computer it runs on (its own service, set up or not, would decide a line); nothing is opened, written or sent."""
 import http.server
+import os
 import sqlite3
 import sys
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.migrationsteps31 import _v31
 from neoaprs.radiosql import insert_radio, put_radio_settings
 from neoaprs.serialprobe import PortInfo
+from neoaprs.stopfile import MIGRATING_FRESH_SEC, MIGRATING_NAME
 from tests.support.httpthread import serve
 from tests.support.migrated import opened
 from tests.support.migrated31 import at_thirty
@@ -133,6 +136,24 @@ def test_a_database_of_a_newer_neoaprs_fails_and_one_of_an_older_version_is_a_wa
     conn.close()
     code, out = run(data, capsys)
     assert code == 0 and f"database version {SCHEMA_VERSION - 1}, this NeoAPRS uses {SCHEMA_VERSION}" in out and "migrates the file" in out
+
+
+def test_a_database_of_an_older_version_while_the_daemon_brings_it_up_to_date_is_ok(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    set_up(data, station_call="OH2GBA")
+    conn = sqlite3.connect(data / "neoaprs.sqlite")
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION - 1}")
+    conn.close()
+    note = data / MIGRATING_NAME
+    note.write_text("")
+    finding = doctor.check_database(data)[0]
+    assert (finding.status, finding.text) == ("ok", f"database version {SCHEMA_VERSION - 1}: the daemon is bringing it up to date to version {SCHEMA_VERSION}")
+    old = time.time() - 10 * MIGRATING_FRESH_SEC                 # the note of a migration a kill ended: the warning as without one
+    os.utime(note, (old, old))
+    finding = doctor.check_database(data)[0]
+    assert finding.status == "warn" and f"database version {SCHEMA_VERSION - 1}, this NeoAPRS uses {SCHEMA_VERSION}" in finding.text
+    note.unlink()
+    assert doctor.check_database(data)[0].status == "warn"
 
 
 def test_the_doctor_changes_nothing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

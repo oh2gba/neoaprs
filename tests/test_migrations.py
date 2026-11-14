@@ -299,9 +299,9 @@ def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the
 
 
 @pytest.mark.expects_errors
-def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cut_short(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cut_short(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """A migration cut short leaves the file at a middle version, which no release opens: the start that gets through stands on the copy taken at the old version, makes none of the middle version,
-    and keeps that one copy; the migration before's goes."""
+    says so, and keeps that one copy; the migration before's goes."""
     path = tmp_path / DB_NAME
     s = opened(path)
     s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
@@ -317,8 +317,10 @@ def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cu
     assert first.is_file()
     with_steps(monkeypatch, v_next, mended)
     clock.advance(60)
+    caplog.set_level(logging.INFO, MIGRATION_LOG)
     ok, why = try_open(path, clock)
     assert ok, why
+    assert any(r.getMessage().endswith(f"{first}, taken by a start that did not get through; no other is made") for r in caplog.records)
     assert sorted(p.name for p in folder.iterdir()) == [first.name], "the copy at the old version is the one kept: none of the middle version was made, and the migration before's goes"
     copy = raw(first)
     assert copy.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION and copy.execute("SELECT value FROM settings").fetchall() == [("OH2GBA",)], "and it holds the file as the program before left it"
@@ -379,7 +381,8 @@ def test_a_start_that_finds_the_file_as_a_whole_copy_holds_it_makes_no_second_on
     clock.advance(60)
     assert not try_open(path, clock)[0]
     assert sorted(folder.iterdir()) == [first], "no second copy of the same file"
-    assert any("taken by a start that did not get through; no other is made" in r.getMessage() for r in caplog.records)
+    said = [r.getMessage() for r in caplog.records if "the copy of it from before this migration" in r.getMessage()]
+    assert len(said) == 1 and said[0].endswith("and the file has not changed since it was taken; no other is made"), "(true also of the copy put back by `neoaprs db restore`, where no start was cut short)"
     db = raw(path)
     db.execute("UPDATE settings SET value = 'OH2GBA-7' WHERE key = 'station/call'")
     db.close()

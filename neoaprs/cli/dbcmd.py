@@ -23,7 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, can_open, copies, restore, stamp as copy_stamp
+from neoaprs.backupfolder import FOLDER_NAME, RestoreRefused, before_copy, can_open, copies, restore, stamp as copy_stamp
 from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, DEFAULTS, HF_DIAL, INSTALL_ID, LAST_PORT, RADIO_STATE, STATE_BEFORE_31, STATE_KEYS, Config
 from neoaprs.configradios import FLAT_KINDS, radio_key_of, radios_from_rows
@@ -39,6 +39,7 @@ from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir
 from neoaprs.skeds import SKED_TOKEN
+from neoaprs.stopfile import migrating
 from neoaprs.versions import NOT_COUNTED
 from neoaprs.store import DB_NAME, Store
 
@@ -285,9 +286,11 @@ def list_copies(data: Path) -> int:
         say(f"{PROG}: no copy of the database in {data / FOLDER_NAME}")
         return 0
     width = max(len(c.name) for c in found)
+    before = before_copy(data / FOLDER_NAME)
     for c in found:
         usable = "" if can_open(c, SCHEMA_VERSION) else "  (of a newer NeoAPRS: cannot be opened by this one)"
-        print(f"{c.name:<{width}}  {copy_stamp(c.made)}  version {c.version:<3}  {c.size / 1e6:8.1f} MB{usable}")
+        older = f"  (taken before the update to version {before.new}: the NeoAPRS you had before opens it)" if before is not None and c.path == before.path else ""
+        print(f"{c.name:<{width}}  {copy_stamp(c.made)}  version {c.version:<3}  {c.size / 1e6:8.1f} MB{usable}{older}")
     return 0
 
 
@@ -351,6 +354,9 @@ async def run(args: argparse.Namespace) -> int:
     text = before_opening(args, path)
     if isinstance(text, int):
         return text
+    if migrating(path.parent):                               # (the daemon migrates the file: a read would find an older version, and a write would migrate it beside the daemon)
+        say(f"{PROG}: {path}: NeoAPRS is bringing it up to date now (a large file takes minutes); try again when that is done")
+        return 1
     db = Db(lambda: open_connection(path, WRITE_WAIT_MS)) if writing else Db.at(path, READ_WAIT_MS)
     try:
         await db.start()

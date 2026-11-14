@@ -9,12 +9,14 @@ save of the settings writes the station's rows to the settings and what it chang
 """
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 
 from . import nodevices, radioedits, wiring
 from .app import Frontend, Services
+from .backupfolder import FOLDER_NAME, LITTER_AGE_SEC, sweep
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, LAST_PORT, STATION_KEYS, Config
 from .message import MessagingError
@@ -34,6 +36,7 @@ from .versions import PLAIN_INSTALL, InstallInfo
 log = logging.getLogger("neoaprs.controller")
 
 PRUNE_EVERY_SEC = 24 * 3600.0
+BACKUP_SWEEP_FIRST_SEC = LITTER_AGE_SEC + 60.0    # backup/ swept again after the start: the temporary file of a copy a kill ended just before it (its note still fresh, so the open left it) is dead by then
 RECOUNT_EVERY_SEC = 60.0                # the station book's hour of packets moves on a minute at a time
 TASK_NAMES: dict[RadioId, str] = {FM_ID: "tnc", HF_ID: "hf"}       # the task of a radio's start as the log has named it for radios 1 and 2 (another is `radio-<id>`)
 BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the HF beacon"}       # a radio's beacon as the stop's log has named it for radios 1 and 2
@@ -99,6 +102,7 @@ class Controller(Services):
         for asks in (self.updatecheck, self.frequencies, self.skeds):       # (what asks the project's server: the update check, the suggested frequencies and the sked board)
             await asks.start()
         self.tasks.spawn(self._prune_daily(), "prune")
+        self.tasks.spawn(self._sweep_backup(), "backup-sweep")
         self.tasks.spawn(self._recount_minutely(), "recount")
         self.tasks.spawn(self._flush_stations(), "station-flush")
 
@@ -333,6 +337,9 @@ class Controller(Services):
 
     async def _prune_daily(self) -> None:
         await every(PRUNE_EVERY_SEC, self.prune, "the daily care of the database", at_start=True)
+
+    async def _sweep_backup(self) -> None:
+        await every(PRUNE_EVERY_SEC, lambda: asyncio.to_thread(sweep, self.data_dir / FOLDER_NAME, time.time()), "the sweep of the backup folder", first=BACKUP_SWEEP_FIRST_SEC)
 
     async def _recount_minutely(self) -> None:
         await every(RECOUNT_EVERY_SEC, self.stationbook.recount, "the recount of the station book")

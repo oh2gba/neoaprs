@@ -1,5 +1,5 @@
 """`neoaprs db` (neoaprs/cli/dbcmd.py) run in the test's own process on a data folder of the test: the table of `list` with the rows that are not settings, the ways the database can be unusable (not a database, of
-an older or a newer version), a write that is refused, and Ctrl-C; and the radios as rows (migration 31): `radios`, a radio's own setting `radio/<id>/<key>`, and a flat key of radios 1 and 2 stored
+an older or a newer version, one the daemon is bringing up to date), a write that is refused, and Ctrl-C; and the radios as rows (migration 31): `radios`, a radio's own setting `radio/<id>/<key>`, and a flat key of radios 1 and 2 stored
 with its radio, refused for a radio the station does not have. The commands as processes, through the main command, are in tests/test_cli.py."""
 import asyncio
 import sqlite3
@@ -13,6 +13,7 @@ from neoaprs.config import BEACON_SENT, INSTALL_ID
 from neoaprs.dberror import SqlError
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.radiosql import insert_radio, put_radio_settings, remove_radio
+from neoaprs.stopfile import MIGRATING_NAME
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened
@@ -65,6 +66,23 @@ def test_a_database_of_an_older_version_is_not_read_the_daemon_has_to_migrate_it
     assert db("get", "station/call", data=data) == 1
     err = capsys.readouterr().err
     assert f"is of version {SCHEMA_VERSION - 1}, this NeoAPRS needs {SCHEMA_VERSION}" in err and "start the daemon once" in err
+
+
+def test_while_the_daemon_brings_the_database_up_to_date_a_command_says_so_and_neither_reads_nor_migrates_it(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A read would find the version before and send the operator to start the daemon that is running; a write would migrate the file beside it, with a copy of its own."""
+    user_version(data, SCHEMA_VERSION - 1)
+    (data / MIGRATING_NAME).write_text("migrating\n")              # (the daemon's note, fresh)
+    capsys.readouterr()
+    for args in (("list",), ("radios",), ("get", "station/call"), ("set", "station/comment", "beside the migration")):
+        assert db(*args, data=data) == 1, args
+        err = capsys.readouterr().err
+        assert "NeoAPRS is bringing it up to date now" in err and "try again when that is done" in err and "start the daemon" not in err, args
+    connection = sqlite3.connect(data / DB_NAME)
+    assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION - 1 and connection.execute("SELECT value FROM settings WHERE key = 'station/comment'").fetchone() is None
+    connection.close()
+    assert not list((data / "backup").glob("premigrate-*")), "and no copy of its own"
+    (data / MIGRATING_NAME).unlink()
+    assert db("get", "station/call", data=data) == 1 and "start the daemon once" in capsys.readouterr().err, "with no note, the older version as before"
 
 
 def test_set_on_a_database_of_an_older_version_migrates_it_and_says_what_the_migration_did(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

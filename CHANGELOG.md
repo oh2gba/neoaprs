@@ -21,6 +21,8 @@
 - **Fixed:** the support summary showed an old error as the present problem.
 - **Fixed:** the HF radio's status lost the reason the modem had stopped at its next try. It now keeps it until the modem runs again.
 - **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts a backup copy back.
+- **Fixed:** after an update, the app gave up after a minute while a large database was still being brought up to date. It now waits.
+- **Fixed:** an update interrupted again and again (a power cut) could fill the disk. NeoAPRS now keeps one copy of your data from before it.
 - **Fixed:** a burst of questions could make NeoAPRS send a flood of answers. It now sends at most ten frames of answers a minute.
 - **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
 - **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.

@@ -18,7 +18,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from .backupfolder import cut_short, drop_older_copies, drop_still, litter, litter_wait, same_bytes, same_copies, same_second, sweep, taken_copies, way_back, whole
+from .backupfolder import cut_short, drop_older_copies, drop_still, file_version, litter, litter_wait, same_bytes, same_copies, same_second, sweep, taken_copies, way_back, whole
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
@@ -138,7 +138,8 @@ def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: C
         standing = _standing_copy(db, Path(path), version)
         if standing is not None:
             _room(db, standing.parent, version, copy=False)
-            log.info("the database %s: the copy of it from before this migration is %s, taken by a start that did not get through; no other is made", path, standing)
+            why = "taken by a start that did not get through" if file_version(standing) != version else "and the file has not changed since it was taken"     # (the same: a start cut short before its first step, or the copy put back by `neoaprs db restore`)
+            log.info("the database %s: the copy of it from before this migration is %s, %s; no other is made", path, standing, why)
             return standing
         try:
             copy = premigration_backup(db, Path(path), version, clock)

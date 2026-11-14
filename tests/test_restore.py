@@ -117,6 +117,27 @@ def test_the_list_shows_date_version_and_size_and_marks_what_this_version_cannot
     assert restore_cli(data.parent / "empty") == 0 and "no copy" in capsys.readouterr().err
 
 
+def test_the_list_marks_the_copy_the_neoaprs_before_opens_and_no_other(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    old, middle = SCHEMA_VERSION - 3, SCHEMA_VERSION - 1
+    before = data / "backup" / f"premigrate-v{old}-to-v{SCHEMA_VERSION}-20261101-120000.sqlite"
+    later = data / "backup" / f"premigrate-v{middle}-to-v{SCHEMA_VERSION}-20261102-120000.sqlite"
+    make_db(before, old, "before")
+    make_db(later, middle, "middle")
+    make_db(data / "backup" / "by-hand.sqlite", old, "hand")
+    capsys.readouterr()
+    assert restore_cli(data) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 3
+    marked = [x for x in lines if "taken before the update" in x]
+    assert marked == [next(x for x in lines if x.startswith(before.name))]
+    assert f"taken before the update to version {SCHEMA_VERSION}: the NeoAPRS you had before opens it" in marked[0]
+    later.unlink()
+    before.write_bytes(b"not a database at all")                # a copy that is not whole is no way back: nothing is marked
+    capsys.readouterr()
+    assert restore_cli(data) == 0
+    assert "taken before the update" not in capsys.readouterr().out
+
+
 def test_a_restore_puts_the_copy_in_place_and_keeps_the_present_file_under_a_name_that_says_when(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
     copy = data / "backup" / "mine.sqlite"
     make_db(copy, SCHEMA_VERSION, "the copy")
