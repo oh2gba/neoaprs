@@ -5077,7 +5077,7 @@
     },
     "SkedsWanted": {
       "additionalProperties": false,
-      "description": "The page shows the Skeds tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came.",
+      "description": "The page shows the HF tests tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came.",
       "properties": {
         "cmd": {
           "const": "skeds_wanted",
@@ -6836,7 +6836,7 @@
         },
         "skeds": {
           "$ref": "#/$defs/SkedsState",
-          "description": "the sked board: when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes"
+          "description": "the sked board (the page calls it HF tests): when people will be on the air, as the project's server keeps it, the dials the project suggests, and whether it can be reached or is closed; told whole as it changes"
         },
         "general": {
           "$ref": "#/$defs/GeneralState",

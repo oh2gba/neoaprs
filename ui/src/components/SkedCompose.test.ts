@@ -21,7 +21,7 @@ const select = (wrapper: ReturnType<typeof form>, id: string) => wrapper.find<HT
 describe("SkedCompose", () => {
   it("is a group box with the day, the time with its label saying UTC, the frequency and the note, and a button that says where it posts", () => {
     const wrapper = form();
-    expect(wrapper.find("legend").text()).toBe("Post a sked");
+    expect(wrapper.find("legend").text()).toBe("Plan a test");
     expect(wrapper.findAll("label").map((l) => l.text())).toEqual(["Day", "Time (UTC)", "Frequency", "Note"]);
     expect(post(wrapper).text()).toBe("Post on neo.oh2gba.eu");
     expect(wrapper.find("#sked-from").attributes("aria-label")).toBe("From");

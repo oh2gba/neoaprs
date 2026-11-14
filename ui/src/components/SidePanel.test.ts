@@ -38,7 +38,7 @@ describe("SidePanel", () => {
       "Nearby",
       "Email",
       "Bulletins",
-      "Skeds",
+      "HF tests",
       "Objects",
       "My station",
       "Packets",

@@ -51,14 +51,14 @@ export const shell = {
 
   "unread.not_seen": { one: "{n} message not seen yet", other: "{n} messages not seen yet" },
   "unread.new_bulletins": { one: "{n} new bulletin", other: "{n} new bulletins" },
-  "unread.new_skeds": { one: "{n} new sked", other: "{n} new skeds" },
+  "unread.new_skeds": { one: "{n} new HF test", other: "{n} new HF tests" },
 
   "tab.messages": "Messages",
   "tab.stations": "Stations",
   "tab.nearby": "Nearby",
   "tab.email": "Email",
   "tab.bulletins": "Bulletins",
-  "tab.skeds": "Skeds",
+  "tab.skeds": "HF tests",
   "tab.objects": "Objects",
   "tab.beacon": "My station",
   "tab.packets": "Packets",

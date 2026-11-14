@@ -53,14 +53,14 @@ export const shell: Readonly<Record<keyof typeof en, Message>> = {
 
   "unread.not_seen": { one: "{n} messaggio non visto", other: "{n} messaggi non visti" },
   "unread.new_bulletins": { one: "{n} nuovo bollettino", other: "{n} nuovi bollettini" },
-  "unread.new_skeds": { one: "{n} nuovo sked", other: "{n} nuovi sked" },
+  "unread.new_skeds": { one: "{n} nuovo test HF", other: "{n} nuovi test HF" },
 
   "tab.messages": "Messaggi",
   "tab.stations": "Stazioni",
   "tab.nearby": "Vicinanze",
   "tab.email": "Email",
   "tab.bulletins": "Bollettini",
-  "tab.skeds": "Sked",
+  "tab.skeds": "Test HF",
   "tab.objects": "Oggetti",
   "tab.beacon": "La mia stazione",
   "tab.packets": "Pacchetti",

@@ -1,20 +1,20 @@
-// The Skeds tab: the board of when stations will be on the air, and the box to post to it.
+// The HF tests tab (the keys say skeds): the board of tests planned on the air on HF, and the box to plan one. A test here is a planned test on the air between stations, not the Tune or Test of Settings.
 export const skeds = {
-  "skeds.about_label": "About skeds",
-  "skeds.about1": "A sked says when you will be on the air and on which frequency, so that another station can meet you there.",
+  "skeds.about_label": "About HF tests",
+  "skeds.about1": "For stations trying APRS on HF: say when you will be on the air and on which frequency, so that another station can test with you.",
   "skeds.about2": "The board is public, on neo.oh2gba.eu. It is not sent by radio.",
 
-  "skeds.empty": "No skeds to come.",
+  "skeds.empty": "No tests planned.",
   "skeds.when": "{from} to {to} UTC",
   "skeds.local": "Your time: {from} to {to}",
   "skeds.ours": "ours",
   "skeds.join": "Join",
-  "skeds.join_title": "Post a sked of yours at the same time on the same frequency",
-  "skeds.join_label": "Join the sked of {calls}, {when}",
+  "skeds.join_title": "Plan a test of yours at the same time on the same frequency",
+  "skeds.join_label": "Join the test of {calls}, {when}",
   "skeds.delete_title": "Delete (take it off the board)",
-  "skeds.delete_label": "Delete our sked, {when}",
+  "skeds.delete_label": "Delete our test, {when}",
 
-  "skeds.post_label": "Post a sked",
+  "skeds.post_label": "Plan a test",
   "skeds.day": "Day",
   "skeds.time": "Time (UTC)",
   "skeds.from": "From",

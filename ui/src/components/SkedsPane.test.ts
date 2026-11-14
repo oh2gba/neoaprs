@@ -23,7 +23,7 @@ describe("SkedsPane", () => {
     const bar = wrapper.find(".tab-help");
     expect((wrapper.element as HTMLElement).firstElementChild).toBe(bar.element);
     await bar.find("button.info-toggle").trigger("click");
-    expect(bar.find(".info-text").text()).toContain("A sked says when you will be on the air");
+    expect(bar.find(".info-text").text()).toContain("For stations trying APRS on HF: say when you will be on the air");
     expect(bar.find(".info-text").text()).toContain("The board is public");
     expect(bar.find(".info-text").text()).toContain("not sent by radio");
   });
@@ -153,8 +153,8 @@ describe("SkedsPane", () => {
 
   describe("the state of the board", () => {
     it("says the board is empty when it was read, and when it is closed", () => {
-      expect(pane().find(".empty").text()).toBe("No skeds to come.");
-      expect(pane([], { state: "closed" }).find(".empty").text()).toBe("No skeds to come.");
+      expect(pane().find(".empty").text()).toBe("No tests planned.");
+      expect(pane([], { state: "closed" }).find(".empty").text()).toBe("No tests planned.");
     });
 
     it("says nothing about a board that cannot be reached or is off, and nothing before the daemon has told, and shows the skeds last read", () => {

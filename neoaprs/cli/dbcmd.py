@@ -73,7 +73,7 @@ def kept_note(key: str) -> str:
     if key == HF_DIAL:
         return "kept by the daemon (the HF dial the version page named last), not a setting"
     if key == SKED_TOKEN:
-        return "kept by the daemon (the secret that goes with the skeds of this installation), not a setting"
+        return "kept by the daemon (the secret that goes with the HF tests of this installation), not a setting"
     if key == NOT_COUNTED:
         return "whether the update check sends the number 0, so that this run is not counted (set with db set), not a setting"
     return "kept by the daemon (the number of this installation), not a setting" if key == INSTALL_ID else "stored, not a setting of this NeoAPRS"

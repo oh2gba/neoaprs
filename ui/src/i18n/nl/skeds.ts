@@ -3,21 +3,22 @@ import type { skeds as source } from "@/i18n/en/skeds";
 import type { Message } from "@/i18n/message";
 
 export const skeds: Record<keyof typeof source, Message> = {
-  "skeds.about_label": "Over skeds",
-  "skeds.about1": "Met een sked laat je weten wanneer en op welke frequentie je in de lucht bent, zodat een ander station je daar kan vinden.",
+  "skeds.about_label": "Over HF-tests",
+  "skeds.about1":
+    "Voor stations die APRS op HF uitproberen: zeg wanneer je in de lucht bent en op welke frequentie, zodat een ander station met je kan testen.",
   "skeds.about2": "Het bord staat openbaar op neo.oh2gba.eu. Het gaat niet via de radio.",
 
-  "skeds.empty": "Geen komende skeds.",
+  "skeds.empty": "Geen tests gepland.",
   "skeds.when": "{from} tot {to} UTC",
   "skeds.local": "Jouw tijd: {from} tot {to}",
   "skeds.ours": "van ons",
   "skeds.join": "Aansluiten",
-  "skeds.join_title": "Een eigen sked plaatsen, om dezelfde tijd op dezelfde frequentie",
-  "skeds.join_label": "Aansluiten bij de sked van {calls}, {when}",
+  "skeds.join_title": "Een eigen test plannen, om dezelfde tijd op dezelfde frequentie",
+  "skeds.join_label": "Aansluiten bij de test van {calls}, {when}",
   "skeds.delete_title": "Verwijderen (van het bord halen)",
-  "skeds.delete_label": "Onze sked verwijderen, {when}",
+  "skeds.delete_label": "Onze test verwijderen, {when}",
 
-  "skeds.post_label": "Sked plaatsen",
+  "skeds.post_label": "Test plannen",
   "skeds.day": "Dag",
   "skeds.time": "Tijd (UTC)",
   "skeds.from": "Begin",

@@ -159,7 +159,7 @@ STATE_WORDS = {
     cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station (FM or HF, by call), while both radios are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
     NOT_COUNTED: "`true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page",
-    SKED_TOKEN: "the secret of this installation that goes with each sked it posts, so that only it can delete them; never shown in the log or the support bundle",
+    SKED_TOKEN: "the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle",
 }
 
 

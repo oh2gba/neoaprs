@@ -3,21 +3,22 @@ import type { skeds as source } from "@/i18n/en/skeds";
 import type { Message } from "@/i18n/message";
 
 export const skeds: Record<keyof typeof source, Message> = {
-  "skeds.about_label": "Sobre os skeds",
-  "skeds.about1": "Um sked diz quando você estará no ar e em qual frequência, para que outra estação possa encontrar você lá.",
+  "skeds.about_label": "Sobre os testes HF",
+  "skeds.about1":
+    "Para estações que estão testando APRS em HF: diga quando você estará no ar e em qual frequência, para que outra estação possa testar com você.",
   "skeds.about2": "O quadro é público, em neo.oh2gba.eu. Não é enviado por rádio.",
 
-  "skeds.empty": "Nenhum sked por vir.",
+  "skeds.empty": "Nenhum teste marcado.",
   "skeds.when": "{from} até {to} UTC",
   "skeds.local": "Seu horário: {from} até {to}",
   "skeds.ours": "nosso",
   "skeds.join": "Participar",
-  "skeds.join_title": "Publicar um sked seu no mesmo horário e na mesma frequência",
-  "skeds.join_label": "Participar do sked de {calls}, {when}",
+  "skeds.join_title": "Marcar um teste seu no mesmo horário e na mesma frequência",
+  "skeds.join_label": "Participar do teste de {calls}, {when}",
   "skeds.delete_title": "Excluir (tirar do quadro)",
-  "skeds.delete_label": "Excluir nosso sked, {when}",
+  "skeds.delete_label": "Excluir nosso teste, {when}",
 
-  "skeds.post_label": "Publicar um sked",
+  "skeds.post_label": "Marcar um teste",
   "skeds.day": "Dia",
   "skeds.time": "Hora (UTC)",
   "skeds.from": "De",

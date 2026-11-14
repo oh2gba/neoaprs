@@ -3,21 +3,21 @@ import type { skeds as source } from "@/i18n/en/skeds";
 import type { Message } from "@/i18n/message";
 
 export const skeds: Record<keyof typeof source, Message> = {
-  "skeds.about_label": "Tietoa skedeistä",
-  "skeds.about1": "Skedi kertoo, milloin olet äänessä ja millä taajuudella, jotta toinen asema voi tavata sinut siellä.",
+  "skeds.about_label": "Tietoa HF-testeistä",
+  "skeds.about1": "Kun kokeilet APRS:ää HF:llä, kerro, milloin olet äänessä ja millä taajuudella, niin toinen asema voi testata kanssasi.",
   "skeds.about2": "Taulu on julkinen, osoitteessa neo.oh2gba.eu. Sitä ei lähetetä radiolla.",
 
-  "skeds.empty": "Ei tulevia skedejä.",
+  "skeds.empty": "Ei suunniteltuja testejä.",
   "skeds.when": "{from} – {to} UTC",
   "skeds.local": "Paikallinen aikasi: {from} – {to}",
   "skeds.ours": "omamme",
   "skeds.join": "Liity",
-  "skeds.join_title": "Lisää oma skedi samaan aikaan samalle taajuudelle",
-  "skeds.join_label": "Liity skediin: {calls}, {when}",
+  "skeds.join_title": "Suunnittele oma testi samaan aikaan samalla taajuudella",
+  "skeds.join_label": "Liity testiin: {calls}, {when}",
   "skeds.delete_title": "Poista (ota pois taululta)",
-  "skeds.delete_label": "Poista oma skedimme, {when}",
+  "skeds.delete_label": "Poista oma testimme, {when}",
 
-  "skeds.post_label": "Lisää skedi",
+  "skeds.post_label": "Suunnittele testi",
   "skeds.day": "Päivä",
   "skeds.time": "Aika (UTC)",
   "skeds.from": "Alkaa",

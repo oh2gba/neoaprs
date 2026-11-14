@@ -14,23 +14,23 @@ const sayBoard = async (socket: FakeSocket, rows = board) => {
   socket.say({ type: "state", topic: "skeds", rev: 0, value: skedsState(rows) });
   await flushPromises();
 };
-const badge = (wrapper: VueWrapper) => tabButton(wrapper, "Skeds")?.find(".badge");
+const badge = (wrapper: VueWrapper) => tabButton(wrapper, "HF tests")?.find(".badge");
 
 describe("App: the Skeds tab", () => {
   it("comes after Bulletins and before Objects", async () => {
     const { wrapper } = await open();
     const names = wrapper.findAll("[role='tab']").map((t) => t.text().replace(/\s*\d+$/, ""));
-    expect(names.indexOf("Skeds")).toBe(names.indexOf("Bulletins") + 1);
-    expect(names.indexOf("Objects")).toBe(names.indexOf("Skeds") + 1);
+    expect(names.indexOf("HF tests")).toBe(names.indexOf("Bulletins") + 1);
+    expect(names.indexOf("Objects")).toBe(names.indexOf("HF tests") + 1);
   });
 
   it("carries the count of the skeds not seen until it has been on show, and asks for the board when it comes on show", async () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket);
     expect(badge(wrapper)?.text()).toBe("2");
-    expect(badge(wrapper)?.attributes("title")).toBe("2 new skeds");
+    expect(badge(wrapper)?.attributes("title")).toBe("2 new HF tests");
     expect(cmds(socket, "skeds_wanted")).toEqual([]);
-    await tabButton(wrapper, "Skeds")?.trigger("click");
+    await tabButton(wrapper, "HF tests")?.trigger("click");
     expect(badge(wrapper)?.exists()).toBeFalsy();
     expect(cmds(socket, "skeds_wanted")).toEqual([{ cmd: "skeds_wanted" }]);
     expect(wrapper.findAll("#pane-skeds .sked")).toHaveLength(2);
@@ -38,19 +38,19 @@ describe("App: the Skeds tab", () => {
 
   it("counts a sked that comes while another tab is on show, and not one that comes while the board is looked at", async () => {
     const { wrapper, socket } = await open();
-    await tabButton(wrapper, "Skeds")?.trigger("click");
+    await tabButton(wrapper, "HF tests")?.trigger("click");
     await sayBoard(socket);
     expect(badge(wrapper)?.exists()).toBeFalsy();
     await tabButton(wrapper, "Stations")?.trigger("click");
     await sayBoard(socket, [...board, sked("c", { call: "OH2NEW", from: at(50), to: at(51) })]);
     expect(badge(wrapper)?.text()).toBe("1");
-    expect(badge(wrapper)?.attributes("title")).toBe("1 new sked");
+    expect(badge(wrapper)?.attributes("title")).toBe("1 new HF test");
   });
 
   it("posts from the form with one command, and shows ours on the board, with Delete, when the daemon says so", async () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket, []);
-    await tabButton(wrapper, "Skeds")?.trigger("click");
+    await tabButton(wrapper, "HF tests")?.trigger("click");
     await wrapper.find("#sked-note").setValue("Mercury");
     await wrapper.find("#pane-skeds .sked-compose").trigger("submit");
     expect(cmds(socket, "sked_post")).toEqual([
@@ -70,14 +70,14 @@ describe("App: the Skeds tab", () => {
   it("joins the sked of another station with one command", async () => {
     const { wrapper, socket } = await open();
     await sayBoard(socket);
-    await tabButton(wrapper, "Skeds")?.trigger("click");
+    await tabButton(wrapper, "HF tests")?.trigger("click");
     await wrapper.find("#pane-skeds .sked-actions .btn").trigger("click");
     expect(cmds(socket, "sked_post")).toEqual([{ cmd: "sked_post", from: at(2), to: at(4), dial: "7.0541 MHz USB", note: "" }]);
   });
 
   it("shows the board without the form for a closed board, and says nothing for one that cannot be reached", async () => {
     const { wrapper, socket } = await open();
-    await tabButton(wrapper, "Skeds")?.trigger("click");
+    await tabButton(wrapper, "HF tests")?.trigger("click");
     socket.say({ type: "state", topic: "skeds", rev: 0, value: skedsState(board, { state: "closed" }) });
     await flushPromises();
     expect(wrapper.find("#pane-skeds form").exists()).toBe(false);

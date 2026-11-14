@@ -42,7 +42,7 @@ class SkedsState(_Model):
 
 
 class SkedsWanted(_Command):
-    """The page shows the Skeds tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came."""
+    """The page shows the HF tests tab (and while it stays visible): the daemon reads the board now, unless it read it less than 15 minutes ago or the update check is off (`NEOAPRS_UPDATE_CHECK=0`). Nothing is answered; the topic `skeds` tells what came."""
     cmd: Literal["skeds_wanted"]
 
 

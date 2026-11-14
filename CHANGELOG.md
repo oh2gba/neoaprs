@@ -8,7 +8,7 @@
 - **Changed:** the HF modem is Mercury 1.9.24.
 - **Changed:** the detailed map no longer downloads a helper program first, and the Windows program is smaller.
 - **Changed:** the app's window opens at once while NeoAPRS starts; on Windows a small loading window comes first.
-- **New:** a **Skeds** tab: post when and on which dial you will be on the air, and see who else will be.
+- **New:** an **HF tests** tab: say when and on which frequency you will try APRS on HF, and join the tests of others.
 - **New:** a sharper HF waterfall with a frequency ruler keeps its last two minutes; **Monitor** in the map's menu shows it over the map.
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
 - **Changed:** the recommended path of a fixed station is WIDE2-2.

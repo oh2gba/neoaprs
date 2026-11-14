@@ -107,14 +107,14 @@ class Skeds:
     async def start(self) -> None:
         if not self._tasks and self.enabled:
             self._tasks.spawn(self._run(), "skeds")
-            self._tasks.spawn(every(self.expire_sec, self._expire, "the sked board's ends"), "skeds-expire")
+            self._tasks.spawn(every(self.expire_sec, self._expire, "the HF test board's ends"), "skeds-expire")
 
     async def stop(self) -> None:
         await self._tasks.cancel_all()
 
     async def _run(self) -> None:
         await self._kept()
-        await every(self.every_sec, self.ask, "the sked board", first=self.first_sec)
+        await every(self.every_sec, self.ask, "the HF test board", first=self.first_sec)
 
     async def _kept(self) -> None:
         """The board and our ids kept by an earlier run, told before the server is asked (inside the task: the start of the daemon does not wait for the database)."""
@@ -159,13 +159,13 @@ class Skeds:
     async def _get(self) -> None:
         answer = await self._fetch(self.url, self.version, self.platform, MAX_BYTES)
         if answer is None:
-            log.debug("the sked board could not be fetched from %s", self.url)
+            log.debug("the HF test board could not be fetched from %s", self.url)
             self._unreached()
             return
         status, body = answer
         board = EMPTY if status == 404 else None if status != 200 else self._parsed(body)         # (a 404 is a board that nobody has posted to yet, or one that is away for a moment: our ids are kept)
         if board is None:
-            log.debug("the sked board at %s is not usable (status %s)", self.url, status)
+            log.debug("the HF test board at %s is not usable (status %s)", self.url, status)
             self._unreached()
         else:
             await self._take(board, prune=status == 200)
@@ -201,9 +201,9 @@ class Skeds:
         if not call or end - start > MAX_LENGTH or end <= start:
             raise ValueError(f"a sked of {call or 'no call'} from {iso(start)} to {iso(end)} cannot be posted")          # (the form cannot make one: the page's problem, the log has it)
         if end <= now:
-            raise SkedError("that sked has ended already", "sked.past")
+            raise SkedError("that test has ended already", "sked.past")
         if start > now + MAX_AHEAD:
-            raise SkedError("that sked begins more than 30 days ahead", "sked.far")          # (the page's clock may be ahead of ours, and a row of the board may begin a little later than the server lets one be posted)
+            raise SkedError("that test begins more than 30 days ahead", "sked.far")          # (the page's clock may be ahead of ours, and a row of the board may begin a little later than the server lets one be posted)
         fields = {"call": call, "from": iso(start) or "", "to": iso(end) or "", "dial": dial, "note": note}
         async with self._busy:
             data = await self._send("add", fields, call)
@@ -226,7 +226,7 @@ class Skeds:
         """The board of an answer is taken as read; one that is missing or is not a board is read again."""
         board = board_of(data.get("board"), self._clock())
         if board is None:
-            log.warning("the sked board's answer had no usable board; it is read again")
+            log.warning("the HF test board's answer had no usable board; it is read again")
             await self._get()
             return
         self._last = self._monotonic()
@@ -235,11 +235,11 @@ class Skeds:
     async def _send(self, action: str, fields: dict[str, str], call: str) -> dict[str, Any] | None:
         """The answer of the endpoint to the request when it says ok; None when the refusal is one nothing is to be said of (the board is closed to the call, a sked that is not ours); SkedError for the others."""
         if not self.enabled:
-            raise SkedError("the sked board could not be reached just now; try again later", "sked.unreachable")
+            raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
         got = await self._post(endpoint_url(self.url), request_body(action, await self._secret(), fields), self.version, self.platform, MAX_BYTES)
         if got is None:
             self._unreached()
-            raise SkedError("the sked board could not be reached just now; try again later", "sked.unreachable")
+            raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
         try:
             data = json.loads(got[1])
         except (ValueError, RecursionError):
@@ -252,27 +252,27 @@ class Skeds:
 
     async def _refused(self, action: str, reason: str, status: int, call: str) -> None:
         if reason == "rate":
-            raise SkedError("too many skeds were posted from here lately; try again later", "sked.rate")
+            raise SkedError("too many tests were posted from here lately; try again later", "sked.rate")
         if reason == "full":
-            raise SkedError("the sked board has no room for another sked now", "sked.full")
+            raise SkedError("the board has no room for another test now", "sked.full")
         if reason == "past":
-            raise SkedError("that sked has ended already", "sked.past")
+            raise SkedError("that test has ended already", "sked.past")
         if reason == "too_far":
-            raise SkedError("that sked begins more than 30 days ahead", "sked.far")
+            raise SkedError("that test begins more than 30 days ahead", "sked.far")
         if reason == "closed" and action == "add":
             await self._get()                                       # (the board says whether it is closed to everyone; when it says open, the call is blocked)
             if self._reached:
                 self._last = self._monotonic()
             if self._reached and not self._board.closed:
-                log.info("the sked board is closed to %s", call)
+                log.info("the HF test board is closed to %s", call)
                 self._shut = call.split("-")[0]
                 self._tell()
         elif reason == "not_yours" and action == "remove":
-            log.info("the sked is not ours: it was posted by another installation, or the data folder is another one")
+            log.info("the HF test is not ours: it was posted by another installation, or the data folder is another one")
             await self._get()
         else:
-            log.warning("the sked board refused the %s (status %s, reason %r)", action, status, reason)
-            raise SkedError("the sked board could not be reached just now; try again later", "sked.unreachable")
+            log.warning("the HF test board refused the %s (status %s, reason %r)", action, status, reason)
+            raise SkedError("the HF test board could not be reached just now; try again later", "sked.unreachable")
 
     async def _secret(self) -> str:
         """The sked token: 32 lowercase hex characters from 16 random bytes, made the first time it is needed and kept in the database. A row that is not of that form is made again."""

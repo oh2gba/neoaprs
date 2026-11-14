@@ -159,5 +159,5 @@ async def post_board(url: str, body: bytes, version: str, platform: str, max_byt
     try:
         return await in_thread(lambda: post_json(url, body, version, platform, max_bytes=max_bytes), "sked-post")
     except Exception:
-        log.exception("posting to the sked board failed")
+        log.exception("posting to the HF test board failed")
         return None
