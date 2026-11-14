@@ -1,5 +1,8 @@
 """Migration 23 (neoaprs/migrationsteps22on.py): `message.id` is AUTOINCREMENT, so a database of the version before, in which the newest messages were deleted, never gives their ids again; every message is kept with its id,
-the table is the one a new database has, and a step that doubts changes nothing."""
+the table is the one a new database has, and a step that doubts changes nothing.
+
+What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): migration 32 changes the type of `message.radio` and `message_attempt.radio` where
+the tables lie, so the ids and the count of the ids given stay as migration 23 left them."""
 import sqlite3
 from pathlib import Path
 
@@ -11,6 +14,7 @@ from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back, try_open
+from tests.support.migrated32 import newest
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
 
 COLUMNS = "id, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route"
@@ -42,11 +46,11 @@ def migrate(folder: Path, deleted: tuple[int, ...] = (), chain_of: int = 0) -> s
     old = folder / "old" / DB_NAME
     old.parent.mkdir()
     version_twentytwo(old, clock, deleted, chain_of)
-    migrated = opened(old, clock)
-    fresh = opened(folder / DB_NAME, clock)
+    migrated = newest(old, clock)
+    fresh = newest(folder / DB_NAME, clock)
     assert migrated.version() == fresh.version() == SCHEMA_VERSION >= 23
     assert shape(migrated.db) == shape(fresh.db), "a migrated database has exactly the tables, indexes and checks of a new one"
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][22:] == [(n, f"_v{n}", GOLDEN[n]) for n in range(23, SCHEMA_VERSION + 1)]
     fresh.close()
     return migrated.db
 
@@ -74,6 +78,7 @@ def test_the_next_message_gets_an_id_above_the_highest_the_table_holds(tmp_path:
 def test_the_next_message_is_above_the_id_of_a_deleted_one_whose_delivery_chain_is_still_there(tmp_path: Path) -> None:
     db = migrate(tmp_path, deleted=(5,), chain_of=9)
     assert next_id(db) == 10, "the chain rows of message 9 must not be shown under a new message"
+    assert db.execute("SELECT message_id, attempt, radio FROM message_attempt").fetchall() == [(9, 1, 1)], "the attempt of version 22 went out on the one radio there was: radio 1"
     db.close()
 
 
@@ -81,7 +86,7 @@ def test_an_empty_message_table_starts_at_one(tmp_path: Path) -> None:
     clock = FixedClock()
     old = tmp_path / DB_NAME
     version_twentytwo(old, clock, deleted=(1, 2, 5))
-    migrated = opened(old, clock)
+    migrated = newest(old, clock)
     assert next_id(migrated.db) == 1
     migrated.close()
 

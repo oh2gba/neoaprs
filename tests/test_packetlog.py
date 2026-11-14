@@ -1,5 +1,9 @@
-"""The packet log and the station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py) on a real database thread: what goes in comes out equal, the order, the care, and the rows the
-tables refuse."""
+"""The packet log and the station cache (neoaprs/packetlog.py, packetcodec.py, packetsql.py, stationsql.py) on a real database thread: what goes in comes out equal, the order, the care, and the rows the
+tables refuse.
+
+Every test runs on each shape of the database the stores know (tests/support/migrated32.py, SHAPES): that of version 30 while it is the program's, where a packet names its radio by a word and the
+station's row holds the counts of the two radios, and that of migrations 32 and 33, where a packet names its radio by the id of the table `radio` and what each radio heard of a station is a row of
+`station_radio`. The tests at the end are of the second alone."""
 import asyncio
 import json
 import logging
@@ -10,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import aprsparse, ax25
+from neoaprs import aprsparse, ax25, packetcodec
 from neoaprs.aprsisline import parse_is_line
 from neoaprs.aprsextension import Area, DfBearing, Dfs, Extensions, Phg
 from neoaprs.aprsfreq import Frequency
@@ -22,16 +26,26 @@ from neoaprs.kiss import KissDecoder
 from neoaprs.aprsthirdparty import parse_packet
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
 from neoaprs.packetcodec import decode_decoded, encode_decoded, packet_of, packet_row, parse_stamp, stamp, tnc2
-from neoaprs.packetlog import PacketLog
-from neoaprs.packetsql import packets_since
+from neoaprs.packetlog import PacketLog, heard_of, heard_rows, station_of, station_row
+from neoaprs.packetsql import packets_since, station_columns
+from neoaprs.radiospec import RadioHeard
 from neoaprs.station import Station
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
 from tests.support.migrated import opened
+from tests.support.migrated32 import SHAPE_IDS, SHAPES, shaped
 from tests.support.storedb import sql, store_at
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
+NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migrations 32 and 33 alone
+
+
+@pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
+def shape(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> bool:
+    """The shape of the database the stores write in this test: False that of version 30, True that of migrations 32 and 33 (`shaped` makes the file to match)."""
+    monkeypatch.setattr(packetcodec, "BY_RADIO", request.param)
+    return bool(request.param)
 
 
 def capture(at: object = T0) -> list[Packet]:
@@ -110,7 +124,7 @@ def test_tnc2_is_the_monitor_line_with_the_unprintable_shown_as_a_question_mark(
 
 
 async def test_every_packet_is_kept_and_read_back_the_newest_first(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     packets = capture()
     for n, p in enumerate(packets):
@@ -129,7 +143,7 @@ async def test_every_packet_is_kept_and_read_back_the_newest_first(tmp_path: Pat
 
 
 async def test_packets_of_the_same_second_come_back_in_the_order_they_were_kept(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     for n, seconds in enumerate([1, 0, 1, 1]):
         assert log.append(replace(made(POSITION, T0 + timedelta(seconds=seconds)), source=f"OH2A{n}"))
@@ -150,7 +164,7 @@ def test_the_packets_since_a_time_are_found_by_the_index_of_the_times_and_the_ta
 
 
 async def test_the_rows_are_what_the_columns_say(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(capture()[3])
     log.append(made(Undecoded("too short", "!60")))
@@ -162,7 +176,7 @@ async def test_the_rows_are_what_the_columns_say(tmp_path: Path) -> None:
 
 
 async def test_prune_removes_the_packets_older_than_the_days_and_keeps_the_rest(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     clock = FixedClock()
     log = PacketLog(store.db, clock)
     for days_ago in (45, 31, 29, 1, 0):
@@ -173,10 +187,11 @@ async def test_prune_removes_the_packets_older_than_the_days_and_keeps_the_rest(
 
 
 async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its_track(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     a = Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), kind="station", symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=3, last_path=("WIDE1-1*", "OH2RCH-2"), track=[(T0, 60.1, 24.9)], is_me=True)
+                speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=3, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5), heard_fm=3, last_fm_at=T0 + timedelta(minutes=5),
+                last_path=("WIDE1-1*", "OH2RCH-2"), track=[(T0, 60.1, 24.9)], is_me=True)
     b = Station("FIRE", first_heard=T0, last_heard=T0 + timedelta(minutes=9), kind="object", reported_by="OH2AAA-3", packets=1)
     log.save_station(a)
     log.save_station(b)
@@ -186,7 +201,8 @@ async def test_a_station_is_kept_replaced_and_deleted_and_comes_back_without_its
     assert [s.call for s in stations] == ["FIRE", "OH2AAA-3"], "the latest heard first"
     back = stations[1]
     assert back == Station("OH2AAA-3", first_heard=T0, last_heard=T0 + timedelta(minutes=5), symbol_table="/", symbol_code=">", lat=60.1, lon=24.9, altitude_m=44.0, course_deg=12,
-                           speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=4, last_path=("WIDE1-1*", "OH2RCH-2"))
+                           speed_kmh=3.5, last_position_at=T0, last_status="QRV", last_comment="åäö", packets=4, heard_rf=3, last_rf_at=T0 + timedelta(minutes=5), heard_fm=3,
+                           last_fm_at=T0 + timedelta(minutes=5), last_path=("WIDE1-1*", "OH2RCH-2"))
     assert stations[0].kind == "object" and stations[0].reported_by == "OH2AAA-3" and stations[0].lat is None and stations[0].last_path == ()
     assert log.delete_station("FIRE") and [s.call for s in await log.stations()] == ["OH2AAA-3"]
 
@@ -195,7 +211,7 @@ async def test_a_log_whose_database_is_not_open_says_no_and_reads_nothing(tmp_pa
     log = PacketLog(None, FixedClock())
     assert not log.append(made(POSITION)) and not log.save_station(Station("X", first_heard=T0, last_heard=T0)) and not log.delete_station("X") and log.dropped == 3
     assert await log.recent() == [] and await log.count() == 0 and await log.stations() == [] and await log.prune(30) == 0 and not log.is_open()
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log.use(store.db)  # type: ignore[arg-type]
     assert log.is_open() and log.append(made(POSITION))
     assert store.db is not None
@@ -203,16 +219,26 @@ async def test_a_log_whose_database_is_not_open_says_no_and_reads_nothing(tmp_pa
     assert not log.append(made(POSITION)) and await log.recent() == [] and not log.is_open()
 
 
-async def test_a_row_that_is_not_ours_is_left_out_and_told(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+async def test_a_row_that_is_not_ours_is_left_out_and_told(tmp_path: Path, caplog: pytest.LogCaptureFixture, shape: bool) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(made(POSITION))
     await sql(store, "INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES (?, 'in', x'00', 'OH2X', 'APRS', '', 'other', 's', '{\"kind\":\"weather\"}')", stamp(T0))
-    await sql(store, "INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path) "
-                     "VALUES ('BAD', 'station', '', '', '', 'yesterday', 'today', '', '', 1, '')")
+    bad = STATION.format(columns="", values="").format(call="BAD", kind="station", first="yesterday", last="today", packets=1)
+    await sql(store, as_written(bad, shape))
     caplog.set_level(logging.WARNING, "neoaprs.packetlog")
     assert len(await log.recent()) == 1 and await log.stations() == []
     assert any("packet table" in r.getMessage() for r in caplog.records) and any("station table" in r.getMessage() for r in caplog.records)
+
+
+# A row of the station table as a tool would write it, `)#` where the values end: the columns every version has (before 33 the row holds `last_path` too, which the tests add).
+STATION = ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code{columns}, first_heard, last_heard, last_status, last_comment, packets) "
+           "VALUES ('{{call}}', '{{kind}}', '', '', ''{values}, '{{first}}', '{{last}}', '', '', {{packets}})#")
+
+
+def as_written(statement: str, shape: bool) -> str:
+    """A statement of the tests for the shape of the database: before 33 a station's row holds its last path too, which has no default."""
+    return statement.replace(")#", ")") if shape else statement.replace("packets)", "packets, last_path)").replace(")#", ", '')")
 
 
 @pytest.mark.parametrize("statement, name", [
@@ -222,17 +248,17 @@ async def test_a_row_that_is_not_ours_is_left_out_and_told(tmp_path: Path, caplo
     ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'weather', 's', '{}')", "packet_kind"),
     ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{broken')", "packet_decoded_json"),
     ("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded, error) VALUES ('2026-10-21T12:00:00.000000Z', 'in', x'00', 'A', 'B', '', 'other', 's', '{}', 'e')", "packet_error_when_undecoded"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('', 'station', '', '', '', 'a', 'b', '', '', 0, '')", "station_call_present"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('X', 'thing', '', '', '', 'a', 'b', '', '', 0, '')", "station_kind"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, lat, lon, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('X', 'station', '', '', '', 91, 0, 'a', 'b', '', '', 0, '')", "station_lat_range"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, lat, lon, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('X', 'station', '', '', '', 0, 181, 'a', 'b', '', '', 0, '')", "station_lon_range"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, lat, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('X', 'station', '', '', '', 5, 'a', 'b', '', '', 0, '')", "station_position_together"),
-    ("INSERT INTO station (call, kind, reported_by, symbol_table, symbol_code, first_heard, last_heard, last_status, last_comment, packets, last_path) VALUES ('X', 'station', '', '', '', 'a', 'b', '', '', -1, '')", "station_packets_count"),
+    (STATION.format(columns="", values="").format(call="", kind="station", first="a", last="b", packets=0), "station_call_present"),
+    (STATION.format(columns="", values="").format(call="X", kind="thing", first="a", last="b", packets=0), "station_kind"),
+    (STATION.format(columns=", lat, lon", values=", 91, 0").format(call="X", kind="station", first="a", last="b", packets=0), "station_lat_range"),
+    (STATION.format(columns=", lat, lon", values=", 0, 181").format(call="X", kind="station", first="a", last="b", packets=0), "station_lon_range"),
+    (STATION.format(columns=", lat", values=", 5").format(call="X", kind="station", first="a", last="b", packets=0), "station_position_together"),
+    (STATION.format(columns="", values="").format(call="X", kind="station", first="a", last="b", packets=-1), "station_packets_count"),
 ])
-async def test_the_tables_refuse_what_the_program_cannot_produce_and_say_which_check(tmp_path: Path, statement: str, name: str) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+async def test_the_tables_refuse_what_the_program_cannot_produce_and_say_which_check(tmp_path: Path, statement: str, name: str, shape: bool) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME))
     with pytest.raises(sqlite3.IntegrityError, match=name):
-        await sql(store, statement)
+        await sql(store, as_written(statement, shape))
 
 
 # ---- how the packets reached us
@@ -262,7 +288,7 @@ def aprsthirdparty_packet(info: bytes) -> Packet:
 
 
 async def test_the_deliveries_are_the_routes_of_the_latest_packets_heard_by_sender_and_a_third_party_packet_is_its_inner_sender_with_the_gate(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     for n, p in enumerate([heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2AAA", ("OH2RCH-2*",)), heard("OH2BBB", ()), aprsthirdparty_packet(b"}OH2DPN>APRS,TCPIP:>x"), heard("OH2AAA", ("OH2RCH-3*", "TRACE2-1"))]):
         log.append(Packet(T0 + timedelta(seconds=n), p.direction, p.raw, p.source, p.destination, p.path, p.info, p.decoded, p.third_party, p.via))
@@ -309,7 +335,7 @@ def test_the_channel_of_a_packet_of_the_radio_is_kept_and_a_row_that_says_otherw
 
 
 async def test_the_deliveries_leave_out_what_the_hf_radio_heard(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
     log.append(replace(heard("OH2AAA", (), T0 + timedelta(seconds=1)), radio="hf"))
@@ -317,7 +343,7 @@ async def test_the_deliveries_leave_out_what_the_hf_radio_heard(tmp_path: Path) 
 
 
 async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_statements_of_the_radio_leave_them_out(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.append(heard("OH2AAA", ("OH2RCH-2*",), T0))
     log.append(from_the_internet(source="OH2AAA", at=T0 + timedelta(seconds=1)))
@@ -334,7 +360,7 @@ async def test_the_log_keeps_packets_from_the_internet_with_the_others_and_the_s
 
 
 async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     station = Station("OH2AAA", first_heard=T0, last_heard=T0 + timedelta(minutes=5), lat=60.1, lon=24.9, packets=6, heard_rf=3, heard_rf_gated=1, heard_is=2, last_rf_at=T0 + timedelta(minutes=1),
                       last_rf_gated_at=T0 + timedelta(minutes=2), last_is_at=T0 + timedelta(minutes=5), position_via="is", last_position_at=T0)
@@ -347,7 +373,7 @@ async def test_a_station_keeps_its_channels_in_the_cache(tmp_path: Path) -> None
 
 async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_between_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     for minutes in range(7):
         log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
@@ -361,7 +387,7 @@ async def test_prune_deletes_in_slices_so_that_what_else_is_asked_is_served_betw
 
 async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("neoaprs.packetlog.PRUNE_SLICE", 3)
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     for minutes in range(6):
         log.append(made(POSITION, T0 - timedelta(days=40, minutes=minutes)))
@@ -372,7 +398,7 @@ async def test_prune_ends_on_a_full_last_slice_and_on_a_log_that_is_not_open(tmp
 # ---- what a Raspberry Pi's card is written: the station rows once per station per flush, the internet's packets kept a shorter time
 
 async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as_it_is_then_and_a_read_sees_it(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     station = Station("OH2AAA", first_heard=T0, last_heard=T0, packets=1)
     for n in range(2, 12):
@@ -390,7 +416,7 @@ async def test_a_station_saved_many_times_between_two_flushes_is_written_once_as
 
 
 async def test_forgetting_the_heard_stations_forgets_the_ones_not_yet_written_too(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     log = PacketLog(store.db, FixedClock())
     log.save_station(Station("OH2GBA", first_heard=T0, last_heard=T0, is_me=True))
     log.save_station(Station("OH2AAA", first_heard=T0, last_heard=T0))
@@ -399,7 +425,7 @@ async def test_forgetting_the_heard_stations_forgets_the_ones_not_yet_written_to
 
 
 async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_path: Path) -> None:
-    store = await store_at(tmp_path / DB_NAME)
+    store = await store_at(shaped(tmp_path / DB_NAME))
     clock = FixedClock()
     log = PacketLog(store.db, clock)
     for days_ago, via in ((1, "rf"), (3, "rf"), (1, "is"), (3, "is"), (9, "rf"), (9, "is")):
@@ -407,3 +433,129 @@ async def test_the_internets_packets_are_pruned_by_their_own_shorter_keep(tmp_pa
     assert await log.prune(7, 2) == 3, "the two older than 7 days, and the internet's older than 2"
     assert sorted((clock() - p.heard_at).days for p in await log.recent()) == [1, 1, 3] and [p.via for p in await log.recent() if (clock() - p.heard_at).days == 3] == ["rf"]
     assert await log.prune(7) == 0, "without an internet keep nothing more goes"
+
+
+# ---- a station's row and what each radio heard of it
+
+def by_radio(station: Station) -> dict[int, RadioHeard]:
+    """What each radio heard of a station, as the log reads it back from the rows of `station_radio`."""
+    return {radio: what for _, radio, what in map(heard_of, heard_rows(station))}
+
+
+def test_a_station_gives_its_row_and_what_each_radio_heard_and_they_give_the_station_back(shape: bool) -> None:
+    later = T0 + timedelta(minutes=7)
+    for station in (Station("OH2FM", first_heard=T0, last_heard=later, packets=3, heard_rf=3, last_rf_at=later, heard_fm=3, last_fm_at=later, last_path=("OH2RCH-2*", "WIDE2-1")),
+                    Station("OH2HF", first_heard=T0, last_heard=later, packets=2, heard_rf=2, last_rf_at=later, heard_hf=2, last_hf_at=later),
+                    Station("OH2BOTH", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("WIDE1-1",)),
+                    Station("OH2TIE", first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0, last_path=("WIDE1-1",)),
+                    Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)):
+        row = station_row(station)
+        assert len(row) == len(station_columns()) == (28 if shape else 33)
+        assert (station_of(row, heard=by_radio(station)) if shape else station_of(row)) == station, station.call
+    assert heard_rows(Station("OH2BOTH", first_heard=T0, last_heard=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("WIDE1-1",))) == [
+        ("OH2BOTH", 1, 3, stamp(T0), ""), ("OH2BOTH", 2, 2, stamp(later), "WIDE1-1")], "the path is the one of the radio that heard the station last"
+    assert [r[4] for r in heard_rows(Station("OH2TIE", first_heard=T0, last_heard=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0, last_path=("WIDE1-1",)))] == ["WIDE1-1", ""], "the FM radio's when both heard it at the same time"
+    assert heard_rows(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4)) == [], "a radio that heard nothing has no row"
+
+
+@NEW
+def test_a_station_is_made_from_what_radios_one_and_two_heard_and_a_third_radio_is_refused() -> None:
+    row = station_row(Station("OH2AAA", first_heard=T0, last_heard=T0))
+    later = T0 + timedelta(minutes=1)
+    both = station_of(row, heard={1: RadioHeard(3, T0, ("WIDE1-1",)), 2: RadioHeard(2, later, ("OH2HFD",))})
+    assert (both.heard_fm, both.last_fm_at, both.heard_hf, both.last_hf_at, both.last_path) == (3, T0, 2, later, ("OH2HFD",)), "the path of the radio that heard it last"
+    assert station_of(row, heard={1: RadioHeard(3, later, ("WIDE1-1",)), 2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("WIDE1-1",)
+    assert station_of(row, heard={2: RadioHeard(2, T0, ("OH2HFD",))}).last_path == ("OH2HFD",) and station_of(row, heard={1: RadioHeard(1, None, ("WIDE1-1",))}).last_path == ("WIDE1-1",), "the one radio that heard it"
+    assert station_of(row).heard_by == {} and station_of(row, heard={}).last_path == ()
+    with pytest.raises(ValueError, match=r"radio \[3\] heard OH2AAA"):
+        station_of(row, heard={1: RadioHeard(3, T0), 3: RadioHeard(1, T0)})
+
+
+# ---- the shape of migrations 32 and 33: a packet's radio by its id, what each radio heard of a station in a table of its own
+
+@NEW
+async def test_a_packet_names_its_radio_by_the_id_and_one_from_the_internet_names_none(tmp_path: Path) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME))
+    log = PacketLog(store.db, FixedClock())
+    packets = [replace(heard("OH2FM", ("OH2RCH-2*",), T0), radio="fm"), replace(heard("OH2HF", (), T0 + timedelta(seconds=1)), radio="hf"), from_the_internet(source="OH2NET", at=T0 + timedelta(seconds=2)),
+               heard("OH2NO", (), T0 + timedelta(seconds=3))]
+    for packet in packets:
+        assert log.append(packet)
+    assert [(p.source, p.radio, p.radio_id) for p in reversed(await log.recent())] == [("OH2FM", "fm", 1), ("OH2HF", "hf", 2), ("OH2NET", "", None), ("OH2NO", "", None)]
+    assert list(reversed(await log.recent())) == packets
+    assert await sql(store, "SELECT source, radio, typeof(radio) FROM packet ORDER BY id") == [("OH2FM", 1, "integer"), ("OH2HF", 2, "integer"), ("OH2NET", None, "null"), ("OH2NO", None, "null")]
+    assert packet_row(packets[1]).radio == 2 and packet_row(packets[2]).radio is None and packet_of(packet_row(packets[1])._replace(radio="hf")) == packets[1], "a row of a database before 32 holds the word"
+
+
+@NEW
+async def test_a_packet_of_a_radio_beyond_the_two_is_left_out_and_told(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (3, "lora", "dummy-lora", 1, 2))))
+    log = PacketLog(store.db, FixedClock())
+    log.append(replace(heard("OH2FM", ()), radio="fm"))
+    await log.count()
+    await sql(store, "UPDATE packet SET radio = 3")
+    caplog.set_level(logging.WARNING, "neoaprs.packetlog")
+    assert await log.recent() == [] and any("packet table" in r.getMessage() and "radio 3" in r.getMessage() for r in caplog.records)
+    with pytest.raises(ValueError, match="radio 'lora'"):
+        packet_of(packet_row(heard("OH2FM", ()))._replace(radio="lora"))
+
+
+@NEW
+async def test_what_each_radio_heard_of_a_station_is_a_row_of_its_own_and_the_row_of_a_radio_that_heard_it_no_more_goes(tmp_path: Path) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME))
+    log = PacketLog(store.db, FixedClock())
+    later = T0 + timedelta(minutes=7)
+    station = Station("OH2AAA", first_heard=T0, last_heard=later, packets=5, heard_rf=5, last_rf_at=later, heard_fm=3, last_fm_at=T0, heard_hf=2, last_hf_at=later, last_path=("OH2RCH-2*",))
+    log.save_station(station)
+    log.save_station(Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0))
+    assert sorted(await log.stations(), key=lambda s: s.call) == [station, Station("OH2NET", first_heard=T0, last_heard=T0, packets=4, heard_is=4, last_is_at=T0)]
+    assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio ORDER BY call, radio_id") == [("OH2AAA", 1, 3, stamp(T0), ""), ("OH2AAA", 2, 2, stamp(later), "OH2RCH-2*")]
+    assert "heard_fm" not in station_columns() and "last_path" not in station_columns() and not [c for c in await sql(store, "PRAGMA table_info(station)") if c[1] in ("heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "last_path")]
+    station.heard_fm, station.last_fm_at, station.heard_hf, station.last_hf_at, station.last_path = 4, later + timedelta(minutes=1), 0, None, ("WIDE1-1",)
+    log.save_station(station)
+    assert [s for s in await log.stations() if s.call == "OH2AAA"] == [station]
+    assert await sql(store, "SELECT call, radio_id, heard, last_at, last_path FROM station_radio") == [("OH2AAA", 1, 4, stamp(later + timedelta(minutes=1)), "WIDE1-1")], "the HF radio's row is gone with its count"
+
+
+@NEW
+async def test_a_station_that_is_deleted_or_forgotten_takes_what_the_radios_heard_of_it_with_it(tmp_path: Path) -> None:
+    """No connection turns the foreign keys on, so nothing deletes the rows of `station_radio` by itself: the statements that delete a station do."""
+    store = await store_at(shaped(tmp_path / DB_NAME))
+    log = PacketLog(store.db, FixedClock())
+    assert await sql(store, "PRAGMA foreign_keys") == [(0,)]
+    for call in ("OH2GBA", "OH2AAA", "OH2BBB"):
+        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=2, heard_rf=2, last_rf_at=T0, heard_fm=1, last_fm_at=T0, heard_hf=1, last_hf_at=T0))
+    assert len(await log.stations()) == 3 and await sql(store, "SELECT COUNT(*) FROM station_radio") == [(6,)]
+    assert log.delete_station("OH2AAA")
+    assert sorted(s.call for s in await log.stations()) == ["OH2BBB", "OH2GBA"]
+    assert await sql(store, "SELECT call, radio_id FROM station_radio ORDER BY call, radio_id") == [("OH2BBB", 1), ("OH2BBB", 2), ("OH2GBA", 1), ("OH2GBA", 2)]
+    assert await log.forget_heard("OH2GBA") == 0
+    assert [s.call for s in await log.stations()] == ["OH2GBA"] and await sql(store, "SELECT call, radio_id FROM station_radio ORDER BY radio_id") == [("OH2GBA", 1), ("OH2GBA", 2)], "ours stays, with what the radios heard of it"
+
+
+@NEW
+async def test_a_row_of_what_a_radio_heard_that_is_not_ours_is_left_out_and_a_station_a_third_radio_heard_is_too(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "lora", "dummy-lora", 1, 3))))
+    log = PacketLog(store.db, FixedClock())
+    for call in ("OH2AAA", "OH2BBB"):
+        log.save_station(Station(call, first_heard=T0, last_heard=T0, packets=1, heard_rf=1, last_rf_at=T0, heard_fm=1, last_fm_at=T0))
+    await log.stations()
+    await sql(store, "INSERT INTO station_radio (call, radio_id, heard, last_at) VALUES ('OH2AAA', 2, 4, 'yesterday'), ('OH2BBB', 3, 1, ?)", stamp(T0))
+    caplog.set_level(logging.WARNING, "neoaprs.packetlog")
+    assert [(s.call, s.heard_fm, s.heard_hf) for s in await log.stations()] == [("OH2AAA", 1, 0)], "the row with no time is left out, the station of radio 3 with it"
+    told = [r.getMessage() for r in caplog.records]
+    assert any("station_radio table" in line for line in told) and any("station table" in line and "radio [3] heard OH2BBB" in line for line in told)
+
+
+@NEW
+async def test_the_deliveries_leave_out_every_radio_of_the_kind_hf_and_keep_a_packet_of_no_radio(tmp_path: Path) -> None:
+    """The exception of the routes is by the kind of the radio, not by its number: a second HF radio is left out as the first is, a radio of another kind is not, and a packet of the air that names
+    no radio (or one the table does not have) counts as it did."""
+    store = await store_at(shaped(tmp_path / DB_NAME, radios=((1, "fm", "kiss", 1, 1), (2, "hf", "mercury", 1, 2), (3, "hf", "dummy-hf", 0, 3), (4, "lora", "dummy-lora", 1, 4))))
+    log = PacketLog(store.db, FixedClock())
+    for n, source in enumerate(("OH2A", "OH2B", "OH2C", "OH2D", "OH2E", "OH2F")):
+        log.append(replace(heard(source, ("OH2RCH-2*",), T0 + timedelta(seconds=n)), radio="fm"))
+    await log.count()
+    for source, radio in (("OH2B", 2), ("OH2C", 3), ("OH2D", 4), ("OH2E", None), ("OH2F", 9)):
+        await sql(store, "UPDATE packet SET radio = ? WHERE source = ?", radio, source)
+    assert [d[0] for d in await log.deliveries()] == ["OH2A", "OH2D", "OH2E", "OH2F"]

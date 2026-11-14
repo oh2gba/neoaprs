@@ -1,6 +1,9 @@
 """Migration 21 (neoaprs/migrationsteps12to21.py): the channel of a packet (`packet.via`: rf, rf-gated, is) and, in the station cache, the count and the latest time for each channel and the channel of the position.
 A stored frame that holds a third-party packet becomes `rf-gated` (told from the stored `raw` alone), every other packet `rf`; a cached station has been heard on the radio, except for the packets of
-it that are stored as rf-gated; a step that doubts changes nothing; the tables refuse a channel the program cannot produce."""
+it that are stored as rf-gated; a step that doubts changes nothing; the tables refuse a channel the program cannot produce.
+
+What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest): every packet of the air of version 20 is radio 1's (migrations 25 and 32), and what
+was heard of a station on the radio is what radio 1 heard of it (`station_radio`, migration 33)."""
 import sqlite3
 from pathlib import Path
 
@@ -12,6 +15,7 @@ from neoaprs.migrationsteps12to21 import _third_party_sender
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
+from tests.support.migrated32 import heard_by, newest, through_33
 from tests.test_migrations import GOLDEN, STAMP, raw, shape
 
 LATER = "2026-10-21T12:30:00.000000Z"
@@ -52,9 +56,9 @@ def migrate(folder: Path) -> tuple[sqlite3.Connection, Path, FixedClock]:
     old = folder / "old" / DB_NAME
     old.parent.mkdir()
     version_twenty(old, clock)
-    migrated = opened(old, clock)
+    migrated = newest(old, clock)
     assert migrated.version() == SCHEMA_VERSION >= 21
-    assert [(r[0], r[1], r[2]) for r in migrated.history()][20:] == [(21, "_v21", GOLDEN[21]), (22, "_v22", GOLDEN[22]), (23, "_v23", GOLDEN[23]), (24, "_v24", GOLDEN[24]), (25, "_v25", GOLDEN[25]), (26, "_v26", GOLDEN[26]), (27, "_v27", GOLDEN[27]), (28, "_v28", GOLDEN[28]), (29, "_v29", GOLDEN[29]), (30, "_v30", GOLDEN[30])]
+    assert [(r[0], r[1], r[2]) for r in migrated.history()][20:] == [(n, f"_v{n}", GOLDEN[n]) for n in range(21, SCHEMA_VERSION + 1)]
     return migrated.db, old, clock
 
 
@@ -63,6 +67,7 @@ def test_a_stored_third_party_frame_is_rf_gated_and_every_other_packet_rf(tmp_pa
     found = db.execute("SELECT source, direction, heard_at, via FROM packet ORDER BY id").fetchall()
     assert found == [("OH2RDG", "in", STAMP, "rf"), ("OH7JHF-1", "in", STAMP, "rf-gated"), ("OH7JHF-1", "in", LATER, "rf-gated"), ("OH7JHF-1", "in", LATER, "rf"),
                      ("OH2RDG", "in", LATER, "rf"), ("OH2GBA", "out", LATER, "rf")], "a brace that is not at the start of the information field, and a brace that opens no header, make no third-party packet"
+    assert db.execute("SELECT DISTINCT radio FROM packet").fetchall() == [(1,)], "all of them were on the air of the one radio there was: radio 1"
 
 
 def test_a_cached_station_is_counted_for_the_radio_and_the_third_party_packets_move_to_their_own_count(tmp_path: Path) -> None:
@@ -73,6 +78,7 @@ def test_a_cached_station_is_counted_for_the_radio_and_the_third_party_packets_m
     assert rows["OH2DPN"] == ("OH2DPN", 5, 3, 2, 0, LATER, LATER, None, "rf")
     assert rows["OH7JHF-1"] == ("OH7JHF-1", 3, 3, 0, 0, LATER, None, None, None), "a station without a position has no channel of it"
     assert all(r[1] == r[2] + r[3] + r[4] for r in rows.values())
+    assert heard_by(db) == {"OH2RDG": {1: (2, LATER, "")}, "OH2DPN": {1: (5, LATER, "")}, "OH7JHF-1": {1: (3, LATER, "")}}, "what the radio heard, direct or by a gate, radio 1 heard"
 
 
 def test_a_station_all_of_whose_packets_came_by_a_gate_is_known_by_the_gate(tmp_path: Path) -> None:
@@ -85,11 +91,13 @@ def test_a_station_all_of_whose_packets_came_by_a_gate_is_known_by_the_gate(tmp_
     db.close()
     migrated = opened(old, clock)
     assert migrated.db.execute("SELECT packets, heard_rf, heard_rf_gated, last_rf_at, last_rf_gated_at, position_via FROM station WHERE call = 'OH2DPN'").fetchone() == (2, 0, 2, None, LATER, "rf-gated")
+    through_33(migrated.db)
+    assert heard_by(migrated.db)["OH2DPN"] == {1: (2, LATER, "")}, "packets an iGate put on the air were heard by the radio"
 
 
 def test_a_migrated_database_has_exactly_the_tables_indexes_and_checks_of_a_new_one_and_a_copy_was_made(tmp_path: Path) -> None:
     db, old, clock = migrate(tmp_path)
-    fresh = opened(tmp_path / DB_NAME, clock)
+    fresh = newest(tmp_path / DB_NAME, clock)
     assert shape(db) == shape(fresh.db)
     assert db.execute("SELECT COUNT(*) FROM packet").fetchone()[0] == 6 and db.execute("SELECT COUNT(*) FROM station").fetchone()[0] == 3
     [copy_path] = sorted((old.parent / "backup").glob("premigrate-v20-to-v*.sqlite"))

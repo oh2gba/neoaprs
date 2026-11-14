@@ -1,14 +1,17 @@
 """The packet log and the station cache: every packet heard or sent is kept, and the stations of the station book are kept beside them so that a start does not begin with an empty map.
 
 Like the message log it runs on the database thread (db.py) and says no instead of raising when the database is not open (dblog.py). `append` and the station writes are appends that nobody waits
-for (the hot path: a packet must never wait for the disk); the reads are awaited. The statements are packetsql.py's, the rows of a packet packetcodec.py's."""
+for (the hot path: a packet must never wait for the disk); the reads are awaited. The statements are packetsql.py's, the rows of a packet packetcodec.py's.
+
+A station is kept as its row and, beside it, what each radio heard of it (`Station.heard_by`: one row of `station_radio` for each radio, stationsql.py). The parts marked "before 33" are those of a
+database of version 30, where the station's row holds the counts of the two radios; they are in force until migrations 32 and 33 are listed (packetcodec.BY_RADIO)."""
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from functools import partial
 from typing import NamedTuple
 
-from . import ax25
+from . import ax25, packetcodec
 from .aprsthirdparty import header_of
 from .clock import Clock, days, utcnow
 from .db import Db
@@ -17,8 +20,9 @@ from .dblog import DbLog
 from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
-from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_slice,
-                        radio_position_packets, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
+from .packetsql import (STATION_BEFORE_33, all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_by_radio, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since,
+                        position_packets, prune_packets_slice, radio_position_packets, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
+from .radiospec import FM_ID, HF_ID, NOT_HEARD, RadioHeard, RadioId
 from .route import route_of
 from .station import Station
 
@@ -40,12 +44,26 @@ class History(NamedTuple):
 
 
 def station_row(station: Station) -> Row:
-    """The columns of the station table, in order (the track and `is_me` are not kept)."""
-    return (station.call, station.kind, station.reported_by, station.symbol_table, station.symbol_code, station.lat, station.lon, station.altitude_m, station.course_deg,
-            station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
-            station.last_status, station.last_comment, station.packets, ",".join(station.last_path), station.heard_rf, station.heard_rf_gated, station.heard_is,
-            _stamped(station.last_rf_at), _stamped(station.last_rf_gated_at), _stamped(station.last_is_at), station.position_via, station.heard_dummy, _stamped(station.last_dummy_at),
-            station.heard_fm, station.heard_hf, _stamped(station.last_fm_at), _stamped(station.last_hf_at), station.snr, station.rssi, _stamped(station.signal_at))
+    """The columns of the station table, in order (the track and `is_me` are not kept; what each radio heard is `heard_rows`)."""
+    row = (station.call, station.kind, station.reported_by, station.symbol_table, station.symbol_code, station.lat, station.lon, station.altitude_m, station.course_deg,
+           station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
+           station.last_status, station.last_comment, station.packets, station.heard_rf, station.heard_rf_gated, station.heard_is,
+           _stamped(station.last_rf_at), _stamped(station.last_rf_gated_at), _stamped(station.last_is_at), station.position_via, station.heard_dummy, _stamped(station.last_dummy_at),
+           station.snr, station.rssi, _stamped(station.signal_at))
+    if packetcodec.BY_RADIO:
+        return row
+    return (*row[:16], ",".join(station.last_path), *row[16:25], station.heard_fm, station.heard_hf, _stamped(station.last_fm_at), _stamped(station.last_hf_at), *row[25:])      # before 33
+
+
+def heard_rows(station: Station) -> list[Row]:
+    """The rows of `station_radio` of a station, (call, radio_id, heard, last_at, last_path) for each radio that heard it (`Station.heard_by`), by radio."""
+    return [(station.call, radio, heard.count, _stamped(heard.last_at), ",".join(heard.last_path)) for radio, heard in sorted(station.heard_by.items())]
+
+
+def heard_of(row: Row) -> tuple[str, RadioId, RadioHeard]:
+    """(the station, the radio, what it heard of it) from a row of `station_radio`. Raises ValueError (or TypeError) for a row this program did not write."""
+    call, radio, count, last_at, path = row
+    return str(call), int(radio), RadioHeard(int(count), _parsed(last_at), tuple(str(path).split(",")) if path else ())
 
 
 def _stamped(at: datetime | None) -> str | None:
@@ -71,16 +89,32 @@ def _sender(source: str, raw: bytes | None, via: str) -> str:
     return source if opened is None else opened[0].source
 
 
-def station_of(row: Row) -> Station:
-    """The station from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, path, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, heard_fm, heard_hf, fm_at, hf_at, snr, rssi, signal_at) = row
+def station_of(row: Row, *, heard: Mapping[RadioId, RadioHeard] | None = None) -> Station:
+    """The station from its row and what each radio heard of it (`heard_of`; nothing when not given). Raises ValueError (or TypeError) for a row this program did not write. The station holds what
+    the FM radio (radio 1) and the HF radio (radio 2) heard, and the path of the one that heard it last, until it holds `heard_by` as it is: a row of another radio is refused."""
+    if len(row) == len(STATION_BEFORE_33):                 # before 33: the row holds the last path and the counts and times of the two radios itself
+        path, heard_fm, heard_hf, fm_at, hf_at = tuple(str(row[16]).split(",")) if row[16] else (), int(row[26]), int(row[27]), _parsed(row[28]), _parsed(row[29])
+        row = (*row[:16], *row[17:26], *row[30:])
+    else:
+        path, heard_fm, heard_hf, fm_at, hf_at = _two_radios(str(row[0]), heard or {})
+    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, snr, rssi, signal_at) = row
     return Station(str(call), first_heard=parse_stamp(str(first)), last_heard=parse_stamp(str(last)), kind=str(kind), reported_by=str(reported_by), symbol_table=str(table),
                    symbol_code=str(code), lat=None if lat is None else float(lat), lon=None if lon is None else float(lon), altitude_m=None if altitude is None else float(altitude),
                    course_deg=None if course is None else int(course), speed_kmh=None if speed is None else float(speed),
                    last_position_at=None if position_at is None else parse_stamp(str(position_at)), last_status=str(status), last_comment=str(comment),
-                   packets=int(packets), last_path=tuple(str(path).split(",")) if path else (), heard_rf=int(heard_rf), heard_rf_gated=int(heard_rf_gated), heard_is=int(heard_is),
+                   packets=int(packets), last_path=path, heard_rf=int(heard_rf), heard_rf_gated=int(heard_rf_gated), heard_is=int(heard_is),
                    last_rf_at=_parsed(rf_at), last_rf_gated_at=_parsed(gated_at), last_is_at=_parsed(is_at), position_via=None if position_via is None else via_of(str(position_via)), heard_dummy=int(heard_dummy), last_dummy_at=_parsed(dummy_at),
-                   heard_fm=int(heard_fm), heard_hf=int(heard_hf), last_fm_at=_parsed(fm_at), last_hf_at=_parsed(hf_at), snr=_number(snr), rssi=_number(rssi), signal_at=_parsed(signal_at))
+                   heard_fm=heard_fm, heard_hf=heard_hf, last_fm_at=fm_at, last_hf_at=hf_at, snr=_number(snr), rssi=_number(rssi), signal_at=_parsed(signal_at))
+
+
+def _two_radios(call: str, heard: Mapping[RadioId, RadioHeard]) -> tuple[tuple[str, ...], int, int, datetime | None, datetime | None]:
+    """(the last path, the FM radio's count, the HF radio's count, when the FM radio heard it last, when the HF radio did) of what each radio heard of a station: what `Station.heard_by` is made from.
+    The path is that of the radio that heard it last (the FM radio when both did at the same time, the one radio when one did). Raises ValueError for a radio that is neither."""
+    if set(heard) - {FM_ID, HF_ID}:
+        raise ValueError(f"radio {sorted(set(heard) - {FM_ID, HF_ID})} heard {call}: a station holds what radios {FM_ID} and {HF_ID} heard")
+    fm, hf = heard.get(FM_ID, NOT_HEARD), heard.get(HF_ID, NOT_HEARD)
+    fm_last = hf.count == 0 or (fm.count > 0 and fm.last_at is not None and (hf.last_at is None or fm.last_at >= hf.last_at))
+    return (fm if fm_last else hf).last_path, fm.count, hf.count, fm.last_at, hf.last_at
 
 
 STATION_FLUSH_SEC = 30.0                       # how often the station rows that changed are written (save_station): a half minute of a station's packets is one write of its row
@@ -115,7 +149,7 @@ class PacketLog(DbLog):
         dirty, self._dirty = self._dirty, {}
         queued = 0
         for station in dirty.values():
-            queued += self._append(partial(upsert_station, row=station_row(station)))
+            queued += self._append(partial(upsert_station, row=station_row(station), heard=heard_rows(station)))
         return queued
 
     def delete_station(self, call: str) -> bool:
@@ -267,8 +301,12 @@ class PacketLog(DbLog):
     async def stations(self) -> list[Station]:
         """The cached stations, the latest heard first: what the station book starts with. The rows that changed and were not yet written go first, so the read sees every station as it was last saved."""
         self.flush_stations()
-        rows: list[Row] = await self._read(all_stations, [])
-        return self._decoded(rows, station_of, "station")
+        nothing: tuple[list[Row], list[Row]] = ([], [])
+        rows, radios = await self._read(lambda conn: (all_stations(conn), heard_by_radio(conn)), nothing)
+        heard: dict[str, dict[RadioId, RadioHeard]] = {}
+        for call, radio, what in self._decoded(radios, heard_of, "station_radio"):
+            heard.setdefault(call, {})[radio] = what
+        return self._decoded(rows, lambda row: station_of(row, heard=heard.get(str(row[0]))), "station")
 
     # ---- care
     async def forget_heard(self, keep_call: str) -> int:

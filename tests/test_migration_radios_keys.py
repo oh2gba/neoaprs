@@ -1,12 +1,16 @@
 """Migrations 24 and 25 (neoaprs/migrationsteps22on.py) on databases with rows in them. 24 (encrypted messages): the table of the stations' keys is there and empty, a message is plain (`seal` empty, `wire` none) as it was.
 25 (two radios): everything the air gave so far came on the FM radio, so a packet that was heard or sent has the radio `fm` and a packet from the internet none, a station's FM count is the sum of its radio counts (the
-Dummy radio's included) and its FM time the latest of their times, a message that came in and every attempt of ours name the FM radio, and an object of ours goes out on FM."""
+Dummy radio's included) and its FM time the latest of their times, a message that came in and every attempt of ours name the FM radio, and an object of ours goes out on FM.
+
+What is read back is read from the database as the radio round's steps leave it (tests/support/migrated32.newest), where the FM radio is radio 1: a packet, a message and an attempt name it by its id
+(migration 32), a station's FM count and time are the row of radio 1 in `station_radio`, and the object's radios are "1" (migration 33)."""
 from pathlib import Path
 
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, step_back
+from tests.support.migrated32 import heard_by, newest
 from tests.test_migrations import GOLDEN, STAMP, raw
 
 LATER = "2026-10-21T12:30:00.000000Z"
@@ -31,8 +35,8 @@ def test_migration_24_leaves_the_messages_plain_and_makes_the_table_of_keys(tmp_
     db.execute("PRAGMA user_version = 23")
     messages(db)
     db.close()
-    migrated = opened(path, clock)
-    assert migrated.version() == SCHEMA_VERSION >= 24 and [(r[0], r[2]) for r in migrated.history()][23:] == [(24, GOLDEN[24]), (25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29]), (30, GOLDEN[30])]
+    migrated = newest(path, clock)
+    assert migrated.version() == SCHEMA_VERSION >= 24 and [(r[0], r[2]) for r in migrated.history()][23:] == [(n, GOLDEN[n]) for n in range(24, SCHEMA_VERSION + 1)]
     assert migrated.db.execute("SELECT text, seal, wire FROM message ORDER BY id").fetchall() == [("hello", "", None), ("hi there", "", None), ("not for us", "", None)]
     assert migrated.db.execute("SELECT count(*) FROM station_key").fetchone() == (0,)
     migrated.close()
@@ -57,15 +61,15 @@ def test_migration_25_marks_what_the_air_gave_as_the_fm_radios_and_counts_the_st
     db.execute("INSERT INTO message_attempt (message_id, attempt, sent_at, path) VALUES (1, 1, ?, 'WIDE1-1'), (1, 2, ?, '')", (STAMP, LATER))
     db.execute("INSERT INTO own_object (name, kind, lat, lon, symbol_table, symbol_code, comment, alive, created_at, updated_at) VALUES ('LEIRI', 'object', 60.2, 25.0, '/', '-', 'camp', 1, ?, ?)", (STAMP, STAMP))
     db.close()
-    migrated = opened(path, clock)
-    assert migrated.version() == SCHEMA_VERSION >= 25 and [(r[0], r[2]) for r in migrated.history()][24:] == [(25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29]), (30, GOLDEN[30])]
+    migrated = newest(path, clock)
+    assert migrated.version() == SCHEMA_VERSION >= 25 and [(r[0], r[2]) for r in migrated.history()][24:] == [(n, GOLDEN[n]) for n in range(25, SCHEMA_VERSION + 1)]
     d = migrated.db
-    assert d.execute("SELECT source, radio FROM packet ORDER BY id").fetchall() == [("OH2RDG", "fm"), ("OH7JHF-1", "fm"), ("OH2NET", ""), ("OH2GBA", "fm"), ("OH2DUM", "fm")], "the internet's packet has no radio"
-    stations = {r[0]: r[1:] for r in d.execute("SELECT call, heard_fm, heard_hf, last_fm_at, last_hf_at FROM station")}
-    assert stations["OH2MIX"] == (8, 0, LATEST, None), "rf + rf-gated + dummy, and the latest of their times"
-    assert stations["OH2NET"] == (0, 0, None, None), "the internet alone is no radio's"
-    assert stations["OH2RDG"] == (2, 0, STAMP, None)
-    assert d.execute("SELECT direction, radio FROM message ORDER BY id").fetchall() == [("out", ""), ("in", "fm"), ("in", "fm")]
-    assert d.execute("SELECT attempt, radio FROM message_attempt ORDER BY attempt").fetchall() == [(1, "fm"), (2, "fm")]
-    assert d.execute("SELECT name, radio FROM own_object").fetchall() == [("LEIRI", "fm")]
+    assert d.execute("SELECT source, radio FROM packet ORDER BY id").fetchall() == [("OH2RDG", 1), ("OH7JHF-1", 1), ("OH2NET", None), ("OH2GBA", 1), ("OH2DUM", 1)], "the internet's packet has no radio"
+    stations = heard_by(d)
+    assert stations["OH2MIX"] == {1: (8, LATEST, "")}, "rf + rf-gated + dummy, and the latest of their times; the HF radio heard nothing"
+    assert "OH2NET" not in stations and d.execute("SELECT packets, heard_is FROM station WHERE call = 'OH2NET'").fetchall() == [(4, 4)], "the internet alone is no radio's"
+    assert stations["OH2RDG"] == {1: (2, STAMP, "")}
+    assert d.execute("SELECT direction, radio FROM message ORDER BY id").fetchall() == [("out", None), ("in", 1), ("in", 1)]
+    assert d.execute("SELECT attempt, radio FROM message_attempt ORDER BY attempt").fetchall() == [(1, 1), (2, 1)]
+    assert d.execute("SELECT name, radios FROM own_object").fetchall() == [("LEIRI", "1")]
     migrated.close()

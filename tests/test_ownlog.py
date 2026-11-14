@@ -1,21 +1,36 @@
 """The log of our own objects and bulletins (neoaprs/ownlog.py, ownsql.py) on a real database thread: what goes in comes out equal, one row for a name and for a slot, the delete, a row this program did not write,
-and a log with no database."""
+and a log with no database.
+
+Every test runs on each shape of the database the stores know (tests/support/migrated32.py, SHAPES): that of version 30 while it is the program's, where an object's row holds the word of its radio
+(`radio`: fm, hf, both), and that of migration 33, where it holds the ids of its radios (`radios`: "1", "2", "1,2"). The tests at the end are of the second alone."""
 import logging
+import sqlite3
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from neoaprs import packetcodec
 from neoaprs.clock import utc
 from neoaprs.ownbulletin import OwnBulletin
 from neoaprs.ownlog import OwnLog, bulletin_of, bulletin_row, object_of, object_row
 from neoaprs.ownobject import OwnObject
-from neoaprs.store import Store
+from neoaprs.ownsql import object_columns
+from neoaprs.store import DB_NAME, Store
 from tests.support.clock import FixedClock
+from tests.support.migrated32 import SHAPE_IDS, SHAPES, shaped
 from tests.support.storedb import log_at, sql
 
 T0 = utc(2026, 10, 21, 12, 0, 0)
+NEW = pytest.mark.parametrize("shape", [True], indirect=True, ids=SHAPE_IDS.get)       # a test of the shape of migration 33 alone
+
+
+@pytest.fixture(autouse=True, params=SHAPES, ids=SHAPE_IDS.get)
+def shape(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> bool:
+    """The shape of the database the stores write in this test: False that of version 30, True that of migration 33 (`shaped` makes the file to match)."""
+    monkeypatch.setattr(packetcodec, "BY_RADIO", request.param)
+    return bool(request.param)
 
 
 def obj(name: str = "LEADER", **more: object) -> OwnObject:
@@ -29,17 +44,23 @@ def post(slot: str = "BLN3HAMS", **more: object) -> OwnBulletin:
 
 
 async def opened_with_store(tmp_path: Path) -> tuple[OwnLog, Store]:
-    log, store, _ = await log_at(tmp_path, OwnLog)
+    log, store, _ = await log_at(shaped(tmp_path / DB_NAME).parent, OwnLog)
     return log, store
 
 
-def test_an_object_gives_its_row_and_the_row_gives_the_object_back() -> None:
+def test_an_object_gives_its_row_and_the_row_gives_the_object_back(shape: bool) -> None:
+    fm = "1" if shape else "fm"                     # the FM radio, as the row names it
     full = obj(comment="Rescue 1 åäö"[:12], course_deg=0, speed_kmh=12.5, path="WIDE2-1", alive=False, sent=3, last_sent_at=T0 + timedelta(minutes=2), qru_group="RP70", on_request=True)
-    assert object_row(full) == ("LEADER", "object", 60.17, 24.94, "/", ">", "Rescue 1 åäö", 0, 12.5, "WIDE2-1", 0, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:01:00.000000Z", 3, "2026-10-21T12:02:00.000000Z", "RP70", 1, "fm")
+    assert object_row(full) == ("LEADER", "object", 60.17, 24.94, "/", ">", "Rescue 1 åäö", 0, 12.5, "WIDE2-1", 0, "2026-10-21T12:00:00.000000Z", "2026-10-21T12:01:00.000000Z", 3, "2026-10-21T12:02:00.000000Z", "RP70", 1, fm)
     assert object_of(object_row(full)) == full
     plain = obj("AID", kind="item")
     assert object_of(object_row(plain)) == plain and object_row(plain)[7:10] == (None, None, None) and object_row(plain)[14] is None
-    assert object_row(plain)[15:] == ("", 0, "fm") and not object_of(object_row(plain)).on_request and object_of(object_row(plain)).radio == "fm"
+    assert object_row(plain)[15:] == ("", 0, fm) and not object_of(object_row(plain)).on_request and object_of(object_row(plain)).radio == "fm"
+    assert len(object_row(plain)) == len(object_columns()) and object_columns()[-1] == ("radios" if shape else "radio")
+    for word, ids in (("fm", "1"), ("hf", "2"), ("both", "1,2")):
+        chosen = obj(radio=word)
+        assert object_row(chosen)[-1] == (ids if shape else word) and object_of(object_row(chosen)) == chosen and object_of(object_row(chosen)).radios == tuple(int(i) for i in ids.split(","))
+        assert object_of((*object_row(chosen)[:-1], word)) == chosen == object_of((*object_row(chosen)[:-1], ids)), "a row of either shape gives the object"
 
 
 def test_a_bulletin_gives_its_row_and_the_row_gives_the_bulletin_back() -> None:
@@ -88,3 +109,33 @@ async def test_a_log_with_no_database_says_no_instead_of_raising() -> None:
     log = OwnLog(None, FixedClock())
     assert not log.save_object(obj()) and not log.delete_object("X") and not log.save_bulletin(post()) and not log.delete_bulletin("X")
     assert await log.objects() == [] and await log.bulletins() == [] and log.dropped == 4
+
+
+# ---- the shape of migration 33: an object's row names its radios by their ids
+
+@NEW
+async def test_an_object_keeps_the_ids_of_its_radios_and_comes_back_with_them(tmp_path: Path) -> None:
+    log, store = await opened_with_store(tmp_path)
+    assert log.save_object(obj("ONFM")) and log.save_object(obj("ONHF", radio="hf")) and log.save_object(obj("ONBOTH", radio="both"))
+    assert sorted((o.name, o.radio, o.radios) for o in await log.objects()) == [("ONBOTH", "both", (1, 2)), ("ONFM", "fm", (1,)), ("ONHF", "hf", (2,))]
+    assert await sql(store, "SELECT name, radios FROM own_object ORDER BY name") == [("ONBOTH", "1,2"), ("ONFM", "1"), ("ONHF", "2")]
+    assert log.save_object(obj("ONBOTH", radio="hf")), "a change of its radios replaces them"
+    assert await sql(store, "SELECT radios FROM own_object WHERE name = 'ONBOTH'") == [("2",)] and "radio" not in [c[1] for c in await sql(store, "PRAGMA table_info(own_object)")]
+
+
+@NEW
+async def test_an_object_on_radios_beyond_the_two_is_left_out_and_told_and_the_table_refuses_what_names_no_radio(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING, "neoaprs.ownlog")
+    log, store = await opened_with_store(tmp_path)
+    log.save_object(obj("ONFM"))
+    log.save_object(obj("ONTHREE"))
+    assert len(await log.objects()) == 2
+    await sql(store, "UPDATE own_object SET radios = '1,3' WHERE name = 'ONTHREE'")
+    assert [o.name for o in await log.objects()] == ["ONFM"]
+    assert any("own_object" in r.getMessage() and "'1,3'" in r.getMessage() for r in caplog.records)
+    for refused in ("", "0", "fm", "1,", ",1", "1,,2", "1,02", "1 2"):
+        with pytest.raises(sqlite3.IntegrityError, match="own_object_radios"):
+            await sql(store, "UPDATE own_object SET radios = ? WHERE name = 'ONFM'", refused)
+    for wrong in ("", "0", "2,1", "1,1", "both,1", None):
+        with pytest.raises(ValueError, match="radios"):
+            object_of((*object_row(obj())[:-1], wrong))

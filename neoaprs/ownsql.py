@@ -1,13 +1,23 @@
 """The statements of the tables of what we send of our own accord, `own_object` and `own_bulletin`, as functions of a connection that the database thread runs (ownlog.py is the part that asks for them).
 
-A row is a tuple in the order of OBJECT_COLUMNS or BULLETIN_COLUMNS; the codec between a row and a value is ownlog.py's. Nothing here begins or commits a transaction."""
+A row is a tuple in the order of OBJECT_COLUMNS or BULLETIN_COLUMNS; the codec between a row and a value is ownlog.py's. Nothing here begins or commits a transaction.
+
+An object names the radios it goes out on in `radios`: their ids in the table `radio`, ascending, separated by commas (migration 33). Before 33 (a database of version 30, in force until migrations 32
+and 33 are listed: packetcodec.BY_RADIO) the column is `radio`, a word: fm, hf or both."""
 import sqlite3
 from collections.abc import Sequence
 
+from . import packetcodec
 from .dberror import Row, rows
 
-OBJECT_COLUMNS = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request", "radio")
+_OBJECT = ("name", "kind", "lat", "lon", "symbol_table", "symbol_code", "comment", "course_deg", "speed_kmh", "path", "alive", "created_at", "updated_at", "sent", "last_sent_at", "qru_group", "on_request")
+OBJECT_COLUMNS = (*_OBJECT, "radios" if packetcodec.BY_RADIO else "radio")
 BULLETIN_COLUMNS = ("slot", "group_name", "text", "created_at", "sent", "first_sent_at", "last_sent_at")
+
+
+def object_columns() -> tuple[str, ...]:
+    """The columns of own_object in the order of an object's row, as the database has them now."""
+    return (*_OBJECT, "radios" if packetcodec.BY_RADIO else "radio")
 
 
 def _upsert(table: str, columns: tuple[str, ...]) -> str:
@@ -15,13 +25,12 @@ def _upsert(table: str, columns: tuple[str, ...]) -> str:
     return f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join('?' * len(columns))}) ON CONFLICT({columns[0]}) DO UPDATE SET {update}"
 
 
-_SAVE_OBJECT = _upsert("own_object", OBJECT_COLUMNS)
 _SAVE_BULLETIN = _upsert("own_bulletin", BULLETIN_COLUMNS)
 
 
 def save_object(db: sqlite3.Connection, row: Sequence[object]) -> None:
     """Keeps an object, replacing the one of the same name."""
-    db.execute(_SAVE_OBJECT, tuple(row))
+    db.execute(_upsert("own_object", object_columns()), tuple(row))
 
 
 def delete_object(db: sqlite3.Connection, name: str) -> int:
@@ -31,7 +40,7 @@ def delete_object(db: sqlite3.Connection, name: str) -> int:
 
 def all_objects(db: sqlite3.Connection) -> list[Row]:
     """Every object, the oldest first."""
-    return rows(db.execute(f"SELECT {', '.join(OBJECT_COLUMNS)} FROM own_object ORDER BY created_at, name"))
+    return rows(db.execute(f"SELECT {', '.join(object_columns())} FROM own_object ORDER BY created_at, name"))
 
 
 def save_bulletin(db: sqlite3.Connection, row: Sequence[object]) -> None:
