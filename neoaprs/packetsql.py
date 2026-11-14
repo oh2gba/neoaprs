@@ -15,7 +15,7 @@ STATION_COLUMNS = ("call", "kind", "reported_by", "symbol_table", "symbol_code",
                    "last_position_at", "last_status", "last_comment", "packets", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "snr", "rssi", "signal_at")
 PACKET_LIST = ", ".join(PACKET_COLUMNS)
 _PACKET_PLACES = ", ".join("?" * len(PACKET_COLUMNS))
-NOT_HF = "(radio IS NULL OR radio NOT IN (SELECT id FROM radio WHERE kind = 'hf'))"      # not of a radio of the kind hf: a packet without a radio, and one of a radio the table does not have, are not
+NOT_HF = "(radio IS NULL OR radio NOT IN (SELECT id FROM radio WHERE kind = 'hf'))"      # not of a radio of the kind hf (a packet without a radio, and one of a radio the table does not have, are not): `heard_routes` alone, which goes when the packet log reads `radio_routes`
 
 
 def station_columns() -> tuple[str, ...]:
@@ -92,9 +92,15 @@ def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, spa
         ") ORDER BY id DESC LIMIT ?", (call, limit(count), own, call, limit(count), limit(span), needle, limit(count), limit(count))))
 
 
+def radio_routes(db: sqlite3.Connection, count: int) -> list[Row]:
+    """(source, path, raw, heard_at, radio) of the latest `count` packets that were heard on a radio, any radio (not those from the internet: they came by no route), the oldest first: how each radio's
+    packets of a station reached us (stationbook.route_groups)."""
+    return rows(db.execute(f"SELECT source, path, raw, heard_at, radio FROM (SELECT id, source, path, raw, heard_at, radio FROM packet WHERE {heard(False)} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
+
+
 def heard_routes(db: sqlite3.Connection, count: int) -> list[Row]:
-    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio (not those from the internet: they came by no route; not those of a radio of the kind hf: every frame there is
-    direct, the routes are those of the other radios' digipeaters), the oldest first."""
+    """(source, path, raw, heard_at) of the latest `count` packets that were heard on the radio, not those of a radio of the kind hf, the oldest first: the routes as the packet log read them before they were
+    by radio (one shape without the radio, so without HF's packets). Kept for packetlog.PacketLog.deliveries until it reads `radio_routes`; then it goes, NOT_HF with it."""
     return rows(db.execute(f"SELECT source, path, raw, heard_at FROM (SELECT id, source, path, raw, heard_at FROM packet WHERE {heard(False)} AND {NOT_HF} ORDER BY id DESC LIMIT ?) ORDER BY id", (limit(count),)))
 
 

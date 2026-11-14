@@ -5,6 +5,9 @@ The method is that of Bob Bruninga's text "The ALOHA Circle" (aprs.org, 7 Novemb
 and rises by one after each digipeater (everything farther away is repeated once more). The circle ends at the station where the total reaches 1800, the packets a 1200 baud channel carries in 30 minutes. If the stations heard
 never reach that, the channel is not full and there is no circle.
 
+The circle is a radio's (plan rule 3.8): it is worked out for a radio whose type says it shares a 1200 baud channel (an FM radio's), from the stations that radio heard; the stations another radio heard
+(an HF radio's, hundreds of kilometres away) are not on that channel. Without a radio named, every station heard on the air counts (as before the radios were by id).
+
 Pure code: the stations are those of the station book, and the kinds are told by their symbols."""
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -12,6 +15,7 @@ from typing import Literal
 
 from .geo import distance_km
 from .policy import ALOHA_MOVING_KMH, ALOHA_PACKETS, ALOHA_WEIGHT_DIGI, ALOHA_WEIGHT_HOME, ALOHA_WEIGHT_MOBILE, ALOHA_WEIGHT_MOVING, ALOHA_WEIGHT_WEATHER, ALOHA_WINDOW_MIN
+from .radiospec import RadioId
 from .station import Station
 from .symbols import is_mobile
 
@@ -39,17 +43,22 @@ def kind_of(station: Station) -> Kind:
     return "home"
 
 
-def counted(station: Station, since: datetime) -> bool:
-    """A station of the air, not an object or an item, with a position, heard on RF since `since`. A packet that an iGate put on the air from the internet, or that came from APRS-IS, does not show that the station is on the channel from where it is."""
-    return station.kind == "station" and not station.is_me and station.has_position and station.last_on_air_at is not None and station.last_on_air_at >= since
+def counted(station: Station, since: datetime, radio: RadioId | None = None) -> bool:
+    """A station of the air, not an object or an item, with a position, heard on RF since `since` (on the radio `radio` when one is named). A packet that an iGate put on the air from the internet, or that came
+    from APRS-IS, does not show that the station is on the channel from where it is."""
+    if station.kind != "station" or station.is_me or not station.has_position or station.last_on_air_at is None or station.last_on_air_at < since:
+        return False
+    last = None if radio is None else station.heard_on(radio).last_at
+    return radio is None or (last is not None and last >= since)
 
 
-def circle(position: tuple[float, float] | None, stations: list[Station], now: datetime) -> Circle | None:
-    """The ALOHA circle round `position`, or None while the position is not known or the stations heard do not fill the channel."""
+def circle(position: tuple[float, float] | None, stations: list[Station], now: datetime, radio: RadioId | None = None) -> Circle | None:
+    """The ALOHA circle round `position` on the channel of the radio `radio` (the stations it heard; every station of the air when none is named), or None while the position is not known or the stations heard
+    do not fill the channel."""
     if position is None:
         return None
     since = now - timedelta(minutes=ALOHA_WINDOW_MIN)
-    near = sorted(((distance_km(*position, s.lat, s.lon), s.call, s) for s in stations if counted(s, since) and s.lat is not None and s.lon is not None), key=lambda t: (t[0], t[1]))
+    near = sorted(((distance_km(*position, s.lat, s.lon), s.call, s) for s in stations if counted(s, since, radio) and s.lat is not None and s.lon is not None), key=lambda t: (t[0], t[1]))
     total, copies = 0, 1
     for number, (km, _, station) in enumerate(near, 1):
         kind = kind_of(station)

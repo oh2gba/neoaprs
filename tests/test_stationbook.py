@@ -15,9 +15,10 @@ from neoaprs.clock import utc
 from neoaprs.kiss import KissDecoder
 from neoaprs.ownobject import OwnObject
 from neoaprs.packet import ItemReport, Message, ObjectReport, Other, Packet, Position, Status, ThirdParty, Undecoded
-from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard
+from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard, RadioSpec
+from neoaprs.route import Route
 from neoaprs.station import TRACK_MAX, Station
-from neoaprs.stationbook import StationBook
+from neoaprs.stationbook import StationBook, carries_path
 from neoaprs.stationnotes import DEFINITIONS_MAX
 from tests.support.files import fixture_bytes
 
@@ -272,12 +273,18 @@ def test_seed_fills_the_book_without_a_word_and_gives_each_position_a_track() ->
 
 # ---- how the packets reached us (neoaprs/route.py)
 
-def test_a_packet_heard_over_hf_is_no_route_for_a_message_by_fm() -> None:
-    book = StationBook()
+@pytest.mark.parametrize("typed", [False, True], ids=["the radios of before", "the radios' types"])
+def test_a_packet_heard_over_hf_is_hfs_route_and_no_route_for_a_message_by_fm(typed: bool) -> None:
+    """Rule 3.3: the HF radio keeps how the station's packets reached it (every frame there direct), and the station's routes as a whole, which an FM message's path and the page read, are those of the radios
+    that may carry a path: the HF radio's type allows none (and before the book is told the types, radio 2 is the HF radio)."""
+    specs = (RadioSpec(FM_ID, "fm", "kiss", "", True, 1), RadioSpec(HF_ID, "hf", "mercury", "", True, 2))
+    book = StationBook(carries_path=lambda radio: carries_path(specs, radio)) if typed else StationBook()
     book.take(packet(Status("x"), path=("OH2RCH-2*",)))
     book.take(replace(packet(Status("x"), path=()), radio_id=HF_ID))
     station = book.get("OH2AAA")
     assert station is not None and station.deliveries.direct == 0 and station.heard_on(HF_ID).count == 1 and station.deliveries.heard_via() == [("OH2RCH-2", 1)]
+    assert (station.routes[HF_ID].direct, station.routes[HF_ID].by_route, station.routes[FM_ID].heard_via()) == (1, {}, [("OH2RCH-2", 1)]), "each radio's own routes"
+    assert station.last_direct_at is None and station.best_route == Route(("OH2RCH-2",), "OH2RCH-2", False), "heard direct only over HF: not direct for the station's routes"
     assert station.heard_by == {FM_ID: RadioHeard(1, T0, ("OH2RCH-2*",)), HF_ID: RadioHeard(1, T0, ())}, "a packet made without a radio is radio 1's; each radio keeps the path it heard the station by"
     assert (station.heard_fm, station.heard_hf, station.last_fm_at, station.last_hf_at) == (1, 1, T0, T0), "the old names say the same"
 

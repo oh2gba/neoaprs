@@ -270,7 +270,7 @@ def test_with_three_radios_the_main_one_is_the_first_enabled_and_a_station_goes_
     registry = rig.registry
     ids = lambda radio: None if radio is None else radio.id                                # noqa: E731
     assert [r.id for r in registry.enabled()] == [3, 2, 1] and ids(registry.main) == 3 and ids(registry.email()) == 1
-    assert (ids(registry.for_station("OH2NEAR")), ids(registry.for_station("OH2FAR")), ids(registry.for_station("OH2PICK")), ids(registry.for_station("OH2NEVER"))) == (1, 2, 2, 1)
+    assert (ids(registry.for_station("OH2NEAR")), ids(registry.for_station("OH2FAR")), ids(registry.for_station("OH2PICK")), ids(registry.for_station("OH2NEVER"))) == (1, 2, 2, 3), "a call never heard goes on the main radio (rule 3.2)"
     rig.put(with_radios(ON_AIR, [spec(1, position=3, enabled=False), spec(2, "hf", position=2), spec(3, position=1)]))
     assert (ids(registry.for_station("OH2NEAR")), ids(registry.for_station("OH2PICK")), ids(registry.email())) == (3, 2, None), "radio 1 off: the main radio, the choice while it is on, no email"
     assert ids(registry.for_packet(replace(from_internet("OH2NEAR", b">on FM", T0), via="rf", radio="fm"))) == 3, "a packet that came on a radio now off is answered on the main one"

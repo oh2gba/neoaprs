@@ -107,6 +107,10 @@ class StubPick:
     def main(self) -> LineAir | None:
         return next(iter(self.enabled()), None)
 
+    def choice(self, call: str) -> RadioId | None:
+        """The operator's radio for the station, as stored (the registry's StationChoices.choice)."""
+        return self.chosen.get(call)
+
     def for_station(self, call: str) -> LineAir | None:
         if call in self.chosen and (radio := self.get(self.chosen[call])) is not None:
             return radio

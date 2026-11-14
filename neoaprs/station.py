@@ -86,7 +86,6 @@ class Station:
     signal_at: datetime | None = None           # when that packet was heard; None until one was
     position_via: Via | None = None             # the channel of the packet that gave the position (the latest one wins); None without a position and for our own station
     own_path: tuple[str, ...] = ()              # the digipeaters of a station that no radio heard: those an object of ours is sent by (the path of a packet that was heard is its radio's, in `heard_by`)
-    latest_path: tuple[str, ...] | None = field(default=None, repr=False, compare=False)   # the digipeaters of the packet noted last in this run whatever its time (a clock that stepped back, a tie), and after a restart the path of the latest route the database kept for a station radio 2 heard last (its packets are no route): what `last_path` says while it is set, as before the radios were by id; not kept in the cache (R2 deletes it with the HF exception)
     last_via: str = ""                          # the iGate, when the latest packet came as a third-party packet (not kept in the cache: it is read again from the packets at the start)
     weather: Weather | None = None              # the latest observation of a weather station (not kept in the cache: it is read again from the weather log at the start)
     weather_at: datetime | None = None          # when it was heard
@@ -109,7 +108,8 @@ class Station:
     own: bool = False                           # an object or an item of ours, which we send (services/ownobjects.py): the settings' station is `is_me`, this is `own`; not kept in the cache, the objects of ours have a table of their own
     gated: int = 0                              # how many third-party packets it put on the air that we heard (it is an iGate): counted from the packets heard in this run and the latest the database kept, and only while it is in the book; not the same as `deliveries.gated`, the packets of this station that a gate put on the air
     igate: bool = False                         # a capabilities packet of its own said `IGATE` (not kept in the cache: it is read again from the latest packets at the start)
-    deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it reached us (neoaprs/route.py)
+    deliveries: Deliveries = field(default_factory=Deliveries)     # how the packets we heard from it on the radios that may carry a path reached us (neoaprs/route.py): what is read of the station as a whole (heard direct, by which digipeaters, the best route, the path lately heard); a radio that carries none (HF) has its own in `routes` and no part here
+    routes: dict[RadioId, Deliveries] = field(default_factory=dict)  # how its packets reached us on each radio, by the radio's id (rule 3.3: what each radio heard of it, the route too), every radio's whatever it may carry; not kept in the cache, read again from the packets at the start
     internet_reach: Reach | None = None         # how its latest internet packet got there: heard by an iGate, or sent from an app (neoaprs/reach.py; not kept in the cache: it is read again from the latest packets at the start)
     route_marks: tuple[RouteMark, ...] = ()     # the route of its latest packet and the one before it that came another way, any channel, newest first, for the map (not kept in the cache either)
 
@@ -132,20 +132,27 @@ class Station:
         return found
 
     def note_on(self, radio: RadioId, at: datetime, path: tuple[str, ...]) -> None:
-        """A packet of it came on the radio at `at` by the digipeaters `path`: one more for that radio, which heard it last now, and its path is the station's latest."""
+        """A packet of it came on the radio at `at` by the digipeaters `path`: one more for that radio, with the time and the path of this packet."""
         self.heard_by[radio] = RadioHeard(self.heard_on(radio).count + 1, at, path)
-        self.latest_path = path
 
-    def seed_route_path(self, path: tuple[str, ...]) -> None:
-        """The path of the latest route the database kept of it (the routes leave out the packets of radio 2, the HF radio of today): the path of the latest packet of the radio that heard it last; while
-        radio 2 heard it last, the path of the latest of the other radios, and what `last_path` says until the next packet, as before the radios were by id."""
-        if self.last_radio != HF_ID:
-            self.last_path = path
-            return
-        other = self._latest_of(radio for radio in self.heard_by if radio != HF_ID)
-        if other is not None:
-            self._heard_as(other, last_path=path)
-        self.latest_path = path
+    def note_route(self, radio: RadioId, route: Route, count: int = 1, at: datetime | None = None, before: datetime | None = None, *, carries_path: bool = True) -> None:
+        """`count` of its packets came on the radio by the route (the latest of them at `at`, the one before at `before`): counted for that radio (`routes`) and, when the radio may carry a path
+        (`carries_path`), for the station as a whole (`deliveries`)."""
+        self.routes.setdefault(radio, Deliveries()).note(route, count, at, before)
+        if carries_path:
+            self.deliveries.note(route, count, at, before)
+
+    def routes_on(self, radio: RadioId) -> Deliveries | None:
+        """How its packets reached us on the radio; None for a radio no packet of it was counted on."""
+        return self.routes.get(radio)
+
+    def seed_path(self, radio: RadioId, path: tuple[str, ...]) -> None:
+        """The path of the latest packet of it that the radio heard, as the packets the database kept say (the start): that radio's own path, when the radio heard it; of a station the cache has no radio
+        for, the path it shows (`own_path`), as `last_path` is set."""
+        if radio in self.heard_by:
+            self._heard_as(radio, last_path=path)
+        elif not self.heard_by:
+            self.own_path = path
 
     def _heard_as(self, radio: RadioId, **changed: Any) -> None:
         """What the radio heard of it as `changed` says; a radio with a count of 0 heard nothing and has no entry (the time or the path of such a radio is dropped with it)."""
@@ -170,16 +177,13 @@ class Station:
 
         @property
         def last_path(self) -> tuple[str, ...]:
-            """The digipeaters of the latest packet heard on a radio (an `is` packet came by no route): those of the packet noted last in this run (`latest_path`), else those of the radio that heard it
-            last; of a station no radio heard, `own_path`."""
-            if self.latest_path is not None:
-                return self.latest_path
+            """The digipeaters of the latest packet heard on a radio (an `is` packet came by no route): those of the packet the radio that heard it last heard last (`last_radio`, by the time); of a
+            station no radio heard, `own_path`."""
             radio = self.last_radio
             return self.own_path if radio is None else self.heard_by[radio].last_path
 
         @last_path.setter
         def last_path(self, path: tuple[str, ...]) -> None:
-            self.latest_path = None
             radio = self.last_radio
             if radio is None:
                 self.own_path = path

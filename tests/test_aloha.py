@@ -1,7 +1,9 @@
 """The ALOHA circle (neoaprs/aloha.py, neoaprs/services/aloha.py): the method of WB4APR's text on made-up stations at known distances (due north of the position, 1 km = 1/111.195 degree), the kinds of station, what is left out,
-the edges (no position, too few stations, one at the position), the service that works it out again, and the value on the wire."""
+the edges (no position, too few stations, one at the position), the service that works it out again, and the value on the wire. The circle of a radio (rule 3.8) counts the stations that radio heard, and
+the service draws the main radio's while its type shares a 1200 baud channel (FM), none for an HF main radio or none at all."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,8 @@ from neoaprs.aloha import circle, kind_of
 from neoaprs.clock import utc
 from neoaprs.geo import KM_PER_DEGREE
 from neoaprs.policy import ALOHA_PACKETS, ALOHA_WINDOW_MIN
+from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard, RadioId
+from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.services.aloha import Aloha
 from neoaprs.stationbook import Station, StationBook
 from tests.support.clock import FixedClock
@@ -115,6 +119,45 @@ def replace_heard(s: Station, heard: datetime, **kw: object) -> Station:
     return out
 
 
+def heard_on(stations: list[Station], *radios: RadioId, at: datetime = NOW) -> list[Station]:
+    """The stations as heard by these radios at `at` (the station book's `heard_by`)."""
+    for station in stations:
+        station.heard_by = {radio: RadioHeard(1, at) for radio in radios}
+    return stations
+
+
+def test_the_circle_of_a_radio_counts_the_stations_that_radio_heard() -> None:
+    fm, hf = heard_on(homes(450), FM_ID), heard_on(homes(450, first_km=451.0), HF_ID)
+    found = circle(HOME, fm + hf, NOW)
+    assert found is not None and found.stations == 900, "without a radio named: every station of the air, as before"
+    assert circle(HOME, fm + hf, NOW, FM_ID) is None, "the FM radio's channel has half of them: not full"
+    assert circle(HOME, fm + heard_on(homes(450, first_km=451.0), FM_ID, HF_ID), NOW, FM_ID) is not None, "a station both radios heard is on the FM channel"
+    late = heard_on(homes(450, first_km=451.0), FM_ID, at=NOW - timedelta(minutes=ALOHA_WINDOW_MIN + 1))
+    for station in late:
+        station.heard_by[HF_ID] = RadioHeard(1, NOW)
+    assert circle(HOME, fm + late, NOW, FM_ID) is None, "heard on the air lately, but on FM too long ago"
+
+
+def test_the_service_draws_the_main_radios_circle_while_its_type_shares_a_channel() -> None:
+    clock = FixedClock(NOW)
+    book = StationBook(clock)
+    book.seed(heard_on(homes(900), FM_ID))
+    book.set_me("OH2GBA", *HOME)
+    main: list[object] = [SimpleNamespace(id=FM_ID, allowed=FM_ALLOWED)]
+    aloha = Aloha(book, clock, main=lambda: main[0])           # type: ignore[arg-type, return-value]
+    aloha.refresh()
+    assert aloha.radius_km == 900.0, "the FM radio heard them"
+    main[0] = SimpleNamespace(id=HF_ID, allowed=HF_ALLOWED)
+    aloha.refresh()
+    assert aloha.radius_km is None, "an HF main radio has no 1200 baud channel"
+    main[0] = None
+    aloha.refresh()
+    assert aloha.radius_km is None, "no radio, no circle"
+    main[0] = SimpleNamespace(id=HF_ID, allowed=FM_ALLOWED)
+    aloha.refresh()
+    assert aloha.radius_km is None, "a main radio of a shared channel that heard none of them"
+
+
 def test_no_position_and_no_stations_give_no_circle() -> None:
     assert circle(None, homes(900), NOW) is None
     assert circle(HOME, [], NOW) is None
@@ -173,7 +216,8 @@ async def test_the_page_is_told_the_radius_in_the_topic_map_and_when_our_positio
     assert page.topics["map"]["aloha_km"] is None
     lat, lon = e.ctl.config.station_position or (0.0, 0.0)
     now = e.ctl.clock()
-    stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now) for n in range(900)]
+    stations = [Station(f"OH2H{n:03d}", first_heard=now, last_heard=now, last_rf_at=now, heard_rf=1, lat=lat + (1.0 + n) / KM_PER_DEGREE, lon=lon, symbol_code="-", symbol_table="/", last_position_at=now,
+                        heard_by={FM_ID: RadioHeard(1, now)}) for n in range(900)]                   # (heard by radio 1, the main radio, as the book counts them)
     e.ctl.stationbook.seed(stations)
     e.ctl.aloha.refresh()
     await page.until(lambda: page.topics["map"]["aloha_km"] is not None)

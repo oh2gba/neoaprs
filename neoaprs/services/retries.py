@@ -1,7 +1,7 @@
 """The retry schedule of the messages being sent: when each one needs attention again (message.due_at), the ticker that looks at the clock once a `tick_sec` and makes the attempt that is due or ends a message
 that has had its last, and the waits that do not run while the radio is away.
 
-The radio is the radio of the message (`Host.radio_of`: the station's, services/radioset.py's RadioPick `for_station`), and each radio that is on is watched on its own, by its id: while a message's radio is not usable, or transmitting is switched off (the
+The radio is the radio of the message (`Host.radio_of`: the one of its first attempt while it keeps it, else the station's, services/messageradio.py), and each radio that is on is watched on its own, by its id: while a message's radio is not usable, or transmitting is switched off (the
 interlock), an attempt that is due waits, it is not used up, and when that radio is back the waits of the messages on it are moved on by the time it was away; a message to a station heard on HF alone is attempted
 while the FM radio is silent at night, and the acks that waited for a radio go when that radio takes frames (`first`, services/acks.py). The log says so once for each time a radio was away (`radio_up`).
 

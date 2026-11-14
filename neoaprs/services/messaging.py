@@ -17,6 +17,9 @@ not expected to be acked (given 1 or 2 attempts: the email gateway, a bulletin, 
 While the Tnc is not connected, or the radio is silent, or transmitting is switched off (receive only: `station/transmit`), an attempt that is due waits (it is not used up, nothing fails, the waits that were running are moved on by the time it
 was away) and the log says so once; a new message, and a retry, is refused at once while it is switched off (code `transmit.off`) and an ack for a message we receive is not sent (nothing is queued).
 
+The radio of a message is its station's (services/messageradio.py: the operator's choice, else the radio that heard the station lately, neoaprs/messagerule.py), asked at its first attempt and kept until the
+message ends, unless the operator chooses another radio for the station or that radio is switched off: then the next attempt is fitted to the radio of now, and one it cannot carry fails with the reason.
+
 Incoming (`on_packet`, from the Tnc): the inbox (services/inbox.py) keeps a message to us (state "received"), answers it with an ack when it carries an id (`ackMM`, or the exact copy of a reply-ack number: `ackMM}` for `{MM}`, `ackMM}AA` for `{MM}AA`), and
 lets an ack, a rej or the reply-ack of a message to us settle the message of ours that it quotes.
 
@@ -28,7 +31,7 @@ Every message is kept: those to us, those we send with every change of their sta
 "overheard" (once for a repeat within DUPLICATE_WINDOW_SEC), apart from the conversations. A message to a bulletin or a group (BLN1, BLNA, BLN3HAMS, ALL, CQ, QST) goes to the
 board (services/bulletins.py) instead, and is never acked; a query or a definition of telemetry channels is not kept at all.
 
-A station may have a path of its own (services/prefbook.py, which the composition root gives this as `paths`: the station's own path, empty for direct; else, for attempts 1 and 2 of a message to a station, the path lately heard to reach
+A station may have a path of its own on the radio a frame goes out on (services/prefbook.py, which the composition root gives this as `paths`: the station's own path, empty for direct; else, for attempts 1 and 2 of a message to a station, the path lately heard to reach
 it (route.automatic_path, chosen when the attempt is sent), else `beacon/path`), and every message and every ack to the station goes by way of the own path, or by `beacon/path`, with RFONLY after it when the station is RF only (a path that would be more than 8 digipeaters with it is no path: a message to the station is refused, an attempt
 waits, an ack is not sent, and the log says "path too long for RF only")."""
 import asyncio
@@ -38,22 +41,24 @@ from dataclasses import replace
 
 from neoaprs import ax25, cipher
 from neoaprs.bulletin import board_slot
-from neoaprs.aprsmessage import MessageError, format_message
+from neoaprs.aprsmessage import MessageError
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import EMAIL_GATEWAY, MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
+from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
 from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
 from neoaprs.services.acks import Acks
+from neoaprs.radiotype import RadioId
 from neoaprs.services.answers import as_pick, radio_word
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox, shared_with
+from neoaprs.services.messageradio import MessageRadios, info, named
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
-from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
+from neoaprs.services.radioset import AirRadio, RadioPick, path_on
 from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
 from neoaprs.source import Source
@@ -70,36 +75,22 @@ def _in_line(record: MessageRecord) -> bool:
     return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
 
 
-def _info(to: str, text: str, ident: str | None, reply: str | None) -> bytes:
-    """The information field of a message: `:` and the body, with the reply-ack number `{ident}reply` ("" for none) when `reply` is given (the format's own refusals are told as MessagingError)."""
+def _sealed(keyring: Keyring | None, ours: str, to: str, text: str) -> str:
+    """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
+    if keyring is None:
+        raise MessagingError("this daemon has no keys")
+    keyring.refuse_unless_on()
+    shared = shared_with(keyring, to)
+    if shared is None:
+        raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
     try:
-        return b":" + format_message(to, text, ident, reply)
-    except MessageError as e:
-        raise MessagingError(str(e)) from None
-
-
-def _named(name: str) -> str:
-    """A station as the overheard messages name it: a call in its normal form, else (an addressee that is no call) the text as it is."""
-    try:
-        return normal_name(name)
-    except CallsignError:
-        return name.strip()
-
-
-def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> AirRadio:
-    """The radio a message of ours to the station goes out on: the station's (`for_station`); the email radio for the email gateway, which is a station of the internet reached through the iGates that hear
-    the radio and never over HF, so a mail is refused (the code `message.email_fm_off`) while there is none. MessagingError while there is no radio at all."""
-    pick = as_pick(radios, config)
-    radio = pick.email() if to == EMAIL_GATEWAY else pick.for_station(to)
-    if radio is None and to == EMAIL_GATEWAY:
-        raise MessagingError("email goes out over the FM radio, which is off", "message.email_fm_off")
-    if radio is None:
-        raise MessagingError(NO_RADIO)
-    return radio
+        return cipher.seal(shared, ours, to, text)
+    except cipher.CipherError as e:
+        raise MessagingError(str(e), e.code, **e.params) from None
 
 
 class Messaging:
-    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None, RadioId], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
                  qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
@@ -108,7 +99,7 @@ class Messaging:
         self._config = config
         interlock = Interlock(config)
         self._log = messagelog
-        self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message (PrefBook.path_for)
+        self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message, on a radio (PrefBook.path_for)
         self.clock, self.tick_sec = clock, tick_sec
         self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other, never in a burst
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
@@ -118,6 +109,7 @@ class Messaging:
         self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
+        self.message_radios = MessageRadios(radios, config, lambda number: next((a.radio_id for a in reversed(self.delivery.attempts_of(number))), None))     # the radio each message keeps from its first attempt, after a restart its last one's (services/messageradio.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
         self.inbox = Inbox(self, config, messagelog, TaskSet(log, "messaging"), board, alert, qru, qru_answer, keyring)       # what the Tnc hears (services/inbox.py); `board` takes the messages to bulletins and groups, `alert` the first copy of each message to us, `qru` a request to QRU, `qru_answer` whether a message to us is a QRU server's answer (not kept)
 
@@ -177,7 +169,7 @@ class Messaging:
         if locked:
             if board is not None or once:
                 raise MessagingError("a bulletin or a query cannot be encrypted")
-            return await self._send(ours, to, text, False, "open", self._sealed(ours, to, text))
+            return await self._send(ours, to, text, False, "open", _sealed(self.keyring, ours, to, text))
         try:
             check_text(text)
         except MessageError as e:
@@ -198,25 +190,12 @@ class Messaging:
             raise MessagingError(f"{to} is our own call")
         return await self._send(ours, to, self.keyring.key_text(), False, "key", None)
 
-    def _sealed(self, ours: str, to: str, text: str) -> str:
-        """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
-        if self.keyring is None:
-            raise MessagingError("this daemon has no keys")
-        self.keyring.refuse_unless_on()
-        shared = shared_with(self.keyring, to)
-        if shared is None:
-            raise MessagingError(f"no key from {to}: it has to send its key first", "lock.no_key", call=to)
-        try:
-            return cipher.seal(shared, ours, to, text)
-        except cipher.CipherError as e:
-            raise MessagingError(str(e), e.code, **e.params) from None
-
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
-        radio = station_radio(self._given, self._config, to)
+        radio = self.message_radios.station(to)
         if radio.state is Source.State.SILENT:
             raise MessagingError(radio.why_unusable())
-        self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM)          # (the settings make a frame, and the text one that the radio carries)
+        self._frame(info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM, radio=radio)          # (the settings make a frame, and the text one that the radio carries)
         ident = None if once else self.acks.allocate(self._records.values())
         record = await self._log.insert(MessageRecord(0, self.clock(), "out", ours, to, text, ident, "sending", attempts_max=1 if once else attempts_for(to), seal=seal, wire=wire))
         if record is None:
@@ -231,10 +210,11 @@ class Messaging:
         record = self._ours(number)
         if record.state not in RETRYABLE:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
-        self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the radio now is refused to the page, not sent to fail again)
+        self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the station's radio now is refused to the page, not sent to fail again)
         log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
         record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None)
         self.delivery.restart(number)
+        self.message_radios.forget(number)                     # (it is given the station's radio of now at its first attempt)
         self.put(record)
         return self.attempt(record)
 
@@ -286,7 +266,7 @@ class Messaging:
         """Removes every message we only overheard `from_call` sending to `to_call` (the pair as the Messages list shows it) from the database in one write, from here and (by `removed`, one for each) from every
         page. The conversations, the messages we sent and the ones sent to us are not touched. Returns how many the database had. Raises MessagingError when there is none of that pair, or when the database
         would not take the removal (the messages are then kept)."""
-        sender, addressee = _named(from_call), _named(to_call)
+        sender, addressee = named(from_call), named(to_call)
         await asyncio.gather(*self.inbox.tasks, return_exceptions=True)          # (a message that is being kept is part of the pair)
         held = [r for r in self._records.values() if r.state == "overheard" and r.from_call == sender and r.to_call == addressee]
         count = await self._log.delete_overheard(sender, addressee)
@@ -304,6 +284,7 @@ class Messaging:
         self.retries.forget(number)
         self._refused.pop(number, None)
         self.delivery.drop(number)
+        self.message_radios.forget(number)
         if gone is not None:
             self.removed.emit(gone)
 
@@ -314,20 +295,21 @@ class Messaging:
         return record
 
     def radio_of(self, record: MessageRecord) -> AirRadio | None:
-        """The radio the message goes out on (services/retries.py gates each attempt by it); None while it has none (the email gateway with no email radio, no radio at all)."""
+        """The radio the message goes out on (services/messageradio.py: the one of its first attempt while it may keep it; services/retries.py gates each attempt by it); None while it has none (the email
+        gateway with no email radio, no radio at all)."""
         try:
-            return station_radio(self._given, self._config, record.to_call)
+            return self.message_radios.of(record)
         except MessagingError:
             return None
 
-    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
+    def _frame(self, field: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
         """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given), for `radio` (the
         one an ack goes back on; the station's radio when none is named): its path rules and its frame cap. A frame longer than the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number),
         is refused with the code `message.too_long_for_radio`: a message is never cut."""
         c = self._config()
-        radio = radio or station_radio(self._given, self._config, to)        # (the station's radio: FM unless it was heard on HF alone)
+        radio = radio or self.message_radios.station(to)
         try:
-            frame = our_frame(c, path_on(radio, c, self._paths(to, attempt)), info)
+            frame = our_frame(c, path_on(radio, c, self._paths(to, attempt, radio.id)), field)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:
@@ -343,8 +325,8 @@ class Messaging:
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
-            frame = self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
-            radio = station_radio(self._given, self._config, record.to_call)
+            radio = self.message_radios.of(record)
+            frame = self._frame(info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1, radio=radio)
             sent = radio.send_frame(frame)
         except MessagingError as e:
             if e.code == "message.too_long_for_radio":
@@ -357,6 +339,7 @@ class Messaging:
         if not sent:
             return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
         at = self.pace.stamp()
+        self.message_radios.sent(record, radio)
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)
         if record.msg_id is None:
@@ -370,6 +353,8 @@ class Messaging:
         """A new or changed message: held, planned, kept in the database and told. When its state changed, the other messages being sent to the station are told again: one of them may wait, or not, now."""
         before = self._records.get(record.id)
         self._records[record.id] = record
+        if record.state != "sending":
+            self.message_radios.forget(record.id)
         self.retries.plan(record)
         if before is not None:
             self._log.update_state(record)

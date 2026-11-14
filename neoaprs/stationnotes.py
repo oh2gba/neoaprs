@@ -7,7 +7,7 @@ from .aprstelemetry import Telemetry, TelemetryDefinition, apply_definition, is_
 from .bulletin import board_slot
 from .device import MICE_BODY, MICE_DUMB, MICE_IDENTIFIERS
 from .packet import DUMMY, IS, RF_GATED, ItemReport, Message, ObjectReport, Other, Packet, Position
-from .radiotype import FM_ID, HF_ID
+from .radiotype import FM_ID, HF_ID, RadioId
 from .reach import mark_of, pushed, reach_of
 from .route import route_of
 from .station import RadioPlace, Station, add_track_point
@@ -16,10 +16,17 @@ DEFINITIONS_MAX = 500               # stations whose telemetry definitions are k
 IGATE = "IGATE"                     # the token of a capabilities packet (`<IGATE,MSG_CNT=2,LOC_CNT=10`) with which a station says it is an iGate
 
 
-def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
+def old_carries_path(radio: RadioId) -> bool:
+    """Whether the radio's routes are the station's as a whole, where nobody has said which radios may carry a path: every radio but radio 2, the HF radio of before the round (what the station book
+    takes until the composition root gives it the radios' types: stationbook.carries_path)."""
+    return radio != HF_ID
+
+
+def note_heard(station: Station, packet: Packet, route: bool = True, *, carries_path: Callable[[RadioId], bool] = old_carries_path) -> None:
     """A packet of the station was received: it is counted, with the time, for the channel it came by (`heard_rf`, `heard_rf_gated`, `heard_is`, `heard_dummy` and the time of the latest of each) and in `packets`, and the station
     was last heard now. One heard on a radio (a Dummy radio's too) is counted for that radio by its id, with the time and the path it came by (`heard_by`; one made without a radio, a test's, is radio 1's), and, with `route`, for its route
-    (one of the HF radio, radio 2, is not: it came by no digipeater); one from the internet came by no route and leaves them as they were.
+    on that radio (`Station.routes`, any radio's), and for the station's routes as a whole where the radio may carry a path (`carries_path`: an HF radio's frames are all direct, and they are not the way an
+    FM message reaches the station); one from the internet came by no route and leaves them as they were.
     One heard direct with a reading of its signal is the station's last reading (`snr`, `rssi`, `signal_at`): a digipeater's copy or an iGate's third-party packet is the signal of another station, and an object or
     item transmits nothing (the reading of its report is its reporter's)."""
     station.packets += 1
@@ -39,8 +46,8 @@ def note_heard(station: Station, packet: Packet, route: bool = True) -> None:
     else:
         station.heard_rf, station.last_rf_at = station.heard_rf + 1, packet.heard_at
     station.last_via = packet.gate
-    if route and radio != HF_ID:                                  # (every frame over HF is direct: counted, it would send a message by FM direct)
-        station.deliveries.note(route_of(packet.path, packet.gate), 1, packet.heard_at)
+    if route:
+        station.note_route(radio, route_of(packet.path, packet.gate), 1, packet.heard_at, carries_path=carries_path(radio))
     if station.kind == "station" and (packet.snr is not None or packet.rssi is not None) and route_of(packet.path, packet.gate).direct:
         station.snr, station.rssi, station.signal_at = packet.snr, packet.rssi, packet.heard_at
 
