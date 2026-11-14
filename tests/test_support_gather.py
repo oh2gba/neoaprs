@@ -1,6 +1,8 @@
 """The parts of the support bundle that read the computer and the database (neoaprs/cli/supportgather.py) where the whole-bundle tests (tests/test_support_bundle.py) do not go: the name of the system on each system (the
-platform module is faked), a log that cannot be read, a log whose start line has no time, the migrations of a database that this program does not know, and a packet that is no frame."""
+platform module is faked), a log that cannot be read, a log whose start line has no time, the migrations of a database that this program does not know, a packet that is no frame, and the radios of a
+file before they were rows, of one with a wrong value and of one whose radios cannot be read."""
 import json
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -11,6 +13,9 @@ from neoaprs.config import DEFAULTS
 from neoaprs.cli.logfile import START_LINE
 from neoaprs.migrations import MIGRATIONS, source_hash
 from neoaprs.packetcodec import PacketRow
+from neoaprs.store import DB_NAME
+from tests.support.migrated import opened
+from tests.support.migrated31 import at_thirty
 
 
 def row_of(raw: bytes, source: str = "OH2XYZ", destination: str = "APRS", path: str = "WIDE1-1,WIDE2-1") -> tuple[object, ...]:
@@ -108,3 +113,52 @@ def test_the_alert_command_and_a_changed_update_address_are_only_said_to_be_set_
     assert default["messages/alert_command"] == DEFAULTS.messages_alert_command and default["update/url"] == DEFAULTS.update_url
     assert set(supportgather.secrets_of(rows)) == {command, rows["update/url"], rows["web/key"]}, "(the net under the redaction takes them out of every file)"
     assert supportgather.secrets_of({"messages/alert_command": DEFAULTS.messages_alert_command}) == [], "(the default holds nothing)"
+
+
+# ---- the radios
+
+FLAT = {"station/call": "OH2GBA", "tnc/profile": "kantronics", "serial/baud": "4800", "hf/enabled": "true", "mercury/keying": "vox"}
+
+
+def at_version_thirty(tmp_path: Path, rows: dict[str, str]) -> Path:
+    db = at_thirty(tmp_path / DB_NAME)
+    db.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", sorted(rows.items()))
+    db.close()
+    return tmp_path
+
+
+def test_a_file_from_before_the_radios_were_rows_is_read_from_its_flat_keys_as_before(tmp_path: Path) -> None:
+    data = at_version_thirty(tmp_path, FLAT)
+    stored = supportgather.read_stored(data)
+    assert stored.rows == FLAT and stored.radios is None
+    told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
+    assert "radios" not in told and told["values"]["tnc/profile"] == "kantronics" and told["values"]["hf/enabled"] == "true" and "tnc/profile" not in told["defaults_are_used_for"]
+    assert told == json.loads(supportgather.settings_json(FLAT)), "the same as the settings alone say"
+
+
+def test_a_radio_setting_that_is_wrong_is_told_as_stored_while_its_default_is_in_force(tmp_path: Path) -> None:
+    data = at_version_thirty(tmp_path, FLAT)
+    opened(data / DB_NAME).close()
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    db.execute("UPDATE radio_setting SET value = 'fast' WHERE radio_id = 1 AND key = 'baud'")
+    db.close()
+    stored = supportgather.read_stored(data)
+    assert stored.radios is not None and stored.radios.problem == ""
+    told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
+    assert told["values"]["serial/baud"] == "" and told["stored_text_differs"] == {"serial/baud": "fast"}, "the value in force is the default, the text stored is told"
+    fm = told["radios"][0]
+    assert (fm["id"], fm["log_name"], fm["type"], fm["values"]["baud"], fm["stored"]["baud"]) == (1, "FM", "kantronics", "", "fast")
+    assert told["radios"][1]["stored"] == {"keying": "vox"} and told["values"]["mercury/keying"] == "vox"
+    assert supportgather.config_of(stored.rows, stored.radios).tnc_profile == "kantronics"
+
+
+def test_radios_that_cannot_be_read_are_told_and_the_settings_still_are(tmp_path: Path) -> None:
+    data = at_version_thirty(tmp_path, FLAT)
+    opened(data / DB_NAME).close()
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    db.execute("DROP TABLE radio_setting")
+    db.close()
+    stored = supportgather.read_stored(data)
+    assert stored.rows["station/call"] == "OH2GBA" and stored.radios is not None and "radio_setting" in stored.radios.problem
+    told = json.loads(supportgather.settings_json(stored.rows, stored.radios))
+    assert told["radios"] == [] and "could not be read" in told["radios_problem"] and told["values"]["station/call"] == "OH2GBA"

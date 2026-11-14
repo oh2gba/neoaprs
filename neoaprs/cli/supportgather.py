@@ -6,21 +6,28 @@ import logging
 import platform
 import shutil
 import subprocess
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from neoaprs import ax25
+from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, Config
-from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, source_hash
+from neoaprs.configradios import radios_from_rows
+from neoaprs.dberror import Row, SqlError
+from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, schema_version, source_hash
 from neoaprs.packetcodec import PacketRow
+from neoaprs.radiospec import RadioSpec, log_name
+from neoaprs.radiosql import radio_rows, radio_settings
 from neoaprs.store import DB_NAME
 from neoaprs.storesql import read_settings
 from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, open_readonly, quick_check, table_counts
 
 from . import doctor
 from .logfile import LOG_NAME, START_LINE
+from .radiosettings import RADIO_ROWS_FROM, flat_view, in_force, own_fields, stored_own, stored_text_of, value_text
 from .redaction import hides, shown_value
 from .supportbundle import rotated_logs, tail_text
 from .supportsummary import DbFacts, megabytes, stamp
@@ -45,23 +52,67 @@ def quiet(name: str = "neoaprs.config") -> Iterator[None]:
         logger.disabled = was
 
 
-def config_of(rows: dict[str, str]) -> Config:
+@dataclass(frozen=True)
+class StoredRadios:
+    """The radios of a database as they are stored: the rows of `radio` and of `radio_setting` (radiosql.py), wrong values too; `problem` when the tables are there and could not be read."""
+    rows: list[Row] = field(default_factory=list)
+    settings: list[Row] = field(default_factory=list)
+    problem: str = ""
+
+    @property
+    def specs(self) -> tuple[RadioSpec, ...]:
+        with quiet():
+            return radios_from_rows(self.rows, self.settings)
+
+    def own_rows(self) -> dict[tuple[int, str], str]:
+        """The radios' own settings as they are stored, by radio and key."""
+        return stored_own(self.settings)
+
+
+@dataclass(frozen=True)
+class Stored:
+    """What a database keeps of the settings: the rows of the settings table, and the radios where they are rows of their own (None in a file older than that)."""
+    rows: dict[str, str]
+    radios: StoredRadios | None = None
+
+
+def config_of(rows: dict[str, str], radios: StoredRadios | None = None) -> Config:
+    """The settings in force as the daemon reads them: from the stored radios when there are any, else from the flat keys among the rows."""
     with quiet():
-        return Config.from_data(rows)
+        return in_force(rows, radios.specs if radios is not None else ())
 
 
 # ---- the settings
 
-def settings_json(rows: dict[str, str]) -> str:
-    """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the beacon's memory of when it last sent, say)."""
-    effective = config_of(rows).to_data()
+def settings_json(rows: dict[str, str], radios: StoredRadios | None = None) -> str:
+    """Every setting with the value in force and which of them are stored, a secret (neoaprs/cli/redaction.py) only as `(set, N characters)`; the stored rows that are no setting of this NeoAPRS apart (the
+    beacon's memory of when it last sent, say); and where the radios are rows of their own, every radio with its own settings, in force and as stored. A flat key of radios 1 and 2 is stored or not as
+    its radio has it, so that a database made of the bundle as version 30 kept it (tests/support/bundledb.py) holds the rows the radios were made of."""
+    specs = radios.specs if radios is not None else ()
+    own = radios.own_rows() if radios is not None else {}
+    with quiet():
+        effective = flat_view(rows, specs)
+    stored = {key: text for key in effective if (text := stored_text_of(key, rows, specs, own)) is not None}
     out: dict[str, Any] = {
         "values": {key: shown_value(key, value) for key, value in effective.items()},
-        "defaults_are_used_for": [key for key in DEFAULTS.to_data() if key not in rows],
-        "stored_text_differs": {key: shown_value(key, rows[key]) for key in effective if key in rows and rows[key] != effective[key]},
+        "defaults_are_used_for": [key for key in DEFAULTS.to_data() if key not in stored],
+        "stored_text_differs": {key: shown_value(key, text) for key, text in stored.items() if text != effective[key]},
         "other_rows": {key: shown_value(key, value) for key, value in rows.items() if key not in effective},
     }
+    if radios is not None:
+        out["radios"] = [radio_json(spec, specs, own) for spec in specs]
+        if radios.problem:
+            out["radios_problem"] = radios.problem
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"
+
+
+def radio_json(spec: RadioSpec, specs: Sequence[RadioSpec], own: dict[tuple[int, str], str]) -> dict[str, Any]:
+    """One radio of settings.json: its row, the name the log gives it, its own settings in force (its type's, then its kind's others) and as they are stored (a value that is wrong too)."""
+    def shown(key: str, text: str) -> str:
+        return shown_value(f"radio/{spec.id}/{key}", text)
+    return {"id": spec.id, "kind": spec.kind, "type": spec.type, "name": spec.name, "log_name": log_name(spec, specs), "enabled": spec.enabled, "position": spec.position,
+            "removed_at": None if spec.removed_at is None else iso(spec.removed_at), "values": {key: shown(key, value_text(spec, key)) for key in own_fields(spec)},
+            "stored": {key: shown(key, text) for (radio, key), text in sorted(own.items()) if radio == spec.id}}
 
 
 def secrets_of(rows: dict[str, str]) -> list[str]:
@@ -179,11 +230,17 @@ def database_report(data: Path) -> tuple[str, DbFacts]:
     return "\n".join(lines) + "\n", DbFacts(version, SCHEMA_VERSION, size, wal)
 
 
-def read_rows(data: Path) -> dict[str, str]:
-    """The rows of the settings table. Raises when the file cannot be read."""
+def read_stored(data: Path) -> Stored:
+    """The rows of the settings table and the radios. Raises when the file cannot be read; radios that cannot be read are told in their `problem`, so that the settings still are."""
     conn = open_readonly(data / DB_NAME)
     try:
-        return read_settings(conn)
+        rows = read_settings(conn)
+        if not RADIO_ROWS_FROM <= schema_version(conn) <= SCHEMA_VERSION:
+            return Stored(rows)
+        try:
+            return Stored(rows, StoredRadios(radio_rows(conn), radio_settings(conn)))
+        except SqlError as e:
+            return Stored(rows, StoredRadios(problem=f"the radios could not be read: {e}"))
     finally:
         conn.close()
 

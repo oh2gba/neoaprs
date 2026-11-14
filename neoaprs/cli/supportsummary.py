@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from neoaprs.config import Config
+from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.versions import InstallInfo
+
+from .radiosettings import is_mercury, reached
 
 Section = tuple[str, list[tuple[str, str]]]
 LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z?)  (DEBUG|INFO|WARNING|ERROR|CRITICAL)  (.*)$")
@@ -54,11 +57,12 @@ class Facts:
     daemon_since: datetime | None = None
     config: Config | None = None
     settings_problem: str = ""
-    live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle
+    live: dict[str, Any] | None = None             # state.json, when the running daemon made the bundle (its `radios`: neoaprs/web/supportstate.py)
     page_url: str = ""
     database: DbFacts | None = None
     problems: Problems = field(default_factory=lambda: Problems([], 0, 0))
     checks: str = ""                               # doctor.txt, when it could be made
+    radios_problem: str = ""                       # why the stored radios could not be read (settings.json's radios_problem): the radios of `config` are then not the station's
 
 
 def stamp(t: datetime | None) -> str:
@@ -125,32 +129,33 @@ def _state_rows(tnc: dict[str, Any]) -> list[tuple[str, str]]:
     return rows
 
 
-def _radio(f: Facts, c: Config) -> list[tuple[str, str]]:
-    tnc = (f.live or {}).get("tnc")
-    where = f"{c.tcp_host}:{c.tcp_port}" if c.profile.transport == "tcp" else (c.serial_port or "(found by searching)")
-    if not isinstance(tnc, dict):
-        return [("TNC profile", c.tnc_profile), ("Port", f"{where}"), ("Speed", f"{c.tnc_baud} baud"), ("State", NO_DAEMON)]
-    port = tnc.get("path") or where
-    return [("TNC profile", c.tnc_profile), ("Port", f"{port}"), ("Speed", f"{tnc.get('baud') or c.tnc_baud} baud"),
-            *_state_rows(tnc)]
+def _live_radio(f: Facts, spec: RadioSpec) -> dict[str, Any] | None:
+    """What the running daemon said of the radio (state.json's `radios`), None without it."""
+    for entry in (f.live or {}).get("radios") or []:
+        if isinstance(entry, dict) and entry.get("id") == spec.id:
+            return entry
+    return None
 
 
-def _hf(f: Facts, c: Config) -> list[tuple[str, str]]:
-    """The HF radio: its type and settings, its state, and the sound cards Mercury lists (the running daemon's: which device is the radio's, by name)."""
-    if not c.hf_enabled:
-        return [("HF radio", "off")]
-    rows = [("Type", c.hf_profile), ("Sound card", c.mercury_sound_card or "(the daemon's choice)"), ("Keying", c.mercury_keying or "(the daemon's choice)")]
-    hf = (f.live or {}).get("hf")
-    if not isinstance(hf, dict):
-        return [*rows, ("State", NO_DAEMON)]
-    found = hf.get("tnc")
+def _radio(f: Facts, spec: RadioSpec) -> list[tuple[str, str]]:
+    """A radio: its type, whether it is on and how it is reached (the port and speed in use while the daemon has the line open), then while it is on its state, the problem it has now and its latest
+    error apart, and for the Mercury modem the sound cards it lists (the running daemon's: which device is the radio's, by name)."""
+    entry = _live_radio(f, spec)
+    found = (entry or {}).get("tnc")
     tnc: dict[str, Any] = found if isinstance(found, dict) else {}
+    now = {"Port": tnc.get("path"), "Speed": f"{tnc['baud']} baud" if tnc.get("baud") else None}
+    rows = [("Type", spec.type), ("On", "yes" if spec.enabled else "no"), *((label, now.get(label) or words) for label, words in reached(spec))]
+    if not spec.enabled:
+        return rows
+    if entry is None:
+        return [*rows, ("State", NO_DAEMON if f.live is None else "not known: the daemon did not run this radio when the bundle was made")]
     rows += _state_rows(tnc)
-    for card in hf.get("sound_cards") or []:
+    cards = entry.get("sound_cards")
+    for card in cards or []:
         ways = " and ".join(w for w, on in (("records", card.get("records")), ("plays", card.get("plays"))) if on) or "neither"
         rows.append(("Sound card listed", f"{card.get('name')!r}: {ways}{', the system default' if card.get('default') else ''}; {card.get('id')}"))
-    if hf.get("sound_cards") == []:
-        rows.append(("Sound cards listed", "none (or not the Mercury modem)"))
+    if is_mercury(spec) and not cards:
+        rows.append(("Sound cards listed", "none"))
     return rows
 
 
@@ -205,8 +210,12 @@ def sections(f: Facts) -> list[Section]:
     else:
         c = f.config
         out.append(("Station", [("Call", c.station_call or "(none set: nothing is transmitted)"), ("Position", _position(c)), ("Beacon", _beacon(f, c))]))
-        out.append(("Radio", _radio(f, c)))
-        out.append(("HF radio", _hf(f, c)))
+        if f.radios_problem:
+            out.append(("Radios", [("Could not be read", f"{f.radios_problem} (settings.json says it too)")]))
+        else:
+            out += [(f"Radio {spec.id}: {log_name(spec, c.radios)}", _radio(f, spec)) for spec in c.live_radios]
+        if not c.live_radios and not f.radios_problem:
+            out.append(("Radios", [("Radios", "none")]))
         out.append(("GPS", _gps(f, c)))
         out.append(("Web page", [("Listens", _web(f, c))]))
     out.append(("Database", [("File", _database(f.database))]))

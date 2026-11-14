@@ -1,7 +1,8 @@
 """A data folder for the tests of the support bundle: a migrated database with settings (an access key among them) and a few packets, and logs of the sizes a test asks for.
 
-    data = fake_folder(tmp_path)                    # tmp_path/data with neoaprs.sqlite, neoaprs.log and neoaprs-app.log
+    data = fake_folder(tmp_path)                    # tmp_path/data with neoaprs.sqlite, neoaprs.log and neoaprs-app.log; no radio stored (a new installation's file: the flat keys are in force)
     fake_folder(tmp_path, app_log=False)            # no app log
+    fake_folder(tmp_path, radios=True)              # the settings stored at version 30 and migrated: the radios are rows, made of the flat keys as an installation's update makes them
     zip_members(path)                               # {name: text} of a bundle
 """
 import zipfile
@@ -17,6 +18,7 @@ from neoaprs.store import DB_NAME
 from neoaprs.storesql import write_settings
 from tests.support.files import fixture_bytes
 from tests.support.migrated import opened
+from tests.support.migrated31 import at_thirty
 
 KEY = "k7m2-x9pq-4hrt"
 SETTINGS = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "beacon/interval_min": "60", "web/key": KEY, "web/network": "true",
@@ -37,12 +39,18 @@ def packets(count: int) -> list[Packet]:
     return out[:count]
 
 
-def fake_folder(tmp_path: Path, packet_count: int = 5, undecoded: int = 2, settings: dict[str, str] | None = None, app_log: bool = True, log_lines: int = 40) -> Path:
+def fake_folder(tmp_path: Path, packet_count: int = 5, undecoded: int = 2, settings: dict[str, str] | None = None, app_log: bool = True, log_lines: int = 40, radios: bool = False) -> Path:
     data = tmp_path / "data"
     data.mkdir(exist_ok=True)
+    rows = SETTINGS if settings is None else settings
+    if radios:
+        old = at_thirty(data / DB_NAME)
+        old.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", sorted(rows.items()))
+        old.close()
     s = opened(data / DB_NAME)
     try:
-        write_settings(s.db, SETTINGS if settings is None else settings)
+        if not radios:
+            write_settings(s.db, rows)
         for packet in packets(packet_count):
             insert_packet(s.db, packet_row(packet))
         base = packets(1)[0]

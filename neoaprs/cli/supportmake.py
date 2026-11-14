@@ -83,12 +83,12 @@ def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[s
             install: InstallInfo | None, running: bool | None, by: str, journal: Callable[[], str | None], call: str) -> tuple[list[Member], list[str], str]:
     """(the members, the values that must not be in the file, the call) of a bundle for the data folder; `call` is the one the caller knows, for the name of the file when the settings cannot be read."""
     col = Collector()
-    rows: dict[str, str] | None = None
+    stored: gather.Stored | None = None
 
     def settings() -> str:
-        nonlocal rows
-        rows = gather.read_rows(data) if (data / DB_NAME).is_file() else {}
-        return gather.settings_json(rows)
+        nonlocal stored
+        stored = gather.read_stored(data) if (data / DB_NAME).is_file() else gather.Stored({})
+        return gather.settings_json(stored.rows, stored.radios)
 
     col.step("settings.json", settings)
     daemon_logs, app_logs = gather.log_files(data)
@@ -104,18 +104,19 @@ def collect(data: Path, now: datetime, live: dict[str, Any] | None, page: dict[s
         col.add("page.json", dumped(page))
     if page_errors is not None:
         col.add("page-errors.json", dumped(page_errors))
-    config = gather.config_of(rows) if rows is not None else None
+    config = gather.config_of(stored.rows, stored.radios) if stored is not None else None
 
     def summary() -> str:
         db = facts[0] if facts else DbFacts(None, SCHEMA_VERSION, 0, 0, col.failed.get("database.txt", "not read"))
         known = Facts(VERSION, install or detect_here(data), bool(getattr(sys, "frozen", False)), system_description(), platform.machine(), platform.python_version(), data, now, by,
                       is_running(data) if running is None else running, gather.started_at(gather.log_lines(daemon_logs)), config, col.failed.get("settings.json", ""), live, page_url(data) or "", db,
-                      problem_groups(gather.log_lines(daemon_logs)), col.members["doctor.txt"].text if "doctor.txt" in col.members else "")
+                      problem_groups(gather.log_lines(daemon_logs)), col.members["doctor.txt"].text if "doctor.txt" in col.members else "",
+                      stored.radios.problem if stored is not None and stored.radios is not None else "")
         return summary_text(known)
 
     col.step("summary.txt", summary)
     col.step("README.txt", lambda: readme_text(col.ordered(), now, VERSION, by))
-    return col.ordered(), gather.secrets_of(rows or {}), config.station_call if config else call
+    return col.ordered(), gather.secrets_of(stored.rows if stored is not None else {}), config.station_call if config else call
 
 
 def _logs(col: Collector, files: list[Path]) -> None:

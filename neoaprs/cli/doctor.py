@@ -1,5 +1,5 @@
 """`neoaprs doctor [--data DIR]`: a checklist of what a NeoAPRS needs, one line each marked ok, warn or fail, with the fix under every line that is not ok: the Python, the data folder, the database and its
-version, the call, the serial ports the system lists (and on Linux the group that owns them, and brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on KDE, whose web pop-ups can go missing), a daemon that runs on the data folder and
+version, the call, each radio by its name (its type and how it is reached, or that it is off), the serial ports the system lists (and on Linux the group that owns them, and brltty and ModemManager, which grab USB serial adapters, and Firefox as a Flatpak on KDE, whose web pop-ups can go missing), a daemon that runs on the data folder and
 where its page is, the base map and whether the service is set up. Nothing is changed, written or sent: the database is opened for reading, the ports are listed and not opened. The exit code is 1
 when something failed and 0 otherwise (a warning is not a failure)."""
 import argparse
@@ -14,10 +14,12 @@ from neoaprs import PROGRAM, VERSION
 from neoaprs.backupfolder import way_back
 from neoaprs.callsign import call_problem
 from neoaprs.config import Config
+from neoaprs.configradios import radios_from_rows
 from neoaprs.db import Db
 from neoaprs.dberror import DbClosed, SqlError, StoreError
 from neoaprs.migrations import SCHEMA_VERSION, schema_version
 from neoaprs.paths import default_data_dir
+from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.serialboards import board_kind
 from neoaprs.serialprobe import available_ports
 from neoaprs.store import DB_NAME, Store
@@ -25,6 +27,7 @@ from neoaprs.store import DB_NAME, Store
 from . import servicecmd
 from .daemonstate import describe
 from .hostcheck import brltty_installed, firefox_flatpak, modemmanager_installed, serial_group_check
+from .radiosettings import RADIO_ROWS_FROM, in_force, radio_tables, reached
 
 MIN_PYTHON = (3, 13)
 READ_WAIT_MS = 3000
@@ -58,41 +61,74 @@ def check_data_folder(data: Path) -> Finding:
     return Finding("ok", f"data folder {data} (writable)")
 
 
-async def read_database(path: Path) -> tuple[int, dict[str, str]]:
-    """The version of the database file and the settings in it, read without changing it."""
+@dataclass(frozen=True)
+class Database:
+    version: int
+    rows: dict[str, str]
+    radios: tuple[RadioSpec, ...] = ()
+    radios_problem: str = ""         # why the radios could not be read, in a file whose radios are rows: they are then none of the settings in force (never the defaults of the flat keys)
+
+
+async def read_database(path: Path) -> Database:
+    """The version of the database file, the settings in it and its radios (none in a file older than the radios' rows, or of a newer NeoAPRS), read without changing it."""
     db = Db.at(path, READ_WAIT_MS)
     await db.start()
     try:
         store = Store()
         store.use(db, path)
-        return await db.read(schema_version), await store.settings()
+        version = await db.read(schema_version)
+        rows = await store.settings()
+        if not RADIO_ROWS_FROM <= version <= SCHEMA_VERSION:
+            return Database(version, rows)
+        try:
+            return Database(version, rows, radios_from_rows(*await db.read(radio_tables)))
+        except SqlError as e:
+            return Database(version, rows, radios_problem=str(e))
     finally:
         await db.close()
 
 
-def check_database(data: Path) -> tuple[Finding, dict[str, str] | None]:
+def check_database(data: Path) -> tuple[Finding, Config | None, str]:
+    """The database's line, the settings in force in it (None when there is no file or it cannot be read) and why its radios could not be read ("" when they could)."""
     path = data / DB_NAME
     if not path.is_file():
-        return Finding("ok", "no database yet; the daemon makes it when it first starts"), None
+        return Finding("ok", "no database yet; the daemon makes it when it first starts"), None, ""
     try:
-        version, rows = asyncio.run(read_database(path))
+        found = asyncio.run(read_database(path))
     except (StoreError, SqlError, DbClosed, OSError) as e:
-        return Finding("fail", f"{path} cannot be read: {e}", "if it is damaged, restore a copy from the backup folder next to it, or move it away (the settings and the packets are in it)"), None
+        return Finding("fail", f"{path} cannot be read: {e}", "if it is damaged, restore a copy from the backup folder next to it, or move it away (the settings and the packets are in it)"), None, ""
+    version, config, unread = found.version, in_force(found.rows, found.radios), found.radios_problem
     if version > SCHEMA_VERSION:
-        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), rows
+        return Finding("fail", f"database version {version}: made by a newer NeoAPRS than this one (it knows {SCHEMA_VERSION})", f"update NeoAPRS, or {way_back(data, SCHEMA_VERSION)}; the file has not been touched"), config, ""
     if version < SCHEMA_VERSION:
-        return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), rows
-    return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), rows
+        return Finding("warn", f"database version {version}, this NeoAPRS uses {SCHEMA_VERSION}", "start the daemon once: it migrates the file and keeps a copy of the old one in backup/"), config, ""
+    return Finding("ok", f"database {path.name}, version {version} ({path.stat().st_size / 1e6:.1f} MB)"), config, unread
 
 
-def check_call(rows: dict[str, str] | None) -> Finding:
-    call = Config.from_data(rows).station_call if rows is not None else ""
+def check_call(config: Config | None) -> Finding:
+    call = config.station_call if config is not None else ""
     if not call:
         return Finding("warn", "no call is set: NeoAPRS only listens and transmits nothing", "set your call on the page (My station tab, Call)")
     problem = call_problem(call)
     if problem:
         return Finding("warn", f"the call {call} cannot transmit: {problem}", "set your own call on the page (My station tab, Call)")
     return Finding("ok", f"call {call}")
+
+
+def check_radios(config: Config | None, path: Path | None = None, unread: str = "") -> list[Finding]:
+    """A line for each radio, by the name the log gives it: its type and how it is reached, or that it is off; a warning when no radio is on. Nothing without a database (a new installation). For a
+    database whose radios could not be read (`unread`, the file at `path`), that one failure in place of radios it does not have."""
+    if unread:
+        return [Finding("fail", f"the radios in {path} cannot be read: {unread}", "restore a copy from the backup folder next to it (neoaprs db restore)")]
+    if config is None:
+        return []
+    found = []
+    for spec in config.live_radios:
+        how = ", ".join(f"{label.lower()} {words}" for label, words in reached(spec)) if spec.enabled else "off"
+        found.append(Finding("ok", f"radio {log_name(spec, config.radios)} ({spec.type}): {how}"))
+    if not config.enabled_radios:
+        found.append(Finding("warn", "no radio is on: nothing is heard and nothing is sent", "tick a radio on the page (Settings tab, Radio)"))
+    return found
 
 
 def check_ports() -> Finding:
@@ -161,8 +197,8 @@ def check_service(data: Path) -> Finding:
 
 
 def diagnose(data: Path) -> list[Finding]:
-    database, rows = check_database(data)
-    findings = [check_python(), check_data_folder(data), database, check_call(rows), check_ports(), check_group(), *check_grabbers(), check_firefox_flatpak(), check_daemon(data), check_map(data), check_service(data)]
+    database, config, unread = check_database(data)
+    findings = [check_python(), check_data_folder(data), database, check_call(config), *check_radios(config, data / DB_NAME, unread), check_ports(), check_group(), *check_grabbers(), check_firefox_flatpak(), check_daemon(data), check_map(data), check_service(data)]
     return [f for f in findings if f is not None]
 
 

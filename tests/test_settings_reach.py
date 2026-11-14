@@ -1,6 +1,8 @@
 """Where the text of a setting ends up. A setting whose text ends in a command line, a file path, a URL or a port is read by a place that knows more than the program means (pyserial opens a file for a `spy://`
 address, a tool takes a word that starts with a dash for an option). For each such setting `REACH` holds what that place would misread, and a generated text must not both pass the setting's check and be one of
-those. A setting that is not listed anywhere, and accepts a text that is hostile to one of those places, fails `test_every_free_text_setting_is_classified`: a new setting of such a kind is found there."""
+those. A setting that is not listed anywhere, and accepts a text that is hostile to one of those places, fails `test_every_free_text_setting_is_classified`: a new setting of such a kind is found there.
+The same holds for a radio's own settings (`radio/<id>/<key>`), read from the types' field lists (neoaprs/radiotypes): `OWN_REACH` and `OWN_OTHER` by the field's key, each field of every type checked
+by its own parser, and a field that is the view of a flat key classified as that key is."""
 import pkgutil
 from collections.abc import Callable
 from urllib.parse import urlsplit
@@ -9,8 +11,11 @@ import pytest
 import serial.urlhandler  # type: ignore[import-untyped]
 from hypothesis import given, strategies as st
 
+from neoaprs.cli.radiosettings import FLAT_KEY_OF
 from neoaprs.config import BY_KEY, KEYS, SETTINGS, Config
 from neoaprs.configvalues import PORT_SCHEMES
+from neoaprs.radiotype import Field
+from neoaprs.radiotypes import TYPES
 
 HANDLERS = tuple(name.removeprefix("protocol_") for _, name, _ in pkgutil.iter_modules(serial.urlhandler.__path__))     # every scheme this pyserial reads
 SCHEMES = HANDLERS + PORT_SCHEMES + ("file", "http", "https", "ftp", "javascript", "data")
@@ -106,3 +111,57 @@ def test_every_free_text_setting_is_classified() -> None:
 
 def test_the_setting_list_is_what_the_tables_are_checked_against() -> None:
     assert tuple(BY_KEY) == KEYS and "spy" in HANDLERS and "alt" in HANDLERS
+
+
+# ---- a radio's own settings, from the types' field lists
+
+OWN_REACH: dict[str, Callable[[str], bool]] = {      # a field of a radio type (its key) -> whether the stored text would be misread by the place it ends in
+    "port": port_misread,
+}
+OWN_OTHER = frozenset({                             # free text of a radio that ends in none of the places, as its flat key's does (OTHER_TEXT)
+    "tcp_host",                                     # always put behind `socket://` and a port
+    "sound_card", "keying",                         # one argument of the modem's program, which takes the next word for the value
+    "path",                                         # calls
+})
+FREE_KINDS = ("text", "port", "path")                # the kinds of field whose value is free text
+
+
+def fields() -> list[tuple[str, Field]]:
+    """Every field of every type, as (type, field)."""
+    return [(t.key, f) for t in TYPES for f in t.fields]
+
+
+def field_passes(f: Field, text: str) -> str | None:
+    try:
+        return str(f.parse(text))
+    except ValueError:
+        return None
+
+
+def test_the_tables_of_the_radios_name_only_fields_that_some_type_has_and_each_once() -> None:
+    keys = {f.key for _, f in fields()}
+    assert set(OWN_REACH) <= keys and OWN_OTHER <= keys and not set(OWN_REACH) & OWN_OTHER
+
+
+@pytest.mark.parametrize(("type_key", "field"), [(t, f) for t, f in fields() if f.key in OWN_REACH], ids=lambda v: v if isinstance(v, str) else v.key)
+@given(text=texts())
+def test_no_text_passes_the_check_of_a_radios_field_and_is_misread_where_it_ends(type_key: str, field: Field, text: str) -> None:
+    stored = field_passes(field, text)
+    assert stored is None or not OWN_REACH[field.key](stored), f"{type_key}: {field.key} lets {stored!r} through"
+
+
+def test_every_free_text_field_of_every_type_is_classified() -> None:
+    free = [(t, f) for t, f in fields() if f.kind in FREE_KINDS]
+    assert free, "the types have fields of free text"
+    unlisted = [f"{t}: {f.key}" for t, f in free if f.key not in OWN_REACH and f.key not in OWN_OTHER]
+    assert unlisted == [], "a field of free text in no table: add it to OWN_REACH with what is misread, or to OWN_OTHER with why it ends nowhere"
+    accepting = {f"{t}: {f.key}": [p for p in PROBES if field_passes(f, p) is not None] for t, f in fields() if f.kind not in FREE_KINDS}
+    assert {key: found for key, found in accepting.items() if found} == {}, "a field that is no free text takes a text that a port, a path or a URL would misread"
+
+
+def test_a_field_that_is_a_flat_keys_view_is_classified_as_that_key() -> None:
+    for (radio, key), flat in FLAT_KEY_OF.items():
+        if key in ("type", "enabled"):
+            continue
+        assert (key in OWN_REACH) == (flat in REACH), f"radio/{radio}/{key} and {flat}"
+        assert (key in OWN_OTHER) == (flat in OTHER_TEXT), f"radio/{radio}/{key} and {flat}"

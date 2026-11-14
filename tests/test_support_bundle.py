@@ -1,5 +1,6 @@
 """The support bundle (neoaprs/cli/supportbundle.py, supportgather.py, supportmake.py, supportsummary.py, supportreadme.py): what is in the zip, how the logs are cut to their budget, that no secret is in any member, that a part that fails
 becomes a file that says so, and that the data folder is not changed. Built on a fake data folder (tests/support/supportdata.py)."""
+import asyncio
 import json
 import os
 import re
@@ -18,8 +19,11 @@ from neoaprs.cli.supportmake import desktop_dir, make_bundle, show_command, show
 from neoaprs.cli.supportreadme import MAIL
 from neoaprs.cli.supportsummary import problem_groups
 from neoaprs.migrations import SCHEMA_VERSION
+from neoaprs.radiosql import insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio
 from neoaprs.store import DB_NAME
+from neoaprs.storesql import read_settings
 from tests.support.clock import FixedClock
+from tests.support.migrated import opened
 from tests.support.supportdata import KEY, fake_folder, zip_members
 
 NOW = utc(2026, 10, 26, 12, 0, 0)
@@ -58,9 +62,10 @@ def test_the_readme_says_what_to_do_what_is_in_it_and_what_was_left_out(tmp_path
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
     summary = made(tmp_path)[1]["summary.txt"]
     assert "NeoAPRS:" in summary and VERSION in summary
-    for label in ("System:", "Python:", "Data folder:", "Made:", "Daemon:", "Call:", "Position:", "Beacon:", "TNC profile:", "Port:", "Speed:", "State:", "GPS state:", "Listens:", "File:"):
+    for label in ("System:", "Python:", "Data folder:", "Made:", "Daemon:", "Call:", "Position:", "Beacon:", "Type:", "On:", "Port:", "Speed:", "State:", "GPS state:", "Listens:", "File:"):
         assert label in summary, label
     assert "OH2GBA" in summary and "Fixed" in summary and "on, every 60 min" in summary and "kenwood-tnc2" in summary
+    assert "Radio 1: FM" in summary and "Radio 2: HF" in summary, "a file with no radio stored has today's two of the flat keys, each by the name the log gives it"
     assert "2026-10-26 12:00:00Z (UTC)" in summary and "local " in summary
     assert "not running" in summary, "nothing holds the data folder"
     assert f"schema version {SCHEMA_VERSION}" in summary
@@ -70,40 +75,53 @@ def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_scree
     assert len(summary.splitlines()) < 90
 
 
+def radio(id: int, tnc: dict[str, object], **more: object) -> dict[str, object]:
+    """A radio of state.json as neoaprs/web/supportstate.py writes it: its id, its line (`tnc`) and what else a test gives."""
+    return {"id": id, "tnc": tnc, **more}
+
+
+def section(summary: str, title: str) -> str:
+    """The lines of one section of summary.txt (under its title, up to the empty line)."""
+    return summary.split(f"\n{title}\n", 1)[1].split("\n\n", 1)[0]
+
+
 def test_a_daemon_that_holds_the_folder_is_said_so_and_its_state_is_in_the_bundle(tmp_path: Path) -> None:
-    live = {"daemon": {"uptime_sec": 3 * 3600 + 120, "started_at": "2026-10-26T09:00:00Z"}, "tnc": {"state": "waiting", "problem": "no radio found", "path": "", "baud": 9600},
+    line = {"state": "waiting", "problem": "no radio found", "path": "", "baud": 9600}
+    live = {"daemon": {"uptime_sec": 3 * 3600 + 120, "started_at": "2026-10-26T09:00:00Z"}, "tnc": line, "radios": [radio(1, line)],
             "gps": {"state": "no_fix", "problem": "the receiver has no position fix yet"}, "beacon": {"last_sent": None, "next_due": "2026-10-26T13:00:00Z", "problem": "TNC not connected"},
             "web": {"address": "127.0.0.1", "port": 7303}}
     _, members = made(tmp_path, running=True, live=live, by="the running daemon")
     summary = members["summary.txt"]
     assert "running, up 3 h 2 min (since 2026-10-26T09:00:00Z)" in summary
-    assert "waiting" in summary and "no radio found" in summary and "no_fix" in summary and "TNC not connected" in summary and "127.0.0.1, port 7303" in summary
-    assert json.loads(members["state.json"])["tnc"]["state"] == "waiting"
+    assert "waiting" in section(summary, "Radio 1: FM") and "no radio found" in section(summary, "Radio 1: FM"), "the radio's state is under the radio"
+    assert "no_fix" in summary and "TNC not connected" in summary and "127.0.0.1, port 7303" in summary
+    assert json.loads(members["state.json"])["tnc"]["state"] == "waiting" and json.loads(members["state.json"])["radios"][0]["tnc"]["state"] == "waiting"
     assert "state.json" in members["README.txt"]
 
 
 def test_the_hf_radio_and_every_sound_card_mercury_lists_are_in_the_summary_by_name(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
     data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "hf/profile": "mercury", "mercury/sound_card": "{0.0.0.00000000}.{ca03}", "mercury/keying": "rts:COM7"})
-    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
-            "hf": {"enabled": True, "profile": "mercury", "sound_card": "{0.0.0.00000000}.{ca03}", "keying": "rts:COM7", "tnc": {"state": "waiting", "problem": "the sound card could not be opened"},
-                   "sound_cards": [{"name": "USB Audio CODEC", "id": "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}", "records": True, "plays": True, "default": False},
-                                   {"name": "Line (Webcam)", "id": "{0.0.1.00000000}.{dddd}", "records": True, "plays": False, "default": True}]}}
+    cards = [{"name": "USB Audio CODEC", "id": "{0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}", "records": True, "plays": True, "default": False},
+             {"name": "Line (Webcam)", "id": "{0.0.1.00000000}.{dddd}", "records": True, "plays": False, "default": True}]
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"}, "radios": [radio(2, {"state": "waiting", "problem": "the sound card could not be opened"}, sound_cards=cards)]}
     summary = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"]
-    assert "HF radio" in summary and "{0.0.0.00000000}.{ca03}" in summary and "rts:COM7" in summary and "the sound card could not be opened" in summary
-    assert "'USB Audio CODEC': records and plays; {0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" in summary
-    assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in summary
+    hf = section(summary, "Radio 2: HF")
+    assert "{0.0.0.00000000}.{ca03}" in hf and "rts:COM7" in hf and "the sound card could not be opened" in hf
+    assert "'USB Audio CODEC': records and plays; {0.0.1.00000000}.{2301}|{0.0.0.00000000}.{ca03}" in hf
+    assert "'Line (Webcam)': records, the system default; {0.0.1.00000000}.{dddd}" in hf
+    assert "the daemon did not run this radio" in section(summary, "Radio 1: FM"), "a radio of the settings that the daemon's state lacks says so"
     (tmp_path / "off").mkdir()
     off = made(tmp_path / "off", fake_folder(tmp_path / "off"))[1]["summary.txt"]
-    assert "HF radio" in off
+    assert re.search(r"On:\s+no", section(off, "Radio 2: HF")) and "State" not in section(off, "Radio 2: HF"), "an HF radio that is off is there, off"
 
 
 def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_its_own(tmp_path: Path) -> None:
     from tests.support.supportdata import SETTINGS
     data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "hf/profile": "mercury"})
     live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
-            "tnc": {"state": "connected", "problem": "", "last_error": "connection refused", "path": "", "baud": 9600},
-            "hf": {"enabled": True, "profile": "mercury", "tnc": {"state": "connected", "problem": "", "last_error": "the sound card could not be opened"}, "sound_cards": []}}
+            "radios": [radio(1, {"state": "connected", "problem": "", "last_error": "connection refused", "path": "", "baud": 9600}),
+                       radio(2, {"state": "connected", "problem": "", "last_error": "the sound card could not be opened"}, sound_cards=[])]}
     lines = made(tmp_path, data, running=True, live=live, by="the running daemon")[1]["summary.txt"].splitlines()
     problems = [line.split(":", 1)[1].strip() for line in lines if line.strip().startswith("Problem:")]
     latest = [line for line in lines if line.strip().startswith("Latest error:")]
@@ -112,13 +130,136 @@ def test_a_connected_radio_has_no_problem_and_its_old_error_stands_on_a_line_of_
 
 
 def test_a_radio_with_a_problem_now_shows_it_and_one_that_never_failed_has_no_latest_error_line(tmp_path: Path) -> None:
-    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"}, "tnc": {"state": "waiting", "problem": "no radio found", "last_error": "no radio found", "path": "", "baud": 9600}}
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"}, "radios": [radio(1, {"state": "waiting", "problem": "no radio found", "last_error": "no radio found", "path": "", "baud": 9600})]}
     waiting = made(tmp_path, running=True, live=live, by="the running daemon")[1]["summary.txt"]
     assert re.search(r"Problem:\s+no radio found", waiting)
     (tmp_path / "quiet").mkdir()
-    quiet = {"daemon": live["daemon"], "tnc": {"state": "connected", "problem": "", "last_error": "", "path": "", "baud": 9600}}
+    quiet = {"daemon": live["daemon"], "radios": [radio(1, {"state": "connected", "problem": "", "last_error": "", "path": "", "baud": 9600})]}
     text = made(tmp_path / "quiet", fake_folder(tmp_path / "quiet"), running=True, live=quiet, by="the running daemon")[1]["summary.txt"]
     assert "Latest error" not in text and re.search(r"Problem:\s+none", text)
+
+
+# ---- the radios as rows of the database
+
+def stored_radio(data: Path, kind: str, type: str, name: str, enabled: bool, position: int, **own: str) -> int:
+    """A radio added to the data folder's database as the Store adds one (radiosql.py), with its own settings; its id."""
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    try:
+        made = insert_radio(db, kind, type, name, enabled, position)
+        put_radio_settings(db, made, own)
+    finally:
+        db.close()
+    return made
+
+
+def test_a_bundle_of_stored_radios_has_a_section_for_each_by_its_name_with_its_own_settings_and_a_removed_one_none(tmp_path: Path) -> None:
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "serial/port": "/dev/ttyUSB0", "hf/enabled": "false", "mercury/keying": "vox"}, radios=True)
+    third = stored_radio(data, "fm", "kiss-tcp", "Base", True, 3, tcp_host="10.0.0.9", tcp_port="8100")
+    gone = stored_radio(data, "fm", "kiss", "Old", True, 4)
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    remove_radio(db, gone, "2026-10-26T11:00:00.000000Z")
+    db.close()
+    live = {"daemon": {"uptime_sec": 60, "started_at": "2026-10-26T11:59:00Z"},
+            "radios": [radio(1, {"state": "connected", "problem": "", "path": "/dev/ttyUSB0", "baud": 9600}), radio(third, {"state": "waiting", "problem": "the server does not answer"})]}
+    _, members = made(tmp_path, data, running=True, live=live, by="the running daemon")
+    summary = members["summary.txt"]
+    titles = [line for line in summary.splitlines() if line.startswith("Radio ")]
+    assert titles == ["Radio 1: FM", "Radio 2: HF", f"Radio {third}: Base"], "each radio that is not removed, by position, by the name the log gives it"
+    assert "kenwood-tnc2" in section(summary, "Radio 1: FM") and "/dev/ttyUSB0" in section(summary, "Radio 1: FM") and "connected" in section(summary, "Radio 1: FM")
+    assert re.search(r"On:\s+no", section(summary, "Radio 2: HF")) and "vox" in section(summary, "Radio 2: HF"), "its own settings, from its rows"
+    assert "10.0.0.9:8100" in section(summary, f"Radio {third}: Base") and "the server does not answer" in section(summary, f"Radio {third}: Base")
+    settings = json.loads(members["settings.json"])
+    assert [(r["id"], r["log_name"], r["enabled"], r["removed_at"] is not None) for r in settings["radios"]] == [(1, "FM", True, False), (2, "HF", False, False), (third, "Base", True, False), (gone, "Old", True, True)]
+    assert settings["radios"][0]["values"]["port"] == "/dev/ttyUSB0" and settings["radios"][0]["stored"]["port"] == "/dev/ttyUSB0" and "baud" not in settings["radios"][0]["stored"]
+    assert settings["values"]["serial/port"] == "/dev/ttyUSB0" and settings["values"]["mercury/keying"] == "vox", "the flat keys are the view of radios 1 and 2"
+    unstored = set(settings["defaults_are_used_for"])
+    assert {"tnc/profile", "fm/enabled", "serial/port", "hf/enabled", "hf/profile", "mercury/keying"}.isdisjoint(unstored), "a flat key its radio stores is stored"
+    assert {"serial/baud", "tcp/host", "mercury/sound_card", "digi/enabled"} <= unstored, "and one its radio does not store is a default"
+
+
+def test_a_database_made_of_a_bundle_of_stored_radios_gets_the_same_radios_from_the_migrations(tmp_path: Path) -> None:
+    """tests/support/bundledb.py makes a database as version 30 kept it from a bundle's settings.json: the flat keys that settings.json says stored are what migration 31 makes radios 1 and 2 of again."""
+    from tests.support.bundledb import bundle_database
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "serial/port": "/dev/ttyUSB0", "serial/baud": "4800", "beacon/path": "WIDE2-1", "digi/enabled": "true", "hf/enabled": "true",
+                                           "mercury/sound_card": "plughw:1,0", "mercury/tx_gain_db": "-3", "beacon/last_sent_at": "2026-10-21T11:00:00.000000Z"}, radios=True)
+    path, _ = made(tmp_path, data)
+    assert bundle_database(tmp_path / "again" / DB_NAME, path) == ["web/key"]
+    s = opened(tmp_path / "again" / DB_NAME)
+    try:
+        again = [(r[0], r[1], r[2], r[4]) for r in radio_rows(s.db)], radio_settings(s.db), read_settings(s.db)
+    finally:
+        s.close()
+    s = opened(data / DB_NAME)
+    try:
+        before = [(r[0], r[1], r[2], r[4]) for r in radio_rows(s.db)], radio_settings(s.db), read_settings(s.db)
+    finally:
+        s.close()
+    assert again[0] == before[0] == [(1, "fm", "kenwood-tnc2", 1), (2, "hf", "mercury", 1)]
+    assert again[1] == before[1], "every radio's own setting, as it was stored"
+    assert {k: v for k, v in again[2].items() if k != "web/key"} == {k: v for k, v in before[2].items() if k != "web/key"}, "and the station's rows, the radios' state rows among them"
+
+
+async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon(tmp_path: Path) -> None:
+    from neoaprs.web.supportstate import live_state
+    from tests.support.env import Env
+    e = Env(tmp_path, web=True)
+    await e.start()
+    assert e.server is not None
+    state = await live_state(e.server)
+    radios = {r["id"]: r for r in state["radios"]}
+    assert set(radios) == {r.id for r in e.ctl.radios.all()} and 1 in radios
+    fm = radios[1]
+    assert (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True) and fm["tnc"] == state["tnc"], "radio 1's line is the one the old `tnc` tells"
+    assert set(fm["beacon"]) == {"last_sent", "last_reason", "next_due", "problem"}
+    members = (await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon"))[1]      # (in a thread, as the daemon makes one)
+    assert re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: FM")) and "doctor.txt" in members
+
+
+def test_radios_that_cannot_be_read_are_one_section_that_says_so_and_no_made_up_radio(tmp_path: Path) -> None:
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "serial/port": "/dev/ttyUSB0", "hf/enabled": "true"}, radios=True)
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    db.execute("ALTER TABLE radio_setting RENAME TO radio_setting_gone")
+    db.close()
+    _, members = made(tmp_path, data)
+    summary = members["summary.txt"]
+    assert not [line for line in summary.splitlines() if line.startswith("Radio ")], "not the defaults of the flat keys, as if they were the station's radios"
+    assert "Could not be read: the radios could not be read: no such table: radio_setting (settings.json says it too)" in section(summary, "Radios")
+    assert "OH2GBA" in section(summary, "Station"), "the rest of the summary is made as before"
+    assert json.loads(members["settings.json"])["radios_problem"] == "the radios could not be read: no such table: radio_setting"
+    assert "FAIL  the radios in " in members["doctor.txt"] and "cannot be read: no such table: radio_setting" in members["doctor.txt"]
+
+
+def test_the_flat_keys_of_a_removed_radio_are_its_defaults_in_the_settings(tmp_path: Path) -> None:
+    from tests.support.supportdata import SETTINGS
+    data = fake_folder(tmp_path, settings={**SETTINGS, "hf/enabled": "true", "mercury/keying": "rts:/dev/ttyUSB1", "mercury/sound_card": "plughw:1,0"}, radios=True)
+    db = sqlite3.connect(data / DB_NAME, isolation_level=None)
+    remove_radio(db, 2, "2026-10-26T11:00:00.000000Z")
+    db.close()
+    settings = json.loads(made(tmp_path, data)[1]["settings.json"])
+    assert (settings["values"]["mercury/keying"], settings["values"]["mercury/sound_card"], settings["values"]["hf/enabled"]) == ("", "", "false"), "not the removed radio's values"
+    assert {"mercury/keying", "mercury/sound_card", "hf/enabled"} <= set(settings["defaults_are_used_for"]) and "mercury/keying" not in settings["stored_text_differs"]
+    assert settings["radios"][1]["stored"] == {"keying": "rts:/dev/ttyUSB1", "sound_card": "plughw:1,0"}, "the removed radio's own rows are told with it"
+
+
+async def test_the_old_hf_part_of_the_state_takes_the_sound_cards_radio_2s_entry_listed(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+    from neoaprs.config import Config
+    from neoaprs.web import supportstate
+    asked: list[str] = []
+
+    class Modem:
+        def sound_cards(self) -> list[object]:
+            asked.append("again")
+            return []
+    monkeypatch.setattr(supportstate, "tnc_state", lambda tnc: {})
+    ctl = SimpleNamespace(config=Config.from_data({"hf/enabled": "true"}), mercury=Modem(), hf=None)
+    cards = [{"name": "USB Audio CODEC", "id": "plughw:1,0", "records": True, "plays": True, "default": False}]
+    hf = await supportstate.hf_state(ctl, {}, [{"id": 1}, {"id": 2, "sound_cards": cards}])  # type: ignore[arg-type]
+    assert hf["sound_cards"] == cards and asked == [], "the program is asked once for a report, though the modem of radio 2 is not the one the controller names"
+    assert (await supportstate.hf_state(ctl, {}, [{"id": 1}]))["sound_cards"] == [] and asked == ["again"], "without radio 2's listing it lists them as before"  # type: ignore[arg-type]
 
 
 def test_the_page_and_its_errors_are_members_when_given(tmp_path: Path) -> None:

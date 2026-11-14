@@ -1,12 +1,14 @@
 """The repository keeps house: every script says what it is for, every document is in the index, the systemd folder, the scripts and the documents are listed where a reader looks for them,
 the changelog has its section for what is not released yet.
 
-These tests read files and run `--help` of the scripts; nothing here touches a database, a service or the network."""
+These tests read files and run `--help` of the scripts; nothing here touches a database, a service or the network. What git lists is read where git is; where it is not, the tests that need it are
+skipped one by one and the module is still collected (it never skips itself at its import)."""
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -17,22 +19,52 @@ pytestmark = posix_only      # (the repository's scripts, units and documents: a
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def tracked(prefix: str = "") -> list[str]:
-    if shutil.which("git") is None:
-        pytest.skip("needs git")
+HAS_GIT = shutil.which("git") is not None
+needs_git = pytest.mark.skipif(not HAS_GIT, reason="needs git")
+
+
+def listed(prefix: str = "") -> list[str] | None:
+    """The files git tracks under `prefix`; None where there is no git."""
+    if not HAS_GIT:
+        return None
     done = subprocess.run(["git", "ls-files", "-z", "--", prefix or "."], cwd=ROOT, capture_output=True, text=True, check=True)
     return [p for p in done.stdout.split("\0") if p and (ROOT / p).is_file()]
 
 
+def tracked(prefix: str = "") -> list[str]:
+    """The files git tracks under `prefix`; in a test, which is skipped where there is no git."""
+    found = listed(prefix)
+    if found is None:
+        pytest.skip("needs git")
+    return found
+
+
+def test_without_git_the_module_is_collected_and_only_the_tests_that_need_git_are_skipped(tmp_path: Path) -> None:
+    """pytest run on this module where `git` is on no path (PATH is an empty folder): every test is collected and the module is not skipped at its import (plan §9 of the radio round)."""
+    nowhere = tmp_path / "no-programs"
+    nowhere.mkdir()
+    env = {"PATH": str(nowhere), "HOME": os.environ.get("HOME", str(tmp_path)), "TMPDIR": tempfile.gettempdir(), "NEOAPRS_NO_DEVICES": "1", "NEOAPRS_UPDATE_CHECK": "0", "LC_ALL": "C.UTF-8"}
+    done = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-p", "no:xdist", "--collect-only", str(Path(__file__).relative_to(ROOT))], cwd=ROOT, env=env,
+                          capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, (done.stdout + done.stderr)[-1500:]
+    collected = re.findall(r"(?:::|<Function )(test_\w+)", done.stdout)
+    assert {"test_the_changelog_has_its_unreleased_section_first_and_no_commit_hashes", "test_nothing_that_is_tracked_is_also_ignored", "test_the_index_lists_every_document"} <= set(collected), done.stdout[-800:]
+    assert re.fullmatch(r"\d+ tests collected in [\d.]+s", done.stdout.strip().splitlines()[-1]), done.stdout[-800:]       # (and no line of a module skipped, or of an error)
+
+
 # ---- the scripts: a header that says what a script is for, and --help ----
 
-def script_files() -> list[Path]:
-    return [ROOT / p for p in tracked("scripts") if p.count("/") == 1 and not p.endswith(".json")]
+def script_files(files: list[str] | None = None) -> list[Path]:
+    """The scripts' files, of what git tracks (`files`: a listing made already)."""
+    return [ROOT / p for p in (tracked("scripts") if files is None else files) if p.count("/") == 1 and not p.endswith(".json")]
 
 
-def runnable_scripts() -> list[Path]:
+def runnable_scripts(files: list[str] | None = None) -> list[Path]:
     """The tools: files that start with a shebang."""
-    return [p for p in script_files() if p.read_text(encoding="utf-8").startswith("#!")]
+    return [p for p in script_files(files) if p.read_text(encoding="utf-8").startswith("#!")]
+
+
+SCRIPTS = runnable_scripts(listed("scripts") or [])         # (what the parametrized tests are made of when the module is collected: none where there is no git, and those tests are then skipped)
 
 
 def header_of(path: Path) -> str:
@@ -52,7 +84,8 @@ def test_there_are_tools_to_look_at() -> None:
     assert len(runnable_scripts()) >= 3
 
 
-@pytest.mark.parametrize("path", runnable_scripts(), ids=lambda p: p.name)
+@needs_git
+@pytest.mark.parametrize("path", SCRIPTS, ids=lambda p: p.name)
 def test_every_script_starts_with_a_comment_that_says_what_it_is_for(path: Path) -> None:
     assert len(header_of(path)) >= 40, f"{path.name}: no header comment after the shebang that says what the script is for"
 
@@ -75,7 +108,8 @@ def tree_state() -> str:
     return subprocess.run(["git", "status", "--porcelain", "--", "scripts", "systemd", "neoaprs/page", "docs"], cwd=ROOT, capture_output=True, text=True).stdout
 
 
-@pytest.mark.parametrize("path", runnable_scripts(), ids=lambda p: p.name)
+@needs_git
+@pytest.mark.parametrize("path", SCRIPTS, ids=lambda p: p.name)
 def test_every_script_answers_help_and_changes_nothing(path: Path, tmp_path: Path) -> None:
     source = path.read_text(encoding="utf-8")
     assert re.search(r"--help|argparse", source), f"{path.name} does not handle --help (it would be run with it, so it is not tried)"
@@ -175,6 +209,7 @@ def ignored(path: str) -> bool:
     return subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=ROOT).returncode == 0
 
 
+@needs_git
 @pytest.mark.parametrize("path", [
     "data/neoaprs.sqlite", "data/backup/premigrate-v1-to-v2.sqlite", "neoaprs.sqlite", "copy.sqlite-wal", "key.pem", "tls.key", ".env",                                # the data, and anything that holds a secret
     "data/basemap.pmtiles", "basemap.pmtiles.part", "neoaprs/maps/other.pmtiles",                                                                                                        # the base map
@@ -185,11 +220,13 @@ def test_gitignore_keeps_out_the_data_the_environments_and_the_caches(path: str)
     assert ignored(path), f"{path} would be committed by `git add .`"
 
 
+@needs_git
 @pytest.mark.parametrize("path", ["neoaprs/page/index.html", "neoaprs/page/assets/index-x.js", "neoaprs/data/x.py", "neoaprs/maps/basemap-world.pmtiles", "tests/fixtures/capture.kiss", "docs/README.md", "neoaprs/cli/neoaprs.service", "ui/src/main.ts", "uv.lock"])
 def test_gitignore_does_not_hide_what_belongs_in_the_repository(path: str) -> None:
     assert not ignored(path), f"{path} is ignored"
 
 
+@needs_git
 def test_nothing_that_is_tracked_is_also_ignored() -> None:
     done = subprocess.run(["git", "ls-files", "-ci", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True, check=True)
     assert not done.stdout.split(), f"tracked and ignored at once: {done.stdout.split()}"

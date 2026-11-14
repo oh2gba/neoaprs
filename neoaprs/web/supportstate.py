@@ -1,5 +1,6 @@
 """`state.json` of the support bundle: what the running daemon knows now, the state that a bundle made from the data folder alone cannot have (neoaprs/cli/supportmake.py). It is the values the page is told, built the same way
-(neoaprs/web/views.py): the radio with its latest lines, the GPS, the beacon, the base map, the update, and beside them the serial ports with who holds them and what the process costs.
+(neoaprs/web/views.py): every radio with its latest lines and its beacon (`radios`, by position; `tnc`, `hf` and `beacon` are radios 1 and 2 as before, which a database made of a bundle reads:
+tests/support/bundledb.py), the GPS, the base map, the update, and beside them the serial ports with who holds them and what the process costs.
 
 `live_state` runs on the loop, where the parts are read; the ports are listed in a thread."""
 import asyncio
@@ -12,6 +13,8 @@ from typing import Any, Protocol
 from neoaprs.clock import iso
 from neoaprs.config import can_transmit
 from neoaprs.controller import Controller
+from neoaprs.mercurymodem import Mercury
+from neoaprs.radiospec import HF_ID
 from neoaprs.radios import hf_is_mercury
 from neoaprs.serialholders import held_by
 from neoaprs.serialprobe import available_ports
@@ -70,18 +73,44 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "update": {"latest": None if ctl.updatecheck.latest is None else asdict(ctl.updatecheck.latest), "now": UpdateState.row(ctl.selfupdate.status())},
     }
     state["ports"] = await asyncio.to_thread(ports_with_holders)
-    state["hf"] = await hf_state(ctl)
+    listed: dict[int, list[dict[str, Any]]] = {}
+    state["radios"] = await radios_state(ctl, listed)
+    state["hf"] = await hf_state(ctl, listed, state["radios"])
     return state
 
 
-async def hf_state(ctl: Controller) -> dict[str, Any]:
-    """The HF radio: its settings, its Tnc and, while it is the Mercury modem, every sound card Mercury lists (name, directions, id), so that a report says which device is the radio's even when the setting
-    names one (the daemon lists them only when it chooses: OH2GAX's reports of 3 Nov 2026 had ids and no names)."""
+async def sound_cards(modem: Mercury, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Every sound card the modem's program lists (name, directions, id), once for a report (`listed`, by the modem); none when they cannot be listed, which is logged: a nice-to-have of the report,
+    the bundle goes without it."""
+    if id(modem) not in listed:
+        try:
+            cards = await asyncio.to_thread(modem.sound_cards)
+        except Exception:
+            log.exception("the sound cards could not be listed for the support report")
+            cards = []
+        listed[id(modem)] = [{"name": s.name, "id": s.id, "records": s.capture, "plays": s.playback, "default": s.default} for s in cards]
+    return listed[id(modem)]
+
+
+async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Every radio the daemon runs, by position: its id, kind, type, the name the log gives it, whether it is on, its Tnc as the page is told it and its beacon; for a Mercury modem that is on, the sound
+    cards it lists, so that a report says which device is the radio's even when the setting names one."""
+    out: list[dict[str, Any]] = []
+    for radio in ctl.radios.all():
+        spec, beacon = radio.spec, radio.beacon
+        entry: dict[str, Any] = {"id": radio.id, "kind": spec.kind, "type": spec.type, "name": radio.name, "enabled": spec.enabled, "tnc": tnc_state(radio.line),
+                                 "beacon": {"last_sent": iso(beacon.last_sent), "last_reason": beacon.last_reason, "next_due": iso(beacon.next_due), "problem": beacon.problem}}
+        modem = radio.driver.modem
+        if spec.enabled and modem is not None and radio.rtype.transport == "modem":
+            entry["sound_cards"] = await sound_cards(modem, listed)
+        out.append(entry)
+    return out
+
+
+async def hf_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]] | None = None, radios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Radio 2, the HF radio, as a report said it before the radios were any number: its settings, its Tnc and, while it is the Mercury modem, every sound card Mercury lists (name, directions, id): the
+    daemon lists them only when it chooses (OH2GAX's reports of 3 Nov 2026 had ids and no names). The cards radio 2's entry of `radios` (radios_state) has are those: the program is asked once."""
     c = ctl.config
-    try:
-        cards = await asyncio.to_thread(ctl.mercury.sound_cards) if hf_is_mercury(c) else []
-    except Exception:                                    # (a nice-to-have of the report: the bundle goes without it)
-        log.exception("the sound cards could not be listed for the support report")
-        cards = []
-    return {"enabled": c.hf_enabled, "profile": c.hf_profile, "sound_card": c.mercury_sound_card, "keying": c.mercury_keying, "tnc": tnc_state(ctl.hf),
-            "sound_cards": [{"name": s.name, "id": s.id, "records": s.capture, "plays": s.playback, "default": s.default} for s in cards]}
+    told = next((r["sound_cards"] for r in radios or [] if r["id"] == HF_ID and "sound_cards" in r), None)
+    cards = told if told is not None else await sound_cards(ctl.mercury, {} if listed is None else listed) if hf_is_mercury(c) else []
+    return {"enabled": c.hf_enabled, "profile": c.hf_profile, "sound_card": c.mercury_sound_card, "keying": c.mercury_keying, "tnc": tnc_state(ctl.hf), "sound_cards": cards}

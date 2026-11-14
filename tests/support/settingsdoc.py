@@ -1,8 +1,10 @@
-"""The table of settings and the list of fixed values in docs/manual/settings.md, made from `neoaprs.config.SETTINGS` and the constants of the program.
+"""The table of settings and the list of fixed values in docs/manual/settings.md, made from `neoaprs.config.SETTINGS`, the types of radio (`neoaprs.radiotypes`: each type's own fields) and the
+constants of the program.
 
-The keys, the defaults and every number come from the code; the words are the `DESCRIPTIONS` below, with the numbers as `{name}` fields that are filled in from the code, so a limit cannot be changed in one place only.
-The tables are blocks between `<!-- doc-settings:NAME -->` and `<!-- /doc-settings -->` in the document; `scripts/doc-settings --write` makes them and `tests/test_docs.py` fails when one differs, when a
-setting has no description, or when a description names a setting that is gone.
+The keys, the defaults and every number come from the code; the words are the `DESCRIPTIONS` below (and `RADIO_DESCRIPTIONS` for a radio's own settings, `radio/<id>/<key>`), with the numbers as `{name}`
+fields that are filled in from the code, so a limit cannot be changed in one place only. The tables are blocks between `<!-- doc-settings:NAME -->` and `<!-- /doc-settings -->` in the document;
+`scripts/doc-settings --write` makes them and `tests/test_docs.py` fails when one differs, when a setting or a field of a type has no description, or when a description names one that is gone. A
+block of `PENDING` is held to the code once the document has it, and is not yet asked of it (the integration of the radio round puts it in).
 """
 import re
 
@@ -14,13 +16,14 @@ from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from neoaprs.radiorules import HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME
+from neoaprs.radiotype import KINDS
+from neoaprs.radiotypes import TYPES, kind_fields, types_of
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.updatecheck import EVERY_SEC as UPDATE_EVERY_SEC
 from neoaprs.skeds import SKED_TOKEN
 from neoaprs.smartbeacon import PRESETS
-from neoaprs.tncprofile import PROFILES
 from neoaprs.versions import NOT_COUNTED
 
 BLOCK = re.compile(r"(<!-- doc-settings:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-settings -->)", re.S)
@@ -37,7 +40,7 @@ def _numbers() -> dict[str, object]:
         map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
         moving_presets="; ".join(
             f"`{name}` every {p.fast_sec:g} seconds from {p.fast_kmh:g} km/h, a turn of more than {p.turn_min_deg:g} degrees (at least {p.turn_min_sec:g} seconds after the last beacon)" for name, p in PRESETS.items()),
-        profiles=", ".join(f"`{p.key}`" for p in PROFILES), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
+        profiles=", ".join(f"`{t.key}`" for t in types_of("fm")), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
     )
     return fields
 
@@ -117,9 +120,15 @@ def _table(head: tuple[str, ...], rows: list[tuple[object, ...]]) -> str:
     return "\n".join([_row(*head), _row(*["---"] * len(head)), *[_row(*r) for r in rows]]) + "\n"
 
 
+def own_keys() -> list[str]:
+    """Every key of a radio's own settings that some type has, in the order of the kinds and their fields."""
+    return list(dict.fromkeys(f.key for kind in KINDS for f in kind_fields(kind)))
+
+
 def undescribed() -> list[str]:
-    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone."""
-    return [k for k in cfg.KEYS if k not in DESCRIPTIONS] + [f"{k} (gone)" for k in DESCRIPTIONS if k not in cfg.BY_KEY]
+    """The settings of the code that DESCRIPTIONS lacks, and the keys it describes that are gone; the same for the radios' own settings and RADIO_DESCRIPTIONS."""
+    return ([k for k in cfg.KEYS if k not in DESCRIPTIONS] + [f"{k} (gone)" for k in DESCRIPTIONS if k not in cfg.BY_KEY]
+            + [f"radio/<id>/{k}" for k in own_keys() if k not in RADIO_DESCRIPTIONS] + [f"radio/<id>/{k} (gone)" for k in RADIO_DESCRIPTIONS if k not in own_keys()])
 
 
 def settings() -> str:
@@ -168,7 +177,36 @@ def state() -> str:
     return "\n".join(f"- `{key}`: {STATE_WORDS[key]}." for key in (*cfg.STATE_KEYS, cfg.INSTALL_ID, NOT_COUNTED, SKED_TOKEN)) + "\n"
 
 
-MAKERS = {"settings": settings, "fixed": fixed, "state": state}
+# a radio's own setting, `radio/<id>/<key>`: (where it is on the page, what it is). The order is the order of the table. Radio 1 is the FM radio and radio 2 the HF radio of today's flat keys.
+RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
+    "port": ("Settings tab, TNC (Port)", "the radio's port, as `serial/port` says it for radio 1: a serial port, `socket://host:port`, `bt://` or `ble://`; empty: the port the search finds"),
+    "baud": ("Settings tab, TNC (Speed)", "the speed of its serial line, as `serial/baud` ({serial_baud}); empty: the type's own"),
+    "tcp_host": ("Settings tab, TNC", "where a `kiss-tcp` radio connects while its port is empty, as `tcp/host`"),
+    "tcp_port": ("Settings tab, TNC", "the KISS port there ({tcp_port}), as `tcp/port`"),
+    "beacon": (DB_ONLY, "`true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says"),
+    "path": ("My station tab, Beacon, Advanced", "the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it"),
+    "digipeat": ("Settings tab, Digipeater", "`true`: this radio repeats what asks for it, as `digi/enabled` says it for radio 1"),
+    "sound_card": ("Settings tab, Radio (HF radio, Sound card)", "the Mercury modem's sound card, as `mercury/sound_card` says it for radio 2"),
+    "keying": ("Settings tab, Radio (HF radio, Keying)", "how the Mercury modem keys the transmitter, as `mercury/keying` says it for radio 2"),
+    "tx_gain_db": ("Settings tab, Radio (HF radio, Transmit level)", "the Mercury modem's transmit gain in dB ({mercury_tx_gain_db}), as `mercury/tx_gain_db` says it for radio 2"),
+}
+
+
+def radios() -> str:
+    """The types of radio with their own settings, then the own settings (`radio/<id>/<key>`) with their defaults and the types that have each."""
+    fields = _numbers()
+    types: list[tuple[object, ...]] = [(f"`{t.key}`", t.kind, t.name, ", ".join(f"`{f.key}`" for f in t.fields) or "none") for t in TYPES]
+    own: list[tuple[object, ...]] = []
+    for key in RADIO_DESCRIPTIONS:
+        having = [t for t in TYPES if any(f.key == key for f in t.fields)]
+        default = next(f.default for t in having for f in t.fields if f.key == key) if having else ""
+        where, text = RADIO_DESCRIPTIONS[key]
+        own.append((f"`radio/<id>/{key}`", f"`{default}`" if default else EMPTY, ", ".join(f"`{t.key}`" for t in having) or "none", where, text.format(**fields)))
+    return _table(("type", "kind", "what it is", "its own settings"), types) + "\n" + _table(("key", "default", "types", "where", "what it is"), own)
+
+
+MAKERS = {"settings": settings, "fixed": fixed, "state": state, "radios": radios}
+PENDING = frozenset({"radios"})         # blocks the document need not have yet: docs/manual/settings.md gets the block of the radios with the radio round's integration, which then empties this
 
 
 def blocks_of(text: str) -> dict[str, str]:
@@ -178,7 +216,7 @@ def blocks_of(text: str) -> dict[str, str]:
 def stale_blocks(text: str) -> list[str]:
     """The blocks the text lacks or whose content is not what the code says now."""
     found = blocks_of(text)
-    return [name for name, make in MAKERS.items() if found.get(name) != make()]
+    return [name for name, make in MAKERS.items() if found.get(name) != make() and (name in found or name not in PENDING)]
 
 
 def refreshed(text: str) -> str:

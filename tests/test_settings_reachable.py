@@ -1,10 +1,15 @@
 """Every setting that the page does not show is on one list, here, with its reason, and a setting that can stop something the page offers is never on it.
 
 0.9 took the Transmit switch off the page while `station/transmit` went on acting, and a station that had been switched off was left in RX only with no way back on the page. The rule since: a setting that can block a feature stays
-reachable on the page, or a migration resets it when its control is removed (CONVENTIONS.md, "Removing a control from the page")."""
+reachable on the page, or a migration resets it when its control is removed (CONVENTIONS.md, "Removing a control from the page").
+
+A radio's own settings (`radio/<id>/<key>`) are read from the types' field lists (neoaprs/radiotypes): until the page names a radio by its id, a field is on the page through the flat key of radios 1
+and 2 that is its view (configradios.FLAT_HOMES), or it is listed in `NOT_YET_ON_THE_PAGE` with why that blocks nothing."""
 import re
 
+from neoaprs.cli.radiosettings import FLAT_KEY_OF
 from neoaprs.config import SETTINGS
+from neoaprs.radiotypes import TYPES
 from tests.conftest import ROOT
 
 SETTINGS_TS = ROOT / "ui" / "src" / "lib" / "settings.ts"
@@ -60,3 +65,35 @@ def test_a_setting_that_can_block_a_feature_is_not_left_off_the_page() -> None:
     assert set(BLOCKERS) <= keys
     left_out = sorted(set(BLOCKERS) & (set(NOT_ON_THE_PAGE) | page_leaves_out()))
     assert not left_out, f"{MESSAGE}: {left_out}"
+
+
+# ---- a radio's own settings, from the types' field lists
+
+# The fields of a radio that no flat key shows, each with why its absence from the page blocks nothing.
+NOT_YET_ON_THE_PAGE = {
+    "beacon": "a radio's own Send on tick: every radio that is on sends the beacon in this version, whatever it says",
+}
+
+# The fields that stop something the page offers when they are changed: each is on the page (through its flat key until the page names a radio).
+RADIO_BLOCKERS = ("port", "tcp_host", "tcp_port", "digipeat", "sound_card", "keying")
+
+
+def field_keys() -> set[str]:
+    return {f.key for t in TYPES for f in t.fields}
+
+
+def on_the_page(key: str) -> bool:
+    """Whether a radio's field is on the page: the flat key that is its view, for some radio, is a setting the page shows."""
+    return any(own == key and flat not in page_leaves_out() and flat not in NOT_ON_THE_PAGE for (_, own), flat in FLAT_KEY_OF.items())
+
+
+def test_every_field_of_every_type_is_on_the_page_or_listed_here_with_its_reason() -> None:
+    keys = field_keys()
+    assert set(NOT_YET_ON_THE_PAGE) <= keys and all(reason.strip() for reason in NOT_YET_ON_THE_PAGE.values()), "a listed field is gone from the types"
+    assert sorted(key for key in keys if not on_the_page(key) and key not in NOT_YET_ON_THE_PAGE) == [], "a field of a type that the page cannot reach: give it its control, or its reason here"
+    assert not [key for key in NOT_YET_ON_THE_PAGE if on_the_page(key)], "a field that the page shows is not to be listed"
+
+
+def test_a_field_that_can_block_a_feature_is_on_the_page() -> None:
+    assert set(RADIO_BLOCKERS) <= field_keys()
+    assert [key for key in RADIO_BLOCKERS if not on_the_page(key)] == [], MESSAGE

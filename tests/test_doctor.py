@@ -1,5 +1,6 @@
-"""`neoaprs doctor`: the checklist on a temporary data folder: each check ok, warn or fail with its fix, the exit code, and the pieces that tell about the computer (the group of the serial devices, brltty and
-ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data folder). The ports are listed by a stand-in; nothing is opened, written or sent."""
+"""`neoaprs doctor`: the checklist on a temporary data folder: each check ok, warn or fail with its fix, the exit code, each radio by its name, and the pieces that tell about the computer (the group of
+the serial devices, brltty and ModemManager, Firefox as a Flatpak, the ports, a daemon that holds the data folder). The ports and the start at sign-in are stand-ins: the test reads nothing of the
+computer it runs on (its own service, set up or not, would decide a line); nothing is opened, written or sent."""
 import http.server
 import sqlite3
 import sys
@@ -9,22 +10,40 @@ from pathlib import Path
 import pytest
 
 from neoaprs import VERSION
-from neoaprs.cli import dbcmd, doctor, hostcheck
+from neoaprs.cli import dbcmd, doctor, hostcheck, servicecmd
 from neoaprs.cli.daemonstate import describe, is_running, page_answers, page_url, tail
 from neoaprs.instancelock import InstanceLock
-from neoaprs.migrations import SCHEMA_VERSION
+from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION
+from neoaprs.migrationsteps31 import _v31
+from neoaprs.radiosql import insert_radio, put_radio_settings
 from neoaprs.serialprobe import PortInfo
 from tests.support.httpthread import serve
+from tests.support.migrated import opened
+from tests.support.migrated31 import at_thirty
+
+
+class Service:
+    """The start at sign-in as the doctor asks for it (servicecmd.backend_for(...).installed(plan)): what a test says it is, and the plans it was asked about."""
+    def __init__(self, set_up: bool, what: str) -> None:
+        self.answer: tuple[bool, str] = (set_up, what)
+        self.asked: list[servicecmd.Plan] = []
+
+    def installed(self, plan: servicecmd.Plan) -> tuple[bool, str]:
+        self.asked.append(plan)
+        return self.answer
 
 
 @pytest.fixture(autouse=True)
-def this_computer(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A computer with one TNC cable, in the group of its serial devices, with neither brltty nor ModemManager."""
+def this_computer(monkeypatch: pytest.MonkeyPatch) -> Service:
+    """A computer with one TNC cable, in the group of its serial devices, with neither brltty nor ModemManager, and no start at sign-in set up (whatever the computer of the test has)."""
     monkeypatch.setattr(doctor, "available_ports", lambda: [PortInfo("/dev/ttyUSB0", "FT232R USB UART", "USB VID:PID=0403:6001", 0x0403, 0x6001)])
     monkeypatch.setattr(doctor, "serial_group_check", lambda: hostcheck.GroupCheck("ok", "dialout", ""))
     monkeypatch.setattr(doctor, "brltty_installed", lambda: False)
     monkeypatch.setattr(doctor, "modemmanager_installed", lambda: False)
     monkeypatch.setattr(doctor, "firefox_flatpak", lambda: None)
+    service = Service(False, "no user unit")
+    monkeypatch.setattr(doctor.servicecmd, "backend_for", lambda system: service)
+    return service
 
 
 def run(data: Path, capsys: pytest.CaptureFixture[str]) -> tuple[int, str]:
@@ -53,23 +72,25 @@ def test_a_fresh_computer_has_warnings_with_their_fixes_and_no_failure(tmp_path:
     assert "no call is set" in text and "fix: set your call on the page (My station tab, Call)" in text
     assert "/dev/ttyUSB0  FT232R USB UART  VID:PID 0403:6001" in text
     assert "no base map yet" in text and "fix: make it on the page" in text
-    assert "the service is not set up" in text and "fix: neoaprs service install" in text
+    assert "the service is not set up (no user unit)" in text and "fix: neoaprs service install" in text
     assert "no daemon is running" in text
+    assert "radio " not in text, "a computer with no database has no radio to name yet"
     assert out.rstrip().splitlines()[-1].endswith("to look at")
 
 
-def test_a_data_folder_with_a_database_a_call_and_a_map_is_all_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_data_folder_with_a_database_a_call_and_a_map_is_all_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str], this_computer: Service) -> None:
     data = tmp_path / "data"
     set_up(data, station_call="OH2GBA")
     (data / "basemap.pmtiles").write_bytes(b"x" * 3_000_000)
     (data / "basemap-world.pmtiles").write_bytes(b"x" * 1_000_000)
-    monkeypatch.setattr(doctor.servicecmd, "backend_for", lambda system: type("B", (), {"installed": staticmethod(lambda plan: (True, "the user unit /x/neoaprs.service"))}))
+    this_computer.answer = (True, "the user unit /x/neoaprs.service")
     code, out = run(data, capsys)
     assert code == 0, out
     assert f"database neoaprs.sqlite, version {SCHEMA_VERSION}" in out and "call OH2GBA" in out
     assert "data folder" in out and "(writable)" in out
     assert "base map: basemap.pmtiles 3 MB, basemap-world.pmtiles 1 MB" in out and "service set up: the user unit /x/neoaprs.service" in out
     assert not lines_of(out, "warn") and out.rstrip().splitlines()[-1] == "all is well"
+    assert [plan.data for plan in this_computer.asked] == [data.resolve()], "the service of this data folder was asked for, of the stand-in"
 
 
 def test_a_call_that_cannot_transmit_is_a_warning_with_the_reason(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -341,3 +362,72 @@ def test_the_doctor_warns_with_the_commands_for_firefox_as_a_flatpak(tmp_path: P
     assert "fix: flatpak override --user --talk-name=org.freedesktop.Notifications org.mozilla.firefox" in out
     monkeypatch.setattr(doctor, "firefox_flatpak", lambda: hostcheck.FlatpakFirefox("ok", ""))
     assert "ok    Firefox is a Flatpak: its web pop-ups go to the desktop's notification service" in run(tmp_path / "data", capsys)[1]
+
+
+# ---- the radios, each by the name the log gives it
+
+def radios_of(data: Path, **flat: str) -> Path:
+    """A data folder whose database had these flat settings at version 30 and was migrated: its radios are rows (migration 31)."""
+    data.mkdir(parents=True, exist_ok=True)
+    old = at_thirty(data / "neoaprs.sqlite")
+    old.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(key.replace("_", "/", 1), value) for key, value in flat.items()])
+    old.close()
+    opened(data / "neoaprs.sqlite").close()
+    return data
+
+
+def test_each_radio_is_a_line_by_its_name_with_its_type_and_how_it_is_reached_or_that_it_is_off(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    data = radios_of(tmp_path / "data", station_call="OH2GBA", tnc_profile="kenwood-tnc2", serial_port="/dev/ttyUSB0", hf_enabled="true", mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB1")
+    conn = sqlite3.connect(data / "neoaprs.sqlite", isolation_level=None)
+    base = insert_radio(conn, "fm", "kiss-tcp", "Base", True, 3)
+    put_radio_settings(conn, base, {"tcp_host": "10.0.0.9", "tcp_port": "8100"})
+    insert_radio(conn, "fm", "dummy", "", False, 4)
+    conn.close()
+    code, out = run(data, capsys)
+    assert code == 0, out
+    assert [line for line in lines_of(out, "ok") if line.startswith("ok    radio ")] == [
+        "ok    radio FM (kenwood-tnc2): port /dev/ttyUSB0, speed 9600 baud", "ok    radio HF (mercury): sound card plughw:1,0, keying rts:/dev/ttyUSB1",
+        "ok    radio Base (kiss-tcp): port 10.0.0.9:8100", "ok    radio FM 3 (dummy): off"], "by position; the third of its kind is FM 3, the named one counted"
+    assert "no radio is on" not in out
+
+
+def test_a_station_with_no_radio_on_is_a_warning_with_the_way_to_tick_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    data = radios_of(tmp_path / "data", station_call="OH2GBA", fm_enabled="false", hf_enabled="true")
+    conn = sqlite3.connect(data / "neoaprs.sqlite", isolation_level=None)
+    conn.execute("UPDATE radio SET enabled = 0")
+    conn.close()
+    code, out = run(data, capsys)
+    assert code == 0 and "radio FM (kiss): off" in out and "radio HF (mercury): off" in out
+    assert "warn  no radio is on: nothing is heard and nothing is sent" in out and "fix: tick a radio on the page (Settings tab, Radio)" in out
+
+
+def test_a_database_without_radios_names_the_radios_of_its_flat_keys_and_an_older_file_is_read_without_its_radios(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    data = tmp_path / "data"
+    set_up(data, station_call="OH2GBA", serial_port="COM3")          # (a new installation's file: no radio stored, the flat keys are in force)
+    code, out = run(data, capsys)
+    assert code == 0 and "radio FM (kiss): port COM3, speed 9600 baud" in out and "radio HF (mercury): off" in out
+    older = radios_of(tmp_path / "older", station_call="OH2GBA", tnc_profile="kantronics")
+    conn = sqlite3.connect(older / "neoaprs.sqlite")
+    conn.execute(f"PRAGMA user_version = {doctor.RADIO_ROWS_FROM - 1}")
+    conn.execute("DROP TABLE radio_setting")
+    conn.execute("DROP TABLE radio")
+    conn.close()
+    code, out = run(older, capsys)
+    err = capsys.readouterr().err
+    assert code == 0 and "migrates the file" in out and "radio FM (kiss): " in out and err == "", "the radios of a file older than their rows are not asked for: nothing is said of tables it lacks"
+
+
+def test_the_version_from_which_the_radios_are_rows_is_the_one_of_migration_31() -> None:
+    assert doctor.RADIO_ROWS_FROM == MIGRATIONS.index(_v31) + 1
+
+
+def test_radios_that_cannot_be_read_are_a_failure_with_the_way_back_and_no_made_up_radio_is_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    data = radios_of(tmp_path / "data", station_call="OH2GBA", tnc_profile="kenwood-tnc2", serial_port="/dev/ttyUSB0", hf_enabled="true")
+    conn = sqlite3.connect(data / "neoaprs.sqlite")
+    conn.execute("ALTER TABLE radio_setting RENAME TO radio_setting_gone")
+    conn.close()
+    code, out = run(data, capsys)
+    assert code == 1, out
+    assert f"FAIL  the radios in {data / 'neoaprs.sqlite'} cannot be read: no such table: radio_setting" in out and "fix: restore a copy from the backup folder next to it (neoaprs db restore)" in out
+    assert not [line for line in out.splitlines() if line.startswith(("ok    radio ", "warn  no radio"))], "the defaults of the flat keys are not this station's radios"
+    assert "ok    call OH2GBA" in out and "ok    database " in out, "the settings and the file are read as they are"
