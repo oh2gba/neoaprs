@@ -17,14 +17,27 @@ export const BINS = rowBins;
 /** A row is this many of the modem's spectra averaged in power, so there are up to ten rows a second: what the floor learns from and what the painter is given. */
 export const SPECTRA_PER_ROW = rowSpectra;
 export const ROWS_PER_SECOND = MODEM_SPECTRA_PER_SECOND / SPECTRA_PER_ROW;
-/** A line of the picture is the time of this many rows by the modem's timer, the rows made in it averaged in power: five lines a second (lib/waterfalllines.ts puts a row in the line of its moment). A frame of 3.8 s is nineteen
- * lines high, higher than the label beside it, the box in Settings holds forty seconds and the card over the map more than a minute, and the noise of a line is about half as rough as that of a row, so a weak frame stands out of
- * it sooner. With lines of three rows, frames five seconds apart would stand closer than their labels are high. */
+/** A line of the picture is the time of this many rows by the modem's timer at the Normal speed, the rows made in it averaged in power: five lines a second (lib/waterfalllines.ts puts a row in the line of its moment). A frame of
+ * 3.8 s is nineteen lines high, higher than the label beside it, the box in Settings holds forty seconds and the card over the map more than a minute, and the noise of a line is about half as rough as that of a row, so a weak
+ * frame stands out of it sooner. With lines of three rows, frames five seconds apart would stand closer than their labels are high. The other speeds of the monitor card (PACE) are made of these lines too. */
 export const ROWS_PER_LINE = 2;
 export const LINES_PER_SECOND = ROWS_PER_SECOND / ROWS_PER_LINE;
-/** Two minutes of lines are kept, as long as the daemon keeps its rows (LIMITS.scope.historySec), more than the tallest picture holds (the monitor card's 380 pixels at a ratio of 1.5 make four hundred lines, eighty seconds), so
- * that a box whose size or pixel ratio changes is filled again whole. */
-export const KEPT_LINES = historySec * LINES_PER_SECOND;
+/** The lines that make two minutes, as long as the daemon keeps its rows (LIMITS.scope.historySec), when a line is so many milliseconds. */
+export const keptLines = (lineMs: number): number => (historySec * 1000) / lineMs;
+/** Two minutes of lines are kept at the Normal speed, more than the tallest picture holds (the monitor card's 380 pixels at a ratio of 1.5 make four hundred lines, eighty seconds), so that a box whose size or pixel ratio
+ * changes is filled again whole. */
+export const KEPT_LINES = keptLines(1000 / LINES_PER_SECOND);
+
+/** How fast the monitor card's waterfall goes (its menu, components/MonitorMenu.vue): the box in Settings is always at Normal. */
+export type Speed = "slow" | "normal" | "fast";
+export const SPEEDS: readonly Speed[] = ["slow", "normal", "fast"];
+/** What a speed is, all of it drawn from the same rows: how long a line is (its rows are averaged in power) and how many lines of the screen's it is high. Slow is lines of twice the time, so the card holds twice as much of the two
+ * minutes and the noise is calmer; Fast is the Normal lines drawn twice as high, for a frame pulled apart (lines of half the time would be a stutter of lines with no row in them, and rougher). */
+export const PACE: Record<Speed, { lineMs: number; tall: number }> = {
+  slow: { lineMs: 2000 / LINES_PER_SECOND, tall: 1 },
+  normal: { lineMs: 1000 / LINES_PER_SECOND, tall: 1 },
+  fast: { lineMs: 1000 / LINES_PER_SECOND, tall: 2 },
+};
 
 /** Where a frequency above the dial is among the bins of the passband, with its fraction: bin 0 is centred on the first bin's frequency. */
 export const binOfHz = (hz: number): number => hz / BIN_HZ - FIRST_BIN;
@@ -224,8 +237,11 @@ export function snrText(db: number): string {
 }
 
 const TIME_EVERY_MS = 15_000;
-/** Whether a line at `at` (milliseconds) is the first of a quarter of a minute, the line before it having been at `before`: the time is written on it. */
-export const startsQuarter = (before: number, at: number): boolean => Math.floor(at / TIME_EVERY_MS) > Math.floor(before / TIME_EVERY_MS);
+/** The quarter of a minute that falls in the line that begins at `at` and is `lineMs` long, its time written on that line; null for a line that holds none. With lines of a fifth of a second this is the first line of the quarter. */
+export function quarterIn(at: number, lineMs: number): number | null {
+  const quarter = Math.ceil(at / TIME_EVERY_MS) * TIME_EVERY_MS;
+  return quarter < at + lineMs ? quarter : null;
+}
 
 /** Where a label stands: on the line of that number (lines are counted as they come), from there down over the older ones, and from `x` across `w` pixels. */
 export interface Slot {
@@ -272,14 +288,14 @@ function newest<T extends { tx: boolean }>(lines: readonly T[], count: number): 
   return lines.slice(0, Math.min(count, other < 0 ? lines.length : other));
 }
 
-/** The quiet shape under the curve: the mean, in dB, of the newest lines (`lines`, the newest first) of the last two seconds, and of none from before we last began or stopped sending: in a mean with our own signal,
+/** The quiet shape under the curve: the mean, in dB, of the newest lines (`lines`, the newest first) of the last two seconds (`count` of them: lines of another length are another count), and of none from before we last began or stopped sending: in a mean with our own signal,
  * a signal that is not there would stand for two seconds after every transmission of ours. */
-export function curveMean(lines: readonly { bytes: Uint8Array; tx: boolean }[]): Float32Array {
-  const last = newest(lines, CURVE_MEAN_LINES);
+export function curveMean(lines: readonly { bytes: Uint8Array; tx: boolean }[], count = CURVE_MEAN_LINES): Float32Array {
+  const last = newest(lines, count);
   return Float32Array.from({ length: BINS }, (_, i) => last.reduce((sum, line) => sum + line.bytes[i], 0) / Math.max(1, last.length));
 }
 
 /** The bright line of the curve: the mean, in power, of the lines of the last second, with the same care about our own transmission. Over the noise it lies on the floor's line, which is the noise's mean power. */
-export function curveNow(lines: readonly { bytes: Uint8Array; tx: boolean }[]): Float32Array {
-  return powerMean(newest(lines, CURVE_NOW_LINES).map((line) => line.bytes));
+export function curveNow(lines: readonly { bytes: Uint8Array; tx: boolean }[], count = CURVE_NOW_LINES): Float32Array {
+  return powerMean(newest(lines, count).map((line) => line.bytes));
 }

@@ -1,4 +1,5 @@
-// The monitor card over the map (components/MonitorCard.vue): the scope of the HF radio larger, asked of the daemon while it is there; closed by its cross, dragged by its head like the statistics card and remembered where it was left.
+// The monitor card over the map (components/MonitorCard.vue): the scope of the HF radio larger, asked of the daemon while it is there; closed by its cross, dragged by its head like the statistics card and remembered where it was left;
+// its menu (components/MonitorMenu.vue), opened as every menu of the page is, with the speed of its waterfall, which this browser remembers and the box in Settings does not follow.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HfScope from "@/components/HfScope.vue";
@@ -8,6 +9,7 @@ import type { ScopeRow } from "@/lib/scoperow";
 import { BINS } from "@/lib/waterfall";
 import { Waterfall } from "@/lib/waterfallpainter";
 import { fakeDaemon, withDaemon } from "@/test/context";
+import { cssRule, mediaRule } from "@/test/css";
 import { hfState } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
@@ -19,8 +21,12 @@ const rect = (x: number, y: number, w: number, h: number) =>
   ({ x, y, left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, toJSON: () => ({}) }) as DOMRect;
 const scopeCalls = (daemon: ReturnType<typeof fakeDaemon>) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "hf_scope");
 
+/** The sizes of the strips the painter made, one for every look it took: a strip is one line of the picture. */
+const images: [number, number][] = [];
+
 beforeEach(() => {
   localStorage.clear();
+  images.length = 0;
   const context = new Proxy(
     {},
     {
@@ -28,7 +34,7 @@ beforeEach(() => {
         name === "measureText"
           ? () => ({ width: 10 })
           : name === "createImageData"
-            ? (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })
+            ? (w: number, h: number) => (images.push([w, h]), { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })
             : () => undefined,
       set: () => true,
     },
@@ -172,5 +178,221 @@ describe("the one counting place", () => {
     again.unmount();
     box.unmount();
     expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
+  });
+});
+
+describe("the card's menu", () => {
+  const mounted = () => mount(MonitorCard, { global: withDaemon(fakeDaemon({ hf: withScope() })), attachTo: document.body });
+  const menu = (): HTMLElement | null => document.body.querySelector<HTMLElement>(".monitormenu");
+  const items = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>(".monitormenu [role='menuitemradio']")];
+  const words = (): string[] => items().map((item) => (item.textContent ?? "").replace("\u2713", "").trim());
+  const checked = (): string[] => items().map((item) => item.getAttribute("aria-checked") ?? "");
+  const settle = async (wrapper: { vm: { $nextTick: () => Promise<void> } }): Promise<void> => {
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+  };
+  async function rightClick(wrapper: ReturnType<typeof mounted>, selector: string, x = 300, y = 200): Promise<MouseEvent> {
+    const event = new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true, cancelable: true });
+    wrapper.find(selector).element.dispatchEvent(event);
+    await settle(wrapper);
+    return event;
+  }
+
+  it("opens on a right-click on the picture, at the pointer, without the browser's own menu: Speed, and Slow, Normal and Fast, with Normal on", async () => {
+    const wrapper = mounted();
+    const event = await rightClick(wrapper, ".monitor-picture canvas", 300, 200);
+    expect(event.defaultPrevented).toBe(true);
+    expect(menu()?.getAttribute("role")).toBe("menu");
+    expect(menu()?.getAttribute("aria-label")).toBe("Monitor");
+    expect(menu()?.getAttribute("style")).toContain("left: 300px");
+    expect(menu()?.getAttribute("style")).toContain("top: 200px");
+    expect(menu()?.querySelector(".ctxmenu-title")?.textContent).toBe("Speed");
+    expect(menu()?.querySelector("[role='group']")?.getAttribute("aria-labelledby")).toBe("monitormenu-speed");
+    expect(words()).toEqual(["Slow", "Normal", "Fast"]);
+    expect(checked()).toEqual(["false", "true", "false"]);
+    expect(document.activeElement).toBe(items()[0]); // (the first item takes the focus, as in every menu of the page)
+    wrapper.unmount();
+    expect(menu()).toBeNull();
+  });
+
+  it("opens on a right-click anywhere on the card, its head too, and a right-click on the open menu opens nothing new", async () => {
+    const wrapper = mounted();
+    await rightClick(wrapper, ".card-head strong", 120, 40);
+    expect(menu()?.getAttribute("style")).toContain("left: 120px");
+    const again = new MouseEvent("contextmenu", { clientX: 10, clientY: 10, bubbles: true, cancelable: true });
+    items()[1]?.dispatchEvent(again);
+    await settle(wrapper);
+    expect(again.defaultPrevented).toBe(true);
+    expect(menu()?.getAttribute("style")).toContain("left: 120px");
+    wrapper.unmount();
+  });
+
+  it("opens for the menu key on the picture, which takes the focus, a little in from its left edge and under it", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("monitor-picture") ? rect(400, 150, 540, 300) : rect(0, 0, 0, 0);
+    });
+    const wrapper = mounted();
+    const picture = wrapper.find(".monitor-picture");
+    expect(picture.attributes("tabindex")).toBe("0");
+    expect(picture.attributes("aria-haspopup")).toBe("menu");
+    (picture.element as HTMLElement).focus();
+    await rightClick(wrapper, ".monitor-picture", 0, 0);
+    expect(menu()?.getAttribute("style")).toContain("left: 424px");
+    expect(menu()?.getAttribute("style")).toContain("top: 450px");
+    expect(cssRule(".monitor-picture:focus-visible")).toMatch(/outline:\s*2px solid var\(--accent\)/);
+    wrapper.unmount();
+  });
+
+  it("opens on a long press on the card's body, where the finger is", async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mounted();
+      await wrapper.find(".monitor-picture").trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 60, clientY: 80 });
+      vi.advanceTimersByTime(600);
+      await settle(wrapper);
+      expect(words()).toEqual(["Slow", "Normal", "Fast"]);
+      expect(menu()?.getAttribute("style")).toContain("left: 60px");
+      await wrapper.find("[role='meter']").trigger("pointerdown", { pointerType: "touch", isPrimary: true, clientX: 70, clientY: 400 });
+      vi.advanceTimersByTime(600);
+      await settle(wrapper);
+      expect(menu()?.getAttribute("style")).toContain("top: 400px"); // (on the receive level too)
+      for (const rule of [/-webkit-touch-callout:\s*none/, /-webkit-user-select:\s*none/, /(^|[^-])user-select:\s*none/])
+        expect(mediaRule("(pointer: coarse)", ".monitorcard .card-body")).toMatch(rule); // (the element that hears the long press: no callout and no selection over the menu)
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes on Esc, which closes nothing else, with the focus back on the picture, and on a press outside it", async () => {
+    const wrapper = mounted();
+    const heard: KeyboardEvent[] = [];
+    const listen = (event: KeyboardEvent): number => heard.push(event);
+    document.addEventListener("keydown", listen);
+    try {
+      await rightClick(wrapper, ".monitor-picture canvas");
+      const esc = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      items()[0]?.dispatchEvent(esc);
+      await settle(wrapper);
+      expect(menu()).toBeNull();
+      expect(esc.defaultPrevented).toBe(true);
+      expect(heard).toEqual([]); // (the station cards and the card itself, which close on Esc, do not hear it)
+      expect(wrapper.emitted("close")).toBeUndefined();
+      expect(document.activeElement).toBe(wrapper.find(".monitor-picture").element);
+      await rightClick(wrapper, ".monitor-picture canvas");
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      await settle(wrapper);
+      expect(menu()).toBeNull();
+    } finally {
+      document.removeEventListener("keydown", listen);
+      wrapper.unmount();
+    }
+  });
+
+  it("moves in its items with Up, Down, Home and End, and Tab leaves it from the picture", async () => {
+    const wrapper = mounted();
+    await rightClick(wrapper, ".monitor-picture canvas");
+    const key = (name: string): void =>
+      void document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+    const on = (): string | null => (document.activeElement as HTMLElement | null)?.dataset.speed ?? null;
+    expect(on()).toBe("slow");
+    key("ArrowDown");
+    expect(on()).toBe("normal");
+    key("ArrowDown");
+    expect(on()).toBe("fast");
+    key("Home");
+    expect(on()).toBe("slow");
+    key("ArrowUp");
+    expect(on()).toBe("fast"); // (round from the first to the last, as in every menu of the page)
+    key("Home");
+    key("End");
+    expect(on()).toBe("fast");
+    key("Tab");
+    await settle(wrapper);
+    expect(menu()).toBeNull();
+    expect(document.activeElement).toBe(wrapper.find(".monitor-picture").element); // (the browser's Tab goes on from there to what comes after the card)
+    wrapper.unmount();
+  });
+
+  it("closes on a choice, draws the same rows again at once at the new speed, and this browser remembers it", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(380); // (the picture has room: the painter draws)
+    const rows = useScopeRows();
+    const mountedWith = () => mount(MonitorCard, { global: withDaemon(fakeDaemon({ hf: withScope(), scopeRows: rows.memory })), attachTo: document.body });
+    const speeds = vi.spyOn(Waterfall.prototype, "setSpeed");
+    const shows = vi.spyOn(Waterfall.prototype, "show");
+    const tall = (): number | undefined => images.at(-1)?.[1]; // (how many pixels high the painter's line is)
+    const wrapper = mountedWith();
+    await flushPromises();
+    expect(tall()).toBe(1);
+    await rightClick(wrapper, ".monitor-picture canvas");
+    let before = shows.mock.calls.length;
+    items()[2]?.click();
+    await settle(wrapper);
+    expect(menu()).toBeNull();
+    expect(localStorage.getItem("NeoAPRS.monitorspeed")).toBe("fast");
+    expect(speeds.mock.calls).toEqual([["fast"]]);
+    expect(shows.mock.calls.length).toBe(before + 1); // (drawn again at once, from the page's rows, after the speed was set)
+    expect(shows.mock.calls.at(-1)?.[0]).toBe(rows.memory.rows);
+    expect(speeds.mock.invocationCallOrder[0]).toBeLessThan(shows.mock.invocationCallOrder.at(-1) ?? 0);
+    expect(tall()).toBe(2); // (Fast: the lines of Normal drawn twice as high)
+    wrapper.unmount();
+
+    images.length = 0;
+    before = shows.mock.calls.length;
+    const again = mountedWith(); // (a reload)
+    await flushPromises();
+    expect(images[0]?.[1]).toBe(2); // (drawn at the kept speed from the first)
+    expect((shows.mock.contexts[before] as Waterfall).slot(1000)).toBe(5);
+    await rightClick(again, ".monitor-picture canvas");
+    expect(checked()).toEqual(["false", "false", "true"]);
+    before = shows.mock.calls.length;
+    items()[0]?.click();
+    await settle(again);
+    expect(localStorage.getItem("NeoAPRS.monitorspeed")).toBe("slow");
+    expect(shows.mock.calls.length).toBe(before + 1);
+    expect((shows.mock.contexts.at(-1) as Waterfall).slot(1000)).toBe(2); // (lines of two fifths of a second)
+    expect(tall()).toBe(1);
+    again.unmount();
+
+    before = shows.mock.calls.length;
+    const third = mountedWith(); // (another reload: Slow is kept as well)
+    expect((shows.mock.contexts[before] as Waterfall).slot(1000)).toBe(2);
+    third.unmount();
+  });
+
+  it("is at Normal when what this browser has kept is not a speed", async () => {
+    localStorage.setItem("NeoAPRS.monitorspeed", "warp");
+    const wrapper = mounted();
+    await rightClick(wrapper, ".monitor-picture canvas");
+    expect(checked()).toEqual(["false", "true", "false"]);
+    wrapper.unmount();
+  });
+
+  it("keeps the room of the check mark on every item and shows it on the one that is on, so that choosing moves no word", async () => {
+    const wrapper = mounted();
+    await rightClick(wrapper, ".monitor-picture canvas");
+    for (const item of items()) {
+      const mark = item.firstElementChild;
+      expect(mark?.classList.contains("ctxmenu-mark")).toBe(true);
+      expect(mark?.getAttribute("aria-hidden")).toBe("true");
+    }
+    expect(cssRule(".ctxmenu-mark")).toMatch(/visibility:\s*hidden/);
+    expect(cssRule(".ctxmenu-mark")).toMatch(/width:\s*1\.25em/);
+    expect(cssRule('[aria-checked="true"] > .ctxmenu-mark')).toMatch(/visibility:\s*visible/);
+    wrapper.unmount();
+  });
+
+  it("is not on the box in Settings, which stays at Normal whatever the card was set to", async () => {
+    localStorage.setItem("NeoAPRS.settings.fold.hf-scope", "open");
+    localStorage.setItem("NeoAPRS.monitorspeed", "slow");
+    const shows = vi.spyOn(Waterfall.prototype, "show");
+    const box = mount(HfScope, { global: withDaemon(fakeDaemon({ hf: withScope() })), attachTo: document.body });
+    expect((shows.mock.contexts[0] as Waterfall).slot(1000)).toBe(5);
+    const event = new MouseEvent("contextmenu", { clientX: 100, clientY: 100, bubbles: true, cancelable: true });
+    box.find(".scope-picture canvas").element.dispatchEvent(event);
+    await box.vm.$nextTick();
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.body.querySelector("[role='menu']")).toBeNull();
+    box.unmount();
   });
 });

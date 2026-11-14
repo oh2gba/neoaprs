@@ -22,6 +22,10 @@ export const map = {
   "map.menu.stats": "Statistics",
   "map.menu.monitor": "Monitor",
   "map.menu.replay": "Replay",
+  "map.monitor.speed": "Speed",
+  "map.monitor.speed_slow": "Slow",
+  "map.monitor.speed_normal": "Normal",
+  "map.monitor.speed_fast": "Fast",
 
   "map.replay.label": "Replay of the map",
   "map.replay.play": "Play",

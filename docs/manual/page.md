@@ -184,6 +184,8 @@ At the top is a graph of the packets heard in each of the last 24 hours, a bar f
 
 The card is at the bottom right of the map (beside the statistics card when both are open and the map is at least 920 pixels wide; on a narrower map and on a phone opening one closes the other). Its cross closes it, and so does Esc with the station cards. The browser remembers that it is open and where you left it, as with the statistics card; on a phone it is a card at the bottom of the screen. The pictures are made only while the card or the box in Settings shows them and this page is in front.
 
+A right-click on the card (a long press on a touch screen) opens its menu: **Speed** is Slow, Normal or Fast, and this browser remembers it.
+
 ## A station's card
 
 A click on a marker opens a card over the map. It is above the markers, clear of the map's zoom buttons, and the map moves so that the station's marker is not under it. It has the facts a person asks for:
@@ -288,7 +290,7 @@ The page speaks English, Deutsch, Español, Suomi, Français, Italiano, 日本�
 
 ## What the page remembers
 
-The panel's width and tab, the map's view, the table's "hide timed out", "direct only" and "heard on RF only", the pinned station cards and where they stand, whether the statistics and monitor cards are open and where they stand, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
+The panel's width and tab, the map's view, the table's "hide timed out", "direct only" and "heard on RF only", the pinned station cards and where they stand, whether the statistics and monitor cards are open and where they stand, the monitor's speed, which messages and bulletins were seen, the addresses used for mail, the choice of browser alert and the language are kept in your browser's local storage, and nothing else is. Each device keeps its own.
 
 ## A phone, a tablet and a desktop
 

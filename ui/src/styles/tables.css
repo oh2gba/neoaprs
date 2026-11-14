@@ -355,7 +355,7 @@
   border-top: 1px solid var(--border);
 }
 
-/* the menu of a row of the Stations table (right-click, long press, the "..." button): at the pointer, over everything, kept in the window */
+/* the page's menus that open where the pointer is (a row of the Stations table, a call or a text to copy, the map, the monitor card: right-click, long press, the menu key): at the pointer, over everything, kept in the window */
 .ctxmenu {
   position: fixed;
   z-index: 30;
@@ -398,6 +398,29 @@
   height: 1px;
   margin: 4px 2px;
   background: var(--border);
+}
+/* a group of choices in a menu (the monitor card's speed, components/MonitorMenu.vue): its title in the look of the statistics card's sections, and every item with the room of the check mark, shown on the one that is on, so that choosing moves no word */
+.ctxmenu-title {
+  padding: 5px 12px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ctxmenu-group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ctxmenu-mark {
+  flex: none;
+  width: 1.25em;
+  color: var(--accent);
+  visibility: hidden;
+}
+[aria-checked="true"] > .ctxmenu-mark {
+  visibility: visible;
 }
 /* the bell of a station with an alert set (AlertBell): in the Stations table every row has its place, empty or not, so that setting an alert makes nothing wider and moves nothing */
 .alert-bell {

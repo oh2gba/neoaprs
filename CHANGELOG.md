@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **New:** a right-click on the monitor card sets how fast its waterfall scrolls.
 - **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
 - **New:** the HF waterfall keeps its last two minutes across another tab, a reload or another screen.
 - **Changed:** the HF modem is Mercury 1.9.24.

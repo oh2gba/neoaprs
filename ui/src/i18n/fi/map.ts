@@ -25,6 +25,10 @@ export const map: Record<keyof typeof source, Message> = {
   "map.menu.stats": "Tilastot",
   "map.menu.monitor": "Monitori",
   "map.menu.replay": "Uusinta",
+  "map.monitor.speed": "Nopeus",
+  "map.monitor.speed_slow": "Hidas",
+  "map.monitor.speed_normal": "Normaali",
+  "map.monitor.speed_fast": "Nopea",
 
   "map.replay.label": "Kartan uusinta",
   "map.replay.play": "Toista",

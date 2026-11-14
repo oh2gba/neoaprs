@@ -6,6 +6,7 @@ import {
   BIN_HZ,
   KEPT_LINES,
   LINES_PER_SECOND,
+  PACE,
   ROWS_PER_LINE,
   ROWS_PER_SECOND,
   SPECTRA_PER_ROW,
@@ -17,21 +18,23 @@ import {
   curvePoints,
   dbOfByte,
   hzOfBin,
+  keptLines,
   layout,
   lineOf,
   placeLabel,
   plateRect,
+  quarterIn,
   rulerTicks,
   scalePosition,
   silentOwn,
   snrText,
   spread,
-  startsQuarter,
   timeText,
   xOfHz,
   type Box,
   type Layout,
   type Slot,
+  type Speed,
   type Tick,
 } from "@/lib/waterfall";
 import { LIMITS } from "@/protocol/lists";
@@ -294,14 +297,33 @@ describe("the time", () => {
   it("is written in the viewer's time, hh:mm:ss, as the page writes the time of a packet, on the first line of every quarter of a minute", () => {
     expect(timeText(new Date(2026, 10, 13, 9, 5, 7).getTime())).toBe("09:05:07");
     expect(timeText(new Date(2026, 10, 13, 23, 59, 45, 900).getTime())).toBe("23:59:45");
-    expect(startsQuarter(14_900, 15_000)).toBe(true);
-    expect(startsQuarter(15_000, 15_100)).toBe(false);
-    expect(startsQuarter(0, 14_999)).toBe(false);
-    expect(startsQuarter(29_950, 30_050)).toBe(true);
+    expect(quarterIn(15_000, 200)).toBe(15_000); // (the line from 15.0 to 15.2 s holds the quarter)
+    expect(quarterIn(14_800, 200)).toBeNull();
+    expect(quarterIn(15_200, 200)).toBeNull();
+    expect(quarterIn(30_000, 200)).toBe(30_000);
+  });
+
+  it("is written at the Slow speed on the line of two fifths of a second that holds the quarter, as the quarter's own time", () => {
+    const noon = new Date(2026, 10, 13, 12, 0, 0).getTime();
+    expect(quarterIn(noon + 14_800, 400)).toBe(noon + 15_000); // (15 000 / 400 is 37.5: every other quarter falls in the middle of a line)
+    expect(timeText(quarterIn(noon + 14_800, 400) ?? 0)).toBe("12:00:15");
+    expect(quarterIn(noon + 14_400, 400)).toBeNull();
+    expect(quarterIn(noon + 15_200, 400)).toBeNull();
+    expect(quarterIn(noon + 30_000, 400)).toBe(noon + 30_000);
+    expect(quarterIn(noon + 29_600, 400)).toBeNull();
   });
 
   it("writes the SNR of what was heard beside its call in whole dB, with a minus sign", () => {
     expect([-3.4, -0.4, 0, 9.6].map(snrText)).toEqual(["\u22123", "0", "0", "10"]);
+  });
+});
+
+describe("the speeds of the monitor card", () => {
+  it("are lines of two fifths of a second at Slow, today's lines at Normal, and today's lines twice as high at Fast; two minutes of each are kept", () => {
+    expect(PACE).toEqual({ slow: { lineMs: 400, tall: 1 }, normal: { lineMs: 200, tall: 1 }, fast: { lineMs: 200, tall: 2 } });
+    expect(PACE.normal.lineMs).toBe(1000 / LINES_PER_SECOND);
+    expect([keptLines(PACE.slow.lineMs), keptLines(PACE.normal.lineMs), keptLines(PACE.fast.lineMs)]).toEqual([300, 600, 600]);
+    expect(keptLines(PACE.normal.lineMs)).toBe(KEPT_LINES);
   });
 });
 
@@ -465,9 +487,9 @@ function fakeCanvas(width: number, height: number): Fake {
   const special: Record<string, (...args: never[]) => unknown> = {
     createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
     measureText: (text: string) => ({ width: text.length * 6 }),
-    putImageData: (image: ImageData, x: number, y: number) => {
+    putImageData: (image: ImageData, x: number, y: number, ...dirty: number[]) => {
       strips.push({ y, width: image.width, height: image.height, data: Array.from(image.data.subarray(0, 8)) });
-      calls.push(`putImageData(${image.width}x${image.height},${x},${y})`);
+      calls.push(`putImageData(${[`${image.width}x${image.height}`, x, y, ...dirty].join(",")})`);
     },
     drawImage: (image: unknown, ...args: number[]) => calls.push(`drawImage(${image === canvas ? "itself" : "other"},${args.join(",")})`),
   };
@@ -741,5 +763,156 @@ describe("the painter", () => {
       none.show([], [], START);
       none.clear();
     }).not.toThrow();
+  });
+});
+
+describe("the painter at the monitor card's speeds", () => {
+  const START = new Date(2026, 10, 13, 12, 0, 0).getTime();
+  const row = (db: number): Uint8Array => new Uint8Array(BINS).fill(byteOfDb(db));
+  const drawn = (calls: string[], name: string): string[] => calls.filter((call) => call.startsWith(`${name}(`));
+  const texts = (calls: string[]): string[] => drawn(calls, "fillText").map((call) => call.slice("fillText(".length).split(",")[0]);
+  const colourOf = (db: number): number[] => Array.from(colourTable(SCALE).subarray(byteOfDb(db) * 4, byteOfDb(db) * 4 + 4));
+  /** The rows of a stretch, one every `step` ms from `from` (oldest first), all at `db`. */
+  const rows = (from: number, until: number, step: number, db = 0) =>
+    Array.from({ length: Math.ceil((until - from) / step) }, (_, i) => ({ bytes: row(db), at: from + i * step, tx: false }));
+  /** Where a strip of the picture ends: its own height, or the height it was cut to. */
+  const bottoms = (calls: string[]): number[] =>
+    drawn(calls, "putImageData").map((call) => {
+      const [size, , y, , , , cut] = call.slice("putImageData(".length, -1).split(",");
+      return Number(y) + (cut === undefined ? Number(size.split("x")[1]) : Number(cut));
+    });
+
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  });
+
+  it("is today's picture, call for call and pixel for pixel, when no speed is given and at Normal", () => {
+    const [a, b] = [fakeCanvas(560, 380), fakeCanvas(560, 380)];
+    const [plain, normal] = [new Waterfall(a.canvas), new Waterfall(b.canvas, "normal")];
+    for (const painter of [plain, normal]) {
+      painter.show(rows(START, START + 20_000, 118), [{ at: START + 5_000, text: "Q1OLD" }], START + 20_000);
+      for (let i = 0; i < 200; i++) painter.push(row(i % 40 < 10 ? 20 : 0), START + 20_000 + i * 118, i % 60 > 50);
+      painter.label("Q1NEW 3 dB", START + 30_000);
+    }
+    expect(b.calls).toEqual(a.calls);
+    expect(b.strips).toEqual(a.strips);
+  });
+
+  it("at Fast moves the picture down two lines of the screen for each line, cuts the last at the picture's bottom, and leaves the ruler, the curve and the time's thin line where and as they are", () => {
+    const { canvas, calls } = fakeCanvas(420, 240);
+    const l = layout(420, 240);
+    const painter = new Waterfall(canvas, "fast");
+    painter.show(rows(START, START + 60_000, 118), [], START + 60_000);
+    expect([canvas.width, canvas.height]).toEqual([420, 240]);
+    expect(drawn(calls, "putImageData")).toHaveLength(Math.ceil(l.rows / 2)); // (85 lines of two pixels for 169 pixels)
+    expect(drawn(calls, "putImageData").at(-1)).toBe("putImageData(420x2,0,22)"); // (the newest at the top, two pixels high)
+    expect(calls).toContain(`putImageData(420x2,0,${l.picture.y + l.picture.h - 1},0,0,420,1)`); // (the oldest one seen, cut to the one pixel left)
+    expect(Math.max(...bottoms(calls))).toBe(l.picture.y + l.picture.h);
+    expect(calls).toContain(`fillRect(0,0,420,${l.ruler.h})`);
+    expect(calls).toContain(`fillRect(0,${l.curve.y - 1},420,${l.curve.h + 1})`); // (the curve's box where it is at Normal)
+    expect(calls[calls.indexOf(`fillRect(0,${l.picture.y + 2 * 74},420,1)`) - 1]).toBe("fillStyle=grid"); // (the quarter 15 s ago, 74 lines under the newest: its line one CSS pixel thin)
+    expect(calls).toContain(`fillText(12:00:45,8,${l.picture.y + 2 * 74 + 2 + 9})`); // (its time under the line of two pixels)
+    calls.length = 0;
+    for (let i = 0; i <= 2; i++) painter.push(row(0), START + 60_000 + i * 118, false);
+    expect(drawn(calls, "drawImage")).toEqual([`drawImage(itself,0,22,420,${l.picture.h - 2},0,24,420,${l.picture.h - 2})`]);
+    expect(drawn(calls, "putImageData")).toEqual(["putImageData(420x2,0,22)"]);
+  });
+
+  it("at Fast places a label by lines of two pixels, so no label is written over another", () => {
+    const { canvas, calls } = fakeCanvas(560, 380);
+    const painter = new Waterfall(canvas, "fast");
+    painter.show(rows(START, START + 20_000, 118), [], START + 20_000);
+    calls.length = 0;
+    painter.label("Q1AAA", START + 19_000);
+    painter.label("Q1BBB", START + 19_000);
+    painter.label("Q1CCC", START + 19_000);
+    painter.label("Q1DDD", START + 19_000); // (right, left and at the right edge are taken: nine lines of two pixels down)
+    const ys = drawn(calls, "fillText").map((call) => Number(call.slice(0, -1).split(",").at(-1)));
+    const top = 22 + 2 * (Math.floor((START + 20_000) / 200) - 1 - Math.floor((START + 19_000) / 200)) + 9;
+    expect(ys).toEqual([top, top, top, top + 2 * 9]);
+  });
+
+  it("at Slow makes a line of each two fifths of a second, its four rows averaged in power, writes the time on the line that holds the quarter, and draws the curve's bright line of its newest three lines", () => {
+    const { canvas, calls, strips } = fakeCanvas(560, 380);
+    const painter = new Waterfall(canvas, "slow");
+    [0, 10, 0, 10].forEach((db, i) => painter.push(row(db), START + i * 100, false));
+    expect(strips).toEqual([]);
+    painter.push(row(0), START + 400, false);
+    const mean = lineOf([row(0), row(10), row(0), row(10)], false)[0];
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([Array.from(colourTable(SCALE).subarray(mean * 4, mean * 4 + 4))]);
+    painter.clear();
+    calls.length = 0;
+    const written: [number, string[]][] = [];
+    for (let i = 0; i <= 310; i++) {
+      const before = calls.length;
+      painter.push(row(0), START + i * 100, false);
+      const said = texts(calls.slice(before));
+      if (said.length > 0) written.push([i, said]);
+    }
+    expect(written).toEqual([
+      [4, ["12:00:00"]], // (the first line, from 0 to 0.4 s, whole when the row at 0.4 s comes)
+      [152, ["12:00:15"]], // (15 s falls in the line from 14.8 to 15.2 s: its own time, not 12:00:14)
+      [304, ["12:00:30"]],
+    ]);
+    painter.clear();
+    const curve = layout(560, 380).curve;
+    for (const [i, db] of [40, 40, 12, 12, 12].entries()) for (const ms of [0, 100, 200, 300]) painter.push(row(db), START + i * 400 + ms, false);
+    calls.length = 0;
+    painter.push(row(12), START + 2000, false);
+    const [, y] = drawn(calls, "lineTo").at(-2)?.slice("lineTo(".length, -1).split(",").map(Number) ?? [];
+    expect(y).toBe(curve.y + Math.round(0.5 * (curve.h - 1)) + 0.5); // (12 dB: the mean of the newest 1.2 s, without the 40 dB before it)
+  });
+
+  it.each(["slow", "normal", "fast"] as const)("at %s has the two minutes the page keeps whole, with no gap where there were rows", (speed: Speed) => {
+    const { canvas, strips } = fakeCanvas(300, 1600); // (a picture taller than any: every line kept is seen)
+    const painter = new Waterfall(canvas, speed);
+    const now = START + 120_000;
+    painter.show(rows(START, now, 118), [], now);
+    expect(strips).toHaveLength(keptLines(PACE[speed].lineMs));
+    expect(strips.every((strip) => strip.data.slice(0, 4).join() === colourOf(0).join())).toBe(true);
+  });
+
+  it("at Slow on a screen of 1.25 pixels to the CSS pixel leaves the ground under the two minutes, and moves nothing older into it", () => {
+    vi.stubGlobal("devicePixelRatio", 1.25);
+    const { canvas, calls, strips } = fakeCanvas(560, 380);
+    const l = layout(560, 380, 1.25);
+    expect([l.rowPx, l.rows]).toEqual([1, 351]);
+    const painter = new Waterfall(canvas, "slow");
+    const now = START + 120_000;
+    painter.show(rows(START, now, 118), [{ at: START + 500, text: "Q1OLD" }], now);
+    expect(strips).toHaveLength(300);
+    expect(Math.max(...strips.map((strip) => strip.y))).toBe(l.picture.y + 299);
+    expect(texts(calls)).toContain("12:00:00"); // (the time and the label on the oldest lines kept are written, and end where the lines kept end: they would be wiped from the ground under them as the picture moves)
+    expect(texts(calls)).toContain("Q1OLD");
+    expect(drawn(calls, "rect").length).toBeGreaterThanOrEqual(2);
+    for (const clip of drawn(calls, "rect")) expect(clip).toBe(`rect(0,${l.picture.y},${l.width},300)`);
+    calls.length = 0;
+    for (let i = 0; i < 50; i++) painter.push(row(0), now + i * 118, false);
+    const copies = calls.flatMap((call, i) => (call.startsWith("drawImage(") ? [i] : []));
+    expect(copies.length).toBeGreaterThan(10);
+    for (const at of copies) expect(calls.slice(at + 1, at + 3)).toEqual(["fillStyle=#000828", `fillRect(0,${l.picture.y + 300},${l.width},51)`]);
+    expect(Math.max(...bottoms(calls))).toBeLessThanOrEqual(l.picture.y + 300);
+  });
+
+  it("draws the picture again in place at another speed: the canvas keeps its size and a label stands on the line of its moment", () => {
+    const { canvas, calls } = fakeCanvas(560, 380);
+    const painter = new Waterfall(canvas);
+    const now = START + 45_000;
+    const shown = (): void => painter.show(rows(START, now, 118), [{ at: START + 40_000, text: "Q1OLD" }], now);
+    shown();
+    expect(calls).toContain("fillText(Q1OLD,357,55)"); // (24 lines of a fifth of a second down)
+    for (const [speed, y] of [
+      ["slow", 22 + 11 + 9],
+      ["fast", 22 + 2 * 24 + 9],
+      ["normal", 55],
+    ] as const) {
+      calls.length = 0;
+      painter.setSpeed(speed);
+      shown();
+      expect([canvas.width, canvas.height]).toEqual([560, 380]);
+      expect(calls).toContain(`fillText(Q1OLD,357,${y})`);
+      expect(painter.slot(START + 1000)).toBe(Math.floor((START + 1000) / PACE[speed].lineMs));
+    }
   });
 });
