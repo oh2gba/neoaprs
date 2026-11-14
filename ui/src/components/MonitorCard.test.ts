@@ -6,6 +6,7 @@ import MonitorCard from "@/components/MonitorCard.vue";
 import { useScopeRows } from "@/composables/useScopeRows";
 import type { ScopeRow } from "@/lib/scoperow";
 import { BINS } from "@/lib/waterfall";
+import { Waterfall } from "@/lib/waterfallpainter";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { hfState } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
@@ -56,7 +57,7 @@ describe("MonitorCard", () => {
 
   it("shows the level of the rows that come", async () => {
     const rows = useScopeRows();
-    const daemon = fakeDaemon({ hf: withScope(), onScopeRow: rows.onScopeRow });
+    const daemon = fakeDaemon({ hf: withScope(), scopeRows: rows.memory });
     const wrapper = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
     await flushPromises(); // (the picture has room once it is mounted, and then the rows are asked for)
     const row: ScopeRow = { db: new Float32Array(BINS).fill(-40), level: -20, tx: false };
@@ -144,5 +145,32 @@ describe("the one counting place", () => {
     card.unmount();
     expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
     expect(scopeCalls(daemon)).toHaveLength(2);
+  });
+
+  it("has the box in Settings and the card draw from the same rows the page keeps: the card closed and opened again is whole at once, and the box goes on meanwhile", () => {
+    localStorage.setItem("NeoAPRS.settings.fold.hf-scope", "open");
+    const clock = { now: Date.UTC(2026, 10, 14, 12, 0, 0) };
+    const rows = useScopeRows(undefined, undefined, () => clock.now);
+    const daemon = fakeDaemon({ hf: withScope(), scopeRows: rows.memory });
+    const box = mount(HfScope, { global: withDaemon(daemon), attachTo: document.body });
+    const card = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
+    const tell = (count: number): void => {
+      for (let i = 0; i < count; i++) {
+        rows.hfScopeRow({ db: new Float32Array(BINS).fill(-40), level: -20, tx: false });
+        clock.now += 100;
+      }
+    };
+    tell(10);
+    card.unmount();
+    tell(10);
+    expect(rows.memory.rows).toHaveLength(20); // (kept for the page, not for the card)
+    const shows = vi.spyOn(Waterfall.prototype, "show");
+    const again = mount(MonitorCard, { global: withDaemon(daemon), attachTo: document.body });
+    expect(shows).toHaveBeenCalledTimes(1);
+    expect(shows.mock.calls[0][0]).toHaveLength(20); // (the card's picture at once from the page's rows, those it did not see among them)
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]); // (the box looked all the time: the page asked once)
+    again.unmount();
+    box.unmount();
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
   });
 });

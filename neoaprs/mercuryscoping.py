@@ -1,9 +1,11 @@
 """The scope, the transmit level and the automatic channel-busy control of the Mercury HF modem, the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that uses Mercury's UI interface (mercuryui.py, mercuryscope.py): the link is opened to
-the program the daemon started (not to one something else runs, whose UI port is not ours to know, and not to the speaker of the Dummy HF radio), `scope_row` tells a row of the waterfall at the modem's own resolution (every two spectra: about ten a second) while a page wants
-them, and the transmit gain the settings hold is set live, with the tune tone following it.
+the program the daemon started (not to one something else runs, whose UI port is not ours to know, and not to the speaker of the Dummy HF radio), `scope_row` tells a row of the waterfall at the modem's own resolution (every two spectra: about ten a second),
+`scope_history` keeps the rows of the last two minutes for a page that begins to look, and the transmit gain the settings hold is set live, with the tune tone following it.
 
 The spectrum is asked for (`set_waterfall`) whenever the link is open, because the channel-busy control reads every spectrum (channelbusy.py: a signal as wide as a frame is busy, a step in the noise or a carrier is not; it stands still while the radio
-transmits; `Channel.auto_busy` makes it the channel's state, Mercury's own detector being the state while the spectrum is not read); the rows of the scope are made only while a page has it open (`want_scope`). The status Mercury sends twice a second says the peak of the latest
+transmits; `Channel.auto_busy` makes it the channel's state, Mercury's own detector being the state while the spectrum is not read); the rows of the scope are made from every spectrum too, whether a page looks or not, so that the picture a page
+opens has the minutes before it. The rows kept are forgotten when they would lie about what comes next (`forget_scope`: the program stopped, ended or started anew, its control line down: the places the channel's state is cleared,
+and a new link to its UI), and `scope_cleared` tells it. The status Mercury sends twice a second says the peak of the latest
 transmission (`tx_peak_dbfs`), which the page shows beside the gain. When the link is not there (a Mercury without the interface, a connection that fails) there is no scope, the gain is applied at the next start of the program
 (the ini has it), and the controller starts the program again at a change of the gain, since nothing else would apply it (`live_gain` is false then). A modem part of its own, not the program's life: it reads and sets the modem's
 state (`state`, `keyed`, `attached`, `speaker`, the tasks) and asks it to tell the page (`changed`)."""
@@ -12,7 +14,7 @@ import time
 
 from .mercury import UI_OFFSET
 from .channelbusy import OccupancyBusy
-from .mercuryscope import RowMeter, ScopeRow, bands_db, clamp_gain, parse_spectrum, parse_status
+from .mercuryscope import KeptRow, RowMeter, ScopeHistory, bands_db, clamp_gain, parse_spectrum, parse_status, scope_clock
 from .mercuryui import MercuryUi
 from .signal import Signal
 from .tasks import TaskSet
@@ -45,13 +47,14 @@ class Scoping:
         raise NotImplementedError
 
     def _init_scoping(self) -> None:
-        self.scope_row: Signal[[ScopeRow]] = Signal("mercury.scope_row")                 # a row of the waterfall at the modem's own resolution, every two spectra, while a page wants the scope
+        self.scope_row: Signal[[KeptRow]] = Signal("mercury.scope_row")                  # a row of the waterfall at the modem's own resolution, every two spectra, kept in `scope_history` before it is told
+        self.scope_cleared: Signal[[]] = Signal("mercury.scope_cleared")                 # the rows kept were forgotten: a page that looks forgets them too
+        self.scope_history = ScopeHistory()
         self.tx_gain_db = 0                          # the transmit gain the modem runs with (the setting, applied at the start and live)
         self.tx_peak_dbfs: int | None = None         # the peak of the latest transmission in whole dBFS, as Mercury's status says; None before one
         self._ui: MercuryUi | None = None
         self._rows = RowMeter()
         self._auto = OccupancyBusy()                 # the automatic channel-busy control: it reads every spectrum of the program, whether a page has the scope open or not
-        self._wanted = False
 
     # ---- the link
     @property
@@ -71,7 +74,7 @@ class Scoping:
     def _start_ui(self) -> None:
         if self.ui_port == 0 or self._ui is not None:
             return
-        self._rows.reset()
+        self.forget_scope()
         self._auto = OccupancyBusy()
         self._ui = MercuryUi(HOST, self.ui_port, self._ui_text, self._ui_binary, self._ui_state)
         self._ui.want_waterfall = True               # (the busy control needs the spectrum all the time; what a page wants is the rows)
@@ -85,6 +88,7 @@ class Scoping:
 
     def _ui_state(self, up: bool) -> None:
         if up:
+            self._rows.reset()                        # (a row is of two spectra in a row, not of one from before the link dropped and one after)
             self._ui_opened()
         else:
             self.auto_lost(time.monotonic())
@@ -114,17 +118,16 @@ class Scoping:
             self.auto_busy(False, now)
         else:
             self.auto_busy(self._auto.update(now, bands_db(spectrum)), now)
-        if self._wanted:
-            row = self._rows.feed(spectrum, self.keyed)
-            if row is not None:
-                self.scope_row.emit(row)
+        row = self._rows.feed(spectrum, self.keyed)
+        if row is not None:
+            self.scope_row.emit(self.scope_history.add(row, scope_clock()))          # (on the clock that counts a suspended machine's sleep: the rows of before it are as old as they are)
 
     # ---- the scope
-    def want_scope(self, wanted: bool) -> None:
-        """A page has the scope open (or the last one closed it): the rows are made while one does, each from the spectra that came after it was asked."""
-        if wanted != self._wanted:
-            self._wanted = wanted
-            self._rows.reset()
+    def forget_scope(self) -> None:
+        """The rows kept, and the half of a row under way, are of a program, a sound card or a link that is gone: forgotten, and the pages that look are told."""
+        self._rows.reset()
+        if self.scope_history.clear():
+            self.scope_cleared.emit()
 
     # ---- the transmit gain
     def set_tx_gain(self, db: float) -> None:

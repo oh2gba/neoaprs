@@ -257,7 +257,8 @@ def limits() -> dict[str, Any]:
         "replay": {"days": list(SPAN_DAYS), "glideMaxMin": GLIDE_MAX_MIN},
         "scope": {"loHz": mercuryscope.SCOPE_LO_HZ, "hiHz": mercuryscope.SCOPE_HI_HZ, "signalLoHz": mercuryscope.SIGNAL_LO_HZ, "signalHiHz": mercuryscope.SIGNAL_HI_HZ,
                   "rowBins": mercuryscope.ROW_BINS, "rowFirstBin": mercuryscope.ROW_FIRST_BIN, "rowSpectra": mercuryscope.ROW_SPECTRA, "rowOffsetDb": mercuryscope.ROW_OFFSET_DB, "rowStepDb": mercuryscope.ROW_STEP_DB,
-                  "modemBins": mercuryscope.MODEM_BINS, "modemRate": mercuryscope.MODEM_RATE, "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS},
+                  "modemBins": mercuryscope.MODEM_BINS, "modemRate": mercuryscope.MODEM_RATE, "levelMinDbfs": mercuryscope.LEVEL_MIN_DBFS, "levelMaxDbfs": mercuryscope.LEVEL_MAX_DBFS, "levelGoodDbfs": list(mercuryscope.LEVEL_GOOD_DBFS), "peakClipDbfs": mercuryscope.PEAK_CLIP_DBFS,
+                  "historySec": mercuryscope.HISTORY_SEC},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
     }
 
@@ -319,8 +320,25 @@ A frame is exactly {m.ROW_HEADER.size + m.ROW_BINS} bytes:
 
 The bins are those of the modem's own spectrum (512 of {m.MODEM_RATE / 2 / m.MODEM_BINS:g} Hz from 0 Hz at {m.MODEM_RATE} Hz): bin `i` of a row is the modem's bin `{m.ROW_FIRST_BIN} + i`, centred on `({m.ROW_FIRST_BIN} + i) * {m.MODEM_RATE / 2 / m.MODEM_BINS:g}` Hz. A byte `b` is
 `{m.ROW_OFFSET_DB:g} + b * {m.ROW_STEP_DB:g}` dB on the modem's own scale (a tone of amplitude 1650 of 32768 reads 0 dB), the mean in power of the row's spectra; a value outside {m.ROW_OFFSET_DB:g} to {m.ROW_OFFSET_DB + 255 * m.ROW_STEP_DB:g} dB is the nearest byte.
-A row is wholly of reception or wholly of our own transmission. The frames carry no time: a row is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
+A row is wholly of reception or wholly of our own transmission. A row carries no time: it is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
 (`ui/src/lib/waterfallfloor.ts`); the daemon sends the modem's dB and keeps no floor for these frames.
+
+The daemon makes the rows all the time and keeps those of the last {m.HISTORY_SEC} s (at most {m.HISTORY_ROWS}). A page that asks for the scope is sent them first, in **one frame of the rows kept**, and then every row made after the newest of them, none twice and none
+left out. A page that is behind when it asks is sent no rows kept, only the rows that follow once it has read. When the rows kept would lie (the modem stopped, ended or started anew, its control line or the link to its interface made
+anew, the HF radio's type, sound card or keying changed), they are forgotten and every page that has the scope open is sent the frame with no row, which says to forget them too (a page that is behind, as soon as it has read).
+A page that asks again on the same socket is sent the rows from the one before the newest it was sent on, while they are kept, and finds by those two where they go on from what it holds. The frame is the kind and the daemon's
+clock, then each row, oldest first, {m.HISTORY_ROW.size + m.ROW_BINS} bytes each (a full one is about {(m.HISTORY_HEADER.size + m.HISTORY_ROWS * (m.HISTORY_ROW.size + m.ROW_BINS)) // 1000} KB):
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `{m.HISTORY_KIND}`: the rows kept |
+| 1 | 8 | clock | the daemon's clock when the frame was made, milliseconds since 1970, a little-endian float64: the page places the times the daemon writes (a packet's `heard_at`) on its own clock by it |
+| {m.HISTORY_HEADER.size} + n * {m.HISTORY_ROW.size + m.ROW_BINS} | 1 | flags | of row `n`, as in a row |
+| {m.HISTORY_HEADER.size + 1} + n * {m.HISTORY_ROW.size + m.ROW_BINS} | 1 | level | of row `n`, as in a row |
+| {m.HISTORY_HEADER.size + 2} + n * {m.HISTORY_ROW.size + m.ROW_BINS} | 4 | age | how long ago row `n` was made when the frame was, whole milliseconds, little-endian, counted on a clock that counts the time the machine was asleep: the page places it by its own clock, whatever the daemon's says |
+| {m.HISTORY_HEADER.size + 6} + n * {m.HISTORY_ROW.size + m.ROW_BINS} | {m.ROW_BINS} | bins | of row `n`, as in a row |
+
+A page that does not know this kind lets it go, as it does any other, and has the rows from then on.
 
 """
 

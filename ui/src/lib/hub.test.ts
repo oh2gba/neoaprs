@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FIRST_DELAY_MS, Hub, MAX_DELAY_MS, QUIET_MS, nextDelay, parseMessage, type Connection, type Store } from "@/lib/hub";
 import { PROTOCOL } from "@/protocol/lists";
-import type { ScopeRow } from "@/lib/scoperow";
+import type { ScopeHistory, ScopeRow } from "@/lib/scoperow";
 import type {
   AlertResultMessage,
   ErrorMessage,
@@ -55,6 +55,7 @@ function memory() {
     searches: [] as RadioSearchMessage[],
     stationAlerts: [] as StationAlertMessage[],
     rows: [] as ScopeRow[],
+    histories: [] as ScopeHistory[],
     updates: [] as UpdateResultMessage[],
     notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
@@ -95,6 +96,7 @@ function memory() {
     radioSearch: (m) => seen.searches.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
     hfScopeRow: (r) => seen.rows.push(r),
+    hfScopeHistory: (history) => seen.histories.push(history),
     updateResult: (m) => seen.updates.push(m),
     releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
@@ -293,14 +295,25 @@ describe("Hub", () => {
     expect(seen.stationAlerts).toEqual([fired, fired]);
   });
 
-  it("asks the socket for binary frames as buffers and hands the rows of the waterfall in them to the store, the frames that are no row it lets go", () => {
+  it("asks the socket for binary frames as buffers and hands the rows of the waterfall and the rows kept in them to the store, the frames of another kind or size it lets go", () => {
     const { seen, socket } = opened();
     expect(socket.binaryType).toBe("arraybuffer");
     const frame = new Uint8Array(3 + 307);
     frame.set([1, 1, 256 - 41, 0, 2, 255], 0);
     socket.sayBytes(frame);
-    socket.sayBytes(Uint8Array.of(2, 0, 0));
+    socket.sayBytes(Uint8Array.of(9, 0, 0));
     socket.sayBytes(frame.subarray(0, 300));
+    const kept = new Uint8Array(9 + 313);
+    kept[0] = 2;
+    new DataView(kept.buffer).setFloat64(1, 1_794_000_000_000, true);
+    kept.set([0, 256 - 50, 120, 0, 0, 0], 9);
+    socket.sayBytes(kept);
+    socket.sayBytes(kept.subarray(0, 9));
+    socket.sayBytes(kept.subarray(0, 300));
+    expect(seen.histories.map(({ rows, clock }) => [clock, rows.map(({ row, age }) => [age, row.level])])).toEqual([
+      [1_794_000_000_000, [[120, -50]]],
+      [1_794_000_000_000, []],
+    ]);
     expect(seen.rows).toHaveLength(1);
     expect(seen.rows[0].tx).toBe(true);
     expect(seen.rows[0].level).toBe(-41);

@@ -477,7 +477,7 @@ export interface HfKeyTestCommand {
   cmd: "hf_key_test";
 }
 
-/** The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false, or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says `modem.scope`). */
+/** The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), first the rows the daemon kept of the last two minutes and then about ten a second, and with `on` false, or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says `modem.scope`). */
 export interface HfScopeCommand {
   cmd: "hf_scope";
   /** true starts the rows for this page, false stops them */

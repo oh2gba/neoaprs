@@ -357,7 +357,7 @@ export const LIMITS = {
   },
   station: { hours: [1, 3, 6, 12, 24], defaultHours: 3 },
   replay: { days: [2, 3, 7], glideMaxMin: 15 },
-  scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0 },
+  scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },
   mercury: { version: "1.9.24", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"], [6, "50.6200"]] },
 } as const;
 

@@ -13,7 +13,7 @@ const scope = useHfScope();
 
 <template>
   <DisclosureBox v-if="scope.available.value" class="hf-scope" :title="t('settings.scope.title')" :open="scope.open.value" @folded="scope.open.value = $event">
-    <div class="scope-picture"><HfWaterfall :on="scope.wanted.value" @shown="scope.shown.value = $event" /></div>
+    <div class="scope-picture"><HfWaterfall @shown="scope.shown.value = $event" /></div>
     <HfLevelBar :on="scope.wanted.value" tip />
   </DisclosureBox>
 </template>

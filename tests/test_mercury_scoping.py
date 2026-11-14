@@ -1,9 +1,10 @@
 """The scope and the transmit level in the modem part (neoaprs/mercuryscoping.py, mercurymodem.py): the ini the daemon writes (the gain, the UI interface on a port of its own with the waterfall off), the link to the program's UI,
-the rows of the waterfall made only while a page wants them, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
+the rows of the waterfall made and kept all the time and forgotten where they would lie, the gain sent live and the peak the status says, a Mercury without the interface (no scope, the gain waits for the next start), and the tune tone that follows the gain. The
 program is the fake Mercury of the suite (tests/support/fakemercury.py), whose UI is tests/support/fakemercuryui.py; the real Mercury is tests/test_mercury_scope_real.py."""
 import asyncio
 import json
 import socket
+import sys
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -13,12 +14,13 @@ import pytest
 from neoaprs import mercurychannel  # noqa: F401  (the module that holds the hold)
 from neoaprs import mercuryhelper, mercuryscoping
 from neoaprs.mercury import CONTROL_OFFSET, UI_OFFSET
-from neoaprs.mercuryscope import ROW_BINS, ROW_FIRST_BIN, ScopeRow, byte_of_db
+from neoaprs.mercuryscope import ROW_BINS, ROW_FIRST_BIN, KeptRow, byte_of_db, scope_clock
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, TRANSMITTING, Mercury
 from neoaprs.source import Backoff
 from tests.support import fakemercury
 from tests.support.env import until_started
 from tests.support.fakemercury import UI_LOG_FILE, UI_SCENE_FILE, Air
+from tests.test_scope_handover import asleep
 from tests.test_mercury_modem import HF, QUICK, _ports_of_this_test  # noqa: F401  (the fixture gives each test ports of its own)
 
 UI_NEAR = 400                                    # the UI port of a test is this far above its KISS port (tests/support/fixtures.py: inside the range of the worker)
@@ -78,35 +80,55 @@ async def test_a_mercury_something_else_runs_and_the_speaker_of_the_dummy_have_n
     assert s.ui_port == 0
 
 
-async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are_made_only_while_a_page_wants_the_scope_and_say_where_the_tone_is_and_whether_the_radio_transmits(tmp_path: Path) -> None:
+async def test_the_feed_is_on_for_the_busy_control_and_rows_of_the_waterfall_are_made_and_kept_whether_a_page_looks_or_not_and_say_where_the_tone_is_and_whether_the_radio_transmits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    asleep(monkeypatch, 3600.0)
     m = modem(tmp_path)
-    rows: list[ScopeRow] = []
-    m.scope_row.connect(rows.append)
+    told: list[KeptRow] = []
+    m.scope_row.connect(told.append)
     await m.start(HF)
     try:
         await until_started(lambda: m.scope)
         await until_started(lambda: "set_waterfall on" in sent(tmp_path))
-        await asyncio.sleep(0.5)
-        assert rows == [], "nobody wants the scope: no row is made (the spectrum is read all the same, by the busy control)"
-        m.want_scope(True)
-        await until_started(lambda: len(rows) >= 3)
+        await until_started(lambda: len(told) >= 3)
+        rows = [k.row for k in told]
         row = rows[-1]
         tone = round(1500 / 7.8125) - ROW_FIRST_BIN
         assert len(row.bins) == ROW_BINS and row.tx is False and -90 <= row.level <= 0
         assert row.bins[tone] > row.bins[tone - 5] + 20 and row.bins[tone] == byte_of_db(-30.0), "the fake program's tone at 1500 Hz stands in its own bin of the modem, 7.8 Hz wide"
+        kept = m.scope_history.after(0, scope_clock())
+        assert [k.seq for k in kept[-len(told):]] == [k.seq for k in told] and all(k.at <= scope_clock() for k in kept), "every row is kept before it is told, with when it was made"
+        assert sys.platform != "linux" or all(k.at > time.monotonic() + 1800 for k in kept), "on the clock that counts the hour the machine was asleep, not on the one that stood still"
         m.keyed = True
-        mark = len(rows)
-        await until_started(lambda: len(rows) > mark + 2)
-        assert all(r.tx for r in rows[mark + 2:]), "keyed: the rows are of our own signal"
-        m.keyed = False
-        m.want_scope(False)
-        await asyncio.sleep(0.3)
-        seen = len(rows)
-        await asyncio.sleep(0.5)
-        assert len(rows) <= seen + 1
+        mark = len(told)
+        await until_started(lambda: len(told) > mark + 2)
+        assert all(k.row.tx for k in told[mark + 2:]), "keyed: the rows are of our own signal"
         assert "set_waterfall off" not in sent(tmp_path), "the feed stays on: the busy control reads it"
     finally:
         m.keyed = False
+        await m.stop()
+    assert len(m.scope_history) == 0, "a modem stopped (the HF radio switched off, or started again for another type, sound card or keying): the rows kept are of what is gone"
+
+
+async def test_the_rows_kept_are_forgotten_where_the_channel_is_cleared_and_when_the_program_is_started_anew_and_the_pages_are_told(tmp_path: Path) -> None:
+    m = modem(tmp_path)
+    cleared: list[int] = []
+    m.scope_cleared.connect(lambda: cleared.append(len(cleared)))
+    await m.start(HF)
+    try:
+        await until_started(lambda: len(m.scope_history) >= 3)
+        last = m.scope_history.last
+        m._clear_channel()                                      # (the program ended or was refused, its control line went down: what it said is cleared)
+        assert len(m.scope_history) == 0 and cleared == [0]
+        m._clear_channel()
+        assert cleared == [0], "nothing kept, nothing to tell"
+        await until_started(lambda: len(m.scope_history) >= 1)
+        assert m.scope_history.after(0, scope_clock())[0].seq > last, "the numbers go on"
+        m._start_ui()                                           # (a link of its own is there: nothing happens)
+        assert len(m.scope_history) >= 1
+        await m._stop_ui()
+        m._start_ui()                                           # (the link made anew, as for a program started again)
+        assert len(m.scope_history) == 0 and cleared == [0, 1]
+    finally:
         await m.stop()
 
 
@@ -145,7 +167,7 @@ async def test_a_mercury_without_the_ui_has_no_scope_and_the_gain_waits_for_the_
         await until_started(lambda: m.state == "running")
         await asyncio.sleep(0.5)
         assert not m.scope and not m.live_gain, "no interface: the controller starts the modem again at a change of the gain (it is in the settings the restart is decided by)"
-        m.want_scope(True)
+        assert len(m.scope_history) == 0
         m.set_tx_gain(5)
         assert m.tx_gain_db == 5 and sent(tmp_path) == [], "nothing could be sent"
         assert m.state == "running" and m.describe() == "Mercury DATAC3, listening"
@@ -158,16 +180,18 @@ async def test_the_link_is_made_again_for_a_program_started_again(tmp_path: Path
     await m.start(HF)
     try:
         await until_started(lambda: m.scope)
-        m.want_scope(True)
         await until_started(lambda: "set_waterfall on" in sent(tmp_path))
+        await until_started(lambda: len(m.scope_history) >= 1)
         pid = m.pid
         assert pid is not None
         import os
         import signal
+        killed = scope_clock()
         os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))          # (Windows has no SIGKILL: its SIGTERM is TerminateProcess, as sudden)
         await until_started(lambda: m.pid != pid and m.scope and m.state == "running")
         await until_started(lambda: sent(tmp_path).count("set_waterfall on") >= 2)       # (the link to the new program is made a moment after it runs)
-        assert sent(tmp_path).count("set_waterfall on") >= 2, "what a page wants is asked for again of the new program"
+        assert sent(tmp_path).count("set_waterfall on") >= 2, "the spectrum is asked for again of the new program"
+        assert all(k.at > killed for k in m.scope_history.after(0, scope_clock())), "no row of the program that died is kept"
     finally:
         await m.stop()
 

@@ -333,6 +333,11 @@ class Mercury(Channel, Tuning, Scoping):
         """The Mercury program of this installation; none under the no-devices switch, as in an installation without it, so that no modem is started on a sound card and a keying line and no sound card is listed."""
         return None if nodevices.refused("the Mercury modem program is not started and its sound cards are not listed") else self._finder()
 
+    def _clear_channel(self) -> None:
+        """What the program said is cleared (mercurychannel.py), and the rows of the scope it fed are forgotten with it."""
+        super()._clear_channel()
+        self.forget_scope()
+
     def _set(self, state: str, problem: str, reason: str = "") -> None:
         if (state, problem, reason) != (self.state, self.problem, self.reason):
             self.state, self.problem, self.reason = state, problem, reason

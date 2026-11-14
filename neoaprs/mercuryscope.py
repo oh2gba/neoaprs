@@ -1,6 +1,7 @@
 """What Mercury's UI interface says, and the scope the page draws from it, as pure values and functions: the `status` message (the transmit gain and the peak of the latest transmission), the binary spectrum frame, the two commands
 NeoAPRS sends (the waterfall on or off, the transmit gain), and the row meter and the binary frame of the waterfall that turn the stream of spectra into what the page shows (the passband at the modem's own bins, a byte of
-dB on the modem's scale, two spectra to a row, and the level of the passband; the floor under it is the page's, lib/waterfallfloor.ts). No I/O: the link is
+dB on the modem's scale, two spectra to a row, and the level of the passband; the floor under it is the page's, lib/waterfallfloor.ts), and the rows of the last two minutes kept for a page that begins to look, with the frame
+they are sent in (each row with its age). No I/O: the link is
 mercuryui.py, and the part of the modem that owns it mercuryscoping.py.
 
 The spectrum (Mercury 1.9.24, the same as 1.9.21's, `gui_interface/ui_communication.c`, `spectrum_publisher_thread`, and `modem_stats_get_rx_spectrum` in `modem/freedv/modem_stats.c`): a binary frame of the magic 0x4D435259, the number of bins and the sample rate
@@ -12,6 +13,10 @@ channel's noise of known RMS in the real-Mercury test."""
 import json
 import math
 import struct
+import sys
+import time
+from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 SPECTRUM_MAGIC = 0x4D435259
@@ -29,6 +34,11 @@ ROW_SPECTRA = 2                          # a row of the waterfall is this many o
 ROW_KIND = 1                             # the first byte of a binary frame to the page says what the frame is: a row of the waterfall
 ROW_HEADER = struct.Struct("<BBb")       # the kind, the flags (ROW_TX) and the level of the passband in whole dBFS; the bytes of the bins follow
 ROW_TX = 1                               # the flag: the radio transmits, the row is of our own signal
+HISTORY_KIND = 2                         # a binary frame of this kind is the rows kept, sent to a page when it begins to look: the kind and the daemon's clock (HISTORY_HEADER), then each row oldest first
+HISTORY_HEADER = struct.Struct("<Bd")    # the kind, and the daemon's clock when the frame is made, milliseconds since 1970 (the page places the times the daemon writes, a packet's `heard_at`, on its own clock by it)
+HISTORY_ROW = struct.Struct("<BbI")      # a kept row in it: the flags, the level, and its age in whole milliseconds at the moment the frame is made; the bytes of the bins follow
+HISTORY_SEC = 120                        # the rows are kept this long: what the pictures keep (the monitor card's 400 lines are 80 s, two minutes are kept so that a box drawn again larger is whole)
+HISTORY_ROWS = HISTORY_SEC * 10          # and at most this many: the modem's timer makes twenty spectra a second, ten rows
 ROW_OFFSET_DB = -110.0                   # a bin of a row is one byte on the modem's own scale: byte b is ROW_OFFSET_DB + b * ROW_STEP_DB dB, from -110 to +17.5 (the noise of a channel reads -58 to -31 dB a bin, a frame -15 at its strongest, our own signal +8): what is lower is the lowest byte, what is higher the highest
 ROW_STEP_DB = 0.5
 MODEM_BINS = 512                         # Mercury's spectrum: 512 bins of 7.8125 Hz at 8 kHz; a row is made of spectra of this shape only
@@ -131,6 +141,10 @@ def byte_of_db(db: float) -> int:
     return max(0, min(255, round((db - ROW_OFFSET_DB) / ROW_STEP_DB)))
 
 
+LEVEL_FIRST_BIN = int(SCOPE_LO_HZ / (MODEM_RATE / 2 / MODEM_BINS))                 # the first bin `level_dbfs` reads of a spectrum of Mercury's: 38; its last is the passband's last
+LEVEL_OF_POWER = 10 ** ((FULL_SCALE_DB - SAMPLE_FULL_SCALE_DB) / 10) / WINDOW_POWER / MODEM_BINS     # a sum of those bins' powers is this much of a full-scale sample's power: `level_dbfs` without the log
+
+
 class RowMeter:
     """Spectra in, a row every ROW_SPECTRA of them out: the power of each bin of the passband averaged over the spectra of the row. It keeps no floor: what a bin is over the noise is found by the page, from the rows
     (ui/src/lib/waterfallfloor.ts), which is the one place of that rule. A row is wholly of reception or wholly of our transmission: when the radio keys or lets go between the two spectra of a pair, the pair starts again."""
@@ -148,19 +162,96 @@ class RowMeter:
         if tx != self._tx:
             self.reset()
             self._tx = tx
-        for i in range(ROW_BINS):
-            self._power[i] += 10 ** (spectrum.db[ROW_FIRST_BIN + i] / 10)
-        self._level += 10 ** (level_dbfs(spectrum) / 10)
+        powers = [10 ** (v / 10) for v in spectrum.db[LEVEL_FIRST_BIN:ROW_FIRST_BIN + ROW_BINS]]           # (each bin's power once: the level's band is the passband and the bin under its first)
+        self._power = [total + power for total, power in zip(self._power, powers[ROW_FIRST_BIN - LEVEL_FIRST_BIN:])]
+        self._level += sum(powers) * LEVEL_OF_POWER
         self._count += 1
         if self._count < ROW_SPECTRA:
             return None
-        bins = bytes(byte_of_db(10 * math.log10(p / self._count + 1e-30)) for p in self._power)
-        level = 10 * math.log10(self._level / self._count + 1e-30)
+        count = self._count
+        bins = bytes(max(0, min(255, round((10 * math.log10(p / count + 1e-30) - ROW_OFFSET_DB) / ROW_STEP_DB))) for p in self._power)     # (byte_of_db, written out: it is the hot loop of the scope)
+        level = 10 * math.log10(self._level / count + 1e-30)
         self.reset()
         return ScopeRow(bins, max(LEVEL_MIN_DBFS, min(LEVEL_MAX_DBFS, round(level))), tx)
 
     def reset(self) -> None:
         self._power, self._level, self._count = [0.0] * ROW_BINS, 0.0, 0
+
+
+def scope_clock() -> float:
+    """The clock the rows are kept by, in seconds: it only goes forward, and it counts the time the machine was asleep (Linux's boot clock; Windows' monotonic clock counts it already), so that a row of before a
+    suspended hour is an hour old after it, as the page's clock says."""
+    if sys.platform == "linux":
+        return time.clock_gettime(time.CLOCK_BOOTTIME)
+    else:
+        return time.monotonic()
+
+
+@dataclass(frozen=True)
+class KeptRow:
+    """A row as the modem part keeps it: its number (they count up for the life of the modem part, across every emptying), when it was made (`scope_clock`, seconds), and the row."""
+    seq: int
+    at: float
+    row: ScopeRow
+
+
+class ScopeHistory:
+    """The rows of the last HISTORY_SEC, oldest first, at most HISTORY_ROWS of them: what a page that begins to look is sent first. Time that passed without rows stays in it as the distance between two rows' times.
+    It is emptied when it would lie (`clear`): the numbers go on counting, so that a page's newest row says which rows are newer."""
+
+    def __init__(self, keep_sec: float = HISTORY_SEC, most: int = HISTORY_ROWS) -> None:
+        self._keep = keep_sec
+        self._rows: deque[KeptRow] = deque(maxlen=most)
+        self.last = 0                            # the number of the newest row made; 0 before the first
+
+    def add(self, row: ScopeRow, now: float) -> KeptRow:
+        self.last += 1
+        kept = KeptRow(self.last, now, row)
+        self._rows.append(kept)
+        while self._rows and now - self._rows[0].at > self._keep:
+            self._rows.popleft()
+        return kept
+
+    def after(self, seq: int, now: float) -> list[KeptRow]:
+        """The rows newer than number `seq` and not older than the time kept, oldest first."""
+        newer: list[KeptRow] = []
+        for kept in reversed(self._rows):
+            if kept.seq <= seq or now - kept.at > self._keep:
+                break
+            newer.append(kept)
+        return newer[::-1]
+
+    def clear(self) -> bool:
+        """Forgets every row; whether there was one."""
+        had = bool(self._rows)
+        self._rows.clear()
+        return had
+
+    def __len__(self) -> int:
+        return len(self._rows)
+
+
+def history_frame(rows: Sequence[KeptRow], now: float, wall_ms: float) -> bytes:
+    """The binary frame of the rows kept: HISTORY_HEADER with the daemon's clock `wall_ms`, then each row (HISTORY_ROW and the ROW_BINS bytes), its age counted to `now`. With no row it is the header alone: the page forgets
+    what it holds."""
+    return HISTORY_HEADER.pack(HISTORY_KIND, wall_ms) + b"".join(HISTORY_ROW.pack(ROW_TX if k.row.tx else 0, k.row.level, max(0, round((now - k.at) * 1000))) + k.row.bins for k in rows)
+
+
+def parse_history(frame: bytes) -> list[tuple[ScopeRow, int]] | None:
+    """The rows and their ages in milliseconds in a frame of the rows kept, or None for a frame that is none (for the tests; the page has its own, ui/src/lib/scoperow.ts)."""
+    size = HISTORY_ROW.size + ROW_BINS
+    if len(frame) < HISTORY_HEADER.size or frame[0] != HISTORY_KIND or (len(frame) - HISTORY_HEADER.size) % size:
+        return None
+    rows = []
+    for start in range(HISTORY_HEADER.size, len(frame), size):
+        flags, level, age = HISTORY_ROW.unpack_from(frame, start)
+        rows.append((ScopeRow(frame[start + HISTORY_ROW.size:start + size], level, bool(flags & ROW_TX)), age))
+    return rows
+
+
+def history_clock(frame: bytes) -> float:
+    """The daemon's clock (milliseconds since 1970) a frame of the rows kept was made at (for the tests)."""
+    return float(HISTORY_HEADER.unpack_from(frame)[1])
 
 
 def row_frame(row: ScopeRow) -> bytes:

@@ -30,7 +30,7 @@ import type {
   PositionHistoryMessage,
 } from "@/protocol/protocol";
 import { MESSAGE_TYPES, TOPIC_NAMES } from "@/protocol/lists";
-import { parseScopeRow, type ScopeRow } from "@/lib/scoperow";
+import { parseScopeFrame, type ScopeHistory, type ScopeRow } from "@/lib/scoperow";
 
 export const FIRST_DELAY_MS = 1000;
 export const MAX_DELAY_MS = 30000;
@@ -76,6 +76,8 @@ export interface Store {
   stationAlert(message: StationAlertMessage): void;
   /** a row of the HF radio's waterfall, told to a page that asked for the scope: a binary frame, not a message (PROTOCOL.md) */
   hfScopeRow(row: ScopeRow): void;
+  /** the rows of the waterfall the daemon kept, oldest first with their ages, and the daemon's clock, told to a page when it begins to look (no row: what the page holds is to be forgotten) */
+  hfScopeHistory(history: ScopeHistory): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
@@ -323,10 +325,12 @@ export class Hub {
     }
   }
 
-  /** A binary frame: a row of the waterfall, or a frame of a kind this page does not know, which is let go. */
+  /** A binary frame: a row of the waterfall, the rows the daemon kept, or a frame of a kind this page does not know, which is let go. */
   private row(data: ArrayBuffer): void {
-    const row = parseScopeRow(data);
-    if (row !== null) this.store.hfScopeRow(row);
+    const frame = parseScopeFrame(data);
+    if (frame === null) return;
+    if ("row" in frame) this.store.hfScopeRow(frame.row);
+    else this.store.hfScopeHistory(frame.history);
   }
 
   /** The answer to a command (the weather series, the packets by the hour, the ports...), kept by the store under its own name; a pong is nothing to keep. */

@@ -14,7 +14,7 @@ import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
 import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
-import type { ScopeRow } from "@/lib/scoperow";
+import type { ScopeMemory } from "@/lib/scopememory";
 import type {
   AlertResultMessage,
   Command,
@@ -54,8 +54,8 @@ export interface DaemonContext {
   hf: Read<TncState | null>;
   /** whether the radios are named on the page: only where there are two, while the HF radio is on (the FM radio's channel tag is "FM" beside "HF", else "RF") */
   radiosNamed: Read<boolean>;
-  /** the rows of the HF radio's waterfall (binary frames), told as they come to a pane that has asked for the scope; the function it gets back stops them */
-  onScopeRow: (listener: (row: ScopeRow) => void) => () => void;
+  /** what the page keeps of the HF radio's waterfall (the rows of the last two minutes, the stations heard), which the panes draw from and listen to */
+  scopeRows: ScopeMemory;
   /** who looks at the scope (the box in Settings, the monitor card over the map), counted in one place: the rows are asked for only while someone does */
   scope: ScopeLooks;
   /** the GPS receiver and the moving station's beacon; null until the daemon has told */

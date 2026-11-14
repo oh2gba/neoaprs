@@ -152,6 +152,7 @@ class Topics:
             (ctl.stationbook.cleared, self._stations_cleared),
             (ctl.tnc.packet, self._packet), (ctl.hf.packet, self._packet), (ctl.internet_packet, self._packet), (ctl.tnc.changed, self._tnc_changed), (ctl.tnc.state_changed, self._tnc_state_changed),
             (ctl.hf.changed, self._hf_changed), (ctl.hf.state_changed, self._hf_state_changed), (ctl.mercury.changed, self._hf_changed), (ctl.mercury.scope_row, self.scope.row),
+            (ctl.mercury.scope_cleared, self.scope.cleared),
             (ctl.config_changed, self._config_changed), (ctl.gps.changed, self._gps_changed), (ctl.gps.moved, self._gps_moved), (ctl.igate.changed, self._igate_changed),
             (ctl.messaging.changed, self._message_changed), (ctl.messaging.removed, self._message_changed),
             (ctl.bulletins.changed, self._bulletin_changed), (ctl.bulletins.removed, self._bulletin_changed),

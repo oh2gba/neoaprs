@@ -64,7 +64,6 @@ function useWholeTopics() {
     general: shallowRef<GeneralState | null>(null),
     skeds: shallowRef<SkedsState | null>(null),
   };
-  const rows = useScopeRows();
   const handlers: Pick<
     Store,
     | "replaceTnc"
@@ -77,7 +76,6 @@ function useWholeTopics() {
     | "replaceQru"
     | "replaceGeneral"
     | "replaceSkeds"
-    | "hfScopeRow"
   > = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceHf: (value) => (refs.hf.value = value),
@@ -89,9 +87,8 @@ function useWholeTopics() {
     replaceQru: (value) => (refs.qru.value = value),
     replaceGeneral: (value) => (refs.general.value = value),
     replaceSkeds: (value) => (refs.skeds.value = value),
-    hfScopeRow: rows.hfScopeRow,
   };
-  return { refs: { ...refs, onScopeRow: rows.onScopeRow }, handlers };
+  return { refs, handlers };
 }
 
 /** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */
@@ -125,6 +122,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const station = useStationTables();
   const answers = useAnswers();
   const whole = useWholeTopics();
+  const scope = useScopeRows(packets, whole.refs.hf);
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
@@ -147,6 +145,8 @@ export function useDaemon(url: () => string = socketUrl) {
     ...station.handlers,
     ...answers.handlers,
     ...whole.handlers,
+    hfScopeRow: scope.hfScopeRow,
+    hfScopeHistory: scope.hfScopeHistory,
     setStation: (key, row) => void stations.set(key, row),
     setPacket: (key, row) => void packets.set(key, row),
     setMessage: (key, row) => void messages.set(key, row),
@@ -184,6 +184,7 @@ export function useDaemon(url: () => string = socketUrl) {
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
     ...whole.refs,
+    scopeRows: scope.memory,
     status,
     connection,
     lastError,

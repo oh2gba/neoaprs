@@ -103,7 +103,7 @@ class HfFrequencies(_Command):
 
 
 class HfScope(_Command):
-    """The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false,
+    """The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), first the rows the daemon kept of the last two minutes and then about ten a second, and with `on` false,
     or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
     `modem.scope`)."""
     cmd: Literal["hf_scope"]

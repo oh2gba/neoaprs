@@ -4,8 +4,8 @@
 // The passband, the band of a frame and the modem's spectrum are the daemon's, through LIMITS (neoaprs/mercuryscope.py).
 import { LIMITS } from "@/protocol/lists";
 
-const { loHz, hiHz, signalLoHz, signalHiHz, modemRate, modemBins, rowFirstBin, rowBins, rowSpectra } = LIMITS.scope;
-/** The modem makes a spectrum every 50 ms by its timer (what comes is nearer seventeen a second: these rates only say how much is kept and how slowly the floor learns; a row is of the moment it arrives). */
+const { loHz, hiHz, signalLoHz, signalHiHz, modemRate, modemBins, rowFirstBin, rowBins, rowSpectra, historySec } = LIMITS.scope;
+/** The modem makes a spectrum every 50 ms by its timer (what comes is nearer seventeen a second: these rates say how long a line is and how slowly the floor learns; a row is of the moment it was made). */
 const MODEM_SPECTRA_PER_SECOND = 20;
 
 /** The width of a bin of the modem: 7.8 Hz. */
@@ -17,12 +17,14 @@ export const BINS = rowBins;
 /** A row is this many of the modem's spectra averaged in power, so there are up to ten rows a second: what the floor learns from and what the painter is given. */
 export const SPECTRA_PER_ROW = rowSpectra;
 export const ROWS_PER_SECOND = MODEM_SPECTRA_PER_SECOND / SPECTRA_PER_ROW;
-/** A line of the picture is this many rows averaged in power, up to five lines a second: a frame of 3.8 s is sixteen lines high, as high as the label beside it, the box in Settings holds forty seconds and the card over the
- * map more than a minute, and the noise of a line is half as rough as that of a row, so a weak frame stands out of it sooner. With three rows to a line, frames five seconds apart would stand closer than their labels are high. */
+/** A line of the picture is the time of this many rows by the modem's timer, the rows made in it averaged in power: five lines a second (lib/waterfalllines.ts puts a row in the line of its moment). A frame of 3.8 s is nineteen
+ * lines high, higher than the label beside it, the box in Settings holds forty seconds and the card over the map more than a minute, and the noise of a line is about half as rough as that of a row, so a weak frame stands out of
+ * it sooner. With lines of three rows, frames five seconds apart would stand closer than their labels are high. */
 export const ROWS_PER_LINE = 2;
 export const LINES_PER_SECOND = ROWS_PER_SECOND / ROWS_PER_LINE;
-/** Two minutes of lines are kept, more than the tallest picture holds (the monitor card's 380 pixels at a ratio of 1.5 make four hundred lines, eighty seconds by the timer), so that a box whose size or pixel ratio changes is filled again whole. */
-export const KEPT_LINES = 120 * LINES_PER_SECOND;
+/** Two minutes of lines are kept, as long as the daemon keeps its rows (LIMITS.scope.historySec), more than the tallest picture holds (the monitor card's 380 pixels at a ratio of 1.5 make four hundred lines, eighty seconds), so
+ * that a box whose size or pixel ratio changes is filled again whole. */
+export const KEPT_LINES = historySec * LINES_PER_SECOND;
 
 /** Where a frequency above the dial is among the bins of the passband, with its fraction: bin 0 is centred on the first bin's frequency. */
 export const binOfHz = (hz: number): number => hz / BIN_HZ - FIRST_BIN;
@@ -34,6 +36,8 @@ const BYTE_MIN_DB = -16;
 const BYTE_STEP_DB = 0.25;
 export const dbOfByte = (byte: number): number => BYTE_MIN_DB + byte * BYTE_STEP_DB;
 export const byteOfDb = (db: number): number => Math.max(0, Math.min(255, Math.round((db - BYTE_MIN_DB) / BYTE_STEP_DB)));
+/** The power each byte stands for, worked once: a line is made of a few rows' powers. */
+const POWER_OF_BYTE = Float64Array.from({ length: 256 }, (_, byte) => 10 ** (dbOfByte(byte) / 10));
 
 /** A colour as its red, green and blue, 0 to 255. */
 export type Rgb = readonly [number, number, number];
@@ -52,10 +56,14 @@ const OWN_DOWN_DB = 24;
 
 /** The mean of rows in power, bin by bin, on the scale of the bytes (not rounded); the lowest a byte tells where there is no row. */
 function powerMean(rows: readonly ArrayLike<number>[]): Float32Array {
-  return Float32Array.from({ length: BINS }, (_, i) => {
-    const power = rows.reduce((sum, row) => sum + 10 ** (dbOfByte(row[i]) / 10), 0) / Math.max(1, rows.length);
-    return Math.max(0, (10 * Math.log10(power + 1e-30) - BYTE_MIN_DB) / BYTE_STEP_DB);
-  });
+  const out = new Float32Array(BINS);
+  const count = Math.max(1, rows.length);
+  for (let i = 0; i < BINS; i++) {
+    let power = 0;
+    for (const row of rows) power += POWER_OF_BYTE[row[i]];
+    out[i] = Math.max(0, (10 * Math.log10(power / count + 1e-30) - BYTE_MIN_DB) / BYTE_STEP_DB);
+  }
+  return out;
 }
 
 /** A line of the picture from the rows that fall into it (Floor.over made them): each bin the mean of its powers, and a line of our own transmission OWN_DOWN_DB lower. */

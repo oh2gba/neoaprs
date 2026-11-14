@@ -59,14 +59,14 @@ export class Floor {
     this.level = this.level === null ? reading : this.level + Math.max(-LEVEL_SLEW_DB, Math.min(LEVEL_SLEW_DB, LEVEL_GAIN * (reading - this.level)));
     for (let i = 0; i < BINS; i++) this.sum[i] += 10 ** ((row[i] - reading) / 10); // (over the row's own reading, not the level that is still on its way to it: a step in the noise is no dip in a bin)
     this.count++;
+    const full = this.count === BLOCK_ROWS;
+    if (!full && this.blocks.length > 0) return;
     // a second's mean of each bin over the readings, with the median across the bins round it: a carrier is gone from it, and it is steady enough that the lowest of thirty is hardly lower than the rest
     const block = windowed(
       Float32Array.from(this.sum, (power) => 10 * Math.log10(power / this.count + 1e-30)),
       SHAPE_MEDIAN_HALF,
       median,
     );
-    const full = this.count === BLOCK_ROWS;
-    if (!full && this.blocks.length > 0) return;
     if (full) {
       this.blocks = [block, ...this.blocks.slice(0, SHAPE_BLOCKS - 1)];
       this.sum.fill(0);
@@ -78,7 +78,11 @@ export class Floor {
   /** The shape from the seconds kept. A new shape changes what a row reads as its level (`row` is the newest): the level, and all that was learnt over the readings, move by as much, so that the floor itself does not jump. */
   private learn(blocks: readonly Float32Array[], row: Float32Array): void {
     const low = Math.floor(SHAPE_QUANTILE * (blocks.length - 1));
-    const quiet = Float32Array.from({ length: BINS }, (_, i) => blocks.map((block) => block[i]).sort((a, b) => a - b)[low]);
+    const column = new Float32Array(blocks.length);
+    const quiet = Float32Array.from({ length: BINS }, (_, i) => {
+      blocks.forEach((block, n) => (column[n] = block[i]));
+      return column.sort()[low];
+    });
     const offset = windowed(quiet, SHAPE_SMOOTH_HALF, (w) => w.reduce((a, b) => a + b, 0) / w.length);
     const middle = median(offset);
     const tilt = offset.map((v) => v - middle);

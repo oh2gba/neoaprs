@@ -39,7 +39,7 @@ const on = computed(() => scope.wanted.value);
       <IconButton kind="close" class="card-close" :label="t('iconbutton.close')" @click="emit('close')" />
     </header>
     <div class="card-body">
-      <div class="monitor-picture"><HfWaterfall :on="on" @shown="shown = $event" /></div>
+      <div class="monitor-picture"><HfWaterfall @shown="shown = $event" /></div>
       <HfLevelBar :on="on" />
     </div>
   </section>

@@ -1,17 +1,17 @@
 // The scope in the HF radio's box (HfScope.vue, HfWaterfall.vue, composables/useHfScope.ts) and the Transmit level row (HfLevelRow.vue): the fold, folded at first and remembered in the browser; the rows asked of the daemon only while it is open, this page is
-// in front and the modem has the interface; the waterfall drawn from the rows, started again when they are, with the stations heard on the HF radio written on it; the receive level as a bar with its zones; the gain buttons and the
-// peak that turns red.
+// in front and the modem has the interface; the waterfall drawn from the rows and from what the page keeps of them, whole at once when it is mounted again, with the stations heard on the HF radio written on it; the receive
+// level as a bar with its zones; the gain buttons and the peak that turns red.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { shallowReactive } from "vue";
+import { shallowReactive, shallowRef } from "vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { useScopeRows } from "@/composables/useScopeRows";
 import type { ScopeRow } from "@/lib/scoperow";
 import { readStored, writeStored } from "@/lib/storage";
 import { BINS } from "@/lib/waterfall";
-import type { PacketRow } from "@/protocol/protocol";
+import type { PacketRow, TncState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { configValues, hfState, packet, tncState } from "@/test/fixtures";
+import { NOW, configValues, hfState, packet, tncState } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const HF_ON = { "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" };
@@ -28,25 +28,35 @@ const hfBox = (wrapper: ReturnType<typeof mount>) => {
   return box;
 };
 const calls: string[] = [];
-let rows = useScopeRows();
+const clock = { now: NOW };
 let packets = shallowReactive(new Map<string, PacketRow>());
-/** Rows of the daemon, one after the other. */
+let hf = shallowRef<TncState | null>(null);
+let rows = useScopeRows(packets, hf, () => clock.now);
+/** Rows of the daemon, one after the other, a tenth of a second apart (two to a line of the picture). */
 const say = async (...told: ScopeRow[]): Promise<void> => {
-  for (const row of told) rows.hfScopeRow(row);
+  for (const row of told) {
+    rows.hfScopeRow(row);
+    clock.now += 100;
+  }
   await flushPromises();
 };
+/** The time of a packet heard `ago` milliseconds before now, as the daemon writes it (whole seconds). */
+const heardNow = (ago = 0): string => new Date(clock.now - ago).toISOString().replace(/\.\d+Z$/, "Z");
 const scopeCalls = (daemon: FakeDaemon) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "hf_scope");
 
 function make(modem: Record<string, unknown> = { scope: true }, config: Record<string, string> = HF_ON) {
-  const daemon = fakeDaemon({ config: configValues(config), tnc: tncState(), hf: withModem(modem), onScopeRow: rows.onScopeRow, packets });
+  hf.value = withModem(modem);
+  const daemon = fakeDaemon({ config: configValues(config), tnc: tncState(), hf, scopeRows: rows.memory, packets });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, attachTo: document.body, global: withDaemon(daemon) });
   return { wrapper, daemon, box: hfBox(wrapper) };
 }
 
 beforeEach(() => {
   calls.length = 0;
-  rows = useScopeRows();
+  clock.now = NOW;
   packets = shallowReactive(new Map<string, PacketRow>());
+  hf = shallowRef<TncState | null>(null);
+  rows = useScopeRows(packets, hf, () => clock.now);
   localStorage.clear();
   const special: Record<string, (...args: never[]) => unknown> = {
     createImageData: (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }),
@@ -166,11 +176,11 @@ describe("the picture and the receive level", () => {
   const lines = () => calls.filter((c) => c === "putImageData(3)").length;
   const texts = () => calls.filter((c) => c.startsWith("fillText(")).map((c) => c.slice("fillText(".length, -1));
 
-  it("draws the ruler and the curve at once, and a line of the waterfall for every two rows", async () => {
+  it("draws the ruler and the curve at once, and a line of the waterfall for every fifth of a second", async () => {
     await open();
     expect([...new Set(texts())]).toEqual(["500", "1000", "1500", "2000", "2500"]);
     calls.length = 0;
-    await say(scopeRow());
+    await say(scopeRow(), scopeRow());
     expect(lines()).toBe(0);
     await say(scopeRow(), scopeRow(), scopeRow());
     expect(lines()).toBe(2);
@@ -209,42 +219,92 @@ describe("the picture and the receive level", () => {
     expect(box.find(".levelbar").classes()).not.toContain("held");
   });
 
-  it("takes no row while the fold is closed, and starts the picture and the level again when it is opened", async () => {
+  it("keeps the picture while the fold is closed, draws it whole as it stands when it is opened again, and forgets it when the daemon kept nothing", async () => {
     const { box } = await open();
-    await say(scopeRow({ level: -30 }), scopeRow({ level: -30 }));
+    await say(scopeRow({ level: -30 }), scopeRow({ level: -30 }), scopeRow(), scopeRow(), scopeRow());
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     fold.element.open = false;
     await fold.trigger("toggle");
+    clock.now += 10_000;
     calls.length = 0;
-    await say(scopeRow(), scopeRow());
-    expect(calls).toEqual([]);
     fold.element.open = true;
     await fold.trigger("toggle");
     await flushPromises();
-    expect(box.find(".levelvalue").text()).toBe("– dBFS");
-    expect(calls).toContain("fillRect(4)"); // (the picture drawn anew, empty)
+    expect(box.find(".levelvalue").text()).toBe("– dBFS"); // (the level is of the rows that come, and of the newest the daemon kept)
+    expect(lines()).toBe(52); // (as it stands at 10.5 s: the half second of rows ten seconds down, the time away the ground over it)
     calls.length = 0;
-    await say(scopeRow(), scopeRow());
-    expect(lines()).toBe(1);
-    expect(calls.filter((c) => c === "drawImage(9)")).toHaveLength(1);
+    rows.hfScopeHistory({ rows: [], clock: clock.now }); // (the daemon kept nothing: the modem was started anew)
+    await flushPromises();
+    expect(rows.memory.rows).toEqual([]);
+    expect(calls.filter((c) => c === "putImageData(3)")).toHaveLength(0);
   });
 
-  it("writes the call and the SNR of a frame heard on the HF radio where its line is, and nothing for the FM radio, the internet, our own or what was there before", async () => {
-    packets.set("1", packet(1, { source: "OH2OLD", radio: "hf" }));
+  it("draws the picture whole from what the page keeps when it is mounted anew, and the rows the daemon kept fill the time it was away, none twice", async () => {
+    const first = await open();
+    await say(...Array.from({ length: 10 }, () => scopeRow({}, -60))); // (a second of rows)
+    first.wrapper.unmount(); // (another tab of the panel)
+    clock.now += 30_000;
+    calls.length = 0;
+    const again = make();
+    await flushPromises();
+    expect(lines()).toBe(5 + 150); // (from memory at once: the five lines of that second, and the 30 s since at the top, as the ground)
+    const made = rows.memory.rows.map((kept) => kept.at);
+    const daemon = Array.from({ length: 310 }, (_, i) => ({ row: scopeRow({}, -60), age: clock.now - (NOW + i * 100 + 5) }));
+    calls.length = 0;
+    rows.hfScopeHistory({ rows: daemon, clock: clock.now });
+    await flushPromises();
+    expect(rows.memory.rows.slice(0, 10).map((kept) => kept.at)).toEqual(made); // (the rows held stay where they were)
+    expect(rows.memory.rows).toHaveLength(310);
+    expect(lines()).toBe(155); // (drawn again, the same height: nothing moved down)
+    expect(again.box.find(".levelvalue").text()).toBe("-38 dBFS");
+  });
+
+  it("writes the call and the SNR of a frame heard on the HF radio where its line is, the call alone of one heard before it was told, and nothing for the FM radio, the internet or our own", async () => {
+    packets.set("1", packet(1, { source: "OH2OLD", radio: "hf" })); // (heard 99 s ago, before the page had any packet)
     const { daemon } = await open();
-    await say(scopeRow(), scopeRow());
+    await say(scopeRow(), scopeRow(), scopeRow());
     calls.length = 0;
     await tell(daemon, { hf: withModem({ scope: true, snr: -3.2 }) });
-    packets.set("2", packet(2, { source: "OH2GAX", radio: "hf" }));
+    packets.set("2", packet(2, { source: "OH2GAX", radio: "hf", heard_at: heardNow() }));
     packets.set("3", packet(3, { source: "OH2FM", radio: "fm" }));
     packets.set("4", packet(4, { source: "OH2IS", radio: "hf", via: "is" }));
     packets.set("5", packet(5, { source: "OH2GBA", radio: "hf", direction: "out" }));
     await flushPromises();
-    expect(texts()).toEqual(["OH2GAX \u22123 dB"]);
+    await say(scopeRow(), scopeRow());
+    expect(texts()).toEqual(["OH2GAX −3 dB"]);
     await tell(daemon, { hf: withModem({ scope: true, snr: null }) });
-    packets.set("6", packet(6, { source: "OH2XYZ", radio: "hf" }));
+    packets.set("6", packet(6, { source: "OH2XYZ", radio: "hf", heard_at: heardNow() }));
     await flushPromises();
-    expect(texts()).toEqual(["OH2GAX \u22123 dB", "OH2XYZ"]);
+    await say(scopeRow(), scopeRow());
+    expect(texts()).toEqual(["OH2GAX −3 dB", "OH2XYZ"]);
+    expect(rows.memory.heard.map((heard) => [heard.call, heard.snr])).toEqual([
+      ["OH2OLD", null],
+      ["OH2GAX", -3.2],
+      ["OH2XYZ", null],
+    ]);
+  });
+
+  it("writes a station told late (the socket came back after a drop, the browser held the page) where it was heard, with the call alone", async () => {
+    const { daemon } = await open();
+    await say(scopeRow(), scopeRow(), scopeRow());
+    await tell(daemon, { hf: withModem({ scope: true, snr: -3.2 }) });
+    clock.now += 20_000;
+    packets.set("2", packet(2, { source: "OH2LATE", radio: "hf", heard_at: heardNow(15_000) }));
+    await flushPromises();
+    expect(rows.memory.heard.map((heard) => [heard.call, Math.round((clock.now - heard.at) / 1000), heard.snr])).toEqual([["OH2LATE", 15, null]]);
+  });
+
+  it("writes on the rows of the past a station heard while no picture looked, where it was heard", async () => {
+    const first = await open();
+    await say(scopeRow(), scopeRow(), scopeRow());
+    first.wrapper.unmount();
+    packets.set("7", packet(7, { source: "OH2AWAY", radio: "hf", heard_at: heardNow() })); // (told while the page showed another tab: written down all the same)
+    await flushPromises();
+    clock.now += 5_000;
+    calls.length = 0;
+    make();
+    await flushPromises();
+    expect(texts()).toContain("OH2AWAY");
   });
 
   it("asks for no rows while the picture has no room (a fold open under another tab), and asks when it has", async () => {
@@ -257,7 +317,7 @@ describe("the picture and the receive level", () => {
       width.set(420);
       await flushPromises();
       expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]);
-      await say(scopeRow(), scopeRow());
+      await say(scopeRow(), scopeRow(), scopeRow());
       expect(lines()).toBe(1);
       width.set(0);
       await flushPromises();

@@ -92,8 +92,25 @@ A frame is exactly 310 bytes:
 
 The bins are those of the modem's own spectrum (512 of 7.8125 Hz from 0 Hz at 8000 Hz): bin `i` of a row is the modem's bin `39 + i`, centred on `(39 + i) * 7.8125` Hz. A byte `b` is
 `-110 + b * 0.5` dB on the modem's own scale (a tone of amplitude 1650 of 32768 reads 0 dB), the mean in power of the row's spectra; a value outside -110 to 17.5 dB is the nearest byte.
-A row is wholly of reception or wholly of our own transmission. The frames carry no time: a row is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
+A row is wholly of reception or wholly of our own transmission. A row carries no time: it is of the moment it arrives. What a bin is over the noise (the floor) is found by the page from the rows, in one place
 (`ui/src/lib/waterfallfloor.ts`); the daemon sends the modem's dB and keeps no floor for these frames.
+
+The daemon makes the rows all the time and keeps those of the last 120 s (at most 1200). A page that asks for the scope is sent them first, in **one frame of the rows kept**, and then every row made after the newest of them, none twice and none
+left out. A page that is behind when it asks is sent no rows kept, only the rows that follow once it has read. When the rows kept would lie (the modem stopped, ended or started anew, its control line or the link to its interface made
+anew, the HF radio's type, sound card or keying changed), they are forgotten and every page that has the scope open is sent the frame with no row, which says to forget them too (a page that is behind, as soon as it has read).
+A page that asks again on the same socket is sent the rows from the one before the newest it was sent on, while they are kept, and finds by those two where they go on from what it holds. The frame is the kind and the daemon's
+clock, then each row, oldest first, 313 bytes each (a full one is about 375 KB):
+
+| offset | size | field | meaning |
+|---:|---:|---|---|
+| 0 | 1 | kind | `2`: the rows kept |
+| 1 | 8 | clock | the daemon's clock when the frame was made, milliseconds since 1970, a little-endian float64: the page places the times the daemon writes (a packet's `heard_at`) on its own clock by it |
+| 9 + n * 313 | 1 | flags | of row `n`, as in a row |
+| 10 + n * 313 | 1 | level | of row `n`, as in a row |
+| 11 + n * 313 | 4 | age | how long ago row `n` was made when the frame was, whole milliseconds, little-endian, counted on a clock that counts the time the machine was asleep: the page places it by its own clock, whatever the daemon's says |
+| 15 + n * 313 | 307 | bins | of row `n`, as in a row |
+
+A page that does not know this kind lets it go, as it does any other, and has the rows from then on.
 
 ## Validation
 
@@ -216,7 +233,7 @@ answered; the topic `hf` has the list when it changes.
 
 ### `hf_scope`
 
-The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), about ten a second, and with `on` false,
+The scope: with `on`, this page is sent the rows of the HF radio's waterfall as binary frames (*Binary frames*), first the rows the daemon kept of the last two minutes and then about ten a second, and with `on` false,
 or when the page closes, the page is sent no more. Nothing happens, and no error is told, while the modem is not running or has no interface (the topic `hf` says
 `modem.scope`).
 

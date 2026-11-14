@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
+- **New:** the HF waterfall keeps its last two minutes across another tab, a reload or another screen.
+- **Changed:** the HF modem is Mercury 1.9.24.
+- **Changed:** the detailed map is made by NeoAPRS itself, and the Windows program is 56 MB smaller.
+- **Changed:** the app's window opens at once while NeoAPRS starts; on Windows a small loading window comes first.
 - **New:** a **Skeds** tab: post when and on which dial you will be on the air, and see who else will be.
 - **New:** the HF **Spectrum** is a sharper waterfall with a frequency ruler, the spectrum as a curve and what was heard written on it.
 - **New:** **Monitor** in the map's menu shows the waterfall on a card over the map.

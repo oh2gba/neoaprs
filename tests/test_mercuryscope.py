@@ -1,15 +1,17 @@
 """What Mercury's UI interface says and the scope made of it (neoaprs/mercuryscope.py): the spectrum frame, the status message, the two commands, the level worked back from the spectrum's own scale (white noise of a known
 RMS), and the rows of the waterfall: the passband at the modem's own bins, two spectra to a row, a byte of dB
-on the modem's scale, and the binary frame the page is sent."""
+on the modem's scale, and the binary frame the page is sent; the rows kept of the last two minutes (bounded, in order, a gap kept as a gap, emptied and numbered on) and the frame they are sent in; and what making the rows costs."""
 import json
 import math
 import random
+import struct
+import time
 
 import pytest
 
 from neoaprs import mercuryscope as ms
 from neoaprs.mercury import TUNE_LEVEL_DBFS, tune_level
-from neoaprs.mercuryscope import RowMeter, ScopeRow, Spectrum, parse_row, parse_spectrum, parse_status, row_frame, spectrum_frame
+from neoaprs.mercuryscope import RowMeter, ScopeHistory, ScopeRow, Spectrum, history_clock, history_frame, parse_history, parse_row, parse_spectrum, parse_status, row_frame, spectrum_frame
 
 BINS = 512
 
@@ -171,3 +173,72 @@ def test_the_binary_frame_is_the_kind_the_flags_the_signed_level_and_the_bytes_a
     assert row_frame(ScopeRow(bins, -90, False))[:3] == bytes([1, 0, 256 - 90]) and parse_row(row_frame(ScopeRow(bins, 0, False))) == ScopeRow(bins, 0, False)
     assert parse_row(frame[:-1]) is None and parse_row(frame + b"\x00") is None and parse_row(b"") is None, "the size is exact"
     assert parse_row(b"\x02" + frame[1:]) is None, "a frame of another kind is no row"
+
+
+# ---- the rows kept
+
+def numbered(n: int) -> ScopeRow:
+    return ScopeRow(bytes([n % 256]) * ms.ROW_BINS, -40 - n % 10, n % 3 == 0)
+
+
+def test_the_rows_kept_are_in_order_and_bounded_by_the_time_and_by_their_number() -> None:
+    kept = ScopeHistory()
+    made = [kept.add(numbered(n), n * 0.1) for n in range(1, 1501)]
+    assert [k.seq for k in made] == list(range(1, 1501)) and kept.last == 1500
+    rows = kept.after(0, 150.0)
+    assert len(rows) == len(kept) == ms.HISTORY_ROWS == 1200, "ten rows a second for two minutes, and no more"
+    assert [k.seq for k in rows] == list(range(301, 1501)) and [k.row for k in rows] == [numbered(n) for n in range(301, 1501)], "the newest, oldest first"
+    assert [k.seq for k in kept.after(1497, 150.0)] == [1498, 1499, 1500], "and those newer than a row of them"
+    slow = ScopeHistory()
+    for n in range(1, 301):
+        slow.add(numbered(n), n * 1.0)
+    assert [k.seq for k in slow.after(0, 300.0)] == list(range(180, 301)), "a row older than two minutes is gone though there is room"
+    assert slow.after(0, 1000.0) == [], "and none is given that has grown older since"
+
+
+def test_time_without_rows_is_kept_as_a_gap_and_the_rows_are_forgotten_with_their_numbers_going_on() -> None:
+    kept = ScopeHistory()
+    for n in range(1, 11):
+        kept.add(numbered(n), 100 + n * 0.12)
+    for n in range(11, 21):
+        kept.add(numbered(n), 110 + n * 0.12)                          # (the modem away for ten seconds)
+    ages = [round((112.5 - k.at) * 1000) for k in kept.after(0, 112.5)]
+    assert ages[9] - ages[10] == 11_200 - 1_200 + 120 and all(ages[i] - ages[i + 1] == 120 for i in range(19) if i != 9), "the gap stays the ten seconds it was"
+    assert kept.clear() is True and len(kept) == 0 and kept.after(0, 112.5) == [] and kept.clear() is False
+    assert kept.add(numbered(1), 113.0).seq == 21, "the numbers go on: a page's newest row still says what is newer"
+
+
+def test_the_frame_of_the_rows_kept_is_the_kind_the_daemons_clock_and_each_row_with_its_age_and_comes_back_as_it_was() -> None:
+    kept = ScopeHistory()
+    for n in range(1, 4):
+        kept.add(numbered(n), 10.0 + n * 0.1)
+    rows = kept.after(0, 10.5)
+    wall = 1_794_000_000_123.0
+    frame = history_frame(rows, 10.5, wall)
+    assert frame[0] == ms.HISTORY_KIND == 2 and len(frame) == 9 + 3 * 313 and history_clock(frame) == wall
+    assert frame[1:9] == struct.pack("<d", wall), "the daemon's clock, milliseconds since 1970"
+    assert frame[9:15] == bytes([0, 256 - 41]) + (400).to_bytes(4, "little") and frame[15:15 + ms.ROW_BINS] == numbered(1).bins
+    assert parse_history(frame) == [(numbered(1), 400), (numbered(2), 300), (numbered(3), 200)], "oldest first, each with its age in milliseconds"
+    empty = history_frame([], 10.5, wall)
+    assert len(empty) == 9 and parse_history(empty) == [] and history_clock(empty) == wall, "no row: the page forgets what it holds"
+    assert parse_history(frame[:-1]) is None and parse_history(b"\x02") is None and parse_history(row_frame(numbered(1))) is None and parse_row(frame) is None, "and neither frame is the other"
+    full = ScopeHistory()
+    for n in range(ms.HISTORY_ROWS):
+        full.add(numbered(n), n * 0.1)
+    assert len(history_frame(full.after(0, 120.0), 120.0, wall)) == 9 + 1200 * 313 == 375_609, "a full one is about 376 KB, under the socket's limits"
+
+
+def test_making_the_rows_all_the_time_costs_next_to_nothing() -> None:
+    random.seed(7)
+    spectra = [Spectrum(8000, tuple(-60 + random.uniform(-6, 6) for _ in range(BINS))) for _ in range(20)]
+    meter, kept, rows, fed = RowMeter(), ScopeHistory(), 0, 0
+    began = time.perf_counter()
+    while rows < 1000:
+        row = meter.feed(spectra[fed % 20], False)
+        fed += 1
+        if row is not None:
+            kept.add(row, fed * 0.05)
+            rows += 1
+    spent = time.perf_counter() - began
+    print(f"\n1000 rows of the waterfall made and kept: {spent * 1000:.0f} ms, {spent:.3f} ms a row")    # (the number for the record; no bound on the time: the machine's speed is not the test's)
+    assert fed == 2000 and len(kept) == 1000

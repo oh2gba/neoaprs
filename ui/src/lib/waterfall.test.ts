@@ -498,9 +498,10 @@ describe("the painter", () => {
   const drawn = (calls: string[], name: string): string[] => calls.filter((call) => call.startsWith(`${name}(`));
   const texts = (calls: string[]): string[] => drawn(calls, "fillText").map((call) => call.slice("fillText(".length).split(",")[0]);
   const colourOf = (db: number): number[] => Array.from(colourTable(SCALE).subarray(byteOfDb(db) * 4, byteOfDb(db) * 4 + 4));
-  /** A whole line: its rows, the last of them at `at`. */
+  const GROUND = colourOf(-16); // (the scale's first colour: a line with nothing in it)
+  /** The two rows of a line, the first at `at` (the line's own moment): it is whole when a row of a later line comes. */
   const line = (painter: Waterfall, db: number, at: number, tx = false): void => {
-    for (let i = ROWS_PER_LINE - 1; i >= 0; i--) painter.push(row(db), at - i * 100, tx);
+    for (const ms of [0, 100]) painter.push(row(db), at + ms, tx);
   };
 
   afterEach(() => {
@@ -508,7 +509,7 @@ describe("the painter", () => {
     vi.unstubAllGlobals();
   });
 
-  it("makes the canvas as many pixels as its room on the screen and draws the ruler and the curve's grid with the first row, and the first line when its rows are there", () => {
+  it("makes the canvas as many pixels as its room on the screen and draws the ruler and the curve's grid with the first row, and the first line when it is whole", () => {
     vi.stubGlobal("devicePixelRatio", 2);
     const { canvas, calls, strips } = fakeCanvas(420, 240);
     const painter = new Waterfall(canvas);
@@ -519,8 +520,9 @@ describe("the painter", () => {
     expect(calls).toContain(`fillRect(${xOfHz(1200, 840)},40,${xOfHz(1800, 840) - xOfHz(1200, 840)},4)`); // (the bracket of the band of a frame, on the ruler's lower edge)
     expect(calls[calls.indexOf(`fillRect(${xOfHz(1200, 840)},40,${xOfHz(1800, 840) - xOfHz(1200, 840)},4)`) - 1]).toBe("fillStyle=receive");
     expect(calls).toContain("setLineDash(2,6)"); // (the grid's dotted lines: a CSS pixel of line to three of none)
-    expect(strips).toEqual([]); // (half a line is no line yet)
     painter.push(row(60), START + 100, false);
+    expect(strips).toEqual([]); // (the fifth of a second is not over: no line yet)
+    painter.push(row(60), START + 200, false);
     expect(strips).toEqual([{ y: 44, width: 840, height: 2, data: [255, 40, 16, 255, 255, 40, 16, 255] }]); // (one line of two pixels' height, under the ruler, in the scale's last colour)
   });
 
@@ -529,9 +531,9 @@ describe("the painter", () => {
     const { canvas, calls } = fakeCanvas(343, 260);
     const { curve, width, unit } = layout(343, 260, 3);
     const painter = new Waterfall(canvas);
-    painter.push(row(-16), START, false);
-    calls.length = 0; // (the empty box is drawn with the first row; the line comes with the second)
-    painter.push(row(-16), START + 100, false);
+    painter.push(row(-16), START + 1000, false);
+    calls.length = 0; // (the empty box is drawn with the first row; the line comes when it is whole)
+    painter.push(row(-16), START + 1200, false);
     expect(unit).toBe(3);
     const half = unit / 2;
     const bottom = curve.y + curve.h - unit + half; // (the lowest line of the box, through the middle of its pixels)
@@ -542,7 +544,8 @@ describe("the painter", () => {
     expect(drawn(calls, "stroke")).toHaveLength(2); // (the grid's one path of dashes and the bright line)
     painter.clear();
     calls.length = 0;
-    line(painter, 12, START + 1000);
+    line(painter, 12, START + 2000);
+    painter.push(row(12), START + 2200, false);
     const [, top] = drawn(calls, "lineTo").at(-2)?.slice("lineTo(".length, -1).split(",").map(Number) ?? [];
     expect(top).toBe(curve.y + Math.round(0.5 * (curve.h - unit)) + half); // (12 dB over the floor is the middle of a box from -8 to 32 dB)
     expect(calls).toContain(`fillRect(0,${curve.y + Math.round(0.8 * (curve.h - unit))},${width},${unit})`); // (the floor's line, a fifth of the way up)
@@ -554,15 +557,32 @@ describe("the painter", () => {
     const { canvas, calls, strips } = fakeCanvas(420, 240);
     const painter = new Waterfall(canvas);
     line(painter, 0, START);
+    painter.push(row(-16), START + 200, false);
     calls.length = 0;
     strips.length = 0;
-    painter.push(row(-16), START + 100, false);
-    expect(calls).toEqual([]); // (the first row of a line: nothing is drawn for it)
-    painter.push(row(-16), START + 200, false);
+    painter.push(row(-16), START + 300, false);
+    expect(calls).toEqual([]); // (a row of the line under way: nothing is drawn for it)
+    painter.push(row(-16), START + 400, false);
     expect(drawn(calls, "drawImage")).toEqual(["drawImage(itself,0,22,420,168,0,23,420,168)"]);
     expect(strips).toEqual([{ y: 22, width: 420, height: 1, data: [0, 8, 40, 255, 0, 8, 40, 255] }]);
     expect(calls.indexOf("drawImage(itself,0,22,420,168,0,23,420,168)")).toBeLessThan(calls.indexOf("putImageData(420x1,0,22)"));
     expect(texts(calls)).toEqual([]); // (the ruler stands: it is not drawn again for a line)
+  });
+
+  it("puts a row on the line of its moment: a fifth of a second that no row came in is the line before it again, and longer without rows is a gap of the ground", () => {
+    const { canvas, calls, strips } = fakeCanvas(420, 240);
+    const painter = new Waterfall(canvas);
+    line(painter, 8, START);
+    painter.push(row(0), START + 400, false); // (nothing came from 200 to 400 ms)
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(8), colourOf(8)]);
+    expect(drawn(calls, "drawImage").at(-1)).toBe("drawImage(itself,0,22,420,167,0,24,420,167)"); // (moved down two lines at once)
+    strips.length = 0;
+    painter.push(row(0), START + 3400, false); // (the modem away for three seconds)
+    expect(strips).toHaveLength(15);
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([
+      ...Array.from({ length: 3 }, () => colourOf(0)),
+      ...Array.from({ length: 12 }, () => GROUND),
+    ]); // (the line of the row at 0.4 s, held twice, and then the ground)
   });
 
   it("marks our own transmission along the left edge and on the ruler's bracket, in the colour of transmit, and draws it 24 dB lower", () => {
@@ -571,49 +591,48 @@ describe("the painter", () => {
     line(painter, 0, START);
     calls.length = 0;
     strips.length = 0;
-    painter.push(row(40), START + 100, true);
-    expect(calls[calls.indexOf("fillRect(158,20,105,2)") - 1]).toBe("fillStyle=transmit"); // (the bracket at once, with the first row of ours)
-    expect(strips).toEqual([]);
     painter.push(row(40), START + 200, true);
+    expect(calls[calls.indexOf("fillRect(158,20,105,2)") - 1]).toBe("fillStyle=transmit"); // (the bracket at once, with the first row of ours)
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(0)]);
+    expect(calls).not.toContain("fillRect(0,22,3,1)");
+    painter.push(row(40), START + 300, true);
+    painter.push(row(40), START + 400, true);
     expect(calls).toContain("fillRect(0,22,3,1)");
     expect(calls[calls.indexOf("fillRect(0,22,3,1)") - 1]).toBe("fillStyle=transmit");
-    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(16)]);
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(0), colourOf(16)]);
     calls.length = 0;
-    line(painter, 0, START + 400);
-    expect(calls).not.toContain("fillRect(0,22,3,1)");
+    line(painter, 0, START + 600);
     expect(calls[calls.indexOf("fillRect(158,20,105,2)") - 1]).toBe("fillStyle=receive");
+    calls.length = 0;
+    painter.push(row(0), START + 800, false);
+    expect(calls).not.toContain("fillRect(0,22,3,1)");
   });
 
-  it("never makes a line of both what is heard and our own transmission, and no line at all of a row of ours with nothing in it", () => {
+  it("never makes a line of both what is heard and our own transmission, and draws a row of ours with nothing in it as the ground with the mark of ours", () => {
     const { canvas, calls, strips } = fakeCanvas(420, 240);
     const painter = new Waterfall(canvas);
     line(painter, 0, START);
     strips.length = 0;
-    painter.push(row(4), START + 100, false);
-    painter.push(row(-16), START + 200, true); // keyed, and the audio has not begun: the row that was heard is a line by itself...
-    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(4)]);
-    painter.push(row(-16), START + 300, true); // ...and of the silent rows there is none
-    expect(strips).toHaveLength(1);
-    calls.length = 0;
-    painter.push(row(40), START + 400, true);
-    painter.push(row(40), START + 500, true);
+    painter.push(row(4), START + 200, false);
+    painter.push(row(-16), START + 300, true); // keyed in the middle of a line, and the audio has not begun: the line is ours, and the row heard before in it is let go
+    painter.push(row(-16), START + 400, true);
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(0), GROUND]);
     painter.push(row(40), START + 600, true);
-    painter.push(row(-16), START + 700, true); // the modem's buffer is empty: our line ends with the rows that had our signal
-    painter.push(row(0), START + 800, false);
-    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(4), colourOf(16), colourOf(16)]);
-    expect(calls.filter((call) => call === "fillRect(0,22,3,1)")).toHaveLength(2); // (both lines of ours have the strip)
+    painter.push(row(40), START + 700, true);
+    painter.push(row(-16), START + 800, true); // the modem's buffer is empty
     painter.push(row(0), START + 900, false);
-    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(4), colourOf(16), colourOf(16), colourOf(0)]);
+    painter.push(row(0), START + 1000, false);
+    expect(strips.map((strip) => strip.data.slice(0, 4))).toEqual([colourOf(0), GROUND, GROUND, colourOf(16), colourOf(0)]);
+    expect(calls.filter((call) => call === "fillRect(0,22,3,1)")).toHaveLength(3); // (the three lines of ours have the strip, the last one heard has not)
   });
 
-  it("draws a line across with the time under it at the left edge on the first line of a quarter of a minute, and writes what was heard beside the band on the line it came, letters with a dark edge, and a plate behind a call", () => {
+  it("draws a line across with the time under it at the left edge on the first line of a quarter of a minute, and writes what was heard beside the band on the line of its moment, letters with a dark edge, and a plate behind a call", () => {
     const { canvas, calls } = fakeCanvas(560, 380);
     const painter = new Waterfall(canvas);
-    painter.label("Q1EARLY 1 dB"); // (nothing to write it on yet)
-    for (let i = 0; i <= 151; i++) {
+    for (let i = 0; i <= 152; i++) {
       if (i >= 148) calls.length = 0;
       painter.push(row(0), START + i * 100, false);
-      if (i >= 148) expect(texts(calls)).toEqual(i === 151 ? ["12:00:15"] : []); // (the line of the rows at 15.0 and 15.1 s)
+      if (i >= 148) expect(texts(calls)).toEqual(i === 152 ? ["12:00:15"] : []); // (the line of 15.0 to 15.2 s, whole when the row at 15.2 s comes)
     }
     expect(calls[calls.indexOf("fillRect(0,22,560,1)") - 1]).toBe("fillStyle=grid");
     expect(calls).toContain("fillText(12:00:15,8,32)");
@@ -621,8 +640,8 @@ describe("the painter", () => {
     expect(calls).toContain("strokeStyle=#000828"); // (the dark edge is the ground's colour)
     expect(calls).toContain("globalAlpha=0.7"); // (the time is fainter than a call)
     calls.length = 0;
-    painter.label("Q1ABC −3 dB");
-    painter.label("Q1DEF 10 dB");
+    painter.label("Q1ABC −3 dB", START + 15_100);
+    painter.label("Q1DEF 10 dB", START + 15_000);
     expect(drawn(calls, "fillText")).toEqual(["fillText(Q1ABC −3 dB,357,31)", `fillText(Q1DEF 10 dB,${210 - 4 - 72 + 3},31)`]);
     expect(drawn(calls, "strokeText")).toHaveLength(2);
     expect(calls).toContain("fillStyle=ink");
@@ -637,39 +656,60 @@ describe("the painter", () => {
     expect(calls.indexOf("roundRect(354,24,72,13,2)")).toBeLessThan(calls.indexOf("strokeText(Q1ABC −3 dB,357,31)"));
   });
 
-  it("writes what was heard on the first row of a line when the line is drawn, on that line", () => {
+  it("writes what was heard in the line under way when that line is drawn, on that line", () => {
     const { canvas, calls } = fakeCanvas(560, 380);
     const painter = new Waterfall(canvas);
     line(painter, 0, START);
-    painter.push(row(8), START + 100, false);
-    calls.length = 0;
-    painter.label("Q1ABC 2 dB");
-    expect(calls).toEqual([]);
     painter.push(row(8), START + 200, false);
+    calls.length = 0;
+    painter.label("Q1ABC 2 dB", START + 300);
+    expect(calls).toEqual([]);
+    painter.push(row(8), START + 400, false);
     expect(drawn(calls, "fillText")).toEqual(["fillText(Q1ABC 2 dB,357,31)"]);
     expect(calls.indexOf("putImageData(560x1,0,22)")).toBeLessThan(calls.indexOf("fillText(Q1ABC 2 dB,357,31)"));
     calls.length = 0;
-    line(painter, 0, START + 400);
+    line(painter, 0, START + 600);
+    painter.push(row(0), START + 800, false);
     expect(texts(calls)).toEqual([]); // (it moves down with the picture and is not written again)
   });
 
   it("draws everything again from the lines it kept when the canvas has another size, the labels and the times with them", () => {
     const { canvas, calls, strips, resize } = fakeCanvas(420, 240);
     const painter = new Waterfall(canvas);
-    for (let i = 0; i < 200; i++) line(painter, 0, START + 14_000 + i * 100);
-    painter.label("Q1ABC −3 dB");
+    for (let i = 0; i < 200; i++) line(painter, 0, START + 14_000 + i * 200);
+    painter.label("Q1ABC −3 dB", START + 30_000);
     resize(560, 380);
     calls.length = 0;
     strips.length = 0;
-    painter.push(row(0), START + 34_000, false);
+    painter.push(row(0), START + 54_000, false);
     expect([canvas.width, canvas.height]).toEqual([560, 380]);
     expect(strips).toHaveLength(200); // (every line kept: the taller box shows more of them than the old one did)
     expect(strips.every((strip) => strip.width === 560)).toBe(true);
-    expect(texts(calls)).toEqual(["12:00:15", "12:00:30", "Q1ABC −3 dB", "500", "1000", "1500", "2000", "2500"]);
+    expect(texts(calls)).toEqual(["12:00:15", "12:00:30", "12:00:45", "Q1ABC −3 dB", "500", "1000", "1500", "2000", "2500"]);
     expect(drawn(calls, "drawImage")).toEqual([]);
     calls.length = 0;
     painter.draw();
     expect(drawn(calls, "putImageData")).toHaveLength(200);
+  });
+
+  it("shows the picture as it stands at a moment: each row as far down as it is old, the time since the newest row a gap at the top, the labels on their lines", () => {
+    const { canvas, calls, strips } = fakeCanvas(560, 380);
+    const painter = new Waterfall(canvas);
+    const rows = Array.from({ length: 50 }, (_, i) => ({ bytes: row(i < 25 ? 8 : 16), at: START + i * 100, tx: i >= 45 }));
+    painter.show(rows, [{ at: START + 1000, text: "Q1OLD" }], START + 45_000);
+    const lines = strips.map((strip) => strip.data.slice(0, 4)); // (drawn from the oldest: the newest, at the top, last)
+    expect(lines).toHaveLength(225); // (the 5 s of rows and the 40 s since: the moment's own line is not whole)
+    expect(strips[0].y).toBe(22 + 224); // (the line of the first row, 45 s ago, is 224 lines down)
+    expect(strips.at(-1)?.y).toBe(22);
+    expect(lines.slice(0, 12)).toEqual(Array.from({ length: 12 }, () => colourOf(8)));
+    expect(lines.slice(13, 22)).toEqual(Array.from({ length: 9 }, () => colourOf(16)));
+    expect(lines.slice(22)).toEqual(Array.from({ length: 203 }, () => GROUND)); // (ours with nothing over 24 dB, then the 40 s without rows)
+    expect(calls.filter((call) => /^fillRect\(0,\d+,3,1\)$/.test(call))).toEqual(
+      [198, 199, 200, 201, 202].reverse().map((depth) => `fillRect(0,${22 + depth},3,1)`),
+    ); // (the mark of ours on its three lines and the two held after them)
+    expect(drawn(calls, "fillText")).toContainEqual(`fillText(Q1OLD,357,${22 + 219 + 9})`); // (the label on the line of its moment, 44 s ago)
+    expect(texts(calls).slice(0, 3)).toEqual(["12:00:00", "12:00:15", "12:00:30"]);
+    expect(texts(calls)).toContain("12:00:15");
   });
 
   it("keeps two minutes of lines, forgets them all when it is cleared, and does nothing on a canvas that has no context", () => {
@@ -682,10 +722,11 @@ describe("the painter", () => {
     strips.length = 0;
     painter.clear();
     expect(strips).toEqual([]);
-    painter.label("Q1ABC 3 dB");
+    painter.label("Q1ABC 3 dB", START);
     const hidden = fakeCanvas(0, 0); // (in a fold that is closed: nothing is drawn, and the lines are kept)
     const unseen = new Waterfall(hidden.canvas);
     line(unseen, 0, START);
+    unseen.push(row(0), START + 200, false);
     expect(hidden.calls).toEqual([]);
     hidden.resize(420, 240);
     unseen.draw();
@@ -695,8 +736,9 @@ describe("the painter", () => {
     const none = new Waterfall(dead);
     expect(() => {
       line(none, 0, START);
-      none.label("Q1ABC 3 dB");
+      none.label("Q1ABC 3 dB", START);
       none.draw();
+      none.show([], [], START);
       none.clear();
     }).not.toThrow();
   });

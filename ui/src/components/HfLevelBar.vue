@@ -1,14 +1,15 @@
 <script setup lang="ts">
-// The receive level of the HF radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall (`onScopeRow`) while `on` (the caller asks for the rows); while the radio transmits
-// the rows are of our own signal, so the bar is dimmed and holds the last level received. The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
+// The receive level of the HF radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall (the page's `scopeRows`) while `on` (the caller asks for the rows), and from the
+// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received. The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { GOOD_PERCENT, dbText, levelPercent, levelZone } from "@/lib/hflevel";
+import type { ScopeRow } from "@/lib/scoperow";
 
 const props = defineProps<{ on: boolean; tip?: boolean }>();
-const { onScopeRow } = useDaemonContext();
+const { scopeRows } = useDaemonContext();
 const id = useId();
 const level = ref<number | null>(null);
 const transmitting = ref(false);
@@ -21,9 +22,19 @@ function listen(on: boolean): void {
   transmitting.value = false;
   if (!on) return;
   level.value = null;
-  stop = onScopeRow((row) => {
+  const take = (row: ScopeRow): void => {
     transmitting.value = row.tx;
     if (!row.tx) level.value = row.level;
+  };
+  stop = scopeRows.listen({
+    row: (kept) => take(kept.row),
+    whole: () => {
+      const rows = scopeRows.rows;
+      let i = rows.length - 1;
+      while (i >= 0 && rows[i].row.tx) i--;
+      level.value = i >= 0 ? rows[i].row.level : null;
+      transmitting.value = rows.at(-1)?.row.tx ?? false;
+    },
   });
 }
 watch(() => props.on, listen, { immediate: true });

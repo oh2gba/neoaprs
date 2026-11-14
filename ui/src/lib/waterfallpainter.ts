@@ -1,27 +1,25 @@
-// The painter of the HF radio's waterfall: it keeps a canvas up to date one line at a time from the rows it is given (lib/waterfall.ts has the numbers it draws by: the lines, the colours, the layout, the ruler, the labels
-// and the curve). The colours are the page's --waterfall-* tokens (styles/tokens.css), the same in both themes.
+// The painter of the HF radio's waterfall: it keeps a canvas up to date one line at a time from the rows it is given (lib/waterfall.ts has the numbers it draws by: the colours, the layout, the ruler, the labels and the
+// curve; lib/waterfalllines.ts puts the rows on the time axis). The colours are the page's --waterfall-* tokens (styles/tokens.css), the same in both themes.
 import {
   KEPT_LINES,
-  ROWS_PER_LINE,
+  LINES_PER_SECOND,
   colourTable,
   curveMean,
   curveNow,
   curvePoints,
   dbOfByte,
   layout,
-  lineOf,
   placeLabel,
   plateRect,
   rulerTicks,
-  silentOwn,
   spread,
-  startsQuarter,
   timeText,
   xOfHz,
   type Layout,
   type Rgb,
   type Slot,
 } from "@/lib/waterfall";
+import { Lines, slotOf, type DrawnRow } from "@/lib/waterfalllines";
 import { LIMITS } from "@/protocol/lists";
 
 const { signalLoHz, signalHiHz } = LIMITS.scope;
@@ -44,11 +42,10 @@ const GRID_STRENGTH = 0.5; // the grid of the curve is the ruler's colour this m
 const FLOOR_STRENGTH = 0.8;
 const SHAPE_STRENGTH = 0.4; // the shape of the mean is this much of its colour over the ground: it stands behind the bright line and does not outshine the picture above
 
-interface Kept {
-  bytes: Uint8Array;
+/** What was heard, to be written on the line of the moment `at`. */
+export interface HeardLabel {
   at: number;
-  tx: boolean;
-  time: boolean;
+  text: string;
 }
 
 /** The colours the painter draws with beside the scale, each as CSS writes a colour. */
@@ -90,70 +87,57 @@ function lookOf(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, l:
   };
 }
 
-/** The painter of one canvas. It is given rows (Floor.over made them); every ROWS_PER_LINE of them become a line, which is the new top line of the picture: what is there is moved down by a copy of the canvas onto itself and
- * the new line is written as pixels, so a line costs the same however high the box is. A line is either of our own transmission or of what is heard, never of both: when we begin or stop sending, the line that was being
- * gathered ends there, and a row of ours with nothing in it is not drawn at all, so a transmission has clean edges. On the first line of every quarter of a minute a thin line goes across with the time at the left edge, our own
- * transmission is a strip along that edge, and what was heard is written beside the band on the line its frame ended; all of it moves down with the picture. Under the picture the spectrum of the last second is a curve
- * over the floor's line, with the mean of the last seconds as a quiet shape behind it. When the canvas changes size everything is drawn again from the lines kept. */
+/** The painter of one canvas. It is given rows (Floor.over made them), each with the moment it was made; they become lines of a fifth of a second (lib/waterfalllines.ts), and each line that is made whole is the new top line of
+ * the picture: what is there is moved down by a copy of the canvas onto itself and the new lines are written as pixels, so a line costs the same however high the box is. A line is either of our own transmission or of what is
+ * heard, never of both, and time without rows is a gap of as many lines. On the first line of every quarter of a minute a thin line goes across with the time at the left edge, our own transmission is a strip along that edge, and
+ * what was heard is written beside the band on the line of the moment it was heard; all of it moves down with the picture. Under the picture the spectrum of the last second is a curve over the floor's line, with the mean of
+ * the last seconds as a quiet shape behind it. When the canvas changes size everything is drawn again from the lines kept, and `show` puts the whole picture as it stands at a moment: the rows and labels of a memory. */
 export class Waterfall {
-  private lines: Kept[] = []; // the newest first
-  private open: Uint8Array[] = []; // the rows of the line that is being gathered...
-  private waiting: string[] = []; // ...and what was heard on them: written when they are a line
-  private sending = false;
-  private at = 0; // the time of the newest row
-  private heard: { row: number; text: string }[] = [];
+  private book = new Lines();
+  private heard: { row: number; text: string }[] = []; // (a label's row is the number of its line: lib/waterfalllines.ts slotOf)
   private slots: Slot[] = [];
-  private count = 0; // the lines there have been: the number of the newest
   private look: Look | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
-  /** A new row: its bytes (Floor.over), its time in milliseconds, and whether it is of our own transmission. */
+  /** A new row: its bytes (Floor.over), its time in milliseconds of the page's clock, and whether it is of our own transmission. */
   push(bytes: Uint8Array, at: number, tx: boolean): void {
-    const turned = tx !== this.sending;
-    let added = turned ? this.close() : 0;
-    [this.sending, this.at] = [tx, at];
-    if (!tx || !silentOwn(bytes)) this.open.push(bytes);
-    if (this.open.length >= ROWS_PER_LINE) added += this.close();
+    const was = this.book.sending;
+    const added = this.book.add({ bytes, at, tx });
+    this.forgetOld();
     const before = this.look;
     const look = this.fit();
     if (!look) return;
     if (look !== before) return this.paint(look);
-    if (turned) this.drawRuler(look);
+    if (this.book.sending !== was) this.drawRuler(look);
     if (added === 0) return;
     const { x, y, w, h } = look.l.picture;
     const down = added * look.l.rowPx;
     if (h > down) look.context.drawImage(this.canvas, x, y, w, h - down, x, y + down, w, h - down);
     for (let depth = Math.min(added, look.l.rows) - 1; depth >= 0; depth--) this.drawRow(look, depth);
-    for (const label of this.heard) if (label.row > this.count - added) this.drawLabel(look, label);
+    const top = this.book.top;
+    for (const label of this.heard) if (label.row > top - added && label.row <= top) this.drawLabel(look, label);
     this.drawCurve(look);
   }
 
-  /** The rows gathered become a line, with what was heard on them; says how many lines that made (none where no row was gathered). */
-  private close(): number {
-    if (this.open.length === 0) return 0;
-    const time = this.lines.length > 0 && startsQuarter(this.lines[0].at, this.at);
-    this.count++;
-    this.lines = [{ bytes: lineOf(this.open, this.sending), at: this.at, tx: this.sending, time }, ...this.lines.slice(0, KEPT_LINES - 1)];
-    this.heard = [...this.heard, ...this.waiting.map((text) => ({ row: this.count, text }))].filter((label) => this.count - label.row < KEPT_LINES);
-    this.slots = this.slots.filter((slot) => this.count - slot.row < KEPT_LINES);
-    [this.open, this.waiting] = [[], []];
-    return 1;
+  /** What was heard at `at`, written on that moment's line: at once where the line is drawn already, else when it is. */
+  label(text: string, at: number): void {
+    const label = { row: slotOf(at), text };
+    this.heard.push(label);
+    if (this.look && label.row <= this.book.top) this.drawLabel(this.look, label);
   }
 
-  /** What was heard, written on the line the newest row is of: the frame ended there. */
-  label(text: string): void {
-    if (this.open.length > 0) return void this.waiting.push(text);
-    if (this.lines.length === 0) return;
-    const label = { row: this.count, text };
-    this.heard.push(label);
-    if (this.look) this.drawLabel(this.look, label);
+  /** The whole picture as it stands at the moment `now`: these rows (oldest first) and what was heard, and the lines up to that moment's, so that the time since the newest row is a gap at the top. */
+  show(rows: readonly DrawnRow[], labels: readonly HeardLabel[], now: number): void {
+    this.book.build(rows, now);
+    this.heard = labels.map((label) => ({ row: slotOf(label.at), text: label.text }));
+    this.forgetOld();
+    this.draw();
   }
 
   /** Forgets every row: the picture starts again. */
   clear(): void {
-    [this.lines, this.open, this.waiting, this.heard, this.slots, this.count, this.sending] = [[], [], [], [], [], 0, false];
-    this.draw();
+    this.show([], [], 0);
   }
 
   /** Draws everything again from what is kept: the canvas has a new size, or the tokens have other colours. */
@@ -163,13 +147,21 @@ export class Waterfall {
     if (look) this.paint(look);
   }
 
+  /** The labels and their places that are older than the lines kept are let go. */
+  private forgetOld(): void {
+    const oldest = this.book.top - KEPT_LINES;
+    this.heard = this.heard.filter((label) => label.row > oldest);
+    this.slots = this.slots.filter((slot) => slot.row > oldest);
+  }
+
   private paint(look: Look): void {
     const { context, l } = look;
     context.fillStyle = look.ground;
     context.fillRect(0, 0, l.width, l.height);
-    for (let depth = Math.min(l.rows, this.lines.length) - 1; depth >= 0; depth--) this.drawRow(look, depth);
+    for (let depth = Math.min(l.rows, this.book.lines.length) - 1; depth >= 0; depth--) this.drawRow(look, depth);
     this.slots = [];
-    for (const label of this.heard) this.drawLabel(look, label);
+    const top = this.book.top;
+    for (const label of this.heard) if (label.row <= top) this.drawLabel(look, label);
     this.drawRuler(look);
     this.drawCurve(look);
   }
@@ -222,10 +214,13 @@ export class Waterfall {
   /** The line so many lines down from the top: its pixels, the strip of a transmission, and on the first of a quarter of a minute a thin line across with the time under it at the left edge. */
   private drawRow(look: Look, depth: number): void {
     const { context, l, colours, pixels } = look;
-    const row = this.lines[depth];
+    const row = this.book.lines[depth];
     const y = l.picture.y + depth * l.rowPx;
-    const values = spread(row.bytes, l.width);
-    for (let x = 0; x < l.width; x++) pixels[x] = colours[Math.round(values[x])];
+    if (row.bytes === null) pixels.fill(colours[0], 0, l.width);
+    else {
+      const values = spread(row.bytes, l.width);
+      for (let x = 0; x < l.width; x++) pixels[x] = colours[Math.round(values[x])];
+    }
     for (let line = 1; line < l.rowPx; line++) pixels.copyWithin(line * l.width, 0, l.width);
     context.putImageData(look.strip, l.picture.x, y);
     context.fillStyle = look.transmit;
@@ -242,7 +237,7 @@ export class Waterfall {
     const slot = placeLabel(label.row, w, this.slots, look.l);
     if (!slot) return;
     this.slots.push(slot);
-    this.write(look, label.text, slot.x, look.l.picture.y + (this.count - slot.row) * look.l.rowPx, look.ink, 1, w);
+    this.write(look, label.text, slot.x, look.l.picture.y + (this.book.top - slot.row) * look.l.rowPx, look.ink, 1, w);
   }
 
   /** The ruler: a tick every 100 Hz hanging from its lower edge, the numbers over the long ones, and the band of a frame as a bracket on that edge, in the colour of receive, and of transmit while we send. */
@@ -262,7 +257,7 @@ export class Waterfall {
       if (tick.numbered) context.fillText(String(tick.hz), tick.x, 2 * l.unit);
     }
     const [from, to] = [xOfHz(signalLoHz, w), xOfHz(signalHiHz, w)];
-    context.fillStyle = this.sending ? look.transmit : look.receive;
+    context.fillStyle = this.book.sending ? look.transmit : look.receive;
     context.fillRect(from, h - 2 * l.unit, to - from, 2 * l.unit);
     for (const x of [from, to - 2 * l.unit]) context.fillRect(x, h - 6 * l.unit, 2 * l.unit, 6 * l.unit);
   }
@@ -295,7 +290,8 @@ export class Waterfall {
     context.setLineDash([]);
     context.globalAlpha = 1;
     // the shape and the line are drawn through the middle of the line's pixels, from the centre of one bin to the next
-    const [average, now] = [curveMean(this.lines), curveNow(this.lines)].map((bytes) =>
+    const lines = this.book.newest(2 * LINES_PER_SECOND) as { bytes: Uint8Array; tx: boolean }[];
+    const [average, now] = [curveMean(lines), curveNow(lines)].map((bytes) =>
       curvePoints(
         Array.from(bytes, (byte) => yOf(dbOfByte(byte)) + half),
         w,
@@ -313,7 +309,7 @@ export class Waterfall {
     context.fillStyle = look.quiet;
     context.fillRect(x, yOf(0), w, l.unit);
     context.globalAlpha = 1;
-    if (this.lines.length === 0) return;
+    if (lines.length === 0) return;
     context.strokeStyle = look.now;
     context.lineWidth = l.unit;
     context.lineJoin = "round";
