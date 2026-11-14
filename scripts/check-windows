@@ -572,6 +572,11 @@ def remote_must(settings: Settings, script: str, failure: str) -> None:
         raise Refused(f"{failure} ({last_line(done.stdout + done.stderr)})")
 
 
+def make_root(settings: Settings, paths: Paths) -> None:
+    """The folder of the runs on the machine, made when it is not there: the zip of uv and the tree are copied into it, and a clean machine has none (scp makes no folder)."""
+    remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.root)} | Out-Null; exit 0", "the folder for the runs could not be made")
+
+
 def put_uv_there(settings: Settings, paths: Paths, cache: Path) -> None:
     """uv of the pinned version in its folder on the machine: left alone when it is there, else the zip is copied over and unpacked."""
     if uv_version_ok(ssh_run(settings, uv_version_script(paths)).stdout):
@@ -581,6 +586,7 @@ def put_uv_there(settings: Settings, paths: Paths, cache: Path) -> None:
         zip_file = ensure_uv_zip(cache)
     except Exception as error:      # (what the download says: the pin, the network or the disk; the sentence is the user's)
         raise Refused(f"uv {UV.version} could not be fetched ({error})") from None
+    make_root(settings, paths)
     copy_to(settings, zip_file, paths.uv_zip)
     remote_must(settings, uv_unpack_script(paths), "uv could not be unpacked on the machine")
     if not uv_version_ok(ssh_run(settings, uv_version_script(paths)).stdout):
@@ -591,7 +597,7 @@ def prepare(settings: Settings, paths: Paths, tar: Path, cache: Path) -> None:
     """The machine made ready for the steps: uv, then the tree in the folder of the run."""
     put_uv_there(settings, paths, cache)
     say(f"copying the tree to {paths.run}")
-    remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.root)} | Out-Null; exit 0", "the folder for the runs could not be made")
+    make_root(settings, paths)
     copy_to(settings, tar, paths.tar)
     remote_must(settings, prepare_script(paths), "the tree could not be unpacked on the machine")
 

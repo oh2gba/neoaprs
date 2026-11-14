@@ -634,6 +634,8 @@ def test_uv_that_is_there_is_left_and_uv_that_is_not_is_fetched_copied_and_unpac
     copied = json.loads((bench.folder / "scp-calls").read_text(encoding="utf-8"))
     assert copied[-2:] == [str(zip_file), f"John@127.0.0.1:C:/Users/John/neoaprs-check/{script.UV.file}"]
     assert bench.scripts("-xf") and "C:\\Users\\John\\neotest\\uv" in bench.scripts("-xf")[0]
+    made = [text for text in bench.scripts("New-Item") if "-xf" not in text]
+    assert made and "C:\\Users\\John\\neoaprs-check'" in made[0], "the folder the zip is copied into is made first: a clean machine has none"
 
 
 def test_uv_that_cannot_be_fetched_or_copied_is_the_sentence_of_the_user_and_not_a_trace(script: ModuleType, bench: Bench, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
