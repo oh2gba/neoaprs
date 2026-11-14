@@ -32,7 +32,7 @@ def test_migration_24_leaves_the_messages_plain_and_makes_the_table_of_keys(tmp_
     messages(db)
     db.close()
     migrated = opened(path, clock)
-    assert migrated.version() == SCHEMA_VERSION >= 24 and [(r[0], r[2]) for r in migrated.history()][23:] == [(24, GOLDEN[24]), (25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29])]
+    assert migrated.version() == SCHEMA_VERSION >= 24 and [(r[0], r[2]) for r in migrated.history()][23:] == [(24, GOLDEN[24]), (25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29]), (30, GOLDEN[30])]
     assert migrated.db.execute("SELECT text, seal, wire FROM message ORDER BY id").fetchall() == [("hello", "", None), ("hi there", "", None), ("not for us", "", None)]
     assert migrated.db.execute("SELECT count(*) FROM station_key").fetchone() == (0,)
     migrated.close()
@@ -58,7 +58,7 @@ def test_migration_25_marks_what_the_air_gave_as_the_fm_radios_and_counts_the_st
     db.execute("INSERT INTO own_object (name, kind, lat, lon, symbol_table, symbol_code, comment, alive, created_at, updated_at) VALUES ('LEIRI', 'object', 60.2, 25.0, '/', '-', 'camp', 1, ?, ?)", (STAMP, STAMP))
     db.close()
     migrated = opened(path, clock)
-    assert migrated.version() == SCHEMA_VERSION >= 25 and [(r[0], r[2]) for r in migrated.history()][24:] == [(25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29])]
+    assert migrated.version() == SCHEMA_VERSION >= 25 and [(r[0], r[2]) for r in migrated.history()][24:] == [(25, GOLDEN[25]), (26, GOLDEN[26]), (27, GOLDEN[27]), (28, GOLDEN[28]), (29, GOLDEN[29]), (30, GOLDEN[30])]
     d = migrated.db
     assert d.execute("SELECT source, radio FROM packet ORDER BY id").fetchall() == [("OH2RDG", "fm"), ("OH7JHF-1", "fm"), ("OH2NET", ""), ("OH2GBA", "fm"), ("OH2DUM", "fm")], "the internet's packet has no radio"
     stations = {r[0]: r[1:] for r in d.execute("SELECT call, heard_fm, heard_hf, last_fm_at, last_hf_at FROM station")}

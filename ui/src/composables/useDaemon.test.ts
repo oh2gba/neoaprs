@@ -155,6 +155,14 @@ describe("useDaemon", () => {
     expect(daemon.packetHistoryByCall.value.get("OH2RDG")?.counts).toEqual([1, 2]);
   });
 
+  it("keeps the latest answer to signal_series of each station", () => {
+    const { daemon, socket } = setUp();
+    socket.say({ type: "signal_series", call: "OH2HF", hours: 24, points: [["2026-10-21T11:00:00Z", -3, null]] });
+    socket.say({ type: "signal_series", call: "OH2XYZ", hours: 24, points: [] });
+    expect([...daemon.signalSeriesByCall.value.keys()]).toEqual(["OH2HF", "OH2XYZ"]);
+    expect(daemon.signalSeriesByCall.value.get("OH2HF")?.points).toEqual([["2026-10-21T11:00:00Z", -3, null]]);
+  });
+
   it("keeps the latest answer to speed_series of each station", () => {
     const { daemon, socket } = setUp();
     socket.say({ type: "speed_series", call: "OH2ZMA-9", hours: 24, points: [["2026-10-21T11:00:00Z", 66.7]] });

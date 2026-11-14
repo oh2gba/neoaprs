@@ -31,6 +31,7 @@ import type {
   QruState,
   ReleaseNotesMessage,
   SkedsState,
+  SignalSeriesMessage,
   SpeedSeriesMessage,
   StationTrafficMessage,
   StationRow,
@@ -92,6 +93,8 @@ export interface DaemonContext {
   packetHistoryByCall: Read<ReadonlyMap<string, PacketHistoryMessage>>;
   /** the speeds of each moving station, the answers to the station cards' `speed_series` */
   speedSeriesByCall: Read<ReadonlyMap<string, SpeedSeriesMessage>>;
+  /** the readings of each station's signal, the answers to the station cards' `signal_series` */
+  signalSeriesByCall: Read<ReadonlyMap<string, SignalSeriesMessage>>;
   /** the latest packets of each station, the answers to the station panel's `station_traffic` */
   stationTrafficByCall: Read<ReadonlyMap<string, StationTrafficMessage>>;
   /** the latest 200 packets (the topic `packets`), by id */

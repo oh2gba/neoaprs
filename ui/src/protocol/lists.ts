@@ -37,6 +37,7 @@ export const MESSAGE_TYPES = [
   "position_history",
   "radio_search",
   "release_notes",
+  "signal_series",
   "speed_series",
   "state",
   "station_alert",

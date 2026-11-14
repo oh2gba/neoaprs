@@ -2656,6 +2656,28 @@
           },
           "type": "array"
         },
+        "snr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the signal-to-noise ratio of the packet that carried it, dB: for a message that came in, its own packet's; for one of ours, the ack's (or the reject's) that settled it, null until one came; null too when that packet's radio gave none and for a message kept before readings were"
+        },
+        "rssi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the received strength of that packet, dBm; null as `snr` is, and for the Mercury modem, which gives none"
+        },
         "route": {
           "description": "how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 \u2192 OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept",
           "type": "string"
@@ -2688,6 +2710,8 @@
         "last_attempt_at",
         "acked_at",
         "attempts_detail",
+        "snr",
+        "rssi",
         "route",
         "seal"
       ],
@@ -3402,6 +3426,28 @@
           ],
           "type": "string"
         },
+        "snr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC)"
+        },
+        "rssi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none"
+        },
         "via": {
           "description": "the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet)",
           "enum": [
@@ -3477,6 +3523,8 @@
         "kind",
         "route",
         "radio",
+        "snr",
+        "rssi",
         "via",
         "gate",
         "summary",
@@ -4754,6 +4802,99 @@
       "title": "SetStationRfOnlyCommand",
       "type": "object"
     },
+    "SignalSeries": {
+      "additionalProperties": false,
+      "description": "Asks for the readings of a station's signal in the last `hours` hours: the SNR and the RSSI its radio measured of each packet heard direct from it (`snr` and `rssi` of a packet). Answered with a `signal_series`\nmessage to the page that asked, or an `error` for a call that is empty or hours out of range; a station heard on no radio that measures is answered with no points.",
+      "properties": {
+        "cmd": {
+          "const": "signal_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station, as the `stations` topic has it: its packets are those whose source it is",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "hours": {
+          "description": "how far back to go: 24 for a day",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "cmd",
+        "call",
+        "hours"
+      ],
+      "title": "SignalSeriesCommand",
+      "type": "object"
+    },
+    "SignalSeriesMsg": {
+      "additionalProperties": false,
+      "description": "The readings of one station's signal, the answer to `signal_series`: one point for each packet heard direct from it in the span that carried a reading, the oldest first, the latest 1000 at most. A digipeater's copy\nand a third-party packet are left out: their frame is another station's signal.",
+      "properties": {
+        "type": {
+          "const": "signal_series",
+          "type": "string"
+        },
+        "call": {
+          "description": "the station asked about: a page with several cards open tells the answers apart by it",
+          "type": "string"
+        },
+        "hours": {
+          "description": "the hours asked for",
+          "maximum": 168,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "points": {
+          "description": "[time, snr_db, rssi_dbm] for each packet with a reading, the oldest first; a reading the radio does not give is null (Mercury gives the SNR alone)",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "description": "UTC, ISO 8601 with a Z",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "call",
+        "hours",
+        "points"
+      ],
+      "title": "SignalSeriesMessage",
+      "type": "object"
+    },
     "SkedDelete": {
       "additionalProperties": false,
       "description": "Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the\nboard is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board.",
@@ -5430,6 +5571,41 @@
           ],
           "description": "when a packet of the station last came on the HF modem; null when none did"
         },
+        "snr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was"
+        },
+        "rssi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the received strength of that packet, dBm; null when its radio gave none (Mercury gives none)"
+        },
+        "signal_at": {
+          "anyOf": [
+            {
+              "description": "UTC, ISO 8601 with a Z",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when that packet was heard; null until one with a reading was"
+        },
         "position_via": {
           "anyOf": [
             {
@@ -5760,6 +5936,9 @@
         "heard_hf",
         "last_fm_at",
         "last_hf_at",
+        "snr",
+        "rssi",
+        "signal_at",
         "position_via",
         "packets_hour",
         "device",
@@ -6377,6 +6556,17 @@
           "$ref": "#/$defs/RadioRulesState",
           "description": "what the kind of the radio in use allows: the page shows only the controls that apply"
         },
+        "readings": {
+          "description": "the signal readings the radio type gives of each frame it hears (`snr` and `rssi` of a packet): `snr` for the Mercury modem and the Dummy HF radio, none for a KISS TNC and the Dummy radio",
+          "items": {
+            "enum": [
+              "snr",
+              "rssi"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
         "describe": {
           "description": "one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC",
           "type": "string"
@@ -6445,6 +6635,7 @@
         "dummy",
         "modem",
         "rules",
+        "readings",
         "describe",
         "searching",
         "silent_since",
@@ -7205,6 +7396,7 @@
           "set_station_alert": "#/$defs/SetStationAlert",
           "set_station_path": "#/$defs/SetStationPath",
           "set_station_rf_only": "#/$defs/SetStationRfOnly",
+          "signal_series": "#/$defs/SignalSeries",
           "sked_delete": "#/$defs/SkedDelete",
           "sked_post": "#/$defs/SkedPost",
           "skeds_wanted": "#/$defs/SkedsWanted",
@@ -7340,6 +7532,9 @@
           "$ref": "#/$defs/SpeedSeries"
         },
         {
+          "$ref": "#/$defs/SignalSeries"
+        },
+        {
           "$ref": "#/$defs/StationTraffic"
         },
         {
@@ -7406,6 +7601,7 @@
           "position_history": "#/$defs/PositionHistoryMsg",
           "radio_search": "#/$defs/RadioSearchMsg",
           "release_notes": "#/$defs/ReleaseNotesMsg",
+          "signal_series": "#/$defs/SignalSeriesMsg",
           "speed_series": "#/$defs/SpeedSeriesMsg",
           "state": "#/$defs/StateMsg",
           "station_alert": "#/$defs/StationAlertMsg",
@@ -7449,6 +7645,9 @@
         },
         {
           "$ref": "#/$defs/SpeedSeriesMsg"
+        },
+        {
+          "$ref": "#/$defs/SignalSeriesMsg"
         },
         {
           "$ref": "#/$defs/StationTrafficMsg"

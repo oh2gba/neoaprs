@@ -4,6 +4,7 @@
 import { t } from "@/i18n";
 import { normalizeCall } from "@/lib/calls";
 import { dateTimeText } from "@/lib/format";
+import { readingText } from "@/lib/signal";
 import type { QueryKind } from "@/lib/stations";
 import { LIMITS } from "@/protocol/lists";
 import type { MessageRow } from "@/protocol/protocol";
@@ -201,8 +202,15 @@ interface Mark {
 }
 
 /** The small mark on a message of ours: a clock while it is being sent (the title says which attempt) or waits for the message before it to the station (queued), a check once acked (the title has the time of the ack), a hollow check when its attempts were used up with no ack and none was expected (the station was given 1 or 2), a cross when it failed or was rejected, a dash when
- * it was cancelled. None for a message that came in or was overheard: it has its time only. */
+ * it was cancelled; the title of one that was settled by an ack or a reject adds the SNR the radio measured of it. None for a message that came in or was overheard: it has its time only. */
 export function markOf(row: MessageRow): Mark | null {
+  const mark = markWithoutSignal(row);
+  const signal = mark === null ? null : readingText(row);
+  return mark === null || signal === null ? mark : { ...mark, title: t("messages.mark.with_signal", { mark: mark.title, signal }) };
+}
+
+/** The mark as `markOf` says it, with the SNR of the ack that came back added to the title of a message that was settled (its reading is null until then). */
+function markWithoutSignal(row: MessageRow): Mark | null {
   if (row.direction !== "out") return null;
   switch (row.state) {
     case "queued":

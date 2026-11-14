@@ -57,6 +57,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
 
   "messages.mark.acked": "con acuse",
   "messages.mark.acked_at": "acuse {time}",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "fallido",
   "messages.mark.no_ack_expected": "enviado, sin acuse esperado",
   "messages.mark.cancelled": "cancelado",

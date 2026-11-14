@@ -219,7 +219,7 @@ class Messaging:
             raise MessagingError(f"message {number} is {record.state}: only a failed, unconfirmed, rejected or cancelled message is sent again")
         self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, None if record.msg_id is None else ""), record.to_call, None if record.msg_id is None else 1, room=0 if record.msg_id is None else REPLY_ACK_ROOM)          # (a message that does not fit the radio now is refused to the page, not sent to fail again)
         log.info("message %d to %s is sent again from the first attempt (it was %s; the operator asked)", number, record.to_call, record.state)
-        record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None)
+        record = replace(record, state="sending", attempts=0, last_attempt_at=None, acked_at=None, failure=None, snr=None, rssi=None)
         self.delivery.restart(number)
         self.put(record)
         return self.attempt(record)

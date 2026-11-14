@@ -56,6 +56,7 @@ export const messages = {
 
   "messages.mark.acked": "acked",
   "messages.mark.acked_at": "acked {time}",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "failed",
   "messages.mark.no_ack_expected": "sent, no ack expected",
   "messages.mark.cancelled": "cancelled",

@@ -47,6 +47,11 @@ def try_open(path: str | Path, clock: Clock = utcnow) -> tuple[bool, str]:
 
 def step_back(db: sqlite3.Connection, version: int) -> None:
     """Takes out of a fully migrated database what the migrations after `version` added to the schema, so that they can run again on it (the history and `user_version` are the test's to set)."""
+    if version < 30:
+        for table in ("packet", "message", "station"):
+            db.execute(f"ALTER TABLE {table} DROP COLUMN snr")
+            db.execute(f"ALTER TABLE {table} DROP COLUMN rssi")
+        db.execute("ALTER TABLE station DROP COLUMN signal_at")
     if version < 28:
         db.execute("ALTER TABLE message DROP COLUMN failure")
     if version < 18:

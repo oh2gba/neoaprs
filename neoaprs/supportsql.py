@@ -4,9 +4,9 @@ import sqlite3
 from pathlib import Path
 
 from .dberror import Connection, Row, limit, rows
-from .packetsql import PACKET_LIST
 
 OPEN_WAIT_SEC = 3.0
+SHOWN_LIST = "heard_at, direction, raw, source, destination, path, kind, summary, NULL, error, '', ''"   # a packet row (packetcodec.PacketRow) of only the columns packets.txt writes, which a file not migrated yet has too
 
 
 def open_readonly(path: str | Path) -> Connection:
@@ -43,4 +43,9 @@ def quick_check(db: Connection) -> list[str]:
 
 def latest_undecoded(db: Connection, count: int) -> list[Row]:
     """The latest `count` packets the parser could not read, the newest first."""
-    return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE kind = 'undecoded' ORDER BY id DESC LIMIT ?", (limit(count),)))
+    return rows(db.execute(f"SELECT {SHOWN_LIST} FROM packet WHERE kind = 'undecoded' ORDER BY id DESC LIMIT ?", (limit(count),)))
+
+
+def latest_packets(db: Connection, count: int) -> list[Row]:
+    """The latest `count` packets heard and sent, the newest first."""
+    return rows(db.execute(f"SELECT {SHOWN_LIST} FROM packet ORDER BY id DESC LIMIT ?", (limit(count),)))

@@ -2,7 +2,7 @@
 // What the daemon knows of one station, as a card over the map, in the few facts a person asks for: the symbol with its name and a green check mark beside the call for a station that was heard direct (no repeater), when it was last heard, for each way it was heard ("RF 3 min ago · Internet 40 s ago"; lib/channels.ts; the full time of the latest when the mouse rests on it), the position and how far and in which direction it is from us, how fast it moves (only a station that does),
 // the altitude, the voice frequency with its tone, offset and range (when it gave one), the PHG or range it gave (a digipeater's reach; the antenna's direction as a small arrow), the status and the comment, what it runs ("Kenwood TH-D74", "APRSdroid"; only when the device list knows it), one line of how its packets reach us ("Reached us via OH2RCH-2", or "direct"; none for a station known from the internet alone) and one for the internet ("Heard by iGate OH2GW-10 via OH2RCH-2", "Sent over the internet, not heard on the air"; for a station that came over it) and, for such a station, that a message to it is not possible. A row with nothing to say is left out. The rest is under "Details", closed (components/StationDetails.vue: the path as it was sent, the counts of the routes, the best route, when it was first heard, the packets, the decoded extras).
 // A weather station (the weather symbol, or one that has sent weather) has its weather panel at the top (components/WeatherPanel.vue). A station that is heard has the bars of its packets in each of the last 24 hours under its facts, above Details
-// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over its trip (the span of its trail on the map) under them (components/StationSpeed.vue); our own
+// (components/StationPackets.vue: the daemon counts them by the station's call, the source of its packets), and a station that moves the line of its speed over its trip (the span of its trail on the map) under them (components/StationSpeed.vue), and a station whose radio measured the signal of its packets (SNR, and RSSI where the radio gives it) says it with the last time of a reading in a row under the last heard and has the line of the SNR over the last day under those graphs (components/StationSignal.vue); our own
 // station, an object and an item have neither (ours is what we send, and an object's or an item's packets are its sender's). "Message" opens the Messages tab with the station as the addressee, where the path its messages go by and RF only are set.
 // A station with an alert set ("Alert me when…" of the Stations table) has a small quiet bell at the end of the line of its call (AlertBell), with what it watches as its hover title.
 // The pin beside the cross (a tablet and a desktop) keeps the card on the map past Esc and Close all and past a reload, until its cross is clicked (the cross unpins and closes it). The head is not text to select (it is the handle); a right-click on it offers to copy the call (CopyMenu).
@@ -19,6 +19,7 @@ import DirectMark from "@/components/DirectMark.vue";
 import RouteText from "@/components/RouteText.vue";
 import StationDetails from "@/components/StationDetails.vue";
 import StationPackets from "@/components/StationPackets.vue";
+import StationSignal from "@/components/StationSignal.vue";
 import StationSpeed from "@/components/StationSpeed.vue";
 import SymbolIcon from "@/components/SymbolIcon.vue";
 import WeatherPanel from "@/components/WeatherPanel.vue";
@@ -31,10 +32,11 @@ import { heardByChannel, internetOnly } from "@/lib/channels";
 import { extensionRows, frequencyText } from "@/lib/details";
 import { heardDirect, internetText, reachedText } from "@/lib/routes";
 import { canForget, canMessage, symbolLabel } from "@/lib/stations";
-import { agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
+import { HOUR_MS, agoWords, altitudeText, bearingText, dateTimeText, distanceText, positionText, speedText } from "@/lib/format";
 import { isWeatherStation, type Ranges } from "@/lib/weather";
+import { SIGNAL_HOURS, readingText } from "@/lib/signal";
 import { isMoving, tripStart } from "@/lib/speed";
-import type { AlertWhen, PacketHistoryMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
+import type { AlertWhen, PacketHistoryMessage, SignalSeriesMessage, SpeedSeriesMessage, StationRow, WeatherSeriesMessage } from "@/protocol/protocol";
 
 const named = useRadiosNamed();
 const props = withDefaults(
@@ -49,6 +51,8 @@ const props = withDefaults(
     packetHistory?: PacketHistoryMessage | null;
     /** The speeds of a moving station, the daemon's latest answer for it. */
     speedSeries?: SpeedSeriesMessage | null;
+    /** The readings of the station's signal, the daemon's latest answer for it. */
+    signalSeries?: SignalSeriesMessage | null;
     /** The value axes the open weather cards share. */
     ranges?: Ranges;
     /** The card can be moved by its head (a tablet and a desktop; the bottom sheet of a phone cannot), and pinned. */
@@ -64,6 +68,7 @@ const props = withDefaults(
     weatherSeries: null,
     packetHistory: null,
     speedSeries: null,
+    signalSeries: null,
     ranges: undefined,
     movable: false,
     pinned: false,
@@ -79,6 +84,7 @@ const emit = defineEmits<{
   weather: [call: string, hours: number];
   packets: [call: string];
   speed: [call: string];
+  signal: [call: string];
   close: [];
 }>();
 
@@ -104,8 +110,17 @@ const moving = computed(() => {
 });
 /** When it was last heard by each channel: "RF 3 min ago · Internet 40 s ago"; the plain age for a row nothing was counted for. */
 const heardOn = computed(() => heardByChannel(props.row, props.now, named.value) || agoWords(props.row.last_heard, props.now));
+/** The signal of the latest packet heard direct from the station that a radio measured, with when it was ("SNR −3 dB, 5 min ago"); null for a station with no reading, and for an object, an item and ours (the reading of their packets is their sender's): nothing is said. */
+const signal = computed(() => {
+  if (!heardStation.value) return null;
+  const { snr, rssi, signal_at: at } = props.row;
+  const reading = readingText({ snr, rssi });
+  return reading === null || at === null ? null : t("station.signal_value", { reading, ago: agoWords(at, props.now) });
+});
 const weather = computed(() => isWeatherStation(props.row));
 const heardStation = computed(() => props.row.kind === "station" && !props.row.is_me && !props.row.own);
+/** The graph of its signal, for a heard station whose latest reading is in the graph's day: decided from the row, so that its room is there before the answer. */
+const signalGraph = computed(() => heardStation.value && props.row.signal_at !== null && Date.parse(props.row.signal_at) >= props.now - SIGNAL_HOURS * HOUR_MS);
 const reached = computed(() => (heardStation.value ? reachedText(props.row) : null));
 /** The PHG, range, DF or area the station gave, a row each (a digipeater's range is what a person asks for first; the last given is kept until another comes). */
 const extensions = computed(() => extensionRows(props.row.extensions));
@@ -141,6 +156,10 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         </template>
         <dt>{{ t("station.field.last_heard") }}</dt>
         <dd :title="dateTimeText(row.last_heard)">{{ heardOn }}</dd>
+        <template v-if="signal !== null">
+          <dt>{{ t("station.field.signal") }}</dt>
+          <dd :title="dateTimeText(row.signal_at ?? row.last_heard)">{{ signal }}</dd>
+        </template>
         <template v-if="position !== null">
           <dt>{{ t("station.field.position") }}</dt>
           <dd>
@@ -205,6 +224,14 @@ const internet = computed(() => (!props.row.is_me && !props.row.own ? internetTe
         :from="tripStart(row, now)"
         :now="now"
         @ask="emit('speed', row.call)"
+      />
+      <StationSignal
+        v-if="signalGraph"
+        :signal-at="row.signal_at ?? null"
+        :series="signalSeries"
+        :measured="row.snr === null && row.rssi !== null ? 'rssi' : 'snr'"
+        :now="now"
+        @ask="emit('signal', row.call)"
       />
       <StationDetails :row="row" />
     </div>

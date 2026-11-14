@@ -61,6 +61,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
 
   "messages.mark.acked": "confermato",
   "messages.mark.acked_at": "conferma {time}",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "fallito",
   "messages.mark.no_ack_expected": "inviato, nessuna conferma attesa",
   "messages.mark.cancelled": "annullato",

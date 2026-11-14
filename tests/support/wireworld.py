@@ -18,7 +18,7 @@ from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.stationbook import StationBook
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.tnc import Tnc
-from neoaprs.tncprofile import DUMMY
+from neoaprs.tncprofile import DUMMY, DUMMY_HF
 from tests.support.clock import FixedClock
 
 T0 = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
@@ -41,7 +41,7 @@ def made_up(info: str, source: str, at: datetime = T0) -> Packet:
 
 def packets() -> list[Packet]:
     """A packet of every kind the page tells: positions (plain, with course and speed, with PHG, Mic-E), objects, items, status with a locator, telemetry, weather, a message, a third-party
-    packet, one received from the internet, one of ours."""
+    packet, one received from the internet, one of ours, one over HF with its SNR."""
     return [
         heard("!4903.50N/07201.75W-Test", "N0AAA", ("OH2RCH-2*", "WIDE2-1")),
         heard("=4903.50N/07201.75W>088/036/A=000123 mobile", "N0BBB-9", ("WIDE1*", "OH2RDG-1*"), destination="APK004"),
@@ -67,6 +67,7 @@ def packets() -> list[Packet]:
         heard(")I91 3N!4903.50N\\07201.75Wm{55}", "N0SGN"),
         internet("N0ISX-9>APRS,TCPIP*,qAC,T2FINLAND:=6012.34N/02456.78E-from the internet"),
         made_up("=6015.00N/02500.00E-made up", "QDUMMY-1"),
+        replace(heard("!6027.11N/02216.00E-Turku over HF", "Q3TKU"), radio="hf", snr=-2.5),
     ]
 
 
@@ -88,7 +89,8 @@ def book() -> StationBook:
 
 
 def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
-    """A message in each state and with attempts: acked (heard back by radio and by the internet), failed (for want of an answer, and for a frame the radio does not carry), sending, received, overheard."""
+    """A message in each state and with attempts: acked (heard back by radio and by the internet), failed (for want of an answer, and for a frame the radio does not carry), sending, received, overheard; one in and
+    one out over HF, with the SNR of the packet that carried it and of the ack that came back."""
     seen = (HopSeen(1, "OH2RCH-2", T0 + timedelta(seconds=3), False), HopSeen(2, "OH2RDG-1", T0 + timedelta(seconds=5), True), HopSeen(AT_GATE, "OH7JHF-1", T0 + timedelta(seconds=6), True))
     a1 = Attempt(1, T0, ("OH2RCH-2", "WIDE2-1"), seen)
     a2 = Attempt(2, T0 + timedelta(seconds=30), ("WIDE1-1",), ())
@@ -104,6 +106,8 @@ def messages() -> list[tuple[MessageRecord, tuple[Attempt, ...]]]:
         (MessageRecord(7, T0, "in", "OH2XYZ", ME, "!EAQIDBAUGq8z6pHk2Aun7/N4nDjtT1TgF8GQi4UWwXn4", "8", "received", 0, None, None, 4, "direct", "shut"), ()),
         (MessageRecord(8, T0, "in", "OH2XYZ", ME, "!KhSDS6YIjgKTWQfj0A8M8GuVgrzMI3ARSKyXNn1aQD2U", "9", "received", 0, None, None, 4, "direct", "key"), ()),
         (MessageRecord(9, T0, "out", ME, "OH2XYZ", "Too long for HF", "16", "failed", 0, None, None, 4, "", failure="too_long_for_radio"), ()),
+        (MessageRecord(10, T0, "in", "Q3TKU", ME, "Over HF", "3", "received", 0, None, None, 4, "direct", radio="hf", snr=-2.5), ()),
+        (MessageRecord(11, T0, "out", ME, "Q3TKU", "Back over HF", "17", "acked", 1, T0, T0 + timedelta(seconds=12), 4, "", snr=6.1), (Attempt(1, T0, (), (), radio="hf"),)),
     ]
 
 
@@ -147,6 +151,13 @@ def tnc() -> Tnc:
 
 def tnc_dummy() -> Tnc:
     found = Tnc(profile=DUMMY, clock=FixedClock(T0))
+    found.path = DUMMY_PATH
+    return found
+
+
+def tnc_dummy_hf() -> Tnc:
+    """The Dummy HF radio, whose type gives the SNR of each frame."""
+    found = Tnc(profile=DUMMY_HF, clock=FixedClock(T0))
     found.path = DUMMY_PATH
     return found
 
@@ -242,7 +253,7 @@ def rows(views: Any) -> dict[str, Any]:
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
         "station_prefs": [views.pref_row(p) for p in prefs()],
         "station_keys": [views.key_row(fingerprint, at) for fingerprint, at in keys()],
-        "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy())],
+        "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy()), views.tnc_state(tnc_dummy_hf())],
         "gps": gps_rows(views),
         "igate": igate_rows(views),
         "qru": qru_rows(views),

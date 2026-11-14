@@ -40,9 +40,13 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.from_us_value": "{distance} km、{bearing}",
   "station.speed_course": "{speed}、進行方向 {course}",
   "station.speed_chart": "軌跡に沿った速度",
+  "station.signal_chart_snr": "パケットの信号対雑音比",
+  "station.signal_chart_rssi": "パケットの受信強度",
 
   "station.field.kind": "種類",
   "station.field.last_heard": "最終受信",
+  "station.field.signal": "信号",
+  "station.signal_value": "{reading}、{ago}",
   "station.field.position": "位置",
   "station.field.from_us": "自局から",
   "station.field.speed": "速度",

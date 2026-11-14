@@ -1,5 +1,6 @@
 """What the Mercury HF modem's control port says about the channel and the radio, and what the Tnc is told of it: the half of the modem part (mercurymodem.py, whose `Mercury` inherits this) that keeps `keyed` (Mercury keys the
-radio: `PTT ON` until `PTT OFF`), `busy` (its busy detector hears a signal: `BUSY ON` until `BUSY OFF`) and the signal-to-noise ratio of the latest frame, and answers `hold`, the carrier sense this plane lacks: while the
+radio: `PTT ON` until `PTT OFF`), `busy` (its busy detector hears a signal: `BUSY ON` until `BUSY OFF`) and the signal-to-noise ratio of the latest frame (`SN`, which is also the reading of the frame
+that comes next on the broadcast port: `take_reading`, neoaprs/reading.py), and answers `hold`, the carrier sense this plane lacks: while the
 radio is keyed no frame is handed to Mercury, so that our own frames go one at a time and the services' pace counts from a frame that has really left; while the busy detector hears a signal no frame goes either, for at most
 BUSY_HOLD_MAX_SEC, because the detector takes a step in the noise for a signal for a minute or two and traffic must not be stranded by it. It reads `test` (the tune tone and the keying test hold the radio too) and tells the
 page that something changed (`changed`)."""
@@ -8,6 +9,7 @@ import math
 import time
 
 from .mercury import BUSY_HOLD_MAX_SEC, FRAME_SEC, ControlEvent
+from .reading import Pending, Reading
 from .signal import Signal
 
 log = logging.getLogger("neoaprs.mercury")
@@ -29,6 +31,7 @@ class Channel:
         self._mercury_busy = False                                   # what Mercury's detector says, kept for the time the spectrum is not read
         self._auto_at = 0.0                                          # when the automatic control last heard a spectrum (0: it does not)
         self.snr: float | None = None                                # the signal-to-noise ratio of the latest frame decoded, dB
+        self._reading = Pending()                                    # ... kept for the frame it was said for, which the broadcast port hands over just after
         self._keyed_at, self._busy_at = -math.inf, 0.0             # (never keyed yet: not "keyed when the computer started", which the clock's zero would mean on a machine that was just switched on)
         self._keyed_since = self._busy_since = 0.0                   # when the PTT ON / BUSY ON that is under way came (for the log's "for 3.8 s")
         self._told_long: set[str] = set()                            # "keyed" / "busy": the hold has said it gives up on a state that lasts too long (once for each)
@@ -37,6 +40,7 @@ class Channel:
         """The program is gone or not heard (stopped, ended, refused, its control line down): nothing it said holds what comes next, not its keying, not its detector's BUSY, not the spectrum it fed."""
         self.keyed = self.busy = self._mercury_busy = False
         self._auto_at = 0.0
+        self._reading.clear()
 
     def _event(self, event: ControlEvent) -> None:
         now = time.monotonic()
@@ -46,9 +50,14 @@ class Channel:
             self._on_busy(event.on, now)
         elif event.kind == "snr" and event.value is not None:
             self.snr = event.value
+            self._reading.put(Reading(snr=event.value), now)
         else:
             return
         self.changed.emit()
+
+    def take_reading(self) -> Reading:
+        """The SNR Mercury said for the frame that has just come on the broadcast port: said within PAIR_SEC before it and not taken by a frame before (neoaprs/reading.py); none otherwise."""
+        return self._reading.take(time.monotonic())
 
     def _on_ptt(self, on: bool, now: float) -> None:
         """Mercury keyed the radio or let go: one line when it lets go, with how long it was keyed (a frame, 3.8 s; the tone of Tune or the test, as long as that)."""

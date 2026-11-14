@@ -16,6 +16,7 @@ import { t } from "@/i18n";
 import { type Place } from "@/lib/cardmove";
 import { CARDS_FREE_SIDE, CARD_GAP, type SizeClass } from "@/lib/layout";
 import { SWIPE_MIN, sheetMove, type SheetMove } from "@/lib/sheet";
+import { SIGNAL_HOURS } from "@/lib/signal";
 import { tripHours } from "@/lib/speed";
 import { HISTORY_HOURS } from "@/lib/stats";
 import { canMessage } from "@/lib/stations";
@@ -28,7 +29,7 @@ const props = defineProps<{
   /** The calls of the pinned cards (a tablet and a desktop): they stay open past Esc and Close all, and keep their places. */
   pinned?: readonly string[];
 }>();
-const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, stations, prefs, send } = useDaemonContext();
+const { now, aging, weatherSeries, packetHistoryByCall, speedSeriesByCall, signalSeriesByCall, stations, prefs, send } = useDaemonContext();
 /** A card asks for the packets of its station by the hour (when it opens, and each minute): the answer is kept by the call (packetHistoryByCall). */
 const askPackets = (call: string): boolean => send({ cmd: "packet_history", call, hours: HISTORY_HOURS });
 /** A moving station's card asks for its speeds over its trip (when it opens, and at each new position of the station, which may move where the trip begins). */
@@ -36,6 +37,8 @@ function askSpeed(call: string): void {
   const row = props.rows.find((r) => r.call === call);
   if (row !== undefined) send({ cmd: "speed_series", call, hours: tripHours(row, now.value) });
 }
+/** The card of a station with a signal reading asks for its readings of the last day (when it opens, and at each new reading). */
+const askSignal = (call: string): boolean => send({ cmd: "signal_series", call, hours: SIGNAL_HOURS });
 // (Forget, Message, Edit, ... are the card's own events: they go on)
 const emit = defineEmits<{
   close: [call: string];
@@ -222,6 +225,7 @@ function tap(): void {
       :weather-series="weatherSeries.get(row.call) ?? null"
       :packet-history="packetHistoryByCall.get(row.call) ?? null"
       :speed-series="speedSeriesByCall.get(row.call) ?? null"
+      :signal-series="signalSeriesByCall.get(row.call) ?? null"
       :ranges="ranges"
       @close="emit('close', row.call)"
       @forget="emit('forget', $event)"
@@ -232,6 +236,7 @@ function tap(): void {
       @weather="(call, hours) => emit('weather', call, hours)"
       @packets="askPackets"
       @speed="askSpeed"
+      @signal="askSignal"
     />
   </div>
 </template>

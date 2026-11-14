@@ -39,9 +39,13 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, rotta {course}",
   "station.speed_chart": "Velocità lungo il percorso",
+  "station.signal_chart_snr": "Rapporto segnale/rumore dei suoi pacchetti",
+  "station.signal_chart_rssi": "Intensità dei suoi pacchetti",
 
   "station.field.kind": "Tipo",
   "station.field.last_heard": "Ultima ricezione",
+  "station.field.signal": "Segnale",
+  "station.signal_value": "{reading}, {ago}",
   "station.field.position": "Posizione",
   "station.field.from_us": "Da noi",
   "station.field.speed": "Velocità",

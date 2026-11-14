@@ -40,9 +40,13 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, suunta {course}",
   "station.speed_chart": "Nopeus reitin varrella",
+  "station.signal_chart_snr": "Sen pakettien signaali-kohinasuhde",
+  "station.signal_chart_rssi": "Sen pakettien voimakkuus",
 
   "station.field.kind": "Laji",
   "station.field.last_heard": "Viimeksi kuultu",
+  "station.field.signal": "Signaali",
+  "station.signal_value": "{reading}, {ago}",
   "station.field.position": "Sijainti",
   "station.field.from_us": "Meiltä",
   "station.field.speed": "Nopeus",

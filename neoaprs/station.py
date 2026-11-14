@@ -81,6 +81,9 @@ class Station:
     heard_hf: int = 0                           # the station was last heard on (FM when on both: it is near, and HF airtime is everyone's)
     last_fm_at: datetime | None = None
     last_hf_at: datetime | None = None
+    snr: float | None = None                    # the last reading of its signal (neoaprs/reading.py): the SNR in dB and the RSSI in dBm of the latest packet heard direct from it that had one (not by a digipeater,
+    rssi: float | None = None                   # not as a third-party packet: those are another station's signal), each None when that packet's radio gave none
+    signal_at: datetime | None = None           # when that packet was heard; None until one was
     position_via: Via | None = None             # the channel of the packet that gave the position (the latest one wins); None without a position and for our own station
     last_path: tuple[str, ...] = ()             # the digipeaters of the latest packet heard on the radio (an `is` packet came by no route)
     last_via: str = ""                          # the iGate, when the latest packet came as a third-party packet (not kept in the cache: it is read again from the packets at the start)

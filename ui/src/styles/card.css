@@ -230,6 +230,9 @@
 .tone-speed {
   --tone: var(--speed);
 }
+.tone-signal {
+  --tone: var(--signal);
+}
 /* under a card: the path, timeout and preferences of the station */
 .prefs {
   display: flex;
@@ -296,8 +299,9 @@
 .app:not(.size-phone) .mapwrap:has(.statscard:not(.moved)) .monitorcard:not(.moved) {
   right: 360px;
 }
-/* the packets of the station by the hour on its card (components/StationPackets.vue), and the speed of a moving one (components/StationSpeed.vue), between the facts and Details */
+/* the packets of the station by the hour on its card (components/StationPackets.vue), the speed of a moving one (components/StationSpeed.vue) and the signal of one that was measured (components/StationSignal.vue), between the facts and Details */
 .station-packets,
-.station-speed {
+.station-speed,
+.station-signal {
   margin: 6px 0 2px;
 }

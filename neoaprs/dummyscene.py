@@ -18,6 +18,7 @@ from neoaprs.aprsmessage import MessageError, parse_message
 from .dummyqru import answer as qru_answer
 from .dummyframes import PATH, ack, air, bulletin, compressed, cosine_day, fixed, is_position, mice, message, object_report, repeated, status, walking, weather
 from .dummyroutes import DELIVERY_ROUND, PARK_PATH, RING_ROAD, TOWN_LOOP, Route, around
+from .reading import NO_READING, Reading
 
 HELSINKI = (60.1699, 24.9384)                  # the centre when the station has no position yet
 HELLO = "Hello from the dummy radio"
@@ -60,6 +61,10 @@ class Scene:
     def description(self) -> str:
         """For the log: where the traffic is made."""
         return f"traffic round {self.centre[0]:.4f}, {self.centre[1]:.4f}"
+
+    def reading_of(self, frame: ax25.Frame) -> Reading:
+        """None: the Dummy radio stands for a KISS TNC, which measures nothing."""
+        return NO_READING
 
     # ---- what is on the air
     def due(self, now: datetime) -> list[ax25.Frame]:

@@ -3,6 +3,7 @@ becomes a file that says so, and that the data folder is not changed. Built on a
 import json
 import os
 import re
+import sqlite3
 import zipfile
 from pathlib import Path
 
@@ -133,6 +134,19 @@ def test_the_packets_are_listed_with_what_the_parser_made_of_them_and_the_undeco
     assert "2026-10-21 12:00:00.000Z  in " in heard and "-> position:" in heard
     assert "NOT DECODED: too short 1" in undecoded and "NOT DECODED: too short 0" in undecoded
     assert undecoded.index("too short 0") < undecoded.index("too short 1"), "the newest last"
+
+
+def test_the_packets_of_a_database_at_another_version_are_listed_without_the_columns_added_since(tmp_path: Path) -> None:
+    data = fake_folder(tmp_path)
+    db = sqlite3.connect(data / DB_NAME)
+    db.execute("ALTER TABLE packet DROP COLUMN snr")
+    db.execute("ALTER TABLE packet DROP COLUMN rssi")
+    db.execute(f"PRAGMA user_version = {SCHEMA_VERSION - 1}")
+    db.commit()
+    db.close()
+    members = made(tmp_path, data)[1]
+    assert not [name for name in members if name.startswith("packets") and name.endswith(".error.txt")]
+    assert "-> position:" in members["packets.txt"] and "NOT DECODED: too short 1" in members["packets.txt"]
 
 
 def test_the_database_report_has_the_version_the_migrations_the_rows_and_the_check(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 from .dberror import Row as Row, limit, rows
 
-MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route", "seal", "wire", "radio", "failure")
+MESSAGE_COLUMNS = ("id", "at", "direction", "from_call", "to_call", "text", "msg_id", "state", "attempts", "last_attempt_at", "acked_at", "attempts_max", "route", "seal", "wire", "radio", "failure", "snr", "rssi")
 _LIST = ", ".join(MESSAGE_COLUMNS)
 _NEW_LIST = ", ".join(MESSAGE_COLUMNS[1:])
 _NEW_PLACES = ", ".join("?" * (len(MESSAGE_COLUMNS) - 1))
@@ -18,9 +18,9 @@ def insert_message(db: sqlite3.Connection, row: Sequence[object]) -> int:
     return int(cursor.lastrowid or 0)
 
 
-def update_message(db: sqlite3.Connection, number: int, state: str, attempts: int, last_attempt_at: str | None, acked_at: str | None, failure: str | None) -> int:
-    """Sets what changes in a message as it is sent; how many rows it found (0 or 1)."""
-    return db.execute("UPDATE message SET state = ?, attempts = ?, last_attempt_at = ?, acked_at = ?, failure = ? WHERE id = ?", (state, attempts, last_attempt_at, acked_at, failure, number)).rowcount
+def update_message(db: sqlite3.Connection, number: int, state: str, attempts: int, last_attempt_at: str | None, acked_at: str | None, failure: str | None, reading: tuple[float | None, float | None] = (None, None)) -> int:
+    """Sets what changes in a message as it is sent, and the reading (snr, rssi) of the answer that settled it; how many rows it found (0 or 1)."""
+    return db.execute("UPDATE message SET state = ?, attempts = ?, last_attempt_at = ?, acked_at = ?, failure = ?, snr = ?, rssi = ? WHERE id = ?", (state, attempts, last_attempt_at, acked_at, failure, *reading, number)).rowcount
 
 
 def delete_message(db: sqlite3.Connection, number: int) -> int:

@@ -74,6 +74,8 @@ class MessageRecord:
     wire: str | None = None                               # the text as it goes on the air for an encrypted message of ours (the ciphertext; `text` is what was written); None for every other
     radio: str = ""                                      # the radio a message that came in came on (`fm`, `hf`; empty for one of ours, whose attempts say, and for one kept before there were two)
     failure: Failure | None = None                        # why a failed message of ours failed (`FAILURES`); None while it has not failed and for one that failed for want of an answer
+    snr: float | None = None                              # the signal of the packet that carried it (neoaprs/reading.py), SNR in dB and RSSI in dBm: a message that came in, its own packet's; one of ours, the ack's or
+    rssi: float | None = None                             # the reject's that settled it; None until then, and when that packet's radio gave none
 
     @property
     def peer(self) -> str:

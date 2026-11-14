@@ -174,3 +174,13 @@ def _v29(db: sqlite3.Connection) -> None:
     else:
         db.execute("DELETE FROM settings WHERE key = 'web/allowed_hosts'")
     log.info("web/allowed_hosts written in the form that is checked now: %r → %r%s", old, new, f" (left out, not a name or an address: {', '.join(left_out)})" if left_out else "")
+
+
+def _v30(db: sqlite3.Connection) -> None:
+    """The signal of what is heard (neoaprs/reading.py): a packet keeps the two readings the radio measured of its frame, `packet.snr` (the signal-to-noise ratio, dB) and `packet.rssi` (the received strength,
+    dBm), each null when the radio gave none; a message keeps the readings of the packet that carried it (`message.snr`, `message.rssi`: for one that came in, its own packet's; for one of ours, the ack's that
+    came back), and a station the last reading heard direct from it with when it was heard (`station.snr`, `station.rssi`, `station.signal_at`). Nothing kept so far had a reading: every old row has none."""
+    for table in ("packet", "message", "station"):
+        db.execute(f"ALTER TABLE {table} ADD COLUMN snr REAL")
+        db.execute(f"ALTER TABLE {table} ADD COLUMN rssi REAL")
+    db.execute("ALTER TABLE station ADD COLUMN signal_at TEXT")

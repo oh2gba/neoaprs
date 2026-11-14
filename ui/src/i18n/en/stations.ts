@@ -38,9 +38,13 @@ export const stations = {
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, course {course}",
   "station.speed_chart": "Speed along its track",
+  "station.signal_chart_snr": "Signal-to-noise of its packets",
+  "station.signal_chart_rssi": "Strength of its packets",
 
   "station.field.kind": "Kind",
   "station.field.last_heard": "Last heard",
+  "station.field.signal": "Signal",
+  "station.signal_value": "{reading}, {ago}",
   "station.field.position": "Position",
   "station.field.from_us": "From us",
   "station.field.speed": "Speed",

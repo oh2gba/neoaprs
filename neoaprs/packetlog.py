@@ -18,7 +18,8 @@ from .geo import Point, Thinning
 from .packet import ItemReport, ObjectReport, Packet, Position, via_of
 from .packetcodec import PacketRow, info_of, packet_of, packet_row, parse_stamp, stamp
 from .packetsql import (all_stations, count_packets, delete_heard, delete_station, heard_by_hour, heard_routes, heard_times, insert_packet, located_from, located_since, message_packets, oldest_packet, packets_since, position_packets, prune_packets_slice,
-                        radio_position_packets, recent_packets, station_positions, station_traffic, upsert_station, window_packets)
+                        radio_position_packets, recent_packets, station_positions, station_readings, station_traffic, upsert_station, window_packets)
+from .route import route_of
 from .station import Station
 
 log = logging.getLogger("neoaprs.packetlog")
@@ -28,6 +29,7 @@ TRACKS_SEEN = 5000                       # the position packets the station book
 THIRD_PARTY_SEEN = 20_000              # the latest packets one station's third-party packets are looked for in (by the ids: the rest of the log is not read for them)
 PRUNE_SLICE = 5_000                      # the packets one transaction of the daily prune deletes: the write-ahead log of one is a few MB, and what waits behind it waits for that one
 HISTORY_FRESH_SEC = 60                   # how long the count of all packets by the hour (the statistics card's graph, asked again each minute by every page that shows it) is kept before it is counted again
+READINGS_SEEN = 1000                     # the most readings of one station's signal its graph is given, the latest: a week of a LoRa station that beacons every ten minutes, three weeks of an HF one
 HISTORY_READ = 1_000_000                # the most position packets the replay of the map is made from, the latest of them: a week of a busy APRS-IS feed is about half of it (they are thinned as they are read)
 
 
@@ -43,7 +45,7 @@ def station_row(station: Station) -> Row:
             station.speed_kmh, stamp(station.first_heard), stamp(station.last_heard), None if station.last_position_at is None else stamp(station.last_position_at),
             station.last_status, station.last_comment, station.packets, ",".join(station.last_path), station.heard_rf, station.heard_rf_gated, station.heard_is,
             _stamped(station.last_rf_at), _stamped(station.last_rf_gated_at), _stamped(station.last_is_at), station.position_via, station.heard_dummy, _stamped(station.last_dummy_at),
-            station.heard_fm, station.heard_hf, _stamped(station.last_fm_at), _stamped(station.last_hf_at))
+            station.heard_fm, station.heard_hf, _stamped(station.last_fm_at), _stamped(station.last_hf_at), station.snr, station.rssi, _stamped(station.signal_at))
 
 
 def _stamped(at: datetime | None) -> str | None:
@@ -52,6 +54,10 @@ def _stamped(at: datetime | None) -> str | None:
 
 def _parsed(text: object) -> datetime | None:
     return None if text is None else parse_stamp(str(text))
+
+
+def _number(value: object) -> float | None:
+    return None if value is None else float(str(value))
 
 
 def _sender(source: str, raw: bytes | None, via: str) -> str:
@@ -67,14 +73,14 @@ def _sender(source: str, raw: bytes | None, via: str) -> str:
 
 def station_of(row: Row) -> Station:
     """The station from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, path, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, heard_fm, heard_hf, fm_at, hf_at) = row
+    (call, kind, reported_by, table, code, lat, lon, altitude, course, speed, first, last, position_at, status, comment, packets, path, heard_rf, heard_rf_gated, heard_is, rf_at, gated_at, is_at, position_via, heard_dummy, dummy_at, heard_fm, heard_hf, fm_at, hf_at, snr, rssi, signal_at) = row
     return Station(str(call), first_heard=parse_stamp(str(first)), last_heard=parse_stamp(str(last)), kind=str(kind), reported_by=str(reported_by), symbol_table=str(table),
                    symbol_code=str(code), lat=None if lat is None else float(lat), lon=None if lon is None else float(lon), altitude_m=None if altitude is None else float(altitude),
                    course_deg=None if course is None else int(course), speed_kmh=None if speed is None else float(speed),
                    last_position_at=None if position_at is None else parse_stamp(str(position_at)), last_status=str(status), last_comment=str(comment),
                    packets=int(packets), last_path=tuple(str(path).split(",")) if path else (), heard_rf=int(heard_rf), heard_rf_gated=int(heard_rf_gated), heard_is=int(heard_is),
                    last_rf_at=_parsed(rf_at), last_rf_gated_at=_parsed(gated_at), last_is_at=_parsed(is_at), position_via=None if position_via is None else via_of(str(position_via)), heard_dummy=int(heard_dummy), last_dummy_at=_parsed(dummy_at),
-                   heard_fm=int(heard_fm), heard_hf=int(heard_hf), last_fm_at=_parsed(fm_at), last_hf_at=_parsed(hf_at))
+                   heard_fm=int(heard_fm), heard_hf=int(heard_hf), last_fm_at=_parsed(fm_at), last_hf_at=_parsed(hf_at), snr=_number(snr), rssi=_number(rssi), signal_at=_parsed(signal_at))
 
 
 STATION_FLUSH_SEC = 30.0                       # how often the station rows that changed are written (save_station): a half minute of a station's packets is one write of its row
@@ -176,6 +182,13 @@ class PacketLog(DbLog):
             if isinstance(d, Position) and d.speed_kmh is not None:
                 found.append((packet.heard_at, d.speed_kmh))
         return found
+
+    async def readings(self, source: str, since: datetime, count: int = READINGS_SEEN) -> list[tuple[datetime, float | None, float | None]]:
+        """(when, SNR dB, RSSI dBm) of the latest `count` packets heard direct from `source` at or after `since` that carried a reading of their signal (neoaprs/reading.py), the oldest first: the signal graph of a
+        station's card. A digipeater's copy and a third-party packet are another station's signal and are left out."""
+        text = stamp(since)
+        rows: list[Row] = await self._read(lambda conn: station_readings(conn, source, text, count), [])
+        return [(parse_stamp(str(at)), _number(snr), _number(rssi)) for at, path, snr, rssi in rows if route_of(tuple(str(path).split(",")) if path else ()).direct]
 
     async def deliveries(self, count: int = DELIVERIES_SEEN) -> list[tuple[str, tuple[str, ...], str, int, datetime, datetime | None]]:
         """(sender, path, iGate or "", how many, when the latest was heard, when the one before it was) over the latest `count` packets heard, the group whose latest packet is the oldest first: how the

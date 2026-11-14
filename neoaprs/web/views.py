@@ -158,7 +158,8 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
 
 def tnc_state(tnc: Tnc) -> dict[str, Any]:
     lines = [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]
-    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc), rules=RadioRulesState.row(tnc.rules))
+    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc), rules=RadioRulesState.row(tnc.rules),
+                        readings=list(tnc.profile.readings))
 
 
 def modem_state(tnc: Tnc) -> dict[str, Any] | None:

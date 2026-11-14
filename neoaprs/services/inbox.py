@@ -132,7 +132,8 @@ class Inbox:
         if reply:
             self._settle(packet, reply, "acked")
         text, seal, wire = self._opened(packet, message)
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio=packet.radio)
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, text, message.msg_id, "received", route=received_text(packet.path, packet.gate), seal=seal, wire=wire, radio=packet.radio,
+                               snr=packet.snr, rssi=packet.rssi)
         fresh = self.heard.note(record, packet.heard_at)
         if message.msg_id is not None:
             if self.heard.ack_due(record, packet.heard_at):
@@ -179,7 +180,8 @@ class Inbox:
         if message.ack_id is not None or message.rej_id is not None:
             return
         seal: Seal = "key" if cipher.key_of_message(message.text) is not None else "shut" if cipher.is_locked(message.text) else ""
-        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal, radio=packet.radio)
+        record = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "overheard", route=received_text(packet.path, packet.gate), seal=seal, radio=packet.radio,
+                               snr=packet.snr, rssi=packet.rssi)
         if self.heard.note(record, packet.heard_at):
             self.tasks.spawn(self._keep(record), "message-keep")
 
@@ -205,7 +207,7 @@ class Inbox:
         self.heard.settled(source)
         record = ours[0]
         if record.state in ACK_SETTLES:
-            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None))
+            self._host.put(replace(record, state=state, acked_at=packet.heard_at if state == "acked" else None, failure=None, snr=packet.snr, rssi=packet.rssi))       # (the reading of the answer that came back)
             log.info("message %d to %s is %s", record.id, record.to_call, state)
         return True
 

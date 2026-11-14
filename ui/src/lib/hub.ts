@@ -22,6 +22,7 @@ import type {
   TopicValues,
   ReleaseNotesMessage,
   UpdateResultMessage,
+  SignalSeriesMessage,
   SpeedSeriesMessage,
   StationTrafficMessage,
   WeatherSeriesMessage,
@@ -41,6 +42,7 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   weather_series: "weatherSeries",
   packet_history: "packetHistory",
   speed_series: "speedSeries",
+  signal_series: "signalSeries",
   station_traffic: "stationTraffic",
   position_history: "positionHistory",
   alert_result: "alertResult",
@@ -62,6 +64,7 @@ export interface Store {
   weatherSeries(message: WeatherSeriesMessage): void;
   packetHistory(message: PacketHistoryMessage): void;
   speedSeries(message: SpeedSeriesMessage): void;
+  signalSeries(message: SignalSeriesMessage): void;
   stationTraffic(message: StationTrafficMessage): void;
   positionHistory(message: PositionHistoryMessage): void;
   alertResult(message: AlertResultMessage): void;

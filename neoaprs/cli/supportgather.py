@@ -17,8 +17,7 @@ from neoaprs.migrations import MIGRATIONS, SCHEMA_VERSION, history, source_hash
 from neoaprs.packetcodec import PacketRow
 from neoaprs.store import DB_NAME
 from neoaprs.storesql import read_settings
-from neoaprs.packetsql import recent_packets
-from neoaprs.supportsql import file_facts, latest_undecoded, open_readonly, quick_check, table_counts
+from neoaprs.supportsql import file_facts, latest_packets, latest_undecoded, open_readonly, quick_check, table_counts
 
 from . import doctor
 from .logfile import LOG_NAME, START_LINE
@@ -228,7 +227,7 @@ def packets_text(data: Path) -> str:
     """The latest packets heard and sent, then the latest that did not decode, each oldest first."""
     conn = open_readonly(data / DB_NAME)
     try:
-        latest, bad = recent_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)
+        latest, bad = latest_packets(conn, PACKETS_SHOWN), latest_undecoded(conn, UNDECODED_SHOWN)
     finally:
         conn.close()
     out = [f"The last {PACKETS_SHOWN} packets heard (in) and sent (out), the newest last; {len(latest)} here.", "These went over the air, where they are public.", ""]

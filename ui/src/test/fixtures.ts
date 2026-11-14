@@ -69,6 +69,9 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     heard_dummy: 0,
     last_dummy_at: null,
     last_hf_at: null,
+    snr: null,
+    rssi: null,
+    signal_at: null,
     last_rf_gated_at: null,
     last_is_at: null,
     position_via: "rf",
@@ -172,6 +175,8 @@ export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
     route: "via OH2RCH-2",
     via: "rf",
     radio: "fm",
+    snr: null,
+    rssi: null,
     gate: "",
     kind: "position",
     summary: "position 60.12 24.49",
@@ -222,6 +227,8 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     radio: "",
     seal: "",
     failure: null,
+    snr: null,
+    rssi: null,
     ...extra,
   };
 }
@@ -335,6 +342,7 @@ export function tncState(extra: Partial<TncState> = {}): TncState {
     dummy: false,
     modem: null,
     rules: { kind: "fm", paths: true, digipeat: true, smart_beacon: true, beacon_min_min: 20 },
+    readings: [],
     describe: "/dev/brainbox_3 at 9600, KISS",
     searching: [],
     silent_since: null,
@@ -391,6 +399,7 @@ export function hfState(extra: Partial<TncState> = {}): TncState {
       tx_peak_dbfs: null,
     },
     rules: { kind: "hf", paths: false, digipeat: false, smart_beacon: false, beacon_min_min: 15 },
+    readings: ["snr"],
     ...extra,
   });
 }

@@ -1,9 +1,9 @@
 // The types of the wire protocol between the daemon and the page, written from the models of neoaprs/web/protocol.py by scripts/gen-protocol.py: never edited by hand.
 // `Command` is what the page sends (tagged by `cmd`), `Message` what the daemon sends (tagged by `type`), `TopicValues` the value of each topic the page follows.
 
-export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand;
+export type Command = PingCommand | AskStatusCommand | CheckUpdateCommand | ReleaseNotesCommand | SubscribeCommand | UnsubscribeCommand | ForgetStationCommand | ForgetAllStationsCommand | ListPortsCommand | FindRadioCommand | FindRadioCancelCommand | HfTuneCommand | HfKeyTestCommand | HfFrequenciesCommand | HfScopeCommand | SetConfigCommand | BeaconNowCommand | StatusNowCommand | SendMessageCommand | SetMessageRadioCommand | SendKeyCommand | ForgetStationKeyCommand | NewMessageKeyCommand | QueryStationCommand | AskQruCommand | GeneralQueryCommand | MessageRetryCommand | MessageCancelCommand | MessageDeleteCommand | ConversationDeleteCommand | OverheardDeleteCommand | SetStationPathCommand | ClearStationPathCommand | SetStationRfOnlyCommand | SetStationAlertCommand | WeatherSeriesCommand | PacketHistoryCommand | PositionHistoryCommand | SpeedSeriesCommand | SignalSeriesCommand | StationTrafficCommand | AlertTestCommand | BulletinDeleteCommand | ObjectSetCommand | ObjectKillCommand | BulletinPostCommand | BulletinUnpostCommand | MapEstimateCommand | MapFetchCommand | MapWantedCommand | MapCancelCommand | UpdateNowCommand | UpdateCancelCommand | SkedsWantedCommand | SkedPostCommand | SkedDeleteCommand | PageErrorCommand;
 
-export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
+export type Message = HelloMessage | StatusMessage | PongMessage | ErrorMessage | PortsMessage | StateMessage | PatchMessage | WeatherSeriesMessage | PacketHistoryMessage | PositionHistoryMessage | SpeedSeriesMessage | SignalSeriesMessage | StationTrafficMessage | AlertResultMessage | UpdateResultMessage | ReleaseNotesMessage | RadioSearchMessage | StationAlertMessage;
 
 /** The answer to `alert_test`, when the command has ended or run out of its 20 s. */
 export interface AlertResultMessage {
@@ -694,6 +694,10 @@ export interface MessageRow {
   acked_at: string | null;
   /** for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in */
   attempts_detail: AttemptRow[];
+  /** the signal-to-noise ratio of the packet that carried it, dB: for a message that came in, its own packet's; for one of ours, the ack's (or the reject's) that settled it, null until one came; null too when that packet's radio gave none and for a message kept before readings were */
+  snr: number | null;
+  /** the received strength of that packet, dBm; null as `snr` is, and for the Mercury modem, which gives none */
+  rssi: number | null;
   /** how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept */
   route: string;
   /** what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came */
@@ -879,6 +883,10 @@ export interface PacketRow {
   route: string;
   /** the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet */
   radio: "" | "fm" | "hf";
+  /** the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) */
+  snr: number | null;
+  /** the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none */
+  rssi: number | null;
   /** the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) */
   via: "rf" | "rf-gated" | "is" | "dummy";
   /** the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet */
@@ -1225,6 +1233,26 @@ export interface SetStationRfOnlyCommand {
   on: boolean;
 }
 
+/** Asks for the readings of a station's signal in the last `hours` hours: the SNR and the RSSI its radio measured of each packet heard direct from it (`snr` and `rssi` of a packet). Answered with a `signal_series` message to the page that asked, or an `error` for a call that is empty or hours out of range; a station heard on no radio that measures is answered with no points. */
+export interface SignalSeriesCommand {
+  cmd: "signal_series";
+  /** the station, as the `stations` topic has it: its packets are those whose source it is */
+  call: string;
+  /** how far back to go: 24 for a day */
+  hours: number;
+}
+
+/** The readings of one station's signal, the answer to `signal_series`: one point for each packet heard direct from it in the span that carried a reading, the oldest first, the latest 1000 at most. A digipeater's copy and a third-party packet are left out: their frame is another station's signal. */
+export interface SignalSeriesMessage {
+  type: "signal_series";
+  /** the station asked about: a page with several cards open tells the answers apart by it */
+  call: string;
+  /** the hours asked for */
+  hours: number;
+  /** [time, snr_db, rssi_dbm] for each packet with a reading, the oldest first; a reading the radio does not give is null (Mercury gives the SNR alone) */
+  points: ([string, number | null, number | null])[];
+}
+
 /** Deletes a sked that this installation posted, by its id: the server takes it off the board for everybody. A sked that is not ours (another installation posted it, or the data folder is another one) is only dropped from `ours`: nothing is said, and the board is read again. An `error` (`sked.unreachable`) when the project's server could not be reached. The topic `skeds` tells the new board. */
 export interface SkedDeleteCommand {
   cmd: "sked_delete";
@@ -1417,6 +1445,12 @@ export interface StationRow {
   last_fm_at: string | null;
   /** when a packet of the station last came on the HF modem; null when none did */
   last_hf_at: string | null;
+  /** the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was */
+  snr: number | null;
+  /** the received strength of that packet, dBm; null when its radio gave none (Mercury gives none) */
+  rssi: number | null;
+  /** when that packet was heard; null until one with a reading was */
+  signal_at: string | null;
   /** the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own */
   position_via: "rf" | "rf-gated" | "is" | "dummy" | null;
   /** how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) */
@@ -1641,6 +1675,8 @@ export interface TncState {
   modem: ModemState | null;
   /** what the kind of the radio in use allows: the page shows only the controls that apply */
   rules: RadioRulesState;
+  /** the signal readings the radio type gives of each frame it hears (`snr` and `rssi` of a packet): `snr` for the Mercury modem and the Dummy HF radio, none for a KISS TNC and the Dummy radio */
+  readings: ("snr" | "rssi")[];
   /** one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC */
   describe: string;
   /** the ports the daemon is listening to while it looks for the radio; empty when it is not searching */

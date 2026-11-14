@@ -58,6 +58,7 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "messages.mark.acked": "応答確認あり",
   "messages.mark.acked_at": "{time}に応答確認",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "失敗",
   "messages.mark.no_ack_expected": "送信済み、応答確認なし",
   "messages.mark.cancelled": "キャンセル",

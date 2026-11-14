@@ -6,6 +6,7 @@ import { altitudeText, bearingText, dateTimeText, positionText, speedText } from
 import { packetLabel, packetTitle } from "@/lib/channels";
 import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
+import { readingText } from "@/lib/signal";
 import { tempText } from "@/lib/weather";
 import type { DecodedStatus, DecodedWeather, PacketRow, PositionFields } from "@/protocol/protocol";
 
@@ -126,6 +127,8 @@ export function packetFacts(row: PacketRow, named = false): Fact[] {
     if (row.route !== "") facts.push({ label: t("station.field.reached"), text: routeWords(row.route), route: true });
     else if (row.via === "is" && row.path.length > 0) facts.push({ label: t("station.field.path"), text: row.path.join(",") });
   }
+  const signal = row.direction === "in" ? readingText(row) : null;
+  if (signal !== null) facts.push({ label: t("packets.fact.signal"), text: signal });
   facts.push({ label: row.direction === "out" ? t("packets.fact.sent") : t("packets.fact.heard"), text: dateTimeText(row.heard_at) });
   const carried = sentTimeText(row);
   if (carried !== null) facts.push({ label: t("packets.fact.time_in_packet"), text: carried });

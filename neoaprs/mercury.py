@@ -146,7 +146,7 @@ def too_long(raw: bytes, max_payload: int = MAX_PAYLOAD) -> str | None:
 
 
 def frame_words(direction: str, size: int, station: str, snr: float | None) -> str:
-    """One frame over the modem as the log tells it: "HF frame heard from OH2XYZ: 87 bytes, SNR -2 dB" (the modem's latest SNR, when it said one), "HF frame sent from OH2GBA: 64 bytes"."""
+    """One frame over the modem as the log tells it: "HF frame heard from OH2XYZ: 87 bytes, SNR -2 dB" (the frame's own SNR, when the modem said one for it: neoaprs/reading.py), "HF frame sent from OH2GBA: 64 bytes"."""
     if direction == "out":
         return f"HF frame sent from {station}: {size} bytes"
     return f"HF frame heard from {station}: {size} bytes" + ("" if snr is None else f", SNR {snr:.0f} dB")

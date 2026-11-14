@@ -78,6 +78,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     packetHistory: part(over.packetHistory, null),
     packetHistoryByCall: part(over.packetHistoryByCall, new Map()),
     speedSeriesByCall: part(over.speedSeriesByCall, new Map()),
+    signalSeriesByCall: part(over.signalSeriesByCall, new Map()),
     stationTrafficByCall: part(over.stationTrafficByCall, new Map()),
     packets: over.packets ?? shallowReactive(new Map<string, PacketRow>()),
     positionHistory: part(over.positionHistory, null),

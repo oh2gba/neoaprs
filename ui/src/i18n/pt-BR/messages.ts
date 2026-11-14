@@ -58,6 +58,7 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "messages.mark.acked": "confirmada",
   "messages.mark.acked_at": "confirmada {time}",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "falhou",
   "messages.mark.no_ack_expected": "enviada, sem ack esperado",
   "messages.mark.cancelled": "cancelada",

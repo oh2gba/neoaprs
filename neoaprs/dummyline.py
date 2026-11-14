@@ -5,7 +5,8 @@ the Tnc as a line would hand them, so that the KISS decoder, the AX.25 decoder a
 message and plays a digipeater's repeat of a position of ours; they are never sent on. The traffic is made round the station's position when there is one, else round Helsinki.
 
 The Dummy HF radio is the same line with the HF scene (dummyhfscene.py: distant fixed stations, no digipeater) and, when a speaker is given, the frames the Tnc writes are also handed to it as the KISS bytes they
-came as (the Mercury modem started on the computer's own sound output, mercurymodem.py), so that the operator hears what the modem sounds like; a speaker that is not there changes nothing."""
+came as (the Mercury modem started on the computer's own sound output, mercurymodem.py), so that the operator hears what the modem sounds like; a speaker that is not there changes nothing. Each frame is handed
+over with the reading the scene makes up for it (`take_reading`, neoaprs/reading.py: the HF scene an SNR for each station, the Dummy radio's scene none), as a modem says the reading of the frame it hands over."""
 import asyncio
 import logging
 from collections.abc import Callable
@@ -15,6 +16,7 @@ from typing import Protocol
 from . import ax25, kiss
 from .clock import Clock
 from .dummyscene import Scene
+from .reading import NO_READING, Reading
 from .serialport import SerialError
 from .tncport import TncPort
 
@@ -25,11 +27,12 @@ TICK_SEC = 0.5                          # how often the scene is asked what has 
 
 
 class SceneLike(Protocol):
-    """What a made-up world does (dummyscene.py, dummyhfscene.py): says what has come due, takes what we sent, and describes itself for the log."""
+    """What a made-up world does (dummyscene.py, dummyhfscene.py): says what has come due and the reading of each frame, takes what we sent, and describes itself for the log."""
     @property
     def description(self) -> str: ...
     def due(self, now: datetime) -> list[ax25.Frame]: ...
     def react(self, frame: ax25.Frame, now: datetime) -> None: ...
+    def reading_of(self, frame: ax25.Frame) -> Reading: ...
 
 
 SceneFactory = Callable[[tuple[float, float] | None, datetime, int], SceneLike]
@@ -48,6 +51,7 @@ class DummyPort(TncPort):
         self._scene_of, self._speaker = scene_of, speaker
         self.scene: SceneLike | None = None
         self._task: asyncio.Task[None] | None = None
+        self._reading = NO_READING                                       # the reading of the frame being handed over
 
     @property
     def is_open(self) -> bool:
@@ -87,4 +91,11 @@ class DummyPort(TncPort):
         while True:
             await asyncio.sleep(self._tick_sec)
             for frame in scene.due(self._clock()):
+                self._reading = scene.reading_of(frame)
                 self._deliver(kiss.encode(ax25.encode(frame)))
+                self._reading = NO_READING
+
+    def take_reading(self) -> Reading:
+        """The reading of the frame the line is handing over now (the Tnc reads the frame as it is handed over), once."""
+        reading, self._reading = self._reading, NO_READING
+        return reading

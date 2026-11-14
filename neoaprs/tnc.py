@@ -34,6 +34,7 @@ from .interlock import Interlock
 from .mercury import frame_words, too_long
 from .packet import Packet
 from .radiorules import RadioRules
+from .reading import NO_READING, Reading
 from .policy import TNC_CHECK_SEC
 from .serialholders import held_by
 from .serialport import SerialError, is_socket
@@ -57,12 +58,11 @@ ENTER_KISS = KENWOOD_TNC2.enter[0][0]       # what the default profile writes (t
 
 class Modem(Protocol):
     """What the Tnc asks of the modem program behind its line when the profile is a modem's (the Mercury HF modem, mercurymodem.py, set by app.py): why the line cannot be opened (the program is not there, it stopped),
-    why no frame is to go now (the modem is transmitting a frame, the channel is busy) and its words for the radio's status line; and, when the profile is the Dummy HF radio's, that it plays the frames the Tnc
-    writes through the computer's speakers (`play`)."""
+    why no frame is to go now (the modem is transmitting a frame, the channel is busy), its words for the radio's status line and the reading it said of the frame that has just come (`take_reading`,
+    neoaprs/reading.py); and, when the profile is the Dummy HF radio's, that it plays the frames the Tnc writes through the computer's speakers (`play`)."""
     @property
     def problem(self) -> str: ...
-    @property
-    def snr(self) -> float | None: ...
+    def take_reading(self) -> Reading: ...
     def hold(self) -> str: ...
     def describe(self) -> str: ...
     def play(self, data: bytes) -> None: ...
@@ -273,7 +273,7 @@ class Tnc(TimedSource):
             self._reader.read(port, chunk)
 
     def _handle(self, kiss_frame: kiss.KissFrame) -> None:
-        read = read_frame(kiss_frame, self.now(), self.is_dummy, self.rules.kind)
+        read = read_frame(kiss_frame, self.now(), self.is_dummy, self.rules.kind, self._reading() if kiss_frame.command == 0 else NO_READING)
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")
             return self._reject()
@@ -282,9 +282,14 @@ class Tnc(TimedSource):
         self.stats.last_packet = packet.heard_at
         self._saw(_printable(f"{frame.tnc2()}  ->  {packet.summary}"))
         if self.rules.kind == "hf":
-            modem = self._modem()
-            log.info("%s", frame_words("in", len(packet.raw), packet.source, None if modem is None else modem.snr))
+            log.info("%s", frame_words("in", len(packet.raw), packet.source, packet.snr))
         self.packet.emit(packet)
+
+    def _reading(self) -> Reading:
+        """The signal the radio measured of the frame that has just come (neoaprs/reading.py): the Dummy radio's line makes one up, a modem said it on its control line; only the kinds the radio type gives."""
+        port = self._port
+        source = port if isinstance(port, DummyPort) else self._modem()
+        return NO_READING if source is None else source.take_reading().only(self.profile.readings)
 
     # ---- the keep-alive (tncwatchdog.py decides when; these are the actions)
     def set_check(self, seconds: float) -> None:

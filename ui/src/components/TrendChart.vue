@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One trend graph as inline SVG in the page's colours (the weather card's, the packets by the hour of the statistics card and of a station's card, and the speed of a moving station): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
+// One trend graph as inline SVG in the page's colours (the weather card's, the packets by the hour of the statistics card and of a station's card, the speed of a moving station and the signal of a station): a smooth line through the readings that carries on across the gaps between them (the sustained wind with a lighter band up to its gusts, or bars for the rain), labelled ticks on both axes, and a line under the pointer with the value and the
 // time of the nearest observation in the heading (the latest observation's while no pointer is on the graph: the heading has the same shape either way, so nothing moves). The scaling and the paths are lib/chart.ts. A series with no value draws nothing but the frame. `range` is the value axis that several weather cards share (components/StationCards.vue), so that the curves of several
 // stations can be compared: it is rounded to round numbers as the graph's own range would be.
 import { computed, ref } from "vue";
@@ -22,13 +22,15 @@ const props = withDefaults(
     asBars?: boolean;
     /** the value axis includes 0 (wind, rain) */
     zero?: boolean;
-    tone: "temp" | "pressure" | "wind" | "rain" | "packets" | "speed";
+    tone: "temp" | "pressure" | "wind" | "rain" | "packets" | "speed" | "signal";
     /** the decimals of the value in the heading (1 for a weather reading; 0 for a count) */
     valueDecimals?: number;
     /** the lowest and the highest value of the axis, from the cards that share it */
     range?: readonly [number, number];
+    /** how a value is written in the heading and on the axis (the locale's number by default) */
+    numberText?: (value: number, decimals: number) => string;
   }>(),
-  { band: () => [], asBars: false, zero: false, range: undefined, valueDecimals: 1 },
+  { band: () => [], asBars: false, zero: false, range: undefined, valueDecimals: 1, numberText: formatNumber },
 );
 
 const W = 320;
@@ -49,7 +51,7 @@ const x = computed(() => linearScale([props.from, props.to], [LEFT, RIGHT]));
 const y = computed(() => linearScale([axis.value.min, axis.value.max], [BOTTOM, TOP]));
 const decimals = computed(() => tickDecimals(axis.value.step));
 const xTicks = computed(() => timeTicks(props.from, props.to).map((t) => ({ ...t, x: x.value(t.at) })));
-const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: formatNumber(v, decimals.value) })));
+const yTicks = computed(() => axis.value.ticks.map((v) => ({ v, y: y.value(v), label: props.numberText(v, decimals.value) })));
 
 const line = computed(() => (props.asBars ? "" : linePath(props.main, x.value, y.value)));
 const upper = computed(() => linePath(props.band, x.value, y.value));
@@ -66,7 +68,9 @@ const shown = computed(() => {
   return p === undefined || p.v === null ? null : { p, at: x.value(p.t), top: y.value(p.v), hovered: hover.value !== null };
 });
 const readout = computed(() =>
-  shown.value === null ? "" : `${formatNumber(shown.value.p.v ?? 0, props.valueDecimals)} ${props.unit}  ${clockText(new Date(shown.value.p.t).toISOString())}`,
+  shown.value === null
+    ? ""
+    : `${props.numberText(shown.value.p.v ?? 0, props.valueDecimals)} ${props.unit}  ${clockText(new Date(shown.value.p.t).toISOString())}`,
 );
 
 function move(event: PointerEvent): void {

@@ -1,5 +1,5 @@
 """The packets by the hour on the wire: the command that asks how many were heard in each of the last hours and the message that answers it, for the graph of the statistics card (all the packets heard) and
-for the one of a station's card (the packets of that station); and the speeds a moving station reported, for the speed graph of its card. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
+for the one of a station's card (the packets of that station); the speeds a moving station reported, for the speed graph of its card; and the readings of a station's signal, for the signal graph of its card. Models like the rest of the protocol, listed in `neoaprs/web/protocol.py`."""
 from typing import Literal
 
 from pydantic import Field
@@ -40,3 +40,20 @@ class SpeedSeriesMsg(_Message):
     call: str = Field(description="the station asked about: a page with several cards open tells the answers apart by it")
     hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="the hours asked for")
     points: list[tuple[Iso, float]] = Field(description="[time, speed_kmh] for each position that had a speed, the oldest first; a station standing still that says so has 0")
+
+
+class SignalSeries(_Command):
+    """Asks for the readings of a station's signal in the last `hours` hours: the SNR and the RSSI its radio measured of each packet heard direct from it (`snr` and `rssi` of a packet). Answered with a `signal_series`
+    message to the page that asked, or an `error` for a call that is empty or hours out of range; a station heard on no radio that measures is answered with no points."""
+    cmd: Literal["signal_series"]
+    call: Call = Field(description="the station, as the `stations` topic has it: its packets are those whose source it is")
+    hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="how far back to go: 24 for a day")
+
+
+class SignalSeriesMsg(_Message):
+    """The readings of one station's signal, the answer to `signal_series`: one point for each packet heard direct from it in the span that carried a reading, the oldest first, the latest 1000 at most. A digipeater's copy
+    and a third-party packet are left out: their frame is another station's signal."""
+    type: Literal["signal_series"]
+    call: str = Field(description="the station asked about: a page with several cards open tells the answers apart by it")
+    hours: int = Field(ge=1, le=HISTORY_MAX_HOURS, description="the hours asked for")
+    points: list[tuple[Iso, float | None, float | None]] = Field(description="[time, snr_db, rssi_dbm] for each packet with a reading, the oldest first; a reading the radio does not give is null (Mercury gives the SNR alone)")

@@ -40,9 +40,13 @@ export const stations: Record<keyof typeof source, Message> = {
   "station.from_us_value": "{distance} km, {bearing}",
   "station.speed_course": "{speed}, rumo {course}",
   "station.speed_chart": "Velocidade ao longo do percurso",
+  "station.signal_chart_snr": "Relação sinal/ruído dos pacotes",
+  "station.signal_chart_rssi": "Intensidade dos pacotes",
 
   "station.field.kind": "Tipo",
   "station.field.last_heard": "Última recepção",
+  "station.field.signal": "Sinal",
+  "station.signal_value": "{reading}, {ago}",
   "station.field.position": "Posição",
   "station.field.from_us": "De nós",
   "station.field.speed": "Velocidade",

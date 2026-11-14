@@ -54,7 +54,7 @@ The panel is fixed at the bottom of the tab, as the box to write in is on the Bu
 - Under them a box for a question of your own, such as `?APRSH OH2GBA-15` or `?PING?`, and **Ask**; its hover text names the other directed queries (`?APRSO`, `?APRSM`, `?APRSH`, `?PING?`). It begins with `?`, is plain ASCII without `|`, `~` or `{` and at most 67 characters, and goes in capitals; a text that is not one has a red edge, says why in its hover text, and Ask stays off.
 - A question is sent once, with no message number, and is never repeated. The same question to the same station is refused for 60 seconds (the toast says "wait 42 s").
 - **Show on map** (or **Open its card**), **Copy call**, the **QRZ page** and, at the end of the line, **Forget**, which asks twice like the trash can ("Really forget?").
-- **Traffic**: the station's packets and the messages you sent it, newest first, the latest 50, as the Packets tab shows packets (the same columns, the same block for each packet in a narrow panel, the same facts under a packet you click). They reach back past what the Packets tab holds, and new ones come in as they are heard. While Internet stations is off none from the internet is listed.
+- **Traffic**: the station's packets and the messages you sent it, newest first, the latest 50, as the Packets tab shows packets (the same columns, the same block for each packet in a narrow panel, the same facts under a packet you click, and the packet's SNR after its summary where the radio measured one). They reach back past what the Packets tab holds, and new ones come in as they are heard. While Internet stations is off none from the internet is listed.
 - A question you asked says after it **waiting…**, then **answered** once the station sent what it asks for (a position, a status, a message, its weather; any packet for a question of your own) or **no answer** after two minutes.
 - **Route**: the **Path** messages to the station go by (with the button of the [path builder](messages.md#the-path-builder) beside it) and **RF only**, as under **Route** in its conversation (not there for a station that messages go to over the HF radio, which has no path, [messages.md](messages.md#a-station-heard-on-the-hf-radio)), and **Alert me when…** ([below](#alerts-on-a-station)), each saved when it is changed.
 
@@ -101,7 +101,7 @@ The first box of the tab asks the stations in radio range to make themselves kno
 
 ### Packets
 
-The log of packets, newest first. A **Route** column says how each packet you heard reached you, and a route breaks between its words, never inside a callsign. A click on a packet tells it in a few facts: who sent it, what kind it is, the position or the text, how it reached you or the path you sent it by, and when. Under **Raw**, closed, is what the parser decoded, as JSON.
+The log of packets, newest first. A **Route** column says how each packet you heard reached you, and a route breaks between its words, never inside a callsign. A click on a packet tells it in a few facts: who sent it, what kind it is, the position or the text, how it reached you or the path you sent it by, the signal the radio measured of it ("SNR −3 dB", only for a packet that has a reading), and when. Under **Raw**, closed, is what the parser decoded, as JSON.
 
 The tab is laid out by its own width. When it is narrower than 520 px (a phone, or a panel dragged narrow) each packet is one block instead of a row of columns: the time and the direction, then the packet line, then the route and the summary in small text under it. The click, the detail and the filter work as in the table.
 
@@ -191,6 +191,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - the symbol's picture and name, and a small QRZ link beside the call (the base call's page on qrz.com, the SSID off, in a new tab; for a station, yours included, not for an object or an item);
 - a green check mark beside the call when the station was heard direct;
 - when the station was last heard ("6 min ago", the full time on hover);
+- the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a LoRa radio the RSSI too, a KISS TNC neither), the full time on hover; a station with no such reading has no row;
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
 - the PHG or the range it gave, one line each: the power, height, gain and the range worked out from them, with the antenna drawn as a small arrow after the figures (the direction it favours, north up) or a small circle when it is omni, the compass point and the degrees as its hover title; a DF report or an area the same way. The last given stays until the station gives another;
@@ -203,6 +204,8 @@ A row with nothing to say is left out: a station that stands still has no speed 
 Under these facts, above Details, is a graph of the station's packets heard in each of the last 24 hours, a bar for each hour of the clock, the last one the hour that is running: the statistics card's graph for this station alone. The pointer on a bar shows its count and hour. The daemon counts them from its database by the station's call (the command `packet_history` with the call), when the card opens and every minute after; until the counts come the graph is an empty frame of the same size, so the card does not grow. Your own station, an object and an item have no such graph.
 
 A station that moves has under it a second graph, the line of its speed over the last 24 hours, read by the daemon from the speeds in the station's positions (a course and speed after the position, a compressed position's, a Mic-E's; the command `speed_series`), asked for when the card opens and at each new position. A station moves when its speed now is above 0, or when its track of the last 24 hours went more than 100 m, so a car that has parked keeps the graph of its trip. A fixed station has no speed graph and no room kept for one; your own station has none either.
+
+A station whose radio measured the signal of its packets has a graph of that too, the SNR of each packet heard direct from it over the last 24 hours (the RSSI in dBm for a radio that gives that and no SNR), asked for with `signal_series` when the card opens and at each new reading. A station with no reading in the last 24 hours has no graph; with only one, the graph is its empty frame.
 
 The buttons are **Message**, which opens the Messages tab on the station, and **Forget**, the trash can at the right ("Forget OH2XYZ" on hover), which asks twice (it says "sure?" after the first press, and takes it back after 5 seconds). How long stations stay on the map is one choice for all of them, **On map for** in the Stations tab.
 

@@ -2,7 +2,7 @@
 // The traffic of one station in its panel of the Stations tab: the packets it sent and the messages we sent to it, newest first, the latest 50 (lib/stationtraffic.ts), as the lines of the Packets tab (PacketLines: the same
 // columns, the same block of each packet when the panel is narrower than PACKETS_TABLE, the same detail under a line that is clicked). The daemon is asked for the station's packets in its log when the panel opens on it
 // (`station_traffic`), and the packets that come after are added as they come; while Internet stations is off none from APRS-IS is shown. A directed query of ours says how it went after its summary: "waiting…", "answered"
-// when the answer it asks for came from the station, "no answer" after two minutes; the three words take the room of the longest, so that the line does not move when the word changes. The clock wakes the list at the moment
+// when the answer it asks for came from the station, "no answer" after two minutes; the three words take the room of the longest, so that the line does not move when the word changes. The packet's SNR follows its summary where the radio measured one. The clock wakes the list at the moment
 // a query's two minutes are up, and not otherwise.
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import PacketLines from "@/components/PacketLines.vue";
@@ -10,6 +10,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useElementWidth } from "@/composables/useElementWidth";
 import { t } from "@/i18n";
 import { PACKETS_TABLE } from "@/lib/layout";
+import { readingText } from "@/lib/signal";
 import { igateOn } from "@/lib/settings";
 import { isTrafficOf, mergeTraffic, nextDeadline, queryState, trafficKey, type QueryState } from "@/lib/stationtraffic";
 import type { PacketRow } from "@/protocol/protocol";
@@ -58,6 +59,9 @@ watch(
 watch(rows, () => (now.value = Date.now()));
 onBeforeUnmount(() => clearTimeout(timer));
 
+/** What the radio measured of a packet the station sent ("SNR −3 dB"); null for one of ours and when it gave none. */
+const heard = (row: PacketRow): string | null => (row.direction === "in" ? readingText(row) : null);
+
 const STATES: readonly QueryState[] = ["waiting", "answered", "no_answer"];
 const stateOf = (row: PacketRow): QueryState | null => queryState(row, props.call, rows.value, now.value);
 </script>
@@ -71,6 +75,7 @@ const stateOf = (row: PacketRow): QueryState | null => queryState(row, props.cal
             t(`station.traffic.${state}`)
           }}</span></span
         >
+        <span v-if="heard(row) !== null" class="signalnote muted" data-signal-note>{{ ` · ${heard(row)}` }}</span>
       </template>
     </PacketLines>
   </div>

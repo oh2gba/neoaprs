@@ -8,6 +8,7 @@ from typing import Literal
 
 from .coded import CodedError
 from .radiorules import FM, HF, RadioRules
+from .reading import ReadingKind
 
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
@@ -27,6 +28,7 @@ class Profile:
     detect_command_mode: bool                  # whether text from the TNC ("cmd:", heard packets as TNC2 lines) means command mode, which `enter` leaves
     note: str                                  # what is uncertain about the profile, for the manual
     rules: RadioRules = FM                     # what the kind of radio allows and does (radiorules.py): paths and the digipeater, SmartBeaconing, the beacon's floor, the frame it carries whole
+    readings: tuple[ReadingKind, ...] = ()     # the signal readings the radio gives of each frame it hears (reading.py): the Mercury modem the SNR, a LoRa radio the SNR and the RSSI; none for a KISS TNC
 
     def __post_init__(self) -> None:
         if self.can_probe and (not self.enter or self.exit_kiss is None):
@@ -76,7 +78,7 @@ KANTRONICS = Profile("kantronics", "Kantronics KPC-3+", "serial", 9600, ((b"\rIN
 # KISS over TCP (Mercury 1.9.21, docs/TNC.md). Its frame carries 123 bytes of a packet and a longer one is cut off by Mercury without a word, so the daemon refuses or shortens it first. Only stations with the same
 # modem on the same frequency hear each other; the mode is fixed in the program so that every NeoAPRS station is on it.
 MERCURY = Profile("mercury", "Mercury HF modem (sound card, SSB radio)", "modem", None, (), None, False, False,
-                  "Mercury 1.9.21 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", rules=HF)
+                  "Mercury 1.9.21 has to be installed; nobody has run APRS over it before NeoAPRS, so the frequencies are proposals until confirmed on the air.", rules=HF, readings=("snr",))
 
 # The Dummy radio (neoaprs/dummyline.py): no radio, no port, no speed; the daemon makes the traffic itself and swallows what it sends. It is last in the list: it is for trying NeoAPRS out, and a person looking
 # for their radio should find the real ones first.
@@ -86,7 +88,7 @@ DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (),
 # The Dummy HF radio (neoaprs/dummyhfscene.py): the HF radio's Dummy, with the rules of HF. A handful of distant fixed stations beacon every half hour to an hour, one answers a message; nothing goes on the air
 # and nothing is keyed, and what we send is played through the computer's speakers as Mercury's real audio (mercurymodem.py), so that the HF side can be tried with no radio and no other station on the air.
 DUMMY_HF = Profile("dummy-hf", "Dummy HF radio (no radio, made-up distant stations)", "dummy", None, (), None, False, False,
-                   "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", rules=HF)
+                   "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", rules=HF, readings=("snr",))
 
 PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)       # the FM radio's types (tnc/profile); the HF radio's are HF_PROFILES (hf/profile)
 HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)                                                 # the HF radio's types (neoaprs/radios.py): the Mercury modem, and its Dummy last, as the FM radio's is

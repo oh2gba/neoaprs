@@ -77,6 +77,7 @@ class TncState(_Model):
     dummy: bool = Field(description="the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then")
     modem: ModemState | None = Field(description="the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type")
     rules: RadioRulesState = Field(description="what the kind of the radio in use allows: the page shows only the controls that apply")
+    readings: list[Literal["snr", "rssi"]] = Field(description="the signal readings the radio type gives of each frame it hears (`snr` and `rssi` of a packet): `snr` for the Mercury modem and the Dummy HF radio, none for a KISS TNC and the Dummy radio")
     describe: str = Field(description="one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC")
     searching: list[str] = Field(description="the ports the daemon is listening to while it looks for the radio; empty when it is not searching")
     silent_since: Iso | None = Field(description="while `state` is `silent`, when the latest byte came; null otherwise")

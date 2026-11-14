@@ -124,7 +124,7 @@ TypeScript types for both unions are in `ui/src/protocol/protocol.ts`, the JSON 
 
 ## Client to server
 
-56 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
+57 commands, each a JSON object with `"cmd"` as the first field. Types: `integer` and `number` are JSON numbers, `time` is UTC ISO 8601 with a `Z`.
 
 ### `ping`
 
@@ -466,6 +466,16 @@ range; a station that reported no speed is answered with no points.
 | `call` | string |  | the station, as the `stations` topic has it: its position packets are those whose sender (the source of the frame heard) it is (max 64 chars, min 1 chars) |
 | `hours` | integer |  | how far back to go: 24 for a day (>= 1, <= 168) |
 
+### `signal_series`
+
+Asks for the readings of a station's signal in the last `hours` hours: the SNR and the RSSI its radio measured of each packet heard direct from it (`snr` and `rssi` of a packet). Answered with a `signal_series`
+message to the page that asked, or an `error` for a call that is empty or hours out of range; a station heard on no radio that measures is answered with no points.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station, as the `stations` topic has it: its packets are those whose source it is (max 64 chars, min 1 chars) |
+| `hours` | integer |  | how far back to go: 24 for a day (>= 1, <= 168) |
+
 ### `station_traffic`
 
 Asks for the latest packets of one station, for the station panel of the Stations tab: those it sent (its own source, or inside a third-party packet an iGate put on the air) and the messages we sent
@@ -620,7 +630,7 @@ the support bundle. At most 20 of a connection are logged in a minute; the rest 
 
 ## Server to client
 
-17 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
+18 messages, each a JSON object with `"type"`. The first is `hello`. Where a field is `X | null` it is always present, with null.
 
 ### `hello`
 
@@ -765,6 +775,17 @@ a Mic-E's), the oldest first (a packet that came by two digipeaters is two point
 | `hours` | integer |  | the hours asked for (>= 1, <= 168) |
 | `points` | [time, number][] |  | [time, speed_kmh] for each position that had a speed, the oldest first; a station standing still that says so has 0 |
 
+### `signal_series`
+
+The readings of one station's signal, the answer to `signal_series`: one point for each packet heard direct from it in the span that carried a reading, the oldest first, the latest 1000 at most. A digipeater's copy
+and a third-party packet are left out: their frame is another station's signal.
+
+| field | type | | description |
+|---|---|---|---|
+| `call` | string |  | the station asked about: a page with several cards open tells the answers apart by it |
+| `hours` | integer |  | the hours asked for (>= 1, <= 168) |
+| `points` | ([time, number \| null, number \| null])[] |  | [time, snr_db, rssi_dbm] for each packet with a reading, the oldest first; a reading the radio does not give is null (Mercury gives the SNR alone) |
+
 ### `station_traffic`
 
 The latest packets of one station (at most 50), the answer to `station_traffic`, the newest first. A third-party packet is looked for among the latest 20000 packets of the log, where an iGate's are.
@@ -895,6 +916,9 @@ row has a new distance and bearing, and the topic is told whole again.
 | `heard_hf` | integer |  | how many came on the HF modem (>= 0) |
 | `last_fm_at` | time \| null |  | when a packet of the station last came on the FM radio; null when none did |
 | `last_hf_at` | time \| null |  | when a packet of the station last came on the HF modem; null when none did |
+| `snr` | number \| null |  | the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was |
+| `rssi` | number \| null |  | the received strength of that packet, dBm; null when its radio gave none (Mercury gives none) |
+| `signal_at` | time \| null |  | when that packet was heard; null until one with a reading was |
 | `position_via` | "rf" \| "rf-gated" \| "is" \| "dummy" \| null |  | the channel of the packet that gave its position (the latest one wins); null for a station without a position and for our own |
 | `packets_hour` | integer |  | how many of them were heard in the last hour (counted from the packets of the hour at the start and as they come; the row is told again each minute that it becomes fewer) (>= 0) |
 | `device` | string |  | what the station runs, as the APRS device identification list names it ("Kenwood TH-D74", "APRSdroid"): by the destination call of its packets, or by the type code of a Mic-E packet; empty when unknown |
@@ -945,6 +969,8 @@ One packet heard or sent. The rows are the values of the topic `packets`, keyed 
 | `kind` | "position" \| "message" \| "object" \| "item" \| "status" \| "other" \| "undecoded" |  | a telemetry report is `other`; its `decoded.type` is `telemetry` |
 | `route` | string |  | how a packet that was heard on the radio reached us: `direct`, `via OH2RCH-2`, `via ? → OH2RCH-2`, `via OH7JHF-1 (internet)` for a third-party packet; empty for a packet of ours and for one from the internet |
 | `radio` | "" \| "fm" \| "hf" |  | the radio the packet came on or went out on: `fm` the FM radio (the KISS TNC), `hf` the HF modem; empty for a packet from the internet |
+| `snr` | number \| null |  | the signal-to-noise ratio the radio measured of the frame, dB, tied to the frame where it was read (the Mercury modem and the Dummy HF radio give it); null for a packet of ours, one from the internet and one of a radio that gives none (a KISS TNC) |
+| `rssi` | number \| null |  | the received strength the radio measured of the frame, dBm; null as `snr` is, and for the Mercury modem, which gives none |
 | `via` | "rf" \| "rf-gated" \| "is" \| "dummy" |  | the channel the packet came by, set once where it was made: `rf` heard on the radio (direct or by digipeaters; every packet of ours too), `rf-gated` heard on the radio as a third-party packet that an iGate put on the air, `is` received from APRS-IS over the internet (never on the air), `dummy` made up by the Dummy radio (it works as `rf` does and never goes to the internet) |
 | `gate` | string |  | the iGate, for a third-party packet (`via` is `rf-gated`): `source` and `path` are those of the frame we heard (the iGate's), `decoded` is the packet inside it; empty for any other packet |
 | `summary` | string |  | one line, as the log has it |
@@ -974,6 +1000,8 @@ of a message that came in, `to_call` of one we sent.
 | `last_attempt_at` | time \| null |  | when it was transmitted last; null until the first attempt (the TNC may be away) |
 | `acked_at` | time \| null |  | when the acknowledgement was heard |
 | `attempts_detail` | AttemptRow[] |  | for a message of ours, each attempt made (`attempts` of them, the oldest first; fewer for a message sent before the delivery chain was kept, none until the first attempt) with the hops of its path that a copy of our own message was heard back with; a hop heard is a `set` of the message's row. Empty for a message that came in |
+| `snr` | number \| null |  | the signal-to-noise ratio of the packet that carried it, dB: for a message that came in, its own packet's; for one of ours, the ack's (or the reject's) that settled it, null until one came; null too when that packet's radio gave none and for a message kept before readings were |
+| `rssi` | number \| null |  | the received strength of that packet, dBm; null as `snr` is, and for the Mercury modem, which gives none |
 | `route` | string |  | how a message that was heard reached us (from the path of the first copy heard): `direct`, `via OH2RCH-2`, `via OH2RCH-1 → OH2RCH-3`, `via OH7JHF-1 (internet)` for a third-party packet an iGate put on the air; empty for one of ours and for one heard before this was kept |
 | `seal` | "" \| "key" \| "key_other" \| "open" \| "shut" |  | what the message is besides text (encrypted messages, a daemon started with `--encryption`): empty for a plain message; `key` an announcement of the sender's public key (`send_key`; for one that came in, the key was taken, or is the one kept already); `key_other` an announcement that differs from the key kept for the station, not taken (`forget_station_key` first); `open` an encrypted message that was read, `text` is what it says (for one of ours, what was written); `shut` an encrypted message that cannot be read here (no key from the sender, no key of ours, or not for us), `text` is the ciphertext as it came |
 
@@ -1149,6 +1177,7 @@ The TNC, the one feed of packets: its state and why it is not connected, the por
 | `dummy` | boolean |  | the radio is the Dummy radio: the traffic is made up and nothing goes on the air; `path` and `baud` mean nothing then |
 | `modem` | ModemState \| null |  | the Mercury HF modem behind the line while the radio type is Mercury; null for every other radio type |
 | `rules` | RadioRulesState |  | what the kind of the radio in use allows: the page shows only the controls that apply |
+| `readings` | ("snr" \| "rssi")[] |  | the signal readings the radio type gives of each frame it hears (`snr` and `rssi` of a packet): `snr` for the Mercury modem and the Dummy HF radio, none for a KISS TNC and the Dummy radio |
 | `describe` | string |  | one line for the log and `neoaprs doctor`: the port, the speed and what the TNC does; while `silent` it says since when, in UTC |
 | `searching` | string[] |  | the ports the daemon is listening to while it looks for the radio; empty when it is not searching |
 | `silent_since` | time \| null |  | while `state` is `silent`, when the latest byte came; null otherwise |

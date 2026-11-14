@@ -62,6 +62,7 @@ export const messages: Record<keyof typeof source, Message> = {
 
   "messages.mark.acked": "kuitattu",
   "messages.mark.acked_at": "kuitattu {time}",
+  "messages.mark.with_signal": "{mark} · {signal}",
   "messages.mark.failed": "epäonnistui",
   "messages.mark.no_ack_expected": "lähetetty, kuittausta ei odoteta",
   "messages.mark.cancelled": "peruttu",

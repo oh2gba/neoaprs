@@ -29,18 +29,19 @@ def _alert(on_air: bool, within_km: int | None, direct: bool) -> Alert | None:
 def message_row(record: MessageRecord) -> Row:
     """The columns of the message table without the id, in the order of the INSERT."""
     return (stamp(record.at), record.direction, record.from_call, record.to_call, record.text, record.msg_id, record.state, record.attempts,
-            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio, record.failure)
+            None if record.last_attempt_at is None else stamp(record.last_attempt_at), None if record.acked_at is None else stamp(record.acked_at), record.attempts_max, record.route, record.seal, record.wire, record.radio, record.failure, record.snr, record.rssi)
 
 
 def message_of(row: Row) -> MessageRecord:
     """The message from its row. Raises ValueError (or TypeError) for a row this program did not write."""
-    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio, failure) = row
+    (number, at, direction, from_call, to_call, text, msg_id, state, attempts, last_attempt_at, acked_at, attempts_max, route, seal, wire, radio, failure, snr, rssi) = row
     if seal not in SEALS:
         raise ValueError(f"seal {seal!r}")
     if failure is not None and failure not in FAILURES:
         raise ValueError(f"failure {failure!r}")
     return MessageRecord(int(number), parse_stamp(str(at)), direction, str(from_call), str(to_call), str(text), None if msg_id is None else str(msg_id), state, int(attempts),
-                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=str(radio), failure=failure)
+                         None if last_attempt_at is None else parse_stamp(str(last_attempt_at)), None if acked_at is None else parse_stamp(str(acked_at)), int(attempts_max), str(route), seal, wire=None if wire is None else str(wire), radio=str(radio), failure=failure,
+                         snr=None if snr is None else float(snr), rssi=None if rssi is None else float(rssi))
 
 
 class MessageLog(DbLog):
@@ -55,10 +56,10 @@ class MessageLog(DbLog):
         return None if number is None else replace(record, id=number)
 
     def update_state(self, record: MessageRecord) -> bool:
-        """Keeps the state, the attempts, the times and the failure of a message as they are now; False when it could not be queued."""
+        """Keeps the state, the attempts, the times, the failure and the reading of the answer of a message as they are now; False when it could not be queued."""
         last = None if record.last_attempt_at is None else stamp(record.last_attempt_at)
         acked = None if record.acked_at is None else stamp(record.acked_at)
-        return self._append(lambda conn: update_message(conn, record.id, record.state, record.attempts, last, acked, record.failure))
+        return self._append(lambda conn: update_message(conn, record.id, record.state, record.attempts, last, acked, record.failure, (record.snr, record.rssi)))
 
     async def delete(self, number: int) -> bool:
         """Removes a message; False when the database would not take it (a message that is not there is removed already, so that is True)."""

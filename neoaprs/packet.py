@@ -205,6 +205,8 @@ class Packet:
     third_party: ThirdParty | None = None
     via: Via = RF
     radio: str = ""                   # the radio it came on or went out on, by the kind of its slot (`fm`, `hf`: neoaprs/radiorules.py), set where the Tnc makes the packet; "" for a packet from the internet, and for one made without a radio (a test's), which counts as the FM radio's
+    snr: float | None = None          # the signal-to-noise ratio the radio measured of the frame, dB, and the received strength, dBm (neoaprs/reading.py): set where the Tnc makes the packet, of the radio types that give
+    rssi: float | None = None         # them; None for a packet of ours, one from the internet, and one of a radio that gives none
 
     def __post_init__(self) -> None:
         if self.heard_at.tzinfo is None:

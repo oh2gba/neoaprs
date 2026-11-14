@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply (and a small trash can, pressed twice, for one that is no longer being sent and was never acked), the delivery chain
-// of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2"). An encrypted message carries a padlock beside its time (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
+// of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2") with the SNR the radio measured of it ("direct · SNR −3 dB"; nothing for a radio that measures none). An encrypted message carries a padlock beside its time (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
 // (null: a new message is being written, and nothing is said). A right-click on a bubble (a long press on a touch screen) offers to copy its text (CopyMenu). A query we sent (the Stations table's menu: `?APRSS` and the like, sent with no message id) is no bubble but a small grey line in the middle, "You asked for its status", with the time. The Email tab has its own list (EmailList).
 import { computed, ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
@@ -15,6 +15,7 @@ import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
 import { markOf as sealMarkOf, shownText } from "@/lib/lock";
+import { readingText } from "@/lib/signal";
 import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
@@ -27,6 +28,9 @@ const sure = useSure<number>(); // (the id of the message, armed by the first pr
 const log = ref<HTMLElement | null>(null);
 /** Each message with the note of the query it is, if it is one, and the mark of what it is besides text (a padlock, a key). */
 const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m) })));
+
+/** What the radio measured of a message that came in ("SNR −3 dB"); null for one of ours (the delivery mark has the ack's) and when it gave none. */
+const reading = (m: MessageRow): string | null => (m.direction === "in" ? readingText(m) : null);
 
 useToNewest(log, () => [props.peer, props.thread.length]);
 /** The copy menu of a bubble: the text of its message. */
@@ -73,8 +77,9 @@ const copy = useCopyMenu((bubble) => {
           />
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
-        <p v-if="m.route || (m.direction === 'in' && m.radio === 'hf')" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="hf" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route }}
+        <p v-if="m.route || (m.direction === 'in' && (m.radio === 'hf' || reading(m) !== null))" class="bubble-route muted" :title="t('messages.route_title')">
+          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="hf" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route
+          }}<template v-if="reading(m) !== null"><template v-if="m.route || m.radio === 'hf'"> · </template>{{ reading(m) }}</template>
         </p>
       </div>
     </template>

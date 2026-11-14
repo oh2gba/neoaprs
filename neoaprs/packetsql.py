@@ -6,9 +6,9 @@ from collections.abc import Sequence
 
 from .dberror import Row, limit, rows
 
-PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via", "radio")
+PACKET_COLUMNS = ("heard_at", "direction", "raw", "source", "destination", "path", "kind", "summary", "decoded", "error", "via", "radio", "snr", "rssi")
 STATION_COLUMNS = ("call", "kind", "reported_by", "symbol_table", "symbol_code", "lat", "lon", "altitude_m", "course_deg", "speed_kmh", "first_heard", "last_heard",
-                   "last_position_at", "last_status", "last_comment", "packets", "last_path", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "heard_fm", "heard_hf", "last_fm_at", "last_hf_at")
+                   "last_position_at", "last_status", "last_comment", "packets", "last_path", "heard_rf", "heard_rf_gated", "heard_is", "last_rf_at", "last_rf_gated_at", "last_is_at", "position_via", "heard_dummy", "last_dummy_at", "heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "snr", "rssi", "signal_at")
 PACKET_LIST = ", ".join(PACKET_COLUMNS)
 _STATION_LIST = ", ".join(STATION_COLUMNS)
 _PLACES = {n: ", ".join("?" * n) for n in (len(PACKET_COLUMNS), len(STATION_COLUMNS))}
@@ -61,6 +61,13 @@ def station_positions(db: sqlite3.Connection, source: str, stamp: str, internet:
     """The position packets heard from `source` at or after `stamp` (none from APRS-IS when `internet` is false), the oldest first: the speeds of a moving station are read from them (by the index of the
     source: a few days of one station's packets at most)."""
     return rows(db.execute(f"SELECT {PACKET_LIST} FROM packet WHERE source = ? AND {heard(internet)} AND kind = 'position' AND heard_at >= ? ORDER BY id", (source, stamp)))
+
+
+def station_readings(db: sqlite3.Connection, source: str, stamp: str, count: int) -> list[Row]:
+    """(heard_at, path, snr, rssi) of the latest `count` packets heard from `source` at or after `stamp` that carry a reading of their signal, the oldest first; not a third-party one, whose frame is an iGate's
+    signal (by the index of the source)."""
+    return rows(db.execute(f"SELECT heard_at, path, snr, rssi FROM (SELECT id, heard_at, path, snr, rssi FROM packet WHERE source = ? AND {HEARD} AND via != 'rf-gated' AND (snr IS NOT NULL OR rssi IS NOT NULL) "
+                           "AND heard_at >= ? ORDER BY id DESC LIMIT ?) ORDER BY id", (source, stamp, limit(count))))
 
 
 def station_traffic(db: sqlite3.Connection, call: str, own: str, count: int, span: int, internet: bool = True) -> list[Row]:

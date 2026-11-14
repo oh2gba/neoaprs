@@ -5,6 +5,8 @@ What an HF channel sounds like, in the rules of radiorules.py: a handful of fixe
 place in Finland and in Europe, each with a timed beacon every half hour to an hour plus the random pause every HF beacon adds, every frame direct (no digipeater repeats anything on HF), and every station
 takes messages; the nearest answers one, with an ack a frame's time each way later and a reply after it, so that messaging over HF can be tried with its real pace. The first beacons come within the first two
 minutes of the start, one every few tens of seconds, so that the map fills while the operator watches; after that the channel is as quiet as a real one. Nothing of ours is repeated back: there is no digipeater.
+Every frame comes with the SNR a Mercury would say of it (`reading_of`): each station's own level, the farther the weaker, and a few dB of fading from one frame to the next, within what DATAC3 decodes
+(from about -4 dB) and what Mercury's estimate reaches (about 12 dB: docs/mercury.md), to a tenth of a dB as Mercury says it.
 
 Every call is made up on the ITU's Q prefix, which the dummy radio uses for the same reason (dummyscene.py): QAA to QZZ is allocated to no country, so no call here is, or can ever be, a real station's, however
 much its letters say where the station is meant to be."""
@@ -19,12 +21,15 @@ from neoaprs.aprsmessage import MessageError, parse_message
 from .dummyframes import ack, air, fixed, message
 from .mercury import DELIVERY_SEC
 from .radiorules import HF_BEACON_JITTER_SEC
+from .reading import Reading
 
 DIRECT = ""                                    # the path of every frame on HF
 HELLO = "Hello from the dummy HF radio"
 ACK_AFTER_SEC = 2 * DELIVERY_SEC               # a message reaches the station a frame's time after it is handed in, and its ack takes as long back (the bench measured about 10 s from send to ack)
 ANSWER_AFTER_SEC = (ACK_AFTER_SEC + 6.0, ACK_AFTER_SEC + 14.0)       # the text of the answer: a second frame of the station's, after the pace a station keeps between two frames of its own
 FIRST_BEACONS_SEC = (8.0, 26.0, 47.0, 71.0, 94.0, 118.0)              # when each station's first beacon comes: within two minutes, spread so that no two key together
+FADING_DB = 3.0                                # how far a frame's SNR strays from its station's own level, either way
+SNR_RANGE_DB = (-4.0, 12.0)                    # what DATAC3 decodes from and where Mercury's estimate stops rising
 
 
 @dataclass(frozen=True)
@@ -36,17 +41,18 @@ class Station:
     symbol: str
     comment: str
     every_sec: float
+    snr_db: float                              # the level its frames come in at, before the fading
     answers: bool = False
 
 
 # Oulu, Kuopio and Turku in Finland; Stockholm, Hamburg and Warsaw in Europe: 150 to 1100 km from Helsinki, the distances an HF net has. The nearest, Turku, answers a message.
 STATIONS: tuple[Station, ...] = (
-    Station("Q3TKU", 60.4518, 22.2666, "/-", "Turku, 50 W to a dipole", 1800, answers=True),
-    Station("Q1KUO", 62.8924, 27.6770, "/-", "Kuopio, QRV on 40 m", 2700),
-    Station("Q5OUL", 65.0121, 25.4651, "/y", "Oulu, vertical on the roof", 3600),
-    Station("Q2STO", 59.3293, 18.0686, "/-", "Stockholm, Mercury HF", 2400),
-    Station("Q4HAM", 53.5511, 9.9937, "/-", "Hamburg, 100 W dipole", 3600),
-    Station("Q6WAW", 52.2297, 21.0122, "/y", "Warszawa, 20 m up", 3000),
+    Station("Q3TKU", 60.4518, 22.2666, "/-", "Turku, 50 W to a dipole", 1800, 8.0, answers=True),
+    Station("Q1KUO", 62.8924, 27.6770, "/-", "Kuopio, QRV on 40 m", 2700, 5.0),
+    Station("Q5OUL", 65.0121, 25.4651, "/y", "Oulu, vertical on the roof", 3600, 3.0),
+    Station("Q2STO", 59.3293, 18.0686, "/-", "Stockholm, Mercury HF", 2400, 6.0),
+    Station("Q4HAM", 53.5511, 9.9937, "/-", "Hamburg, 100 W dipole", 3600, 1.0),
+    Station("Q6WAW", 52.2297, 21.0122, "/y", "Warszawa, 20 m up", 3000, -1.0),
 )
 
 
@@ -61,6 +67,7 @@ class HfScene:
         self.centre = centre                   # (where we are is of no account to stations hundreds of kilometres away; kept so that the scene is made as the Dummy radio's is)
         self.started = now
         self._rng = random.Random(seed)  # noqa: S311  (the made-up stations of the Dummy radio, the same for the same seed: nothing secret is drawn)
+        self._fading = random.Random(seed + 1)  # noqa: S311  (the same, for the SNR of each frame: apart, so that the times of the traffic do not depend on how many frames were read)
         self._queue: list[tuple[datetime, int, ax25.Frame]] = []
         self._count = 0
         self._ids = 0
@@ -82,6 +89,12 @@ class HfScene:
         while self._queue and self._queue[0][0] <= now:
             out.append(heapq.heappop(self._queue)[2])
         return out
+
+    def reading_of(self, frame: ax25.Frame) -> Reading:
+        """The SNR of a frame of the scene: its station's level with the fading of the moment, in the range a Mercury says."""
+        level = next((a.station.snr_db for a in self.actors if a.station.call == str(frame.source)), 0.0)
+        low, high = SNR_RANGE_DB
+        return Reading(snr=round(min(high, max(low, level + self._fading.uniform(-FADING_DB, FADING_DB))), 1))
 
     def _beacon(self, actor: Actor, now: datetime) -> None:
         s = actor.station
