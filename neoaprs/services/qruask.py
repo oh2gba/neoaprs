@@ -25,7 +25,9 @@ from neoaprs.coded import CodedError
 from neoaprs.message import MessagingError, addressed_to, request_path, same_call
 from neoaprs.packet import ItemReport, Message, ObjectReport, Packet
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, Asked, Closing, Listing, Server, ask_text, closing_of, listing_of
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame, radio_path
+from neoaprs.services.answers import request_radio
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.radioset import RadioPick, path_on
 from neoaprs.signal import Signal
 from neoaprs.tasks import TaskSet
 
@@ -39,8 +41,8 @@ HEARD_MAX = 2000                        # the objects (by sender and name) kept 
 
 
 class QruAsk:
-    def __init__(self, tnc: Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow) -> None:
-        self._tnc = tnc
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow) -> None:
+        self._given = radios                                        # the station's radios (the registry; an old shape until app.py gives it): a request goes on the main radio
         self._config = config
         self._paths = paths                                         # the digipeaters of what we send to a station (PrefBook.path_for)
         self.clock = clock
@@ -65,14 +67,13 @@ class QruAsk:
         config = self._config()
         our_call(config)
         request = ask_text(text)
-        if not self._tnc.usable:
-            raise MessagingError(self._tnc.why_unusable())
+        radio = request_radio(self._given, self._config)
         now = self.clock()
         if (wait := self._wait(request, now)) > 0:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another request for local info: wait {seconds} s", "qru.too_soon", seconds=seconds)
         try:
-            calls = radio_path(self._tnc, request_path(path, () if path and path.strip() else self._paths(ADDRESSEE), rf_only))
+            calls = path_on(radio, config, request_path(path, () if path and path.strip() else self._paths(ADDRESSEE), rf_only))
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:
@@ -81,7 +82,7 @@ class QruAsk:
             raise MessagingError(str(e)) from None
         except FRAME_ERRORS as e:
             raise MessagingError(f"the request to QRU makes no frame: {e}") from None
-        if not self._tnc.send_frame(frame):
+        if not radio.send_frame(frame):
             raise MessagingError("the TNC would not take the frame")
         self.asked = Asked(request, now)
         self._requests = [*self._requests, self.asked][-REQUESTS_MAX:]

@@ -15,6 +15,7 @@ from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
 from tests.support.storedb import log_at
 from tests.test_queries import Rig
+from tests.test_messaging import pick_of
 
 
 class Log:
@@ -32,7 +33,7 @@ def rig_with(heard: dict[str, tuple[int, ...]] | None = None, no_log: bool = Fal
     """A rig whose queries read the packet log `heard`: for each call the minutes ago its packets were heard (a station heard now is `(0,)`)."""
     rig = Rig()
     log = Log({call: [rig.clock() - timedelta(minutes=m) for m in minutes] for call, minutes in (heard or {}).items()})
-    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock, heard=None if no_log else log)
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock, heard=None if no_log else log)
     remember_stop(rig.q.stop)
     return rig, log
 

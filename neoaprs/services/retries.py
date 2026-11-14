@@ -1,7 +1,7 @@
 """The retry schedule of the messages being sent: when each one needs attention again (message.due_at), the ticker that looks at the clock once a `tick_sec` and makes the attempt that is due or ends a message
 that has had its last, and the waits that do not run while the radio is away.
 
-The radio is the radio of the message (`Host.radio_of`: the station's, neoaprs/radios.py), and each radio that is on is watched on its own: while a message's radio is not usable, or transmitting is switched off (the
+The radio is the radio of the message (`Host.radio_of`: the station's, services/radioset.py's RadioPick `for_station`), and each radio that is on is watched on its own, by its id: while a message's radio is not usable, or transmitting is switched off (the
 interlock), an attempt that is due waits, it is not used up, and when that radio is back the waits of the messages on it are moved on by the time it was away; a message to a station heard on HF alone is attempted
 while the FM radio is silent at night, and the acks that waited for a radio go when that radio takes frames (`first`, services/acks.py). The log says so once for each time a radio was away (`radio_up`).
 
@@ -18,7 +18,10 @@ from neoaprs.clock import Clock
 from neoaprs.config import can_transmit
 from neoaprs.interlock import Interlock
 from neoaprs.message import UNCONFIRMED_MAX, MessageRecord, State, due_at, retry_pause
-from neoaprs.services.common import ConfigSource, Radio, radios_on
+from neoaprs.radiotype import RadioId
+from neoaprs.services.answers import air_of, as_pick, radio_word
+from neoaprs.services.common import ConfigSource, Radio
+from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.tasks import every
 
 log = logging.getLogger("neoaprs.messaging")
@@ -29,21 +32,21 @@ class Host(Protocol):
     def get(self, number: int) -> MessageRecord | None: ...
     def attempt(self, record: MessageRecord) -> MessageRecord: ...
     def put(self, record: MessageRecord) -> None: ...
-    def radio_of(self, record: MessageRecord) -> Radio | None: ...        # the radio the message goes out on; None when it has none now (the email gateway while the FM radio is off): the attempt waits
+    def radio_of(self, record: MessageRecord) -> AirRadio | None: ...     # the radio the message goes out on; None when it has none now (the email gateway while there is no email radio): the attempt waits
 
 
 class Retries:
-    def __init__(self, host: Host, tnc: Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float], first: Callable[[], None] | None = None) -> None:
+    def __init__(self, host: Host, radios: RadioPick | Radio, config: ConfigSource, interlock: Interlock, clock: Clock, tick_sec: Callable[[], float], first: Callable[[], None] | None = None) -> None:
         self._host = host
-        self._tnc = tnc
+        self._given = radios                                     # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each tick)
         self._config = config
         self._interlock = interlock
         self._clock = clock
         self._tick_sec = tick_sec                                # (what the owner says now: a test makes the ticker quick)
         self._first = first                                      # what goes before the attempts at a tick where a radio takes frames: the acks that waited for it (services/acks.py)
         self._due: dict[int, datetime] = {}                     # the messages being sent, and when each needs attention
-        self._down: dict[str, tuple[datetime, datetime]] = {}  # by the kind of radio: since when it has not taken frames, and the last tick that found it so
-        self._told_down: set[str] = set()                       # the kinds of radio whose waiting attempts the log has been told of, once per time away
+        self._down: dict[RadioId, tuple[datetime, datetime]] = {}  # by the radio's id: since when it has not taken frames, and the last tick that found it so
+        self._told_down: set[RadioId | None] = set()            # the radios whose waiting attempts the log has been told of, once per time away (None: a message that has no radio)
         self._ticker: asyncio.Task[None] | None = None
 
     @property
@@ -66,23 +69,23 @@ class Retries:
             self._due.pop(record.id, None)
         else:
             radio = self._host.radio_of(record)
-            self._due[record.id] = due + retry_pause(record, radio.rules.retry_jitter_sec if radio is not None else 0)
+            self._due[record.id] = due + retry_pause(record, radio.limits.retry_jitter_sec if radio is not None else 0)
 
     def forget(self, number: int) -> None:
         self._due.pop(number, None)
 
-    def away(self, radio: Radio) -> bool:
-        """Whether the ticker counts this radio as away (not taking frames) as of its last tick: what a test waits on before it moves the clock."""
-        return radio.rules.kind in self._down
+    def away(self, radio: AirRadio | Radio) -> bool:
+        """Whether the ticker counts this radio (by its id; a test of today names it by its Tnc) as away (not taking frames) as of its last tick: what a test waits on before it moves the clock."""
+        return air_of(radio, self._config).id in self._down
 
     def radio_up(self, record: MessageRecord | None = None) -> bool:
-        """Whether an attempt of this message (of any, on the default radio, when none is named) can be made now; the log says once per radio that the attempts wait when it cannot."""
-        radio = self._tnc if record is None else self._host.radio_of(record)
+        """Whether an attempt of this message (of any, on the main radio, when none is named) can be made now; the log says once per radio that the attempts wait when it cannot."""
+        radio = as_pick(self._given, self._config).main if record is None else self._host.radio_of(record)
         if radio is not None and radio.usable:
             return True
-        kind = radio.rules.kind if radio is not None else ""
-        if kind not in self._told_down:
-            self._told_down.add(kind)
+        key = radio.id if radio is not None else None
+        if key not in self._told_down:
+            self._told_down.add(key)
             if radio is None and record is not None:
                 log.warning("message %d to %s waits: it has no radio to go on now", record.id, record.to_call)
             elif radio is not None:
@@ -95,7 +98,7 @@ class Retries:
     def tick(self) -> None:
         now = self._clock()
         shut = can_transmit(self._config()) is not None                       # (the interlock: receive only, no call)
-        radios = radios_on(self._tnc)
+        radios = as_pick(self._given, self._config).enabled()
         for radio in radios:
             self._watch(radio, now, shut)
         if shut or not any(radio.usable for radio in radios):
@@ -125,26 +128,26 @@ class Retries:
         self._host.put(record)
         return record
 
-    def _watch(self, radio: Radio, now: datetime, shut: bool) -> None:
+    def _watch(self, radio: AirRadio, now: datetime, shut: bool) -> None:
         """One radio's time away, tick by tick: while it does not take frames (or the interlock is shut) the span grows to this tick; at the first tick that finds it back, the waits of the messages on it are
         moved on by the span up to the last tick that saw it away (the module docstring says why not up to this one)."""
-        kind = radio.rules.kind
+        key = radio.id
         if shut or not radio.usable:
-            since = self._down.get(kind, (now, now))[0]
-            self._down[kind] = (since, now)
+            since = self._down.get(key, (now, now))[0]
+            self._down[key] = (since, now)
             return
-        self._told_down.discard(kind)
-        span = self._down.pop(kind, None)
+        self._told_down.discard(key)
+        span = self._down.pop(key, None)
         if span is not None and span[1] > span[0]:
-            log.info("the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time", kind, (span[1] - span[0]).total_seconds())
-            self._move_on(span[1] - span[0], kind)
+            log.info("the %s radio takes frames again after %d s: the waits of the messages on it are moved on by that time", radio_word(radio), (span[1] - span[0]).total_seconds())
+            self._move_on(span[1] - span[0], key)
 
-    def _move_on(self, away: timedelta, kind: str) -> None:
-        """The radio of this kind was away for this long: the waits that were running on it did not run."""
+    def _move_on(self, away: timedelta, key: RadioId) -> None:
+        """The radio of this id was away for this long: the waits that were running on it did not run."""
         for number, due in self._due.items():
             record = self._host.get(number)
             if record is None or record.attempts == 0:
                 continue
             radio = self._host.radio_of(record)
-            if radio is not None and radio.rules.kind == kind:
+            if radio is not None and radio.id == key:
                 self._due[number] = due + away

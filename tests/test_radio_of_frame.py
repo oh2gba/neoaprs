@@ -1,8 +1,10 @@
-"""The radio of the frame: every gate asks the radio the frame goes on and every frame is built for it, never for "the radio" of a station that has two. The retry ticker (services/retries.py), on two stub radios
-as one set (tests/support/stubtnc.py), attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away. The sender and our objects (services/sender.py,
-services/ownobjects.py), on the station's radios by id (services/radioset.py's RadioPick: tests/support/seamshapes.py over stub lines), send on the radio that takes a frame and give a held radio its copy later
-without another sending again, keep the round by the radio's id (two radios of one kind are two radios), and repeat by the net cycle of the path each radio carries; a query asked over HF (services/queries.py) is
-answered with the beacon's and the status's frames built for HF, no path and within the frame, while the same asked on FM has the path; the status report (services/rigstatus.py) is built for the radio it goes on."""
+"""The radio of the frame: every gate asks the radio the frame goes on and every frame is built for it, never for "the radio" of a station that has two. The retry ticker (services/retries.py), on the
+station's radios as the registry gives them (services/radioset.py RadioPick: tests/test_messaging.py `StubPick` over stub lines) and on the old set (tests/support/stubtnc.py: two stub radios as one set, read as a
+RadioPick), attempts a message on HF while the FM radio is away and moves on only the waits of the radio that was away, two radios of one kind each by its own id. The sender and our objects (services/sender.py,
+services/ownobjects.py), on the station's radios by id (tests/support/seamshapes.py over stub lines), send on the radio that takes a frame and give a held radio its copy later without another sending again, keep
+the round by the radio's id, and repeat by the net cycle of the path each radio carries; a query asked over HF (services/queries.py) is answered with the beacon's and the status's frames built for HF, no path
+and within the frame, while the same asked on FM has the path, and the general and the heard query asked over HF are answered on HF alone (each on the registry's radios and on the old set); the status report
+(services/rigstatus.py) is built for the radio it goes on."""
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,35 +15,38 @@ from neoaprs import ax25
 from neoaprs.config import Config
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessageRecord, retry_pause
-from neoaprs.radiorules import HF
 from neoaprs.radiospec import RadioSpec
 from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.radiotypes.common import HF_LIMITS
 from neoaprs.ownlog import OwnLog
-from neoaprs.packet import Message, Packet
+from neoaprs.packet import Message, Other, Packet
+from neoaprs.services.answers import as_pick
 from neoaprs.services.beacon import Beacon
-from neoaprs.services.common import Radio
 from neoaprs.services.ownobjects import OwnObjects
 from neoaprs.services.queries import Queries
+from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.services.retries import Retries
 from neoaprs.services.rigstatus import RigStatus
 from neoaprs.services.sender import Sender
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
 from tests.support.clock import FixedClock
-from tests.support.env import ON_AIR, remember_stop
+from tests.support.env import ON_AIR, idle_for, remember_stop, until
 from tests.support.rig import ServiceRig
 from tests.support.seamshapes import LiveShape, RegistryShape
 from tests.support.storedb import log_at
 from tests.support.stubtnc import StubRadios, StubTnc
+from tests.test_messaging import LineAir, StubPick
+from tests.test_queries_heard import Log
 
 
 BOTH: Config = replace(ON_AIR, hf_enabled=True, station_comment="a comment cut on a radio with a short frame")       # (43 characters, the most a comment may be)
 
 
 class Host:
-    """What the ticker asks of messaging, here by hand: the records by id, the radio of each by the station, and the attempts made."""
+    """What the ticker asks of messaging, here by hand: the records by id, the radio of each by the station (the RadioPick's `for_station`), and the attempts made."""
 
-    def __init__(self, radios: StubRadios, records: list[MessageRecord]) -> None:
+    def __init__(self, radios: RadioPick, records: list[MessageRecord]) -> None:
         self.radios = radios
         self.records = {r.id: r for r in records}
         self.attempted: list[int] = []
@@ -57,7 +62,7 @@ class Host:
     def put(self, record: MessageRecord) -> None:
         self.records[record.id] = record
 
-    def radio_of(self, record: MessageRecord) -> Radio | None:
+    def radio_of(self, record: MessageRecord) -> AirRadio | None:
         return self.radios.for_station(record.to_call)
 
 
@@ -65,41 +70,77 @@ def record(number: int, to: str, at: datetime, attempts: int = 1) -> MessageReco
     return MessageRecord(number, at, "out", "OH2GBA", to, "hello", f"0{number}", "sending", attempts=attempts, last_attempt_at=at if attempts else None)
 
 
+def two(config: Config, old: bool) -> tuple[RadioPick | StubRadios, RadioPick, dict[int, StubTnc]]:
+    """The two radios of the settings with OH2C on the HF one: what the ticker is given (the registry's RadioPick, or the old set of two that app.py gives it until then), the same as a RadioPick, and the lines by id."""
+    if old:
+        radios = StubRadios(hf_stations=("OH2C",))
+        return radios, as_pick(radios, lambda: config), {FM_ID: radios.fm, HF_ID: radios.hf}
+    pick = StubPick([LineAir(StubTnc(), lambda: config), LineAir(StubTnc(max_frame=123), lambda: config)], hf_stations=("OH2C",))
+    return pick, pick, pick.lines
+
+
 # ---- the retry ticker
 
-def test_the_ticker_attempts_a_message_on_hf_while_the_fm_radio_is_away_and_flushes_the_acks_that_wait() -> None:
-    radios = StubRadios(hf_stations=("OH2C",))
+@pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
+def test_the_ticker_attempts_a_message_on_hf_while_the_fm_radio_is_away_and_flushes_the_acks_that_wait(old: bool) -> None:
+    given, radios, lines = two(BOTH, old)
     clock = FixedClock()
     at = clock() - timedelta(seconds=60)                                    # (both messages had their first attempt 60 s ago: the retry at 32 s is due, on HF after its pause of at most 20 s too)
     host = Host(radios, [record(1, "OH2B", at), record(2, "OH2C", at)])
     flushed: list[int] = []
-    retries = Retries(host, radios, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0, lambda: flushed.append(1))
+    retries = Retries(host, given, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0, lambda: flushed.append(1))
     for r in host.records.values():
         retries.plan(r)
-    radios.fm.state = Source.State.SILENT
+    lines[FM_ID].state = Source.State.SILENT
     retries.tick()
     assert host.attempted == [2] and flushed == [1], "the message to the station on HF went, the acks were flushed; the message to the station on FM waits"
-    assert retries.away(radios.fm) and not retries.away(radios.hf)
+    assert retries.away(radios.get(FM_ID)) and not retries.away(radios.get(HF_ID))       # type: ignore[arg-type]
+    assert set(retries._down) == {FM_ID}, "the time away is kept by the radio's id"
+    if old:
+        assert retries.away(lines[FM_ID]) and not retries.away(lines[HF_ID]), "(a test of today names the radio by its line)"
 
 
-def test_the_time_a_radio_was_away_moves_on_the_waits_of_that_radio_alone_and_not_a_clock_jump_after_its_return() -> None:
-    radios = StubRadios(hf_stations=("OH2C",))
+@pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
+def test_the_time_a_radio_was_away_moves_on_the_waits_of_that_radio_alone_and_not_a_clock_jump_after_its_return(old: bool) -> None:
+    given, radios, lines = two(BOTH, old)
     clock = FixedClock()
     at = clock()
     host = Host(radios, [record(1, "OH2B", at), record(2, "OH2C", at)])
-    retries = Retries(host, radios, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0)
+    retries = Retries(host, given, lambda: BOTH, Interlock(lambda: BOTH), clock, lambda: 1.0)
     for r in host.records.values():
         retries.plan(r)
-    radios.fm.state = Source.State.SILENT
+    lines[FM_ID].state = Source.State.SILENT
     retries.tick()                                                          # (the FM radio is away from now)
     clock.advance(10)
     retries.tick()                                                          # (... and still at +10)
     clock.advance(52)                                                       # (it came back somewhere in these 52 s, which nobody saw: the jump is not its time away)
-    radios.fm.state = Source.State.CONNECTED
+    lines[FM_ID].state = Source.State.CONNECTED
     retries.tick()
-    hf_pause = retry_pause(record(2, "OH2C", at), HF.retry_jitter_sec)            # (of the message as it was planned, with its one attempt)
+    hf_pause = retry_pause(record(2, "OH2C", at), HF_LIMITS.retry_jitter_sec)        # (of the message as it was planned, with its one attempt: the pause of the HF radio's limits)
     assert retries._due[1] == at + timedelta(seconds=32 + 10) and retries._due[2] == at + timedelta(seconds=32) + hf_pause, "FM's wait moved on by the 10 s seen away, HF's not at all (it has its pause)"
     assert host.attempted == [1, 2], "both retries were due by +62 and went: the jump moved neither on"
+
+
+def test_two_radios_of_one_kind_are_watched_each_by_its_id_and_the_time_one_was_away_moves_on_its_own_waits_alone(caplog: pytest.LogCaptureFixture) -> None:
+    config = replace(BOTH, hf_enabled=False)
+    pick = StubPick([LineAir(StubTnc(), lambda: config), LineAir(StubTnc(), lambda: config, id=3, name="FM 2")], chosen={"OH2C": 3})        # (two FM radios, ids 1 and 3, as the round has them; OH2C is reached on the second)
+    lines = pick.lines
+    clock = FixedClock()
+    at = clock()
+    host = Host(pick, [record(1, "OH2B", at), record(2, "OH2C", at)])
+    retries = Retries(host, pick, lambda: config, Interlock(lambda: config), clock, lambda: 1.0)
+    for r in host.records.values():
+        retries.plan(r)
+    lines[3].state = Source.State.SILENT
+    retries.tick()
+    clock.advance(20)
+    retries.tick()
+    assert retries.away(pick.get(3)) and not retries.away(pick.get(FM_ID)), "the second FM radio is away, the first is not: by kind they would be one"     # type: ignore[arg-type]
+    lines[3].state = Source.State.CONNECTED
+    with caplog.at_level("INFO", logger="neoaprs.messaging"):
+        retries.tick()
+    assert retries._due[2] == at + timedelta(seconds=32 + 20) and retries._due[1] == at + timedelta(seconds=32), "the 20 s away moved on the wait of the message on radio 3 alone"
+    assert "the FM 2 radio takes frames again after 20 s" in caplog.text, "a radio other than 1 and 2 is named by its name"
 
 
 # ---- the sender and our objects
@@ -190,7 +231,9 @@ async def test_two_radios_of_one_kind_are_two_radios_and_each_takes_its_own_copy
 # ---- the answers to queries and the status report
 
 class Rig(ServiceRig):
-    def __init__(self) -> None:
+    """The two radios of the settings (a short HF frame) and the queries on them: given the registry's radios (a StubPick over the two lines), or with `old` the old set of two that app.py gives them until then."""
+
+    def __init__(self, old: bool = False) -> None:
         super().__init__(**{"hf_enabled": True, "station_comment": BOTH.station_comment})
         self.radios = StubRadios(hf_max_frame=60)                           # (a short HF frame: what is built for HF is cut to it, what is built for FM is not)
         self.book = StationBook(self.clock)
@@ -198,15 +241,22 @@ class Rig(ServiceRig):
         self.beacon = Beacon(self.radios.fm, lambda: self.config, self.clock)          # (the FM beacon, as app.py gives the queries)
         self.status = RigStatus(self.radios, lambda: self.config, self.beacon, self.clock)
         self.status.last_text = "QRV 14.074 MHz USB"
-        self.q = Queries(self.radios, lambda: self.config, self.beacon, self.status.status_frame, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0)
+        self.pick = StubPick([LineAir(self.radios.fm, lambda: self.config), LineAir(self.radios.hf, lambda: self.config)])      # (the same two lines as the registry's radios: what the queries take)
+        self.q = Queries(self.radios if old else self.pick, lambda: self.config, self.beacon, self.status.status_frame, self.book, lambda call: self.config.beacon_path_calls, self.clock, delay=lambda: 0.0,
+                         heard=Log({}))
         remember_stop(self.q.stop)
 
     def ask(self, text: str, radio: str) -> None:
         self.q.on_packet(Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Message("OH2GBA", text, None), None, "rf", radio))
 
+    def ask_around(self, text: str, radio: str) -> None:
+        """The general query in the information field of a packet, as it is asked."""
+        self.q.on_packet(Packet(self.clock(), "in", b"", "OH2RDG", "APZNEO", ("OH2RCH-2*",), b"", Other("query", text), None, "rf", radio))
 
-def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same_on_fm_with_the_path() -> None:
-    rig = Rig()
+
+@pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
+def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same_on_fm_with_the_path(old: bool) -> None:
+    rig = Rig(old)
     rig.ask("?APRSP", "hf")
     rig.ask("?APRSS", "hf")
     assert len(rig.radios.hf.sent) == 2 and rig.radios.fm.sent == []
@@ -217,6 +267,20 @@ def test_a_query_asked_over_hf_is_answered_with_frames_built_for_hf_and_the_same
     rig.ask("?APRSP", "fm")
     assert rig.radios.fm.sent[-1].path_text == "WIDE1-1,WIDE2-1" and rig.radios.fm.sent[-1].info == b"=6010.20N/02456.40E-" + BOTH.station_comment.encode()
 
+
+
+@pytest.mark.parametrize("old", [False, True], ids=["by id", "the old set"])
+async def test_the_general_query_and_the_heard_query_asked_over_hf_are_answered_on_hf_alone_with_no_path(old: bool) -> None:
+    rig = Rig(old)
+    rig.ask_around("?APRS?", "hf")
+    await until(lambda: len(rig.radios.hf.sent) == 2)
+    assert [f.info[:1] for f in rig.radios.hf.sent] == [b"=", b">"] and all(f.path == () and len(ax25.encode(f)) <= 60 for f in rig.radios.hf.sent), "our position and status, built for HF"
+    rig.ask("?APRSH OH2X", "hf")
+    await until(lambda: len(rig.radios.hf.sent) == 3)
+    heard = rig.radios.hf.sent[2]
+    assert heard.path == () and heard.info.startswith(b":OH2RDG   :OH2X NOT HEARD"), heard.tnc2()
+    await idle_for(0.05)
+    assert rig.radios.fm.sent == [], "nothing on FM"
 
 def test_the_status_report_is_built_for_the_radio_it_goes_on() -> None:
     rig = Rig()

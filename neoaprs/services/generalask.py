@@ -19,7 +19,9 @@ from neoaprs.coded import CodedError
 from neoaprs.clock import Clock, utcnow
 from neoaprs.message import QUERY_TEXT, MessagingError, request_path, same_call
 from neoaprs.packet import RF_GATED, Packet
-from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame, radio_path
+from neoaprs.services.answers import request_radio
+from neoaprs.services.common import FRAME_ERRORS, ConfigSource, Radio, our_call, our_frame
+from neoaprs.services.radioset import RadioPick, path_on
 from neoaprs.signal import Signal
 from neoaprs.station import Station
 
@@ -58,8 +60,8 @@ class GeneralAsked:
 
 
 class GeneralAsk:
-    def __init__(self, tnc: Radio, config: ConfigSource, book: Stations, clock: Clock = utcnow) -> None:
-        self._tnc = tnc
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, book: Stations, clock: Clock = utcnow) -> None:
+        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it): a query goes on the main radio
         self._config = config
         self._book = book
         self.clock = clock
@@ -78,22 +80,21 @@ class GeneralAsk:
         if kind not in QUERIES:
             raise MessagingError(f"{kind!r} is not aprs, igate or wx")
         query = QUERIES[kind]
-        if not self._tnc.usable:
-            raise MessagingError(self._tnc.why_unusable())
+        radio = request_radio(self._given, self._config)
         now = self.clock()
         before = self._asked.get(kind)
         if before is not None and (wait := ASK_EVERY_SEC - (now - before.at).total_seconds()) > 0:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another {query}: wait {seconds} s", "general.too_soon", query=query, seconds=seconds)
         try:
-            calls = radio_path(self._tnc, request_path(path, config.beacon_path_calls, rf_only))
+            calls = path_on(radio, config, request_path(path, config.beacon_path_calls, rf_only))
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:
             frame = our_frame(config, calls, query.encode("ascii"))
         except FRAME_ERRORS as e:
             raise MessagingError(f"the query {query} makes no frame: {e}") from None
-        if not self._tnc.send_frame(frame):
+        if not radio.send_frame(frame):
             raise MessagingError("the TNC would not take the frame")
         heard = frozenset(s.call for s in self._book.stations() if s.kind == "station" and (at := s.last_on_air_at) is not None and timedelta(0) <= now - at <= QUIET_BEFORE)
         asked = self._asked[kind] = GeneralAsked(kind, now, calls, heard_before=heard)

@@ -41,8 +41,9 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.geo import distance_km
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import RF_GATED, Message, Packet
-from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget
-from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_for
+from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
+from neoaprs.services.common import ConfigSource, Radio, our_frame
+from neoaprs.services.radioset import RadioPick
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
 
@@ -102,12 +103,12 @@ def info_texts(call: str, groups: Sequence[tuple[str, int]], km: int) -> list[st
 
 
 class Qru:
-    def __init__(self, tnc: Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, objects: Objects, book: Stations, paths: Callable[[str], tuple[str, ...]], clock: Clock = utcnow, spacing_sec: float = SPACING_SEC,
                  first_wait_sec: float = FIRST_WAIT_SEC, budget: AnswerBudget | None = None) -> None:
         self._config = config
         self.first_wait_sec = first_wait_sec
-        self._tnc = tnc
-        self._answers = Answers(tnc, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
+        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each request)
+        self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._objects = objects
         self._book = book
         self.clock = clock
@@ -131,7 +132,7 @@ class Qru:
         try:
             frames = self._frames(asker, request, packet.heard_at)
             if frames:
-                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec, radio=radio_for(self._tnc, packet))
+                self._answers.deliver(asker, key, frames, packet.heard_at, True, rf_only=True, first_after_sec=self.first_wait_sec, radio=as_pick(self._given, self._config).for_packet(packet))
             else:
                 log.debug("the request %r of %s to QRU: nothing to answer with", key, asker)
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:

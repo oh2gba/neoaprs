@@ -1,19 +1,34 @@
 """The radio a message to a station goes out on while both radios are on (neoaprs/radios.py: `for_station`, `choose`, the state row MESSAGE_RADIOS), the pause before a retry on HF (message.retry_pause:
-two stations that collided must not retry at the same moment again), and a station whose position takes no messages can still be written to (`may_not_message`). John and OH2GAX, 4 Nov 2026."""
+two stations that collided must not retry at the same moment again), and a station whose position takes no messages can still be written to (`may_not_message`). John and OH2GAX, 4 Nov 2026.
+
+Messaging takes that radio from the station's radios as the registry gives them (services/radioset.py RadioPick, here tests/test_messaging.py `StubPick` with radio 1 and radio 2 on stub lines): each attempt
+asks `for_station` again and records the id of the radio it went on, the pause before a retry is the radio's own (`limits`), an ack goes back on the radio the message came on (`for_packet`) and waits for it by
+its id, an email goes on the email radio (`email`) and is refused while there is none, and with no radio at all a message is refused, a message that comes gets no ack and an answer is not given, and the log
+says so."""
 import json
+import logging
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from neoaprs.clock import utc
 from neoaprs.config import DEFAULTS, MESSAGE_RADIOS
-from neoaprs.message import FIRST_WAIT_SEC, MessageRecord, due_at, retry_pause
-from neoaprs.radiorules import FM, HF
+from neoaprs.message import EMAIL_GATEWAY, FIRST_WAIT_SEC, MessageRecord, MessagingError, due_at, retry_pause
+from neoaprs.messagelog import MessageLog
+from neoaprs.radiotype import FM_ID, HF_ID
+from neoaprs.radiotypes.common import FM_LIMITS, HF_LIMITS
+from neoaprs.packet import Message, Packet
 from neoaprs.radios import Radios
+from neoaprs.services.answers import Answers, as_pick
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
 from tests.support.air import on_air
+from tests.support.stubtnc import StubRadios
+from tests.support.storedb import log_at
+from tests.test_messaging import Rig, with_hf
 from tests.test_web import with_page
 
 T0 = utc(2026, 11, 4, 7, 30)
@@ -74,16 +89,17 @@ def message(attempts: int, to: str = "OH2GAX-2", number: int = 556) -> MessageRe
 
 
 def test_a_retry_on_hf_waits_a_pause_of_its_own_and_one_on_fm_none() -> None:
-    assert retry_pause(message(0), HF.retry_jitter_sec) == timedelta(0), "the first attempt goes at once"
-    assert retry_pause(message(4), HF.retry_jitter_sec) == timedelta(0), "after the last attempt only the answer is waited for"
-    assert retry_pause(message(1), FM.retry_jitter_sec) == timedelta(0) and FM.retry_jitter_sec == 0
-    pause = retry_pause(message(1), HF.retry_jitter_sec)
-    assert timedelta(0) <= pause <= timedelta(seconds=HF.retry_jitter_sec) and retry_pause(message(1), HF.retry_jitter_sec) == pause, "the same every time it is asked"
+    hf = HF_LIMITS.retry_jitter_sec                                       # (the pause of the radio's type: what messaging reads of the radio a message goes on)
+    assert retry_pause(message(0), hf) == timedelta(0), "the first attempt goes at once"
+    assert retry_pause(message(4), hf) == timedelta(0), "after the last attempt only the answer is waited for"
+    assert retry_pause(message(1), FM_LIMITS.retry_jitter_sec) == timedelta(0) and FM_LIMITS.retry_jitter_sec == 0
+    pause = retry_pause(message(1), hf)
+    assert timedelta(0) <= pause <= timedelta(seconds=hf) and retry_pause(message(1), hf) == pause, "the same every time it is asked"
     assert due_at(message(1)) == T0 + timedelta(seconds=FIRST_WAIT_SEC)
-    ours = [retry_pause(message(n), HF.retry_jitter_sec) for n in (1, 2, 3)]
-    theirs = [retry_pause(message(n, to="OH2GBA", number=36), HF.retry_jitter_sec) for n in (1, 2, 3)]
+    ours = [retry_pause(message(n), hf) for n in (1, 2, 3)]
+    theirs = [retry_pause(message(n, to="OH2GBA", number=36), hf) for n in (1, 2, 3)]
     assert ours != theirs, "the two stations of a collision pause differently"
-    spread = {round(retry_pause(message(1, number=n), HF.retry_jitter_sec).total_seconds()) for n in range(200)}
+    spread = {round(retry_pause(message(1, number=n), hf).total_seconds()) for n in range(200)}
     assert len(spread) > 15, "the pauses cover the range"
 
 
@@ -121,3 +137,90 @@ def test_a_station_the_book_lets_go_takes_its_radio_along_and_a_restart_does_not
     assert book2.get("OH2GAX-2").message_radio == "" and book2.get("OH2FAR").message_radio == "fm"      # type: ignore[union-attr]
     book.forget_all()
     assert json.loads(kept.rows[MESSAGE_RADIOS]) == {}, "Forget all forgets the choices too"
+
+
+# ---- messaging on the radios by id (services/radioset.py RadioPick)
+
+async def on_two(tmp_path: Path, **changes: Any) -> Rig:
+    """Messaging on radio 1 (the rig's stub line) and radio 2 (an HF line of its own), OH2FAR heard on HF alone."""
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    rig = Rig(log, clock, **{"hf_enabled": True, **changes})
+    with_hf(rig, rig.radios)
+    rig.radios.hf_stations = ("OH2FAR",)
+    await rig.start()
+    return rig
+
+
+def radio_ids(rig: Rig, number: int) -> list[int | None]:
+    return [attempt.radio_id for attempt in rig.m.delivery.attempts_of(number)]
+
+
+async def test_each_attempt_goes_on_the_radio_the_station_is_reached_on_now_and_records_its_id(tmp_path: Path) -> None:
+    rig = await on_two(tmp_path)
+    hf = rig.radios.lines[HF_ID]
+    near = await rig.m.send("OH2NEAR", "on fm")
+    far = await rig.m.send("OH2FAR", "over hf")
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2NEAR  :on fm{01}"] and hf.lines() == ["OH2GBA>APZNEO::OH2FAR   :over hf{02}"], "each on its station's radio, built for it: no path on HF"
+    assert radio_ids(rig, near.id) == [FM_ID] and radio_ids(rig, far.id) == [HF_ID]
+    held = rig.m.get(far.id)
+    assert held is not None and rig.m.retries._due[far.id] == held.at + timedelta(seconds=32) + retry_pause(held, HF_LIMITS.retry_jitter_sec), "the pause before its retry is the HF radio's"
+    rig.radios.chosen["OH2FAR"] = FM_ID                                    # (the operator chooses the FM radio for the station: the next attempt asks again)
+    await rig.pass_time(55)
+    assert radio_ids(rig, far.id) == [HF_ID, FM_ID] and radio_ids(rig, near.id) == [FM_ID, FM_ID] and len(hf.sent) == 1
+    assert [attempt.radio for attempt in rig.m.delivery.attempts_of(far.id)] == ["hf", "fm"], "kept as the word of the radio's slot until the attempts keep the id"
+
+
+async def test_an_ack_goes_back_on_the_radio_the_message_came_on_and_waits_for_it_by_its_id(tmp_path: Path) -> None:
+    rig = await on_two(tmp_path)
+    hf = rig.radios.lines[HF_ID]
+    hf.held = "the channel is busy"
+    rig.m.on_packet(replace(rig.heard("OH2NEAR", "OH2GBA", "over hf", "7"), radio="hf"))             # (a station near on FM, but this message came over HF)
+    await rig.settled()
+    assert [(ack.to, ack.radio) for ack in rig.m.acks.waiting] == [("OH2NEAR", HF_ID)] and rig.tnc.sent == [], "it waits for the HF radio, not sent on FM"
+    hf.held = ""
+    await rig.pass_time(1)
+    assert hf.lines() == ["OH2GBA>APZNEO::OH2NEAR  :ack7"] and rig.m.acks.waiting == [] and rig.tnc.sent == []
+
+
+async def test_an_email_goes_on_the_email_radio_and_is_refused_while_there_is_none_and_with_no_radio_a_message_is_refused(tmp_path: Path) -> None:
+    rig = await on_two(tmp_path)
+    rig.radios.hf_stations = ("OH2FAR", EMAIL_GATEWAY)
+    await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org hello")
+    assert len(rig.tnc.sent) == 1 and rig.radios.lines[HF_ID].sent == [], "on radio 1, whatever the station's choice"
+    rig.radios.on.discard(FM_ID)                                          # (radio 1 off)
+    with pytest.raises(MessagingError) as refused:
+        await rig.m.send(EMAIL_GATEWAY, "oh2gba@example.org again")
+    assert refused.value.code == "message.email_fm_off"
+    await rig.m.send("OH2NEAR", "on the one radio there is")
+    assert len(rig.radios.lines[HF_ID].sent) == 1, "the main radio is the HF one"
+    rig.radios.on.discard(HF_ID)                                          # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    with pytest.raises(MessagingError, match="there is no radio"):
+        await rig.m.send("OH2NEAR", "nowhere")
+
+
+
+async def test_with_no_radio_at_all_a_message_that_comes_gets_no_ack_and_an_answer_is_not_given_and_the_log_says_why(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
+    rig = await on_two(tmp_path)
+    rig.radios.on.clear()                                                 # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    rig.m.on_packet(rig.heard("OH2NEAR", "OH2GBA", "hello", "7"))
+    await rig.settled()
+    assert rig.tnc.sent == [] and rig.radios.lines[HF_ID].sent == [] and rig.m.acks.waiting == []
+    assert any(r.getMessage() == "no ack for message 7 from OH2NEAR: there is no radio" for r in caplog.records)
+    answers = Answers(rig.radios, lambda: rig.config, lambda call: ())
+    assert not answers.deliver("OH2NEAR", "position", [answers.message("OH2NEAR", "an answer")], rig.clock(), False)
+    assert any(r.getMessage() == "a query of OH2NEAR is not answered: there is no radio" for r in caplog.records)
+    assert rig.tnc.sent == [] and rig.radios.lines[HF_ID].sent == []
+
+def test_what_the_services_are_given_until_the_registry_is_read_as_a_radio_pick_with_the_same_choices() -> None:
+    old = StubRadios(hf_stations=("OH2C",))                               # (the old set of two, as app.py gives it until the integration gives the registry)
+    pick = as_pick(old, lambda: BOTH)
+    hf_packet = Packet(T0, "in", b"", "OH2C", "APRS", (), b"", Message("OH2GBA", "over hf", None), None, "rf", "hf")
+    assert [(r.id, r.kind, r.name) for r in pick.enabled()] == [(FM_ID, "fm", "FM"), (HF_ID, "hf", "HF")]
+    assert [r.radio for r in (pick.main, pick.for_station("OH2C"), pick.for_station("OH2B"), pick.for_packet(hf_packet), pick.email(), pick.get(HF_ID))] == [old, old.hf, old.fm, old.hf, old.fm, old.hf]  # type: ignore[union-attr, attr-defined]
+    assert pick.get(HF_ID).limits == HF_LIMITS and not pick.get(HF_ID).allowed.paths and pick.get(FM_ID).allowed.paths and pick.get(3) is None      # type: ignore[union-attr]
+    old.enabled = {"hf"}
+    assert pick.email() is None and pick.get(FM_ID) is None and pick.main.id == HF_ID and pick.for_station("OH2B").radio is old.hf, "the FM radio off"     # type: ignore[union-attr, attr-defined]
+    one = as_pick(old.hf, lambda: BOTH)                                    # (one plain radio, a test's stub: every choice)
+    assert all(r is not None and r.radio is old.hf for r in (one.main, one.for_station("OH2B"), one.email(), one.get(HF_ID))) and one.get(FM_ID) is None     # type: ignore[union-attr, attr-defined]
+    assert as_pick(pick, lambda: BOTH) is pick, "a RadioPick is taken as it is"

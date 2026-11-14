@@ -141,7 +141,7 @@ async def test_with_the_fm_radio_away_a_message_to_a_station_heard_on_hf_goes_ov
     incoming = await c.ctl.messaging.send("OH2A", "to a while it is held")
     await w.until(lambda: any(r.direction == "in" and r.text == "to a while it is held" for r in a.ctl.messaging.records()), 15.0)
     await w.until(lambda: len(a.ctl.messaging.acks.waiting) == 1)
-    assert a.ctl.messaging.acks.waiting[0].radio is a.hf
+    assert a.ctl.messaging.acks.waiting[0].radio == HF_ID, "the ack waits for the radio it goes back on, by its id"
     a.hf_radio.say_control("PTT OFF")
     await w.until(lambda: c.ctl.messaging.get(incoming.id).state == "acked", 15.0)     # type: ignore[union-attr]
     assert not a.ctl.messaging.acks.waiting and not frames_of(a.radio), "the ack went over HF when HF was free, though the FM radio was still away"

@@ -42,16 +42,18 @@ from neoaprs.aprsmessage import MessageError, format_message
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.clock import Clock, days, utcnow
 from neoaprs.interlock import Interlock
-from neoaprs.message import MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
+from neoaprs.message import EMAIL_GATEWAY, MESSAGES_HELD_MAX, MSG_IDS, MessageRecord, MessagingError, RETRYABLE, Seal, UNCONFIRMED_MAX, addressed_to, attempts_for, check_text
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet
-from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, message_radio, our_call, our_frame, radio_for, radio_path
+from neoaprs.services.common import ConfigSource, FRAME_ERRORS, Radio, our_call, our_frame
 from neoaprs.services.acks import Acks
+from neoaprs.services.answers import as_pick, radio_word
 from neoaprs.services.asking import Asking
 from neoaprs.services.delivery import Delivery
 from neoaprs.services.inbox import Inbox, shared_with
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
 from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
 from neoaprs.source import Source
@@ -84,12 +86,24 @@ def _named(name: str) -> str:
         return name.strip()
 
 
+def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> AirRadio:
+    """The radio a message of ours to the station goes out on: the station's (`for_station`); the email radio for the email gateway, which is a station of the internet reached through the iGates that hear
+    the radio and never over HF, so a mail is refused (the code `message.email_fm_off`) while there is none. MessagingError while there is no radio at all."""
+    pick = as_pick(radios, config)
+    radio = pick.email() if to == EMAIL_GATEWAY else pick.for_station(to)
+    if radio is None and to == EMAIL_GATEWAY:
+        raise MessagingError("email goes out over the FM radio, which is off", "message.email_fm_off")
+    if radio is None:
+        raise MessagingError(NO_RADIO)
+    return radio
+
+
 class Messaging:
-    def __init__(self, tnc: Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, messagelog: MessageLog, paths: Callable[[str, int | None], tuple[str, ...]], clock: Clock = utcnow, tick_sec: float = TICK_SEC,
                  board: Callable[[Packet, Message], None] | None = None, alert: Callable[[MessageRecord], None] | None = None,
                  spacing_sec: float = SPACING_SEC, qru: Callable[[Packet, Message], bool] | None = None,
                  qru_answer: Callable[[Packet, Message], bool] | None = None, keyring: Keyring | None = None) -> None:
-        self._tnc = tnc
+        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each call)
         self.keyring = keyring                                  # the keys of encrypted messages (services/keyring.py); None where there are none (some tests)
         self._config = config
         interlock = Interlock(config)
@@ -100,8 +114,8 @@ class Messaging:
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
-        self.acks = Acks(tnc, interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)      # the ids we give and the acks we send (built for the radio they go back on), or hold for a radio that is held (services/acks.py)
-        self.retries = Retries(self, tnc, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
+        self.acks = Acks(lambda: as_pick(radios, config), interlock, lambda info, to, radio: self._frame(info, to, radio=radio), clock)      # the ids we give and the acks we send (built for the radio they go back on), or hold for a radio that is held (services/acks.py)
+        self.retries = Retries(self, radios, config, interlock, clock, lambda: self.tick_sec, self.acks.flush)         # when each message being sent needs attention, and the ticker (services/retries.py), which sends the acks that waited first
         self._refused: dict[int, str] = {}                      # the messages whose attempt cannot be made, with why: told once, not at every tick
         self.delivery = Delivery(messagelog)                    # the attempts of every message and the hops heard back (services/delivery.py)
         self.asking = Asking(self, clock)                       # the directed queries we send (services/asking.py)
@@ -199,7 +213,7 @@ class Messaging:
 
     async def _send(self, ours: str, to: str, text: str, once: bool, seal: Seal, wire: str | None) -> MessageRecord:
         """What every message of ours goes through once its addressee and text are right: the radio is asked, the frame is tried, the message is kept and the first attempt made."""
-        radio = message_radio(self._tnc, to)
+        radio = station_radio(self._given, self._config, to)
         if radio.state is Source.State.SILENT:
             raise MessagingError(radio.why_unusable())
         self._frame(_info(to, text if wire is None else wire, None if once else MSG_IDS[0], None if once else ""), to, room=0 if once else REPLY_ACK_ROOM)          # (the settings make a frame, and the text one that the radio carries)
@@ -208,7 +222,7 @@ class Messaging:
         if record is None:
             raise MessagingError("the message could not be kept: the database is not open")
         self.put(record)
-        log.info("message %d to %s is kept: %d characters, at most %d attempts, on the %s radio", record.id, to, len(text), record.attempts_max, radio.rules.kind)
+        log.info("message %d to %s is kept: %d characters, at most %d attempts, on the %s radio", record.id, to, len(text), record.attempts_max, radio_word(radio))
         return self.attempt(record)
 
     def retry(self, number: int) -> MessageRecord:
@@ -299,21 +313,21 @@ class Messaging:
             raise MessagingError(f"there is no message {number} that we sent")
         return record
 
-    def radio_of(self, record: MessageRecord) -> Radio | None:
-        """The radio the message goes out on (services/retries.py gates each attempt by it); None while it has none (the email gateway with the FM radio off)."""
+    def radio_of(self, record: MessageRecord) -> AirRadio | None:
+        """The radio the message goes out on (services/retries.py gates each attempt by it); None while it has none (the email gateway with no email radio, no radio at all)."""
         try:
-            return message_radio(self._tnc, record.to_call)
+            return station_radio(self._given, self._config, record.to_call)
         except MessagingError:
             return None
 
-    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0, radio: Radio | None = None) -> ax25.Frame:
+    def _frame(self, info: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
         """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given), for `radio` (the
         one an ack goes back on; the station's radio when none is named): its path rules and its frame cap. A frame longer than the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number),
         is refused with the code `message.too_long_for_radio`: a message is never cut."""
         c = self._config()
-        radio = radio or message_radio(self._tnc, to)                       # (the station's radio: FM unless it was heard on HF alone)
+        radio = radio or station_radio(self._given, self._config, to)        # (the station's radio: FM unless it was heard on HF alone)
         try:
-            frame = our_frame(c, radio_path(radio, self._paths(to, attempt)), info)
+            frame = our_frame(c, path_on(radio, c, self._paths(to, attempt)), info)
         except MessagingError:
             raise                                                   # (the path of a station that is RF only is too long: the reason is the path's)
         except FRAME_ERRORS as e:
@@ -330,7 +344,7 @@ class Messaging:
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
             frame = self._frame(_info(record.to_call, record.text if record.wire is None else record.wire, record.msg_id, reply), record.to_call, None if record.msg_id is None else record.attempts + 1)
-            radio = message_radio(self._tnc, record.to_call)
+            radio = station_radio(self._given, self._config, record.to_call)
             sent = radio.send_frame(frame)
         except MessagingError as e:
             if e.code == "message.too_long_for_radio":
@@ -344,10 +358,10 @@ class Messaging:
             return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
         at = self.pace.stamp()
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
-        self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.rules.kind)
+        self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)
         if record.msg_id is None:
             record = replace(record, state="unconfirmed")                   # (a bulletin or a group message is sent once and nobody acks it)
-        log.info("message %d to %s sent on the %s radio (attempt %d of %d): %s", record.id, record.to_call, radio.rules.kind, record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
+        log.info("message %d to %s sent on the %s radio (attempt %d of %d): %s", record.id, record.to_call, radio_word(radio), record.attempts, record.attempts_max, record.text if record.wire is None else record.wire)
         self.put(record)
         return record
 
@@ -382,4 +396,4 @@ class Messaging:
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None:
         """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`; on the radio the
         message (`packet`) came on."""
-        self.acks.send(to, msg_id, reply_ack, None if packet is None else radio_for(self._tnc, packet))
+        self.acks.send(to, msg_id, reply_ack, None if packet is None else as_pick(self._given, self._config).for_packet(packet))

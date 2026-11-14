@@ -1,4 +1,4 @@
-"""The QRU server (neoaprs/services/qru.py) on a Tnc that is a stub, a real station book and a clock the test holds: the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, the
+"""The QRU server (neoaprs/services/qru.py) on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: one radio on a Tnc that is a stub, an HF one beside it), a real station book and a clock the test holds: the list of groups, the objects of a group near the asker, the limit and `NEXT`, the range, the
 answers that are never given, and the pace and the path of the frames."""
 import asyncio
 import logging
@@ -16,6 +16,7 @@ from tests.support.env import idle_for, remember_stop, until
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.virtualtime import virtual_time
+from tests.test_messaging import pick_of, with_hf
 
 HELSINKI = (60.17, 24.94)
 
@@ -34,7 +35,8 @@ class Rig(ServiceRig):
         self.book = StationBook(self.clock)
         self.objects = Held()
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.qru = Qru(self.tnc, lambda: self.config, self.objects, self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
+        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        self.qru = Qru(self.radios, lambda: self.config, self.objects, self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, spacing_sec=0.02, first_wait_sec=first_wait_sec)
         remember_stop(self.qru.stop)
 
     def add(self, name: str, group: str, lat: float = 60.2, lon: float = 24.9, on_request: bool = False, kind: str = "object", comment: str = "") -> OwnObject:
@@ -125,6 +127,16 @@ def test_the_answer_goes_by_the_path_of_the_asker_with_rfonly_added_so_that_the_
     rig.add("PUMP", "FUEL")
     rig.ask("OH2RDG", "INFO")
     assert [f.path_text for f in rig.tnc.sent] == ["OH2RCH-2,WIDE2-1,RFONLY"]
+
+
+async def test_the_answer_goes_on_the_radio_the_request_came_on_by_the_path_that_radio_carries() -> None:
+    rig = Rig(hf_enabled=True)
+    hf = with_hf(rig, rig.radios)
+    rig.add("PUMP", "FUEL")
+    packet = Packet(rig.clock(), "in", b"", "OH2FAR", "APRS", (), b"", Message("QRU", "INFO", None), None, "rf", "hf")
+    assert rig.qru.heard(packet, Message("QRU", "INFO", None))
+    await until(lambda: len(hf.sent) == 1)
+    assert [f.path for f in hf.sent] == [()] and rig.tnc.sent == [], "over HF with no path, nothing on FM"
 
 
 def test_an_answer_with_a_path_too_long_for_rfonly_is_not_sent(caplog: pytest.LogCaptureFixture) -> None:

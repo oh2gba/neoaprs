@@ -1,5 +1,5 @@
 """Asking QRU for local info (neoaprs/services/qruask.py, the words in neoaprs/qrutext.py, the command `qru_ask` and the topic `qru`): the request on the air (to QRU, no id, RFONLY, once, not kept), the refusals, the
-servers that answer and what is made of their lists and closing lines, and the whole through the daemon and the socket, on a stub Tnc or the fake radio of an `Env`."""
+servers that answer and what is made of their lists and closing lines, and the whole through the daemon and the socket, on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: a stub Tnc, an HF one beside it) or the fake radio of an `Env`."""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -15,11 +15,13 @@ from neoaprs.aprsparse import parse
 from neoaprs.qrutext import ANSWER_WINDOW_SEC, ARRIVAL_GRACE_SEC, ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX, Closing, Listing, ask_text, closing_of, listing_of
 from neoaprs.services.qruask import CONTINUE_SEC, KEEP_FOR, QruAsk
 from neoaprs.source import Source
+from neoaprs.radiotype import FM_ID, HF_ID
 from tests.support.air import message_info, on_air
 from tests.support.env import idle_for, quick_start, remember_stop, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.rig import ServiceRig
 from tests.test_web import with_page
+from tests.test_messaging import pick_of, with_hf
 
 
 # ---- the words
@@ -58,7 +60,8 @@ class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.paths: dict[str, tuple[str, ...]] = {}
-        self.qru = QruAsk(self.tnc, lambda: self.config, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock)
+        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        self.qru = QruAsk(self.radios, lambda: self.config, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock)
         remember_stop(self.qru.stop)
         self.told = 0
         self.qru.changed.connect(self.tell)
@@ -137,6 +140,21 @@ async def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away
     with pytest.raises(MessagingError, match="would not take"):
         rig.qru.ask("INFO")
     assert rig.tnc.sent == [] and rig.qru.asked is None and rig.told == 0
+    rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    with pytest.raises(MessagingError, match="there is no radio"):
+        rig.qru.ask("INFO")
+
+
+async def test_a_request_goes_on_the_main_radio_by_the_path_that_radio_carries() -> None:
+    rig = Rig(hf_enabled=True, fm_enabled=False)
+    hf = with_hf(rig, rig.radios)
+    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the main radio, which carries no path)
+    rig.qru.ask("INFO")
+    assert hf.lines() == ["OH2GBA>APZNEO::QRU      :INFO"] and rig.tnc.sent == []
+    rig.radios.on.add(FM_ID)                                                # (both on: the main radio is the first by position, the FM one)
+    rig.clock.advance(61)
+    rig.qru.ask("INFO")
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY::QRU      :INFO"] and len(hf.sent) == 1
 
 
 async def test_a_text_that_is_no_request_is_not_sent() -> None:

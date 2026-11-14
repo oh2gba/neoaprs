@@ -12,10 +12,12 @@ from neoaprs.packet import Other, Packet, ThirdParty, Via
 from neoaprs.services.generalask import ASK_EVERY_SEC, COUNT_FOR, QUERIES, QUIET_BEFORE, GeneralAsk
 from neoaprs.source import Source
 from neoaprs.station import Station
+from neoaprs.radiotype import FM_ID, HF_ID
 from tests.support.air import on_air
 from tests.support.env import until
 from tests.support.rig import ServiceRig
 from tests.test_web import with_page
+from tests.test_messaging import pick_of, with_hf
 
 
 class Book:
@@ -30,7 +32,8 @@ class Rig(ServiceRig):
     def __init__(self, **changes: object) -> None:
         super().__init__(**changes)
         self.book = Book()
-        self.general = GeneralAsk(self.tnc, lambda: self.config, self.book, self.clock)
+        self.radios = pick_of(self)                                             # (the station's radios as the registry gives them: radio 1 on the stub line)
+        self.general = GeneralAsk(self.radios, lambda: self.config, self.book, self.clock)
         self.told = 0
         self.general.changed.connect(self.tell)
 
@@ -111,6 +114,20 @@ def test_nothing_is_asked_in_rx_only_without_a_call_or_with_the_radio_away() -> 
     with pytest.raises(MessagingError, match="would not take"):
         rig.general.ask("aprs")
     assert rig.tnc.sent == [] and rig.general.asked() == [] and rig.told == 0
+    rig.radios.on.clear()                                                   # (no radio at all: what the settings refuse, and a fresh installation of the round)
+    with pytest.raises(MessagingError, match="there is no radio"):
+        rig.general.ask("aprs")
+
+
+def test_a_query_goes_on_the_main_radio_by_the_path_that_radio_carries() -> None:
+    rig = Rig(hf_enabled=True, fm_enabled=False)
+    hf = with_hf(rig, rig.radios)
+    rig.radios.on = {HF_ID}                                                 # (the HF radio alone: the main radio, which carries no path)
+    asked = rig.general.ask("aprs")
+    assert hf.lines() == ["OH2GBA>APZNEO:?APRS?"] and rig.tnc.sent == [] and asked.path == ()
+    rig.radios.on.add(FM_ID)                                                # (both on: the main radio is the first by position, the FM one)
+    rig.general.ask("igate")
+    assert rig.tnc.lines() == ["OH2GBA>APZNEO,WIDE1-1,WIDE2-1,RFONLY:?IGATE?"] and len(hf.sent) == 1
 
 
 def test_a_kind_goes_once_a_minute_and_the_others_are_not_held_by_it() -> None:

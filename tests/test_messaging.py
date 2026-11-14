@@ -1,24 +1,31 @@
-"""Messaging (neoaprs/services/messaging.py) on a Tnc that is a stub, a real message log on a real database thread and a clock the test holds: the bytes of a message and of an ack, the checks, the
-ids, the schedule of the attempts, the acks and rejects, retry and cancel, the radio away, the messages that come in (kept once, acked once for each burst of copies), and the restart."""
+"""Messaging (neoaprs/services/messaging.py) on the station's radios as the registry gives them (services/radioset.py RadioPick: `StubPick`, one radio on a Tnc that is a stub), a real message log on a real
+database thread and a clock the test holds: the bytes of a message and of an ack, the checks, the ids, the schedule of the attempts, the acks and rejects, retry and cancel, the radio away, the messages that
+come in (kept once, acked once for each burst of copies), and the restart. `StubPick` and `pick_of` are the RadioPick of the other tests of messaging and of the answers too."""
 import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from neoaprs import ax25
+from neoaprs.config import Config
 from neoaprs.message import MSG_IDS, MessageRecord, MessagingError
 from neoaprs.messagelog import MessageLog
 from neoaprs.packet import Message, Packet, ThirdParty
+from neoaprs.radiospec import KIND_WORDS, log_name
+from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Limits, RadioId
+from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.route import Deliveries, route_of
 from neoaprs.services import messaging as messaging_module
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.messaging import Messaging
 from neoaprs.services.prefbook import PrefBook
 from neoaprs.source import Source
+from neoaprs.tncwatchdog import TncStats
 from tests.support.rig import ServiceRig
 from tests.support.stubtnc import StubTnc
 from tests.support.clock import FixedClock
@@ -30,6 +37,103 @@ RUN_OUT = (32, 32, 64, 240)                        # the waits after each attemp
 WORKED = "OH2GBA>APZNEO,WIDE1-1,WIDE2-1::OH2RDG   :Hello Pekka{01}"
 
 
+class LineAir:
+    """A radio as the services see one (services/radioset.py AirRadio) on a stub line (tests/support/stubtnc.py), read by the line's rules as the radios of the round read their type: its id 1 with the FM
+    rules, 2 with the HF ones, or the one given; its kind, limits and what it is allowed by its rules; its name the settings' for its id (or the one given); the operator's choices the settings' radio of its
+    id (radio 1's where there is none); its state, frame cap and frames the line's; and the line's rules, which the registry's radios keep until the old shapes go (today's beacon reads them of the radio an
+    answer goes on)."""
+
+    def __init__(self, line: StubTnc, config: Callable[[], Config], id: RadioId | None = None, name: str = "") -> None:
+        self.line, self._config, self._name = line, config, name
+        self.id: RadioId = id if id is not None else HF_ID if line.rules.kind == "hf" else FM_ID
+        self.stats = TncStats()
+
+    rules = property(lambda self: self.line.rules)
+    kind = property(lambda self: "hf" if self.line.rules.kind == "hf" else "fm")
+    state = property(lambda self: self.line.state)
+    usable = property(lambda self: self.line.usable)
+    max_frame = property(lambda self: self.line.max_frame)
+
+    @property
+    def name(self) -> str:
+        config = self._config()
+        spec = config.radio(self.id)
+        return self._name or (KIND_WORDS[self.kind] if spec is None else log_name(spec, config.radios))
+
+    @property
+    def limits(self) -> Limits:
+        r = self.line.rules
+        return Limits(self.line.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
+
+    @property
+    def allowed(self) -> Allowed:
+        r = self.line.rules
+        return replace(FM_ALLOWED if self.kind == "fm" else HF_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
+
+    def why_unusable(self) -> str:
+        return self.line.why_unusable()
+
+    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
+        return self.line.send_frame(frame, raw)
+
+    def choice(self, key: str) -> Any:
+        config = self._config()
+        spec = config.radio(self.id) or config.radio(FM_ID)
+        return None if spec is None else spec.value(key)
+
+
+class StubPick:
+    """The station's radios as the services take them (services/radioset.py RadioPick), each a LineAir, the registry's choices by rule: a radio is given while its id is in `on` (all of them by default);
+    the main radio the first of those; a station in `chosen` goes on the radio chosen for it while that is on (the operator's choice), one named in `hf_stations` on radio 2 while it and another are on
+    (today's choice by station), any other on the main radio; a packet is answered on the radio it came on while that is on, else on the main one; email goes on radio 1 while it is on. `lines[id]` is the
+    stub line of each radio."""
+
+    def __init__(self, radios: list[LineAir], hf_stations: tuple[str, ...] = (), chosen: dict[str, RadioId] | None = None) -> None:
+        self.radios, self.hf_stations = radios, hf_stations
+        self.chosen = chosen if chosen is not None else {}
+        self.on: set[RadioId] = {radio.id for radio in radios}
+
+    @property
+    def lines(self) -> dict[RadioId, StubTnc]:
+        return {radio.id: radio.line for radio in self.radios}
+
+    def get(self, id: RadioId) -> LineAir | None:
+        return next((radio for radio in self.radios if radio.id == id and id in self.on), None)
+
+    def enabled(self) -> list[LineAir]:
+        return [radio for radio in self.radios if radio.id in self.on]
+
+    @property
+    def main(self) -> LineAir | None:
+        return next(iter(self.enabled()), None)
+
+    def for_station(self, call: str) -> LineAir | None:
+        if call in self.chosen and (radio := self.get(self.chosen[call])) is not None:
+            return radio
+        hf = self.get(HF_ID)
+        return hf if hf is not None and len(self.enabled()) > 1 and call in self.hf_stations else self.main
+
+    def for_packet(self, packet: Packet) -> LineAir | None:
+        came = self.get(packet.radio_id) if packet.radio_id is not None else None
+        return came or self.main
+
+    def email(self) -> LineAir | None:
+        return self.get(FM_ID)
+
+
+def with_hf(rig: ServiceRig, pick: StubPick) -> StubTnc:
+    """Radio 2 beside the rig's radio 1, on an HF line of its own (the Mercury modem's frame of 123 bytes), on: its line."""
+    line = StubTnc(max_frame=123)
+    pick.radios.append(LineAir(line, lambda: rig.config))
+    pick.on.add(HF_ID)
+    return line
+
+
+def pick_of(rig: ServiceRig, hf: StubTnc | None = None) -> StubPick:
+    """The rig's radios as a RadioPick: the rig's stub line as its one radio (radio 1, or radio 2 for a line with the HF rules), and an HF line beside it when one is given."""
+    return StubPick([LineAir(line, lambda: rig.config) for line in (rig.tnc, hf) if line is not None])
+
+
 class Rig(ServiceRig):
     def __init__(self, log: MessageLog, clock: FixedClock, tnc: StubTnc | None = None, spacing_sec: float = 0.0, keyring: Keyring | None = None, **changes: object) -> None:
         super().__init__(clock, tnc, **changes)
@@ -37,7 +141,8 @@ class Rig(ServiceRig):
         self.deliveries: dict[str, Deliveries] = {}                      # how the packets of each station reached us (the station book's, here by hand)
         self.prefs = PrefBook(log, lambda: self.config, self.deliveries.get, clock)
         self.board: list[tuple[Packet, Message]] = []                   # what messaging handed to the message board
-        self.m = Messaging(self.tnc, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
+        self.radios = pick_of(self)                                     # the station's radios as the registry gives them: the stub line's radio
+        self.m = Messaging(self.radios, lambda: self.config, log, self.prefs.path_for, clock, tick_sec=TICK, board=lambda packet, message: self.board.append((packet, message)),
                         spacing_sec=spacing_sec, keyring=keyring)
         remember_stop(self.m.stop)
         self.record(self.m)
@@ -1225,7 +1330,7 @@ async def test_a_message_we_hear_from_ourselves_to_a_bulletin_is_not_the_boards(
 
 
 async def test_without_a_board_a_message_to_a_bulletin_is_overheard(rig: Rig) -> None:
-    alone = Messaging(rig.tnc, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK, spacing_sec=0.0)
+    alone = Messaging(rig.radios, lambda: rig.config, rig.log, rig.prefs.path_for, rig.clock, tick_sec=TICK, spacing_sec=0.0)
     remember_stop(alone.stop)
     alone.on_packet(rig.heard("OH2RDG", "BLN1", "net tonight 20:00"))
     await asyncio.gather(*alone.inbox.tasks)

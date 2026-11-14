@@ -1,4 +1,4 @@
-"""The queries (neoaprs/services/queries.py) on a Tnc that is a stub, the real beacon and station book and a clock the test holds: each query to us gives the frame it should, by the path of the asker; the
+"""The queries (neoaprs/services/queries.py) on the station's radios as the registry gives them (tests/test_messaging.py `pick_of`: one radio on a Tnc that is a stub), the real beacon and station book and a clock the test holds: each query to us gives the frame it should, by the path of the asker; the
 general query waits and is taken once in ten minutes; and what is not a query, not to us or not heard is left alone."""
 import logging
 from datetime import timedelta
@@ -17,6 +17,7 @@ from neoaprs.stationbook import StationBook
 from tests.support.clock import FixedClock
 from tests.support.rig import ServiceRig
 from tests.support.env import idle_for, remember_stop, until
+from tests.test_messaging import pick_of
 
 
 class Rig(ServiceRig):
@@ -27,7 +28,7 @@ class Rig(ServiceRig):
         self.paths: dict[str, tuple[str, ...]] = {}
         self.status_text = ""                                          # what the status service says it sent last
         self.beacon = Beacon(self.tnc, lambda: self.config, self.clock)
-        self.q = Queries(self.tnc, lambda: self.config, self.beacon, lambda radio=None: self.beacon.status_frame(self.status_text, radio), self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, delay=lambda: delay)
+        self.q = Queries(pick_of(self), lambda: self.config, self.beacon, lambda radio=None: self.beacon.status_frame(self.status_text, radio), self.book, lambda call: self.paths.get(call, self.config.beacon_path_calls), self.clock, delay=lambda: delay)
         remember_stop(self.q.stop)
 
     def packet(self, source: str, decoded: object, path: tuple[str, ...] = ("OH2RCH-2*",), direction: str = "in", destination: str = "APZNEO", third: object = None) -> Packet:
@@ -311,7 +312,7 @@ async def test_a_status_that_cannot_be_made_does_not_take_the_position_with_it()
     def broken(radio: object = None) -> ax25.Frame | None:
         raise BeaconError("the status is too long")
 
-    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, broken, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, broken, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock, delay=lambda: 0.0)
     remember_stop(rig.q.stop)
     general(rig)
     await until(lambda: len(rig.tnc.sent) == 1)
@@ -338,7 +339,7 @@ async def test_an_answer_that_is_waiting_is_not_sent_when_the_queries_stop() -> 
 
 async def test_the_wait_is_a_random_time_from_nothing_to_two_minutes_by_default() -> None:
     rig = Rig()
-    q = Queries(rig.tnc, lambda: rig.config, rig.beacon, rig.book, lambda call: (), rig.clock)
+    q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, rig.book, lambda call: (), rig.clock)
     waits = [q._delay() for _ in range(200)]
     assert all(0.0 <= w <= GENERAL_DELAY_MAX_SEC for w in waits) and max(waits) > 60 and min(waits) < 60
     assert GENERAL_DELAY_MAX_SEC == 120.0 and GENERAL_EVERY_SEC == 600.0
@@ -365,7 +366,7 @@ class Held:
 
 def paced_rig(objects: tuple[object, ...] = (), messages: tuple[object, ...] = ()) -> Rig:
     rig = Rig()
-    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock,
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: None, rig.book, lambda call: rig.config.beacon_path_calls, rig.clock,
                     objects=Held(list(objects)), messages=Held(list(messages)), spacing_sec=0.05)                     # type: ignore[arg-type]
     remember_stop(rig.q.stop)
     return rig

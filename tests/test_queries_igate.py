@@ -14,6 +14,7 @@ from tests.support.env import idle_for, remember_stop, until
 from tests.support.fakeaprsis import fake_aprsis
 from tests.support.igateworld import iworld
 from tests.test_queries import Rig, general
+from tests.test_messaging import pick_of
 
 
 class FakeIgate:
@@ -24,7 +25,7 @@ class FakeIgate:
 
 def rig_with(igate: IgateCounts | None, delay: float = 0.0, **changes: object) -> Rig:
     rig = Rig(delay=delay, **changes)
-    rig.q = Queries(rig.tnc, lambda: rig.config, rig.beacon, lambda radio=None: rig.beacon.status_frame(rig.status_text, radio), rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock,
+    rig.q = Queries(pick_of(rig), lambda: rig.config, rig.beacon, lambda radio=None: rig.beacon.status_frame(rig.status_text, radio), rig.book, lambda call: rig.paths.get(call, rig.config.beacon_path_calls), rig.clock,
                     delay=lambda: delay, igate=igate)
     remember_stop(rig.q.stop)
     return rig

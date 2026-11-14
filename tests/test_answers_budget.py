@@ -11,13 +11,14 @@ from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop
 from tests.test_queries import Rig as QueriesRig, general
 from tests.support.rig import ServiceRig
+from tests.test_messaging import pick_of
 
 
 class Rig(ServiceRig):
     def __init__(self) -> None:
         super().__init__()
         self.budget = AnswerBudget(self.clock)
-        self.answers = Answers(self.tnc, lambda: self.config, lambda call: (), budget=self.budget)
+        self.answers = Answers(pick_of(self), lambda: self.config, lambda call: (), budget=self.budget)
         remember_stop(self.answers.stop)
 
     def ask(self, asker: str, query: str = "objects", frames: int = 1, paced: bool = False) -> bool:
@@ -70,7 +71,7 @@ def test_a_single_frame_sent_without_an_answer_counts_too_and_is_refused_when_th
 
 def test_two_services_that_share_a_budget_are_held_to_it_together() -> None:
     rig = Rig()
-    other = Answers(rig.tnc, lambda: rig.config, lambda call: (), budget=rig.budget)
+    other = Answers(pick_of(rig), lambda: rig.config, lambda call: (), budget=rig.budget)
     for n in range(ANSWERS_PER_WINDOW // 2):
         assert rig.ask(f"OH2C{n}", "position")
         assert other.deliver(f"OH2D{n}", "position", [other.message(f"OH2D{n}", "x")], rig.clock(), False)

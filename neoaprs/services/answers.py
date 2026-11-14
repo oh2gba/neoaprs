@@ -3,23 +3,36 @@ several frames, the others one at a time SPACING_SEC apart (services/pace.py); a
 collides with them at the asker); a message of an answer carries no id, is not retried and is not a message of messaging. The same station asking the same within ANSWER_AGAIN_SEC (the
 copies of one transmission by different digipeaters, an impatient asker) is answered once. All the answers of the station together are held to ANSWERS_PER_WINDOW frames in ANSWER_WINDOW_SEC (an AnswerBudget):
 whoever asks, with whatever call, the frames beyond it are not sent, and an answer that does not fit whole is not given at all; a frame is counted from the moment it goes on the air, the frames of an answer that are
-still to go are held for it meanwhile, and the room of a frame that did not go on the air is given back. Nothing is sent under the transmit interlock or while the radio is not usable."""
+still to go are held for it meanwhile, and the room of a frame that did not go on the air is given back. Nothing is sent under the transmit interlock or while the radio is not usable.
+
+An answer goes on the radio the request came on (`radio`, the RadioPick's `for_packet`; the main radio when none is named), by the path that radio may carry (services/radioset.py `path_on`). The services that
+answer and the messaging take the radios as a `RadioPick` (services/radioset.py); `as_pick` reads what they are given today (the old set of neoaprs/radios.py, a plain Radio of a test) as one, at each call."""
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import datetime
+from typing import Any, TypeGuard, cast
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import format_message
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
 from neoaprs.message import MessagingError
+from neoaprs.packet import Packet
+from neoaprs.radiorules import RadioRules
+from neoaprs.radiospec import KIND_WORDS, log_name
+from neoaprs.radiotype import FM_ID, HF_ID, Allowed, Kind, Limits, RadioId, radio_id_of
+from neoaprs.radiotypes import kind_field
+from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.recent import Recent
 from neoaprs.route import rf_only_path
-from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_path
+from neoaprs.services.common import ConfigSource, Radio, RadioSet, our_frame, radio_for, radio_to, radios_on
 from neoaprs.services.pace import SPACING_SEC
+from neoaprs.services.radioset import NO_RADIO, AirRadio, RadioPick, path_on
+from neoaprs.source import Source
 from neoaprs.tasks import TaskSet
+from neoaprs.tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.queries")
 
@@ -78,8 +91,8 @@ class Share:
 
 
 class Answers:
-    def __init__(self, tnc: Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
-        self._tnc = tnc
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, paths: Callable[[str], tuple[str, ...]], spacing_sec: float = SPACING_SEC, budget: AnswerBudget | None = None) -> None:
+        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: `as_pick`)
         self._config = config
         self._paths = paths                                     # the digipeaters of what we send to a station (PrefBook.path_for)
         self._spacing = spacing_sec
@@ -108,11 +121,11 @@ class Answers:
         """Our frame carrying a message to the asker: without an id (nothing is waited for), or a message of ours sent again with its number `{MM}`."""
         return our_frame(self._config(), (), b":" + format_message(asker, text, msg_id, None if msg_id is None else ""))
 
-    def deliver(self, asker: str, query: str, frames: Sequence[ax25.Frame], at: datetime, paced: bool, rf_only: bool = False, first_after_sec: float = 0.0, radio: Radio | None = None) -> bool:
+    def deliver(self, asker: str, query: str, frames: Sequence[ax25.Frame], at: datetime, paced: bool, rf_only: bool = False, first_after_sec: float = 0.0, radio: AirRadio | None = None) -> bool:
         """Sends the frames of the answer to `query`. Paced, the first goes at once and the others follow one at a time, SPACING_SEC apart (the answer counts as given once the first has gone); not paced, they all go
         at once, and the answer counts as given when every one has. With `rf_only` the frames go by the asker's path with RFONLY added, which keeps the iGates from putting them on APRS-IS. With `first_after_sec` (paced
         only) the first frame goes that long after the request, and the answer counts as given at once, so that the copies of the request that come meanwhile are not answered again. On `radio` (the one the request came
-        on; the one radio there is by default). Whether it was given."""
+        on; the main radio by default). Whether it was given."""
         if not frames:
             return False
         share = self._budget.take(len(frames))
@@ -143,7 +156,7 @@ class Answers:
         log.info("the %s query of %s is answered", query, asker)
         return True
 
-    async def _rest(self, asker: str, frames: list[ax25.Frame], rf_only: bool, share: Share, first_after_sec: float | None = None, radio: Radio | None = None) -> None:
+    async def _rest(self, asker: str, frames: list[ax25.Frame], rf_only: bool, share: Share, first_after_sec: float | None = None, radio: AirRadio | None = None) -> None:
         """The frames of an answer that are still to go, each SPACING_SEC after the one before (the first of them `first_after_sec` after the request when that is given, else it went at once)."""
         try:
             for number, frame in enumerate(frames):
@@ -153,7 +166,7 @@ class Answers:
         finally:
             share.close()
 
-    def send(self, asker: str, frames: Sequence[ax25.Frame], rf_only: bool = False, radio: Radio | None = None) -> bool:
+    def send(self, asker: str, frames: Sequence[ax25.Frame], rf_only: bool = False, radio: AirRadio | None = None) -> bool:
         """Sends the frames of an answer that `deliver` does not carry (the general query's) at once, if the budget has room for all of them; else none. Whether every one went."""
         if not frames or self.refused():
             return False
@@ -165,24 +178,25 @@ class Answers:
         share.close()
         return all(went)
 
-    def _went(self, share: Share, asker: str, frame: ax25.Frame, rf_only: bool, radio: Radio | None) -> bool:
+    def _went(self, share: Share, asker: str, frame: ax25.Frame, rf_only: bool, radio: AirRadio | None) -> bool:
         """Sends the frame (_transmit) and counts it in the budget from now when it went."""
         if not self._transmit(asker, frame, rf_only, radio):
             return False
         share.went()
         return True
 
-    def _transmit(self, asker: str, frame: ax25.Frame, rf_only: bool, radio: Radio | None) -> bool:
-        """Sends the frame by the asker's path (with RFONLY added when `rf_only`) on `radio` (the one the request came on; the one radio there is by default); whether it went, and a word in the log when it did not."""
+    def _transmit(self, asker: str, frame: ax25.Frame, rf_only: bool, radio: AirRadio | None) -> bool:
+        """Sends the frame by the asker's path (with RFONLY added when `rf_only`) on `radio` (the one the request came on; the main radio by default) by what that radio may carry; whether it went, and a word in the
+        log when it did not."""
         if self.refused():
             return False
-        tnc = radio or self._tnc
-        if not tnc.usable:
-            log.warning("a query of %s is not answered: %s", asker, tnc.why_unusable())
+        tnc = radio or as_pick(self._given, self._config).main
+        if tnc is None or not tnc.usable:
+            log.warning("a query of %s is not answered: %s", asker, NO_RADIO if tnc is None else tnc.why_unusable())
             return False
         try:
             calls = self._paths(asker)
-            calls = radio_path(tnc, rf_only_path(calls) if rf_only else calls)
+            calls = path_on(tnc, self._config(), rf_only_path(calls) if rf_only else calls)
             if len(calls) > ax25.MAX_PATH:
                 raise MessagingError(f"path too long for RF only: {len(calls)} digipeaters")
             path = tuple(ax25.Address.parse(call) for call in calls)
@@ -193,3 +207,132 @@ class Answers:
             log.warning("the answer to %s was not sent: the TNC would not take the frame", asker)
             return False
         return True
+
+
+# ---- the radios as a RadioPick, whatever the services are given until app.py gives the registry
+
+class OldAir:
+    """An old Radio (a Tnc, the old set of neoaprs/radios.py as its default radio, a test's stub) as an AirRadio: its id and kind by its rules' kind (fm 1, hf 2), its limits and what it is allowed by its rules,
+    its own choices the station's radio of that id (the FM radio's where its kind has no such field), its counters its line's. It keeps `rules`, which today's beacon reads of the radio an answer goes on (the
+    registry's radios keep them too until the old shapes go)."""
+
+    def __init__(self, radio: Radio, config: ConfigSource) -> None:
+        self.radio, self._config = radio, config
+
+    @property
+    def rules(self) -> RadioRules:
+        return self.radio.rules
+
+    @property
+    def id(self) -> RadioId:
+        return radio_id_of(self.radio.rules.kind) or FM_ID
+
+    @property
+    def kind(self) -> Kind:
+        return "hf" if self.radio.rules.kind == "hf" else "fm"
+
+    @property
+    def name(self) -> str:
+        config = self._config()
+        spec = config.radio(self.id)
+        return KIND_WORDS[self.kind] if spec is None else log_name(spec, config.radios)
+
+    @property
+    def limits(self) -> Limits:
+        r = self.radio.rules
+        return Limits(r.max_frame, r.beacon_min_min, r.beacon_jitter_sec, r.retry_jitter_sec)
+
+    @property
+    def allowed(self) -> Allowed:
+        r = self.radio.rules
+        return replace(FM_ALLOWED if r.kind == "fm" else HF_ALLOWED, paths=r.paths, digipeat=r.digipeat, smart_beacon=r.smart_beacon)
+
+    @property
+    def stats(self) -> TncStats:
+        found = getattr(self.radio, "stats", None)
+        return found if isinstance(found, TncStats) else TncStats()
+
+    @property
+    def state(self) -> Source.State:
+        return self.radio.state
+
+    @property
+    def usable(self) -> bool:
+        return self.radio.usable
+
+    @property
+    def max_frame(self) -> int | None:
+        return self.radio.max_frame
+
+    def why_unusable(self) -> str:
+        return self.radio.why_unusable()
+
+    def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
+        return self.radio.send_frame(frame, raw)
+
+    def choice(self, key: str) -> Any:
+        config = self._config()
+        spec = config.radio(self.id)
+        if spec is None or kind_field(spec.kind, key) is None:
+            spec = config.radio(FM_ID)
+        return None if spec is None else spec.value(key)
+
+
+class OldRadios:
+    """The old shapes as a RadioPick, each radio an OldAir: the set of neoaprs/radios.py (its enabled radios, the radio of a kind while it is enabled, its default radio as the main one, its choice by station
+    and by packet, the FM radio for email), or one plain Radio, which is every choice (a test's stub)."""
+
+    def __init__(self, radios: Radio, config: ConfigSource) -> None:
+        self._old, self._config = radios, config
+
+    def _air(self, radio: Radio | None) -> AirRadio | None:
+        return None if radio is None else OldAir(radio, self._config)
+
+    def get(self, id: RadioId) -> AirRadio | None:
+        if isinstance(self._old, RadioSet):
+            return self._air(self._old.of("fm" if id == FM_ID else "hf" if id == HF_ID else ""))
+        return self.main if OldAir(self._old, self._config).id == id else None
+
+    def enabled(self) -> Sequence[AirRadio]:
+        return [OldAir(radio, self._config) for radio in radios_on(self._old)]
+
+    @property
+    def main(self) -> AirRadio | None:
+        return self._air(self._old)
+
+    def for_station(self, call: str) -> AirRadio | None:
+        return self._air(radio_to(self._old, call))
+
+    def for_packet(self, packet: Packet) -> AirRadio | None:
+        return self._air(radio_for(self._old, packet))
+
+    def email(self) -> AirRadio | None:
+        return self._air(self._old.of("fm") if isinstance(self._old, RadioSet) else self._old)
+
+
+def is_pick(radios: object) -> TypeGuard[RadioPick]:
+    """Whether this is a RadioPick (the registry, a test's), not an old shape: it has the radios by id and the email radio, which no Radio and no old set has."""
+    return callable(getattr(radios, "get", None)) and callable(getattr(radios, "email", None))
+
+
+def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
+    """The radios as a RadioPick: the registry as it is, an old shape as OldRadios. A service that holds an old shape reads it again at each call, so that it holds no part of its own that takes a packet."""
+    return radios if is_pick(radios) else OldRadios(cast(Radio, radios), config)
+
+
+def air_of(radio: AirRadio | Radio, config: ConfigSource) -> AirRadio:
+    """A radio as an AirRadio: an old one as an OldAir (a test of today names a radio by its Tnc)."""
+    return cast(AirRadio, radio) if hasattr(radio, "allowed") else OldAir(radio, config)
+
+
+def request_radio(radios: RadioPick | Radio, config: ConfigSource) -> AirRadio:
+    """The radio a request of the operator's to no station in particular goes on (asking around, asking QRU): the main radio. MessagingError while there is none, or it does not take frames now (why not)."""
+    radio = as_pick(radios, config).main
+    if radio is None or not radio.usable:
+        raise MessagingError(NO_RADIO if radio is None else radio.why_unusable())
+    return radio
+
+
+def radio_word(radio: AirRadio) -> str:
+    """The radio as the log has named it: radios 1 and 2 by their kind ("the fm radio", "on the hf radio"), any other by its name ("the FM 2 radio")."""
+    return radio.kind if radio.id in (FM_ID, HF_ID) else radio.name

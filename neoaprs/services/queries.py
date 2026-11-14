@@ -45,7 +45,7 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 from neoaprs import ax25
 from neoaprs.aprsmessage import MAX_TEXT, MessageError
@@ -56,9 +56,10 @@ from neoaprs.message import QUERY_TEXT, UNSETTLED, MessageRecord, addressed_to, 
 from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import Message, Other, Packet
 from neoaprs.services.beacon import BeaconError
-from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget
-from neoaprs.services.common import ConfigSource, Radio, our_frame, radio_for
+from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
+from neoaprs.services.common import ConfigSource, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
+from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.station import Station
 from neoaprs.units import MILE_KM
 
@@ -79,9 +80,12 @@ _HEARD = re.compile(re.escape(QUERY_TEXT["heard"]) + rf"\s*({INTERNET_NAME.patte
 _NOT_ANSWERED = (QUERY_TEXT["wx"],)                                                # the general query of the specification that we have nothing to answer
 
 
+AnswerRadio = Any          # the radio an answer is built for: an AirRadio of the RadioPick (today's beacon and status read it by the rules that the registry's radios still have; the beacon's frame maker of the round by its AirRadio members)
+
+
 class Frames(Protocol):
     """What the queries need of the beacon: the frame of our position, built for the radio the answer goes on."""
-    def frame(self, radio: Radio | None = None) -> ax25.Frame: ...
+    def frame(self, radio: AnswerRadio = None) -> ax25.Frame: ...
 
 
 class Stations(Protocol):
@@ -203,12 +207,12 @@ def heard_text(call: str, counts: Sequence[int] | None) -> str:
 
 
 class Queries:
-    def __init__(self, tnc: Radio, config: ConfigSource, beacon: Frames, status: Callable[[Radio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
+    def __init__(self, radios: RadioPick | Radio, config: ConfigSource, beacon: Frames, status: Callable[[AnswerRadio], ax25.Frame | None], book: Stations, paths: Callable[[str], tuple[str, ...]],
                  clock: Clock = utcnow, delay: Callable[[], float] = lambda: random.uniform(0.0, GENERAL_DELAY_MAX_SEC), objects: Objects = _NOTHING, messages: Messages = _NOTHING,  # noqa: S311  (the pause before an answer on the air, no secret)
                  spacing_sec: float = SPACING_SEC, heard: HeardLog | None = None, igate: IgateCounts | None = None, budget: AnswerBudget | None = None) -> None:
         self._config = config
-        self._tnc = tnc
-        self._answers = Answers(tnc, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
+        self._given = radios                                    # the station's radios (the registry; an old shape until app.py gives it: services/answers.py `as_pick`, read at each question)
+        self._answers = Answers(radios, config, paths, spacing_sec, budget if budget is not None else AnswerBudget(clock))
         self._beacon = beacon
         self._status = status                                   # the frame of the status as last sent, for the radio the answer goes on (RigStatus.status_frame); None while none has been sent
         self._book = book
@@ -256,14 +260,18 @@ class Queries:
             if self._starts_heard(packet, key, argument):
                 self._answers.tasks.spawn(self._heard_answer(packet, key, argument), "query-heard")
             return
-        radio = radio_for(self._tnc, packet)                       # (the radio the question came on: the answer goes on it and is built for it)
+        radio = self._came_on(packet)                              # (the radio the question came on: the answer goes on it and is built for it)
         try:
             frames = [frame for frame in self._answer(packet, query, radio) if frame is not None]
             self._answers.deliver(asker, key, frames, packet.heard_at, query in _PACED, radio=radio)
         except (BeaconError, ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, asker, e)
 
-    def _answer(self, packet: Packet, query: str, radio: Radio) -> Sequence[ax25.Frame | None]:
+    def _came_on(self, packet: Packet) -> AirRadio | None:
+        """The radio a question came on, which its answer goes back on (RadioPick `for_packet`: the main radio when that one is not enabled; None while there is no radio, and nothing is answered)."""
+        return as_pick(self._given, self._config).for_packet(packet)
+
+    def _answer(self, packet: Packet, query: str, radio: AirRadio | None) -> Sequence[ax25.Frame | None]:
         """The frames that answer the query, built for the radio the answer goes on (a None for a status not yet sent); BeaconError when the settings make no frame."""
         asker = packet.sender
         if query == "position":
@@ -300,7 +308,7 @@ class Queries:
         found = self._book.get(call)
         known = any(counts) or (found is not None and not found.internet_only)           # (a station known from the internet alone was never heard on the air)
         try:
-            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=radio_for(self._tnc, packet))
+            self._answers.deliver(packet.sender, key, [self._answers.message(packet.sender, heard_text(call, counts if known else None))], packet.heard_at, False, radio=self._came_on(packet))
         except (ax25.Ax25Error, CallsignError, MessageError, ValueError) as e:
             log.warning("the %s query of %s was not answered: %s", key, packet.sender, e)
 
@@ -329,7 +337,7 @@ class Queries:
         self._general_until[kind] = packet.heard_at + timedelta(seconds=GENERAL_EVERY_SEC)
         delay = self._delay()
         log.info("the general query %s of %s: our %s go out in %.0f s", kind, packet.sender, "position and status" if kind == GENERAL else "capabilities", delay)
-        self._answers.tasks.spawn(self._later(delay, packet.sender, kind, radio_for(self._tnc, packet)), "query-general")
+        self._answers.tasks.spawn(self._later(delay, packet.sender, kind, self._came_on(packet)), "query-general")
 
     def _no_igate(self) -> str:
         """Why we are no iGate to answer ?IGATE? now; empty while the iGate is connected (on, logged in and verified: it gates)."""
@@ -338,7 +346,7 @@ class Queries:
         state = self._igate.state
         return "" if state == "connected" else f"the iGate is {state}"
 
-    async def _later(self, delay: float, asker: str, kind: str, radio: Radio) -> None:
+    async def _later(self, delay: float, asker: str, kind: str, radio: AirRadio | None) -> None:
         await asyncio.sleep(delay)
         if self._answers.refused():
             return
@@ -357,7 +365,7 @@ class Queries:
         assert self._igate is not None
         return our_frame(self._config(), (), capabilities_info(len(self._directs(self.clock())), self._igate.gated))
 
-    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: Radio) -> None:
+    def _send_frames(self, asker: str, makers: Sequence[Callable[[], ax25.Frame | None]], radio: AirRadio | None) -> None:
         """Each frame is made on its own, so that one that cannot be made (a status text that no longer fits) does not take the others with it; the ones that were made go together, or none when the budget
         has no room for all of them."""
         frames: list[ax25.Frame] = []
