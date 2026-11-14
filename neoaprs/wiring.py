@@ -12,7 +12,7 @@ from dataclasses import replace
 from datetime import timedelta
 
 from .app import Radio, Services
-from .config import MESSAGE_RADIOS
+from .config import LAST_PORT, MESSAGE_RADIOS
 from .mercury import DIAL_BAND, SUGGESTED
 from .packet import IS, Packet
 from .packetcodec import tnc2
@@ -123,8 +123,8 @@ def _log_packet(packet: Packet) -> None:
 
 
 def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
-    """A port the search found is stored as serial/last_port and tried first next time. Not a port that was named (the settings or --port) and opened. The one row is radio 1's until the radios are stored
-    (package D1a), and only a TNC's line is searched for."""
+    """A port the search found is stored in radio 1's own state row (`radio/1/last_port`, the settings' serial/last_port) and tried first next time. Not a port that was named (the settings or --port) and
+    opened. Only radio 1 remembers a port (its driver reads it: neoaprs/tncdriver.py), and only a TNC's line is searched for."""
     driver = radio.driver
     if state is not Source.State.CONNECTED or radio.id != FM_ID or not isinstance(driver, TncDriver):
         return
@@ -134,9 +134,10 @@ def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
 
 
 async def _store_last_port(parts: Services, path: str) -> None:
-    """The port the search found, as `serial/last_port`: stored and put in force under the lock of the settings (not through save_config, which would restart the Tnc that was just found), and told to the page."""
+    """The port the search found, in radio 1's own row (LAST_PORT): stored and put in force under the lock of the settings (not through save_config, which would restart the Tnc that was just found), and told
+    to the page."""
     async with parts.config_lock:
-        if await parts.store.put_setting("serial/last_port", path):
+        if await parts.store.put_setting(LAST_PORT, path):
             parts.config = replace(parts.config, serial_last_port=path)
             log.info("the radio was found on %s; it is tried first next time", path)
             parts.config_changed.emit(parts.config)
@@ -155,8 +156,9 @@ def place_me(parts: Services) -> None:
         parts.stationbook.clear_me()                                 # (no own station until there is a call and a position)
 
 
-async def seed_station_book(parts: Services) -> None:
-    """The station book made from the packets, the messages and the weather log kept in the database, at the start."""
+async def seed_station_book(parts: Services, *, unread: bool = False) -> None:
+    """The station book made from the packets, the messages and the weather log kept in the database, at the start. `unread`: the radios could not be read (the stand-in), so a station's choice of a
+    radio not in force is kept in the row as it is."""
     book, packetlog = parts.stationbook, parts.packetlog
     book.seed(await packetlog.stations())
     book.seed_deliveries(await packetlog.deliveries())
@@ -168,7 +170,7 @@ async def seed_station_book(parts: Services) -> None:
     book.seed_routes(reversed(await packetlog.window(ROUTES_SEEN)))      # (the newest first, as the window gives them: the routes are read oldest first)
     book.seed_messaging(await packetlog.messaging_evidence(LOG_KEEP_DAYS))
     book.seed_recent(await packetlog.since(parts.clock() - timedelta(hours=1)))
-    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS))     # (the operator's radio by station, on the stations just seeded)
+    parts.radios.restore(await parts.store.setting(MESSAGE_RADIOS), keep_unknown=unread)     # (the operator's radio by station, on the stations just seeded)
 
 
 async def _seed_weather(parts: Services) -> None:

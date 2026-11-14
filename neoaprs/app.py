@@ -1,8 +1,9 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the radios (the registry, `radios`, with each radio's driver, line and beacon), the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
 the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 
-The radios are made from the settings (`Config.radios`): from the defaults here, so that the parts made here have radios 1 and 2 to be given, and again by the controller once the settings are read. Until the
-round's last wave, `tnc`, `hf`, `mercury`, `beacon` and `hf_beacon` name radio 1's line and beacon and radio 2's line, modem and beacon (the page and the tests reach them so). Every service that
+The radios are made from the settings (`Config.radios`): from the defaults here, so that the parts made here have radios 1 and 2 to be given, and again by the controller once the stored radios are read.
+Until the round's last wave, `tnc`, `hf`, `mercury`, `beacon` and `hf_beacon` name radio 1's line and beacon and radio 2's line, modem and beacon (the page and the tests reach them so); where the database
+has no radio 2 (HF was never set up) they are a line, a modem and a beacon that stay stopped, and become radio 2's again when the settings name it. Every service that
 sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
 """
 import asyncio
@@ -142,7 +143,7 @@ class Services:
     def _make_beacon(self, radio: Radio) -> Beacon:
         """A radio's own beacon: our position packet on it, on an interval, on SmartBeaconing for a moving station where the radio's kind allows it, and on request, by the rules of its kind (the one beacon interval,
         raised to the floor of 30 minutes while an HF radio is on; on HF the random pause); started by the controller while its radio is on. Its last send is kept in the radio's own row
-        (services/beacon.py memory_key_of: today's rows for radios 1 and 2), and its frames are the station's one maker's."""
+        (services/beacon.py memory_key_of: `radio/<id>/beacon_last_sent_at`), and its frames are the station's one maker's."""
         return Beacon(radio, lambda: self.config, self.clock, memory=self.store, frames=self.beacon_frames)
 
     def _radio(self, id: RadioId) -> Radio:

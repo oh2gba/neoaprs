@@ -5,9 +5,9 @@ This is the part of it that the daemon uses through the database thread (db.py):
 date before the thread uses it, by the migrations (migrations.py).
 """
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import TypeVar
+from typing import NamedTuple, TypeVar
 
 from .clock import Clock, utcnow
 from .configradios import radios_from_rows
@@ -15,7 +15,7 @@ from .db import Db
 from .dberror import Connection, DbClosed, Row, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
 from .packetcodec import stamp
 from .radiospec import RadioId, RadioSpec
-from .radiosql import insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
+from .radiosql import insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, seed_radios, update_radio
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 
 log = logging.getLogger("neoaprs.store")
@@ -23,6 +23,18 @@ log = logging.getLogger("neoaprs.store")
 DB_NAME = "neoaprs.sqlite"
 
 T = TypeVar("T")
+
+
+class RadioWrite(NamedTuple):
+    """What a save of the settings writes of one radio (Store.put_config): a radio that is new with its id and its own settings, or a radio's changed columns (radiosql.CHANGEABLE) and own settings."""
+    spec: RadioSpec
+    new: bool = False
+    columns: Mapping[str, object] = {}
+    values: Mapping[str, str] = {}
+
+
+class _Refused(Exception):
+    """A radio of a save is not there or is removed: the save is rolled back whole."""
 
 
 class Store:
@@ -146,6 +158,39 @@ class Store:
         """Removes a radio and takes back what chooses it, in one transaction (radiosql.remove_radio); False when there is no such radio, it is removed already or it was not stored."""
         at = stamp(self.now())
         return bool(await self._stored(lambda db: remove_radio(db, id, at), 0, f"radio {id} could not be removed"))
+
+    async def put_config(self, data: Settings, radios: Iterable[RadioWrite]) -> bool:
+        """The station's settings (key to text) and what changed of the radios, in one transaction (all of it or none): a save of the settings. False, and nothing stored, when a radio that is not new
+        is not there or is removed (a removed radio takes no change), or the database would not take them."""
+        writes = list(radios)
+
+        def put(db: Connection) -> bool:
+            write_settings(db, data)
+            for spec, new, columns, values in writes:
+                if new:
+                    insert_radio(db, spec.kind, spec.type, spec.name, spec.enabled, spec.position, id=spec.id)
+                elif columns and not update_radio(db, spec.id, **columns):
+                    raise _Refused
+                if values and not put_radio_settings(db, spec.id, values):
+                    raise _Refused
+            return True
+        try:
+            return await self._stored(put, False, "the settings could not be stored")
+        except _Refused:
+            log.error("the settings could not be stored: a radio they change is not there or is removed")
+            return False
+
+    async def seed_radios(self, decide: Callable[[Settings], Sequence[tuple[RadioId, str, str, bool, int]]]) -> Sequence[tuple[RadioId, str, str, bool, int]]:
+        """The stand-in's radios (radiosql.seed_radios), written in one transaction only where there is no radio at all: `decide` gives them from the settings rows that same transaction reads, so that
+        what is moved is what was decided on. The radios written; none when there is a radio already, or the database would not take them, or its rows disagree (told as an error)."""
+        def seed(db: Connection) -> Sequence[tuple[RadioId, str, str, bool, int]]:
+            radios = decide(read_settings(db))
+            return radios if seed_radios(db, radios) else ()
+        try:
+            return await self._stored(seed, (), "the radios of the settings could not be stored")
+        except StoreError as e:                     # (radiosql.seed_radios found rows that disagree, migration 31's own check: rolled back, the daemon runs without writing a radio)
+            log.error("the radios of the settings were not stored: %s", e)
+            return ()
 
     # ---- a consistent copy, whole, while the daemon runs
     async def backup(self, dest: Path) -> bool:

@@ -9,9 +9,8 @@ force and for the ones a save brings, so that a save restarts the radio it belon
 are here, for the drivers and the search.
 
 The registry connects no signal (that is the wiring's alone): `wire` is called for a radio when it is made, and when it is given another driver, and neoaprs/wiring.py connects its line, its modem and its
-beacon there. The operator's radio by station is kept as it was (the word `fm` or `hf` on the station and in the state row) until the radios are stored: only radios 1 and 2 can be chosen."""
+beacon there. The operator's radio by station is neoaprs/stationchoices.py's: by the radio's id in the state row, any radio of the settings that is not removed."""
 import asyncio
-import json
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -24,21 +23,21 @@ from .config import Config
 from .mercuryclaims import radio_folder
 from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
-from .packet import Packet
+from .packet import Packet, radio_word
 from .radiodriver import RadioDriver, RunOverrides
 from .radiorules import RadioRules, rules_of
-from .radiospec import FM_ID, HF_ID, RadioId, RadioSpec, live, log_name
-from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError, radio_id_of
+from .radiospec import RadioId, RadioSpec, live, log_name
+from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
 from .stationbook import StationBook
+from .stationchoices import StationChoices as StationChoices      # (the operator's radio by station; neoaprs/radios.py takes it from here)
 from .tnc import Tnc
 from .tncdriver import TncDriver
 from .tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.controller")        # what the start and the restart of a radio say is the controller's, as it was
 
-SLOT_WORDS: dict[RadioId, str] = {FM_ID: "fm", HF_ID: "hf"}      # today's word for radios 1 and 2, as a station's choice is kept (the inverse of radiotype.radio_id_of)
 DRIVERS: dict[str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]] = {      # the driver of a type, by RadioType.driver (the last: one radio searches at a time)
     "tnc": lambda spec, claims, clock, folder, line, modem, lock: TncDriver(spec, claims, clock, line, search_lock=lock),
     "mercury": lambda spec, claims, clock, folder, line, modem, lock: MercuryDriver(spec, claims, folder, clock, line, modem=modem),
@@ -180,73 +179,11 @@ class LiveRadio(Generic[B]):
         return self.line.why_unusable()
 
 
-class StationChoices:
-    """The operator's radio by station: chosen on the page, told to the page with the station, kept in a state row (MESSAGE_RADIOS, which the composition root writes) and put back on the stations of the book
-    at the start. A choice is a radio's id; the station and the row keep today's word for it (`fm`, `hf`) until the radios are stored, so only radios 1 and 2 can be chosen."""
-
-    def __init__(self, book: StationBook, remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None) -> None:
-        self._book = book
-        self._remember, self._wait_written = remember, flush                     # keep the choices (the state row), and wait for it
-        self._choices: dict[str, RadioId] = {}                                    # the choices in force, by call: what the row says (a station the book lets go takes its choice with it)
-
-    def choice(self, call: str) -> RadioId | None:
-        """The radio the operator chose for messages to the station, as it is stored; None for the daemon's own choice."""
-        station = self._book.get(call)
-        return None if station is None else radio_id_of(station.message_radio)
-
-    def choose(self, call: str, radio: RadioId | str | None) -> bool:
-        """The radio messages to the station go out on from now on (None, or "", gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a station that
-        is not in the book and for a radio that cannot be chosen. Today's words `fm` and `hf` name radios 1 and 2 (the page says them until its commands carry ids)."""
-        station = self._book.get(call)
-        id = radio_id_of(radio) if isinstance(radio, str) else radio
-        if station is None or (isinstance(radio, str) and radio and id is None) or (id is not None and id not in SLOT_WORDS):
-            return False
-        station.message_radio = SLOT_WORDS[id] if id is not None else ""
-        if id is not None:
-            self._choices[station.call] = id
-        else:
-            self._choices.pop(station.call, None)
-        self._book.changed.emit(station)
-        self._remember(self.choices_text())
-        return True
-
-    def forget(self, call: str) -> None:
-        """The book let the station go (Forget, the daily prune): its choice goes too, from the row as well, so that a restart does not bring it back to a station heard again meanwhile."""
-        if self._choices.pop(call, None) is not None:
-            self._remember(self.choices_text())
-
-    def forget_all(self) -> None:
-        """The book let every station go (Forget all)."""
-        if self._choices:
-            self._choices.clear()
-            self._remember(self.choices_text())
-
-    def choices_text(self) -> str:
-        """The choices of the stations in the book, as the state row keeps them."""
-        return json.dumps({call: SLOT_WORDS[id] for call, id in self._choices.items()}, sort_keys=True)
-
-    async def flush(self) -> None:
-        """Waits until a choice being written is written (the stop)."""
-        if self._wait_written is not None:
-            await self._wait_written()
-
-    def restore(self, text: str | None) -> None:
-        """The choices kept in the state row, on the stations of the book (at the start, once the book is seeded); a row that is not one is no choice."""
-        try:
-            kept = json.loads(text or "{}")
-        except ValueError:
-            return
-        for call, word in (kept.items() if isinstance(kept, dict) else ()):
-            station, id = self._book.get(str(call)), radio_id_of(word) if isinstance(word, str) else None
-            if station is not None and id is not None:
-                station.message_radio, self._choices[station.call] = SLOT_WORDS[id], id
-
-
 class RadioRegistry(StationChoices, Generic[B]):
     def __init__(self, claims: Claims, make_driver: Callable[[RadioSpec], RadioDriver], make_beacon: Callable[[LiveRadio[B]], B], config: Callable[[], Config], book: StationBook,
                  remember: Callable[[str], None] = lambda text: None, flush: Callable[[], Awaitable[None]] | None = None, *, clock: Clock = utcnow,
                  run: Callable[[], RunOverrides] = RunOverrides) -> None:
-        super().__init__(book, remember, flush)                                   # (the operator's radio by station)
+        super().__init__(book, remember, flush, by_id=True, known=lambda id: any(spec.id == id for spec in config().live_radios))     # (the operator's radio by station: any radio that is not removed)
         self.claims = claims                                                      # the station's one table of resources: what each radio and the GPS receiver hold
         self.search_lock = asyncio.Lock()                                         # one radio searches the ports at a time
         self._make_driver, self._make_beacon = make_driver, make_beacon
@@ -313,13 +250,13 @@ class RadioRegistry(StationChoices, Generic[B]):
         for id, spec in wanted.items():
             radio = self._radios.get(id)
             if radio is None:
-                self._radios[id] = self._made(spec)
+                self._radios[id] = self._leaving.pop(id) if id in self._leaving else self._made(spec)      # (one that was dropped and is back before its restart stopped it is the same radio, its line and beacon with it)
                 self.why[id] = "it is new"
             elif (reason := self._change(radio, before.radio(id) or radio.spec, before, spec, config, run)) is not None:
                 self.why[id] = reason
         for id, spec in wanted.items():
             self._radios[id]._made_as = spec
-            self._radios[id].line.radio_name = "" if id in SLOT_WORDS else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
+            self._radios[id].line.radio_name = "" if radio_word(id) else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
         return list(self.why)
 
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:

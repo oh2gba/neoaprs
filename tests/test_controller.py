@@ -99,7 +99,8 @@ async def test_a_task_that_fails_is_told_in_the_log_and_the_stop_ends_the_rest(t
 async def test_the_start_reads_the_settings_and_puts_us_in_the_station_book(tmp_path: Path) -> None:
     first = Env(tmp_path, radio=False, operator=False)
     await first.start(connected=False)
-    assert first.ctl.config == DEFAULTS
+    assert first.ctl.config.to_data() == DEFAULTS.to_data() and first.ctl.config.main_choice is None, "every setting is its default, today's flat keys of the radios too"
+    assert [(s.id, s.kind, s.type, s.enabled, s.settings) for s in first.ctl.config.radios] == [(1, "fm", "kiss", True, {})], "the database had no radio: today's FM radio was written, with the defaults"
     await first.ctl.store.put_settings({"station/call": "oh2gba-7", "station/lat": "61.5", "station/lon": "25.5", "map/radius_km": "bad", "web/port": "8080", "web/allowed_hosts": "pi", "log/keep_days": "400", "update/check": "false"})
     await first.stop()
     second = Env(tmp_path, radio=False, operator=False)
@@ -131,7 +132,8 @@ async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path
     assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.ctl.beacon.running and not e.ctl.hf_beacon.running
     await e.stop()
     assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
-    assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)] * 2, "every radio of the registry, and its beacon"
+    assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)], "every radio of the registry, and its beacon (no HF radio was set up)"
+    assert e.hf.state is Source.State.STOPPED and not e.ctl.hf_beacon.running, "and the HF radio's line and beacon, which stayed stopped"
 
 
 async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:
@@ -159,7 +161,7 @@ async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: P
     await e.start(connected=False)
     new = replace(e.ctl.config, station_comment="mobile", beacon_interval_min=20)
     assert await e.ctl.save_config(new) and e.ctl.config is new
-    assert (await e.ctl.store.settings())["beacon/interval_min"] == "20" and Config.from_data(await e.ctl.store.settings()) == new
+    assert (await e.ctl.store.settings())["beacon/interval_min"] == "20" and Config.from_data(await e.ctl.store.settings(), radios=await e.ctl.store.radios()) == new
     await e.stop()
     assert not await e.ctl.save_config(replace(new, beacon_interval_min=0)), "the database is closed: nothing is stored"
     assert e.ctl.config is new

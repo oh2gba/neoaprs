@@ -1,4 +1,4 @@
-"""What the beacon and the status report remember across a restart: when each last went out (and what the status said), as rows of the settings table (`STATE_KEYS` of config.py). They are state
+"""What the beacon and the status report remember across a restart: when each last went out (and what the status said), as rows of the settings table (`STATE_KEYS` of config.py, and a radio's own as `radio/<id>/<name>`: config.radio_state_key, so `radio/1/beacon_last_sent_at`). They are state
 of the daemon, not settings the operator edits, so they are not in `Config` (the settings form does not list them and `Config.from_data` leaves them alone).
 
 `Memory` is the part of the Store that is used (the Store itself fits). `Remembered` reads a row at the start and writes in a task after a send, so that the send path never waits for the

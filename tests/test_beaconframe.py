@@ -232,7 +232,8 @@ def test_the_interval_of_a_radios_beacon_is_the_beacon_rule_s_for_that_radio() -
 
 
 def test_each_radio_keeps_its_last_beacon_in_its_own_row() -> None:
-    assert (memory_key_of(FM_ID), memory_key_of(HF_ID), memory_key_of(3)) == (BEACON_SENT, HF_BEACON_SENT, "radio/3/beacon_last_sent_at")
+    assert (memory_key_of(FM_ID), memory_key_of(HF_ID), memory_key_of(3)) == ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/3/beacon_last_sent_at"), "the rows of before are none of them"
+    assert {BEACON_SENT, HF_BEACON_SENT}.isdisjoint({memory_key_of(FM_ID), memory_key_of(HF_ID)}), "migration 31 renamed today's two rows"
 
 
 class Rows:
@@ -253,7 +254,7 @@ async def test_a_third_radios_beacon_sends_on_its_radio_by_its_path_and_remember
     clock = FixedClock()
     config = with_radios(replace(BOTH, hf_enabled=False, beacon_interval_min=20), BOTH.radios[0], replace(BOTH.radios[1], enabled=False), third("WIDE2-1"))
     earlier = clock() - timedelta(minutes=5)
-    rows = Rows(**{"radio/3/beacon_last_sent_at": earlier.strftime("%Y-%m-%dT%H:%M:%SZ"), BEACON_SENT: "2000-01-01T00:00:00Z"})
+    rows = Rows(**{"radio/3/beacon_last_sent_at": earlier.strftime("%Y-%m-%dT%H:%M:%SZ"), memory_key_of(FM_ID): "2000-01-01T00:00:00Z"})
     line = StubTnc()
     beacon = Beacon(radio_of(config, 3, line), lambda: config, clock, memory=rows, frames=BeaconFrames(lambda: config, None, clock))
     await beacon.start()
@@ -262,5 +263,5 @@ async def test_a_third_radios_beacon_sends_on_its_radio_by_its_path_and_remember
         assert beacon.send_now() and line.lines() == ["OH2GBA>APZNEO,WIDE2-1:" + POSITION.decode()]
     finally:
         await beacon.stop()
-    assert datetime.fromisoformat(rows.rows["radio/3/beacon_last_sent_at"]) == clock() and rows.rows[BEACON_SENT] == "2000-01-01T00:00:00Z"
+    assert datetime.fromisoformat(rows.rows["radio/3/beacon_last_sent_at"]) == clock() and rows.rows[memory_key_of(FM_ID)] == "2000-01-01T00:00:00Z"
     assert not [r for r in caplog.records if "raised" in r.getMessage()], "no HF radio on: nothing is raised"

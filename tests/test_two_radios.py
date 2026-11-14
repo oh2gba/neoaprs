@@ -4,6 +4,7 @@ and to OH2C over HF, and each ack comes back on the radio the message came on; a
 does on its own (the frame cap, the hold, the paths) are tests/test_mercury_world.py; the choice is what is tested here: the registry's (`ctl.radios`: the enabled radios, the main radio, the radio of a station; `lines_on`, `line_to`)."""
 from pathlib import Path
 
+import pytest
 
 from neoaprs import ax25
 from neoaprs.config import DEFAULTS
@@ -99,15 +100,20 @@ async def test_a_station_heard_on_both_radios_is_messaged_on_fm_and_a_message_to
     assert any(b":ack" in f.info for f in frames_of(a.radio)) and not any(b":ack" in f.info for f in frames_of(a.hf_radio)), "OH2D sent on FM (it heard OH2A nowhere yet, so the default), and the ack went back on FM"
 
 
-async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_hf_radio_stays_stopped(tmp_path: Path) -> None:
-    e = Env(tmp_path)
+@pytest.mark.parametrize("set_up", [False, True], ids=["hf never set up", "hf set up and off"])
+async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_hf_radio_stays_stopped(tmp_path: Path, set_up: bool) -> None:
+    """Off, whether it was never set up (the database has no radio 2) or was set up and switched off (radio 2 is there, off)."""
+    e = Env(tmp_path, settings={"hf/enabled": "false"} if set_up else {})
     await e.start()
     try:
         radios = e.ctl.radios
         assert e.ctl.config.fm_enabled and not e.ctl.config.hf_enabled
         main, hf = radios.main, radios.get(HF_ID)
-        assert main is not None and main.id == FM_ID and main.line is e.tnc and line_to(e, "OH2X") is e.tnc and lines_on(e) == [e.tnc]
-        assert hf is not None and not hf.spec.enabled and hf.line is e.hf and radios.email() is main, "the HF radio is there, off, and is never chosen"
+        assert main is not None and main.id == FM_ID and main.line is e.tnc and line_to(e, "OH2X") is e.tnc and lines_on(e) == [e.tnc] and radios.email() is main
+        if set_up:
+            assert hf is not None and not hf.spec.enabled and hf.line is e.hf, "the HF radio is there, off, and is never chosen"
+        else:
+            assert hf is None and [r.id for r in radios.all()] == [FM_ID], "no HF radio at all"
         assert e.hf.state is Source.State.STOPPED and e.ctl.mercury.state == "stopped" and e.ctl.hf_beacon.last_sent is None
         assert main.rules == e.tnc.rules and main.max_frame is None and main.usable == e.tnc.usable and (main.kind, main.name) == ("fm", "FM")
         await e.ctl.save_config(DEFAULTS)         # (the defaults: still one radio)

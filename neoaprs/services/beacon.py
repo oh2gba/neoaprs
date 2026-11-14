@@ -6,7 +6,7 @@ timer asks SmartBeaconing at every tick instead of waiting for an interval (`bea
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
 The interval in force on the radio is neoaprs/beaconrule.py's (`beacon_interval`: the one setting `beacon/interval_min` of the station, raised to 30 minutes while an HF radio is on); a radio whose limits have a random pause
 adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
-The last send is kept in the radio's own row (`memory_key_of`: today's `beacon/last_sent_at` for radio 1 and `hf/beacon_last_sent_at` for radio 2).
+The last send is kept in the radio's own row (`memory_key_of`: `radio/<id>/beacon_last_sent_at`, where migration 31 put the rows of radios 1 and 2).
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
 settle first) unless the last beacon of an earlier run (the radio's row, written after each send) is less than an interval ago: then the first is due an interval after that one, so a restart does
@@ -26,10 +26,10 @@ from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position      # (the beacon's parts under their old names: services/beaconframe.py)
 from neoaprs.beaconrule import beacon_interval
 from neoaprs.clock import Clock, utcnow
-from neoaprs.config import BEACON_SENT, HF_BEACON_SENT, Config, radio_state_key
+from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.radiospec import FM_ID, HF_ID, RadioId
+from neoaprs.radiospec import RadioId
 from neoaprs.services.beaconframe import BeaconError as BeaconError, BeaconFrames, NoFix as NoFix, air_of, phg_text as phg_text
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
@@ -40,7 +40,7 @@ from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet, every
 
-MEMORY_KEYS: Mapping[RadioId, str] = {FM_ID: BEACON_SENT, HF_ID: HF_BEACON_SENT}        # the rows of radios 1 and 2 as they are today; any other radio's is radio/<id>/beacon_last_sent_at
+MEMORY_KEYS: Mapping[RadioId, str] = {}        # a radio whose last send is kept under another row than radio/<id>/beacon_last_sent_at: none since migration 31 renamed those of radios 1 and 2
 
 log = logging.getLogger("neoaprs.beacon")
 

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import serialport, serialprobe
+from neoaprs.config import LAST_PORT
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
 from tests.support.env import Env, idle_for, until, until_async
@@ -393,18 +394,18 @@ async def test_the_port_the_search_found_is_stored_and_tried_first_next_time(tmp
         await e.until_connected()
         assert e.tnc.path == link
         async def stored() -> str | None:
-            return await e.ctl.store.setting("serial/last_port")
+            return await e.ctl.store.setting(LAST_PORT)
 
         async def is_stored() -> bool:
             return await stored() == link
         await until_async(is_stored)
-        assert await stored() == link and e.ctl.config.serial_last_port == link and await e.ctl.store.setting("serial/port") is None
+        assert await stored() == link and e.ctl.config.serial_last_port == link and await e.ctl.store.setting("serial/port") is None and await e.ctl.store.setting("serial/last_port") is None, "radio 1's own row (radio/1/last_port), not the one of before"
         await e.stop()
         again = Env(tmp_path, radio=False, ports=e.ports)                 # (the same "/dev")
         await again.start(connected=False)
         await until(lambda: again.tnc.state is Source.State.CONNECTED)
         assert again.tnc.port == link, "the remembered port is the one the Tnc is started with"
-        assert again.tnc.path == link and await sql(again.ctl.store, "SELECT rev FROM settings WHERE key = ?", "serial/last_port") == [(1,)], "found at the remembered path: nothing to store again"
+        assert again.tnc.path == link and await sql(again.ctl.store, "SELECT rev FROM settings WHERE key = ?", LAST_PORT) == [(1,)], "found at the remembered path: nothing to store again"
         await again.stop()
     finally:
         feeder.cancel()
@@ -415,7 +416,7 @@ async def test_a_remembered_port_that_is_gone_is_followed_by_the_search_and_the_
     e = Env(tmp_path, radio=False)
     master, link = e.new_pty("probe_1")
     await e.start(connected=False)
-    await e.ctl.store.put_setting("serial/last_port", str(e.ports / "gone"))
+    await e.ctl.store.put_setting(LAST_PORT, str(e.ports / "gone"))
     await e.stop()
     again = Env(tmp_path, radio=False, ports=e.ports)
     feeder = asyncio.create_task(keep_feeding_frame(master))
@@ -426,9 +427,9 @@ async def test_a_remembered_port_that_is_gone_is_followed_by_the_search_and_the_
         assert again.tnc.path == link
 
         async def is_stored_again() -> bool:
-            return await again.ctl.store.setting("serial/last_port") == link
+            return await again.ctl.store.setting(LAST_PORT) == link
         await until_async(is_stored_again)
-        assert await again.ctl.store.setting("serial/last_port") == link
+        assert await again.ctl.store.setting(LAST_PORT) == link and await again.ctl.store.setting("serial/last_port") is None
         await again.stop()
     finally:
         feeder.cancel()

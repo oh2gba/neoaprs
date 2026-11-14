@@ -288,11 +288,15 @@ def test_the_operators_radio_for_a_station_is_kept_as_before_by_id_or_by_todays_
     assert told == [("OH2A", "hf"), ("OH2B", "fm"), ("OH2C", "hf"), ("OH2C", "")], "the page is told with the station, in today's words"
     assert (registry.choice("OH2A"), registry.choice("OH2B"), registry.choice("OH2C"), registry.choice("OH2Z")) == (HF_ID, FM_ID, None, None)
     assert registry.for_station("OH2A").id == HF_ID and registry.for_station("OH2B").id == FM_ID and registry.for_station("OH2C").id == HF_ID        # type: ignore[union-attr]
-    assert rig.kept[-1] == registry.choices_text() == json.dumps({"OH2A": "hf", "OH2B": "fm"}) and len(rig.kept) == 4, "the row as it was written before, at every choice"
+    assert rig.kept[-1] == registry.choices_text() == json.dumps({"OH2A": HF_ID, "OH2B": FM_ID}) and len(rig.kept) == 4, "the row by the radios' ids (since migration 31), at every choice"
     before.restore(rig.kept[-1])
-    assert before.choices_text() == rig.kept[-1] and (before.choice("OH2A"), before.choice("OH2B")) == (HF_ID, FM_ID), "and the two radios of before read and write the same row"
-    assert not registry.choose("OH2Z", FM_ID) and not registry.choose("OH2A", "lora") and not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such station; no such word; a radio the row has no word for yet"
-    assert registry.choose("OH2A", None) and registry.choice("OH2A") is None and rig.kept[-1] == json.dumps({"OH2B": "fm"})
+    assert (before.choice("OH2A"), before.choice("OH2B")) == (HF_ID, FM_ID) and before.choices_text() == json.dumps({"OH2A": "hf", "OH2B": "fm"}), "the two radios of before read the row by id, and keep theirs in today's words"
+    again = registry_of(replace(DEFAULTS, hf_enabled=True))
+    again.book.seed([station("OH2A", 3, 0), station("OH2B", 3, 2)])
+    again.registry.restore(before.choices_text())
+    assert again.registry.choices_text() == rig.kept[-1], "a row of before, in today's words, is read as the ids of radios 1 and 2"
+    assert not registry.choose("OH2Z", FM_ID) and not registry.choose("OH2A", "lora") and not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such station; no such word; no such radio in the settings"
+    assert registry.choose("OH2A", None) and registry.choice("OH2A") is None and rig.kept[-1] == json.dumps({"OH2B": FM_ID})
     registry.forget("OH2A")
     assert len(rig.kept) == 5, "a station with no choice takes none along"
     registry.forget("OH2B")
@@ -301,10 +305,10 @@ def test_the_operators_radio_for_a_station_is_kept_as_before_by_id_or_by_todays_
     assert len(rig.kept) == 6, "nothing to forget, nothing written"
     assert registry.choose("OH2B", FM_ID)
     registry.forget_all()
-    assert rig.kept[-2:] == [json.dumps({"OH2B": "fm"}), "{}"]
+    assert rig.kept[-2:] == [json.dumps({"OH2B": FM_ID}), "{}"]
 
 
-@pytest.mark.parametrize("text", [None, "", "not json", "[1, 2]", json.dumps({"OH2A": "hf", "OH2B": "lora", "OH2GONE": "fm", "OH2C": 2})])
+@pytest.mark.parametrize("text", [None, "", "not json", "[1, 2]", json.dumps({"OH2A": "hf", "OH2B": "lora", "OH2GONE": "fm", "OH2C": 7}), json.dumps({"OH2A": 2, "OH2B": True, "OH2C": 3, "OH2GONE": 1})])
 async def test_the_choices_of_the_row_are_put_on_the_stations_of_the_book_and_a_row_that_is_none_is_no_choice(text: str | None) -> None:
     waited: list[str] = []
 
@@ -317,7 +321,7 @@ async def test_the_choices_of_the_row_are_put_on_the_stations_of_the_book_and_a_
     registry.restore(text)
     expected = {"OH2A": HF_ID} if text and text.startswith("{") else {}
     assert {call: registry.choice(call) for call in ("OH2A", "OH2B", "OH2C") if registry.choice(call) is not None} == expected and rig.kept == [], "read, not written"
-    assert json.loads(registry.choices_text()) == ({"OH2A": "hf"} if expected else {})
+    assert json.loads(registry.choices_text()) == expected, "kept by id: a word of before, an id of a radio there is, nothing else (a radio the settings do not have, a word that is none, true)"
     await registry.flush()
     await rig.registry.flush()
     assert waited == ["written"], "the stop waits for a choice being written, where there is something to wait for"
@@ -414,7 +418,7 @@ async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_
 
 async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_stopped_alone(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """The page cannot add a third radio yet; settings that hold one go through a save all the same, and the daemon's own driver, line, beacon and wiring take it. The radios are a field of the settings: a save
-    of another setting keeps the third radio, and a save without it stops it alone."""
+    of another setting keeps the third radio, and its removal stops it alone."""
     caplog.set_level(logging.INFO, "neoaprs.controller")
     e = Env(tmp_path)
     await e.start()
@@ -431,7 +435,7 @@ async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_sto
     await until(lambda: e.ctl.stationbook.get("OH2TRD") is not None)
     assert [p.source for p in await e.packets()] == ["OH2TRD"], "what it hears goes to the parts by the one signal, once"
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="another comment")) and e.ctl.radios.get(3) is third and third.state is Source.State.CONNECTED, "a save of another setting keeps the radio"
-    assert await e.ctl.save_config(replace(e.ctl.config, station_comment="the settings of two radios again", radios=e.ctl.config.radios[:2]))
+    assert await e.ctl.remove_radio(3)
     assert e.ctl.radios.get(3) is None and e.ctl.radios.why == {3: "it is removed"}
     await until(lambda: third.state is Source.State.STOPPED and not third.beacon.running)
     assert e.tnc.state is Source.State.CONNECTED and e.tnc._generation == fm_line and e.ctl.beacon.running, "radio 1 was not touched"

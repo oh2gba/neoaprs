@@ -10,7 +10,8 @@ import pytest
 from neoaprs.clock import iso
 from neoaprs.config import DEFAULTS, STATE_KEYS, Config
 from neoaprs.rigctld import read_rig
-from neoaprs.services.beacon import Beacon
+from neoaprs.radiospec import FM_ID, HF_ID
+from neoaprs.services.beacon import Beacon, memory_key_of
 from neoaprs.services.rigstatus import RigStatus
 from neoaprs.store import Store
 from tests.support.stubtnc import StubTnc
@@ -257,6 +258,7 @@ async def test_each_radios_beacon_keeps_its_last_send_in_its_own_row_and_is_plan
     second.ctl.mercury._finder = lambda: None
     second.ctl.hf_beacon.jitter = lambda most: 0.0                    # (the random pause of an HF beacon)
     await second.start()
-    assert (await second.ctl.store.setting(BEACON_ROW), await second.ctl.store.setting(HF_BEACON_ROW)) == (iso(fm_sent), iso(hf_sent)) and BEACON_ROW != HF_BEACON_ROW == "hf/beacon_last_sent_at"
+    assert (await second.ctl.store.setting(memory_key_of(FM_ID)), await second.ctl.store.setting(memory_key_of(HF_ID))) == (iso(fm_sent), iso(hf_sent)) and memory_key_of(HF_ID) == "radio/2/beacon_last_sent_at"
+    assert (await second.ctl.store.setting(BEACON_ROW), await second.ctl.store.setting(HF_BEACON_ROW)) == (None, None), "nothing under the rows of before"
     assert second.ctl.beacon.next_due == fm_sent + timedelta(minutes=60) and second.ctl.hf_beacon.next_due == hf_sent + timedelta(minutes=60), "each from its own last send"
     await second.stop()

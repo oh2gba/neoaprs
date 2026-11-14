@@ -4,6 +4,7 @@ import asyncio
 import json
 import struct
 import sys
+from typing import Any
 from dataclasses import replace
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from tornado.httpclient import HTTPClientError
 
 from neoaprs import VERSION
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS
+from neoaprs.config import DEFAULTS, STATION_KEYS
 from neoaprs.source import Source
 from tests.support.air import ack_info, message_info, on_air, reject_info
 from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
@@ -209,6 +210,15 @@ async def test_list_ports_ends_with_the_paired_bluetooth_devices(tmp_path: Path,
     assert [(p["device"], p["description"]) for p in ports if p["device"].startswith(("bt://", "/dev/ttyUSB0"))] == [("/dev/ttyUSB0", "CP2102"), ("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74")]
 
 
+async def as_the_operator_left_it(e: Env) -> bool:
+    """The database holds the operator's settings as an Env writes them (OPERATOR) and nothing else, and they are in force: the station's rows in the settings, today's flat keys of the FM radio as radio 1's
+    own (the start wrote the radio of a database that had none), and the settings in force those of ON_AIR, key by key, with the radios as they are stored."""
+    radios = await e.ctl.store.radios()
+    return (await e.ctl.store.settings() == {key: text for key, text in OPERATOR.items() if key in STATION_KEYS}
+            and [(s.id, s.kind, s.type, s.enabled, dict(s.settings)) for s in radios] == [(1, "fm", "kenwood-tnc2", True, {"path": "WIDE1-1,WIDE2-1"})]
+            and e.ctl.config.to_data() == ON_AIR.to_data() and e.ctl.config.radios == radios)
+
+
 async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
@@ -229,7 +239,7 @@ async def test_a_frame_that_is_not_a_command_is_an_error_and_changes_nothing(tmp
     assert all(isinstance(t, str) and 0 < len(t) < 300 for t in errors)
     await page.quiet(0.4)
     assert json.dumps(page.topics, sort_keys=True) == before, "nothing changed"
-    assert await e.ctl.store.settings() == OPERATOR and e.ctl.stationbook.get("OH2RDK-7") is not None and e.ctl.config == ON_AIR
+    assert await as_the_operator_left_it(e) and e.ctl.stationbook.get("OH2RDK-7") is not None
 
 
 async def test_set_config_with_a_key_or_a_value_that_is_wrong_is_an_error_naming_the_key_and_changes_nothing(tmp_path: Path) -> None:
@@ -242,7 +252,7 @@ async def test_set_config_with_a_key_or_a_value_that_is_wrong_is_an_error_naming
         error = await page.expect("error")
         assert error["text"].startswith("set_config: ") and key in error["text"], error
     await page.quiet(0.3)
-    assert await e.ctl.store.settings() == OPERATOR and e.ctl.config == ON_AIR and page.of("patch", "config") == []
+    assert await as_the_operator_left_it(e) and page.of("patch", "config") == []
     assert page.topics["config"]["values"]["station/call"] == "OH2GBA"
 
 
@@ -390,7 +400,7 @@ async def test_the_beacon_settings_are_checked_by_the_settings_command(tmp_path:
     for key, value in (("beacon/path", "WIDE1-1,TOOLONGCALL"), ("status/source", "radio"), ("beacon/interval_min", "1441")):
         await page.send({"cmd": "set_config", "values": {key: value}})
         assert key in (await page.expect("error"))["text"]
-    assert await e.ctl.store.settings() == OPERATOR
+    assert await as_the_operator_left_it(e)
 
 
 async def test_the_status_is_told_every_ten_seconds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -581,8 +591,8 @@ async def test_connections_are_capped_and_a_connection_over_the_cap_is_closed(tm
 
 # ---- messages ------------------------------------------------------------------------------------------------------------------------------------
 
-async def with_page(tmp_path: Path) -> tuple[Env, WsClient]:
-    e = Env(tmp_path, web=True)
+async def with_page(tmp_path: Path, **options: Any) -> tuple[Env, WsClient]:
+    e = Env(tmp_path, web=True, **options)
     e.ctl.messaging.tick_sec = 0.02
     e.ctl.messaging.pace.spacing_sec = 0.0
     e.ctl.bulletins.tick_sec = 0.02  # type: ignore[attr-defined]

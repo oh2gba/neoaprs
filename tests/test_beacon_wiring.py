@@ -6,7 +6,6 @@ from datetime import timedelta
 from pathlib import Path
 
 from neoaprs import TOCALL, ax25, kiss
-from neoaprs.config import BEACON_SENT, HF_BEACON_SENT
 from neoaprs.packet import Position
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.services.beacon import memory_key_of
@@ -48,7 +47,7 @@ async def test_each_radio_has_its_own_beacon_and_its_frames_are_the_one_makers(t
     e = await started(tmp_path)
     fm, hf = e.ctl.beacon, e.ctl.hf_beacon
     assert (fm.radio.id, hf.radio.id, fm.radio.kind, hf.radio.kind) == (FM_ID, HF_ID, "fm", "hf")
-    assert (fm._memory_key, hf._memory_key) == (memory_key_of(FM_ID), memory_key_of(HF_ID)) == (BEACON_SENT, HF_BEACON_SENT), "each its radio's own row, today's for radios 1 and 2"
+    assert (fm._memory_key, hf._memory_key) == (memory_key_of(FM_ID), memory_key_of(HF_ID)) == ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at"), "each its radio's own row, where migration 31 put those of radios 1 and 2"
     assert e.ctl.rigstatus.frames is fm.frames, "the status report's maker is the beacons'"
     assert hf.frames is fm.frames, "one maker for every radio's beacon"
     assert fm.position_info() == fm.frames.position_info() == INFO and fm.frame(hf.radio).path == (), "the iGate's position field, and the frame for the HF radio without its path"

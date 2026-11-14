@@ -112,7 +112,7 @@ def test_a_station_whose_position_takes_no_messages_can_be_written_to_and_is_mar
 
 
 async def test_the_page_chooses_the_radio_of_a_station_and_its_row_says_it(tmp_path: Path) -> None:
-    e, page = await with_page(tmp_path)
+    e, page = await with_page(tmp_path, settings={"hf/enabled": "false"})              # (a station whose HF radio was set up: the page offers the choice only while both radios are on)
     e.feed(on_air("OH2GAX-2", b"=6015.42N/02447.93E-Otso"))
     await page.until(lambda: "OH2GAX-2" in page.topics["stations"])
     assert page.topics["stations"]["OH2GAX-2"]["message_radio"] == ""

@@ -201,10 +201,11 @@ async def test_a_change_of_the_serial_port_in_the_settings_restarts_the_tnc(tmp_
     first_radio, second_radio = await e.new_radio(), await e.new_radio()
     first, second = first_radio.url, second_radio.url
     await e.start()
-    assert e.tnc.state is Source.State.WAITING and e.ctl.config == DEFAULTS
+    assert e.tnc.state is Source.State.WAITING and e.ctl.config.to_data() == DEFAULTS.to_data()
     assert await e.ctl.save_config(replace(e.ctl.config, serial_port=first))
     await until(lambda: e.tnc.state is Source.State.CONNECTED and e.tnc.path == first)
-    assert (await e.ctl.store.settings())["serial/port"] == first and e.tnc.port == first
+    [fm] = await e.ctl.store.radios()
+    assert fm.settings["port"] == first and "serial/port" not in await e.ctl.store.settings() and e.tnc.port == first, "the flat key is radio 1's own row"
     opens = e.tnc.stats.opens
     assert await e.ctl.save_config(replace(e.ctl.config, station_comment="a changed comment"))
     await idle_for(0.2)
@@ -390,7 +391,7 @@ async def test_a_save_of_the_transmit_gain_reaches_the_modem_of_a_radio_that_is_
 
 
 async def test_a_modem_on_other_ports_repoints_its_radios_line_only_while_the_radio_is_on(tmp_path: Path) -> None:
-    e = Env(tmp_path, radio=False)
+    e = Env(tmp_path, radio=False, settings={"hf/enabled": "false"})                # (the HF radio set up, and off)
     await e.start(connected=False)
     repointed: list[int] = []
 

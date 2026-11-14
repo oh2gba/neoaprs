@@ -18,7 +18,9 @@ test builds its world with it; `stop_all` is called when a test is over and also
 The radios are the daemon's own (the registry, `e.ctl.radios`: neoaprs/radioregistry.py), and the names of an Env are radios 1 and 2 of it: `e.tnc` is radio 1's line (the FM radio; the Env makes it and hands
 it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settings tick `hf/enabled`), `e.radio` and `e.hf_radio` the fakes at their far ends, `e.active` the line of the one that is on.
 
-The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing."""
+The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing. The rows are written as a data folder has them before the daemon's first start: its database has no radio yet, so the start
+writes radio 1 from them, and radio 2 when they name the HF radio (`hf/*`, `mercury/*`) or the Env is given its Mercury (`hf`), each flat row becoming the radio's own (neoaprs/radioedits.py, the stand-in).
+An Env whose settings never name the HF radio has no radio 2: `e.hf` is then a line that stays stopped."""
 import asyncio
 import shutil
 import tempfile
