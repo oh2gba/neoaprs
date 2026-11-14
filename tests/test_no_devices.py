@@ -24,16 +24,20 @@ import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from neoaprs import btpaired, dummyline, mercurymodem, nodevices, pmtilesarchive, pmtilescut, serialprobe, updatedownload, updatefetch
 from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
+from neoaprs.claims import Claims
+from neoaprs.config import Config
 from neoaprs.gpsfeed import GpsFeed
+from neoaprs.mercurydriver import MercuryDriver, hf_settings, hf_words
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryspeaker import player_command
 from neoaprs.message import MessageRecord
+from neoaprs.radiodriver import RunOverrides
+from neoaprs.radiospec import HF_ID
 from neoaprs.rigctld import RigError, read_rig
 from neoaprs.serialport import SerialError, SerialPort
 from neoaprs.services.alerts import Alerts
 from neoaprs.source import Backoff, Source
 from neoaprs.web.protocol import TOPIC_NAMES
-from neoaprs.wiring import hf_settings, hf_words
 from tests.conftest import ROOT
 from tests.support import realmercury
 from tests.support.alertcmd import TIMEOUT_SEC, writing
@@ -47,6 +51,7 @@ from tests.support.ptyline import Ptys, heard, held_by_a_program, posix_only
 from tests.support.rangeserver import range_server
 from tests.support.storedb import store_at
 
+NO_OVERRIDES = RunOverrides()                   # a run that was given nothing of its own
 LOCAL = ("127.0.0.1", "::1", "localhost")
 ELSEWHERE = "192.0.2.7"                           # a documentation address: no computer has it (so a door that this file found open would still have reached nobody)
 REFUSED = os.strerror(errno.ECONNREFUSED)        # "Connection refused", in the system's words
@@ -477,19 +482,31 @@ async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_
     assert not [line for line in logged if line.startswith("no Mercury program at")], "the log names no place where the program is missing: nobody looked for it"
 
 
-def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would have been (the operator's own modem, on this computer's port 8100) is not ours: the HF Tnc is given no port at all."""
+def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    """The daemon starts no Mercury under the switch, so whatever listens where one of ours would have been (the operator's own modem, on this computer's port 8100) is not ours: the HF radio's line is given no port
+    at all, by its driver (neoaprs/mercurydriver.py), and nothing to search."""
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     off, on = replace(ON_AIR, hf_enabled=False), replace(ON_AIR, hf_enabled=True)
-    assert (hf_settings(off).port, hf_settings(off).pattern, hf_settings(off).fallback_probe) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no HF radio"
-    assert (hf_settings(on).port, hf_settings(on, modem_port=18100).port, hf_settings(on).pattern) == ("", "", "")
+
+    def pointed(config: Config, run: RunOverrides = NO_OVERRIDES) -> tuple[str, str, bool]:
+        """The port, the search pattern and whether the search follows a port that fails, of the line of radio 2 as its driver points it for these settings."""
+        spec = config.radio(HF_ID)
+        assert spec is not None
+        driver = MercuryDriver(spec, Claims(), tmp_path, modem=Mercury(tmp_path))
+        driver.configure(spec, config, run)
+        return driver.line.port, driver.line.pattern, driver.line.fallback_probe
+
+    assert hf_settings(off).port == "" and pointed(off) == ("", "", False) and said(caplog) == [], "no port, and nothing said while there is no HF radio"
+    assert (hf_settings(on).port, hf_settings(on, modem_port=18100).port) == ("", "") and pointed(on) == ("", "", False)
     assert said(caplog) == [(logging.INFO, "NEOAPRS_NO_DEVICES is set: the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)")]
     assert hf_settings(on, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury given for this run (the benches') is the HF radio's"
+    assert pointed(on, RunOverrides(hf_port="socket://127.0.0.1:18100")) == ("socket://127.0.0.1:18100", "", False)
     assert hf_settings(replace(on, hf_profile="dummy-hf")).port == dummyline.DUMMY_PATH
     assert hf_words(on, "") == "the Mercury modem, which is not started" and hf_words(replace(on, hf_profile="dummy-hf"), "") == "the Dummy HF radio, made-up stations", "the start line claims no modem and no speaker"
     assert hf_words(on, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
     monkeypatch.delenv(nodevices.ENV)
     assert hf_settings(on).port == "socket://127.0.0.1:8100" and hf_settings(on, modem_port=18100).port == "socket://127.0.0.1:18100", "the same with the switch off"
+    assert pointed(on) == ("socket://127.0.0.1:8100", "", False)
     assert hf_words(on, "") == "the Mercury modem, started by NeoAPRS" and hf_words(replace(on, hf_profile="dummy-hf"), "").endswith("and the modem played through the speakers")
 
 

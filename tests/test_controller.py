@@ -1,4 +1,5 @@
-"""The Controller (neoaprs/controller.py) as the composition root's object: the database opens at the start and closes at the stop, and what cannot be opened is refused with a reason."""
+"""The Controller (neoaprs/controller.py) as the composition root's object: the database opens at the start and closes at the stop, and what cannot be opened is refused with a reason; the radios of the
+registry (neoaprs/radioregistry.py) take the settings that were read before any part is started and are themselves started last, each in a task of its own that the stop ends."""
 import asyncio
 import sqlite3
 from pathlib import Path
@@ -127,8 +128,30 @@ async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path
     e = Env(tmp_path)
     await e.start()
     assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "station-flush"}
+    assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.ctl.beacon.running and not e.ctl.hf_beacon.running
     await e.stop()
     assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
+    assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)] * 2, "every radio of the registry, and its beacon"
+
+
+async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:
+    """What the parts ask of a radio, such as whether it is a Dummy radio (the iGate, at its start), is true before they start; the radios themselves are started last, each in its own task."""
+    e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "serial/baud": "1200", "hf/enabled": "true", "hf/profile": "dummy-hf"})
+    e.ctl.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
+    seen: list[tuple[object, ...]] = []
+    start = e.ctl.bulletins.start
+
+    async def first_part() -> None:
+        seen.append((e.tnc.is_dummy, e.tnc.baud, e.hf.is_dummy, e.tnc.state, e.hf.state, [radio.id for radio in e.ctl.radios.enabled()], sorted(t.get_name() for t in e.ctl.tasks)))
+        await start()
+
+    e.ctl.bulletins.start = first_part                               # type: ignore[method-assign]   # (the first part the start brings up)
+    assert not e.tnc.is_dummy and not e.hf.is_dummy and [radio.id for radio in e.ctl.radios.enabled()] == [1], "the defaults, until the settings are read"
+    await e.start()
+    assert seen == [(True, 1200, True, Source.State.STOPPED, Source.State.STOPPED, [1, 2], [])], "configured, and not started yet: no task of a radio is running"
+    await until(lambda: e.tnc.state is Source.State.CONNECTED and e.hf.state is Source.State.CONNECTED)
+    await until(lambda: not {"tnc", "hf"} & {t.get_name() for t in e.ctl.tasks})          # (the task of each start ends with it)
+    await e.stop()
 
 
 async def test_the_settings_are_stored_and_read_back_by_the_next_run(tmp_path: Path) -> None:

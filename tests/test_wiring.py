@@ -1,5 +1,9 @@
 """The wiring (neoaprs/wiring.py) with the whole daemon around it, the radio a fake one on the loopback: the capture of the TH-D7 fills the database and the station book, a restart finds the stations
-again, the cable pulled and put back, pruning and a change of the port in the settings. The port the search found being remembered is in tests/test_wiring_pty.py."""
+again, the cable pulled and put back, pruning and a change of the port in the settings. The port the search found being remembered is in tests/test_wiring_pty.py.
+
+Then how a radio's settings become its line's, which is its driver's (neoaprs/tncdriver.py, neoaprs/mercurydriver.py): the FM radio's and the HF radio's of today's flat settings (`tnc_settings`,
+`hf_settings`) and the same read from a radio's own spec, the words of a change for the log (neoaprs/radioregistry.py), and the wiring of the radios: every radio's packets through the one signal
+`radio_packet`, what changes of a radio on `radio_changed` with its id."""
 import logging
 from dataclasses import replace
 from datetime import timedelta
@@ -8,11 +12,21 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25, kiss, wiring
+from neoaprs.claims import Claims
 from neoaprs.config import DEFAULTS
+from neoaprs.dummyline import DUMMY_PATH
+from neoaprs.mercury import Keying
+from neoaprs.mercurydriver import DUMMY_PORT, MercuryDriver, hf_settings, hf_words, modem_settings
+from neoaprs.mercurymodem import Mercury
 from neoaprs.packet import Position
+from neoaprs.radiodriver import RunOverrides
+from neoaprs.radioregistry import changed_words
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Source
-from neoaprs.tncprofile import KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
-from neoaprs.wiring import hf_settings, tnc_settings
+from neoaprs.tnc import Tnc
+from neoaprs.tncdriver import TncDriver, line_settings, tnc_settings
+from neoaprs.tncprofile import DUMMY_HF, KENWOOD_TNC2, KISS, KISS_TCP, MERCURY
+from tests.support.air import from_internet
 from tests.support.env import Env, idle_for, until
 from tests.test_packetlog import from_the_internet
 
@@ -234,18 +248,48 @@ async def test_a_port_given_for_this_run_is_used_alone_and_never_stored(tmp_path
 
 
 def test_the_settings_become_the_tncs(search_pattern_from_settings: None) -> None:
-    assert tnc_settings(DEFAULTS) == ("", 9600, KISS, True, (), "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*", ("", ""))
+    assert tnc_settings(DEFAULTS) == ("", 9600, KISS, True, (), "/dev/serial/by-id/* /dev/ttyUSB* /dev/ttyACM*")
     assert tnc_settings(replace(DEFAULTS, serial_last_port="/dev/brainbox_3")).port == "/dev/brainbox_3"
-    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2")) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, (), DEFAULTS.serial_pattern, ("", ""))
-    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), "/dev/pts/4") == ("/dev/pts/4", 9600, KISS, False, (), DEFAULTS.serial_pattern, ("", ""))
+    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2")) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, (), DEFAULTS.serial_pattern)
+    assert tnc_settings(replace(DEFAULTS, serial_port="/dev/ttyUSB0"), "/dev/pts/4") == ("/dev/pts/4", 9600, KISS, False, (), DEFAULTS.serial_pattern)
     assert tnc_settings(replace(DEFAULTS, serial_skip="/dev/brainbox_2, /dev/ttyUSB5")).skip == ("/dev/brainbox_2", "/dev/ttyUSB5")
     assert tnc_settings(replace(DEFAULTS, serial_pattern="/dev/brainbox_*")).pattern == "/dev/brainbox_*"
     assert tnc_settings(DEFAULTS, pattern_override="/tmp/probe_*").pattern == "/tmp/probe_*"
 
 
+def test_the_settings_of_the_fm_radio_are_the_line_settings_of_radio_1_read_from_its_spec(search_pattern_from_settings: None) -> None:
+    config = replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_last_port="/dev/brainbox_3", serial_baud=1200, tnc_profile="kenwood-tnc2", serial_skip="/dev/ttyUSB5")
+    fm = config.radio(FM_ID)
+    assert fm is not None and line_settings(fm, config, RunOverrides()) == tnc_settings(config) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, ("/dev/ttyUSB5",), DEFAULTS.serial_pattern)
+    assert line_settings(fm, config, RunOverrides(port="/dev/pts/4", pattern="/tmp/probe_*")) == tnc_settings(config, "/dev/pts/4", "/tmp/probe_*")
+    moved = replace(fm, settings={**fm.settings, "port": "/dev/ttyACM1", "baud": "57600"})
+    assert line_settings(moved, config, RunOverrides())[:2] == ("/dev/ttyACM1", 57600), "the port and the speed are the radio's own, whatever the station's flat keys say"
+    third = replace(fm, id=3, settings={**fm.settings, "port": ""})
+    assert line_settings(third, config, RunOverrides(port="/dev/pts/4")).port == "", "the port of the run and the port the search remembered are radio 1's: another radio searches"
+    assert line_settings(third, config, RunOverrides(port="/dev/pts/4")).fallback_probe and line_settings(third, config, RunOverrides()).skip == ("/dev/ttyUSB5",), "(by the station's pattern, past the station's ports to skip)"
+
+
+def test_a_tnc_driver_gives_its_line_the_settings_the_id_and_the_quiet_period_and_its_key_is_the_line_settings() -> None:
+    config = replace(DEFAULTS, serial_port="/dev/ttyUSB0", serial_baud=1200, tnc_profile="kenwood-tnc2", serial_skip="/dev/ttyUSB5")
+    fm = config.radio(FM_ID)
+    assert fm is not None
+    third = replace(fm, id=3)
+    driver = TncDriver(third, Claims())
+    line = driver.line
+    assert line.radio_id == 3 and driver.modem is None and driver.held() == []
+    driver.configure(third, config, RunOverrides(pattern="/tmp/probe_*", check_sec=0.0))
+    assert (line.port, line.baud, line.profile, line.fallback_probe, line.skip, line.pattern) == ("/dev/ttyUSB0", 1200, KENWOOD_TNC2, True, ("/dev/ttyUSB5",), "/tmp/probe_*") and line.watchdog.sec == 0.0
+    assert driver.restart_key(third, config, RunOverrides()) == (line_settings(third, config, RunOverrides()),)
+    assert driver.restart_key(third, config, RunOverrides()) != driver.restart_key(third, replace(config, serial_skip=""), RunOverrides()), "the station's ports to skip restart a serial radio"
+    assert driver.restart_key(third, config, RunOverrides()) == driver.restart_key(third, replace(config, mercury_keying="vox", station_comment="x"), RunOverrides()), "nothing of another radio or of the station does"
+    assert driver.words(third, config, RunOverrides()) == "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2,/dev/ttyUSB0 at 1200 baud"
+    given = Tnc()
+    assert TncDriver(fm, Claims(), line=given).line is given and given.radio_id == FM_ID, "a line made elsewhere is the driver's"
+
+
 def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches(search_pattern_from_settings: None) -> None:
     tcp = replace(DEFAULTS, tnc_profile="kiss-tcp")
-    assert tnc_settings(tcp) == ("socket://127.0.0.1:8001", 9600, KISS_TCP, False, (), DEFAULTS.serial_pattern, ("", ""))
+    assert tnc_settings(tcp) == ("socket://127.0.0.1:8001", 9600, KISS_TCP, False, (), DEFAULTS.serial_pattern)
     assert tnc_settings(replace(tcp, tcp_host="pi.local", tcp_port=8100, serial_last_port="/dev/ttyUSB0")).port == "socket://pi.local:8100"
     assert tnc_settings(replace(tcp, tcp_host="::1")).port == "socket://[::1]:8001"
     assert tnc_settings(replace(tcp, serial_port="tcp://10.0.0.5:8100")).port == "tcp://10.0.0.5:8100", "an address in serial/port is the one used"
@@ -256,11 +300,115 @@ def test_a_tcp_profile_connects_to_the_host_and_port_and_never_searches(search_p
 
 def test_the_hf_radio_is_reached_on_the_port_the_modem_part_chose_and_its_two_settings_go_with_it() -> None:
     hf = replace(DEFAULTS, mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0")
-    assert hf_settings(hf) == ("socket://127.0.0.1:8100", 9600, MERCURY, False, (), "", ("plughw:1,0", "rts:/dev/ttyUSB0"))
+    assert hf_settings(hf) == ("socket://127.0.0.1:8100", MERCURY, ("plughw:1,0", "rts:/dev/ttyUSB0"))
     assert hf_settings(hf, modem_port=8101).port == "socket://127.0.0.1:8101", "the modem part chose other ports because the defaults were taken"
     assert hf_settings(hf, "socket://127.0.0.1:18100").port == "socket://127.0.0.1:18100", "a Mercury something else runs (--hf-port): the benches"
     assert hf_settings(replace(hf, mercury_keying="vox")) != hf_settings(hf), "a change of the keying restarts the modem"
-    assert tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp", mercury_keying="rts:/dev/ttyUSB0")).modem == ("", ""), "the FM radio knows nothing of the modem's settings"
+    assert tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp", mercury_keying="rts:/dev/ttyUSB0")) == tnc_settings(replace(DEFAULTS, tnc_profile="kiss-tcp")), "the FM radio knows nothing of the modem's settings"
+    assert hf_settings(replace(hf, hf_profile="dummy-hf")) == (DUMMY_PATH, DUMMY_HF, ("", "")), "the Dummy HF radio opens nothing, and the modem's two settings are not its own"
+
+
+def test_a_modem_driver_points_its_line_at_the_modems_port_and_its_key_has_the_gain_only_while_nothing_sets_it_live(tmp_path: Path) -> None:
+    config = replace(DEFAULTS, hf_enabled=True, mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0", mercury_tx_gain_db=3)
+    hf = config.radio(HF_ID)
+    assert hf is not None
+    line, modem = Tnc(profile=MERCURY), Mercury(tmp_path)
+    driver = MercuryDriver(hf, Claims(), tmp_path / "radios" / "2", line=line, modem=modem)
+    assert driver.line is line and driver.modem is modem and line.modem is modem and line.radio_id == HF_ID and driver.held() == []
+    run = RunOverrides(hf_port="socket://127.0.0.1:18100", check_sec=0.0)
+    driver.configure(hf, config, run)
+    assert (line.port, line.baud, line.profile, line.fallback_probe, line.skip, line.pattern) == ("socket://127.0.0.1:18100", 9600, MERCURY, False, (), ""), "the Mercury of the run: the benches'"
+    assert driver.restart_key(hf, config, run) == (hf_settings(config, "socket://127.0.0.1:18100"), 3) and not modem.live_gain
+    modem._ui = type("Up", (), {"connected": True})()                                    # type: ignore[assignment]
+    assert modem.live_gain and driver.restart_key(hf, config, run) == (hf_settings(config, "socket://127.0.0.1:18100"), None), "with the link open the gain is sent and is no reason to restart"
+    modem._ui = None
+    assert driver.words(hf, config, run) == hf_words(config, "socket://127.0.0.1:18100") == "the Mercury modem, one something else runs at socket://127.0.0.1:18100"
+    fourth = replace(hf, id=4)
+    assert modem_settings(fourth, run).port != "socket://127.0.0.1:18100", "the Mercury of the run is radio 2's: another radio's modem is its own"
+
+
+def test_storing_what_the_running_modem_chose_for_itself_is_no_change_and_anything_else_is(tmp_path: Path) -> None:
+    """MercuryDriver.made_explicit, which the registry asks before it compares the keys (tests/test_radio_restart.py has it through a save)."""
+    config = replace(DEFAULTS, hf_enabled=True)
+    hf = config.radio(HF_ID)
+    assert hf is not None
+    modem = Mercury(tmp_path)
+    driver = MercuryDriver(hf, Claims(), tmp_path, modem=modem)
+    chosen = replace(hf, settings={**hf.settings, "sound_card": "plughw:1,0", "keying": "rts:/dev/ttyUSB0"})
+    modem.sound_card, modem.keying = "plughw:1,0", Keying("rts", "/dev/ttyUSB0")
+    assert driver.made_explicit(hf, chosen) is hf, "a modem that is not running chose nothing"
+    modem.state = "running"
+    assert driver.made_explicit(hf, chosen) == chosen, "the page stores the daemon's proposal: nothing differs"
+    other = replace(hf, settings={**hf.settings, "sound_card": "plughw:9,0", "keying": "rts:/dev/ttyUSB0"})
+    assert driver.made_explicit(hf, other).settings["sound_card"] == "" and driver.made_explicit(hf, other).settings["keying"] == "rts:/dev/ttyUSB0", "another card is a change, the keying it chose is none"
+    assert driver.made_explicit(chosen, hf) == chosen, "a setting that is cleared is a change: the modem is to choose again"
+
+
+def test_the_dummy_port_of_the_modem_driver_is_the_dummy_lines() -> None:
+    assert DUMMY_PORT == DUMMY_PATH, "the modem driver names the Dummy radio's port itself until the architecture test pairs it with dummyline"
+
+
+def test_the_words_of_a_change_name_what_differs_and_the_tickbox() -> None:
+    config = replace(DEFAULTS, tnc_profile="kenwood-tnc2", serial_port="/dev/ttyUSB0")
+    fm_was, fm_now = (tnc_settings(config), True), (tnc_settings(replace(config, serial_port="/dev/ttyUSB1", serial_baud=57600, serial_skip="/dev/ttyS0")), True)
+    assert changed_words(fm_was, fm_now) == "port /dev/ttyUSB0 -> /dev/ttyUSB1, baud 9600 -> 57600, ports to skip none -> /dev/ttyS0"
+    assert changed_words(fm_was, (tnc_settings(replace(config, tnc_profile="kiss")), False)) == f"profile {KENWOOD_TNC2.name} -> {KISS.name}, switched on or off: on -> off"
+    hf = replace(DEFAULTS, hf_enabled=True)
+    assert changed_words((hf_settings(hf), 0, True), (hf_settings(replace(hf, mercury_sound_card="plughw:9,0", mercury_keying="vox")), 0, True)) == "sound card default -> plughw:9,0, keying default -> vox"
+    assert changed_words((hf_settings(hf), 0, True), (hf_settings(hf), 5, True)) == "nothing the radio shows", "(the gain, while nothing sets it live)"
+    assert changed_words((hf_settings(hf), None, True), (hf_settings(replace(hf, hf_profile="dummy-hf")), None, True)) == f"port socket://127.0.0.1:8100 -> {DUMMY_PATH}, profile {MERCURY.name} -> {DUMMY_HF.name}"
+    assert changed_words(("a driver", "of a test", True), ("its key", "says nothing by name", True)) == "nothing the radio shows"
+
+
+async def test_every_radios_packets_go_through_the_one_signal_and_a_change_of_a_radio_is_told_with_its_id(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    assert e.tnc.packet._handlers == [e.ctl.radio_packet.emit] and e.hf.packet._handlers == [e.ctl.radio_packet.emit], "each line is connected to the station's signal and to nothing else"
+    heard: list[str] = []
+    changed: list[int] = []
+    e.ctl.radio_packet.connect(lambda packet: heard.append(packet.source))
+    e.ctl.radio_changed.connect(changed.append)
+    e.tnc.packet.emit(replace(from_internet("OH2AAA", b">on FM", e.now()), via="rf", radio="fm"))
+    e.hf.packet.emit(replace(from_internet("OH2BBB", b">on HF", e.now()), via="rf", radio="hf"))
+    assert heard == ["OH2AAA", "OH2BBB"]
+    book = {s.call: s for s in e.ctl.stationbook.stations()}
+    assert (book["OH2AAA"].heard_fm, book["OH2AAA"].heard_hf, book["OH2BBB"].heard_fm, book["OH2BBB"].heard_hf) == (1, 0, 0, 1), "(and the parts took both, each with its radio)"
+    e.tnc.changed.emit()
+    e.hf._set_state(Source.State.WAITING)
+    e.ctl.mercury.changed.emit()
+    assert changed == [FM_ID, HF_ID, HF_ID, HF_ID], "a line's counters; a line's state, which the line tells as its state and as a change, as the page's topics take it; the modem's state"
+    radio = e.ctl.radios.get(HF_ID)
+    assert radio is not None
+    e.ctl.radios.wire(radio)
+    assert len(e.hf.packet._handlers) == 1 and len(e.ctl.mercury.changed._handlers) == 1 and len(e.ctl.hf_beacon.sent._handlers) == 1, "a radio that is wired again (another driver on the same line) is connected once"
+    e.ctl.beacon.sent.emit(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-"))        # (the iGate takes every radio's beacon: nothing to assert but that it is connected)
+    assert e.ctl.beacon.sent._handlers == e.ctl.hf_beacon.sent._handlers == [e.ctl.igate.beacon_sent]
+
+
+async def test_a_save_of_the_transmit_gain_reaches_the_modem_of_a_radio_that_is_off(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    await e.start(connected=False)
+    assert not e.ctl.config.hf_enabled and e.ctl.mercury.tx_gain_db != -3
+    assert await e.ctl.save_config(replace(e.ctl.config, mercury_tx_gain_db=-3))
+    assert e.ctl.mercury.tx_gain_db == -3, "the radio is off, so nothing restarts: the save itself sets the gain in the modem"
+    await e.stop()
+
+
+async def test_a_modem_on_other_ports_repoints_its_radios_line_only_while_the_radio_is_on(tmp_path: Path) -> None:
+    e = Env(tmp_path, radio=False)
+    await e.start(connected=False)
+    repointed: list[int] = []
+
+    async def repoint(id: int) -> None:
+        repointed.append(id)
+
+    e.ctl.radios.repoint = repoint                                                  # type: ignore[method-assign]
+    e.ctl.mercury.ports_changed.emit()
+    await idle_for(0.1)
+    assert repointed == [] and "hf-tnc" not in {t.get_name() for t in e.ctl.tasks}, "the line of a radio that is off is not started"
+    e.ctl.config = replace(e.ctl.config, hf_enabled=True)                           # (the radio on, without a save that would start it)
+    e.ctl.mercury.ports_changed.emit()
+    await until(lambda: repointed == [HF_ID])
+    await e.stop()
 
 
 async def test_the_start_takes_the_time_the_clock_says(tmp_path: Path) -> None:

@@ -11,15 +11,27 @@
 
     radios = StubRadios(hf_stations=("OH2C",))      # two stubs as one set (neoaprs/radios.py as the services see it): `fm` and `hf`, the FM one the default while it is in `enabled`; a message to a station
                                                     # named in `hf_stations` goes on HF, to any other on FM; a packet is answered on the radio it came on (`Packet.radio`)
+
+A StubTnc is also a radio as the services see one from the radio round on (neoaprs/services/radioset.AirRadio): its id (1 with the FM rules, 2 with the HF ones, or the one given), its kind, name, limits and
+what it is allowed read from its rules, its counters, and the operator's choices on it (`choices`). `StubRegistry` is two of them as the choice of a radio the services take then (`RadioPick`), the same
+choices as StubRadios:
+
+    pick = StubRegistry(hf_stations=("OH2C",))      # pick.fm (radio 1) and pick.hf (radio 2), both on while their ids are in `on`; `main` the FM one while it is on, else the HF one, else None
 """
+from typing import Any
+
 from neoaprs import ax25
 from neoaprs.packet import Packet
 from neoaprs.radiorules import FM, HF, RadioRules
+from neoaprs.radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId
+from neoaprs.radiotype import Allowed, Kind, Limits
+from neoaprs.services.radioset import AirRadio, RadioPick
 from neoaprs.source import Source, unusable_because
+from neoaprs.tncwatchdog import TncStats
 
 
 class StubTnc:
-    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rules: RadioRules | None = None) -> None:
+    def __init__(self, state: Source.State = Source.State.CONNECTED, max_frame: int | None = None, rules: RadioRules | None = None, *, id: RadioId | None = None) -> None:
         self.state = state
         self.sent: list[ax25.Frame] = []
         self.raw: list[bytes] = []                  # the bytes given with a frame (the digipeater's), as they were given
@@ -28,6 +40,29 @@ class StubTnc:
         self.asked = 0
         self.max_frame = max_frame                  # the longest frame the radio carries (the Mercury HF modem's 123), None for the AX.25 limit alone
         self.rules = rules if rules is not None else HF if max_frame is not None else FM         # the rules of the kind of radio: the HF radio's when it has a frame cap, else the FM radio's; a test may give others (a frame cap with paths)
+        self.id: RadioId = id if id is not None else HF_ID if self.rules.kind == "hf" else FM_ID      # the radio it stands for: 1 with the FM rules, 2 with the HF ones, unless one is given
+        self.stats = TncStats()
+        self.choices: dict[str, Any] = {"beacon": True, "path": "", "digipeat": False}              # the operator's choices on the radio (`choice`)
+
+    @property
+    def kind(self) -> Kind:
+        return "hf" if self.rules.kind == "hf" else "fm"
+
+    @property
+    def name(self) -> str:
+        return KIND_WORDS[self.kind]
+
+    @property
+    def limits(self) -> Limits:
+        return Limits(self.max_frame, self.rules.beacon_min_min, self.rules.beacon_jitter_sec, self.rules.retry_jitter_sec)
+
+    @property
+    def allowed(self) -> Allowed:
+        local = self.kind == "fm"               # (internet gateways hear it, and it is a channel shared with stations that know nothing of us)
+        return Allowed(self.rules.paths, self.rules.digipeat, self.rules.smart_beacon, gateway_heard=local, shared_channel=local)
+
+    def choice(self, key: str) -> Any:
+        return self.choices[key]
 
     @property
     def usable(self) -> bool:
@@ -89,3 +124,41 @@ class StubRadios:
 
     def send_frame(self, frame: ax25.Frame, raw: bytes | None = None) -> bool:
         return self.default.send_frame(frame, raw)
+
+
+class StubRegistry:
+    """Two stubs as the one `RadioPick` of the services (neoaprs/services/radioset.py): radio 1, the FM radio, and radio 2, the HF radio (its frame cap `hf_max_frame`), each on while its id is in `on`; the main radio
+    the FM one while it is on, else the HF one, else none; the choice by station (`hf_stations` go on HF while both are on) and by packet (the radio it came on, else the main one); an email goes on the FM radio."""
+
+    def __init__(self, hf_stations: tuple[str, ...] = (), hf_max_frame: int = 123) -> None:
+        self.fm, self.hf = StubTnc(), StubTnc(max_frame=hf_max_frame)
+        self.on: set[RadioId] = {FM_ID, HF_ID}
+        self.hf_stations = hf_stations
+
+    def get(self, id: RadioId) -> StubTnc | None:
+        return {FM_ID: self.fm, HF_ID: self.hf}.get(id)
+
+    def enabled(self) -> list[StubTnc]:
+        return [radio for radio in (self.fm, self.hf) if radio.id in self.on]
+
+    @property
+    def main(self) -> StubTnc | None:
+        return next(iter(self.enabled()), None)
+
+    def for_station(self, call: str) -> StubTnc | None:
+        return self.hf if len(self.on) == 2 and call in self.hf_stations else self.main
+
+    def for_packet(self, packet: Packet) -> StubTnc | None:
+        came = self.get(packet.radio_id) if packet.radio_id is not None else None
+        return came if came is not None and came.id in self.on else self.main
+
+    def email(self) -> StubTnc | None:
+        return self.fm if FM_ID in self.on else None
+
+
+def as_air(radio: StubTnc) -> AirRadio:
+    return radio
+
+
+def as_pick(registry: StubRegistry) -> RadioPick:
+    return registry

@@ -1,6 +1,8 @@
 """The Dummy HF radio (neoaprs/dummyhfscene.py, dummyline.py, the profile `dummy-hf` of tncprofile.py): a handful of distant fixed stations whose beacons come every half hour to an hour with the HF pause, the first within
 two minutes, every frame direct, the nearest answering a message at the pace of HF, calls that can be nobody's; the Tnc on it marks every packet `dummy` on the radio `hf` and opens nothing; the daemon with the
-HF radio as the Dummy starts no modem for a radio but the speaker, which is handed our frames to be heard, and nothing of it goes on any air (the HF world: a dummy station beside two real ones)."""
+HF radio as the Dummy starts no modem for a radio but the speaker, which is handed our frames to be heard, and nothing of it goes on any air (the HF world: a dummy station beside two real ones). In the
+registry (neoaprs/radioregistry.py) it is radio 2 with a type that is a Dummy, driven by the modem's driver because the program is its speaker; a Dummy radio that stops being one (another type, or switched
+off) takes what it made up under calls of its own along (Controller._leave_dummy)."""
 import asyncio
 import contextlib
 import logging
@@ -23,8 +25,11 @@ from neoaprs.geo import distance_km
 from neoaprs.mercury import DELIVERY_SEC
 from neoaprs.mercuryspeaker import BLOCK_BYTES, SILENCE, SpeakerAudio, player_command
 from neoaprs.packet import Position
+from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.radiorules import HF_BEACON_JITTER_SEC
+from neoaprs.radioregistry import driver_key
 from neoaprs.radios import hf_is_mercury
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncmode import read_frame
@@ -153,6 +158,9 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
+    radio = e.ctl.radios.get(HF_ID)
+    assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "tnc" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
+    assert radio.line is e.hf and radio.driver.modem is e.ctl.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
     speaking = hasattr(os, "mkfifo")
     if speaking:
         assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
@@ -334,8 +342,8 @@ async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_i
 
 
 @pytest.mark.parametrize("leave", [{"hf_profile": "mercury"}, {"hf_enabled": False, "fm_enabled": True}])
-async def test_leaving_the_dummy_hf_radio_cancels_what_was_being_sent_to_its_stations_and_forgets_them(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]) -> None:
-    """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real HF radio and held the channel. Nothing made up stays once a real radio is on."""
+async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent_to_its_stations_and_forgets_them(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture, leave: dict[str, object]) -> None:
+    """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real HF radio and held the channel. Nothing made up stays once a real radio is on: the radio got another type, or was switched off."""
     caplog.set_level(logging.INFO, logger="neoaprs")
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
     e.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
@@ -350,9 +358,36 @@ async def test_leaving_the_dummy_hf_radio_cancels_what_was_being_sent_to_its_sta
     kuopio = await e.ctl.messaging.send("Q1KUO", "hello Kuopio")                 # (one that does not answer: the message stays being sent)
     real = await e.ctl.messaging.send("OH2REAL", "a real station")
     assert kuopio.state == "sending" and real.state == "sending"
+    made_up = sorted(s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q"))
+    assert await e.ctl.change_config(lambda c: replace(c, station_comment="still a Dummy"))
+    assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "sending", "a save that leaves the radio a Dummy cancels nothing"
+    assert made_up and set(made_up) <= {s.call for s in e.ctl.stationbook.stations()}, "and forgets none of its stations"
     assert await e.ctl.change_config(lambda c: replace(c, **leave))
     assert getattr(e.ctl.messaging.get(kuopio.id), "state", "") == "cancelled"
     assert getattr(e.ctl.messaging.get(real.id), "state", "") == "sending", "a message to a real station is the operator's to cancel"
     assert [s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q")] == [], "the made-up stations are gone"
-    assert "cancelled: the Dummy HF radio" in caplog.text and "forgot the made-up stations" in caplog.text
+    assert "cancelled: the Dummy HF radio that makes Q1KUO up is left" in caplog.text and "forgot the made-up stations of the Dummy HF radio: " in caplog.text
+    radio = e.ctl.radios.get(HF_ID)
+    assert radio is not None and not (radio.spec.enabled and radio.rtype.dummy) and radio.line is e.hf, "the same radio and the same line, a Dummy no longer"
+    await e.stop()
+
+
+async def test_an_fm_dummy_radio_that_stops_being_one_takes_nothing_along(tmp_path: Path, fast: None, caplog: pytest.LogCaptureFixture) -> None:
+    """The FM Dummy's stations are made round the station under calls that are not its own to forget: they stay, as they always did, until the daily prune."""
+    caplog.set_level(logging.INFO, logger="neoaprs.controller")
+    e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "station/lat": "60.2231", "station/lon": "24.7152", "messages/alert": "false"})
+    await e.start()
+    for _ in range(400):
+        e.now.advance(10)                                                        # type: ignore[attr-defined]
+        await asyncio.sleep(0.01)
+        if sum(1 for s in e.ctl.stationbook.stations() if s.call.startswith("Q")) >= 3:
+            break
+    heard = sorted(s.call for s in e.ctl.stationbook.stations() if s.call.startswith("Q"))
+    assert len(heard) >= 3
+    sent = await e.ctl.messaging.send(heard[0], "to a made-up station of the FM Dummy")
+    radio = e.ctl.radios.get(FM_ID)
+    assert radio is not None and radio.rtype.dummy and radio.driver_key == "tnc"
+    assert await e.ctl.change_config(lambda c: replace(c, tnc_profile="kiss"))
+    assert not radio.rtype.dummy and getattr(e.ctl.messaging.get(sent.id), "state", "") == "sending"
+    assert set(heard) <= {s.call for s in e.ctl.stationbook.stations()} and "forgot the made-up stations" not in caplog.text and "cancelled" not in caplog.text
     await e.stop()

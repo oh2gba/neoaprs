@@ -1,17 +1,16 @@
-"""The radios of the station, at most one of each kind: the FM radio (the KISS TNC of today, slot `fm`) and the HF radio (the Mercury modem, slot `hf`), each a `Tnc` of its own with the rules of its kind
-(neoaprs/radiorules.py), and the one place that chooses between them. A service that sends to no station in particular (asking around, our objects and bulletins, the status) takes this object as the one `Radio` it
-always took: it is the **default radio**, the FM one while it is on, else the HF one. A service that answers a station takes the radio the station is reached on: `for_station` for a message of ours (FM when the
-station was heard on FM, or never on HF alone: it is near, and HF airtime is everyone's; HF when it was heard on HF alone, or the FM radio is off), `for_packet` for an ack or an answer (the radio the packet came
-on). While the HF radio is not enabled every choice falls to the FM radio and nothing differs from a station with one radio; a third kind (a LoRa board) is one more slot here and nothing in the services.
+"""Radios 1 and 2 as the services of before the radio round see them: the FM radio (slot `fm`) and the HF radio (slot `hf`) as one `RadioSet` (neoaprs/services/common.py), the default radio for a service
+that sends to no station in particular (the FM one while it is on, else the HF one), `for_station` for a message of ours and `for_packet` for an ack or an answer, each giving the radio's `Tnc`. The radios
+themselves, any number of them, their lifecycle and the operator's choice by station are the registry's (neoaprs/radioregistry.py, `Services.radios`); the composition root gives this view (`Services.radio_set`)
+to each service until the service takes the registry, and then it goes, with `hf_is_mercury`, `hf_is_dummy` and `KINDS`, which the page's handlers and the tests still read.
 
-The slots are enabled by the settings `fm/enabled` and `hf/enabled`; a radio that is not enabled stays stopped (the controller starts and stops each on its own settings) and is never chosen. Both `Tnc` objects
-always exist, so that the page's topics and the tests have them whatever the settings."""
-import json
+The slots are enabled by the settings `fm/enabled` and `hf/enabled`; a radio that is not enabled is never chosen. The rule of `for_station` is the one of neoaprs/messagerule.py (tests/test_seams.py holds
+the two equal). The operator's choice by station (`choose`, `restore`) is the registry's own part (`radioregistry.StationChoices`), which a set made by itself, as the tests make one, keeps for itself."""
 from collections.abc import Awaitable, Callable, Iterator
 
 from . import ax25
 from .config import Config
 from .packet import Packet
+from .radioregistry import StationChoices
 from .radiorules import RadioRules
 from .source import Source
 from .stationbook import StationBook
@@ -31,14 +30,12 @@ def hf_is_dummy(config: Config) -> bool:
     return config.hf_enabled and hf_profile_of(config.hf_profile).transport == "dummy"
 
 
-class Radios:
+class Radios(StationChoices):
     def __init__(self, fm: Tnc, hf: Tnc, config: Callable[[], Config], book: StationBook, remember: Callable[[str], None] = lambda text: None,
                  flush: Callable[[], Awaitable[None]] | None = None) -> None:
+        super().__init__(book, remember, flush)                                   # (the operator's radio by station, as the registry keeps it: `choose`, `forget`, `restore`)
         self.fm, self.hf = fm, hf
         self._config = config
-        self._book = book
-        self._remember, self._wait_written = remember, flush                     # keep the operator's choices of a radio by station (the state row MESSAGE_RADIOS: the composition root writes it), and wait for it
-        self._choices: dict[str, str] = {}                                        # the choices in force, by call: what the row says (a station the book lets go takes its choice with it)
 
     def __iter__(self) -> Iterator[Tnc]:
         """Every radio, enabled or not (the page's topics, the wiring of the packets: a radio that is off emits nothing)."""
@@ -75,52 +72,6 @@ class Radios:
         if station is not None and station.message_radio in KINDS:
             return fm if station.message_radio == "fm" else hf
         return hf if station is not None and station.heard_hf > 0 and station.heard_fm == 0 else fm
-
-    def choose(self, call: str, kind: str) -> bool:
-        """The radio messages to the station go out on from now on (`fm`, `hf`; "" gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a station
-        that is not in the book."""
-        station = self._book.get(call)
-        if station is None or (kind and kind not in KINDS):
-            return False
-        station.message_radio = kind
-        if kind:
-            self._choices[station.call] = kind
-        else:
-            self._choices.pop(station.call, None)
-        self._book.changed.emit(station)
-        self._remember(self.choices_text())
-        return True
-
-    def forget(self, call: str) -> None:
-        """The book let the station go (Forget, the daily prune): its choice goes too, from the row as well, so that a restart does not bring it back to a station heard again meanwhile."""
-        if self._choices.pop(call, None) is not None:
-            self._remember(self.choices_text())
-
-    def forget_all(self) -> None:
-        """The book let every station go (Forget all)."""
-        if self._choices:
-            self._choices.clear()
-            self._remember(self.choices_text())
-
-    def choices_text(self) -> str:
-        """The choices of the stations in the book, as the state row keeps them."""
-        return json.dumps(self._choices, sort_keys=True)
-
-    async def flush(self) -> None:
-        """Waits until a choice being written is written (the stop)."""
-        if self._wait_written is not None:
-            await self._wait_written()
-
-    def restore(self, text: str | None) -> None:
-        """The choices kept in the state row, on the stations of the book (at the start, once the book is seeded); a row that is not one is no choice."""
-        try:
-            kept = json.loads(text or "{}")
-        except ValueError:
-            return
-        for call, kind in (kept.items() if isinstance(kept, dict) else ()):
-            station = self._book.get(str(call))
-            if station is not None and kind in KINDS:
-                station.message_radio = self._choices[station.call] = kind
 
     def for_packet(self, packet: Packet) -> Tnc:
         """The radio to answer a packet on: the one it came on, while it is enabled; else the default. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""

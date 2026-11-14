@@ -1,5 +1,6 @@
 """The beacon and the status report keep their schedule across a restart (neoaprs/services/memory.py): the rows `beacon/last_sent_at`, `status/last_sent_at` and `status/last_text` of a real Store on a
-temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again."""
+temporary database, a clock the test holds, a Tnc that is a stub. A second Beacon or RigStatus on the same Store is the daemon started again. In the whole daemon each radio of the registry has its own
+beacon, which keeps its last send in a row of its own: radio 1's in `beacon/last_sent_at` and radio 2's in `hf/beacon_last_sent_at`, as before."""
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -19,6 +20,7 @@ from tests.support.fakes import FakeRigctld, rigctld
 from tests.support.storedb import store_at
 
 BEACON_ROW, STATUS_ROW, TEXT_ROW = STATE_KEYS[:3]
+HF_BEACON_ROW = STATE_KEYS[4]
 
 
 class Daemon:
@@ -234,4 +236,27 @@ async def test_a_daemon_started_again_inside_the_interval_plans_its_beacon_from_
     second = Env(tmp_path, clock=clock)
     await second.start()
     assert second.ctl.beacon.next_due == sent + timedelta(minutes=60)
+    await second.stop()
+
+
+async def test_each_radios_beacon_keeps_its_last_send_in_its_own_row_and_is_planned_from_it_after_a_restart(tmp_path: Path) -> None:
+    settings = {"hf/enabled": "true", "hf/profile": "dummy-hf", "beacon/interval_min": "60"}
+    first = Env(tmp_path, settings=settings)
+    first.ctl.mercury._finder = lambda: None                          # (no program: the Dummy HF radio works without its speaker)
+    await first.start()
+    await until(lambda: first.tnc.usable and first.hf.usable)
+    fm, hf = first.ctl.radios.all()
+    assert (fm.beacon, hf.beacon) == (first.ctl.beacon, first.ctl.hf_beacon), "the beacon of radio 1 and of radio 2"
+    assert fm.beacon.send_now()
+    fm_sent = first.now()
+    first.now.advance(120)                                            # type: ignore[attr-defined]
+    assert hf.beacon.send_now()
+    hf_sent = first.now()
+    await first.stop()
+    second = Env(tmp_path, clock=FixedClock(hf_sent + timedelta(minutes=10)), settings=settings)
+    second.ctl.mercury._finder = lambda: None
+    second.ctl.hf_beacon.jitter = lambda most: 0.0                    # (the random pause of an HF beacon)
+    await second.start()
+    assert (await second.ctl.store.setting(BEACON_ROW), await second.ctl.store.setting(HF_BEACON_ROW)) == (iso(fm_sent), iso(hf_sent)) and BEACON_ROW != HF_BEACON_ROW == "hf/beacon_last_sent_at"
+    assert second.ctl.beacon.next_due == fm_sent + timedelta(minutes=60) and second.ctl.hf_beacon.next_due == hf_sent + timedelta(minutes=60), "each from its own last send"
     await second.stop()

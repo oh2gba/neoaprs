@@ -8,8 +8,10 @@ import pytest
 
 from neoaprs import ax25, kiss, mercurymodem
 from neoaprs.mercury import BROADCAST_PORT
+from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.mercuryhelper import PORT_TRIES, free_ports
 from neoaprs.source import Backoff
+from neoaprs.tncdriver import TncDriver
 from tests.support import fakemercury
 from tests.support.env import Env, idle_for, until
 from tests.support.fakeradio import FakeRadio
@@ -38,6 +40,10 @@ async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_so
         assert e.tnc.port == direwolf.url, "the FM radio is the Direwolf"
         assert e.hf.port != direwolf.url and mercury.broadcast_port != direwolf.port
         assert e.hf.port == f"socket://127.0.0.1:{mercury.broadcast_port}", "the HF radio is the Mercury we started"
+        fm, hf = e.ctl.radios.all()
+        assert (fm.rtype.key, fm.rtype.transport, type(fm.driver), fm.line.port) == ("kiss-tcp", "tcp", TncDriver, direwolf.url), "radio 1: its driver gave its line the address of its own setting"
+        assert (hf.rtype.key, type(hf.driver), hf.driver.modem, hf.line.port) == ("mercury", MercuryDriver, mercury, e.hf.port), "radio 2: its driver started its own modem and pointed its line at it"
+        assert e.ctl.run.hf_port == "" and e.ctl.run.port == "", "nothing was given for the run: the address is the setting of radio 1"
         direwolf.feed(kiss.encode(ax25.encode(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2XYZ-7"), (), info=b"!6010.00N/02456.00E>hello"))))
         await until(lambda: e.ctl.stationbook.get("OH2XYZ-7") is not None)
         await idle_for(0.3)                                                 # (the time a second copy, from the HF Tnc, would have had to arrive)

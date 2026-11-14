@@ -2,27 +2,25 @@
 QRU to the QRU server), the queries and our objects (one that another station reports is theirs and is dropped), the receive-only iGate and, last, the digipeater. A packet received from APRS-IS (`Packet.via` is `is`; the connection `Services.aprsis` reads the lines and hands each packet to `Services.hear_internet`) is handed through a signal of its own, `Services.internet_packet`, and
 goes only to the packet log, the station book and the weather log (and, from `neoaprs/web/topics.py`, to the page): the one gate for packets from the internet is the pair of lists `SEEN_BY_ALL` and `ON_AIR_ONLY` below. Our objects go to the station book, what the book changes goes to the database, the port the search found is remembered, and the GPS fix moves our own row on the map and the ALOHA circle.
 
-Also how the settings become each radio's Tnc's: `tnc_settings` (the FM radio) and `hf_settings` (the HF radio), and how the station book is filled from the database at the start: `seed_station_book`."""
+Every radio's packets go to the one signal `Services.radio_packet`, and what changes of a radio (its state, its lines and counters, its modem) is told on `Services.radio_changed` with its id: `wire_radio`
+connects a radio's line, its modem and its beacon when the registry makes it (neoaprs/radioregistry.py, which connects nothing itself), so that the handlers are connected once whatever the number of radios.
+
+Also how the station book is filled from the database at the start: `seed_station_book`. How the settings become a radio's line's is its driver's (neoaprs/tncdriver.py, neoaprs/mercurydriver.py)."""
 import logging
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import timedelta
-from typing import NamedTuple
 
-from . import nodevices
-from .app import Services
-from .config import MESSAGE_RADIOS, Config
-from .dummyline import DUMMY_PATH
-from .mercury import BROADCAST_PORT as MERCURY_PORT, DIAL_BAND, SUGGESTED
-from .mercurymodem import HOST as MERCURY_HOST
+from .app import Radio, Services
+from .config import MESSAGE_RADIOS
+from .mercury import DIAL_BAND, SUGGESTED
 from .packet import IS, Packet
 from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
-from .serialprobe import search_pattern
+from .radiospec import FM_ID
 from .source import Source
 from .stationbook import DETAILS_SEEN, ROUTES_SEEN
-from .tnc import Tnc
-from .tncprofile import Profile, hf_profile_of, names_tcp, tcp_url
+from .tncdriver import TncDriver, tnc_settings as tnc_settings       # (the FM radio's settings under the name they had here: tests/test_nodevices.py)
 from .versions import Frequency, suggested
 
 log = logging.getLogger("neoaprs.wiring")
@@ -31,88 +29,6 @@ packets_log = logging.getLogger("neoaprs.packets")
 SEEN_BY_ALL = ("packetlog", "stationbook", "weatherlog")                              # the log, the book of stations and the weather trends take a packet whatever the channel
 ON_AIR_ONLY = ("messaging", "queries", "qruask", "generalask", "ownobjects", "igate", "digipeater")                  # what answers, acknowledges, repeats or sends: only what was on the radio
 start_log = logging.getLogger("neoaprs.controller")          # what the start of the daemon says is the controller's, whoever does it
-NO_MERCURY = "the HF radio has no line to a Mercury: none is started, and none was given for this run (--hf-port)"       # what the no-devices switch says of the HF radio's port (hf_settings)
-
-
-class TncSettings(NamedTuple):
-    port: str                   # where to open the radio, "" to listen to the ports for it
-    baud: int
-    profile: Profile            # what the TNC is: how to switch it to KISS, whether it may be asked if it is there
-    fallback_probe: bool        # when the port cannot be opened, listen to the ports for the radio
-    skip: tuple[str, ...]       # ports the search never opens (serial/skip)
-    pattern: str                # the globs of the ports the search listens to (serial/pattern)
-    modem: tuple[str, str] = ("", "")       # what a modem the daemon starts is given (the Mercury HF modem: the sound card and the keying); empty for every other profile
-
-
-def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
-    """What the FM radio's Tnc is started with. A port given for this run is the only one tried; otherwise the port of the settings, else the one the search found last time (and a port that cannot be
-    opened is followed by the search). The search listens to the ports of `pattern_override` when the process was given one for this run, else of NEOAPRS_SERIAL_PATTERN when that is set, else of serial/pattern. A TCP profile connects to tcp/host and
-    tcp/port (or to the `tcp://` address in serial/port) and never searches."""
-    pattern = pattern_override or search_pattern(config.serial_pattern)
-    profile, baud = config.profile, config.tnc_baud
-    if port_override and profile.transport != "dummy":
-        return TncSettings(port_override, baud, profile, False, config.serial_skip_paths, pattern)
-    if profile.transport == "dummy":
-        return TncSettings(DUMMY_PATH, baud, profile, False, config.serial_skip_paths, pattern)       # (the Dummy radio opens nothing, and no port is chosen for it)
-    if profile.transport == "tcp":
-        return TncSettings(config.serial_port if names_tcp(config.serial_port) else tcp_url(config.tcp_host, config.tcp_port), baud, profile, False, config.serial_skip_paths, pattern)
-    return TncSettings(config.serial_port or config.serial_last_port, baud, profile, True, config.serial_skip_paths, pattern)
-
-
-def hf_settings(config: Config, port_override: str = "", modem_port: int = MERCURY_PORT) -> TncSettings:
-    """What the HF radio's Tnc is started with: the Mercury profile, reached on `modem_port` (the broadcast port the modem part chose for the program it starts), or at the `socket://` address given for this run
-    (`--hf-port`: a Mercury that something else runs, the benches'); its sound card and keying go with it, so that a change of them restarts the modem. It never searches. The Dummy HF radio (hf/profile) opens
-    nothing, as the FM radio's Dummy does. Under the no-devices switch the daemon starts no Mercury, so without an address given for this run the HF radio has no port at all (and no pattern to search): whatever
-    listens where a Mercury of ours would have been, the operator's own modem on this computer's port 8100 for one, is not ours and is never connected to."""
-    profile = hf_profile_of(config.hf_profile)
-    if profile.transport == "dummy":
-        return TncSettings(DUMMY_PATH, 9600, profile, False, (), "")
-    no_line = not port_override and (nodevices.refused(NO_MERCURY, logging.INFO) if config.hf_enabled else nodevices.on())       # (said in the log only while there is an HF radio to say it of)
-    return TncSettings(port_override or ("" if no_line else tcp_url(MERCURY_HOST, modem_port)), 9600, profile, False, (), "", (config.mercury_sound_card, config.mercury_keying))
-
-
-def radio_words(settings: TncSettings) -> str:
-    """A radio's settings for the log: what it is and where it is reached (an address of the daemon's own, a port, a device path: nothing secret)."""
-    where = settings.port or f"the first port that matches {settings.pattern} and talks KISS"
-    modem = f", sound card {settings.modem[0] or 'by default'}, keying {settings.modem[1] or 'by default'}" if settings.profile.transport == "modem" else ""
-    return f"{settings.profile.name},{where}{'' if settings.profile.transport != 'serial' else f' at {settings.baud} baud'}{modem}"
-
-
-def hf_words(config: Config, port_override: str) -> str:
-    """The HF radio that is started, for the log: the Mercury modem (the daemon's own, which under the no-devices switch is not started, or one something else runs at the address given for this run) or the
-    Dummy HF radio."""
-    if hf_profile_of(config.hf_profile).transport == "dummy":
-        return "the Dummy HF radio, made-up stations" + ("" if nodevices.on() else ", and the modem played through the speakers")
-    if port_override:
-        return f"the Mercury modem, one something else runs at {port_override}"
-    return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"
-
-
-def _shown(value: object) -> str:
-    if isinstance(value, Profile):
-        return value.name
-    if isinstance(value, bool):
-        return "on" if value else "off"
-    if isinstance(value, tuple):
-        return ", ".join(str(v) or "default" for v in value) or "none"
-    return str(value) or "none"
-
-
-def changed_words(before: tuple[object, ...], after: tuple[object, ...]) -> str:
-    """What differs between the settings a radio ran on and the ones it is to run on, for the log: `port /dev/ttyUSB0 -> /dev/ttyUSB1, baud 9600 -> 57600`. A radio's settings are a TncSettings and whether it is on."""
-    old, new = before[0], after[0]
-    assert isinstance(old, TncSettings) and isinstance(new, TncSettings)
-    names = {"enabled": "switched on or off", "skip": "ports to skip", "pattern": "search pattern", "fallback_probe": "search when the port fails"}
-    parts = [f"{names.get(field, field)} {_shown(getattr(old, field))} -> {_shown(getattr(new, field))}" for field in TncSettings._fields if field != "modem" and getattr(old, field) != getattr(new, field)]
-    parts += [f"{what} {was or 'default'} -> {now or 'default'}" for what, was, now in zip(("sound card", "keying"), old.modem, new.modem, strict=True) if was != now]
-    if before[1] != after[1]:
-        parts.append(f"{names['enabled']}: {_shown(before[1])} -> {_shown(after[1])}")
-    return ", ".join(parts) or "nothing the radio shows"
-
-
-def apply_tnc_settings(tnc: Tnc, settings: TncSettings) -> None:
-    """For a Tnc that is stopped."""
-    tnc.port, tnc.baud, tnc.profile, tnc.fallback_probe, tnc.skip, tnc.pattern = settings[:6]
 
 
 class AirOnly:
@@ -135,19 +51,14 @@ class AirOnly:
 def wire(parts: Services) -> None:
     book, packetlog = parts.stationbook, parts.packetlog
     parts.internet_packet.connect(_log_packet)
-    for tnc in parts.radios:                                      # (both radios: what either hears goes the same way, each packet stamped with its radio)
-        tnc.packet.connect(_log_packet)
+    parts.radio_packet.connect(_log_packet)                      # (every radio: what any hears goes the same way, each packet stamped with its radio)
     for handler in (packetlog.append, book.take, parts.weatherlog.take):                       # SEEN_BY_ALL
-        for tnc in parts.radios:
-            tnc.packet.connect(handler)
+        parts.radio_packet.connect(handler)
         parts.internet_packet.connect(handler)
     for on_air in (parts.messaging.on_packet, parts.queries.on_packet, parts.qruask.on_packet, parts.generalask.on_packet, parts.ownobjects.on_packet, parts.igate.on_packet, parts.digipeater.on_packet):          # ON_AIR_ONLY
-        for tnc in parts.radios:
-            tnc.packet.connect(AirOnly(on_air))                   # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what either radio hears on APRS-IS, nothing comes the other way)
+        parts.radio_packet.connect(AirOnly(on_air))               # (the digipeater last: what was heard is logged and handled before the copy that is sent; the iGate puts what any radio hears on APRS-IS, nothing comes the other way)
     parts.aprsis.heard.connect(parts.hear_internet)               # what APRS-IS sends goes in by the one gate for packets from the internet
     parts.aprsis.changed.connect(parts.igate.link_changed)
-    parts.beacon.sent.connect(parts.igate.beacon_sent)           # (a moving station's beacon is also put on APRS-IS)
-    parts.hf_beacon.sent.connect(parts.igate.beacon_sent)
     parts.ownobjects.changed.connect(book.own_object)
     parts.ownobjects.removed.connect(book.forget_own)
     book.changed.connect(packetlog.save_station)
@@ -156,13 +67,14 @@ def wire(parts: Services) -> None:
     parts.prefbook.changed.connect(parts.stationalerts.pref_changed)
     parts.config_changed.connect(parts.stationalerts.settings_changed)
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
-    parts.tnc.state_changed.connect(lambda state: _remember_port(parts, state))        # (the FM radio's port: the HF radio has none to remember)
-    parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radios.py)
+    wired: list[object] = []                                                             # the lines, modems and beacons connected so far (a radio given another driver may keep its line)
+    parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)                   # (a radio made later, or given another driver, is connected the same way)
+    for radio in parts.radios.all():
+        wire_radio(parts, radio, wired)
+    parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radioregistry.py)
     parts.stationbook.cleared.connect(parts.radios.forget_all)
-    parts.mercury.ports_changed.connect(parts.repoint_hf)                                # (a modem started again on other ports, the old pair taken meanwhile: the HF Tnc follows it)
     parts.updatecheck.dial_changed.connect(lambda dial: _show_frequencies(parts))        # (the frequencies the HF box suggests come from the project's file or the version page: a move needs no release)
     parts.frequencies.changed.connect(lambda: _show_frequencies(parts))
-    parts.config_changed.connect(lambda config: parts.mercury.set_tx_gain(config.mercury_tx_gain_db))                  # (the transmit gain is set live in the modem, and the tune tone follows it)
     parts.config_changed.connect(lambda config: parts.aloha.refresh())                  # (our position may have moved)
     parts.gps_feed.fixed.connect(parts.gps.take)                                         # the GPS fix, and where it is: the service keeps it, the book and the ALOHA circle follow it
     parts.gps_feed.changed.connect(parts.gps.feed_changed)
@@ -171,8 +83,31 @@ def wire(parts: Services) -> None:
     parts.mapfetch.changed.connect(parts.mapauto.fetch_changed)                         # (a job it began has ended: done, or to be tried again at the next start)
 
 
+def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
+    """One radio's signals, each part of it connected once: what its line hears goes to `radio_packet`, and what changes of it to `radio_changed` with its id; the port its search found is remembered; its
+    beacon is also put on APRS-IS (a moving station's); its modem, when it has one, is followed to other ports and takes the transmit gain of the settings live."""
+    def first_time(part: object) -> bool:
+        if any(part is known for known in wired):
+            return False
+        wired.append(part)
+        return True
+
+    line, modem, beacon, id = radio.line, radio.driver.modem, radio.beacon, radio.id
+    if first_time(line):
+        line.packet.connect(parts.radio_packet.emit)
+        line.state_changed.connect(lambda state: _remember_port(parts, radio, state))
+        line.state_changed.connect(lambda state: parts.radio_changed.emit(id))
+        line.changed.connect(lambda: parts.radio_changed.emit(id))
+    if modem is not None and first_time(modem):
+        modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
+        modem.changed.connect(lambda: parts.radio_changed.emit(id))
+        parts.config_changed.connect(lambda config: modem.set_tx_gain(radio.spec.value("tx_gain_db")))       # (the transmit gain is set live in the modem, and the tune tone follows it)
+    if first_time(beacon):
+        beacon.sent.connect(parts.igate.beacon_sent)                                     # (a moving station's beacon is also put on APRS-IS)
+
+
 def _show_frequencies(parts: Services) -> None:
-    """The frequencies the HF box suggests, on the modem it reads them from: the project's list, else the dial the version page names, else the built-in two; the page's radio topic is told again."""
+    """The frequencies the HF box suggests, on the modem it reads them from: the project's list, else the dial the version page names, else the built-in ones; the page's radio topic is told again."""
     built_in = [Frequency(band, dial) for band, dial in SUGGESTED]
     now = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
     parts.mercury.frequencies = now
@@ -187,12 +122,14 @@ def _log_packet(packet: Packet) -> None:
         packets_log.log(level, "%s%s -> %s", "sent " if packet.direction == "out" else "internet " if packet.via == IS else "", tnc2(packet), packet.summary)
 
 
-def _remember_port(parts: Services, state: Source.State) -> None:
-    """A port the search found is stored as serial/last_port and tried first next time. Not a port that was named (the settings or --port) and opened."""
-    if state is not Source.State.CONNECTED or parts.port_override or parts.config.profile.transport != "serial":
+def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
+    """A port the search found is stored as serial/last_port and tried first next time. Not a port that was named (the settings or --port) and opened. The one row is radio 1's until the radios are stored
+    (package D1a), and only a TNC's line is searched for."""
+    driver = radio.driver
+    if state is not Source.State.CONNECTED or radio.id != FM_ID or not isinstance(driver, TncDriver):
         return
-    path, config = parts.tnc.path, parts.config
-    if path and path not in (config.serial_port, config.serial_last_port):
+    path = driver.found_port(radio.spec, parts.config, parts.run)
+    if path:
         parts.tasks.spawn(_store_last_port(parts, path), "remember-port")
 
 

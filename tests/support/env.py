@@ -15,6 +15,9 @@ test builds its world with it; `stop_all` is called when a test is over and also
     Env(tmp_path, operator=False)        # a fresh install: no call and no position (the default); every other Env has the operator's station in its settings, as an install that was set up has
     Env(tmp_path, web=True)              # the page's server too, on a free port (`e.port`): `page = await e.ws()` is a tab (tests/support/wsclient.py), `await e.fetch("/path")` an HTTP request
 
+The radios are the daemon's own (the registry, `e.ctl.radios`: neoaprs/radioregistry.py), and the names of an Env are radios 1 and 2 of it: `e.tnc` is radio 1's line (the FM radio; the Env makes it and hands
+it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settings tick `hf/enabled`), `e.radio` and `e.hf_radio` the fakes at their far ends, `e.active` the line of the one that is on.
+
 The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing."""
 import asyncio
 import shutil
@@ -176,7 +179,7 @@ class Env:
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
         self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link)
-        self.hf = self.ctl.hf                                  # the HF radio's Tnc (stopped unless the settings tick hf/enabled)
+        self.hf = self.ctl.hf                                  # the HF radio's Tnc: radio 2's line (stopped unless the settings tick hf/enabled)
         self.ctl.mercury.ports = lambda: []                   # (the Mercury modem's choice of a keying line never reads the operator's serial ports in a test)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:

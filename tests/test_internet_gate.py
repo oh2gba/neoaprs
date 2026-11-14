@@ -1,6 +1,7 @@
 """The one gate for packets from the internet (neoaprs/wiring.py, `Services.hear_internet`): a packet that came from APRS-IS (`Packet.via` is `is`) goes only to the packet log, the station book and the weather log and
-is told to the page; what answers, acknowledges, repeats, sends or gates never gets it. The test walks the signals of a built app and every part that takes a packet, so that a part added later and connected
-to the radio's signal, or given a packet by any other way, fails here until it is classified; then a whole daemon is handed such packets that would each make it transmit, and says nothing: by `hear_internet`, and
+is told to the page; what answers, acknowledges, repeats, sends or gates never gets it. The test walks the two signals of a built app that carry a packet (`radio_packet`, which every radio's line is connected to and
+to nothing else, and `internet_packet`) and every part that takes a packet, so that a part added later and connected to the radios' signal, or to a radio's line past it, or given a packet by any other way, fails
+here until it is classified; then a whole daemon is handed such packets that would each make it transmit, and says nothing: by `hear_internet`, and
 again by the connection to APRS-IS that reads them from a server (neoaprs/aprsis.py), whose one outlet, the signal `heard`, is held to `hear_internet` alone."""
 import inspect
 import logging
@@ -37,8 +38,17 @@ def owner(e: Env, handler: Any) -> str:
 
 
 def connected(e: Env, which: str) -> list[tuple[str, bool]]:
-    signal = e.ctl.tnc.packet if which == "radio" else e.ctl.internet_packet
+    signal = e.ctl.radio_packet if which == "radio" else e.ctl.internet_packet
     return [(owner(e, handler), isinstance(handler, AirOnly)) for handler in signal._handlers]
+
+
+def test_every_radios_line_hands_its_packets_to_the_radios_signal_and_to_nothing_else(tmp_path: Path) -> None:
+    """No part is connected to a radio's own line: what a line hears can reach a part only through `radio_packet`, whose handlers the next test holds to the two lists."""
+    e = Env(tmp_path, radio=False)
+    lines = [radio.line for radio in e.ctl.radios.all()]
+    assert lines == [e.ctl.tnc, e.ctl.hf], "the radios of the registry are the two of the settings"
+    for line in lines:
+        assert line.packet._handlers == [e.ctl.radio_packet.emit] and owner(e, line.packet._handlers[0]) == "radio_packet"
 
 
 def test_the_radios_signal_has_the_parts_of_the_two_lists_and_nothing_else_and_the_ones_that_act_are_behind_the_lock(tmp_path: Path) -> None:
@@ -85,7 +95,8 @@ TAKERS = {
     "messaging": {"on_packet", "echoed"}, "messaging.inbox": {"on_packet"}, "messaging.delivery": {"heard"},     # ON_AIR_ONLY: messaging and what it hands the packet to
     "queries": {"on_packet"}, "qruask": {"on_packet", "answers"}, "generalask": {"on_packet"}, "ownobjects": {"on_packet"}, "igate": {"on_packet"}, "digipeater": {"on_packet"},
     "qru": {"heard"}, "bulletins": {"heard"},                                                                    # (handed a message by the inbox)
-    "radios": {"for_packet"},                                                                                    # (the choice of the radio to answer a packet on, neoaprs/radios.py: it sends nothing itself, and is asked only for a packet of the air)
+    "radios": {"for_packet"},                                                                                    # (the choice of the radio to answer a packet on, neoaprs/radioregistry.py: it sends nothing itself, and is asked only for a packet of the air)
+    "radio_set": {"for_packet"},                                                                                 # (the same choice as the services that still take the two radios see it, neoaprs/radios.py)
 }
 
 
@@ -113,7 +124,7 @@ def _resolve(e: Env, label: str) -> Any:
 def test_the_connection_to_aprs_is_has_one_outlet_for_what_it_reads_and_it_is_the_gate(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False)
     assert e.ctl.aprsis.heard._handlers == [e.ctl.hear_internet], "what the connection reads goes to the one gate and to nothing else"
-    assert all(owner(e, h) != "aprsis" for h in e.ctl.tnc.packet._handlers), "(and nothing of the connection is connected to the radio's signal)"
+    assert all(owner(e, h) != "aprsis" for h in [*e.ctl.radio_packet._handlers, *e.ctl.tnc.packet._handlers, *e.ctl.hf.packet._handlers]), "(and nothing of the connection is connected to the radios' signal, or to a radio's line)"
     readers = [(name, value) for name, value in vars(e.ctl.aprsis).items() if hasattr(value, "emit") and name != "heard"]
     assert [name for name, _ in readers] == ["state_changed", "changed"], "the connection's other signals carry no packet"
     taken = packet_takers(e)
@@ -145,16 +156,16 @@ def test_hear_internet_takes_a_packet_from_the_internet_only(tmp_path: Path) -> 
 def test_a_packet_from_the_internet_that_is_handed_to_the_radios_signal_is_refused_by_every_part_that_acts(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     e = Env(tmp_path, radio=False)
     reached: list[str] = []
-    for handler in e.ctl.tnc.packet._handlers:
+    for handler in e.ctl.radio_packet._handlers:
         if isinstance(handler, AirOnly):
             name = owner(e, handler)
             handler.handler = lambda packet, name=name: reached.append(name)           # type: ignore[misc]
     packet = from_internet("OH2ABC", POSITION, e.now())
     with caplog.at_level(logging.WARNING, logger="neoaprs.wiring"):
-        e.ctl.tnc.packet.emit(packet)
-        e.ctl.tnc.packet.emit(packet)
+        e.ctl.tnc.packet.emit(packet)                                                  # (through the line of either radio: both go by the one signal and its locks)
+        e.ctl.hf.packet.emit(packet)
     assert reached == [], "no part that acts saw it"
-    assert [h.refused for h in e.ctl.tnc.packet._handlers if isinstance(h, AirOnly)] == [2] * len(ON_AIR_ONLY)
+    assert [h.refused for h in e.ctl.radio_packet._handlers if isinstance(h, AirOnly)] == [2] * len(ON_AIR_ONLY)
     assert len([r for r in caplog.records if "from the internet was handed" in r.getMessage()]) == len(ON_AIR_ONLY), "said once for each"
     e.ctl.tnc.packet.emit(replace(packet, via="rf"))
     assert reached == list(ON_AIR_ONLY), "a packet of the radio reaches them, in order"
