@@ -50,7 +50,7 @@ def kill(e: Env) -> None:
 
 
 async def test_after_mercury_dies_the_hf_radio_comes_back_on_the_same_ports_by_itself(tmp_path: Path) -> None:
-    e = await hf_station(tmp_path, Backoff([0.1, 0.1]))
+    e = await hf_station(tmp_path, Backoff([1.0, 1.0]))                      # (a second, not a tenth: Windows keeps the port of a process that was killed for a moment, and a modem started into that moment ends on "address in use" and comes back on the next start, which is not the one this test counts)
     try:
         port, pid = e.hf.port, e.ctl.mercury.pid
         held = pairs(e)
