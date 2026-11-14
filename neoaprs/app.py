@@ -141,8 +141,8 @@ class Services:
         return driver
 
     def _make_beacon(self, radio: Radio) -> Beacon:
-        """A radio's own beacon: our position packet on it, on an interval, on SmartBeaconing for a moving station where the radio's kind allows it, and on request, by the rules of its kind (the one beacon interval,
-        raised to the floor of 30 minutes while an HF radio is on; on HF the random pause); started by the controller while its radio is on. Its last send is kept in the radio's own row
+        """A radio's own beacon: our position packet on it, on an interval, on SmartBeaconing for a moving station where the radio's kind allows it, and on request, by the rules of its type (the one beacon interval,
+        raised to the radio's own floor, 30 minutes on an HF radio; on HF the random pause), while the radio's Send on is ticked (neoaprs/beaconrule.py); started by the controller while its radio is on. Its last send is kept in the radio's own row
         (services/beacon.py memory_key_of: `radio/<id>/beacon_last_sent_at`), and its frames are the station's one maker's."""
         return Beacon(radio, lambda: self.config, self.clock, memory=self.store, frames=self.beacon_frames)
 

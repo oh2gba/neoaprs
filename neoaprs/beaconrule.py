@@ -1,20 +1,71 @@
 """The beacon with many radios (plan rule 3.1): the interval in force on a radio, and the radios the beacon goes out on.
 
-This is TODAY's rule, written with radios (config.Config.beacon_interval and the two beacons of today): the one interval of the station, 0 for off, raised to the HF floor for every radio while an HF radio is
-enabled; the beacon on every enabled radio. It reads the floor as Config.beacon_interval does (radiorules.HF_BEACON_MIN_MIN), not from a radio's type, so that it gives a number for a radio of any type key.
-Package R1 writes rule 3.1 in its place (each radio raised to its own floor, the beacon on the radios ticked for it). No I/O."""
+One interval for the station (`beacon/interval_min`, 0 for off), raised on each radio to that radio's own floor (its type's `limits.beacon_min_min`: 20 minutes on an FM radio, 30 on an HF one), so that an FM
+radio at 20 minutes is not slowed to 30 because an HF radio is on. Each radio has its own "beacon" tick (Send on, the field `beacon` of every type, ticked by default); the beacon goes out on the enabled radios
+that are ticked, read as every stored set of radios is (`radiospec.in_force_set`): with one enabled radio on that one, and with every tick off on the main radio, so that the beacon is never off by its ticks
+(Off is the interval's alone). No I/O."""
 from collections.abc import Iterable
 
-from .radiorules import HF_BEACON_MIN_MIN
-from .radiospec import RadioId, RadioSpec, enabled
+from .radiospec import RadioId, RadioSpec, enabled, in_force_set, log_name
+from .radiotype import RadioTypeError
+from .radiotypes import TYPES, kind_field, types_of
+
+SETTING_MIN_MIN = 20                 # the shortest `beacon/interval_min` the settings take (config.MIN_BEACON_INTERVAL_MIN: a stored lower one is raised as the settings are read): a floor up to it raises nothing
 
 
-def beacon_interval(station_min: int, spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
-    """The beacon interval in force on the radio, in minutes (0: off): `beacon/interval_min`, raised to the HF floor (radiorules.HF_BEACON_MIN_MIN) while an HF radio is enabled, whichever radio this is."""
-    hf_on = any(s.kind == "hf" for s in enabled(specs))
-    return max(station_min, HF_BEACON_MIN_MIN) if station_min and hf_on else station_min
+def floor_of(spec: RadioSpec) -> int:
+    """The shortest beacon interval the radio takes, in minutes: its type's. A radio of a type that is none (a row written by a newer program) takes the longest floor of its kind's types, or of all types where
+    its kind has none, so that a radio nothing describes never beacons more often than a known one would."""
+    try:
+        return spec.rtype.limits.beacon_min_min
+    except RadioTypeError:
+        return max(t.limits.beacon_min_min for t in types_of(spec.kind) or TYPES)
+
+
+def beacon_interval(station_min: int, spec: RadioSpec, specs: Iterable[RadioSpec] = ()) -> int:
+    """The beacon interval in force on the radio, in minutes (0: off): `beacon/interval_min`, raised to the radio's own floor (`floor_of`) where that is above what the setting holds by itself
+    (SETTING_MIN_MIN: the FM radio's 20 minutes are the setting's own); the other radios change nothing of it (`specs` is the seam's, unused)."""
+    floor = floor_of(spec)
+    return max(station_min, floor) if station_min and floor > SETTING_MIN_MIN else station_min
+
+
+def ticked(spec: RadioSpec, *, say: bool = False) -> bool:
+    """The radio's own "beacon" tick (Send on): its setting `beacon`, ticked where it has none, and for a kind none of whose types are known. A stored text that is not true or false is the field's default;
+    it is said in the log only where `say` (RadioSpec.value: the beacon's start), for this is read at every tick of every radio's beacon."""
+    found = kind_field(spec.kind, "beacon")
+    if found is None:
+        return True
+    if say:
+        return bool(spec.value("beacon"))
+    try:
+        return bool(found.parse(spec.settings.get("beacon", found.default)))
+    except ValueError:
+        return bool(found.parse(found.default))
 
 
 def beacon_radios(specs: Iterable[RadioSpec], main: RadioId | None) -> tuple[RadioId, ...]:
-    """The radios the timed beacon goes out on: every enabled radio, by position (`main` is rule 3.1's, unused by today's rule)."""
-    return tuple(s.id for s in enabled(specs))
+    """The radios the beacon goes out on, by position: the enabled radios that are ticked; the one enabled radio whatever its tick; the main radio when no enabled radio is ticked; none when none is enabled."""
+    pool = list(specs)
+    return in_force_set((s.id for s in pool if ticked(s)), pool, main)
+
+
+def intervals(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> list[tuple[RadioSpec, int]]:
+    """Each radio the beacon goes out on, by position, with the interval in force on it."""
+    pool = list(specs)
+    on = set(beacon_radios(pool, main))
+    return [(s, beacon_interval(station_min, s)) for s in enabled(pool) if s.id in on]
+
+
+def station_interval(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> int:
+    """The shortest interval in force on a radio the beacon goes out on, in minutes: how often our position goes out on some radio (0: off). With no radio the setting as it is."""
+    found = [minutes for _, minutes in intervals(station_min, specs, main)]
+    return min(found) if found and station_min else station_min
+
+
+def interval_words(station_min: int, specs: Iterable[RadioSpec], main: RadioId | None) -> str:
+    """The intervals in force in English, for the support summary: `20 min` while every radio the beacon goes out on has the same, else each radio's by the name the log gives it, `20 min on FM, 30 min on HF`."""
+    pool = list(specs)
+    found = intervals(station_min, pool, main)
+    if len({minutes for _, minutes in found}) <= 1:
+        return f"{found[0][1] if found else station_min} min"
+    return ", ".join(f"{minutes} min on {log_name(spec, pool)}" for spec, minutes in found)

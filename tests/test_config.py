@@ -427,11 +427,13 @@ def test_the_mobile_settings_come_after_the_others_in_the_order_the_page_lists_t
     assert list(KEYS[-5:]) == ["gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel"]
 
 
-def test_the_beacon_interval_is_the_stations_not_a_radios_raised_to_the_hf_floor_while_the_hf_radio_is_on() -> None:
-    """One interval for both radios: the HF rules' floor of 30 minutes while the HF radio is on; the FM radio's floor is the setting's own minimum, so an FM-only station keeps what it set; Off stays Off."""
+def test_the_beacon_interval_of_the_status_is_the_shortest_in_force_on_a_radio_and_hf_alone_is_raised_to_its_floor() -> None:
+    """One setting for the station, raised on each radio to its own floor (plan rule 3.1): the HF rules' 30 minutes on the HF radio, the FM radio's floor being the setting's own minimum, so FM keeps what was
+    set beside an HF radio; Off stays Off. `beacon_interval` is the shortest of them, how often our position goes out on some radio."""
     from neoaprs.radiorules import FM, HF
     both = replace(DEFAULTS, beacon_interval_min=20, hf_enabled=True)
-    assert both.beacon_interval() == HF.beacon_min_min == 30 and FM.beacon_min_min == MIN_BEACON_INTERVAL_MIN
+    assert both.beacon_interval() == 20 and HF.beacon_min_min == 30 and FM.beacon_min_min == MIN_BEACON_INTERVAL_MIN, "FM at 20 is no longer slowed to 30 by the HF radio"
+    assert replace(both, fm_enabled=False).beacon_interval() == HF.beacon_min_min == 30, "the HF radio alone: raised to its floor"
     assert replace(both, beacon_interval_min=45).beacon_interval() == 45 and replace(both, beacon_interval_min=0).beacon_interval() == 0
     assert replace(DEFAULTS, beacon_interval_min=20).beacon_interval() == 20 and replace(DEFAULTS, beacon_interval_min=25).beacon_interval() == 25
     assert replace(DEFAULTS, beacon_interval_min=20, fm_enabled=False, hf_enabled=True).beacon_interval() == 30
@@ -529,7 +531,7 @@ def test_a_save_keeps_the_radios_of_the_settings_it_is_made_of_and_puts_the_flat
     assert saved.radios == (RadioSpec(1, "fm", "kiss", "Mobile", True, 5, None, {"port": "/dev/ttyUSB0", "baud": "4800"}), RadioSpec(2, "hf", "mercury", "", True, 2), THIRD)
     assert (saved.main_choice, saved.main_radio, saved.station_comment, saved.station_call) == (3, 3, "saved", "OH2GBA"), "the name, the place, the third radio and the main radio are not the flat keys' to lose"
     assert base.changed(saved) == ["serial/baud", "hf/enabled", "station/comment"] and Config.checked(base, {}) == base
-    with pytest.raises(ValueError, match="hf/enabled: a station has at least one radio"):
+    with pytest.raises(ValueError, match="fm/enabled: a station has at least one radio"):
         Config.checked(replace(base, radios=base.radios[:1]), {"fm/enabled": "false"})
     with pytest.raises(ValueError, match="serial/baud"):
         Config.checked(base, {"serial/baud": "fast"})

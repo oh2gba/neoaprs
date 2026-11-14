@@ -1,7 +1,7 @@
 """The seams of the radio round (work/par/round/breakdown.md, section 1) as views of today's values, so that nothing behaves differently while they are new: the radios of the settings are today's FM radio
 (radio 1) and HF radio (radio 2) made of the flat keys (`radios_from_flat`, every shape of today's settings); the id views of a packet, a station, a message and its attempts and an object say what the old fields
-say; today's rules written with ids (neoaprs/messagerule.py, neoaprs/beaconrule.py, neoaprs/emailrule.py) choose what `Radios.for_station`, `Config.beacon_interval`, the two beacons and the email gateway's
-radio choose, over a table of cases; the one fit function makes the frame the sender makes today; the shapes wave 1 writes (tests/support/seamshapes.py, which mypy holds to the Protocols) work as the
+say; today's rules written with ids (neoaprs/messagerule.py, neoaprs/emailrule.py) choose what `Radios.for_station` and the email gateway's radio choose, over a table of cases, and the beacon rule
+(neoaprs/beaconrule.py, plan rule 3.1, tests/test_beaconrule.py) keeps today's two beacons on today's radios with each radio's own floor; the one fit function makes the frame the sender makes today; the shapes wave 1 writes (tests/support/seamshapes.py, which mypy holds to the Protocols) work as the
 services take them; and the constructors that gained keywords keep their old call."""
 import itertools
 from dataclasses import replace
@@ -158,10 +158,11 @@ def test_the_radio_of_a_message_is_the_one_radios_for_station_chooses_today(fm_o
 
 
 @pytest.mark.parametrize(("interval", "fm_on", "hf_on"), list(itertools.product((0, 20, 25, 30, 60), (True, False), (True, False))))
-def test_the_beacon_interval_and_its_radios_are_todays(interval: int, fm_on: bool, hf_on: bool) -> None:
+def test_the_beacon_interval_is_each_radios_own_and_its_radios_are_todays(interval: int, fm_on: bool, hf_on: bool) -> None:
     config = replace(DEFAULTS, beacon_interval_min=interval, fm_enabled=fm_on, hf_enabled=hf_on)
     for spec in config.radios:
-        assert beacon_interval(interval, spec, config.radios) == config.beacon_interval(), "one interval for the station, raised to 30 while HF is on"
+        own = max(interval, 30) if interval and spec.kind == "hf" else interval
+        assert beacon_interval(interval, spec, config.radios) == own, "the station's interval, raised on the HF radio alone to its 30 minutes (plan rule 3.1: FM at 20 is no longer slowed by HF)"
     assert beacon_radios(config.radios, config.main_radio) == tuple(i for i, on in ((FM_ID, fm_on), (HF_ID, hf_on)) if on), "each beacon sends while its radio is on"
     assert MESSAGE_RADIO_RECENT_HOURS == 6
 

@@ -436,13 +436,17 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
     assert FM.paths and FM.digipeat and FM.smart_beacon and FM.beacon_jitter_sec == 0 and FM.max_frame is None
 
 
-def test_the_one_beacon_interval_is_raised_to_30_minutes_while_the_hf_radio_is_on_and_is_todays_otherwise() -> None:
+def test_the_one_beacon_interval_is_raised_to_30_minutes_on_the_hf_radio_alone_and_the_fm_radio_keeps_what_was_set() -> None:
     assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_beacon_interval_min"), "one setting for both radios"
     fm_only = replace(DEFAULTS, beacon_interval_min=20)
     assert fm_only.beacon_interval() == 20, "with HF off, today's floor of 20"
     both = replace(fm_only, hf_enabled=True)
-    assert both.beacon_interval() == 30, "with HF on, 30 at the least, for both beacons"
-    assert replace(both, beacon_interval_min=60).beacon_interval() == 60 and replace(both, beacon_interval_min=0).beacon_interval() == 0, "a longer interval stays, Off stays Off"
+    clock = FixedClock()
+    fm_beacon, hf_beacon = (Beacon(radio_of(both, id), lambda: both, clock, frames=BeaconFrames(lambda: both, None, clock)) for id in (FM_ID, HF_ID))
+    assert (fm_beacon.interval_min, hf_beacon.interval_min) == (20, 30), "with HF on, 30 at the least on the HF radio; the FM radio at 20 is not slowed by it (plan rule 3.1)"
+    assert replace(both, fm_enabled=False).beacon_interval() == 30, "the HF radio alone: 30 at the least"
+    longer, off = replace(both, beacon_interval_min=60), replace(both, beacon_interval_min=0)
+    assert [Beacon(radio_of(c, id), lambda c=c: c, clock).interval_min for c in (longer, off) for id in (FM_ID, HF_ID)] == [60, 60, 0, 0], "a longer interval stays on both, Off stays Off"
     with pytest.raises(ValueError, match="no_radio|at least one radio"):
         Config.checked(DEFAULTS, {"fm/enabled": "false"})
     assert Config.checked(replace(DEFAULTS, hf_enabled=True), {"fm/enabled": "false"}).hf_enabled, "the FM radio may go when the HF one is on"

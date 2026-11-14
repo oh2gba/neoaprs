@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from neoaprs.beaconrule import interval_words
 from neoaprs.config import Config
 from neoaprs.radiospec import RadioSpec, log_name
 from neoaprs.versions import InstallInfo
@@ -110,7 +111,7 @@ def _position(c: Config) -> str:
 def _beacon(f: Facts, c: Config) -> str:
     if not c.beacon_on:
         return "off (interval 0)" + ("" if c.station_transmit else "; receive only")
-    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {c.beacon_interval()} min"
+    text = f"on, SmartBeaconing (travelling: {c.beacon_travel})" if c.mobile else f"on, every {interval_words(c.beacon_interval_min, c.radios, c.main_radio)}"
     if not c.station_transmit:
         text += "; receive only: nothing is sent"
     beacon = (f.live or {}).get("beacon")

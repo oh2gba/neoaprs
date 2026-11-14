@@ -4,8 +4,10 @@ SmartBeaconing says. Every radio has its own (the composition root makes one for
 A mobile beacon (services/mobilebeacon.py, neoaprs/smartbeacon.py) is the position, course, speed and altitude of the GPS fix (the services/gps.py `current()`, a fix that is not older than GPS_STALE_SEC); the
 timer asks SmartBeaconing at every tick instead of waiting for an interval (`beacon/interval_min` is only On or Off there: any value but 0 is On, and it is not used), `next_due` is the time the speed of the fix says the next beacon by time is due, and `mobile` remembers the last beacon (when, the course, why:
 `start` for the first fix of the run, `time`, `turn`, `request`). With no fix, none yet or none fresh, no beacon is built or sent at all (`NoFix`), and `problem` says why; the home position of the settings is never put in its place.
-The interval in force on the radio is neoaprs/beaconrule.py's (`beacon_interval`: the one setting `beacon/interval_min` of the station, raised to 30 minutes while an HF radio is on); a radio whose limits have a random pause
-adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiorules.py says why). The beacon is off while that is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` (Beacon now) still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
+The interval in force on the radio is neoaprs/beaconrule.py's (`beacon_interval`: the one setting `beacon/interval_min` of the station, raised to this radio's own floor, 30 minutes on an HF radio, said once
+in the log for each radio it raises); a radio whose limits have a random pause adds one after each interval, and one that has no SmartBeaconing leaves a moving station fixed (HF: neoaprs/radiorules.py says why).
+The beacon goes out only on the radios of `beaconrule.beacon_radios` (each radio's own "beacon" tick, Send on; with one radio on, that one): on another its interval in force is 0, so its timer sends nothing,
+and `send_now` (Beacon now) refuses. The beacon is off while the interval is 0, for a moving station too: no timer, no SmartBeaconing, and `send_now` still sends, for it is asked for. Off is not RX only: transmitting is switched off by `station/transmit`, which is the interlock's.
 The last send is kept in the radio's own row (`memory_key_of`: `radio/<id>/beacon_last_sent_at`, where migration 31 put the rows of radios 1 and 2).
 
 The timer is a task that looks at the clock once a `tick_sec`, so a test moves the clock and the beacon follows. The first beacon is `first_delay_sec` after the start (the radio and the TNC
@@ -24,7 +26,7 @@ from datetime import datetime, timedelta
 
 from neoaprs import ax25
 from neoaprs.aprsposition import uncompressed_position as uncompressed_position      # (the beacon's parts under their old names: services/beaconframe.py)
-from neoaprs.beaconrule import beacon_interval
+from neoaprs.beaconrule import beacon_interval, beacon_radios, ticked
 from neoaprs.clock import Clock, utcnow
 from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
@@ -49,6 +51,7 @@ TICK_SEC = 1.0
 RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the radio refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the radio refusing the frame this many times in a row skips the interval
+NOT_ON_THIS_RADIO = "the beacon does not go out on this radio (its Send on is not ticked)"
 
 
 def memory_key_of(radio: RadioId) -> str:
@@ -119,9 +122,11 @@ class Beacon:
     # ---- sending
     def send_now(self, reason: str = "request") -> bool:
         """Sends the beacon on its radio and notes when and why; the next beacon counts from now: an interval and the radio's pause on, or, for a moving station on a radio with SmartBeaconing (FM), SmartBeaconing from this beacon; a moving station on a radio without it (HF) has the interval, for it sends its fix by time only. False (and `problem` says why) when the radio is not connected or
-        is silent, would not take it, the settings make no frame, or a mobile station has no fresh fix. Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
+        is silent, would not take it, the settings make no frame, a mobile station has no fresh fix, or the beacon does not go out on this radio (`goes_out`). Nothing is sent while the call is not set or transmitting is off (the interlock); the beacon being Off does not stop it: Off is no automatic beacon, and Beacon now still sends."""
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
+        if not self.goes_out:
+            return self._failed(NOT_ON_THIS_RADIO)
         try:
             frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:
@@ -156,6 +161,8 @@ class Beacon:
         now = self.clock()
         self._earlier = await self._remembered.get_time(self._memory_key, now)
         self._started = now
+        if (spec := self._config().radio(self._radio.id)) is not None:
+            ticked(spec, say=True)                              # (a stored Send on that is not true or false is said here once; the timer reads it quietly at every tick)
         self._plan(self.interval_min)
         self._tasks.spawn(self._run(), "beacon")
 
@@ -175,11 +182,19 @@ class Beacon:
         return self._started is not None
 
     @property
-    def interval_min(self) -> int:
-        """The interval in force on this radio (neoaprs/beaconrule.py); 0 for one the settings do not have."""
+    def goes_out(self) -> bool:
+        """Whether the beacon goes out on this radio while it is on (beaconrule.beacon_radios: its own tick, Send on, read with the other radios). A radio that is off holds nothing back here: its beacon is
+        stopped, and its line takes no frame."""
         c = self._config()
         spec = c.radio(self._radio.id)
-        return 0 if spec is None else beacon_interval(c.beacon_interval_min, spec, c.radios)
+        return spec is None or not spec.enabled or spec.id in beacon_radios(c.radios, c.main_radio)
+
+    @property
+    def interval_min(self) -> int:
+        """The interval in force on this radio (neoaprs/beaconrule.py); 0 for one the settings do not have, and for one the beacon does not go out on."""
+        c = self._config()
+        spec = c.radio(self._radio.id)
+        return 0 if spec is None or not self.goes_out else beacon_interval(c.beacon_interval_min, spec, c.radios)
 
     def _mobile(self, c: Config) -> bool:
         """Whether the beacon follows the GPS: a moving station on a radio that has SmartBeaconing (FM); on HF the station is fixed whatever the GPS source says."""
@@ -191,12 +206,14 @@ class Beacon:
         return timedelta(seconds=self.jitter(most)) if most > 0 else timedelta()
 
     def _plan(self, interval_min: int) -> None:
+        """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
+        `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick. An interval this radio raises is said in the
+        log once, when it is planned for the first time."""
         c = self._config()
         if interval_min > c.beacon_interval_min and interval_min != self._planned_min:
-            log.info("the beacon interval %d min is raised to %d: the HF radio is on, and over HF not very often is the rule", c.beacon_interval_min, interval_min)
-        """The next beacon for this interval: an interval after the latest one sent in this run, else after the one of the earlier run if that is still ahead of the start, else
-        `first_delay_sec` after the start (a time that has passed is due at the next tick). A mobile station has none planned: SmartBeaconing says at each tick."""
-        mobile = self._mobile(self._config())
+            where = f"the {self._radio.name} radio" if self._radio.name else "this radio"
+            log.info("the beacon interval %d min is raised to %d on %s: %d minutes is the shortest its type takes", c.beacon_interval_min, interval_min, where, interval_min)
+        mobile = self._mobile(c)
         self._planned_min, self._planned_mobile = interval_min, mobile
         self._refused, self._retry_at = 0, None
         if self._started is None or interval_min == 0 or mobile:

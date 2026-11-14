@@ -18,7 +18,7 @@ from .configradios import DEFAULT_RADIOS, FLAT_HOMES, FlatFields, RadioViews, ac
 from .mercuryscope import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
 from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLES as SYMBOL_TABLES, antenna_direction, aprsis_server, device_globs, digipeater_path, hf_profile, host_list, host_name, map_source, mercury_keying, passcode, port_address, symbol_code, symbol_table, tnc_profile
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
-from .radiorules import HF
+from .beaconrule import SETTING_MIN_MIN, station_interval
 from .radiospec import FM_ID, RadioId, RadioSpec
 from .radiotype import stored_text as _show
 from .route import DIRECT_ONLY, recommended_path
@@ -40,7 +40,7 @@ class SettingError(CodedError):
 RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
-MIN_BEACON_INTERVAL_MIN = 20         # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
+MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN      # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
 MIN_STATUS_INTERVAL_MIN = 15         # the shortest time between two status reports: the page offers 30 minutes to 2 hours; a stored lower value is raised to this, with a line in the log
 MAX_ALERT_COMMAND = 1000             # the longest line of messages/alert_command
 MAP_RADIUS_KM, MAP_MAXZOOM = (10, 1000), (6, 15)           # map/radius_km: the area of the detailed map round the station; map/maxzoom: its deepest zoom
@@ -227,16 +227,15 @@ class Config(FlatFields, RadioViews):
         return PRESETS[self.beacon_travel]
 
     def beacon_interval(self) -> int:
-        """The beacon interval in force, in minutes (0: off), the same for both radios: the one setting `beacon/interval_min`, raised to the HF radio's floor (`radiorules.HF.beacon_min_min`, 30 minutes) while the HF
-        radio is on: one timer for one station, and not very often while a shared HF channel is one of its radios (the beacon says so in the log when it raises the interval; John's rule). The FM radio's floor is the
-        setting's own minimum (MIN_BEACON_INTERVAL_MIN), which the setting holds by itself, so no radio asks for its own: the interval is the station's, not a radio's."""
-        interval = self.beacon_interval_min
-        return max(interval, HF.beacon_min_min) if interval and self.hf_enabled else interval
+        """How often our position goes out on some radio, in minutes (0: off): the shortest interval in force on a radio the beacon goes out on (beaconrule.station_interval; each radio's own is
+        `beaconrule.beacon_interval`, the setting raised to that radio's floor). The one number of the page's status (`beacon_interval_min`, neoaprs/web/api.py) until the wire tells each radio's."""
+        return station_interval(self.beacon_interval_min, self.radios, self.main_radio)
 
-    def radio_refusal(self) -> SettingError | None:
-        """Why the two tickboxes do not go together, or None when they do: a station has at least one radio (the page greys the last one that is on, so this is for the shell)."""
-        if not self.fm_enabled and not self.hf_enabled:
-            return SettingError("hf/enabled", "setting.no_radio", {}, "hf/enabled: a station has at least one radio: tick the FM radio or the HF radio")
+    def radio_refusal(self, key: str = "hf/enabled") -> SettingError | None:
+        """Why the radios' tickboxes do not go together, or None when they do: at least one radio that is not removed stays on (the page greys the last one that is on, so this is for the shell). `key` is the
+        one that was set, which the words begin with; the rest of the words and the key the page is given stay as they were until the wire's radios (the generated errors.json holds the words)."""
+        if not self.enabled_radios:
+            return SettingError("hf/enabled", "setting.no_radio", {}, f"{key}: a station has at least one radio: tick the FM radio or the HF radio")
         return None
 
     @property
@@ -329,7 +328,7 @@ class Config(FlatFields, RadioViews):
             raise refusal
         if STATUS_KEYS & parsed.keys() and config.status_source == "rig" and not config.status_rigctld:
             raise SettingError("status/source", "setting.status_needs_rigctld", {}, "status/source: the radio needs status/rigctld (host:port of a rigctld, 127.0.0.1:4532)")
-        if {"fm/enabled", "hf/enabled"} & parsed.keys() and (refusal := config.radio_refusal()):
+        if (set_now := [key for key in ("fm/enabled", "hf/enabled") if key in parsed]) and (refusal := config.radio_refusal(set_now[0])):
             raise refusal
         if PORT_KEYS & parsed.keys() and (refusal := config.port_refusal("tnc/profile" if "tnc/profile" in parsed else "serial/port")):
             raise refusal

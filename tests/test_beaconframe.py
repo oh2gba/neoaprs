@@ -225,7 +225,8 @@ def test_the_interval_of_a_radios_beacon_is_the_beacon_rule_s_for_that_radio() -
     with_hf = with_radios(replace(BOTH, beacon_interval_min=20), *BOTH.radios, third())
     off = with_radios(replace(BOTH, beacon_interval_min=0), *BOTH.radios, third())
     assert Beacon(radio_of(fm_only, 3), lambda: fm_only, clock).interval_min == 20
-    assert Beacon(radio_of(with_hf, 3), lambda: with_hf, clock).interval_min == Beacon(radio_of(with_hf, FM_ID), lambda: with_hf, clock).interval_min == 30, "raised to 30 while an HF radio is on, whichever radio"
+    assert Beacon(radio_of(with_hf, 3), lambda: with_hf, clock).interval_min == Beacon(radio_of(with_hf, FM_ID), lambda: with_hf, clock).interval_min == 20, "an FM radio is not slowed by an HF radio that is on (plan rule 3.1)"
+    assert Beacon(radio_of(with_hf, HF_ID), lambda: with_hf, clock).interval_min == HF.beacon_min_min == 30, "the HF radio is raised to its own floor"
     assert Beacon(radio_of(off, 3), lambda: off, clock).interval_min == 0, "Off stays Off"
     gone, without = radio_of(with_hf, 3), replace(BOTH, beacon_interval_min=20)
     assert Beacon(gone, lambda: without, clock).interval_min == 0, "a radio the settings do not have sends no timed beacon"

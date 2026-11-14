@@ -16,7 +16,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
 
-from . import ax25, emailrule, messagerule
+from . import ax25, beaconrule, emailrule, messagerule
 from .claims import Claims
 from .clock import Clock, utcnow
 from .config import Config
@@ -232,6 +232,12 @@ class RadioRegistry(StationChoices, Generic[B]):
         came = self._of(packet.radio_id)
         return came if came is not None and came.spec.enabled else self.main
 
+    def beaconing(self) -> list[LiveRadio[B]]:
+        """The radios the beacon goes out on, by position (beaconrule.beacon_radios: the enabled ones whose Send on is ticked; with one radio on, that one): what Beacon now sends on."""
+        config = self._config()
+        on = set(beaconrule.beacon_radios(config.radios, config.main_radio))
+        return [radio for radio in self.enabled() if radio.id in on]
+
     def email(self) -> LiveRadio[B] | None:
         """The radio an email goes out on (emailrule.email_radio); None when none may carry it."""
         config = self._config()
@@ -316,7 +322,8 @@ class RadioRegistry(StationChoices, Generic[B]):
         await radio.line.start()
 
     async def beacons_as_set(self) -> None:
-        """Each radio's beacon runs while that radio is on and not otherwise (a beacon of a radio that is off would only say, at every due time, why nothing goes)."""
+        """Each radio's beacon runs while that radio is on and not otherwise (a beacon of a radio that is off would only say, at every due time, why nothing goes). One whose Send on is not ticked runs
+        too and sends nothing (its interval in force is 0: services/beacon.py), so that ticking it again, which restarts no radio, puts it on the air at the next save of the settings."""
         for radio in self.all():
             await (radio.beacon.start() if radio.spec.enabled else radio.beacon.stop())
 

@@ -224,6 +224,22 @@ def test_the_rules_between_settings_hold_for_a_flat_key_stored_with_its_radio(st
     assert rows_of(stored, "SELECT id, type, enabled FROM radio ORDER BY id") == [(1, "kenwood-tnc2", 1), (2, "mercury", 0)], "and nothing was stored"
 
 
+def test_the_fm_radio_may_go_off_while_a_third_radio_is_on_and_the_last_radio_on_is_refused_by_the_key_that_was_set(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
+    third = insert_radio(connection, "fm", "kiss-tcp", "Base", True, 3)
+    connection.close()
+    assert db("set", "hf/enabled", "false", data=stored) == 0
+    capsys.readouterr()
+    assert db("set", "fm/enabled", "false", data=stored) == 0, "radio 3 stays on: the FM radio may go"
+    assert rows_of(stored, "SELECT id, enabled FROM radio ORDER BY id") == [(1, 0), (2, 0), (third, 1)]
+    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
+    connection.execute("UPDATE radio SET enabled = 0 WHERE id = ?", (third,))
+    connection.close()
+    assert db("set", "fm/enabled", "false", data=stored) == 2
+    err = capsys.readouterr().err
+    assert "fm/enabled: a station has at least one radio" in err, "the words begin with what was set"
+
+
 def test_a_flat_key_of_a_radio_the_station_does_not_have_is_refused_with_the_way_to_add_it(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     folder = with_radios(tmp_path / "fm", station_call="OH2GBA")
     assert rows_of(folder, "SELECT id, kind FROM radio") == [(1, "fm")], "HF was never set up: no radio 2"

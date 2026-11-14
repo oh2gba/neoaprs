@@ -59,9 +59,12 @@ def test_the_readme_says_what_to_do_what_is_in_it_and_what_was_left_out(tmp_path
     assert "public" in readme and "texts of messages" in readme
 
 
-def test_the_summarys_beacon_is_the_interval_in_force_raised_while_the_hf_radio_is_on(tmp_path: Path) -> None:
+def test_the_summarys_beacon_is_each_radios_interval_in_force_the_hf_radio_raised_to_its_floor(tmp_path: Path) -> None:
     data = fake_folder(tmp_path, settings={"station/call": "OH2GBA", "beacon/interval_min": "20", "hf/enabled": "true", "hf/profile": "dummy-hf"}, radios=True)
-    assert "on, every 30 min" in made(tmp_path, data)[1]["summary.txt"], "the 20 minutes set are 30 while the HF radio is on, as the beacon goes"
+    assert "on, every 20 min on FM, 30 min on HF" in made(tmp_path, data)[1]["summary.txt"], "the 20 minutes set stay on FM and are 30 on the HF radio, as each beacon goes (plan rule 3.1)"
+    (tmp_path / "alone").mkdir()
+    alone = fake_folder(tmp_path / "alone", settings={"station/call": "OH2GBA", "beacon/interval_min": "20", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"}, radios=True)
+    assert "on, every 30 min" in made(tmp_path / "alone", alone)[1]["summary.txt"], "the HF radio alone: one interval, raised"
 
 
 def test_the_summary_answers_what_version_what_system_what_is_wrong_on_one_screen(tmp_path: Path) -> None:
