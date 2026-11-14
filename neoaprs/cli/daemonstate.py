@@ -7,6 +7,7 @@ from pathlib import Path
 from neoaprs.config import DEFAULTS
 from neoaprs.dberror import SqlError
 from neoaprs.instancelock import LOCK_NAME, is_held
+from neoaprs.stopfile import migrating
 from neoaprs.store import DB_NAME
 from neoaprs.storesql import read_setting
 from neoaprs.supportsql import open_readonly
@@ -80,6 +81,8 @@ def describe(data_dir: Path) -> tuple[bool, str]:
     """(whether a daemon runs on the data folder, a line that says how it looks: running with its page and whether the page answers, or not running)."""
     if not is_running(data_dir):
         return False, "no daemon is running on this data folder"
+    if migrating(data_dir):
+        return True, "a daemon is running and is bringing its database up to date; its page comes when that is done"
     url = page_url(data_dir)
     if url is None:
         return True, "a daemon is running; its log does not say where its page is (is the page's port taken?)"

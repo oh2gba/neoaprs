@@ -1,8 +1,9 @@
 """The opening of the one database file and its migrations' runner: the file is versioned (SQLite's user_version) and brought up to date by the steps (migrationsteps*.py, listed in
 MIGRATIONS below), one after the other; a file from
 a newer NeoAPRS than this one is refused, not damaged. Before the first migration step that is going to run on a file that holds anything, the file is copied whole into backup/ next to it
-(premigrate-v<from>-to-v<to>-<time>.sqlite; the copies of the migrations before are removed once this whole migration has succeeded, so the folder holds the latest only: a migration that
-fails, or is cut short, leaves every copy, and the one at the old version among them, which the next migration that gets through keeps too); if that copy cannot be made, or the disk has no room for it, nothing is migrated. Every step that ran is written to the table
+(premigrate-v<from>-to-v<to>-<time>.sqlite), unless the copy this migration stands on is there already from a start that was cut short (backupfolder.py has the rule); once the whole migration has
+succeeded every other copy taken before a migration is removed, so the folder holds that one: a migration that fails, or is cut short, removes none. If no copy stands and none can be made, or the
+disk has no room for the migration, nothing is migrated. While a migration runs, the note `neoaprs.migrating` beside the file says so (stopfile.py). Every step that ran is written to the table
 schema_history (version, name, a checksum of the function's source, the time). A migration that has been applied is never edited: a change is a new migration (the checksum of the
 source of each step is pinned by tests/test_migrations.py; the steps keep the names and the annotations they were written with, which is why they name sqlite3 and not dberror.py's aliases).
 
@@ -12,11 +13,12 @@ import hashlib
 import inspect
 import shutil
 import sqlite3
+import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from .backupfolder import drop_older_copies, sweep, way_back
+from .backupfolder import cut_short, drop_older_copies, drop_still, litter, litter_wait, same_bytes, same_copies, same_second, sweep, taken_copies, way_back, whole
 from .clock import Clock, from_unix, to_unix, utcnow
 from .dberror import StoreError
 from .dbfile import DEFAULT_BUSY_MS, configure, copy_database as _copy_database
@@ -26,6 +28,7 @@ from .migrationsteps1to11 import _v1, _v2, _v3, _v4, _v5, _v6, _v7, _v8, _v9, _v
 from .migrationsteps22on import _v22, _v23, _v24, _v25, _v26, _v27, _v28, _v29, _v30
 from .migrationsteps31 import _v31
 from .migrationsteps32 import _v32, _v33
+from .stopfile import MigratingNote, clear_stale_migrating, migrating
 
 
 def source_hash(step: Callable[[sqlite3.Connection], None]) -> str:
@@ -53,9 +56,10 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
     `busy_ms`: how long a write waits for another writer; the daemon asks for a few seconds (it must not stand still), the tools for longer. This runs on the thread that calls
     it, before the database thread (db.py) opens the file for good, and in the tools; it is the migrations' own, the daemon's statements are not made through it.
 
-    When a migration is going to run on a file that holds anything, the file is copied whole first (see `premigration_backup`); if the copy cannot be made, nothing is migrated and
-    the file is as it was."""
+    When a migration is going to run on a file that holds anything, the file is copied whole first, unless a copy it stands on is there already (see `_copy_first`); if no copy stands and
+    none can be made, nothing is migrated and the file is as it was."""
     db: sqlite3.Connection | None = None
+    note = MigratingNote(Path(path).absolute().parent)      # (written only while a migration runs: what waits for the daemon waits as long as the note is fresh)
     try:
         db = sqlite3.connect(str(path), isolation_level=None, timeout=busy_ms / 1000.0)         # the transactions are ours: BEGIN and COMMIT where a write needs more than one statement
         version = schema_version(db)                        # first: nothing of a file is changed before it is known to be ours
@@ -66,16 +70,13 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
 
         configure(db, path, busy_ms)                        # WAL, synchronous=FULL, the busy time, the bound of the log, the file private (dbfile.py)
 
-        copy: Path | None = None
-        if version < SCHEMA_VERSION and str(path) != ":memory:" and db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None:
-            copy = premigration_backup(db, Path(path), version, clock)
-            log.info("the database %s is of version %d, this NeoAPRS needs %d: a copy of it is in %s", path, version, SCHEMA_VERSION, copy)
+        copy = _copy_first(db, path, version, clock, note)
 
         for number in range(version + 1, SCHEMA_VERSION + 1):
             if _step(db, number, clock) and version:
                 log.info("the database %s is now version %d (was %d)", path, number, number - 1)
         if copy is not None:
-            drop_older_copies(copy.parent, copy.name, version)        # (only now, every step in: a migration cut short at a middle version would otherwise have taken the one copy at the old version with it)
+            drop_older_copies(copy.parent, copy.name)        # (only now, every step in: a migration that fails or is cut short keeps every copy; a start killed after the last step, before or while they are removed, leaves some to the next migration)
         for problem in _history_problems(db):
             log.warning("%s: %s", path, problem)
     except sqlite3.Error as e:
@@ -88,9 +89,12 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
         # out of here would end it with 1, which the unit restarts every five seconds, and each start would make another full copy of the file
         log.error("the database %s was not migrated: %s: %s", path, type(e).__name__, e)
         return _refused(db, f"the database {path} was not migrated: {type(e).__name__}: {e} (the step that failed is rolled back; the copy taken before it is in backup/)")
+    finally:
+        note.stop()
 
     if str(path) != ":memory:":
         sweep(Path(path).absolute().parent / "backup", clock().timestamp())      # the temporary files of a copy that a kill ended before this start
+        clear_stale_migrating(Path(path).absolute().parent)                     # and the note of a migration a kill ended, which no migration of this start replaced
     return db, ""
 
 
@@ -121,35 +125,157 @@ def _step(db: sqlite3.Connection, number: int, clock: Clock) -> bool:
     return True
 
 
+def _copy_first(db: sqlite3.Connection, path: str | Path, version: int, clock: Clock, note: MigratingNote) -> Path | None:
+    """Before the first step on a file that holds anything: the note that a migration runs, and the copy the migration stands on (backupfolder.py says the rule), made now or found from a start
+    that was cut short; None when no step is to run or the file is empty. Raises StoreError when no copy stands and none can be made, or the disk has no room for the migration."""
+    if version >= SCHEMA_VERSION or str(path) == ":memory:" or db.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is None:
+        return None
+    if not migrating(Path(path).absolute().parent):
+        drop_still(litter(Path(path).absolute().parent / "backup"))      # (no other NeoAPRS migrates the file now, each keeps the note fresh from before its copy to its end: a copy's temporary file is dead)
+    note.start()
+    log.info("the database %s is of version %d, this NeoAPRS needs %d: it is brought up to date now (a large file takes minutes)", path, version, SCHEMA_VERSION)
+    while version < SCHEMA_VERSION:
+        standing = _standing_copy(db, Path(path), version)
+        if standing is not None:
+            _room(db, standing.parent, version, copy=False)
+            log.info("the database %s: the copy of it from before this migration is %s, taken by a start that did not get through; no other is made", path, standing)
+            return standing
+        try:
+            copy = premigration_backup(db, Path(path), version, clock)
+        except _Moved as moved:                             # (another NeoAPRS, a tool, migrated the file since it was read: what it left is looked at again)
+            log.info("the database %s was brought to version %d by another NeoAPRS meanwhile", path, moved.version)
+            version = moved.version
+            continue
+        log.info("the database %s: a copy of it is in %s", path, copy)
+        return copy
+    if version > SCHEMA_VERSION:
+        raise StoreError(f"the database {path} was brought to version {version} by a newer NeoAPRS meanwhile; not touched")
+    return None
+
+
+class _Moved(Exception):
+    """The file is at another version than it was read at: another process migrated it meanwhile."""
+
+    def __init__(self, version: int) -> None:
+        super().__init__(version)
+        self.version = version
+
+
+def _standing_copy(db: sqlite3.Connection, path: Path, version: int) -> Path | None:
+    """The copy in backup/ this migration stands on already, or None: the copy of a migration that was cut short at this version that the file came from (`_went_on_from`), else a whole copy of the
+    file at this version for this migration that the file, its log written into it, still equals byte for byte."""
+    folder = path.absolute().parent / "backup"
+    for below in cut_short(folder, version):
+        if _went_on_from(db, below.path, below.old):
+            return below.path
+    for same in same_copies(folder, version, SCHEMA_VERSION):
+        if _checkpointed(db) and same_bytes(path.absolute(), same.path):
+            return same.path
+    return None
+
+
+def _went_on_from(db: sqlite3.Connection, copy: Path, old: int) -> bool:
+    """Whether the file was migrated on from the copy (at version `old`): the copy's history is the file's up to `old`, row for row (each step's version, checksum and the time it was applied, which
+    a copy keeps as it was), and the file has step `old` + 1. Read from both files; no clock decides it (one that went back after the copy was taken would)."""
+    try:
+        mine = [(int(v), str(h), int(t)) for v, h, t in db.execute("SELECT version, sha256, applied FROM schema_history WHERE version <= ? ORDER BY version", (old + 1,))]
+        theirs = _history_of(copy)
+    except sqlite3.Error:
+        return False
+    return bool(theirs) and len(mine) == len(theirs) + 1 and mine[:-1] == theirs and mine[-1][0] == old + 1
+
+
+def _history_of(copy: Path) -> list[tuple[int, str, int]]:
+    """(version, sha256, applied) of every step in a copy's schema_history, opened only to be read (immutable: nothing is written beside it)."""
+    other = sqlite3.connect(f"{copy.absolute().as_uri()}?mode=ro&immutable=1", uri=True)
+    try:
+        return [(int(v), str(h), int(t)) for v, h, t in other.execute("SELECT version, sha256, applied FROM schema_history ORDER BY version")]
+    finally:
+        other.close()
+
+
+def _checkpointed(db: sqlite3.Connection) -> bool:
+    """The write-ahead log written whole into the database file (and cut to nothing), so that the file holds what the database does; False when another connection keeps that from being done."""
+    try:
+        return int(db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]) == 0
+    except sqlite3.Error:
+        return False
+
+
 def premigration_backup(db: sqlite3.Connection, path: Path, version: int, clock: Clock) -> Path:
     """The file as it is, whole, in backup/ next to it: premigrate-v<from>-to-v<to>-<time>.sqlite. The copies of earlier migrations are left to the caller to remove once the whole migration has
     succeeded (`drop_older_copies`): a failed copy, or a failed step, leaves them. Raises StoreError when it cannot be made or the disk has no room for it, and the caller migrates nothing."""
     folder = path.absolute().parent / "backup"
-    stem = f"premigrate-v{version}-to-v{SCHEMA_VERSION}-{clock():%Y%m%d-%H%M%S}"
-    dest = folder / f"{stem}.sqlite"
-    n = 1
-    while dest.exists():
-        n += 1
-        dest = folder / f"{stem}-{n}.sqlite"
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        _require_room(db, folder, version)
-        _copy_database(db, dest)
+        sweep(folder, clock().timestamp())                  # (the temporary file of a copy an earlier start did not end takes room: gone before the room is counted, once it is old enough to be dead)
+        _room(db, folder, version, copy=True)
+        dest = _copy_name(folder, version, clock)
+        db.execute("BEGIN")                                 # one read for the version and the copy: the copy is the file at `version` page for page, whatever another process writes meanwhile
+        try:
+            if (now := schema_version(db)) != version:
+                raise _Moved(now)
+            _copy_database(db, dest)
+        finally:
+            db.commit()                                     # (only read: the read ends)
+        if not whole(dest, version):
+            dest.unlink(missing_ok=True)
+            raise sqlite3.DatabaseError(f"the copy is not the file at version {version}")
     except (sqlite3.Error, OSError) as e:
         raise StoreError(f"the copy of the database before the migration could not be made ({e}); nothing was changed") from e
     return dest
 
 
-def _require_room(db: sqlite3.Connection, folder: Path, version: int = SCHEMA_VERSION) -> None:
+def _copy_name(folder: Path, version: int, clock: Clock) -> Path:
+    """The name of a new copy of the file at `version` for this migration: premigrate-v<from>-to-v<to>-<time>.sqlite, with a number after the time for a second in the same second, and after every
+    copy of the same migration there is (taken with the time of the newest and the next number when the clock is not past it: it went back), so that the newest by name is the one taken last. Never the
+    name of a copy that is being written (its `.tmp`)."""
+    when = clock().replace(microsecond=0)
+    same = [t for t in taken_copies(folder) if t.old == version and t.new == SCHEMA_VERSION]
+    n = 1
+    if same and same[0].made >= when:
+        when, n = same[0].made, same_second(same[0].path.name) + 1
+    stem = f"premigrate-v{version}-to-v{SCHEMA_VERSION}-{when:%Y%m%d-%H%M%S}"
+    while True:
+        dest = folder / (f"{stem}.sqlite" if n == 1 else f"{stem}-{n}.sqlite")
+        if not dest.exists() and not dest.with_name(dest.name + ".tmp").exists():
+            return dest
+        n += 1
+
+
+_sleep = time.sleep                                         # (the tests' to replace)
+
+
+def _room(db: sqlite3.Connection, folder: Path, version: int, *, copy: bool) -> None:
+    """`_require_room`; when it refuses and the temporary file of a copy an earlier start did not end is in backup/ (a kill while the copy was written, and the restart a few seconds later), once more
+    after that file has been still long enough to be dead and is removed. A file somebody writes meanwhile is left, and the refusal stands."""
+    try:
+        _require_room(db, folder, version, copy=copy)
+    except StoreError:
+        seen = litter(folder)
+        if not seen:
+            raise
+        wait = litter_wait(seen, time.time())
+        log.info("the disk of %s is short of room for the migration while the temporary file of a copy an earlier start did not end is there: it is removed in %d seconds, once it is known to be dead",
+                 folder, round(wait))
+        _sleep(wait)
+        drop_still(seen)
+        _require_room(db, folder, version, copy=copy)
+
+
+def _require_room(db: sqlite3.Connection, folder: Path, version: int = SCHEMA_VERSION, *, copy: bool = True) -> None:
     """Raises StoreError when `folder`'s disk has less free than the migration from `version` needs, naming what to free: the copy (the database's size and a margin), and the database's size once more
-    for a file that migration 32 has yet to rewrite (its write-ahead log; the log lies beside the database and the copy in backup/ under it, one disk)."""
+    for a file that migration 32 has yet to rewrite (its write-ahead log; the log lies beside the database and the copy in backup/ under it, one disk). `copy=False`: the copy stands in backup/
+    already (a start that was cut short made it), and only the log and the margin are counted."""
     size = int(db.execute("PRAGMA page_count").fetchone()[0]) * int(db.execute("PRAGMA page_size").fetchone()[0])
-    need = size * (2 if version < REWRITE_BELOW else 1) + COPY_MARGIN_BYTES
+    need = size * ((1 if copy else 0) + (1 if version < REWRITE_BELOW else 0)) + COPY_MARGIN_BYTES
     free = shutil.disk_usage(folder).free
     if free < need:
         short = (need - free + MIB - 1) // MIB
-        raise StoreError(f"the disk of {folder} has {free // MIB} MB free and the migration needs {need // MIB} MB there for the copy of the database it makes first and for the database's log while it runs; free at least {short} MB there "
-                         f"(the copies in backup/ that are not wanted any more can go) and start again; nothing was changed")
+        made = "for the copy of the database it makes first and for the database's log while it runs" if copy else "for the database's log while it runs"
+        keep = "the copies in backup/ that are not wanted any more can go" if copy else "the copy in backup/ taken before this migration stays: it is the way back"
+        raise StoreError(f"the disk of {folder} has {free // MIB} MB free and the migration needs {need // MIB} MB there {made}; free at least {short} MB there "
+                         f"({keep}) and start again; nothing was changed")
 
 
 def _record_step(db: sqlite3.Connection, number: int, clock: Clock) -> None:

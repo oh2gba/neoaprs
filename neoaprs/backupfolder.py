@@ -1,7 +1,13 @@
-"""The folder of copies of the database, data/backup: what a copy that did not end leaves behind, and the way back to a copy.
+"""The folder of copies of the database, data/backup: what a copy that did not end leaves behind, which copy a migration stands on, and the way back to a copy.
 
 A copy is written under a temporary name (`<name>.tmp`, with SQLite's `-journal` beside it while it is written) and renamed when it is whole (dbfile.copy_database). A process killed
 in between (SIGKILL, the OOM killer, a power cut) leaves the temporary file, up to the size of the database, and nothing else removes it.
+
+The rule of the copies taken before a migration (migrations.open_database): a migration stands on one copy, the database as the NeoAPRS before left it. The first start of the migration makes it; a
+start that finds the file at a middle version (an earlier start was cut short after a step) stands on that start's copy and makes none (`cut_short`; the file came from it when its history is the
+copy's and the step after it, which no clock decides); a start that finds the file at the version of a whole copy taken for the same new version, and the file unchanged since, stands on that copy
+and makes none (`same_copies`, `same_bytes`). A new copy of the same migration is named after every one there is, so the newest by name is the one taken last also when the clock went back. When the
+migration has ended whole every other copy taken before a migration goes (`drop_older_copies`): backup/ holds that one copy, and the files somebody put there by hand, which are never touched.
 """
 import os
 import re
@@ -44,25 +50,161 @@ def sweep(folder: Path, now: float) -> list[str]:
     return removed
 
 
-def drop_older_copies(folder: Path, keep: str, found: int) -> list[str]:
-    """Removes the copies taken before earlier migrations, all but the file named `keep` (the one just made whole): the folder holds the latest. A copy of a file older than `found`, the version
-    this migration found the file at, taken by a migration that went to a version above it stays too: that migration was cut short at `found`, a middle version, and its copy is the one
-    at the version the program before can open. Nothing else in the folder is looked at, so a copy somebody made by hand stays. Returns the names removed; a file that cannot be removed is left."""
-    removed: list[str] = []
+def litter(folder: Path) -> dict[Path, tuple[int, int]]:
+    """The temporary files of copies in `folder` as they are now (the time of their last change in nanoseconds, their size), to be looked at again later (`drop_still`)."""
+    found: dict[Path, tuple[int, int]] = {}
     try:
         names = os.listdir(folder)
     except OSError:
-        return removed
-    for name in sorted(names):
+        return found
+    for name in names:
         path = folder / name
         try:
-            match = PREMIGRATION.match(name)
-            if name != keep and match is not None and not int(match.group(1)) < found < int(match.group(2)) and path.is_file() and not path.is_symlink():
+            if LITTER.match(name) and path.is_file() and not path.is_symlink():
+                info = path.stat()
+                found[path] = (info.st_mtime_ns, info.st_size)
+        except OSError:
+            continue
+    return found
+
+
+def litter_wait(seen: dict[Path, tuple[int, int]], now: float) -> float:
+    """How long to look at the temporary files `seen` before the still ones are known to be dead: until the youngest has been still LITTER_AGE_SEC, at most that long (a file whose time is ahead
+    of `now`, written before the clock went back, is watched the whole time)."""
+    ages = [min(max(now - mtime / 1e9, 0.0), LITTER_AGE_SEC) for mtime, _ in seen.values()]
+    return LITTER_AGE_SEC - min(ages) + 1.0 if ages else 0.0
+
+
+def drop_still(seen: dict[Path, tuple[int, int]]) -> list[str]:
+    """Removes those of the temporary files `seen` that have not changed since they were seen (a copy being written changes its file all the time); returns their names."""
+    removed: list[str] = []
+    for path, state in seen.items():
+        try:
+            info = path.stat()
+            if (info.st_mtime_ns, info.st_size) == state:
                 path.unlink()
-                removed.append(name)
+                removed.append(path.name)
         except OSError:
             continue
     return removed
+
+
+def drop_older_copies(folder: Path, keep: str) -> list[str]:
+    """Removes every copy taken before a migration (by its name) but the file named `keep`, the one the migration that has just ended whole stood on: the copies of earlier migrations, and
+    any an earlier program took at a middle version. Nothing else in the folder is looked at, so a copy somebody made by hand stays. Two are never removed: any copy when `keep` is not whole at the
+    version its name says (it is not the file the migration began with), and a whole copy of a version older than `keep`'s taken by a migration that went past it (the file may have come from that
+    one). Returns the names removed; a file that cannot be removed is left."""
+    taken = taken_copies(folder)
+    kept = next((t for t in taken if t.path.name == keep), None)
+    if kept is None or not whole(kept.path, kept.old):
+        return []
+    removed: list[str] = []
+    for t in taken:
+        try:
+            if t is not kept and not (t.old < kept.old < t.new and whole(t.path, t.old)):
+                t.path.unlink()
+                removed.append(t.path.name)
+        except OSError:
+            continue
+    return removed
+
+
+@dataclass(frozen=True)
+class Taken:
+    """A copy taken before a migration, as its name says: the version the file was at, the version that migration went to, and when it was taken."""
+    path: Path
+    old: int
+    new: int
+    made: datetime
+
+
+def taken_copies(folder: Path) -> list[Taken]:
+    """The copies taken before a migration (premigrate-v<old>-to-v<new>-<time>.sqlite, files and not links), by their names alone: whether one is whole is `whole`'s to say. The newest first (by the
+    time in the name and the number after it; of one migration that is the order they were taken in, migrations.premigration_backup names them so)."""
+    found: list[Taken] = []
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return found
+    for name in names:
+        match = PREMIGRATION.match(name)
+        path = folder / name
+        try:
+            if match is not None and path.is_file() and not path.is_symlink():
+                found.append(Taken(path, int(match.group(1)), int(match.group(2)), made_at(name, path.stat().st_mtime)))
+        except OSError:
+            continue
+    return sorted(found, key=lambda t: (t.made, same_second(t.path.name)), reverse=True)
+
+
+def whole(path: Path, version: int) -> bool:
+    """Whether the file under the name of a copy is a whole database at `version`. A copy gets its name only once it is whole (written under `.tmp`, checked, synced, renamed: dbfile.copy_database), and
+    a `.tmp` is never one; that it still is whole is read from its header, without opening it: SQLite's, at `version`, a page size SQLite writes, as long as its header says (or a whole number of pages
+    where the header's count is not kept), with no journal or log of its own beside it (a file somebody is changing)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(HEADER_BYTES)
+        size = path.stat().st_size
+        beside = any(path.with_name(path.name + suffix).exists() for suffix in ("-journal", "-wal"))
+    except OSError:
+        return False
+    if len(head) < HEADER_BYTES or not head.startswith(SQLITE_MAGIC) or beside or struct.unpack(">I", head[60:64])[0] != version:
+        return False
+    page = int(struct.unpack(">H", head[16:18])[0])
+    page = 65536 if page == 1 else page
+    if page < 512 or page & (page - 1):
+        return False
+    count = int(struct.unpack(">I", head[28:32])[0])
+    if head[92:96] == head[24:28] and count > 0:          # (the count is kept when the number it is valid for is the file's change counter)
+        return size == count * page
+    return size >= page and size % page == 0
+
+
+def cut_short(folder: Path, found: int) -> list[Taken]:
+    """The copies a migration cut short may have left behind, for a start that finds the file at `found`: the whole copies of a file older than `found`, taken by a migration that went above it (it got
+    as far as `found`), the oldest version first and of one version the newest first. The caller takes the first the file came from (its history is the copy's, and the step after it)."""
+    return sorted((t for t in taken_copies(folder) if t.old < found < t.new and whole(t.path, t.old)), key=lambda t: t.old)
+
+
+def before_copy(folder: Path) -> Taken | None:
+    """The copy the NeoAPRS before this one opens: the one the latest migration stands on, which is the whole copy taken for the highest new version, of the oldest version among those (and the newest
+    of that version). None when backup/ holds no whole copy taken before a migration."""
+    found = [t for t in taken_copies(folder) if whole(t.path, t.old)]
+    top = max((t.new for t in found), default=None)
+    return next(iter(sorted((t for t in found if t.new == top), key=lambda t: t.old)), None)
+
+
+def same_copies(folder: Path, found: int, new: int) -> list[Taken]:
+    """The whole copies taken of a file at `found` for a migration to `new`, the newest first: a start that finds the file there again (the start before was cut short before its first step
+    was in) stands on one of them when the file has not changed since (`same_bytes`)."""
+    return [t for t in taken_copies(folder) if t.old == found and t.new == new and whole(t.path, found)]
+
+
+CHUNK_BYTES = 1024 * 1024
+# the fields of the header that the copy writes for itself and that say nothing of what the file holds: the journal's mode (the copy's is DELETE, the database's WAL), the change counter, the
+# schema cookie (sqlite3's backup gives the copy its own), the number the page count is valid for and the version of SQLite that wrote the file last
+BOOKKEEPING = (slice(18, 20), slice(24, 28), slice(40, 44), slice(92, 100))
+
+
+def _blank(head: bytearray) -> bytearray:
+    for field in BOOKKEEPING:
+        head[field] = bytes(len(head[field]))
+    return head
+
+
+def same_bytes(database: Path, copy: Path) -> bool:
+    """Whether the database file holds exactly what the copy does, byte for byte but the bookkeeping of the header. The caller has written the database's log into the file first (a checkpoint, whole): the
+    copy is SQLite's page by page image of it (sqlite3's backup), so a file that nothing changed since is equal and any change to a row or a table is a difference. Only read; False when either cannot be."""
+    try:
+        if database.stat().st_size != copy.stat().st_size:
+            return False
+        with open(database, "rb") as a, open(copy, "rb") as b:
+            x, y = _blank(bytearray(a.read(CHUNK_BYTES))), _blank(bytearray(b.read(CHUNK_BYTES)))
+            while x == y and x:
+                x, y = bytearray(a.read(CHUNK_BYTES)), bytearray(b.read(CHUNK_BYTES))
+            return x == y
+    except OSError:
+        return False
 
 
 SQLITE_MAGIC = b"SQLite format 3\x00"

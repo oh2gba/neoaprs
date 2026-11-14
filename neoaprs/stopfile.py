@@ -3,9 +3,13 @@ Nothing is listened to and no key is needed: whoever can write into the data fol
 no one more power. A file that is left (the daemon was not running when it was written) is deleted when the next daemon starts, so that it does not end that one.
 
 A daemon that ends to start again as a new version (Update now of an AppImage) leaves `neoaprs.restarting` beside it, which the new one deletes once it runs: the desktop app, which ends when its daemon does,
-waits for the new daemon while the note is fresh."""
+waits for the new daemon while the note is fresh.
+
+While the database is brought up to date (a migration: minutes for a large file on a slow card) `neoaprs.migrating` is beside it, written again every few seconds and deleted at the end: what waits
+for the daemon's page (`neoaprs open`, the desktop app) waits as long as the note is fresh, and a note that a kill left goes stale by itself."""
 import asyncio
 import contextlib
+import threading
 import time
 from pathlib import Path
 
@@ -60,3 +64,58 @@ def restarting(data_dir: Path, now: float | None = None) -> bool:
 def clear_restart(data_dir: Path) -> None:
     with contextlib.suppress(OSError):
         (data_dir / RESTART_NAME).unlink(missing_ok=True)
+
+
+MIGRATING_NAME = "neoaprs.migrating"
+MIGRATING_BEAT_SEC = 5.0                  # how often the note is written again while the migration runs
+MIGRATING_FRESH_SEC = 30.0                # a note older than this is of a migration that a kill ended
+
+
+class MigratingNote:
+    """The note of a migration that runs: `start` writes it and has a thread of its own write it again every `beat_sec`, `stop` ends that and deletes it (both may be called more than once; `stop`
+    without `start` does nothing). A folder that cannot be written gets no note, and the migration goes on."""
+
+    def __init__(self, data_dir: Path, beat_sec: float = MIGRATING_BEAT_SEC) -> None:
+        self.path = data_dir / MIGRATING_NAME
+        self.beat_sec = beat_sec
+        self._done = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is None:
+            self._write()
+            self._thread = threading.Thread(target=self._beat, name="neoaprs-migrating", daemon=True)
+            self._thread.start()
+
+    def stop(self) -> None:
+        if self._thread is not None:
+            self._done.set()
+            self._thread.join()
+            self._thread = None
+            with contextlib.suppress(OSError):
+                self.path.unlink(missing_ok=True)
+
+    def _beat(self) -> None:
+        while not self._done.wait(self.beat_sec):
+            self._write()
+
+    def _write(self) -> None:
+        with contextlib.suppress(OSError):
+            self.path.write_text("migrating\n", encoding="ascii")
+
+
+def migrating(data_dir: Path, now: float | None = None) -> bool:
+    """Is the database of the folder being brought up to date: is the note there, and fresh? A note whose time is far ahead of `now` was written before the clock went back, by a migration that
+    a kill ended (a running one writes it again every few seconds): it is not fresh."""
+    try:
+        age = (time.time() if now is None else now) - (data_dir / MIGRATING_NAME).stat().st_mtime
+    except OSError:
+        return False
+    return abs(age) < MIGRATING_FRESH_SEC
+
+
+def clear_stale_migrating(data_dir: Path) -> None:
+    """Removes the note of a migration that a kill ended (one that is not fresh); a fresh one, which another process keeps writing, stays."""
+    with contextlib.suppress(OSError):
+        if (data_dir / MIGRATING_NAME).exists() and not migrating(data_dir):
+            (data_dir / MIGRATING_NAME).unlink()

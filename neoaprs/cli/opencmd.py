@@ -11,6 +11,7 @@ import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
+from neoaprs import stopfile
 from neoaprs.paths import default_data_dir
 
 from . import servicecmd, servicewindows
@@ -55,12 +56,19 @@ def spawn(argv: list[str], data: Path) -> "subprocess.Popen[bytes]":
             return subprocess.Popen(argv, start_new_session=True, close_fds=True, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
 
 
-def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> str | None:
+def wait_for_page(data: Path, child: "subprocess.Popen[bytes] | None", seconds: float, clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
+                  *, told: Callable[[], None] | None = None) -> str | None:
     """The page's address once a daemon holds the folder and its page answers; None when `seconds` pass, or the daemon we started ended and none holds the folder. The page is asked before the lock is: a look
     at the lock takes it for a moment, which must not be the moment the daemon that is starting takes it (it would find it held and end), and a daemon whose page answers has held it since before it listened.
-    `clock` and `sleep` are a test's virtual time."""
+    While the folder's database is brought up to date (the note of stopfile.py is fresh) the wait does not run out: a large file takes minutes, and the `seconds` start again from its end, for the rest
+    of the start; `told` is called once when that is seen. `clock` and `sleep` are a test's virtual time."""
     deadline = clock() + seconds
     while clock() < deadline:
+        if stopfile.migrating(data):
+            deadline = clock() + seconds
+            if told is not None:
+                told()
+                told = None
         url = page_url(data)
         if url is not None and page_answers(url) and is_running(data):
             return url
@@ -89,7 +97,7 @@ def main(argv: list[str]) -> int:
         except OSError as e:
             tell_the_user(f"open: the daemon could not be started on {data}: {e.strerror or e}")
             return 1
-    url = wait_for_page(data, child, args.timeout)
+    url = wait_for_page(data, child, args.timeout, told=lambda: say("open: NeoAPRS is bringing its database up to date; the page opens when that is done"))
     if url is None:
         before = "" if sys.platform == "win32" else f" (what it said before it had a log is in {data / LAUNCH_NAME})"
         why = f"the daemon ended with exit code {child.returncode}{before}" if child is not None and child.poll() is not None else f"no page within {args.timeout:g} s (is the port taken? see the log)"

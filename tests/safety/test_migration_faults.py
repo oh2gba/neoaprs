@@ -2,7 +2,10 @@
 full at the commit, a file another writer holds, another process that migrated first, a history that cannot be read or a source that cannot be hashed. In each the file is as it was or at the step before,
 the copy taken before the first step is in backup/, and the next start with the cause gone migrates it."""
 import logging
+import signal
 import sqlite3
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -152,6 +155,161 @@ def test_a_step_that_another_process_has_run_meanwhile_is_not_run_again(tmp_path
     assert s.db.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'beacon'").fetchone() == (1,)
     s.close()
     assert len([r for r in caplog.records if r.name == MIGRATION_LOG and "is now version" in r.getMessage()]) == 1, "told once, by the open that ran it"
+
+
+# ---- a migration killed (SIGKILL, the OOM killer, a power cut) at each place, once, twice and three times: a child process runs it with three made-up steps and kills itself where it is told
+
+KILLED = r'''
+import os, signal, sqlite3, sys
+from neoaprs import migrations
+path, where = sys.argv[1], sys.argv[2]
+
+def die(*_):
+    os.kill(os.getpid(), signal.SIGKILL)
+
+def first(db):
+    db.execute("CREATE TABLE k1_first (x INTEGER)")
+    db.execute("INSERT INTO k1_first VALUES (1)")
+
+def second(db):
+    db.execute("UPDATE settings SET value = value || ' (changed by the second step)'")
+    db.execute("CREATE TABLE k1_second (x INTEGER)")
+
+def third(db):
+    db.execute("UPDATE settings SET value = value || ' (and by the third)'")
+    db.execute("CREATE TABLE k1_third (x INTEGER)")
+
+def killed_in(step, marker):
+    def run(db):
+        db.set_trace_callback(lambda statement: die() if statement.startswith(marker) else None)
+        step(db)
+    run.__name__ = step.__name__
+    return run
+
+steps = [first, second, third]
+if where.startswith("step"):
+    n = int(where[4:])
+    steps[n - 1] = killed_in(steps[n - 1], "CREATE TABLE")      # (after the step's first statement: the step is half done in its transaction)
+migrations.MIGRATIONS = [*migrations.MIGRATIONS, *steps]
+migrations.SCHEMA_VERSION = len(migrations.MIGRATIONS)
+if where == "copy":
+    def half_a_copy(src, dest):
+        out = sqlite3.connect(str(dest.with_name(dest.name + ".tmp")))
+        src.backup(out, pages=2, progress=die)       # (killed after the first two pages: the temporary file is half written)
+    migrations._copy_database = half_a_copy
+elif where == "before":
+    migrations._step = die
+elif where == "drop":
+    migrations.drop_older_copies = die
+db, why = migrations.open_database(path)
+if db is None:
+    print(why)
+    raise SystemExit(3)
+db.close()
+'''
+
+
+def run_killed(path: Path, where: str) -> int:
+    """The migration of `path` in a child process that kills itself at `where` (`copy`: while the copy is written; `before`: between the copy and the first step; `stepN`: in the made-up step N;
+    `drop`: after the last step, before the older copies are removed; `none`: not at all). Its exit code."""
+    root = Path(__file__).resolve().parents[2]
+    return subprocess.run([sys.executable, "-c", KILLED, str(path), where], cwd=root, capture_output=True, timeout=120).returncode
+
+
+def a_kept_file(path: Path) -> dict[str, int]:
+    """A file at the program's version with settings, packets and a station, and what it holds."""
+    s = opened(path)
+    s.db.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [("station/call", "OH2GBA"), ("station/symbol", "/-")])
+    s.db.executemany("INSERT INTO packet (heard_at, direction, raw, source, destination, path, kind, summary, decoded) VALUES (?, 'in', ?, ?, 'APRS', '', 'other', ?, '{}')",
+                     [(f"2026-11-14T12:{i // 60:02d}:{i % 60:02d}.000000Z", f"OH{i}>APRS:x".encode(), f"OH{i}", "x" * 300) for i in range(300)])
+    s.close()
+    return tables_and_version(path)[1]
+
+
+def taken(folder: Path) -> list[str]:
+    return sorted(p.name for p in folder.glob("premigrate-*.sqlite"))
+
+
+def at_the_old_version_as_it_was(copy: Path, held: dict[str, int]) -> bool:
+    version, tables = tables_and_version(copy)
+    db = raw(copy)
+    try:
+        settings = db.execute("SELECT value FROM settings ORDER BY key").fetchall()
+    finally:
+        db.close()
+    return version == SCHEMA_VERSION and tables == held and settings == [("OH2GBA",), ("/-",)]
+
+
+KILLED_BY = getattr(signal, "SIGKILL", 9)            # (the exit code of a child that the kill ended is its negative)
+KILLS_HERE = pytest.mark.skipif(sys.platform == "win32", reason="SIGKILL is POSIX's; Windows ends a process with TerminateProcess, which these children cannot ask for themselves")
+
+
+@KILLS_HERE
+@pytest.mark.parametrize("kills", [
+    pytest.param([("step2", NEXT), ("step2", NEXT), ("step3", NEXT + 1)], id="in the second step twice, then in the third"),
+    pytest.param([("step1", SCHEMA_VERSION), ("before", SCHEMA_VERSION), ("step1", SCHEMA_VERSION)], id="in the first step, between the copy and the first step, in the first step again"),
+    pytest.param([("copy", SCHEMA_VERSION), ("step2", NEXT), ("step3", NEXT + 1)], id="while the copy is written, in the second step, in the third"),
+])
+def test_a_migration_killed_again_and_again_ends_with_one_copy_the_one_of_the_old_version(tmp_path: Path, kills: list[tuple[str, int]]) -> None:
+    """Whatever kills it where: the file is at the version of the last step that was in, every start after the first copy makes no other (a station that a power cut or the OOM killer stops again and again
+    does not fill its disk), and the start that gets through leaves backup/ with the copy of the file as the program before left it; the copy of the migration before goes, a copy made by hand stays."""
+    path = tmp_path / DB_NAME
+    held = a_kept_file(path)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    (folder / "premigrate-v29-to-v30-20261001-120000.sqlite").write_bytes(b"the copy of the migration before")
+    made_by_hand = folder / "before-the-update.sqlite"
+    made_by_hand.write_bytes(path.read_bytes())
+    copies: list[str] = []
+    for where, version in kills:
+        assert run_killed(path, where) == -KILLED_BY
+        assert tables_and_version(path)[0] == version, f"killed at {where}: the file is at the version of the last step that was in"
+        now = [n for n in taken(folder) if n not in ("premigrate-v29-to-v30-20261001-120000.sqlite",)]
+        assert len(now) <= 1 and (not copies or now == copies), f"killed at {where}: one copy at most, the first one made: {now}"
+        copies = now
+    assert run_killed(path, "none") == 0
+    version, tables = tables_and_version(path)
+    assert version == NEXT + 2 and {"k1_first", "k1_second", "k1_third"} <= set(tables)
+    [kept] = taken(folder)
+    assert kept.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 2}-") and at_the_old_version_as_it_was(folder / kept, held)
+    assert made_by_hand.is_file(), "the hand's copy stays"
+    assert all(n.endswith((".sqlite.tmp", ".sqlite.tmp-journal")) for n in {p.name for p in folder.iterdir()} - {kept, made_by_hand.name}), "what else is there is the litter of a copy a kill ended, for the sweep"
+    db = raw(path)
+    assert db.execute("SELECT value FROM settings WHERE key = 'station/call'").fetchone() == ("OH2GBA (changed by the second step) (and by the third)",), "each step ran once"
+    db.close()
+
+
+@KILLS_HERE
+def test_a_copy_of_a_middle_version_an_earlier_program_left_goes_and_the_old_one_stays(tmp_path: Path) -> None:
+    """Killed in the second step, a copy of the middle version beside the one of the old version (as the join's rule of 14 November made them): the start that gets through stands on the old one and removes the other."""
+    path = tmp_path / DB_NAME
+    held = a_kept_file(path)
+    folder = tmp_path / "backup"
+    assert run_killed(path, "step2") == -KILLED_BY
+    [old] = taken(folder)
+    middle = folder / f"premigrate-v{NEXT}-to-v{NEXT + 2}-20991231-235959.sqlite"
+    source = raw(path)
+    try:
+        from neoaprs.dbfile import copy_database
+        copy_database(source, middle)
+    finally:
+        source.close()
+    assert run_killed(path, "none") == 0
+    assert taken(folder) == [old] and at_the_old_version_as_it_was(folder / old, held)
+
+
+@KILLS_HERE
+def test_a_start_killed_after_the_last_step_leaves_the_copies_of_the_migration_before_to_the_next_one(tmp_path: Path) -> None:
+    """The one place where backup/ keeps more after a migration that ended whole: a kill between the last step and the removal of the older copies (the next start has nothing to migrate)."""
+    path = tmp_path / DB_NAME
+    held = a_kept_file(path)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    (folder / "premigrate-v29-to-v30-20261001-120000.sqlite").write_bytes(b"the copy of the migration before")
+    assert run_killed(path, "drop") == -KILLED_BY
+    assert tables_and_version(path)[0] == NEXT + 2
+    names = taken(folder)
+    assert len(names) == 2 and names[0] == "premigrate-v29-to-v30-20261001-120000.sqlite" and at_the_old_version_as_it_was(folder / names[1], held)
 
 
 def test_a_source_that_cannot_be_read_hashes_as_unknown_and_is_not_held_against_the_file() -> None:

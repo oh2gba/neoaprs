@@ -13,8 +13,9 @@ import pytest
 
 from neoaprs import migrations as migrations_module
 from neoaprs.dberror import StoreError
-from neoaprs.migrations import COPY_MARGIN_BYTES, MIGRATIONS, SCHEMA_VERSION, _require_room, source_hash
+from neoaprs.migrations import COPY_MARGIN_BYTES, MIB, MIGRATIONS, SCHEMA_VERSION, _require_room, source_hash
 from neoaprs.migrationlog import MIGRATION_LOG
+from neoaprs.stopfile import MIGRATING_NAME
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened, try_open
@@ -299,9 +300,12 @@ def test_a_migration_that_fails_changes_nothing_and_the_file_is_refused_with_the
 
 @pytest.mark.expects_errors
 def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cut_short(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A migration cut short leaves the file at a middle version, which no release opens: the start that gets through copies that file and keeps the copy taken at the old version."""
+    """A migration cut short leaves the file at a middle version, which no release opens: the start that gets through stands on the copy taken at the old version, makes none of the middle version,
+    and keeps that one copy; the migration before's goes."""
     path = tmp_path / DB_NAME
-    opened(path).close()
+    s = opened(path)
+    s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
+    s.close()
     folder = tmp_path / "backup"
     folder.mkdir()
     (folder / "premigrate-v22-to-v23-20260101-000000.sqlite").write_bytes(b"the copy of the migration before")
@@ -309,12 +313,386 @@ def test_the_copy_at_the_old_version_outlives_the_start_that_ends_a_migration_cu
     with_steps(monkeypatch, v_next, broken)
     ok, why = try_open(path, clock)
     assert not ok and "the disk is full" in why
+    first = folder / f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 1}-20261021-120000.sqlite"
+    assert first.is_file()
     with_steps(monkeypatch, v_next, mended)
     clock.advance(60)
     ok, why = try_open(path, clock)
     assert ok, why
-    assert sorted(p.name for p in folder.iterdir()) == [f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 1}-20261021-120000.sqlite", f"premigrate-v{NEXT}-to-v{NEXT + 1}-20261021-120100.sqlite"], \
-        "the copy at the old version stays beside the one of the middle version, and the migration before's goes"
+    assert sorted(p.name for p in folder.iterdir()) == [first.name], "the copy at the old version is the one kept: none of the middle version was made, and the migration before's goes"
+    copy = raw(first)
+    assert copy.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION and copy.execute("SELECT value FROM settings").fetchall() == [("OH2GBA",)], "and it holds the file as the program before left it"
+    assert copy.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'beacon'").fetchone() == (0,)
+    copy.close()
+
+
+def made_copy(source: Path, dest: Path) -> None:
+    """A copy of the database at `source` as the migrations make one (dbfile.copy_database)."""
+    from neoaprs.dbfile import copy_database
+    db = raw(source)
+    try:
+        copy_database(db, dest)
+    finally:
+        db.close()
+
+
+def test_a_copy_is_whole_by_its_header_and_a_half_written_or_changed_one_is_not(tmp_path: Path) -> None:
+    from neoaprs.backupfolder import whole
+    path = tmp_path / DB_NAME
+    s = opened(path)
+    s.db.executemany("INSERT INTO settings (key, value) VALUES (?, ?)", [(f"k/{i}", "x" * 500) for i in range(200)])
+    s.close()
+    folder = tmp_path / "backup"
+    good = folder / f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-120000.sqlite"
+    made_copy(path, good)
+    assert whole(good, SCHEMA_VERSION)
+    assert not whole(good, SCHEMA_VERSION - 1), "a copy of another version than its name says is not the copy it names"
+    data = good.read_bytes()
+    cut = folder / "cut.sqlite"
+    cut.write_bytes(data[: len(data) // 2])
+    assert not whole(cut, SCHEMA_VERSION), "a file cut short (a copy somebody copied half of, a disk that lost its end) is not whole"
+    odd = folder / "odd.sqlite"
+    odd.write_bytes(data + b"\x00" * 10)
+    assert not whole(odd, SCHEMA_VERSION)
+    (folder / "junk.sqlite").write_bytes(b"x")
+    assert not whole(folder / "junk.sqlite", SCHEMA_VERSION) and not whole(folder / "absent.sqlite", SCHEMA_VERSION)
+    journal = good.with_name(good.name + "-journal")
+    journal.write_bytes(b"")
+    assert not whole(good, SCHEMA_VERSION), "a copy with a journal of its own beside it is being changed"
+    journal.unlink()
+    assert whole(good, SCHEMA_VERSION)
+
+
+def test_a_start_that_finds_the_file_as_a_whole_copy_holds_it_makes_no_second_one_and_a_changed_file_gets_a_new_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """The first step fails twice (nothing of the migration is in): the second start finds the file at the version it was copied at, unchanged, and makes no copy (a machine killed again and again does not fill
+    its disk with copies); the file is then changed at that version (the NeoAPRS before ran on it again), and the next start copies it anew and keeps only that copy once it gets through."""
+    path = tmp_path / DB_NAME
+    s = opened(path)
+    s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
+    s.close()
+    folder = tmp_path / "backup"
+    clock = FixedClock()
+    with_steps(monkeypatch, broken)
+    assert not try_open(path, clock)[0]
+    [first] = sorted(folder.iterdir())
+    caplog.set_level(logging.INFO, MIGRATION_LOG)
+    clock.advance(60)
+    assert not try_open(path, clock)[0]
+    assert sorted(folder.iterdir()) == [first], "no second copy of the same file"
+    assert any("taken by a start that did not get through; no other is made" in r.getMessage() for r in caplog.records)
+    db = raw(path)
+    db.execute("UPDATE settings SET value = 'OH2GBA-7' WHERE key = 'station/call'")
+    db.close()
+    clock.advance(60)
+    assert not try_open(path, clock)[0]
+    copies = sorted(folder.iterdir())
+    assert len(copies) == 2 and copies[0] == first, "the file is not what the copy holds any more: a new copy"
+    with_steps(monkeypatch, mended)
+    clock.advance(60)
+    ok, why = try_open(path, clock)
+    assert ok, why
+    assert sorted(folder.iterdir()) == [copies[1]], "the newer copy is the file as the program before left it; the stale one goes"
+    copy = raw(copies[1])
+    assert copy.execute("SELECT value FROM settings").fetchall() == [("OH2GBA-7",)]
+    copy.close()
+
+
+def test_a_copy_that_is_not_whole_a_temporary_one_and_one_made_by_hand_are_never_stood_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Beside a file of the version for this migration: a copy under its name cut short, the whole temporary file of a copy that was never renamed, a copy made by hand of the same file; the start makes a copy of
+    its own, and the end of the migration removes the copy that was not whole and leaves the hand's and the temporary one, which another migration that runs may be writing (the sweep takes it once
+    it is old)."""
+    path = tmp_path / DB_NAME
+    s = opened(path)
+    s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
+    s.close()
+    folder = tmp_path / "backup"
+    stem = f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}"
+    whole_one = folder / "by-hand.sqlite"
+    made_copy(path, whole_one)
+    half = folder / f"{stem}-20261020-120000.sqlite"
+    half.write_bytes(whole_one.read_bytes()[:4096])
+    unnamed = folder / f"{stem}-20261020-130000.sqlite.tmp"
+    unnamed.write_bytes(whole_one.read_bytes())
+    (tmp_path / MIGRATING_NAME).write_text("migrating\n", encoding="ascii")      # (another migration runs: the temporary file may be its copy being written)
+    with_steps(monkeypatch, v_next)
+    ok, why = try_open(path, FixedClock())
+    assert ok, why
+    assert sorted(p.name for p in folder.iterdir()) == ["by-hand.sqlite", f"{stem}-20261020-130000.sqlite.tmp", f"{stem}-20261021-120000.sqlite"]
+
+
+def test_a_migration_that_stands_on_a_copy_needs_room_for_the_log_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db = sqlite3.connect(tmp_path / DB_NAME)
+    db.execute("CREATE TABLE packet (raw BLOB)")
+    db.executemany("INSERT INTO packet (raw) VALUES (?)", [(bytes(4000),)] * 100)
+    db.commit()
+    size = int(db.execute("PRAGMA page_count").fetchone()[0]) * int(db.execute("PRAGMA page_size").fetchone()[0])
+    room = {"free": size + COPY_MARGIN_BYTES}
+    monkeypatch.setattr("neoaprs.migrations.shutil.disk_usage", lambda _: types.SimpleNamespace(free=room["free"]))
+    _require_room(db, tmp_path, 31, copy=False)
+    room["free"] -= 1
+    with pytest.raises(StoreError, match="needs .* MB there for the database's log while it runs; .*taken before this migration stays"):
+        _require_room(db, tmp_path, 31, copy=False)
+    room["free"] = COPY_MARGIN_BYTES
+    _require_room(db, tmp_path, 32, copy=False)
+    with pytest.raises(StoreError, match="for the copy of the database it makes first"):
+        _require_room(db, tmp_path, 32)
+    db.close()
+
+
+def test_the_copy_the_program_before_opens_is_the_one_the_latest_migration_stands_on(tmp_path: Path) -> None:
+    from neoaprs.backupfolder import before_copy
+    path = tmp_path / DB_NAME
+    opened(path).close()
+    folder = tmp_path / "backup"
+    assert before_copy(folder) is None
+    for name in ("premigrate-v29-to-v30-20261001-120000.sqlite", f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261101-120000.sqlite", f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261102-120000.sqlite", "mine.sqlite"):
+        made_copy(path, folder / name)
+    db = raw(folder / "premigrate-v29-to-v30-20261001-120000.sqlite")
+    db.execute("PRAGMA user_version = 29")
+    db.close()
+    (folder / f"premigrate-v{NEXT}-to-v{NEXT + 1}-20261103-120000.sqlite").write_bytes(b"not whole")
+    found = before_copy(folder)
+    assert found is not None and found.path.name == f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261102-120000.sqlite"
+
+
+def premigration_names(folder: Path) -> list[str]:
+    return sorted(p.name for p in folder.iterdir() if p.name.startswith("premigrate-"))
+
+
+def held(copy: Path) -> tuple[int, list[tuple[str, ...]], list[str]]:
+    """A copy, read only: its version, its settings, the tables of the made-up steps in it."""
+    db = sqlite3.connect(f"{copy.as_uri()}?mode=ro", uri=True)
+    try:
+        return (int(db.execute("PRAGMA user_version").fetchone()[0]), db.execute("SELECT value FROM settings ORDER BY key").fetchall(),
+                [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE name IN ('beacon', 'half')")])
+    finally:
+        db.close()
+
+
+def a_station(path: Path, clock: FixedClock | None = None) -> None:
+    s = opened(path, clock or FixedClock())
+    s.db.execute("INSERT INTO settings (key, value) VALUES ('station/call', 'OH2GBA')")
+    s.close()
+
+
+@pytest.mark.parametrize("when", ["while the copy is written", "between the reading of the version and the copy"])
+def test_another_neoaprs_that_migrates_the_file_meanwhile_leaves_one_whole_copy_of_the_old_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, when: str) -> None:
+    """`neoaprs db set`, a second daemon or the app migrate the file themselves (the daemon may be running): one runs the whole migration while the other is copying the file (page by page, as on a slow
+    card: sqlite3's backup starts again when another connection writes the file) or has read its version and is about to copy it. The other's copy is the file at the version its name says, or it makes
+    none; at the end backup/ holds one copy, whole, of the old version with the settings as they were."""
+    from neoaprs import dbfile
+    path = tmp_path / DB_NAME
+    a_station(path)
+    with_steps(monkeypatch, v_next)
+    real_room = migrations_module._require_room
+    state = {"inner": False, "done": False}
+
+    def the_other_migrates() -> None:
+        if not state["done"] and not state["inner"]:
+            state["done"] = state["inner"] = True
+            try:
+                ok, why = try_open(path)
+                assert ok, why
+            finally:
+                state["inner"] = False
+
+    if when == "while the copy is written":
+        def slow_copy(src: sqlite3.Connection, dest: Path) -> None:
+            if state["inner"]:
+                dbfile.copy_database(src, dest)
+                return
+            tmp = dest.with_name(dest.name + ".tmp")
+            out = sqlite3.connect(tmp)
+            try:
+                src.backup(out, pages=1, progress=lambda *_: the_other_migrates())
+                out.execute("PRAGMA journal_mode=DELETE")
+            finally:
+                out.close()
+            tmp.replace(dest)
+        monkeypatch.setattr(migrations_module, "_copy_database", slow_copy)
+    else:
+        def room(db: sqlite3.Connection, folder: Path, version: int = SCHEMA_VERSION, *, copy: bool = True) -> None:
+            real_room(db, folder, version, copy=copy)
+            the_other_migrates()
+        monkeypatch.setattr(migrations_module, "_require_room", room)
+    ok, why = try_open(path)
+    assert ok, why
+    assert state["done"], "the other ran"
+    [kept] = premigration_names(tmp_path / "backup")
+    assert kept.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-") and held(tmp_path / "backup" / kept) == (SCHEMA_VERSION, [("OH2GBA",)], [])
+
+
+@pytest.mark.expects_errors
+def test_a_clock_that_went_back_after_the_copy_does_not_make_the_start_after_a_cut_copy_the_middle_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A Raspberry Pi without a clock of its own: the copy is named by the time before a power cut, the step after it is written an hour earlier (the clock restored at the boot), and the next step
+    fails. That the file came from the copy is read from both histories, not from the clock: the start that gets through makes no copy of the middle version and keeps the one of the old version."""
+    path = tmp_path / DB_NAME
+    a_station(path)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    (folder / "premigrate-v22-to-v23-20260101-000000.sqlite").write_bytes(b"the copy of the migration before")
+    clock = FixedClock()
+    real_copy = migrations_module._copy_database
+
+    def copy_then_the_clock_goes_back(src: sqlite3.Connection, dest: Path) -> None:
+        real_copy(src, dest)
+        clock.advance(-3600)
+    monkeypatch.setattr(migrations_module, "_copy_database", copy_then_the_clock_goes_back)
+    with_steps(monkeypatch, v_next, broken)
+    ok, why = try_open(path, clock)
+    assert not ok and "the disk is full" in why
+    first = f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT + 1}-20261021-120000.sqlite"
+    assert first in premigration_names(folder)
+    with_steps(monkeypatch, v_next, mended)
+    clock.advance(60)
+    ok, why = try_open(path, clock)
+    assert ok, why
+    assert premigration_names(folder) == [first], "no copy of the middle version; the one of the old version is kept, the migration before's goes"
+    assert held(folder / first) == (SCHEMA_VERSION, [("OH2GBA",)], [])
+
+
+@pytest.mark.expects_errors
+def test_a_copy_taken_after_the_clock_went_back_is_named_after_the_one_before_and_is_the_one_stood_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The first step fails (the file stays at its version, copied); the NeoAPRS before writes to it; the clock goes back an hour; the next start copies the changed file, gets one step further and is
+    cut short. A copy of the same migration is named after the ones there are, so the start that gets through stands on the copy taken last, which holds what the NeoAPRS before wrote."""
+    from neoaprs.backupfolder import taken_copies
+    path = tmp_path / DB_NAME
+    a_station(path)
+    folder = tmp_path / "backup"
+    clock = FixedClock()
+    gate = {"fail": True}
+
+    def first_step(db: sqlite3.Connection) -> None:
+        db.execute("CREATE TABLE beacon (id INTEGER PRIMARY KEY)")
+        if gate["fail"]:
+            raise sqlite3.OperationalError("the disk is full")
+    with_steps(monkeypatch, first_step, broken)
+    assert not try_open(path, clock)[0]
+    [one] = premigration_names(folder)
+    db = raw(path)
+    db.execute("UPDATE settings SET value = 'OH2GBA-7' WHERE key = 'station/call'")
+    db.close()
+    clock.advance(-3600)
+    gate["fail"] = False
+    assert not try_open(path, clock)[0]
+    assert len(premigration_names(folder)) == 2 and taken_copies(folder)[0].path.name != one, "the copy taken last is the newest by its name, whatever the clock said"
+    with_steps(monkeypatch, first_step, mended)
+    clock.advance(60)
+    ok, why = try_open(path, clock)
+    assert ok, why
+    [kept] = premigration_names(folder)
+    assert kept != one and held(folder / kept) == (SCHEMA_VERSION, [("OH2GBA-7",)], [])
+
+
+@pytest.mark.expects_errors
+def test_a_copy_the_file_did_not_come_from_is_not_stood_on_and_not_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The file is at a middle version and backup/ holds a whole copy of the old version for the same migration, but of another file (another station's database, one the operator moved in): its
+    history is not the file's. The start makes its own copy of the middle version, and the end of the migration leaves the other one, which the file may be thought to have come from."""
+    path = tmp_path / DB_NAME
+    a_station(path)
+    other = tmp_path / "other" / DB_NAME
+    other.parent.mkdir()
+    a_station(other, FixedClock(FixedClock().now.replace(year=2025)))
+    with_steps(monkeypatch, v_next, broken)
+    assert not try_open(path)[0]
+    folder = tmp_path / "backup"
+    [own] = premigration_names(folder)
+    (folder / own).unlink()
+    made_copy(other, folder / own)
+    with_steps(monkeypatch, v_next, mended)
+    ok, why = try_open(path)
+    assert ok, why
+    names = premigration_names(folder)
+    assert own in names and len(names) == 2 and any(n.startswith(f"premigrate-v{NEXT}-to-v{NEXT + 1}-") for n in names), names
+
+
+def test_the_end_of_a_migration_removes_no_copy_when_its_own_is_not_whole_and_never_an_older_one_the_file_may_have_come_from(tmp_path: Path) -> None:
+    from neoaprs.backupfolder import drop_older_copies
+    path = tmp_path / DB_NAME
+    opened(path).close()
+    folder = tmp_path / "backup"
+
+    def at(name: str, version: int) -> str:
+        made_copy(path, folder / name)
+        db = raw(folder / name)
+        db.execute(f"PRAGMA user_version = {version}")
+        db.close()
+        return name
+    earlier = at("premigrate-v29-to-v30-20261001-120000.sqlite", 29)
+    older = at("premigrate-v30-to-v35-20261101-120000.sqlite", 30)
+    kept = at("premigrate-v31-to-v35-20261102-120000.sqlite", 31)
+    middle = at("premigrate-v32-to-v35-20261103-120000.sqlite", 32)
+    cut = "premigrate-v30-to-v35-20261031-120000.sqlite"
+    (folder / cut).write_bytes(b"not whole")
+    made_copy(path, folder / "mine.sqlite")
+    assert sorted(drop_older_copies(folder, kept)) == sorted([earlier, middle, cut])
+    assert sorted(p.name for p in folder.iterdir()) == sorted(["mine.sqlite", older, kept]), \
+        "a whole copy of an older version, taken by a migration that went past the kept one's version, stays: the file may have come from it"
+    middle = at(middle, 32)
+    at(kept, 33)
+    assert drop_older_copies(folder, kept) == [], "a copy that is not the file at the version its name says is no reason to remove the others"
+    assert (folder / middle).is_file()
+
+
+@pytest.mark.expects_errors
+def test_a_disk_short_of_room_because_of_what_a_killed_copy_left_waits_until_that_is_dead_and_migrates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A kill while the copy was written leaves its temporary file, up to the size of the database, and the restart comes seconds later (a reboot): the sweep keeps a file that young. On a disk with room
+    for the migration but not for that file too, the start would be refused, and the unit does not start a refused daemon again. It waits until the file has been still long enough to be dead, removes
+    it and migrates; a temporary file that changes meanwhile (another process writes its copy) stays and the refusal stands."""
+    import os
+    from neoaprs.backupfolder import LITTER_AGE_SEC
+    path = tmp_path / DB_NAME
+    a_station(path)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    db = raw(path)
+    need = int(db.execute("PRAGMA page_count").fetchone()[0]) * int(db.execute("PRAGMA page_size").fetchone()[0]) + COPY_MARGIN_BYTES
+    db.close()
+
+    def used() -> int:
+        return sum(f.stat().st_size for f in tmp_path.rglob("*") if f.is_file())
+    cap = used() + need + 2 * MIB
+    monkeypatch.setattr("neoaprs.migrations.shutil.disk_usage", lambda _: types.SimpleNamespace(free=cap - used()))
+    litter = folder / f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-115959.sqlite.tmp"
+    litter.write_bytes(bytes(4 * MIB))
+    waits: list[float] = []
+
+    def written_meanwhile(seconds: float) -> None:
+        waits.append(seconds)
+        with open(litter, "ab") as f:
+            f.write(b"more")
+    monkeypatch.setattr(migrations_module, "_sleep", written_meanwhile)
+    with_steps(monkeypatch, v_next)
+    note = tmp_path / MIGRATING_NAME
+    note.write_text("migrating\n", encoding="ascii")          # (the note of the start a kill ended seconds ago is fresh: the temporary file may be somebody's)
+    ok, why = try_open(path)
+    assert not ok and "MB free" in why and litter.exists() and len(waits) == 1, why
+    os.truncate(litter, 4 * MIB)
+    note.write_text("migrating\n", encoding="ascii")
+    monkeypatch.setattr(migrations_module, "_sleep", waits.append)
+    ok, why = try_open(path)
+    assert ok, why
+    assert 0 < waits[1] <= LITTER_AGE_SEC + 1 and not litter.exists()
+    [kept] = premigration_names(folder)
+    assert held(folder / kept) == (SCHEMA_VERSION, [("OH2GBA",)], [])
+
+
+def test_a_start_while_no_other_migration_runs_removes_what_a_killed_copy_left_at_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every migration keeps its note fresh from before its copy to its end: with no fresh note, the temporary file of a copy in backup/ is of a start a kill ended, however young, and the start
+    that migrates removes it before it copies, without waiting (a station killed again and again in its copy does not gather them)."""
+    path = tmp_path / DB_NAME
+    a_station(path)
+    folder = tmp_path / "backup"
+    folder.mkdir()
+    left = [folder / f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-115959.sqlite.tmp", folder / f"premigrate-v{SCHEMA_VERSION}-to-v{NEXT}-20261021-115959.sqlite.tmp-journal"]
+    for f in left:
+        f.write_bytes(b"what a kill left")
+    waits: list[float] = []
+    monkeypatch.setattr(migrations_module, "_sleep", waits.append)
+    with_steps(monkeypatch, v_next)
+    ok, why = try_open(path)
+    assert ok, why
+    assert not any(f.exists() for f in left) and waits == [] and len(premigration_names(folder)) == 1
 
 
 @pytest.mark.expects_errors
