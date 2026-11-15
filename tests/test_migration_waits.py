@@ -490,4 +490,6 @@ def test_a_start_with_nothing_to_migrate_does_not_wait_or_take_the_lock(tmp_path
         note.stop()
         lock.release()
     assert slept == [] and said(caplog, WAITS) == 0
-    assert alone < 2.0 and beside < 1.0, (alone, beside)
+    # (no bound on the first two: making a new file is the machine's time, 3.6 s on a Windows machine busy with the whole suite. The two beside a held lock are bounded by what a wait would cost: one that waited would stand
+    # until the lock is let go, which this test does only after them)
+    assert beside < 5.0, (alone, beside)
