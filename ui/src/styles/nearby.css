@@ -18,7 +18,7 @@
   margin: 0 0 4px;
   font-size: 12px;
 }
-/* Ask around, the first box: the choice of query and Ask in one row, the fold of the path, and two quiet lines of one line each whose height is kept whatever they say (empty, or cut with an ellipsis and whole in the hover), so that
+/* Ask around, the first box: the choice of query (and of the radio, while several are on) and Ask in one row, wrapping on a phone, the fold of the path, and two quiet lines of one line each whose height is kept whatever they say (empty, or cut with an ellipsis and whole in the hover), so that
    nothing under them moves when a query is sent or a station is counted */
 .ask-row {
   display: flex;
@@ -30,6 +30,11 @@
 .ask-kind {
   flex: 0 1 14em;
   min-width: 0;
+}
+/* the radio the query goes on, beside Ask while several are on: as wide as its longest name, whichever is chosen */
+.ask-radio {
+  flex: none;
+  max-width: 100%;
 }
 .ask-line {
   height: 1.5em;

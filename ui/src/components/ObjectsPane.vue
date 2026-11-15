@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // The Objects tab, three group boxes one under the other (an (i) at the top, TabHelp, says what an object is), the tab scrolling as a whole: **Add an object** first, so that it is always within reach (components/ObjectForm.vue, always there;
 // "Edit NAME" while an object is being changed), **My objects**, the objects and items of ours, oldest first, each with its symbol, its name, what kind it is, its category as a tag in a column of its own, how often it was sent and when it goes out next
-// (or that it is sent only when asked) and its comment; the delete button at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten); and **Local info** last, where QRU is asked (components/ObjectsQru.vue),
+// (or that it is sent only when asked) and its comment; while more than one radio is on, the radios it goes out on as tags beside its category, as Stations' "Heard on" names a station's radios (the first two by their names,
+// then "+n" whose hover names the rest; with one radio on no row has one, and with several every row has its own, so none is the unmarked default); the delete button at its corner kills it (two presses, the second after "sure?": the killed form goes out three times and it is forgotten); and **Local info** last, where QRU is asked (components/ObjectsQru.vue),
 // as the form's category is what offers an object to those who ask. The rows are selectable like the rows of the Nearby tab (a click or Enter highlights the row and says `select`, which selects the object on the map as a click there does), and the
 // form changes the selected object: Save; with none selected it adds a new object: Add; selecting a row scrolls the tab up to the form. An object whose kill is going out is not selectable and has no delete.
 import { computed, nextTick, ref, watch } from "vue";
-import TagMark from "@/components/TagMark.vue";
+import TagMark, { type TagTone } from "@/components/TagMark.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
@@ -17,16 +18,34 @@ import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
-import { useTwoRadios } from "@/composables/useRadiosOn";
-import { stateText } from "@/lib/ownobjects";
+import { useRadios } from "@/composables/useRadios";
+import { inForce, stateText } from "@/lib/ownobjects";
+import type { PageRadio } from "@/lib/radios";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
 import type { OwnObjectRow } from "@/protocol/protocol";
 
 const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: OwnObjectsView }>();
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
 const { fallbackPath, now } = useDaemonContext();
-/** The radio tags of a row are there while both radios are on: an object on HF has HF, one on both FM and HF; an FM object, the default, is unmarked, so the list is today's for most rows. */
-const twoRadios = useTwoRadios();
+/** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on, else the main radio). */
+const { several, enabled, main, byId } = useRadios();
+/** How many radios a row names before "+n". */
+const NAMED = 2;
+/** The tags of each row's radios, by the object's name: the first two by name, then "+n" whose hover names the rest; none with one radio on. */
+const radioTags = computed(() => {
+  const on = enabled.value.map((radio) => radio.id);
+  return new Map(
+    [...props.objects.values()].map((row) => {
+      const radios = several.value ? inForce(row.radios, on, main.value?.id ?? null).flatMap((id) => byId(id) ?? []) : [];
+      return [row.name, { shown: radios.slice(0, NAMED), rest: radios.slice(NAMED) }];
+    }),
+  );
+});
+const NONE = { shown: [], rest: [] } as const;
+const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } => radioTags.value.get(row.name) ?? NONE;
+/** The tone of a radio's tag: its kind's, dashed for a Dummy radio. */
+const toneOf = (radio: PageRadio): TagTone => (radio.dummy ? "dummy" : radio.kind === "hf" ? "hf" : "neutral");
+const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
 const sure = useSure<string>(); // (the name of a row)
 /** The copy menu of a row: the name of the object. */
 const copy = useCopyMenu((item) => (item.dataset["name"] === undefined ? [] : [{ kind: "name", text: item.dataset["name"] }]));
@@ -99,20 +118,16 @@ watch(
               <p v-if="row.comment" class="bulletin-text">{{ row.comment }}</p>
               <p class="bulletin-meta muted">{{ stateText(row, now) }}</p>
             </div>
-            <div class="own-tags">
+            <div class="own-tags" :class="{ several }">
               <TagMark v-if="row.qru_group" tone="neutral" class="own-category" :title="t('objects.in_group', { group: groupName(row.qru_group) })">{{
                 categoryLabel(row.qru_group)
               }}</TagMark>
-              <TagMark v-if="twoRadios && row.radio === 'both'" tone="neutral" class="own-radio" :title="t('objects.radio_title.both')">{{
-                t("objects.radio.fm")
+              <TagMark v-for="radio in tagsOf(row).shown" :key="radio.id" :tone="toneOf(radio)" class="own-radio" :title="sentOn(radio)">{{
+                radio.name
               }}</TagMark>
-              <TagMark
-                v-if="twoRadios && row.radio !== 'fm'"
-                tone="hf"
-                class="own-radio"
-                :title="t(row.radio === 'both' ? 'objects.radio_title.both' : 'objects.radio_title.hf')"
-                >{{ t("objects.radio.hf") }}</TagMark
-              >
+              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="tagsOf(row).rest.map(sentOn).join('\n')">{{
+                t("objects.radio_more", { n: tagsOf(row).rest.length })
+              }}</TagMark>
             </div>
           </li>
         </ul>

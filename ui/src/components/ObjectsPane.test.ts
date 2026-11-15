@@ -5,9 +5,9 @@ import { nextTick, ref } from "vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
-import type { Command, OwnObjectRow } from "@/protocol/protocol";
-import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, configValues, ownObject } from "@/test/fixtures";
+import type { Command, OwnObjectRow, RadioRow } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
+import { ago, configValues, ownObject, radioRow, radiosTopic, status } from "@/test/fixtures";
 import { cssRule } from "@/test/css";
 
 function pane(rows: OwnObjectRow[] = []) {
@@ -19,6 +19,13 @@ function pane(rows: OwnObjectRow[] = []) {
   } as unknown as Panel);
   const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1" })) });
   return { wrapper, form, sent, table };
+}
+
+/** A station of these radios as the daemon tells them once the settings of before are gone: the topic, and settings without the Enable of before (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+function ofRadios(...rows: RadioRow[]): Given {
+  const config = configValues();
+  const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
+  return { radios: radiosTopic(...rows), config: { ...config, values } };
 }
 
 const rows = [
@@ -72,34 +79,100 @@ describe("ObjectsPane", () => {
     expect(tags[0]?.classes()).toContain("tag-neutral");
     expect(items[0]?.find(".bulletin-head").text()).not.toContain("Category");
     expect(cssRule(".own-tags")).toMatch(/padding:/);
+    // (with one radio the column is today's: one tag, at its own width, from the column's left edge)
+    expect(items.some((i) => i.find(".own-tags").classes().includes("several"))).toBe(false);
+    expect(cssRule(".own-tags")).not.toMatch(/display|justify-content|max-width/);
     expect(items.map((i) => i.find(".bulletin-meta").text())).toEqual(["sent only when asked", "sent 2 times, next in 3 min", "sent 2 times, next in 3 min"]);
   });
 
-  it("tags, while both radios are on, an object on HF with HF and one on both with FM and HF, beside its category, and an FM object with nothing; with one radio on nobody has one", () => {
+  describe("the radios of each object, while several radios are on (plan 6: with several, every object says its radio; none is the unmarked default)", () => {
+    const FM = radioRow(1, "kenwood-tnc2");
+    const HF = radioRow(2, "mercury");
     const list = [
       ownObject("FAR", { radio: "hf", qru_group: "FOOD", created_at: ago(900) }),
       ownObject("WIDE", { radio: "both", created_at: ago(600) }),
       ownObject("NEAR", { created_at: ago(300) }),
     ];
-    const table = new Map(list.map((r) => [r.name, r]));
-    const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const tagsOf = (values: Record<string, string>) => {
-      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ config: configValues(values) })) });
-      return wrapper.findAll(".ownobject").map((i) => i.findAll(".own-tags .tag").map((tag) => [tag.text(), tag.attributes("title")]));
+    const tagsOf = (station: Given, rows: OwnObjectRow[] = list, given: Given = {}) => {
+      const table = new Map(rows.map((r) => [r.name, r]));
+      const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ ...station, ...given })) });
+      return wrapper
+        .findAll(".ownobject")
+        .map((i) => i.findAll(".own-tags .tag").map((tag) => [tag.text(), tag.attributes("title"), tag.classes().find((c) => c.startsWith("tag-"))]));
     };
-    expect(tagsOf({ "hf/enabled": "true" })).toEqual([
-      [
-        ["Food", "Category: Food (FOOD)"],
-        ["HF", "Sent on the HF radio"],
-      ],
-      [
-        ["FM", "Sent on both radios"],
-        ["HF", "Sent on both radios"],
-      ],
-      [],
-    ]);
-    expect(tagsOf({})).toEqual([[["Food", "Category: Food (FOOD)"]], [], []]);
-    expect(tagsOf({ "fm/enabled": "false", "hf/enabled": "true" })).toEqual([[["Food", "Category: Food (FOOD)"]], [], []]);
+
+    it("tags every object with the radios it goes out on, beside its category, each by its name in its kind's tone", () => {
+      expect(tagsOf(ofRadios(FM, HF))).toEqual([
+        [
+          ["Food", "Category: Food (FOOD)", "tag-neutral"],
+          ["HF", "Sent on radio HF", "tag-hf"],
+        ],
+        [
+          ["FM", "Sent on radio FM", "tag-neutral"],
+          ["HF", "Sent on radio HF", "tag-hf"],
+        ],
+        [["FM", "Sent on radio FM", "tag-neutral"]],
+      ]);
+    });
+
+    it("tags no object with one radio on, whichever it is, as today", () => {
+      expect(tagsOf(ofRadios(FM, { ...HF, enabled: false }))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
+      expect(tagsOf(ofRadios({ ...FM, enabled: false }, HF))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
+      expect(tagsOf(ofRadios(FM, { ...HF, removed: true, enabled: false }))).toEqual([[["Food", "Category: Food (FOOD)", "tag-neutral"]], [], []]);
+    });
+
+    it("shows what is in force: a radio of its own that is off or removed is not shown, and one with none of its own on shows the main radio", () => {
+      const rows = [ownObject("A", { radios: [1, 3], created_at: ago(900) }), ownObject("B", { radios: [3, 4], created_at: ago(600) })];
+      const radios = ofRadios(FM, HF, radioRow(3, "kiss", { number: 2, enabled: false }), radioRow(4, "dummy", { number: 3, removed: true, enabled: false }));
+      expect(tagsOf(radios, rows, { status: status({ main_radio: 2 }) })).toEqual([
+        [["FM", "Sent on radio FM", "tag-neutral"]],
+        [["HF", "Sent on radio HF", "tag-hf"]],
+      ]);
+    });
+
+    it("names the first two of six by their names, then +n whose hover names the rest, a Dummy radio's dashed", () => {
+      const six = ofRadios(
+        radioRow(1, "kenwood-tnc2", { name: "Shack" }),
+        radioRow(2, "mercury", { name: "20m" }),
+        radioRow(3, "dummy-hf", { name: "HFdummy" }),
+        radioRow(4, "kiss", { name: "Mobile" }),
+        radioRow(5, "kiss-tcp", { name: "Remote12" }),
+        radioRow(6, "mercury", { name: "40m", number: 2 }),
+      );
+      const rows = [ownObject("ALL", { radios: [1, 2, 3, 4, 5, 6], created_at: ago(900) }), ownObject("TWO", { radios: [3, 5], created_at: ago(600) })];
+      expect(tagsOf(six, rows)).toEqual([
+        [
+          ["Shack", "Sent on radio Shack", "tag-neutral"],
+          ["20m", "Sent on radio 20m", "tag-hf"],
+          ["+4", "Sent on radio HFdummy\nSent on radio Mobile\nSent on radio Remote12\nSent on radio 40m", "tag-neutral"],
+        ],
+        [
+          ["HFdummy", "Sent on radio HFdummy", "tag-dummy"],
+          ["Remote12", "Sent on radio Remote12", "tag-neutral"],
+        ],
+      ]);
+    });
+
+    it("wraps the tags of a row under each other from the column's left edge rather than take the width of its words on a phone, the column never narrower than its widest tag", () => {
+      const table = new Map(list.map((r) => [r.name, r]));
+      const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+      const several = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(ofRadios(FM, HF))) });
+      expect(several.findAll(".own-tags").every((tags) => tags.classes().includes("several"))).toBe(true);
+      expect(cssRule(".own-tags.several")).toMatch(/flex-wrap:\s*wrap/);
+      expect(cssRule(".own-tags.several")).not.toMatch(/justify-content|max-width/);
+      expect(cssRule(".board.ownobjects")).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) fit-content\(13em\)/);
+    });
+
+    it("follows the radios as they are turned on and off", async () => {
+      const table = new Map(list.map((r) => [r.name, r]));
+      const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+      const daemon = fakeDaemon(ofRadios(FM, { ...HF, enabled: false }));
+      const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(daemon) });
+      expect(wrapper.findAll(".own-radio")).toHaveLength(0);
+      await tell(daemon, { radios: radiosTopic(FM, HF) });
+      expect(wrapper.findAll(".own-radio").map((tag) => tag.text())).toEqual(["HF", "FM", "HF", "FM"]);
+    });
   });
 
   it("has a symbol for each, from its table and code", () => {

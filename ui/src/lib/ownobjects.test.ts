@@ -5,6 +5,7 @@ import {
   draftProblems,
   draftReady,
   emptyDraft,
+  inForce,
   isObjectOf,
   moveCommand,
   nameProblem,
@@ -14,6 +15,7 @@ import {
   steppedSpeed,
   sentText,
   stateText,
+  ticked,
   wrapLongitude,
   type ObjectDraft,
 } from "@/lib/ownobjects";
@@ -36,7 +38,7 @@ describe("emptyDraft and draftOf", () => {
       path: "",
       qru: "",
       onRequest: false,
-      radio: "fm",
+      radios: [],
     });
     expect(objectCommand(emptyDraft())).toBeNull();
   });
@@ -63,7 +65,7 @@ describe("emptyDraft and draftOf", () => {
       path: "WIDE2-1",
       qru: "",
       onRequest: false,
-      radio: "fm",
+      radios: [1],
     });
     expect(draftOf(ownObject("AID", { kind: "item" }))).toMatchObject({ kind: "item", course: "", speed: "", path: "" });
   });
@@ -168,6 +170,45 @@ describe("objectCommand", () => {
     expect(objectCommand(ready({ name: "" }))).toBeNull();
     expect(objectCommand(ready({ lat: "95" }))).toBeNull();
   });
+
+  it("names the radios it goes out on: those of the draft, ascending, else the main radio for a new one, else the daemon's default", () => {
+    expect(objectCommand(ready({ radios: [3, 1] }), 2)).toMatchObject({ radios: [1, 3] });
+    expect(objectCommand(ready({ radios: [3, 1] }), 2)).not.toHaveProperty("radio");
+    expect(objectCommand(ready(), 2)).toMatchObject({ radios: [2] });
+    expect(objectCommand(ready())).toMatchObject({ radio: "fm" });
+    expect(objectCommand(ready())).not.toHaveProperty("radios");
+  });
+
+  it("is what the daemon has when its radios are the ones asked for, in any order the row has them", () => {
+    const asked = objectCommand(ready({ radios: [1, 3] }));
+    expect(asked).not.toBeNull();
+    if (asked === null) return;
+    const row = ownObject("LEADER", { lat: 60.17, lon: 24.94, symbol_code: "r", radios: [1, 3] });
+    expect(isObjectOf(row, asked)).toBe(true);
+    expect(isObjectOf({ ...row, radios: [1] }, asked)).toBe(false);
+    expect(isObjectOf({ ...row, radios: [1, 2] }, asked)).toBe(false);
+    const word = objectCommand(ready());
+    expect(word !== null && isObjectOf({ ...row, radio: "fm", radios: [1] }, word)).toBe(true);
+    expect(word !== null && isObjectOf({ ...row, radio: "hf", radios: [2] }, word)).toBe(false);
+  });
+});
+
+describe("the radios of an object", () => {
+  it("are in force its own that are on, else the main radio, else none", () => {
+    expect(inForce([1, 3], [1, 2, 3], 1)).toEqual([1, 3]);
+    expect(inForce([1, 3], [1, 2], 2)).toEqual([1]); // (radio 3 is off: kept, not in force)
+    expect(inForce([3], [1, 2], 2)).toEqual([2]);
+    expect(inForce([], [1, 2], 1)).toEqual([1]);
+    expect(inForce([3], [], null)).toEqual([]);
+  });
+
+  it("take a tick on or off, keeping a radio that is off beside the ticks, and start from the main radio when none of their own is on", () => {
+    expect(ticked([1], [1, 2, 3], 1, 3)).toEqual([1, 3]);
+    expect(ticked([1, 3], [1, 2, 3], 1, 1)).toEqual([3]);
+    expect(ticked([1, 4], [1, 2], 1, 2)).toEqual([1, 2, 4]); // (radio 4 is off and stays kept)
+    expect(ticked([4], [1, 2], 1, 2)).toEqual([1, 2]); // (radio 4 is off and none of its own is on: the main radio that stood for them is ticked)
+    expect(ticked([], [1, 2, 3], 2, 3)).toEqual([2, 3]); // (a new object: the main radio is ticked)
+  });
 });
 
 describe("moveCommand", () => {
@@ -187,8 +228,10 @@ describe("moveCommand", () => {
       path: "WIDE2-1",
       qru_group: "",
       on_request: false,
-      radio: "fm",
+      radios: [1],
     });
+    expect(moveCommand(ownObject("WIDE", { radios: [1, 3] }), 60, 25)).toMatchObject({ radios: [1, 3] }); // (every radio it goes on, not the word of before)
+    expect(moveCommand(ownObject("WIDE", { radios: [1, 3] }), 60, 25)).not.toHaveProperty("radio");
   });
 
   it("brings a longitude of a map that was wrapped round into -180 to 180", () => {

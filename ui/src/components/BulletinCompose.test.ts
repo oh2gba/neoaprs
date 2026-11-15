@@ -1,7 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import type { OwnBulletinRow } from "@/protocol/protocol";
-import { ownBulletin } from "@/test/fixtures";
+import type { OwnBulletinRow, RadioRow } from "@/protocol/protocol";
+import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
+import { configValues, ownBulletin, radioRow, radiosTopic, status } from "@/test/fixtures";
 import BulletinCompose from "@/components/BulletinCompose.vue";
 
 function compose() {
@@ -146,5 +147,49 @@ describe("BulletinCompose", () => {
     await text.setValue("a~b");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("post")).toBeUndefined();
+  });
+});
+
+describe("Post and the main radio, which a bulletin goes on", () => {
+  /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+  function on(given: Given, ...rows: RadioRow[]) {
+    const config = configValues();
+    const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
+    const daemon = fakeDaemon({ radios: radiosTopic(...rows), config: { ...config, values }, ...given });
+    const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });
+    return { wrapper, daemon, post: () => wrapper.find<HTMLButtonElement>("button[type='submit']") };
+  }
+  const FM = radioRow(1, "kenwood-tnc2");
+  const HF = radioRow(2, "mercury");
+
+  it("is off while the main radio is not connected, with the reason Send has, the radio named while several are on; on again once it is", async () => {
+    const one = on({}, { ...FM, state: "waiting" });
+    await one.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
+    expect(one.post().element.disabled).toBe(true);
+    expect(one.post().attributes("title")).toBe("The TNC is not connected");
+    await one.wrapper.find("form").trigger("submit");
+    expect(one.wrapper.emitted("post")).toBeUndefined();
+    await tell(one.daemon, { radios: radiosTopic(FM) });
+    expect(one.post().element.disabled).toBe(false);
+    expect(one.post().attributes("title")).toBeUndefined();
+    const two = on({ status: status({ main_radio: 2 }) }, FM, { ...HF, state: "connecting" });
+    await two.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
+    expect(two.post().element.disabled).toBe(true);
+    expect(two.post().attributes("title")).toBe("HF: not connected");
+    const fine = on({ status: status({ main_radio: 1 }) }, FM, { ...HF, state: "connecting" });
+    await fine.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
+    expect(fine.post().element.disabled).toBe(false); // (the main radio is FM, which is connected)
+    await fine.wrapper.find("form").trigger("submit");
+    expect(fine.wrapper.emitted("post")).toEqual([["BLN1", "Net tonight 20 UTC"]]);
+  });
+
+  it("is off with the daemon's own words while no radio is on, and RX only says its own first", async () => {
+    const none = on({ status: status({ main_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
+    await none.wrapper.find("#post-text").setValue("Net tonight");
+    expect(none.post().element.disabled).toBe(true);
+    expect(none.post().attributes("title")).toBe("there is no radio: add one, or turn one on");
+    const rx = on({ receiveOnly: true }, { ...FM, state: "waiting" });
+    await rx.wrapper.find("#post-text").setValue("Net tonight");
+    expect(rx.post().attributes("title")).toBe("RX only: nothing is sent");
   });
 });

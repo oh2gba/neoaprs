@@ -6,6 +6,7 @@ import { untilText } from "@/lib/format";
 import { parseNumber, symbolProblem } from "@/lib/fieldcheck";
 import { degreesText } from "@/lib/setup";
 import { LIMITS } from "@/protocol/lists";
+import type { RadioId } from "@/lib/radios";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
 
 type Kind = OwnObjectRow["kind"];
@@ -37,12 +38,9 @@ export interface ObjectDraft {
   qru: string;
   /** Send only when a station asks for it. */
   onRequest: boolean;
-  /** The radio it goes out on while both radios are on: `fm`, `hf` or `both` (with one radio on it goes on that one, whatever is kept). */
-  radio: ObjectRadio;
+  /** The radios it goes out on (Send on), as they are kept with it, ascending; none for a new one, which goes on the main radio. One that is off is kept: it counts again when it is on (`inForce`). */
+  radios: RadioId[];
 }
-
-export type ObjectRadio = "fm" | "hf" | "both";
-export const OBJECT_RADIOS: readonly ObjectRadio[] = ["fm", "hf", "both"];
 
 type DraftProblems = Partial<Record<keyof ObjectDraft, string>>;
 
@@ -60,7 +58,7 @@ export function emptyDraft(): ObjectDraft {
     path: "",
     qru: "",
     onRequest: false,
-    radio: "fm",
+    radios: [],
   };
 }
 
@@ -78,7 +76,7 @@ export function draftOf(row: OwnObjectRow): ObjectDraft {
     path: row.path ?? "",
     qru: row.qru_group,
     onRequest: row.on_request,
-    radio: row.radio,
+    radios: [...row.radios],
   };
 }
 
@@ -171,13 +169,34 @@ export function draftReady(draft: ObjectDraft): boolean {
   );
 }
 
-/** The command that makes or changes the object; null while the draft is not ready. */
-export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
+/** The radios an object goes out on now: those of its own that are on, else the main radio (none while there is no radio). With one radio on it is that one, whatever is kept. */
+export function inForce(own: readonly RadioId[], on: readonly RadioId[], main: RadioId | null): RadioId[] {
+  const live = own.filter((id) => on.includes(id));
+  return live.length > 0 ? live : main === null ? [] : [main];
+}
+
+/** The radios kept with an object after a tick of `id` in Send on, from what is in force: a radio that is off stays kept beside the ticks while any of its own is on; the main radio, ticked only because none of its own was on, stands for them. */
+export function ticked(own: readonly RadioId[], on: readonly RadioId[], main: RadioId | null, id: RadioId): RadioId[] {
+  const shown = inForce(own, on, main);
+  const base = own.some((radio) => on.includes(radio)) ? own : shown;
+  const next = base.includes(id) ? base.filter((radio) => radio !== id) : [...base, id];
+  return next.sort((a, b) => a - b);
+}
+
+/** Whether the object goes out on the radios the command asked for: its ids, or the word of before where the command has no ids. */
+function sameRadios(row: OwnObjectRow, command: ObjectCommand): boolean {
+  const ids = command.radios ?? null;
+  return ids === null ? row.radio === (command.radio ?? "fm") : row.radios.length === ids.length && row.radios.every((id, i) => id === ids[i]);
+}
+
+/** The command that makes or changes the object; null while the draft is not ready. A new object, which has no radios of its own, goes on the main radio (`main`); without one known, on the daemon's default. */
+export function objectCommand(draft: ObjectDraft, main: RadioId | null = null): ObjectCommand | null {
   const lat = parseNumber(draft.lat);
   const lon = parseNumber(draft.lon);
   if (!draftReady(draft) || lat === null || lon === null) return null;
   const setting = parsePathSetting(draft.path);
   const speed = parseNumber(draft.speed);
+  const radios = draft.radios.length > 0 ? [...draft.radios].sort((a, b) => a - b) : main === null ? null : [main];
   return {
     cmd: "object_set",
     name: draft.name,
@@ -192,7 +211,7 @@ export function objectCommand(draft: ObjectDraft): ObjectCommand | null {
     path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
     qru_group: draft.qru.trim().toUpperCase(),
     on_request: draft.onRequest,
-    radio: draft.radio,
+    ...(radios === null ? { radio: "fm" as const } : { radios }), // (no radio known: the daemon's own default, radio 1)
   };
 }
 
@@ -212,11 +231,11 @@ export function isObjectOf(row: OwnObjectRow, command: ObjectCommand): boolean {
     row.path === command.path &&
     row.qru_group === command.qru_group &&
     row.on_request === command.on_request &&
-    row.radio === (command.radio ?? "fm")
+    sameRadios(row, command)
   );
 }
 
-/** The command that puts an object where the map says (the marker was dragged): everything as it is, the place new. */
+/** The command that puts an object where the map says (the marker was dragged): everything as it is (its radios too), the place new. */
 export function moveCommand(row: OwnObjectRow, lat: number, lon: number): ObjectCommand {
   return {
     cmd: "object_set",
@@ -232,7 +251,7 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     path: row.path,
     qru_group: row.qru_group,
     on_request: row.on_request,
-    radio: row.radio,
+    ...(row.radios.length > 0 ? { radios: [...row.radios] } : { radio: row.radio }),
   };
 }
 

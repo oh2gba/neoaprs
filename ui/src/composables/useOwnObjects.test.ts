@@ -50,7 +50,7 @@ describe("useOwnObjects", () => {
       path: "",
       qru: "",
       onRequest: false,
-      radio: "fm",
+      radios: [],
     });
     expect(view.pin).toBeNull();
   });
@@ -281,10 +281,31 @@ describe("useOwnObjects", () => {
         path: "WIDE2-1",
         qru_group: "",
         on_request: false,
-        radio: "fm",
+        radios: [1],
       },
     ]);
     view.move("NOBODY", 1, 2);
     expect(sent).toHaveLength(1);
+  });
+
+  it("sends a new object on the main radio the form names, and one being changed on its own radios, a tick of Send on making it dirty", async () => {
+    const { view, sent, table } = setUp([ownObject("WIDE", { radios: [1, 3] })]);
+    view.draft.name = "MARK";
+    view.place(60.17, 24.94);
+    view.save(2);
+    expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "MARK", radios: [2] });
+    view.edit("WIDE");
+    await nextTick();
+    expect(view.draft.radios).toEqual([1, 3]);
+    expect(view.dirty).toBe(true);
+    view.save(2);
+    expect(sent).toHaveLength(1); // (nothing changed: the form is left, nothing sent)
+    view.edit("WIDE");
+    view.draft.radios = [1];
+    view.save(2);
+    expect(sent.at(-1)).toMatchObject({ cmd: "object_set", name: "WIDE", radios: [1] });
+    table.set("WIDE", ownObject("WIDE", { radios: [1] }));
+    await nextTick();
+    expect(view.editing).toBeNull(); // (the daemon has it so: the form is blank again)
   });
 });

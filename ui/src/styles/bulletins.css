@@ -78,7 +78,7 @@
 }
 .board.ownobjects {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) fit-content(13em);
   gap: 6px 8px;
 }
 .ownobject {
@@ -92,6 +92,27 @@
 }
 .own-tags {
   padding: 3px 34px 0 0;
+}
+/* while several radios are on, the tags of a row are its category and the radios it goes out on (two names and "+n" at the most): from the column's left edge, wrapping under each other once the column is 13em (the board's fit-content), never narrower than the widest tag */
+.own-tags.several {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* Send on in the object form's Advanced: a tick for each radio that is on, by its name (at most eight characters), as many to a line as fit, the names in the weight of a value, not of a label */
+.send-on-ticks {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-width: 0;
+}
+.field .send-on-tick {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: normal;
+  white-space: nowrap;
 }
 .ownobject.selectable {
   cursor: pointer;
@@ -123,6 +144,11 @@
 .qru-km {
   flex: none;
   width: 6.5em;
+}
+/* the radio Local info asks on, beside Ask while several are on: as wide as its longest name, whichever is chosen */
+.qru-radio {
+  flex: none;
+  max-width: 100%;
 }
 .qru-servers {
   display: grid;

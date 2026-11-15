@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // The group box to post to the message board, at the bottom of the Bulletins tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form, each with its (i)): the kind (a bulletin, an announcement, a bulletin to a group) (the (i) says what they are), the number it has (a capital letter for an announcement), the group
 // of a group bulletin, and the text, with the characters it has left. Post is on when the text can be sent (printable ASCII without | ~ {) and, for a group, the group is one to five letters and digits. The text is
-// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place.
+// cleared when the daemon has the bulletin (the topic `own_bulletins` tells it); one it refused stays for the user to correct. A slot that already holds a text of ours gets the new one in its place. A bulletin goes on the main radio
+// (plan rule 3.5): Post is off while that radio is not connected, with that as its reason (the radio named while several are on), as Send is.
+import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
-import { rxOnlyReason } from "@/lib/compose";
+import { rxOnlyReason, tncNotConnected } from "@/lib/compose";
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -22,6 +24,13 @@ const left = computed(() => charsLeft(draft.text));
 /** The name of an (i) for a screen reader: "About Group". */
 const about = (field: MessageId) => t("settings.about", { label: t(field) });
 const rxOnly = useReceiveOnly();
+const { told, main, named } = useRadios();
+/** Why nothing may go on the main radio: it is not connected, or there is none; undefined before the daemon has told its radios. */
+const offline = computed(() => {
+  const radio = main.value;
+  if (!told.value || radio?.connected === true) return undefined;
+  return radio === null ? t("error.radio.none") : named(radio.id) ? t("radio.not_connected", { name: radio.name }) : tncNotConnected();
+});
 const ready = computed(() => canPost(draft));
 const badGroup = computed(() => draft.group.trim() !== "" && !groupOk(draft.group));
 
@@ -45,6 +54,7 @@ watch(
 );
 
 function submit(): void {
+  if (offline.value !== undefined) return;
   const command = postCommand(draft);
   if (command === null) return;
   draft.group = groupOf(draft.group);
@@ -104,7 +114,9 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly" :title="rxOnly ? rxOnlyReason() : undefined">{{ t("bulletins.post") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || offline !== undefined" :title="rxOnly ? rxOnlyReason() : offline">
+        {{ t("bulletins.post") }}
+      </button>
     </template>
   </ComposeBar>
 </template>

@@ -20,6 +20,7 @@ import { symbols } from "@/i18n/en/symbols";
 import { time } from "@/i18n/en/time";
 import { u4 } from "@/i18n/en/u4";
 import { u5a } from "@/i18n/en/u5a";
+import { u5b } from "@/i18n/en/u5b";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -45,4 +46,5 @@ export const en = {
   ...help,
   ...u4,
   ...u5a,
+  ...u5b,
 } as const satisfies Record<string, Message>;

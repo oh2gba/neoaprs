@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import NearbyAsk from "@/components/NearbyAsk.vue";
 import { clockText } from "@/lib/format";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { NOW, ago, configValues, toastOf } from "@/test/fixtures";
-import type { GeneralAsked, GeneralState } from "@/protocol/protocol";
+import { cssRule } from "@/test/css";
+import { NOW, ago, configValues, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
+import type { GeneralAsked, GeneralState, RadioRow } from "@/protocol/protocol";
 
 function make(given: Parameters<typeof fakeDaemon>[0] = {}) {
   const daemon = fakeDaemon({ fallbackPath: "WIDE1-1,WIDE2-1", ...given });
@@ -188,5 +189,125 @@ describe("Ask around in the Nearby tab", () => {
     expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
     const withFm = make();
     expect(ask(withFm.wrapper).attributes("disabled")).toBeDefined();
+  });
+});
+
+describe("the radio of Ask around (plan rule 3.6)", () => {
+  /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+  function on(given: Parameters<typeof fakeDaemon>[0], ...rows: RadioRow[]) {
+    const config = configValues();
+    const values = Object.fromEntries(Object.entries(config.values).filter(([key]) => key !== "fm/enabled" && key !== "hf/enabled"));
+    return make({ radios: radiosTopic(...rows), config: { ...config, values }, ...given });
+  }
+  const FM = radioRow(1, "kenwood-tnc2");
+  const HF = radioRow(2, "mercury");
+  const radio = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("select.ask-radio");
+
+  it("is not chosen, named or sent with one radio on, whichever it is", async () => {
+    for (const rows of [[FM], [FM, { ...HF, enabled: false }], [{ ...FM, enabled: false }, HF]]) {
+      const id = rows[0]?.enabled === true ? 1 : 2;
+      const { wrapper, daemon } = on({ general: general(askedOf({ at: ago(90), radio: id })) }, ...rows);
+      expect(radio(wrapper).exists()).toBe(false);
+      expect(lines(wrapper)[0]?.text()).toMatch(/^Asked who is around/);
+      await ask(wrapper).trigger("click");
+      expect(sent(daemon)).toEqual([{ cmd: "general_query", kind: "aprs", path: null, rf_only: true }]);
+    }
+  });
+
+  it("is chosen beside Ask while several are on, after the query, the main radio first and at the start, and goes with the query", async () => {
+    const { wrapper, daemon } = on({ status: status({ main_radio: 2 }) }, FM, HF, radioRow(3, "kiss", { name: "Mobile" }));
+    expect(
+      wrapper
+        .find(".ask-row")
+        .findAll("select, button")
+        .map((e) => e.classes()[1] ?? e.text()),
+    ).toEqual(["ask-kind", "ask-radio", "Ask"]);
+    expect(radio(wrapper).attributes("aria-label")).toBe("Radio");
+    expect(
+      radio(wrapper)
+        .findAll("option")
+        .map((o) => o.text()),
+    ).toEqual(["HF", "FM", "Mobile"]);
+    expect(radio(wrapper).element.value).toBe("2");
+    expect(fold(wrapper).find(".field").classes()).toContain("disabled"); // (HF carries no path)
+    await ask(wrapper).trigger("click");
+    await radio(wrapper).setValue("3");
+    expect(fold(wrapper).find(".field").classes()).not.toContain("disabled");
+    await pathField(wrapper).setValue("OH2RDK-7");
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon)).toEqual([
+      { cmd: "general_query", kind: "aprs", path: null, rf_only: true, radio: 2 },
+      { cmd: "general_query", kind: "aprs", path: "OH2RDK-7", rf_only: true, radio: 3 },
+    ]);
+    expect(localStorage.getItem("NeoAPRS.ask.3.path")).toBe("OH2RDK-7");
+    expect(localStorage.getItem("NeoAPRS.ask.path")).toBeNull();
+  });
+
+  it("forgets a choice that goes off: the main radio is chosen, and stays chosen when that radio is on again", async () => {
+    const Mobile = radioRow(3, "kiss", { name: "Mobile" });
+    const { wrapper, daemon } = on({}, FM, HF, Mobile);
+    await radio(wrapper).setValue("3");
+    await tell(daemon, { radios: radiosTopic(FM, HF, { ...Mobile, enabled: false }) });
+    expect(radio(wrapper).element.value).toBe("1");
+    await tell(daemon, { radios: radiosTopic(FM, HF, Mobile) });
+    expect(radio(wrapper).element.value).toBe("1");
+    await ask(wrapper).trigger("click");
+    expect(sent(daemon).at(-1)).toMatchObject({ cmd: "general_query", radio: 1 });
+  });
+
+  it("holds Ask for the minute of a kind on the radio the query goes on, not on another", async () => {
+    const first = askedOf({ at: ago(20), radio: 1 });
+    const { wrapper } = on({ general: { asked: [first], by_radio: [first] } }, FM, HF);
+    expect(ask(wrapper).attributes("disabled")).toBeDefined();
+    expect(ask(wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s");
+    await radio(wrapper).setValue("2");
+    expect(ask(wrapper).attributes("disabled")).toBeUndefined();
+    const both = { asked: [askedOf({ at: ago(30), radio: 2 })], by_radio: [first, askedOf({ at: ago(30), radio: 2 })] };
+    const later = on({ general: both }, FM, HF);
+    expect(ask(later.wrapper).attributes("title")).toBe("Asked a moment ago: again in 40 s"); // (FM's own, though HF's is the latest)
+  });
+
+  it("is off while the radio chosen is not connected, with that as its reason, the radio named", async () => {
+    const { wrapper } = on({}, FM, { ...HF, state: "connecting" });
+    await radio(wrapper).setValue("2");
+    expect(ask(wrapper).attributes("disabled")).toBeDefined();
+    expect(ask(wrapper).attributes("title")).toBe("HF: not connected");
+    const one = on({}, { ...FM, state: "waiting" });
+    expect(ask(one.wrapper).attributes("title")).toBe("The TNC is not connected");
+    const none = on({ status: status({ main_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
+    expect(ask(none.wrapper).attributes("title")).toBe("there is no radio: add one, or turn one on");
+  });
+
+  it("says in the first line the radio the latest query went on, and not in a refusal, which says it itself", async () => {
+    const at = ago(20);
+    const time = clockText(at).slice(0, 5);
+    const asked = askedOf({ at, radio: 2, path: [] });
+    const { wrapper, daemon } = on({ general: { asked: [asked], by_radio: [asked] } }, FM, HF);
+    expect(lines(wrapper)[0]?.text()).toBe(`HF: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
+    expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
+    await ask(wrapper).trigger("click");
+    await tell(daemon, { lastError: toastOf("general_query: the HF radio is not connected", "radio.not_connected", { name: "HF" }) });
+    expect(lines(wrapper)[0]?.text()).toBe("Not sent: the HF radio is not connected");
+    expect(lines(wrapper)).toHaveLength(2);
+  });
+
+  it("offers six radios by names of up to eight characters on a phone, the row wrapping and the choice as wide as its longest name", () => {
+    const six = [
+      radioRow(1, "kenwood-tnc2", { name: "Shack" }),
+      radioRow(2, "mercury", { name: "20m" }),
+      radioRow(3, "kiss", { name: "Mobile" }),
+      radioRow(4, "dummy-hf", { name: "HFdummy" }),
+      radioRow(5, "kiss-tcp", { name: "Remote12" }),
+      radioRow(6, "mercury", { name: "40m", number: 2 }),
+    ];
+    const { wrapper } = on({}, ...six);
+    expect(
+      radio(wrapper)
+        .findAll("option")
+        .map((o) => o.text()),
+    ).toEqual(["Shack", "20m", "Mobile", "HFdummy", "Remote12", "40m"]);
+    expect(cssRule(".ask-row")).toMatch(/flex-wrap:\s*wrap/);
+    expect(cssRule(".ask-radio")).toMatch(/flex:\s*none/);
+    expect(cssRule(".ask-line")).toMatch(/text-overflow:\s*ellipsis/); // (a line with the radio's name in front keeps its one line)
   });
 });
