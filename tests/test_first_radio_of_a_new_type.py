@@ -115,9 +115,9 @@ async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_s
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
     monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
+    monkeypatch.setattr(direwolfmodem.DirewolfModem, "_cards", lambda self: [])      # (the machine's own sound cards are never listed by a test: the card is the one typed; with real cards the radio started on one of them first)
     if windows:
         monkeypatch.setattr(direwolfmodem, "sys", SimpleNamespace(platform="win32"))
-        monkeypatch.setattr(direwolfmodem.DirewolfModem, "_cards", lambda self: [])  # (no HF modem here lists the cards: the card is the one typed)
     e, page = await fresh(tmp_path)
     try:
         await page.until(lambda: set(TOPIC_NAMES) <= set(page.topics) and bool(page.of("status")))
