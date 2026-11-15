@@ -16,17 +16,19 @@ The last table is not about imports: REACHES_OUT is the list of the modules that
 pyserial, each with why it may. It is exact, so that a new way out of the process is looked at by a person the day it is written.
 """
 import ast
+import re
 import sys
 from fnmatch import fnmatchcase
 
 import pytest
 
+from neoaprs.radiotype import KINDS
 from tests.support.codemap import Import, Tree, connect_sites, find_cycle, forbidden_names, import_graph, load_tree, module_name, sql_sites, sql_strings
 
 LAYERS: dict[str, list[str]] = {
-    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "units", "recent", "callsign", "geo", "pmtilesformat", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "reach", "chain", "mapstate", "radiosearch", "serialboards", "versions", "skeds", "updateasset", "releasenotes", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyhfscene", "dummyqru", "igaterules", "cipher", "mercury", "mercurycards", "mercuryscope", "channelbusy", "radiorules", "reading", "bundled", "radiotype"],
+    "foundation": ["neoaprs", "clock", "signal", "coded", "policy", "units", "recent", "callsign", "geo", "pmtilesformat", "symbols", "kiss", "ax25", "aprsposition", "aprsmice", "aprsmiceout", "aprsmessage", "aprsparse", "aprsweather", "aprsthirdparty", "aprsisline", "aprsextension", "aprsfreq", "aprsstorm", "aprslocator", "aprstelemetry", "aprsnmea", "gpsfix", "smartbeacon", "packet", "packetcodec", "message", "bulletin", "decay", "tncmode", "tncprofile", "pref", "route", "reach", "chain", "mapstate", "radiosearch", "serialboards", "versions", "skeds", "updateasset", "releasenotes", "device", "devicedata", "hourcount", "dummyroutes", "dummyframes", "dummyscene", "dummyhfscene", "dummyqru", "igaterules", "cipher", "mercury", "mercurycards", "mercuryscope", "channelbusy", "radiorules", "reading", "bundled", "radiotype", "tnc2line", "dummylorascene"],
     "domain": ["alertcommand", "config", "configlegacy", "configstatus", "configtypes", "configvalues", "interlock", "station", "stationnotes", "stationbook", "aloha", "ownobject", "ownbulletin", "qrutext", "configradios", "radiospec", "messagerule", "beaconrule", "emailrule", "claims", "stationchoices"],
-    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilesarchive", "pmtilesplan", "pmtilesrange", "pmtilescut", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem", "mercuryclaims", "mercurychannel", "mercuryscoping", "mercuryui", "websocketclient", "mercuryspeaker", "mercurytune", "httpstrust", "nodevices", "radiodriver", "tncdriver", "mercurydriver"],
+    "adapters": ["source", "tasks", "serialport", "serialholders", "serialprobe", "btsdp", "btserial", "btle", "btpaired", "tnc", "tncport", "callbackport", "dummyline", "dummyworlds", "tncsearch", "tncwatchdog", "tncentry", "tncfollow", "tnclines", "tncreader", "childenv", "rigctld", "gpsfeed", "aprsis", "pmtilesarchive", "pmtilesplan", "pmtilesrange", "pmtilescut", "worldmap", "updatefetch", "updatedownload", "selfreplace", "mercuryhelper", "mercurycontrol", "mercurymodem", "mercuryclaims", "mercurychannel", "mercuryscoping", "mercuryui", "websocketclient", "mercuryspeaker", "mercurytune", "httpstrust", "nodevices", "radiodriver", "tncdriver", "mercurydriver"],
     "persistence": ["store", "migrations", "migrationlog", "migrationsteps1to11", "migrationsteps12to21", "migrationsteps22on", "backupfolder", "durable", "instancelock", "stopfile", "walcare", "dbfile", "dberror", "dbstats", "dbthread", "db", "dbopen", "storesql", "paths", "dblog", "packetsql", "packetlog", "messagesql", "messagelog", "bulletinsql", "bulletinlog", "weathersql", "weatherlog", "ownsql", "ownlog", "supportsql", "stationsql", "radiosql", "migrationsteps31", "migrationsteps32"],
     "services": [],
     "app": ["controller", "app", "wiring", "radios", "radioregistry", "radioedits"],
@@ -47,7 +49,7 @@ MAY_IMPORT: dict[str, set[str]] = {
 }
 # Inside the adapters layer a feed may use the base every feed shares, and the few siblings named here; any other adapter-to-adapter import is a violation.
 ADAPTER_BASES = {"neoaprs.source", "neoaprs.tasks", "neoaprs.nodevices"}      # (nodevices: the switch every adapter that opens a device or a connection asks first)
-ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tncreader"), ("neoaprs.tncreader", "neoaprs.tncentry"), ("neoaprs.tncreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncfollow"), ("neoaprs.tncfollow", "neoaprs.serialprobe"), ("neoaprs.tncfollow", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tnc", "neoaprs.tncport"), ("neoaprs.tnc", "neoaprs.dummyline"), ("neoaprs.tncport", "neoaprs.callbackport"), ("neoaprs.gpsfeed", "neoaprs.callbackport"), ("neoaprs.callbackport", "neoaprs.serialport"), ("neoaprs.dummyline", "neoaprs.tncport"), ("neoaprs.dummyline", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.gpsfeed", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired"), ("neoaprs.worldmap", "neoaprs.pmtilesarchive"), ("neoaprs.updatefetch", "neoaprs.updatedownload"), ("neoaprs.mercurymodem", "neoaprs.mercuryhelper"), ("neoaprs.mercurymodem", "neoaprs.mercuryclaims"), ("neoaprs.mercuryclaims", "neoaprs.mercuryhelper"), ("neoaprs.mercuryclaims", "neoaprs.mercuryspeaker"), ("neoaprs.mercurydriver", "neoaprs.mercuryclaims"), ("neoaprs.mercurymodem", "neoaprs.mercurycontrol"), ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"), ("neoaprs.mercuryhelper", "neoaprs.childenv"), ("neoaprs.mercurymodem", "neoaprs.serialprobe"), ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"), ("neoaprs.mercurymodem", "neoaprs.mercurytune"), ("neoaprs.mercurymodem", "neoaprs.mercurychannel"), ("neoaprs.mercurymodem", "neoaprs.mercuryscoping"), ("neoaprs.mercuryscoping", "neoaprs.mercuryui"), ("neoaprs.mercuryui", "neoaprs.websocketclient"), ("neoaprs.mercurymodem", "neoaprs.mercuryallow"), ("neoaprs.mercuryfirewall", "neoaprs.winelevate"), ("neoaprs.updatefetch", "neoaprs.httpstrust"), ("neoaprs.updatedownload", "neoaprs.httpstrust"), ("neoaprs.pmtilesarchive", "neoaprs.httpstrust"), ("neoaprs.pmtilesrange", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilesrange", "neoaprs.httpstrust"), ("neoaprs.pmtilesplan", "neoaprs.pmtilesrange"), ("neoaprs.pmtilescut", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilescut", "neoaprs.pmtilesplan"), ("neoaprs.pmtilescut", "neoaprs.pmtilesrange"), ("neoaprs.radiodriver", "neoaprs.tnc"), ("neoaprs.radiodriver", "neoaprs.mercurymodem"), ("neoaprs.tncdriver", "neoaprs.tnc"), ("neoaprs.mercurydriver", "neoaprs.mercurymodem"), ("neoaprs.mercurydriver", "neoaprs.tnc"), ("neoaprs.tncdriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.mercuryhelper"), ("neoaprs.tncdriver", "neoaprs.serialprobe"), ("neoaprs.tncdriver", "neoaprs.dummyline"), ("neoaprs.mercurydriver", "neoaprs.dummyline")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
+ADAPTER_SIBLINGS: set[tuple[str, str]] = {("neoaprs.tnc", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.serialprobe"), ("neoaprs.tnc", "neoaprs.serialholders"), ("neoaprs.tnc", "neoaprs.tncsearch"), ("neoaprs.tnc", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncentry"), ("neoaprs.tnc", "neoaprs.tncreader"), ("neoaprs.tncreader", "neoaprs.tncentry"), ("neoaprs.tncreader", "neoaprs.tncport"), ("neoaprs.tncreader", "neoaprs.tncwatchdog"), ("neoaprs.tnc", "neoaprs.tncfollow"), ("neoaprs.tncfollow", "neoaprs.serialprobe"), ("neoaprs.tncfollow", "neoaprs.serialport"), ("neoaprs.tnc", "neoaprs.tnclines"), ("neoaprs.tnc", "neoaprs.tncport"), ("neoaprs.tnc", "neoaprs.dummyline"), ("neoaprs.tncport", "neoaprs.callbackport"), ("neoaprs.gpsfeed", "neoaprs.callbackport"), ("neoaprs.callbackport", "neoaprs.serialport"), ("neoaprs.dummyline", "neoaprs.tncport"), ("neoaprs.dummyline", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialport"), ("neoaprs.tncsearch", "neoaprs.serialprobe"), ("neoaprs.serialprobe", "neoaprs.serialport"), ("neoaprs.serialprobe", "neoaprs.serialholders"), ("neoaprs.serialholders", "neoaprs.serialport"), ("neoaprs.gpsfeed", "neoaprs.serialport"), ("neoaprs.serialport", "neoaprs.btserial"), ("neoaprs.serialport", "neoaprs.btle"), ("neoaprs.btserial", "neoaprs.btsdp"), ("neoaprs.serialprobe", "neoaprs.btpaired"), ("neoaprs.worldmap", "neoaprs.pmtilesarchive"), ("neoaprs.updatefetch", "neoaprs.updatedownload"), ("neoaprs.mercurymodem", "neoaprs.mercuryhelper"), ("neoaprs.mercurymodem", "neoaprs.mercuryclaims"), ("neoaprs.mercuryclaims", "neoaprs.mercuryhelper"), ("neoaprs.mercuryclaims", "neoaprs.mercuryspeaker"), ("neoaprs.mercurydriver", "neoaprs.mercuryclaims"), ("neoaprs.mercurymodem", "neoaprs.mercurycontrol"), ("neoaprs.mercurymodem", "neoaprs.mercuryspeaker"), ("neoaprs.mercuryhelper", "neoaprs.childenv"), ("neoaprs.mercurymodem", "neoaprs.serialprobe"), ("neoaprs.mercurymodem", "neoaprs.mercuryfirewall"), ("neoaprs.mercurymodem", "neoaprs.mercurytune"), ("neoaprs.mercurymodem", "neoaprs.mercurychannel"), ("neoaprs.mercurymodem", "neoaprs.mercuryscoping"), ("neoaprs.mercuryscoping", "neoaprs.mercuryui"), ("neoaprs.mercuryui", "neoaprs.websocketclient"), ("neoaprs.mercurymodem", "neoaprs.mercuryallow"), ("neoaprs.mercuryfirewall", "neoaprs.winelevate"), ("neoaprs.updatefetch", "neoaprs.httpstrust"), ("neoaprs.updatedownload", "neoaprs.httpstrust"), ("neoaprs.pmtilesarchive", "neoaprs.httpstrust"), ("neoaprs.pmtilesrange", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilesrange", "neoaprs.httpstrust"), ("neoaprs.pmtilesplan", "neoaprs.pmtilesrange"), ("neoaprs.pmtilescut", "neoaprs.pmtilesarchive"), ("neoaprs.pmtilescut", "neoaprs.pmtilesplan"), ("neoaprs.pmtilescut", "neoaprs.pmtilesrange"), ("neoaprs.radiodriver", "neoaprs.tnc"), ("neoaprs.radiodriver", "neoaprs.mercurymodem"), ("neoaprs.tncdriver", "neoaprs.tnc"), ("neoaprs.mercurydriver", "neoaprs.mercurymodem"), ("neoaprs.mercurydriver", "neoaprs.tnc"), ("neoaprs.tncdriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.radiodriver"), ("neoaprs.mercurydriver", "neoaprs.mercuryhelper"), ("neoaprs.tncdriver", "neoaprs.serialprobe"), ("neoaprs.tncdriver", "neoaprs.dummyline"), ("neoaprs.mercurydriver", "neoaprs.dummyline"), ("neoaprs.tnc", "neoaprs.dummyworlds"), ("neoaprs.dummyworlds", "neoaprs.dummyline"), ("neoaprs.dummyworlds", "neoaprs.serialport"), ("neoaprs.dummyworlds", "neoaprs.tncport")}      # (importer, imported): the TNC reads the serial line, and its search and watchdog are parts of it
 DELIVERY_PACKAGES = ("neoaprs.web", "neoaprs.cli", "neoaprs.desktop")
 WIRE_ASSEMBLERS = {"neoaprs.web.protocol"}
 PURE = {"foundation", "domain"}
@@ -140,6 +142,67 @@ REACHES_OUT: dict[str, tuple[str, str]] = {
 }
 SHELL_LINES = {"neoaprs/services/alerts.py": 1}         # the places a shell is given a line to run, with how many: the alert command and nothing else, ever
 
+# A radio is named by its id and asks its type what it may do (plan §2): `fm` and `hf` are words of a kind, and they name one only in the descriptions of the types (TYPE_MODULES). Anywhere else the word
+# as a string ("hf"), the ids of the two radios of before (FM_ID, HF_ID) or a name with fm or hf as one of its parts (`hf_beacon`, `heard_fm`, `HF_PROFILES`) is a radio or a kind named where the radio
+# should have been asked: a third kind would have to be written into that place. So is the word "lora" as a string, and radio 1 or 2 named by its number. RADIO_WORDS is every file where that is so
+# today, with how many (exact, so it only shrinks), who takes them out, and why: "W3" takes out what the steps of the round kept for the page and the code of before (the files of W3's entry: its aliases,
+# views, old fields, topics, RadioRules, radios.py and the stand-in); "open" is the same kind of thing in a file W3's entry does not name (radio 1 as the default where nothing names a radio, the run's
+# overrides of radios 1 and 2), whose owner the coordinator gives (W3, or the pass over the whole code); "kept" is what stays for good (the frozen migration steps read the words the database of before stored).
+TYPE_MODULES = ("neoaprs/radiotype.py", "neoaprs/radiotypes/")
+NOT_A_RADIO = {"hf_dial", "HF_DIAL", "DUMMY_HF"}         # the dial of the HF tests the version page names (services/updatecheck.py), a band's; the Dummy HF type's profile, a type's own name
+RADIO_WORDS: dict[str, tuple[int, str, str]] = {
+    "neoaprs/app.py": (19, "W3", "radio 1 and 2's lines and Mercury made by the process before the settings are read (`hf`, `hf_port`, FM_ID, HF_ID) and the aliases ctl.hf, ctl.hf_beacon"),
+    "neoaprs/config.py": (6, "W3", "the flat key hf/profile, the state row hf/beacon_last_sent_at and radio 1's serial/last_port by FM_ID"),
+    "neoaprs/configradios.py": (40, "W3", "the flat keys' view of radios 1 and 2 (FLAT_HOMES, FLAT_KINDS, FLAT_ON, the default radios)"),
+    "neoaprs/configvalues.py": (3, "W3", "the parser of the flat key hf/profile"),
+    "neoaprs/controller.py": (14, "W3", "the names of radio 1 and 2's task and beacon, _hf_settings, hf_port"),
+    "neoaprs/daemon.py": (1, "open", "--hf-port, the Mercury of radio 2 that something else runs"),
+    "neoaprs/dummyhfscene.py": (2, "kept", "the Dummy HF type's own world, with the random pause of its kind's beacons"),
+    "neoaprs/mercurydriver.py": (14, "open", "radio 2's run override (hf_port), the flat hf_settings and hf_words of radio 2, the profiles by kind (HF_BY_KEY)"),
+    "neoaprs/mercurymodem.py": (4, "open", "radio 2 as the default holder of the modem's claims and of the folder of the one HF radio of before"),
+    "neoaprs/messagelog.py": (3, "open", "radio 1 as the default radio of a station's path (FM_ID)"),
+    "neoaprs/messagesql.py": (2, "open", "radio 1 as the default radio of a station's entry read and kept (radio_id=1)"),
+    "neoaprs/migrationsteps31.py": (35, "kept", "the frozen step 31 reads the flat keys and the words of before (fm, hf) and makes radios 1 and 2 of them"),
+    "neoaprs/migrationsteps32.py": (3, "kept", "the frozen step 32 maps the stored words of before to the radios' ids"),
+    "neoaprs/ownobject.py": (19, "W3", "an object's old word for its radios (fm, hf, both) and radio 1 as its default set"),
+    "neoaprs/packet.py": (8, "W3", "the old view Packet.radio (fm, hf)"),
+    "neoaprs/radiodriver.py": (1, "open", "RunOverrides.hf_port, radio 2's"),
+    "neoaprs/radioedits.py": (22, "open", "the seed of radios 1 and 2 from the flat keys, and radio 2 kept for an HF radio added where there is none"),
+    "neoaprs/radiorules.py": (15, "W3", "RadioRules and its FM, HF and LoRa values; the numbers stay when it goes (they are the types', with their reasons)"),
+    "neoaprs/radios.py": (42, "W3", "the module of before (two Tnc's by kind), kept for the tests"),
+    "neoaprs/radiospec.py": (5, "open", "the re-exports of FM_ID and HF_ID, and the kinds' English words by kind (KIND_WORDS, whose place is beside KINDS)"),
+    "neoaprs/radiosql.py": (1, "W3", "the stand-in of a database without radios moves radio 2's rows when radio 2 is among those it writes (id == 2)"),
+    "neoaprs/services/answers.py": (4, "open", "radios 1 and 2 named by their kind in an answer (radio.id in (FM_ID, HF_ID))"),
+    "neoaprs/services/beaconframe.py": (16, "W3", "the line of before (OldLine: a Tnc's kind as its radio's), radio 1's path for a radio of a kind with none"),
+    "neoaprs/services/common.py": (18, "W3", "Radio and RadioSet of before (of('fm'), FM_ALLOWED or HF_ALLOWED by kind, radio 1's path)"),
+    "neoaprs/services/digipeater.py": (2, "open", "a packet with no radio counted as radio 1's"),
+    "neoaprs/services/ownobjects.py": (3, "open", "a new object's old word fm and radio 1 as its default"),
+    "neoaprs/services/prefbook.py": (12, "open", "radio 1's path kept in the station's entry of before (FM_ID as the default radio)"),
+    "neoaprs/services/radiofinder.py": (2, "open", "radio 1 when the page names no radio"),
+    "neoaprs/station.py": (18, "W3", "the views heard_fm, heard_hf, last_fm_at, last_hf_at"),
+    "neoaprs/stationbook.py": (2, "open", "radio 1 as the radio of a packet with none"),
+    "neoaprs/stationchoices.py": (4, "W3", "today's two radios as the choices there are (TWO_RADIOS)"),
+    "neoaprs/stationnotes.py": (4, "open", "radio 2 kept out of the route (HF_ID) and a packet with no radio as radio 1's"),
+    "neoaprs/tnc.py": (10, "W3", "a Tnc's kind decides Mercury's station messages, the log's words and its label, and its radio before its driver names one (rules.kind == 'hf', FM_ID, HF_ID)"),
+    "neoaprs/tncdriver.py": (4, "open", "radio 1's port of the run and serial/last_port (FM_ID)"),
+    "neoaprs/tncmode.py": (3, "open", "radio 1 as the default radio of a frame read"),
+    "neoaprs/tncprofile.py": (13, "W3", "the profiles by kind (HF_PROFILES, HF_BY_KEY, hf_profile_of, HF_DEFAULT) and the RadioRules of each (FM, HF)"),
+    "neoaprs/tncsearch.py": (2, "open", "radio 1 as the default holder of a search"),
+    "neoaprs/web/api.py": (2, "W3", "status's hf_beacon_* (ctl.hf_beacon)"),
+    "neoaprs/web/handlers.py": (9, "W3", "radios 1 and 2 where the page names none (FM_ID, HF_ID, hf_is_mercury)"),
+    "neoaprs/web/hfhandlers.py": (4, "W3", "the hf_* commands of the page of before"),
+    "neoaprs/web/hostwire.py": (2, "W3", "status's hf_beacon_last_sent and hf_beacon_next_due"),
+    "neoaprs/web/messagewire.py": (6, "W3", "the old field radio (fm, hf) of the message and attempt rows"),
+    "neoaprs/web/ownwire.py": (5, "W3", "an object's old field radio (fm, hf, both)"),
+    "neoaprs/web/packetwire.py": (2, "W3", "the packet row's old field radio (fm, hf)"),
+    "neoaprs/web/protocol.py": (1, "W3", "the topic hf, radio 2 of before"),
+    "neoaprs/web/stationwire.py": (6, "W3", "the station row's heard_fm, heard_hf, last_fm_at, last_hf_at and message_radio"),
+    "neoaprs/web/supportstate.py": (10, "W3", "the support bundle's hf part, radio 2's"),
+    "neoaprs/web/tncwire.py": (5, "W3", "TncState.kind (fm, hf) of the topics tnc and hf; RadioRow.kind spells the three kinds out where radiotype.Kind would do"),
+    "neoaprs/web/topics.py": (11, "W3", "the topic hf and its signals"),
+    "neoaprs/wiring.py": (2, "open", "only radio 1 remembers the port its search found (FM_ID)"),
+}
+
 
 def _imported_names(module: ast.Module) -> dict[str, str]:
     """What each name the file imported stands for: `import urllib.request` gives urllib, `import subprocess as sp` gives sp for subprocess, `from os import execv as go` gives go for os.execv. An import inside a function counts."""
@@ -207,6 +270,80 @@ def reach_not_as_listed(found: dict[str, dict[str, int]]) -> dict[str, str]:
 
 def shell_lines(found: dict[str, dict[str, int]]) -> dict[str, int]:
     return {rel: counts["shell"] for rel, counts in found.items() if "shell" in counts}
+
+
+_KIND_PART = re.compile(r"(?:^|_)(fm|hf)(?:_|$)", re.IGNORECASE)
+_RADIO_ID = re.compile(r"^(?:id|radio|radio_id)$|_radio(?:_id)?$")      # a name that holds a radio or its id: `id`, `radio`, `radio_id`, `holder_radio_id` (a message's `msg_id` is no radio's)
+_OLD_IDS = (1, 2)                                                        # the ids of the two radios of before, written as numbers where FM_ID and HF_ID would be found
+
+
+def _radio_name(node: ast.AST) -> bool:
+    name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
+    return name is not None and _RADIO_ID.search(name) is not None
+
+
+def _old_id(node: ast.AST | None) -> bool:
+    return isinstance(node, ast.Constant) and type(node.value) is int and node.value in _OLD_IDS
+
+
+def _a_radio_by_number(node: ast.AST) -> int:
+    """How often the node names radio 1 or 2 by its number: a radio's name compared (==, !=, is, in) with 1 or 2, a choice between one and 1 or 2, or a parameter or a keyword of a radio's name that is 1
+    or 2 when none is given (an order, `radio < 1`, is a check of an id, not a radio named)."""
+    if isinstance(node, ast.Compare):
+        sides = [node.left, *node.comparators]
+        numbers = [e for side in sides for e in (side.elts if isinstance(side, (ast.Tuple, ast.List, ast.Set)) else [side])]
+        return int(all(isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)) for op in node.ops) and any(map(_old_id, numbers)) and any(map(_radio_name, sides)))
+    if isinstance(node, ast.IfExp):
+        return int((_old_id(node.body) or _old_id(node.orelse)) and any(_radio_name(n) for n in ast.walk(node.test)))
+    if isinstance(node, ast.arguments):
+        given = [*node.posonlyargs, *node.args]
+        pairs = [*zip(given[len(given) - len(node.defaults):], node.defaults), *zip(node.kwonlyargs, node.kw_defaults)]
+        return sum(_RADIO_ID.search(arg.arg) is not None and _old_id(default) for arg, default in pairs)
+    if isinstance(node, ast.keyword):
+        return int(node.arg is not None and _RADIO_ID.search(node.arg) is not None and _old_id(node.value))
+    return 0
+
+
+def _named(node: ast.AST) -> str | None:
+    """The name a node gives or uses: a variable, an attribute, a function, a class, a parameter, a keyword of a call, an imported name as it is bound."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name
+    if isinstance(node, ast.arg):
+        return node.arg
+    if isinstance(node, ast.keyword):
+        return node.arg
+    if isinstance(node, ast.alias):
+        return node.asname or node.name.split(".")[-1]
+    return None
+
+
+def radio_words(tree: Tree) -> dict[str, int]:
+    """How often each file outside the type modules names a radio or a kind instead of asking it: a word of a kind as a string ("fm", "hf", "lora": KINDS, not in a docstring), a name with fm or hf as
+    one of its parts (NOT_A_RADIO aside), or radio 1 or 2 by its number (`_a_radio_by_number`)."""
+    out: dict[str, int] = {}
+    for rel, source in tree.items():
+        if rel.startswith(TYPE_MODULES):
+            continue
+        module = ast.parse(source)
+        prose = {id(node.value) for node in ast.walk(module) if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)}
+        count = 0
+        for node in ast.walk(module):
+            name = _named(node)
+            count += (isinstance(node, ast.Constant) and node.value in KINDS and id(node) not in prose) or (name is not None and name not in NOT_A_RADIO and _KIND_PART.search(name) is not None)
+            count += _a_radio_by_number(node)
+        if count:
+            out[rel] = count
+    return out
+
+
+def radio_words_not_as_listed(found: dict[str, int]) -> dict[str, str]:
+    """Each file whose count differs from RADIO_WORDS, with both counts."""
+    listed = {rel: n for rel, (n, _owner, _why) in RADIO_WORDS.items()}
+    return {rel: f"names a radio by fm or hf {found.get(rel, 0)} times; RADIO_WORDS says {listed.get(rel, 0)}" for rel in sorted(set(found) | set(listed)) if found.get(rel, 0) != listed.get(rel, 0)}
 
 
 def sql_outside_the_homes(sites: dict[str, tuple[bool, int]]) -> dict[str, str]:
@@ -393,6 +530,13 @@ def test_the_ways_out_of_the_process_are_the_listed_ones_and_only_the_alert_comm
         "Look at what the place starts or opens, and whether a text from the air, from the page or from a setting can get into it; then make the entry say it:\n" + "\n".join(f"  {rel}: {what}" for rel, what in changed.items())
     assert shell_lines(found) == SHELL_LINES, "a shell is given a line somewhere else than in the alert command (neoaprs/services/alerts.py), or a second time there: start the program from a list of arguments"
     assert all(len(why) > 30 for _kinds, why in REACHES_OUT.values())
+
+
+def test_a_radio_is_named_by_fm_or_hf_only_in_the_descriptions_of_the_types_and_the_rest_is_listed_until_its_owner_takes_it_out(real_tree: Tree) -> None:
+    changed = radio_words_not_as_listed(radio_words(real_tree))
+    assert changed == {}, "a radio or a kind named by fm or hf outside the descriptions of the types (neoaprs/radiotypes/): ask the radio (its kind, its type's limits, allowed and can, its id) instead, " + \
+        "so that a third kind needs no line here; a file that names fewer than RADIO_WORDS says lowers its count (an entry at 0 goes):\n" + "\n".join(f"  {rel}: {what}" for rel, what in changed.items())
+    assert all(owner in ("W3", "open", "kept") and len(why) > 20 for _n, owner, why in RADIO_WORDS.values())
 
 
 # ---- every rule fails on a violation ------------------------------------------------------------------------------------------------------------------------
@@ -586,3 +730,23 @@ def test_a_flush_and_a_before_write_are_found_wherever_they_hide() -> None:
     tree = {"neoaprs/a.py": "def _flush(self):\n    pass\n", "neoaprs/b.py": "def f(store):\n    store._flush()\n", "neoaprs/c.py": "def g(s):\n    s.before_write = 1\n", "neoaprs/d.py": "flush = 1\n_flush = 2\n",
             "neoaprs/e.py": "def flush_now(): pass\n"}
     assert forbidden_names(tree) == {"neoaprs/a.py": [1], "neoaprs/b.py": [2], "neoaprs/c.py": [2], "neoaprs/d.py": [2]}
+
+
+def test_a_radio_named_by_fm_or_hf_is_found_in_a_string_an_id_and_a_name_and_not_in_prose_a_type_module_another_word_or_the_band(monkeypatch: pytest.MonkeyPatch) -> None:
+    tree = {"neoaprs/a.py": '"""Sent on the hf radio: prose."""\nfrom .radiotype import FM_ID\nif radio.kind == "hf" and radio.id == FM_ID:\n    ctl.hf_beacon.stop()\n',
+            "neoaprs/b.py": "def start_hf(fm, *, heard_fm=0):\n    return HfScene, offhand, half, f'{kind} hf', 'HF', HF\n",
+            "neoaprs/c.py": "x = updatecheck.hf_dial or HF_DIAL\n", "neoaprs/radiotypes/dummy.py": "TYPE = ('hf', HF_LIMITS)\n", "neoaprs/radiotype.py": "Kind = Literal['fm', 'hf']\n"}
+    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 4}      # a: the alias and the use of FM_ID, "hf", hf_beacon; b: start_hf, fm, heard_fm, HF (HfScene, half and the texts are no word of a kind)
+    monkeypatch.setattr(sys.modules[__name__], "RADIO_WORDS", {"neoaprs/a.py": (4, "W3", "a made-up file that is listed as it is"), "neoaprs/b.py": (5, "W3", "a made-up file that named one more before"),
+                                                               "neoaprs/gone.py": (2, "W3", "a made-up file that names none any more")})
+    assert radio_words_not_as_listed(radio_words(tree)) == {"neoaprs/b.py": "names a radio by fm or hf 4 times; RADIO_WORDS says 5", "neoaprs/gone.py": "names a radio by fm or hf 0 times; RADIO_WORDS says 2"}
+    tree["neoaprs/d.py"] = "LORA = rules.kind == 'fm'\n"
+    assert radio_words_not_as_listed(radio_words(tree))["neoaprs/d.py"] == "names a radio by fm or hf 1 times; RADIO_WORDS says 0"
+
+
+def test_the_word_lora_and_radio_1_or_2_by_its_number_are_found_and_an_order_of_ids_or_another_id_is_not() -> None:
+    tree = {"neoaprs/a.py": "if k == 'lora' or radio.id == 2 or radio_id != 1 or spec.radio in (1, 2):\n    pass\n",
+            "neoaprs/b.py": "def f(db, radio, *, radio_id=1, holder_radio_id=2):\n    return 1 if radio is None else radio\n",
+            "neoaprs/c.py": "g(radio_id=2)\nok = radio < 1 or record.msg_id == 1 or n == 2 or radio_id == 3\nx = None if record.msg_id is None else 1\n'''lora'''\n",
+            "neoaprs/radiotypes/x.py": "KIND = 'lora'\nif radio.id == 1:\n    pass\n"}
+    assert radio_words(tree) == {"neoaprs/a.py": 4, "neoaprs/b.py": 3, "neoaprs/c.py": 1}      # a: 'lora' and three comparisons; b: two defaults and the choice; c: the keyword (an order, a message's id, a number of nothing, radio 3 and the prose are none)

@@ -6,9 +6,10 @@ bytes to write and the seconds to wait after them; the wait after the last step 
 from dataclasses import dataclass
 
 from .coded import CodedError
-from .radiorules import FM, HF, RadioRules
+from .radiorules import FM, HF, LORA, RadioRules
 from .radiotype import Transport as Transport      # how a line is reached: a type of radio's (radiotype.py), named here as before
 from .reading import ReadingKind
+from .tnc2line import MAX_TEXT
 
 KISS_EXIT = b"\xc0\xff\xc0"          # the KISS "return" command (FEND, 0xFF, FEND): the TNC leaves KISS mode
 
@@ -27,6 +28,7 @@ class Profile:
     detect_command_mode: bool                  # whether text from the TNC ("cmd:", heard packets as TNC2 lines) means command mode, which `enter` leaves
     note: str                                  # what is uncertain about the profile, for the manual
     rules: RadioRules = FM                     # what the kind of radio allows and does (radiorules.py): paths and the digipeater, SmartBeaconing, the beacon's floor, the frame it carries whole
+    max_text: int | None = None                # the longest TNC2 text of a frame the radio puts on the air whole, where the air carries text (a LoRa board: 252); None: the air carries AX.25
     readings: tuple[ReadingKind, ...] = ()     # the signal readings the radio gives of each frame it hears (reading.py): the Mercury modem the SNR, a LoRa radio the SNR and the RSSI; none for a KISS TNC
 
     def __post_init__(self) -> None:
@@ -41,6 +43,14 @@ class Profile:
     def max_frame(self) -> int | None:
         """The longest AX.25 frame the radio carries whole, in bytes; None: the AX.25 limit alone (a modem with a fixed frame cuts a longer one off, so the daemon refuses or shortens it first)."""
         return self.rules.max_frame
+
+    def too_long(self, raw: bytes, text: bytes) -> str | None:
+        """Why a frame (its AX.25 bytes, its TNC2 text) is longer than the radio carries whole, as a clause: "131 bytes, the radio carries 123", "256 bytes of text, the radio carries 252"; None when it fits."""
+        if self.max_frame is not None and len(raw) > self.max_frame:
+            return f"{len(raw)} bytes, the radio carries {self.max_frame}"
+        if self.max_text is not None and len(text) > self.max_text:
+            return f"{len(text)} bytes of text, the radio carries {self.max_text}"
+        return None
 
     @property
     def settle_sec(self) -> float:
@@ -89,10 +99,17 @@ DUMMY = Profile("dummy", "Dummy (no radio, made-up traffic)", "dummy", None, (),
 DUMMY_HF = Profile("dummy-hf", "Dummy HF radio (no radio, made-up distant stations)", "dummy", None, (), None, False, False,
                    "Nothing goes on the air and nothing is keyed: the stations are made up, hundreds of kilometres away, and your own frames are heard from the speakers.", rules=HF, readings=("snr",))
 
+# The Dummy LoRa radio (neoaprs/dummylorascene.py): a LoRa APRS board of made-up stations round the station, with the rules of LoRa. The board speaks TNC2 text, as the boards in use do on the air and on
+# their line, and each packet comes with the signal-to-noise ratio and the strength a board measures; nothing goes on the air and nothing is opened.
+DUMMY_LORA = Profile("dummy-lora", "Dummy LoRa radio (no radio, made-up stations)", "dummy", None, (), None, False, False,
+                     "Nothing goes on the air and nothing is opened: the stations are made up, round the station's position, as a LoRa APRS board would hear them.", rules=LORA, readings=("snr", "rssi"), max_text=MAX_TEXT)
+
 PROFILES: tuple[Profile, ...] = (KENWOOD_TNC2, KENWOOD_D710, KANTRONICS, KISS, KISS_TCP, DUMMY)       # the FM radio's types (tnc/profile); the HF radio's are HF_PROFILES (hf/profile)
 HF_PROFILES: tuple[Profile, ...] = (MERCURY, DUMMY_HF)                                                 # the HF radio's types (neoaprs/radios.py): the Mercury modem, and its Dummy last, as the FM radio's is
 BY_KEY = {p.key: p for p in PROFILES}
 HF_BY_KEY = {p.key: p for p in HF_PROFILES}
+LORA_PROFILES: tuple[Profile, ...] = (DUMMY_LORA,)                                                     # the types of a LoRa radio
+EVERY_BY_KEY = {p.key: p for p in (*PROFILES, *HF_PROFILES, *LORA_PROFILES)}                           # every profile a radio's type may name (RadioType.profile)
 DEFAULT = KISS                              # a fresh install: no text is ever sent to a device that was not named
 HF_DEFAULT = MERCURY
 

@@ -21,13 +21,12 @@ from .clock import Clock, days, utcnow
 from .config import DEFAULTS, LAST_PORT, STATION_KEYS, Config
 from .message import MessagingError
 from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
-from .dummyhfscene import STATIONS as DUMMY_HF_STATIONS
+from .dummyworlds import made_up_calls
 from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
-from .radiotype import Kind
 from .store import DB_NAME, Store
 from .tasks import cancel_all, every
 from .tnc import Tnc
@@ -40,7 +39,14 @@ BACKUP_SWEEP_FIRST_SEC = LITTER_AGE_SEC + 60.0    # backup/ swept again after th
 RECOUNT_EVERY_SEC = 60.0                # the station book's hour of packets moves on a minute at a time
 TASK_NAMES: dict[RadioId, str] = {FM_ID: "tnc", HF_ID: "hf"}       # the task of a radio's start as the log has named it for radios 1 and 2 (another is `radio-<id>`)
 BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the HF beacon"}       # a radio's beacon as the stop's log has named it for radios 1 and 2
-MADE_UP: dict[Kind, frozenset[str]] = {"hf": frozenset(station.call for station in DUMMY_HF_STATIONS)}       # the stations a kind's Dummy radio makes up under calls of its own (the FM Dummy's are made round the station and go with the daily prune)
+
+
+def made_up_alone(was: RadioSpec, config: Config) -> frozenset[str]:
+    """The calls a Dummy radio that leaves its world made up (its world by its id as the seed: dummyworlds.py) and no Dummy radio still on in `config` makes up too: the HF worlds share their cities, and
+    what another radio still hears stays."""
+    others = (made_up_calls(spec.rtype.profile, spec.id) for spec in enabled(config.radios) if spec.rtype.dummy and spec.id != was.id)
+    return made_up_calls(was.rtype.profile, was.id) - frozenset().union(*others)
+
 
 WebFactory = Callable[["Controller", Config], Frontend]
 """How the process says what its page's server is: neoaprs.web.server.WebServer. The controller makes it from the settings and the process, which is the delivery layer, is the one that names it."""
@@ -185,7 +191,7 @@ class Controller(Services):
         """A radio that was on as a Dummy radio is one no longer (it became a real radio, or was switched off): nothing it made up under calls of its own stays once a real radio is on. The messages still being
         sent to its made-up stations are cancelled (a real radio would send them on the air for ever, to calls that are nobody's, and hold the channel), and the stations it made up are forgotten with their place
         on the map, unless something real was heard of them too."""
-        made_up, words = MADE_UP.get(was.kind, frozenset()), f"the Dummy {KIND_WORDS[was.kind]} radio"
+        made_up, words = made_up_alone(was, self.config), f"the Dummy {KIND_WORDS[was.kind]} radio"
         if not made_up:
             return
         for record in self.messaging.records():

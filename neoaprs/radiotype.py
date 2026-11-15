@@ -29,6 +29,7 @@ class Limits:
     beacon_min_min: int               # the floor of the beacon interval on this radio (FM 20, HF 30)
     beacon_jitter_sec: int            # the longest random pause after a timed beacon (HF 300); 0: none
     retry_jitter_sec: int             # the longest pause before a retry of a message (HF 20); 0: none
+    max_text: int | None = None       # the longest TNC2 text of a frame carried whole, where the air carries text (LoRa 252: its packet is a header of 3 bytes and the text); None: the air carries AX.25
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ class RadioType:
     allowed: Allowed
     can: Can
     dummy: bool                       # made-up traffic: the dashed tag
+    recommended_path: str = ""        # the path of our frames on it when its own "path" is empty (LoRa WIDE1-1, as its networks repeat); "": the recommended path of the station's symbol (FM's)
 
     def field(self, key: str) -> Field | None:
         """Its field of this key; None when it has none."""

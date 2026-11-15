@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """The clean installs of a release, tried here in Docker before a tag: the wheel installed into a fresh environment, the .deb installed with apt in a clean Debian and a clean Ubuntu, the AppImage run on a computer with
-no NeoAPRS, and an upgrade: the last release installed and started with both radios, a station and a message, then this build installed over it, and the daemon must come up as the new version with everything there.
+no NeoAPRS, and an upgrade: the last release (or the build named by --update-from) installed and started with both radios, a station and a message, then this build installed over it, and the daemon must come up
+as the new version with everything there, every file of this build in place, and the database brought up to this build's version with both radios in it.
 
   scripts/check-installs                        every check below, one line each with its time; the output of a check that failed follows its line
   scripts/check-installs --only deb-debian      only the checks named (wheel, deb-debian, deb-ubuntu, appimage, upgrade; several may be given)
   scripts/check-installs --no-mercury           the packages are built without Mercury (the .deb and the AppImage are the file of a developer who has none): faster, and the Mercury checks are not made
   scripts/check-installs --work FOLDER          where the files are built and the logs are kept (default build/installs)
+  scripts/check-installs --update-from SOURCE   the upgrade alone, from SOURCE instead of the pinned release: a .deb file, or a commit of this repository (a hash, a tag, a branch), whose .deb is built here
+                                                without Mercury from `git archive` of it (kept in the work folder for the next run); with --only, the upgrade must be among the checks
   scripts/check-installs --pin VERSION          writes packaging/ci/old-release.json for that release: its .deb is fetched from the project's release page and its SHA-256 is written once it equals the one in the
                                                 release's SHA256SUMS (needs the network; run it after a release, so that the upgrade starts from the newest one)
 
@@ -14,7 +17,8 @@ machine's, amd64: the arm64 package and the macOS and Windows builds are not tri
 them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (Ubuntu 24.04
 with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and ubuntu:24.04 as the release workflow's job `deb` has it (the Debian one also proves that Mercury needs no
 library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
-pinned there; an old release that is not pinned is a check that did not run, which is a failure. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
+pinned there; an old release that is not pinned is a check that did not run, which is a failure. An old build of the same version number as this one is installed over with --reinstall (apt would leave it as it is),
+and the proof that this build runs is its files and its database, not its version. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
 
 Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and for Mercury gcc, make and libasound2-dev.
 """
@@ -23,9 +27,11 @@ import hashlib
 import json
 import os
 import shlex
+import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import time
 import urllib.request
 from collections.abc import Sequence
@@ -109,16 +115,40 @@ if [ -e /opt/neoaprs ] || [ -e /usr/bin/neoaprs ] || dpkg -s neoaprs 2>/dev/null
 [ "$(cat /tmp/keep/neoaprs.sqlite)" = data ]
 """
 
-# The upgrade: the last release installed, its daemon given something to keep (scripts/install-probe.py seed), this build installed over it with apt, and its daemon must have it all and say it is this build.
+# What the database of the upgrade must be once this build's daemon has run on it (argv: the file, the version the old daemon left it at, this build's): this build's version, and the FM radio and the
+# Dummy HF radio of the seed, both enabled. Run by the package's own Python, which has sqlite3.
+DATABASE_CHECK = """import sqlite3, sys
+path, before, wanted = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+version = db.execute("PRAGMA user_version").fetchone()[0]
+if version != wanted:
+    sys.exit(f"the database is of version {version}, not this build's {wanted}: the new daemon did not bring it up to date")
+radios = sorted(db.execute("SELECT kind, type FROM radio WHERE enabled = 1 AND removed_at IS NULL"))
+if "fm" not in {kind for kind, _ in radios} or ("hf", "dummy-hf") not in radios:
+    sys.exit(f"the radios of the old daemon are not both there, enabled: {radios}")
+print(f"the database went from version {before} to {version}, with the radios {', '.join(kind + ' ' + type for kind, type in radios)}")
+"""
+
+# The upgrade: the old build installed, its daemon given something to keep (scripts/install-probe.py seed), this build installed over it with apt, and its daemon must have it all and say it is this build; every
+# file of this build's package must be the one installed, and the database this build's version with both radios. OLD_VERSION is empty for a .deb of --update-from: the package's own then.
 UPGRADE = """set -eu
 apt-get update -qq
 apt-get install -y -qq "/old/$OLD_FILE"
+[ -n "$OLD_VERSION" ] || OLD_VERSION="$(dpkg-deb -f "/old/$OLD_FILE" Version | tr '~' '-')"
 [ "$(neoaprs --version)" = "NeoAPRS $OLD_VERSION" ]
 mkdir -p /tmp/upgrade
 /opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py seed --command /usr/bin/neoaprs --data /tmp/upgrade/data --out /tmp/upgrade/seen.json
-apt-get install -y -qq /work/dist-deb/neoaprs_${VERSION}_amd64.deb
+before="$(/opt/neoaprs/bin/python3 -I -c 'import sqlite3, sys; print(sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True).execute("PRAGMA user_version").fetchone()[0])' /tmp/upgrade/data/neoaprs.sqlite)"
+again=""
+[ "$OLD_VERSION" != "$VERSION" ] || again=--reinstall
+apt-get install -y -qq $again /work/dist-deb/neoaprs_${VERSION}_amd64.deb
 [ "$(neoaprs --version)" = "NeoAPRS $VERSION" ]
+dpkg-deb -e /work/dist-deb/neoaprs_${VERSION}_amd64.deb /tmp/upgrade/control
+(cd / && md5sum --quiet -c /tmp/upgrade/control/md5sums)
+echo "every file of this build is the one installed"
 /opt/neoaprs/bin/python3 -I /work/probe/scripts/install-probe.py verify --command /usr/bin/neoaprs --data /tmp/upgrade/data --in /tmp/upgrade/seen.json --version "$VERSION"
+/opt/neoaprs/bin/python3 -I - /tmp/upgrade/data/neoaprs.sqlite "$before" "$NEW_SCHEMA" <<'PY'
+""" + DATABASE_CHECK + """PY
 """
 
 
@@ -132,6 +162,14 @@ def tree_value(path: str, name: str) -> str:
         if line.startswith(f"{name} = "):
             return line.split('"')[1]
     raise SystemExit(f"check-installs: {path} has no {name}")
+
+
+def tree_schema() -> int:
+    """The version of the database this tree's daemon brings a file to: the number of steps in MIGRATIONS of neoaprs/migrations.py (read as text: this script runs without the program's packages)."""
+    for line in (ROOT / "neoaprs" / "migrations.py").read_text(encoding="utf-8").splitlines():
+        if line.startswith("MIGRATIONS:"):
+            return len(re.findall(r"\b_v\d+\b", line.split("=", 1)[1]))
+    raise SystemExit("check-installs: neoaprs/migrations.py has no MIGRATIONS")
 
 
 # ---- the old release ----
@@ -209,6 +247,42 @@ def write_pin(version: str) -> int:
     return 0
 
 
+def old_build(source: str, work: Path) -> Path:
+    """The .deb the upgrade starts from with --update-from: the file named, or the .deb of a commit of this repository, built from `git archive` of it with that commit's own scripts and without Mercury
+    (the old daemon runs the Dummy HF radio), in work/update-from/<commit>/ and used again by the next run."""
+    if source.endswith(".deb"):
+        file = Path(source).expanduser().resolve()
+        if not file.is_file():
+            raise NotPinned(f"--update-from {source}: there is no such file")
+        return file
+    found = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{source}^{{commit}}"], capture_output=True, text=True, check=False)
+    if found.returncode != 0 or not found.stdout.strip():
+        raise NotPinned(f"--update-from {source}: neither a .deb file nor a commit of this repository")
+    commit = found.stdout.strip()
+    folder = work / "update-from" / commit[:12]
+    if debs := sorted((folder / "dist-deb").glob("neoaprs_*_amd64.deb")):
+        return debs[-1]
+    shutil.rmtree(folder, ignore_errors=True)
+    tree = folder / "tree"
+    tree.mkdir(parents=True)
+    say(f"the tree of {commit[:12]} from git archive")
+    with subprocess.Popen(["git", "-C", str(ROOT), "archive", "--format=tar", commit], stdout=subprocess.PIPE) as archive:
+        assert archive.stdout is not None
+        with tarfile.open(fileobj=archive.stdout, mode="r|") as tar:
+            tar.extractall(tree, filter="data")
+    if archive.returncode != 0:
+        raise NotPinned(f"git archive of {commit[:12]} failed (exit {archive.returncode})")
+    for name, command in (("update-from-wheel", ["uv", "build", "--wheel", "--out-dir", str(folder / "dist")]), ("update-from-deb", None)):
+        if command is None:
+            wheel = str(next(iter(sorted((folder / "dist").glob("neoaprs-*.whl"))), ""))
+            command = ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, "--no-mercury", "--out", str(folder / "dist-deb")]
+        if (reason := build_step(work, name, command, cwd=tree)) is not None:
+            raise NotPinned(reason)
+    if debs := sorted((folder / "dist-deb").glob("neoaprs_*_amd64.deb")):
+        return debs[-1]
+    raise NotPinned(f"the build of {commit[:12]} made no .deb in {folder / 'dist-deb'}")
+
+
 # ---- the files that are tried ----
 
 @dataclass
@@ -218,13 +292,13 @@ class Built:
     failed: dict[str, str]
 
 
-def build_step(work: Path, name: str, command: Sequence[str]) -> str | None:
-    """One build command with its output in the log of `name`; None when it passed, else why not."""
+def build_step(work: Path, name: str, command: Sequence[str], cwd: Path = ROOT) -> str | None:
+    """One build command, run in `cwd` (this tree, or the old tree of --update-from), with its output in the log of `name`; None when it passed, else why not."""
     log = work / "logs" / f"build-{name}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     say(f"building {name}: {shlex.join(command)}")
     with log.open("wb") as out:
-        done = subprocess.run(command, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT, check=False)
+        done = subprocess.run(command, cwd=cwd, stdout=out, stderr=subprocess.STDOUT, check=False)
     return None if done.returncode == 0 else f"the build of {name} failed (exit {done.returncode}); its log is {log}"
 
 
@@ -294,8 +368,8 @@ def runner_image() -> str:
     return done.stdout.strip()
 
 
-def command_of(name: str, work: Path, with_mercury: bool) -> list[str]:
-    """The docker command of the check `name`; NotPinned when something it starts from is missing."""
+def command_of(name: str, work: Path, with_mercury: bool, update_from: str | None = None) -> list[str]:
+    """The docker command of the check `name`; NotPinned when something it starts from is missing. The upgrade starts from `update_from` (old_build) when it is given, else from the pinned release."""
     version, mercury = tree_value("neoaprs/__init__.py", "VERSION"), tree_value("neoaprs/mercury.py", "VERSION")
     deb_environment = [("VERSION", version), ("MERCURY_VERSION", mercury if with_mercury else "")]
     if name == "wheel":
@@ -306,9 +380,12 @@ def command_of(name: str, work: Path, with_mercury: bool) -> list[str]:
         return docker_run(DEBIAN, DEB, work, environment=deb_environment)
     if name == "deb-ubuntu":
         return docker_run(UBUNTU, DEB, work, environment=deb_environment)
-    pin = load_pin()
-    old = old_release(pin)
-    return docker_run(UBUNTU, UPGRADE, work, mounts=[(old.parent, "/old")], environment=[("OLD_FILE", pin["file"]), ("OLD_VERSION", pin["version"]), ("VERSION", version)])
+    if update_from is not None:
+        old, old_version = old_build(update_from, work), ""
+    else:
+        pin = load_pin()
+        old, old_version = old_release(pin), pin["version"]
+    return docker_run(UBUNTU, UPGRADE, work, mounts=[(old.parent, "/old")], environment=[("OLD_FILE", old.name), ("OLD_VERSION", old_version), ("VERSION", version), ("NEW_SCHEMA", str(tree_schema()))])
 
 
 @dataclass
@@ -319,13 +396,13 @@ class Result:
     output: str
 
 
-def run_check(name: str, work: Path, built: Built, with_mercury: bool) -> Result:
+def run_check(name: str, work: Path, built: Built, with_mercury: bool, update_from: str | None = None) -> Result:
     started = time.monotonic()
     need = {"wheel": "wheel", "appimage": "appimage"}.get(name, "deb")
     if need in built.failed:
         return Result(name, False, 0.0, built.failed[need])
     try:
-        command = command_of(name, work, with_mercury)
+        command = command_of(name, work, with_mercury, update_from)
     except NotPinned as error:
         return Result(name, False, time.monotonic() - started, str(error))
     log = work / "logs" / f"{name}.log"
@@ -341,7 +418,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--no-mercury", action="store_true", help="build the packages without Mercury")
     parser.add_argument("--work", type=Path, default=ROOT / "build" / "installs", help="the folder of the built files and the logs")
     parser.add_argument("--pin", metavar="VERSION", help="write packaging/ci/old-release.json for that release")
+    parser.add_argument("--update-from", metavar="SOURCE", help="the upgrade from a .deb file or a commit of this repository instead of the pinned release")
     args = parser.parse_args(argv)
+    if args.update_from is not None and args.only and "upgrade" not in args.only:
+        parser.error("--update-from is where the upgrade starts: add --only upgrade, or leave --only out")
     if args.pin is not None:
         return write_pin(args.pin)
     for tool in ("docker", "uv"):
@@ -351,12 +431,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if subprocess.run(["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode != 0:
         say("docker does not answer (is the daemon running, and may this user use it?): nothing was built")
         return 2
-    wanted = set(args.only or CHECKS)
+    wanted = set(args.only or (["upgrade"] if args.update_from is not None else CHECKS))
     work = args.work.resolve()
     (work / "logs").mkdir(parents=True, exist_ok=True)
     built = build(work, wanted, not args.no_mercury)
     make_probe(work)
-    results = [run_check(name, work, built, not args.no_mercury) for name in CHECKS if name in wanted]
+    results = [run_check(name, work, built, not args.no_mercury, args.update_from) for name in CHECKS if name in wanted]
     for result in results:
         print(f"{'ok  ' if result.ok else 'FAIL'}  {result.name:<11} {result.seconds:6.1f}s")
         if not result.ok:

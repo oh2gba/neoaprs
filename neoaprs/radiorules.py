@@ -11,7 +11,12 @@ Why each number is what it is:
   interval apart afterwards). The size was measured by `scripts/mercury-measure beacons` (docs/mercury.md): on the 30-minute interval with a frame of 3.8 s, stations that started within one minute of each other
   lose 14 percent of their beacons without the pause when there are two of them and 43 percent when there are five; with the pause of 300 s they lose 0.8 and 2.7 percent, within a point of what stations with random
   phases lose by chance (0.4 and 1.6 percent: the floor), while a pause of 120 s leaves them at 1.3 and 5.0 percent. A beacon lost by chance is made up by the next one; tests/test_mercury.py samples the pause.
-  Frames up to the 123 bytes the mode carries."""
+  Frames up to the 123 bytes the mode carries.
+- LoRa (a LoRa APRS board; the Dummy LoRa radio is the first type of the kind, aprs-reference/lora-plan.md section 3.2): paths, as the LoRa networks use WIDE1-1 and their iGates repeat it, and
+  no digipeating by us (a second repeat of each frame would hold the one shared channel twice as long); SmartBeaconing, whose fastest rate (60 s) is the trackers' own; a frame of ours takes 2 to 4 s
+  on the air at SF12, close to Mercury's 3.8 s, on one channel that every station shares, so the beacon's floor, its random pause and the pause before a retry are HF's (the floor of 30 minutes
+  is John's to confirm: the firmwares beacon every 15); frames up to 250 bytes, which the boards in use take over KISS whole (their buffer of 255 bytes counts the KISS bytes around the frame),
+  and 252 bytes of text on the air, where a packet is the text after a header of 3 bytes in a buffer of 255 (tnc2line.MAX_TEXT)."""
 from dataclasses import dataclass
 
 from .radiotype import RadioType
@@ -22,11 +27,15 @@ HF_BEACON_JITTER_SEC = 300             # measured: the smallest pause that puts 
 HF_MAX_FRAME = 123
 HF_RETRY_JITTER_SEC = 20              # the longest pause added before each retry of a message on HF: two stations that sent at the same moment collided, and their retries, 32 s and 64 s later to the second,
                                       # collided again (John and OH2GAX, 4 Nov 2026); a frame keys the radio for about 4 s and the channel-busy check needs about a second to see another station start
+LORA_BEACON_MIN_MIN = 30              # a LoRa frame of ours is as long on the air as an HF one, on one shared channel: HF's floor (the docstring above)
+LORA_BEACON_JITTER_SEC = 300          # HF's pause, measured for a frame of 3.8 s; not measured on LoRa
+LORA_RETRY_JITTER_SEC = 20            # as on HF: the retries of two stations that collided collide again
+LORA_MAX_FRAME = 250                  # the boards clear their KISS input past 255 bytes, which count the FENDs, the command byte and the escapes
 
 
 @dataclass(frozen=True)
 class RadioRules:
-    kind: str                      # "fm" or "hf": the slot of the radio, which a station is remembered by
+    kind: str                      # "fm", "hf" or "lora": the slot of the radio, which a station is remembered by
     paths: bool                    # whether a frame of ours carries digipeaters; False: every frame goes direct, whatever the settings say
     digipeat: bool                 # whether the fill-in digipeater may repeat what this radio hears
     smart_beacon: bool             # whether a moving station's SmartBeaconing (and the GPS) applies; False: the timed beacon of a fixed station only
@@ -38,6 +47,7 @@ class RadioRules:
 
 FM = RadioRules("fm", True, True, True, FM_BEACON_MIN_MIN, 0, None)
 HF = RadioRules("hf", False, False, False, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_MAX_FRAME, HF_RETRY_JITTER_SEC)
+LORA = RadioRules("lora", True, False, True, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_MAX_FRAME, LORA_RETRY_JITTER_SEC)
 
 
 def rules_of(t: RadioType) -> RadioRules:

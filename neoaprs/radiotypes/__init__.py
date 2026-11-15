@@ -1,15 +1,15 @@
-"""The registry of the types of radio: one module for each family of types and one line here for each (the LoRa proof adds `*dummylora.TYPES`). A type is a description here, a driver in the adapters found by
+"""The registry of the types of radio: one module for each family of types and one line here for each. A type is a description here, a driver in the adapters found by
 `RadioType.driver`, and its texts in the page's catalogues."""
 from collections.abc import Mapping
 from types import MappingProxyType
 
 from neoaprs.radiotype import Field, Kind, RadioType, RadioTypeError
-from neoaprs.radiotypes import dummy, kisstcp, mercury, serialtnc
+from neoaprs.radiotypes import dummy, dummylora, kisstcp, mercury, serialtnc
 from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS
 
-TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *dummy.TYPES, *mercury.TYPES)
+TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *dummy.TYPES, *mercury.TYPES, *dummylora.TYPES)
 BY_KEY: Mapping[str, RadioType] = MappingProxyType({t.key: t for t in TYPES})
-DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "dummy-lora"})      # a new radio of the kind (lora's type exists from wave 6)
+DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "dummy-lora"})      # a new radio of the kind
 
 
 def type_of(key: str) -> RadioType:
@@ -39,3 +39,8 @@ def kind_fields(kind: Kind) -> tuple[Field, ...]:
 def kind_field(kind: Kind, key: str) -> Field | None:
     """The field of this key that a radio of the kind may store (kind_fields); None for a key that is none."""
     return next((f for f in kind_fields(kind) if f.key == key), None)
+
+
+def recommended_path(kind: Kind) -> str:
+    """The path of our frames on a radio of the kind whose own path is empty, as its types recommend it (LoRa WIDE1-1); "" where they recommend none: the station's symbol's then (Config.recommended_path)."""
+    return next((t.recommended_path for t in types_of(kind) if t.recommended_path), "")

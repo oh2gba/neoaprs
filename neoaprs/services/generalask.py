@@ -2,7 +2,7 @@
 
 `ask` sends one UI frame from our call to our tocall whose information field is the query and nothing else: `?APRS?` (all stations: who is around? each answers with its position, and its status if it has one), `?IGATE?`
 (the iGates answer with their capabilities) or `?WX?` (the weather stations answer with their weather). It goes once, by the path the operator gives (aliases such as WIDE1-1,WIDE2-1, explicit digipeaters such as
-OH2RDK-7,OH2RCH-2 for a station that reaches the network only through a fill-in digipeater that relays it when it is named, DIRECT for none; none given is `beacon/path`) with RFONLY after it unless the operator
+OH2RDK-7,OH2RCH-2 for a station that reaches the network only through a fill-in digipeater that relays it when it is named, DIRECT for none; none given is the radio's own path) with RFONLY after it unless the operator
 says otherwise, so that the iGates keep it off APRS-IS and the stations in radio range answer by radio. It is refused under the transmit interlock (RX only, no call), while the radio is away, and within
 ASK_EVERY_SEC of the query of the same kind (`general.too_soon`, with the seconds that are left): a query makes every station that hears it transmit, and the channel is shared.
 
@@ -90,7 +90,7 @@ class GeneralAsk:
         return sorted(self._asked.values(), key=lambda a: a.at)
 
     def ask(self, kind: Kind, path: str | None = None, rf_only: bool = True, *, radio: RadioId | None = None) -> GeneralAsked:
-        """Sends the query of the kind on the radio `radio` (None: the main radio) by `path` (None or empty is `beacon/path`) with RFONLY after it when `rf_only`. Raises MessagingError when the kind is none,
+        """Sends the query of the kind on the radio `radio` (None: the main radio) by `path` (None or empty is that radio's own path) with RFONLY after it when `rf_only`. Raises MessagingError when the kind is none,
         nothing may be transmitted (RX only, no call), the radio is off or away, the query of this kind went on it less than ASK_EVERY_SEC ago (`general.too_soon`, with the seconds that are left), the path
         is no path or too long with RFONLY, or the frame is not taken."""
         config = self._config()
@@ -105,7 +105,7 @@ class GeneralAsk:
             seconds = max(1, round(wait))
             raise MessagingError(f"too soon for another {query}: wait {seconds} s", "general.too_soon", query=query, seconds=seconds)
         try:
-            calls = path_on(on, config, request_path(path, config.beacon_path_calls, rf_only))
+            calls = path_on(on, config, request_path(path, path_on(on, config, None), rf_only))      # (none given: the path of the radio it goes on, not radio 1's)
         except CodedError as e:
             raise MessagingError(str(e), e.code, **e.params) from None
         try:

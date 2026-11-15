@@ -17,6 +17,8 @@ from neoaprs.config import Config
 from neoaprs.message import path_choice
 from neoaprs.packet import Packet
 from neoaprs.radiotype import Allowed, Kind, Limits, RadioId
+from neoaprs.radiotypes import recommended_path
+from neoaprs.tnc2line import text_of
 from neoaprs.source import Source
 from neoaprs.tncwatchdog import TncStats
 
@@ -106,28 +108,29 @@ def fixed_prefix(info: bytes) -> int:
     return min(len(info), end)
 
 
-def fit_frame(frame: ax25.Frame, max_frame: int | None) -> ax25.Frame:
-    """The frame, with its information field cut from the end so that the radio carries it whole, as it is when it fits or there is no limit. The report itself (`fixed_prefix`) is never cut: ValueError when the frame
-    would still be too long without any of its comment."""
-    if max_frame is None:
-        return frame
-    over = len(ax25.encode(frame)) - max_frame
+def fit_frame(frame: ax25.Frame, max_frame: int | None, max_text: int | None = None) -> ax25.Frame:
+    """The frame, with its information field cut from the end so that the radio carries it whole (`max_frame` bytes of AX.25, and `max_text` bytes of TNC2 text where its air carries text), as it is when it
+    fits or there is no limit. The report itself (`fixed_prefix`) is never cut: ValueError when the frame would still be too long without any of its comment."""
+    overs = [(len(ax25.encode(frame)) - max_frame, max_frame, "")] if max_frame is not None else []
+    overs += [(len(text_of(frame)) - max_text, max_text, " of text")] if max_text is not None else []
+    over, limit, what = max(overs, default=(0, 0, ""))
     if over <= 0:
         return frame
     keep = fixed_prefix(frame.info)
     if len(frame.info) - over < keep:
-        raise ValueError(f"the frame is {over} bytes over the {max_frame} the radio carries, and shortening its comment is not enough")
+        raise ValueError(f"the frame is {over} bytes over the {limit}{what} the radio carries, and shortening its comment is not enough")
     return replace(frame, info=frame.info[:len(frame.info) - over])
 
 
 def path_on(radio: AirRadio, config: Config, path: tuple[str, ...] | None) -> tuple[str, ...]:
-    """The digipeaters of our frame on the radio: none where it may carry none; else the path given, or (None) the radio's own "path" choice, which empty is the recommended path of the station's symbol and DIRECT none."""
+    """The digipeaters of our frame on the radio: none where it may carry none; else the path given, or (None) the radio's own "path" choice, which empty is the path its kind recommends (LoRa WIDE1-1),
+    else the recommended path of the station's symbol, and DIRECT none."""
     if not radio.allowed.paths:
         return ()
     if path is not None:
         return path
     chosen = path_choice(str(radio.choice("path")))
-    return tuple(c for c in config.recommended_path.split(",") if c) if chosen is None else chosen
+    return tuple(c for c in (recommended_path(radio.kind) or config.recommended_path).split(",") if c) if chosen is None else chosen
 
 
 def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | None) -> ax25.Frame:
@@ -137,7 +140,7 @@ def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | No
         raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
     try:
         frame = our_frame(config, path_on(radio, config, path), info)
-        fitted = fit_frame(frame, radio.max_frame)
+        fitted = fit_frame(frame, radio.max_frame, radio.limits.max_text)
     except FRAME_ERRORS as e:
         raise SendError(str(e)) from None
     if fitted is not frame:

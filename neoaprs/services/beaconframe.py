@@ -241,7 +241,7 @@ class BeaconFrames:
             raise BeaconError(problem)
         try:
             frame = our_frame(c, path_on(radio, c, None), info)
-            fitted = fit_frame(frame, radio.max_frame)
+            fitted = fit_frame(frame, radio.max_frame, radio.limits.max_text)
         except FRAME_ERRORS as e:
             raise BeaconError(str(e)) from None
         if fitted is not frame and self._cut_told.get(radio.id) != fitted.info:

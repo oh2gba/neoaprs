@@ -513,6 +513,34 @@ export const RADIO_TYPES = [
       },
     ],
   },
+  {
+    "key": "dummy-lora",
+    "kind": "lora",
+    "text": "radio.type.dummy-lora",
+    "can": {"find": false, "terminal": false, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false},
+    "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
+    "limits": {"max_frame": 250, "beacon_min_min": 30},
+    "fields": [
+      {
+        "key": "beacon",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "true",
+        "together": "",
+        "text": "radio.field.beacon",
+      },
+      {
+        "key": "path",
+        "kind": "path",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.path",
+      },
+    ],
+  },
 ] as const;
 
 /** The names of the APRS symbols, the codes `!` to `~` in order, of the primary and of the alternate table (SYMBOL_NAMES of neoaprs/symbols.py): the symbol picker lists them. */

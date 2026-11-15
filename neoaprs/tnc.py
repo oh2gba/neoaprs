@@ -28,11 +28,10 @@ from typing import Protocol
 from . import ax25, kiss, nodevices, serialprobe
 from .claims import Claims
 from .clock import Clock, utcnow
-from .dummyhfscene import HfScene
 from .dummyline import DUMMY_PATH, DummyPort
-from .dummyscene import Scene
+from .dummyworlds import dummy_line, dummy_words
 from .interlock import Interlock
-from .mercury import frame_words, station_message, too_long
+from .mercury import frame_words, station_message
 from .packet import Packet
 from .radiorules import RadioRules
 from .radiotype import FM_ID, HF_ID, RadioId
@@ -48,6 +47,7 @@ from .tnclines import TimedSource
 from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
 from .tncport import TncPort
 from .tncreader import Reader
+from .tnc2line import text_of
 from .tncsearch import PortSearch, held_elsewhere, hold_port, release_port
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
 from .tncwatchdog import ANSWER_SEC, CHECK_PAUSE_SEC, PROBE_SEC, PROMPT, REPLY_SEC, TncStats, Watchdog
@@ -76,12 +76,8 @@ def _speed(path: str, baud: int) -> str:
 
 
 async def open_port(tnc: "Tnc", path: str) -> TncPort | DummyPort:
-    """The line at `path`, open: the Dummy radio's (the HF scene with the modem as its speaker for the HF radio's Dummy, the Dummy radio's own scene otherwise), or a serial port (a socket) of the Tnc's speed. Raises SerialError."""
-    if tnc.is_dummy:
-        hf = tnc.rules.kind == "hf"
-        port: TncPort | DummyPort = DummyPort(tnc._on_data, tnc._on_lost, tnc.where, tnc.clock, seed=tnc.radio_id, scene_of=HfScene if hf else Scene, speaker=tnc.modem if hf else None)
-    else:
-        port = TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
+    """The line at `path`, open: the line of the Tnc's Dummy type (dummyworlds.py: the world it makes up, by its profile), or a serial port (a socket) of the Tnc's speed. Raises SerialError."""
+    port: TncPort | DummyPort = dummy_line(tnc) if tnc.is_dummy else TncPort(path, tnc.baud, tnc._on_data, tnc._on_lost)
     await port.open()
     return port
 
@@ -93,7 +89,7 @@ def _printable(text: str) -> str:
 def _describe(tnc: "Tnc") -> str:
     """The Tnc in a few words, for the radio's status line."""
     if tnc.is_dummy:
-        return f"dummy {'HF ' if tnc.rules.kind == 'hf' else ''}radio, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
+        return f"{dummy_words(tnc.profile.key)}, made-up traffic, {tnc.stats.packets} packets, nothing goes on the air"
     if tnc.state is Source.State.SILENT and tnc.last_byte_at is not None:
         return f"silent since {tnc.last_byte_at:%H:%M} ({minutes_between(tnc.last_byte_at, tnc.now())})"
     if tnc._port is None and (words := tnc._search.words):
@@ -382,8 +378,8 @@ class Tnc(TimedSource):
             if self.rules.kind == "hf":
                 log.info("%s: a frame from %s (%d bytes) was not sent: %s", self.label, frame.source, len(raw), self.why_unusable())
             return False
-        if self.max_frame is not None and (why := too_long(raw, self.max_frame)):
-            self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))        # (the modem would cut it off and say nothing; the parts that build frames shorten or refuse first, this is the last guard)
+        if why := self.profile.too_long(raw, text_of(frame)):
+            self._note(_printable(f"not sent: {why}: {frame.tnc2()}"))        # (the modem would cut it off, a LoRa board drop it, and neither says so; the parts that build frames shorten or refuse first, this is the last guard)
             log.warning("%s: a frame was not sent: %s", self.label, why)
             return False
         if not self._write(port, kiss.encode(raw)):

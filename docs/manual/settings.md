@@ -90,6 +90,7 @@ Radio 1 is the FM radio and radio 2 the HF radio of the keys above (`tnc/profile
 | `dummy` | fm | Dummy (no radio, made-up traffic) | `beacon`, `path`, `digipeat` |
 | `dummy-hf` | hf | Dummy HF radio (no radio, made-up distant stations) | `beacon` |
 | `mercury` | hf | Mercury HF modem (sound card, SSB radio) | `sound_card`, `keying`, `tx_gain_db`, `beacon` |
+| `dummy-lora` | lora | Dummy LoRa radio (no radio, made-up stations) | `beacon`, `path` |
 
 | key | default | types | where | what it is |
 | --- | --- | --- | --- | --- |
@@ -97,8 +98,8 @@ Radio 1 is the FM radio and radio 2 the HF radio of the keys above (`tnc/profile
 | `radio/<id>/baud` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss` | Settings tab, TNC (Speed) | the speed of its serial line, as `serial/baud` (300 to 921600); empty: the type's own |
 | `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp` | Settings tab, TNC | where a `kiss-tcp` radio connects while its port is empty, as `tcp/host` |
 | `radio/<id>/tcp_port` | `8001` | `kiss-tcp` | Settings tab, TNC | the KISS port there (1 to 65535), as `tcp/port` |
-| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
-| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it |
+| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
+| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it |
 | `radio/<id>/digipeat` | `false` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats what asks for it, as `digi/enabled` says it for radio 1 |
 | `radio/<id>/sound_card` | empty | `mercury` | Settings tab, Radio (HF radio, Sound card) | the Mercury modem's sound card, as `mercury/sound_card` says it for radio 2 |
 | `radio/<id>/keying` | empty | `mercury` | Settings tab, Radio (HF radio, Keying) | how the Mercury modem keys the transmitter, as `mercury/keying` says it for radio 2 |

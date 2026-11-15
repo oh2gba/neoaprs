@@ -23,7 +23,7 @@ from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_path, path_cho
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN, Alert, Pref
 from neoaprs.radiotype import FM_ID, RadioId
-from neoaprs.radiotypes import kind_field
+from neoaprs.radiotypes import kind_field, recommended_path
 from neoaprs.route import Deliveries, automatic_path, rf_only_path
 from neoaprs.signal import Signal
 
@@ -100,13 +100,14 @@ class PrefBook:
 
     def _radio_path(self, radio_id: RadioId) -> tuple[str, ...]:
         """The radio's own path, for a station with none set on it: `beacon/path` for radio 1, for a radio the settings do not have and for one of a kind that has no path setting (whether a frame may carry a
-        path on a radio is the fit's to say, services/radioset.py); else the radio's "path", which empty is the recommended path of the station's symbol and DIRECT none."""
+        path on a radio is the fit's to say, services/radioset.py); else the radio's "path", which empty is the path its kind recommends (LoRa WIDE1-1), else the recommended path of the station's
+        symbol, and DIRECT none."""
         config = self._config()
         spec = None if radio_id == FM_ID else config.radio(radio_id)
         if spec is None or kind_field(spec.kind, "path") is None:
             return config.beacon_path_calls
         chosen = path_choice(str(spec.value("path")))
-        return tuple(c for c in config.recommended_path.split(",") if c) if chosen is None else chosen
+        return tuple(c for c in (recommended_path(spec.kind) or config.recommended_path).split(",") if c) if chosen is None else chosen
 
     # ---- the path
     async def set_path(self, call: str, path: str, radio_id: RadioId = FM_ID) -> tuple[str, ...]:

@@ -1,6 +1,7 @@
 """The clean installs in Docker (scripts/check-installs and scripts/install-probe.py) as far as they can be held without docker and without a release: the builds, the containers and what each is given, from a stand-in
-for docker (and for uv and the build scripts) that writes down what it was asked; the old release's pin and its checksum; that the .deb check holds what the release workflow's job `deb` holds; and the probe of the
-upgrade run for real against this tree's daemon (seed, then verify, then a version that is not the daemon's). The images and the real builds are tried by hand (docs/development.md)."""
+for docker (and for uv, git and the build scripts) that writes down what it was asked; the old release's pin and its checksum; the upgrade from a .deb file or from a commit built here (--update-from); that the
+.deb check holds what the release workflow's job `deb` holds; and the probe of the upgrade run for real against this tree's daemon (seed, then verify, then a version that is not the daemon's), with the check
+of the database the upgrade ends with. The images and the real builds are tried by hand (docs/development.md)."""
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -17,6 +18,7 @@ from typing import Any
 
 import pytest
 
+from neoaprs.migrations import SCHEMA_VERSION
 from tests.conftest import ROOT
 from tests.support.ptyline import posix_only
 
@@ -30,8 +32,7 @@ OLD_DEB = b"the old release as a file"
 OLD_SHA = hashlib.sha256(OLD_DEB).hexdigest()
 
 
-@pytest.fixture(scope="module")
-def installs() -> ModuleType:
+def installs_module() -> ModuleType:
     loader = importlib.machinery.SourceFileLoader("check_installs", str(SCRIPT))
     spec = importlib.util.spec_from_loader("check_installs", loader)
     assert spec is not None
@@ -39,6 +40,11 @@ def installs() -> ModuleType:
     sys.modules["check_installs"] = module
     loader.exec_module(module)
     return module
+
+
+@pytest.fixture(scope="module")
+def installs() -> ModuleType:
+    return installs_module()
 
 
 # ---- what the containers run ----
@@ -71,6 +77,17 @@ def test_the_probe_names_what_the_scripts_it_starts_have(installs: ModuleType) -
     assert "scripts/smoke-appimage" in installs.APPIMAGE and "/work/probe/scripts/smoke.py" in installs.WHEEL and "install-probe.py seed" in installs.UPGRADE and "install-probe.py verify" in installs.UPGRADE
 
 
+def test_the_upgrade_proves_this_build_by_its_files_and_its_database_not_by_its_version_number(installs: ModuleType, tmp_path: Path) -> None:
+    """The build before the round and this one have the same version number: apt would leave the old files where they are, and a check of the version would pass on the old program."""
+    upgrade = installs.UPGRADE
+    assert "md5sum --quiet -c /tmp/upgrade/control/md5sums" in upgrade and installs.DATABASE_CHECK in upgrade and '"$before" "$NEW_SCHEMA"' in upgrade
+    assert upgrade.index("install-probe.py seed") < upgrade.index("before=") < upgrade.index("/work/dist-deb/neoaprs_${VERSION}_amd64.deb") < upgrade.index("md5sum") < upgrade.index("install-probe.py verify") < upgrade.index("<<'PY'")
+    lines = [line for line in upgrade.splitlines() if line.startswith(("again=", '[ "$OLD_VERSION" != "$VERSION" ]'))]
+    for old, new, flag in (("0.18.2", "0.18.2", "--reinstall"), ("0.18.1", "0.18.2", "")):
+        said = subprocess.run(["sh", "-c", "\n".join([*lines, 'echo "[$again]"'])], env={"OLD_VERSION": old, "VERSION": new, "PATH": os.environ["PATH"]}, capture_output=True, text=True, check=True)
+        assert said.stdout == f"[{flag}]\n", (old, new, said.stdout)
+
+
 # ---- the script from end to end, on stand-ins for docker, uv and the builds ----
 
 FAKE_DOCKER = f"""#!{sys.executable}
@@ -99,6 +116,25 @@ out=""
 while [ $# -gt 0 ]; do [ "$1" = --out-dir ] && out="$2"; shift; done
 mkdir -p "$out" && echo wheel > "$out/neoaprs-0.0.1-py3-none-any.whl"
 """
+FAKE_GIT = f"""#!{sys.executable}
+import io, os, sys, tarfile
+state = os.environ["FAKE_DOCKER"]
+args = sys.argv[3:] if sys.argv[1] == "-C" else sys.argv[1:]
+with open(state + "/builds", "a") as builds:
+    builds.write("git " + " ".join(args) + "\\n")
+if args[0] == "rev-parse":
+    if args[-1] != "before-the-round^{{commit}}":
+        sys.exit(1)
+    print("{'ab' * 20}")
+elif args[0] == "archive":
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode="w") as tar:
+        for name, text, mode in (("neoaprs/__init__.py", 'VERSION = "0.0.0"\\n', 0o644), ("scripts/build-deb", open(os.environ["FAKE_BUILD_SCRIPT"]).read(), 0o755)):
+            info = tarfile.TarInfo(name)
+            info.size, info.mode = len(text.encode()), mode
+            tar.addfile(info, io.BytesIO(text.encode()))
+    sys.stdout.buffer.write(out.getvalue())
+"""
 FAKE_BUILD = """#!/bin/sh
 echo "$(basename "$0") $*" >> "$FAKE_DOCKER/builds"
 [ ! -e "$FAKE_DOCKER/fails-$(basename "$0")" ] || { echo "it broke"; exit 1; }
@@ -126,6 +162,7 @@ class Rig:
         shutil.copy(ROOT / "packaging" / "ci" / "Dockerfile", self.repo / "packaging" / "ci" / "Dockerfile")
         (self.repo / "neoaprs" / "__init__.py").write_text('VERSION = "0.0.1"\n', encoding="utf-8")
         (self.repo / "neoaprs" / "mercury.py").write_text('VERSION = "1.2.3"\n', encoding="utf-8")
+        (self.repo / "neoaprs" / "migrations.py").write_text("MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3]\nSCHEMA_VERSION = len(MIGRATIONS)\n", encoding="utf-8")
         for name in ("smoke.py", "install-probe.py", "smoke-appimage"):
             (scripts / name).write_text("# a stand-in\n", encoding="utf-8")
         (self.repo / "tests" / "fixtures" / "kiss" / "thd7-2026-10-21.bin").write_bytes(b"\xc0")
@@ -133,11 +170,11 @@ class Rig:
             (scripts / name).write_text(FAKE_BUILD, encoding="utf-8")
             (scripts / name).chmod(0o755)
         self.bin = tmp_path / "bin"
-        for name, text in (("docker", FAKE_DOCKER), ("uv", FAKE_UV)):
+        for name, text in (("docker", FAKE_DOCKER), ("uv", FAKE_UV), ("git", FAKE_GIT)):
             (self.bin / name).write_text(text, encoding="utf-8")
             (self.bin / name).chmod(0o755)
         self.env = {"PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}", "HOME": str(tmp_path / "home"), "FAKE_DOCKER": str(self.state), "NEOAPRS_BUILD_CACHE": str(self.cache), "LC_ALL": "C.UTF-8",
-                    "XDG_RUNTIME_DIR": str(tmp_path / "home"), "TMPDIR": str(tmp_path)}
+                    "XDG_RUNTIME_DIR": str(tmp_path / "home"), "TMPDIR": str(tmp_path), "FAKE_BUILD_SCRIPT": str(scripts / "build-deb")}
         self.rules()
 
     def rules(self, *rules: dict[str, Any]) -> None:
@@ -196,6 +233,7 @@ def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig
     assert "--shm-size" in runs[3] and "SMOKE_APPIMAGE_ARGS=" in option(runs[3], "--env")
     upgrade = runs[4]
     assert f"{rig.cache}/old-releases:/old:ro" in option(upgrade, "--volume") and "OLD_FILE=neoaprs_0.0.0_amd64.deb" in option(upgrade, "--env") and "OLD_VERSION=0.0.0" in option(upgrade, "--env")
+    assert "NEW_SCHEMA=3" in option(upgrade, "--env"), "the version of the database this tree's daemon makes: its number of migrations"
     assert (rig.work / "probe" / "scripts" / "smoke.py").is_file() and (rig.work / "probe" / "tests" / "fixtures" / "kiss" / "thd7-2026-10-21.bin").is_file() and (rig.work / "probe" / "neoaprs" / "mercury.py").is_file()
 
 
@@ -296,6 +334,37 @@ def test_a_pin_is_written_only_when_the_deb_is_the_one_the_releases_checksums_na
     assert installs.load_pin(installs.PIN)["file"] == "neoaprs_1.2.3_amd64.deb"
 
 
+def test_an_upgrade_from_a_deb_file_runs_alone_from_that_file_and_needs_no_pin(rig: Rig, tmp_path: Path) -> None:
+    old = tmp_path / "elsewhere" / "neoaprs_0.0.0_amd64.deb"
+    old.parent.mkdir()
+    old.write_bytes(b"an old build")
+    done = rig.run("--no-mercury", "--update-from", str(old))
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert done.stdout.splitlines()[0].startswith("ok    upgrade") and len(done.stdout.splitlines()) == 2, "the upgrade alone"
+    assert [line.split()[0] for line in rig.builds()] == ["uv", "build-deb"], "this build's .deb and nothing else"
+    (upgrade,) = rig.runs()
+    assert f"{old.parent}:/old:ro" in option(upgrade, "--volume") and {"OLD_FILE=neoaprs_0.0.0_amd64.deb", "OLD_VERSION=", "VERSION=0.0.1", "NEW_SCHEMA=3"} <= set(option(upgrade, "--env"))
+    gone = rig.run("--no-mercury", "--update-from", str(tmp_path / "nothing.deb"))
+    assert gone.returncode == 1 and "--update-from" in gone.stdout and "there is no such file" in gone.stdout
+    assert rig.run("--update-from", str(old), "--only", "wheel").returncode == 2, "--update-from is the upgrade's"
+
+
+def test_an_upgrade_from_a_commit_builds_its_deb_from_its_own_tree_without_mercury_once(rig: Rig) -> None:
+    done = rig.run("--update-from", "before-the-round")
+    assert done.returncode == 0, done.stdout + done.stderr
+    folder = rig.work / "update-from" / ("ab" * 6)
+    builds = rig.builds()
+    assert [line.split()[0] for line in builds[:3]] == ["uv", "build-mercury", "build-deb"], "this build's .deb first, with Mercury"
+    assert builds[3:6] == ["git rev-parse --verify --quiet before-the-round^{commit}", f"git archive --format=tar {'ab' * 20}", f"uv build --wheel --out-dir {folder}/dist"]
+    assert len(builds) == 7 and builds[6].startswith("build-deb --arch amd64 --wheel ") and f"--no-mercury --out {folder}/dist-deb" in builds[6] and "--mercury" not in builds[6].split()
+    assert (folder / "tree" / "neoaprs" / "__init__.py").read_text() == 'VERSION = "0.0.0"\n', "the commit's own tree, its own scripts/build-deb"
+    (upgrade,) = rig.runs()
+    assert f"{folder}/dist-deb:/old:ro" in option(upgrade, "--volume") and "OLD_FILE=neoaprs_0.0.1_amd64.deb" in option(upgrade, "--env")
+    assert rig.run("--update-from", "before-the-round").returncode == 0 and len([line for line in rig.builds() if f"{folder}/" in line]) == 2, "the old .deb is built once and used again"
+    wrong = rig.run("--no-mercury", "--update-from", "no-such-commit")
+    assert wrong.returncode == 1 and "neither a .deb file nor a commit of this repository" in wrong.stdout and len(rig.runs()) == 2
+
+
 def test_the_pin_of_the_tree_names_the_release_before_this_one_or_none(installs: ModuleType) -> None:
     pin = json.loads((ROOT / "packaging" / "ci" / "old-release.json").read_text(encoding="utf-8"))
     assert set(pin) == {"version", "amd64"} and pin["amd64"]["url"] == f"{installs.RELEASES}/v{pin['version']}/neoaprs_{pin['version']}_amd64.deb"
@@ -334,6 +403,12 @@ def test_the_probe_seeds_a_daemon_and_finds_all_of_it_in_the_next_one_and_refuse
     assert f"the new daemon ({version}) has the {len(kept['stations'])} stations, the message and the settings" in verified.stdout
     wrong = probe("verify", "--in", str(seen), "--version", "99.0.0")
     assert wrong.returncode == 1 and "not '99.0.0': the old program is still the one that runs" in wrong.stderr
+    installs = installs_module()
+    database = str(data / "neoaprs.sqlite")
+    checked = subprocess.run([sys.executable, "-I", "-", database, "30", str(SCHEMA_VERSION)], input=installs.DATABASE_CHECK, capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)
+    assert checked.returncode == 0 and f"from version 30 to {SCHEMA_VERSION}, with the radios fm " in checked.stdout and "hf dummy-hf" in checked.stdout, checked.stdout + checked.stderr
+    ahead = subprocess.run([sys.executable, "-I", "-", database, "30", str(SCHEMA_VERSION + 1)], input=installs.DATABASE_CHECK, capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)
+    assert ahead.returncode == 1 and f"not this build's {SCHEMA_VERSION + 1}: the new daemon did not bring it up to date" in ahead.stderr
 
 
 def test_the_probe_is_given_what_it_needs_or_says_so(tmp_path: Path) -> None:

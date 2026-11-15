@@ -18,11 +18,11 @@ from .radiotypes import kind_field
 from .serialprobe import search_pattern
 from .source import Source
 from .tnc import Tnc
-from .tncprofile import BY_KEY, HF_BY_KEY, Profile, names_tcp, tcp_url
+from .tncprofile import EVERY_BY_KEY, Profile, names_tcp, tcp_url
 
 log = logging.getLogger("neoaprs.tncdriver")
 
-PROFILES: dict[str, Profile] = {**BY_KEY, **HF_BY_KEY}      # what a type's line is told (RadioType.profile is a key of tncprofile.py)
+PROFILES: dict[str, Profile] = EVERY_BY_KEY      # what a type's line is told (RadioType.profile is a key of tncprofile.py)
 
 
 class TncSettings(NamedTuple):

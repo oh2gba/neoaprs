@@ -57,14 +57,14 @@ def test_each_type_has_its_floor_and_only_a_floor_above_the_settings_own_raises(
     assert SETTING_MIN_MIN == MIN_BEACON_INTERVAL_MIN == 20 and min(t.limits.beacon_min_min for t in TYPES) == SETTING_MIN_MIN, "no type is floored below what the setting holds by itself"
     for t in TYPES:
         radio = spec(9, t.kind, t.key)
-        assert floor_of(radio) == t.limits.beacon_min_min == (30 if t.kind == "hf" else 20), t.key
-        assert beacon_interval(20, radio) == (30 if t.kind == "hf" else 20) and beacon_interval(90, radio) == 90 and beacon_interval(0, radio) == 0, t.key
+        assert floor_of(radio) == t.limits.beacon_min_min == {"fm": 20, "hf": 30, "lora": 30}[t.kind], t.key
+        assert beacon_interval(20, radio) == {"fm": 20, "hf": 30, "lora": 30}[t.kind] and beacon_interval(90, radio) == 90 and beacon_interval(0, radio) == 0, t.key
     assert beacon_interval(1, spec(1)) == 1 and beacon_interval(1, spec(2, "hf")) == 30, "a Config made by hand below the setting's own minimum is the FM radio's as it is (the tests' quick beacons)"
 
 
 def test_a_radio_of_a_type_that_is_none_takes_the_longest_floor_of_its_kind_or_of_every_type() -> None:
     assert floor_of(spec(5, "hf", "hf-of-tomorrow")) == 30 and floor_of(spec(6, "fm", "fm-of-tomorrow")) == 20
-    assert floor_of(spec(7, "lora", "lora-of-tomorrow")) == max(t.limits.beacon_min_min for t in TYPES) == 30, "a kind with no type yet: the longest floor of all"
+    assert floor_of(spec(7, "lora", "lora-of-tomorrow")) == max(t.limits.beacon_min_min for t in TYPES) == 30, "the longest floor of its kind's types (LoRa's: 30)"
     assert beacon_interval(20, spec(7, "lora", "lora-of-tomorrow")) == 30
 
 
