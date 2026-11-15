@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The Transmit level of an HF radio, a row under Tune: the gain the modem sends its audio to the radio with, in whole dB (the radio's setting `radio/<id>/tx_gain_db`, the key given), lowered and raised by the two buttons, each press saved at once. The modem takes it while it runs, and
 // the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns orange at 0 or over, where the sound card clips.
-// The room of the number is kept, so that nothing moves when it changes. The range is the field's of the radio's type, the modem the radio's row.
+// The room of the number is kept, so that nothing moves when it changes. The range is the field's of the radio's type, the modem the radio's row. A modem that says no peak (a Sound card radio's Direwolf: `can.scope` is the modem giving its audio) has the row without it.
 import InfoTip from "@/components/InfoTip.vue";
 import { computed } from "vue";
 import type { Settings } from "@/composables/useSettings";
@@ -23,6 +23,8 @@ const gain = computed(() => {
   return Number.isFinite(stored) ? stored : (modem.value?.tx_gain_db ?? 0);
 });
 const peak = computed(() => modem.value?.tx_peak_dbfs ?? null);
+/** Whether the modem says the peak of what it sends: one that gives its audio (the HF modem, whose scope and peak come the same way); a Sound card radio's Direwolf gives none. */
+const peakShown = computed(() => props.radio.row.can.scope);
 
 function move(by: number): void {
   const next = Math.max(min.value, Math.min(max.value, gain.value + by));
@@ -58,10 +60,10 @@ function move(by: number): void {
       </button>
       <InfoTip :label="t('settings.txlevel.tip_label')"
         ><span class="info-line">{{ t("settings.txlevel.tip1") }}</span
-        ><span class="info-line">{{ t("settings.txlevel.tip2") }}</span></InfoTip
+        ><span v-if="peakShown" class="info-line">{{ t("settings.txlevel.tip2") }}</span></InfoTip
       >
     </div>
-    <output class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{ t("settings.txlevel.peak", { value: dbText(peak) }) }}</output>
+    <output v-if="peakShown" class="mono txlevel-peak" :class="{ clip: clips(peak) }">{{ t("settings.txlevel.peak", { value: dbText(peak) }) }}</output>
   </div>
 </template>
 

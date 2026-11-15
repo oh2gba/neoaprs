@@ -11,6 +11,7 @@ from neoaprs import PROGRAM, VERSION, cli
 from neoaprs.cli import capturecmd, dbcmd, servicecmd
 from tests.conftest import ROOT
 from tests.support.madepmtiles import planet
+from tests.support.proc import STOP_PATIENCE_SEC
 
 
 def process(*args: str, home: Path, extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -125,7 +126,7 @@ def test_capture_records_a_tcp_tnc_into_a_file(tmp_path: Path) -> None:
         assert b"".join(frames_of(out.read_bytes())) == b"".join(frames_of(CAPTURE.read_bytes())) and "4 KISS frames" in done.stderr
     finally:
         server.terminate()
-        server.communicate(timeout=10)
+        server.communicate(timeout=STOP_PATIENCE_SEC)
 
 
 # ---- as processes ----

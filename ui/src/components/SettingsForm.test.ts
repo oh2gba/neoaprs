@@ -37,6 +37,7 @@ const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a")],
+  radio: null,
   ...extra,
 });
 
@@ -559,6 +560,7 @@ describe("SettingsForm", () => {
         "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
         "KISS over TCP (Direwolf, soundmodem)",
         "RX only: Yaesu FTM, TNC text (no KISS)",
+        "Sound card (Direwolf)",
         "Dummy (no radio, made-up traffic)",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
@@ -670,6 +672,15 @@ describe("SettingsForm", () => {
       expect(wrapper.find("#set-radio-1-port").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
       expect(wrapper.find(".port-found").exists()).toBe(false);
+    });
+
+    it("calls a LoRa board on the network by its address and port", () => {
+      const { wrapper } = make(OWNER, "settings", { ports: portList(), radios: radiosTopic(radioRow(1, "lora-tcp")) });
+      const box = radio(wrapper)
+        ?.findAll("fieldset.subbox")
+        .find((f) => f.find("legend").text() === "LoRa radio");
+      expect(box?.findAll("label").map((l) => l.text())).toEqual(expect.arrayContaining(["Radio type", "Address", "Port"]));
+      expect(box?.text()).not.toContain("TCP");
     });
 
     it("saves only the port when find automatically is chosen: the port is cleared and nothing else", async () => {
@@ -1176,7 +1187,7 @@ describe("SettingsForm", () => {
 
   it("says there is no word before the daemon has spoken", () => {
     const wrapper = mount(SettingsForm, { global: withDaemon(fakeDaemon({ config: null })) });
-    expect(wrapper.text()).toContain("No word from the daemon yet.");
+    expect(wrapper.text()).toContain("No word from NeoAPRS yet.");
   });
 
   describe("the Map group", () => {

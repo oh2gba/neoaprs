@@ -400,7 +400,7 @@ def test_a_note_that_is_not_fresh_is_never_waited_on_and_a_file_held_meanwhile_i
     finally:
         holds.close() if isinstance(holds, sqlite3.Connection) else holds.release()
     assert db is None and ("locked" in why if holder == "a writer of the file" else "shows no sign that it is still at it (stopped, or stuck)" in why), why
-    assert 0.3 <= took < 3.0, took
+    assert 0.3 <= took < 30.0, took                 # (the wrong behaviour, a wait on the note, would last MIGRATION_WAIT_SEC: an hour; the ceiling leaves a busy machine its time)
     assert said(caplog, WAITS) == 0, "no wait on a note that is not fresh"
     assert version_of(path) == SCHEMA_VERSION
 
@@ -429,7 +429,7 @@ def test_the_wait_has_a_bound(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, c
         note.stop()
         lock.release()
     assert db is None and "another NeoAPRS has been bringing it up to date for 0.8 seconds, longer than a migration takes: this one waited no longer" in why, why
-    assert 0.8 <= took < 5.0 and said(caplog, WAITS) == 1
+    assert 0.8 <= took < 30.0 and said(caplog, WAITS) == 1       # (a wait without its bound would last for ever)
     assert version_of(path) == SCHEMA_VERSION and not (tmp_path / "backup").exists()
 
 
@@ -455,14 +455,14 @@ def test_a_migration_that_stops_showing_it_is_at_it_while_waited_for_is_refused_
         assert thread.is_alive(), "it waits while the note is fresh"
         note.stop()                                             # (the note is no longer written: gone, as stale as it gets)
         stale_at = time.monotonic()
-        thread.join(10)
+        thread.join(60)
         took, waited = time.monotonic() - stale_at, time.monotonic() - began
     finally:
         note.stop()
         lock.release()
     [(why, version)] = out
     assert version == -1 and "shows no sign that it is still at it (stopped, or stuck)" in why and "seconds" not in why, why
-    assert 0.3 <= took < 3.0 and waited >= 0.9, (took, waited)
+    assert 0.3 <= took < 30.0 and waited >= 0.9, (took, waited)     # (a wait on past the stale note would last MIGRATION_WAIT_SEC: an hour)
     assert said(caplog, WAITS) == 1 and version_of(path) == SCHEMA_VERSION and not (tmp_path / "backup").exists()
 
 
@@ -492,4 +492,4 @@ def test_a_start_with_nothing_to_migrate_does_not_wait_or_take_the_lock(tmp_path
     assert slept == [] and said(caplog, WAITS) == 0
     # (no bound on the first two: making a new file is the machine's time, 3.6 s on a Windows machine busy with the whole suite. The two beside a held lock are bounded by what a wait would cost: one that waited would stand
     # until the lock is let go, which this test does only after them)
-    assert beside < 5.0, (alone, beside)
+    assert beside < 30.0, (alone, beside)

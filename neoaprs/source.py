@@ -167,7 +167,7 @@ class Source:
         return self._tasks.spawn(coro)
 
     def _task_failed(self, task: "asyncio.Task[Any]") -> None:
-        log.error("source %s: task failed: %r", self.label, task.exception())
+        log.error("source %s: task failed: %r", self.label, task.exception(), exc_info=task.exception())
 
     async def _cancel_tasks(self) -> None:
         await self._tasks.cancel_all()

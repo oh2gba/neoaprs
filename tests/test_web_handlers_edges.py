@@ -10,6 +10,7 @@ import pytest
 
 from neoaprs.config import Config
 from neoaprs.radiosearch import Trying
+from neoaprs.radiotypes import type_of
 from neoaprs.web.handlers import find_radio, page_error
 from neoaprs.web.protocol import TOPIC_NAMES
 from neoaprs.web.supportwire import PageError
@@ -108,7 +109,8 @@ class Page:
 @pytest.mark.parametrize("closed, cancelled", [(True, 1), (False, 0)])
 async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_left_and_not_before(closed: bool, cancelled: int) -> None:
     finder, page = Finder(), Page(closed)
-    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: None)), conn=page)      # (no radio 1 in the registry: the search of before)
+    radio = SimpleNamespace(id=1, name="FM", rtype=type_of("kenwood-tnc2"))
+    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: radio if id == 1 else None)), conn=page)      # (radio 1, which a page that names no radio searches for)
     await find_radio(ctx, FindRadio(cmd="find_radio"))  # type: ignore[arg-type]
     assert finder.cancelled == cancelled
     assert [m["state"] for m in page.sent] == ["trying", "cancelled"]

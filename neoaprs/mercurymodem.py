@@ -33,15 +33,16 @@ from .config import Config
 from .mercury import BROADCAST_PORT, CONTROL_OFFSET, MODE, SUGGESTED, TUNE_OFF, Keying, SerialPort, SoundCard, command, ini_text, keying_of, ports_from, propose_keying, propose_sound_card, speaker_audio
 from .mercurycontrol import ControlLine
 from .mercurytune import Tuning
-from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, take_folder
-from .mercuryhelper import Command, Program, choose_setup, end_stale, expected_program, find, foreign_listeners, free_ports, is_shipped, list_sound_cards, next_modem_ports
+from .mercuryclaims import INI_FILE, PID_FILE, HeldPorts, Holding, keying_claim, take_folder
+from .mercuryhelper import Command, Program, choose_setup, expected_program, find, foreign_listeners, free_ports, is_shipped, list_sound_cards, next_modem_ports
 from .mercurychannel import CHANNEL_BUSY, TRANSMITTING, Channel
 from .mercuryscoping import Scoping
 from .mercuryscope import clamp_gain
+from .mercurystale import end_stale
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO, SpeakerAudio, SpeakerLine
-from .radiotype import FM_ID, HF_ID, RadioId
+from .radiotype import HF_ID, RadioId
 from .radiotypes import kind_field
-from .serialprobe import PortInfo, available_ports, claim_value, holder_words
+from .serialprobe import PortInfo, available_ports, claim_value, holder_words, named_ports
 from .signal import Signal
 from .source import Backoff, os_error_text
 from .tasks import TaskSet
@@ -63,12 +64,12 @@ def system_serial_ports() -> list[SerialPort]:
     return [SerialPort(p.device, p.vid, p.pid) for p in available_ports()]
 
 
-def left_out(config: Config) -> tuple[str, ...]:
-    """The serial ports that key no radio: radio 1's own port and the one its search found last, the GPS receiver's and the skipped ones (the choice of a keying line leaves them out; what the other
-    radios hold is the station's table's to say)."""
-    first = config.radio(FM_ID)
-    port = first.value("port") if first is not None and not first.removed and kind_field(first.kind, "port") is not None else ""
-    return tuple(p for p in (port, config.serial_last_port, config.gps_device, *config.serial_skip_paths) if p)
+def left_out(config: Config, but: RadioId) -> tuple[str, ...]:
+    """The serial ports that key no radio of `but`: every device another radio is set to, on or off (serialprobe.named_ports: its port, its keying line's port, as the station's table compares them), the port radio 1's
+    search remembered, the GPS receiver's and the skipped ones (the choice of a keying line leaves them out; what is held, the choice leaves out by the table). Each as the table compares it (`claim_value`: a link
+    resolved, a COM port in upper case): a listed port is left out when its `claim_value` is one of them."""
+    named = tuple(c.value for c in named_ports(config, off_too=True) if c.holder != but)
+    return tuple(dict.fromkeys(v for v in (*named, *(claim_value(p) for p in (config.serial_last_port, config.gps_device, *config.serial_skip_paths))) if v))
 
 
 def own_choice(config: Config, holder: RadioId) -> tuple[str, str, int]:
@@ -85,8 +86,8 @@ def proposal(cards: Sequence[SoundCard], ports: Sequence[PortInfo], config: Conf
     a radio (the ones the choice of the modem leaves out are left out here too, and what the other radios and the GPS receiver hold in `claims`); both empty when no card is listed."""
     serial, held_cards = (claims.held_by_others(holder, "serial"), claims.held_by_others(holder, "sound_card")) if claims is not None else (frozenset[str](), frozenset[str]())
     card = propose_sound_card([c for c in cards if c.id not in held_cards])
-    leave = left_out(config)
-    return card, propose_keying(cards, card, [SerialPort(p.device, p.vid, p.pid) for p in ports if p.device not in leave and (not serial or claim_value(p.device) not in serial)])
+    leave = left_out(config, holder)
+    return card, propose_keying(cards, card, [SerialPort(p.device, p.vid, p.pid) for p in ports if (key := claim_value(p.device)) not in leave and (not serial or key not in serial)])
 
 
 def _address(url: str) -> tuple[str, int]:
@@ -192,11 +193,11 @@ class Mercury(Channel, Tuning, Scoping, Holding):
         log.info("Mercury program: %s%s", program[0], "" if is_shipped(program) else " (not the one NeoAPRS ships)")
         pid_file = self.home / PID_FILE
         try:
-            await asyncio.to_thread(take_folder, self.data_dir, self.home, self.holder == HF_ID)     # (first: what an older NeoAPRS of one HF radio left in the data folder is radio 2's, its process id among it)
+            await asyncio.to_thread(take_folder, self.data_dir, self.home, self.holder == HF_ID, program)     # (first: what an older NeoAPRS of one HF radio left in the data folder is radio 2's, its process id among it)
         except OSError as e:
             log.warning("Mercury's folder %s could not be made: %s", self.home, os_error_text(e))
             return self._failed(f"Mercury's folder could not be made in the data folder: {os_error_text(e)}", "not_started")
-        await asyncio.to_thread(end_stale, pid_file)                   # (first: a program of ours left behind holds the sound card and the ports)
+        await asyncio.to_thread(end_stale, pid_file, self.home / INI_FILE, program)       # (first: a program of ours left behind holds the sound card and the ports)
         audio = await self._speaker_audio() if self.speaker else []
         if audio is None:
             return
@@ -228,14 +229,14 @@ class Mercury(Channel, Tuning, Scoping, Holding):
                 break                                                  # (what the settings name is theirs: it is the problem, not chosen anew)
         assert other is not None
         what = (f"the sound card {self.sound_card}" if self.sound_card else "the system's default sound device") if other.kind == "sound_card" else f"the keying line {self.keying.device}"
-        return f"{what} is held by {holder_words(other.holder)}"
+        return f"{what} is held by {self.claims.words(other.holder) if self.claims is not None else holder_words(other.holder)}"
 
     async def _chosen_and_held(self, program: Command, config: Config) -> Claim | None:
         """One choice of the sound card and the keying, held for the radio: the claim of the other radio that holds one of them, None when both are the radio's now."""
         serial, held_cards = (self.claims.held_by_others(self.holder, "serial"), self.claims.held_by_others(self.holder, "sound_card")) if self.claims is not None else (frozenset[str](), frozenset[str]())
         ports = self.ports
-        self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, *own_choice(config, self.holder)[:2], lambda: [p for p in ports() if not serial or claim_value(p.device) not in serial], left_out(config), held_cards)
-        return self._hold_setup(self.sound_card, claim_value(self.keying.device) if self.keying.device else None)
+        self.sound_card, self.keying = await asyncio.to_thread(choose_setup, program, *own_choice(config, self.holder)[:2], lambda: [p for p in ports() if not serial or claim_value(p.device) not in serial], left_out(config, self.holder), held_cards, key=claim_value)
+        return self._hold_setup(self.sound_card, keying_claim(self.keying, claim_value(self.keying.device) if self.keying.device else None))
 
     async def _run(self, program: Command, audio: list[str], pid_file: Path) -> None:
         """The ports chosen, the configuration written and the program started on them."""

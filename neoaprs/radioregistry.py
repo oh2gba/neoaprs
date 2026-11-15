@@ -16,10 +16,11 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
 
-from . import ax25, beaconrule, emailrule, messagerule
+from . import ax25, beaconrule, direwolfprogram, emailrule, messagerule, nodevices, radiotypes
 from .claims import Claims
 from .clock import Clock, utcnow
 from .config import Config
+from .direwolfdriver import DirewolfDriver
 from .mercuryclaims import radio_folder
 from .mercurydriver import MercuryDriver
 from .mercurymodem import Mercury
@@ -33,7 +34,8 @@ from .station import Station
 from .stationbook import StationBook
 from .stationchoices import StationChoices
 from .tnc import Tnc
-from .tncdriver import TncDriver, listening_ports
+from .serialprobe import named_ports
+from .tncdriver import TncDriver
 from .tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.controller")        # what the start and the restart of a radio say is the controller's, as it was
@@ -41,8 +43,30 @@ log = logging.getLogger("neoaprs.controller")        # what the start and the re
 DRIVERS: dict[str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]] = {      # the driver of a type, by RadioType.driver (the data folder; the last: one radio searches at a time)
     "tnc": lambda spec, claims, clock, data_dir, line, modem, lock: TncDriver(spec, claims, clock, line, search_lock=lock),
     "mercury": lambda spec, claims, clock, data_dir, line, modem, lock: MercuryDriver(spec, claims, radio_folder(data_dir, spec.id), clock, line, modem=modem, data_dir=data_dir),
+    "direwolf": lambda spec, claims, clock, data_dir, line, modem, lock: DirewolfDriver(spec, claims, radio_folder(data_dir, spec.id), clock, line),
 }
+CARRIED: dict[str, Callable[[], bool]] = {"direwolf": lambda: direwolfprogram.find() is not None}     # whether this installation carries the program a driver starts, by RadioType.driver (a wheel installed with pip, a checkout: no Direwolf); a driver not named needs none
 _SHOWN = {"skip": "ports to skip", "pattern": "search pattern", "fallback_probe": "search when the port fails"}       # a field of a line's settings as the log names it, where its own name does not say it
+
+
+def known_type(spec: RadioSpec) -> RadioType | None:
+    """The radio's type; None for a type this build does not have (a row a newer NeoAPRS wrote), which runs nothing."""
+    try:
+        return spec.rtype
+    except RadioTypeError:
+        return None
+
+
+def is_dummy(spec: RadioSpec) -> bool:
+    """Whether the radio is of a Dummy type, which makes up its traffic; a radio of a type that is none is no Dummy."""
+    return (rtype := known_type(spec)) is not None and rtype.dummy
+
+
+def unavailable_types() -> tuple[str, ...]:
+    """The keys of the types this installation cannot run, which the page does not offer and a radio is not added or changed to: those of another system (radiotypes.unavailable_types) and those whose program
+    it does not carry. Under the no-devices switch the system alone counts: a bench shows the type's box, and starts no program."""
+    by_system = radiotypes.unavailable_types()
+    return by_system if nodevices.on() else (*by_system, *(t.key for t in radiotypes.TYPES if t.key not in by_system and t.driver in CARRIED and not CARRIED[t.driver]()))
 
 
 def driver_key(spec: RadioSpec) -> str:
@@ -180,6 +204,7 @@ class RadioRegistry(StationChoices, Generic[B]):
                  run: Callable[[], RunOverrides] = RunOverrides) -> None:
         super().__init__(book, remember, flush, known=lambda id: any(spec.id == id for spec in config().live_radios))     # (the operator's radio by station: any radio that is not removed)
         self.claims = claims                                                      # the station's one table of resources: what each radio and the GPS receiver hold
+        claims.named, claims.name_of = lambda: named_ports(self._config()), self.name_of     # (and what the enabled radios are set to, which the others leave out: claims.py; the radios by their names)
         self.search_lock = asyncio.Lock()                                         # one radio searches the ports at a time
         self._make_driver, self._make_beacon = make_driver, make_beacon
         self._config, self._clock, self._run = config, clock, run
@@ -187,6 +212,7 @@ class RadioRegistry(StationChoices, Generic[B]):
         self._leaving: dict[RadioId, LiveRadio[B]] = {}                           # the radios the settings no longer have, until their restart has stopped them
         self.why: dict[RadioId, str] = {}                                         # why each radio of the last `sync` is to be restarted, in words for the log
         self.wire: Callable[[LiveRadio[B]], None] = lambda radio: None            # connects a radio's signals (set by the wiring, which alone connects): called when a radio is made or given another driver
+        self._unknown: set[tuple[RadioId, str]] = set()                          # the radios of a type this build does not have, told in the log once each
 
     # ---- the radios there are
     def all(self) -> list[LiveRadio[B]]:
@@ -250,9 +276,10 @@ class RadioRegistry(StationChoices, Generic[B]):
     # ---- the lifecycle
     def sync(self, config: Config) -> list[RadioId]:
         """Makes and drops radios to match the live radios of `config`, the settings about to be put in force (or just put: then nothing differs), and says which are to be restarted: a new one, one that
-        is gone (its restart stops it for good), and one whose driver's restart key or tickbox differs from the settings in force. `why` has the words of each."""
+        is gone (its restart stops it for good), and one whose driver's restart key or tickbox differs from the settings in force. `why` has the words of each. A radio of a type this build does not
+        have (a row a newer NeoAPRS wrote) is none of them: it is not made, nothing is sent on it, and the daemon writes nothing of its row or its own settings, for the build that knows the type."""
         before, run = self._config(), self._run()
-        wanted = {spec.id: spec for spec in live(config.radios)}
+        wanted = {spec.id: spec for spec in live(config.radios) if self._runs(spec)}
         self.why = {}
         for id in [id for id in self._radios if id not in wanted]:
             self._leaving[id] = self._radios.pop(id)
@@ -269,17 +296,19 @@ class RadioRegistry(StationChoices, Generic[B]):
             self._radios[id].line.radio_name = "" if id in (FM_ID, HF_ID) else log_name(spec, config.radios)      # (what its line's own log lines begin with: for radios 1 and 2 today's words, `tnc` and `hf radio`, which the line says by its kind)
         return list(self.why)
 
+    def _runs(self, spec: RadioSpec) -> bool:
+        if known_type(spec) is not None:
+            return True
+        if (spec.id, spec.type) not in self._unknown:
+            self._unknown.add((spec.id, spec.type))
+            log.warning("radio %d is of the type %s, which this NeoAPRS does not have: it is left off", spec.id, spec.type)
+        return False
+
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:
         radio: LiveRadio[B] = LiveRadio(spec, self._make_driver(spec), lambda: self._config().radios)
         radio.beacon = self._make_beacon(radio)
-        self._listens_for(radio)
         self.wire(radio)
         return radio
-
-    def _listens_for(self, radio: LiveRadio[B]) -> None:
-        """Its line's search leaves out the ports the other radios that only listen are set to, as the settings in force have them when the search starts: a radio with a port of its own searches too when
-        that port cannot be opened (its fallback), and no change of them restarts it."""
-        radio.line.listening = lambda: listening_ports(self._config(), radio.id)
 
     def _change(self, radio: LiveRadio[B], old: RadioSpec, before: Config, new: RadioSpec, after: Config, run: RunOverrides) -> str | None:
         """Why the radio is to be restarted for the new settings, in words; None when nothing of it changed."""
@@ -301,6 +330,7 @@ class RadioRegistry(StationChoices, Generic[B]):
         """Every radio, which is stopped, takes the settings in force (what the parts ask of a radio, such as whether it is a Dummy, is true before any is started)."""
         config, run = self._config(), self._run()
         for radio in self.all():
+            self._of_its_type(radio)                              # (a radio made before these settings, of a type of another driver now, gets its type's)
             radio.driver.configure(radio.spec, config, run)
 
     async def restart(self, id: RadioId) -> None:
@@ -312,16 +342,19 @@ class RadioRegistry(StationChoices, Generic[B]):
             return
         await radio.driver.stop()
         spec, config, run = radio.spec, self._config(), self._run()
-        if driver_key(spec) != radio.driver_key:                 # (a type of another driver: the new driver is made around the settings, the old one is stopped)
-            radio.driver, radio.driver_key = self._make_driver(spec), driver_key(spec)
-            self._listens_for(radio)
-            self.wire(radio)
+        self._of_its_type(radio)
         radio.driver.configure(spec, config, run)
         if spec.enabled:
             log.info("the %s radio is started: %s", radio.name, radio.driver.words(spec, config, run))
             await radio.driver.start()
         else:
             log.info("the %s radio is off in the settings", radio.name)
+
+    def _of_its_type(self, radio: LiveRadio[B]) -> None:
+        """A radio, stopped, whose type is now one of another driver gets a new driver made around its settings (the old one is stopped)."""
+        if driver_key(radio.spec) != radio.driver_key:
+            radio.driver, radio.driver_key = self._make_driver(radio.spec), driver_key(radio.spec)
+            self.wire(radio)
 
     async def repoint(self, id: RadioId) -> None:
         """The radio's modem was started again on other ports: its line alone is stopped, takes the settings again (the modem's port as it is now) and is started."""

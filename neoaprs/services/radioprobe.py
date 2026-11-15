@@ -4,7 +4,8 @@ a TNC in KISS mode ignores it, one in command mode answers "cmd:". A KISS frame 
 import asyncio
 from dataclasses import dataclass
 
-from neoaprs.serialport import SerialPort
+from neoaprs.serialport import SerialError, SerialPort
+from neoaprs.serialprobe import LISTENING, port_key
 from neoaprs.tncmode import Mode, ModeDetector
 from neoaprs.tncprofile import KISS, PROFILES
 
@@ -20,11 +21,20 @@ class Timing:
 
 
 class Ear(SerialPort):
-    """A port that keeps what it hears."""
+    """A port that keeps what it hears. Open, it is among the ports the searches of this process have open (serialprobe.LISTENING), so that a radio a save sets to it takes it at once (tncsearch.let_go)."""
 
     def __init__(self, path: str, baud: int) -> None:
         super().__init__(path, baud)
         self.heard = bytearray()
+        self.given_up = False                    # (let go for a radio whose settings name the port)
+
+    async def open(self) -> None:
+        await super().open()
+        LISTENING[port_key(self.path)] = self
+
+    def let_go(self) -> None:
+        self.given_up = True
+        super().let_go()
 
     def _deliver(self, chunk: bytes) -> None:
         self.heard.extend(chunk)
@@ -47,7 +57,20 @@ async def put_in_kiss(ear: Ear, profile_key: str, timing: Timing) -> bool:
 
 
 async def try_line(ear: Ear, timing: Timing) -> str | None:
-    """The key of the profile that fits the TNC behind this open line, or None when it says nothing a TNC would."""
+    """The key of the profile that fits the TNC behind this open line, or None when it says nothing a TNC would. SerialError when the line was let go meanwhile for a radio set to the port: it is that radio's,
+    whatever it said."""
+    try:
+        found = await _profile_of(ear, timing)
+    except SerialError:
+        if not ear.given_up:
+            raise
+        found = None
+    if ear.given_up:
+        raise SerialError(f"{ear.path}: a radio is set to it")
+    return found
+
+
+async def _profile_of(ear: Ear, timing: Timing) -> str | None:
     await asyncio.sleep(timing.listen_sec)
     mode = mode_of(bytes(ear.heard))
     if mode is Mode.UNKNOWN:

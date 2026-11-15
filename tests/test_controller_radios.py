@@ -10,7 +10,7 @@ import pytest
 from neoaprs.message import MessagingError
 from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.source import Source
-from tests.support.env import Env, until
+from tests.support.env import Env, idle_for, until
 from tests.support.mercuryworld import World
 
 
@@ -112,3 +112,29 @@ async def test_the_daemon_starts_without_our_key_when_the_key_file_cannot_be_mad
     with caplog.at_level(logging.ERROR, logger="neoaprs.controller"):
         await e.start()
     assert e.ctl.running and "encrypted messages are off: the key could not be kept" in caplog.text
+
+
+async def test_a_save_while_find_my_radio_holds_the_radio_starts_it_once_after_the_search_and_not_during_it(tmp_path: Path) -> None:
+    e = Env(tmp_path / "data")
+    await e.start()
+    await e.until_connected()
+    ctl, starts = e.ctl, []
+    real_start = e.tnc.start
+
+    async def counted() -> None:
+        starts.append(e.tnc.baud)
+        await real_start()
+
+    e.tnc.start = counted                                                           # type: ignore[method-assign]
+    try:
+        await ctl.hold_radio(FM_ID)                                                 # (what Find my radio does before it tries the ports: services/radiofinder.py)
+        assert e.tnc.state is Source.State.STOPPED
+        assert await ctl.save_radio_settings(FM_ID, {"baud": "4800"})               # (from the radio's box, or another page, while the search runs)
+        await idle_for(0.3)
+        assert starts == [] and e.tnc.state is Source.State.STOPPED, "the radio the search holds is not started by a save: the search and its line would want one port"
+        ctl.release_radio(FM_ID)
+        await until(lambda: e.tnc.state is not Source.State.STOPPED)
+        await idle_for(0.2)
+        assert starts == [4800], "started once, when the search let go, with the settings as they are now"
+    finally:
+        await e.stop()

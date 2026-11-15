@@ -9,11 +9,11 @@ NeoAPRS is a Python package with one command, `neoaprs`. `neoaprsw` is the same 
 | flag | what it does |
 |---|---|
 | `--data DIR` | the data folder |
-| `--port PATH` | radio 1's port for this run only. Its own port is not changed or stored; a replay's address, for instance. The kinds of port are in [radio.md](radio.md#the-port) |
-| `--hf-port URL` | the modem of the first Mercury radio (the HF radio) for this run only, for a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-hf-modem) for the HF radio |
+| `--port PATH` | the port of radio 1 (its number in `neoaprs db radios`) for this run only. Its setting is not changed or stored; a replay's address, for instance. The kinds of port are in [radio.md](radio.md#the-port) |
+| `--hf-port URL` | the modem of the station's first Mercury radio for this run only: a Mercury that something else runs, such as `socket://127.0.0.1:8100` (its KISS port; its control port is the one 200 above). The daemon then starts no modem of its own and the settings for the sound card and the keying have no effect. It is for trying things on a bench; see [radio.md](radio.md#the-mercury-hf-modem) for the Mercury radio |
 | `--web-port N` | the page's port for this run only; 0 takes a free one |
 | `--debug` | logs more |
-| `--encryption` | allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key. Without it there is no Key menu, no padlock and nothing locked is sent. The amateur regulations of most countries forbid hiding the meaning of a transmission, so start the daemon this way only where that is allowed |
+| `--encryption` | allows [encrypted messages](messages.md#encrypted-messages) between two stations that have each other's key, for exceptional circumstances. Without it there is no Key menu, no padlock and nothing locked is sent |
 | `--version` | says the version |
 
 ## The tools
@@ -45,7 +45,7 @@ It checks:
 - **The data folder**: made yet, writable.
 - **The database**: readable, and its version against the one this NeoAPRS uses. A file of a newer NeoAPRS fails; an older one is migrated at the next start.
 - **The call**: `station/call`. It says "set your call on the page" while it is empty or cannot transmit.
-- **The radios**: each by its name (`FM`, `HF`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
+- **The radios**: each by its name (`FM`, `HF`, `LoRa`, `FM 2`, or the one you gave it), with its type and its port, server or sound card and keying, or that it is off. It warns when no radio is on, and fails when the radios cannot be read from the database.
 - **The serial ports** the system lists, with the description and the USB `VID:PID` of each. That is also what to paste into a bug report.
 - **On Linux**, whether you are in the group that owns the serial devices (`dialout`, `uucp` on Arch), and whether **brltty** or **ModemManager** are installed. They take USB serial adapters: brltty makes a CH340, CP210x or FTDI port vanish as it is plugged in, and ModemManager probes new ports as modems. It gives the way to remove or stop them.
 - **On Linux with KDE**, whether Firefox is a Flatpak whose pop-ups can go missing. It prints the two `flatpak override` commands and never runs them ([notifications.md](notifications.md#pop-ups-do-not-appear)).
@@ -55,13 +55,13 @@ It checks:
 
 ## When something does not work
 
-Start with `neoaprs doctor`, then look at the radio status at the top of the Radio group in the Settings tab, and at the log.
+Start with `neoaprs doctor`, then look at the status line of each radio's box in the Radio group of the Settings tab, and at the log.
 
-- **The log** is `neoaprs.log` in the data folder (`neoaprs service logs` prints its end; `--debug` logs more). It names the port, what was sent to the TNC and what came back. The Radio mark of the header says "Radio: ..." whenever the radio is not ok ([page.md](page.md#the-header)).
+- **The log** is `neoaprs.log` in the data folder (`neoaprs service logs` prints its end; `--debug` logs more). It names the port, what was sent to the TNC and what came back. The radio mark of the header says what is wrong whenever a radio is not ok, by its name when there are several ([page.md](page.md#the-header)).
 - **"Permission denied" on the port** (Linux): join the group that owns serial devices, `sudo usermod -aG dialout $USER`, then log out and in.
 - **The port vanishes a moment after plugging in:** brltty. **The port is held:** ModemManager. `doctor` says how to remove or stop them; so does [`docs/RADIOS.md`](../RADIOS.md#permissions-on-linux).
 - **The radio is silent:** the line is open and the radio does not answer. Check the cable, the speed and that the radio is on. A radio switched on again is found within a minute ([radio.md](radio.md#is-the-radio-there)).
-- **Nothing is transmitted:** the call must be set, and not `N0CALL`, `NOCALL` or `MYCALL` ([start.md](start.md#the-setup-guide)). The radio must be usable. A beacon that is due waits for it. The Beacon choice must not be Off for an automatic beacon ([beacon.md](beacon.md#beacon-off)), and `station/transmit` must not be `false` ([beacon.md](beacon.md#rx-only)).
+- **Nothing is transmitted:** the call must be set, and not `N0CALL`, `NOCALL` or `MYCALL` ([start.md](start.md#the-setup-guide)). The radio must be usable, and must be one that can send (a radio that only receives sends nothing). A beacon that is due waits for it. The Beacon choice must not be Off for an automatic beacon ([beacon.md](beacon.md#beacon-off)), and `station/transmit` must not be `false` ([beacon.md](beacon.md#rx-only)).
 - **Garbage or nothing on a serial port:** the wrong speed or port. The radio guide lists the speed of each radio ([`docs/RADIOS.md`](../RADIOS.md#not-working)).
 - **The search finds the wrong device, or skips yours:** [radio.md](radio.md#finding-the-radio).
 - **A moving station sends nothing:** it has no fresh fix, or the Beacon choice is Off. The beacon status at the top of the My station tab says which, and why there is no fix ([beacon.md](beacon.md#mobile-operation)).

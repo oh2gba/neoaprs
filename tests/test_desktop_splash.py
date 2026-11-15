@@ -13,7 +13,7 @@ from neoaprs import paths
 from neoaprs.desktop import cmd, loading, single, splash
 from neoaprs.desktop.shell import Choice
 from tests.test_desktop_cmd import World
-from tests.test_desktop_winshell import Rig, handler, launch, quit_through_the_menu
+from tests.test_desktop_webshell import Rig, handler, launch, quit_through_the_menu
 
 ROOT = Path(__file__).resolve().parent.parent
 HEAVY = ("tornado", "pydantic", "cryptography", "webview", "PySide6", "neoaprs.web", "neoaprs.daemon", "neoaprs.cli", "neoaprs.desktop.cmd", "pathlib", "logging", "asyncio")

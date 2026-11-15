@@ -1,5 +1,5 @@
 """The window's placement on Windows: its size, its place and whether it is maximized, as Windows itself keeps them (WINDOWPLACEMENT), read with GetWindowPlacement and given back with SetWindowPlacement
-through ctypes and user32, and the app's file of them (appstate.py). The Windows shell (winshell.py) hands it pywebview's window and its events; this file imports no toolkit, only `ctypes`, whose `windll`
+through ctypes and user32, and the app's file of them (appstate.py). The web shell on Windows (webshell.py) hands it pywebview's window and its events; this file imports no toolkit, only `ctypes`, whose `windll`
 is Windows' alone: where it is not there, nothing is asked of Windows and nothing is saved. Every save and every restore is a line of the app's log that starts with "window:"."""
 import ctypes
 import logging

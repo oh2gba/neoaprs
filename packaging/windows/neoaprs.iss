@@ -46,6 +46,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; Flags: unchecked
 ; then needs none of, and that would otherwise stay there after an update. The pmtiles program (56 MB) and its licence, which the app folder of earlier versions had in bin\, are not used any more: the map is cut by the app itself.
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\bin\mercury"
+Type: filesandordirs; Name: "{app}\bin\direwolf"
 Type: files; Name: "{app}\bin\pmtiles.exe"
 Type: files; Name: "{app}\bin\pmtiles-LICENSE.txt"
 

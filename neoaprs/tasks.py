@@ -54,7 +54,7 @@ async def _round(fn: Round, what: str) -> None:
 
 
 def _log_failure(logger: logging.Logger, words: str, task: asyncio.Task[Any]) -> None:
-    logger.error("%s %s failed: %r", words, task.get_name(), task.exception())
+    logger.error("%s %s failed: %r", words, task.get_name(), task.exception(), exc_info=task.exception())
 
 
 class TaskSet:

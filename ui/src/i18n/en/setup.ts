@@ -14,7 +14,6 @@ export const setup = {
   "setup.finish": "Finish",
 
   "setup.call.label": "Your call",
-  "setup.port_automatic": "Automatic",
   "setup.symbols": "Symbols",
   "setup.symbol.house": "House",
   "setup.symbol.car": "Car",

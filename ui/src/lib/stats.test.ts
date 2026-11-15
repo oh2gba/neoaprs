@@ -245,6 +245,18 @@ describe("the statistics of the map with several radios", () => {
     ]);
   });
 
+  it("never adds two radios together, even where they are said by the same word (a removed radio beside the live one that took its place)", () => {
+    const replaced = radiosOf(
+      radioRow(1, "kenwood-tnc2", { removed: true, enabled: false, state: "stopped" }),
+      radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+      radioRow(3, "kiss"),
+      radioRow(4, "mercury"),
+    );
+    const two = new Map([packet(1, { radio_id: 1 }), packet(2, { radio_id: 3 })].map((row) => [String(row.id), row] as const));
+    const found = lines(mapStats(input({ packets: two, radios: replaced })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
+    expect(found).toBe("stats.by_channel=1 FM · 1 FM");
+  });
+
   it("counts as RF the one radio of a station with one radio, as it always did", () => {
     const one = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
     const found = lines(mapStats(input({ packets: packets(), radios: one })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));

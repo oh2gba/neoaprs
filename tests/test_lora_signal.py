@@ -2,9 +2,11 @@
 tests/support/fakelora.py: the CA2RXU iGate's list of heard packets asked after each frame, a frame matched to its entry by its text (a repeated text, a control byte), and the asking given up for the open at
 the first failure (refused, 404, 401, not the list, no answer in time) with one line of the log, the frames going on without their signal; DL9SAU's element taken off the path and read; esp32_loraprs's KISS
 command 7, from its second report on; the iGate's log on USB with each packet's signal; and the board's frames never handed on out of their order."""
+import asyncio
 import logging
 import socket
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -75,6 +77,40 @@ def test_the_lists_entries_that_are_none_are_passed_over_and_an_answer_that_is_n
     assert console_line(b"<--- LoRa Packet Rx (RSSI:-1" + b"0" * 400 + b" | SNR:3.25 | FreqErr:1) : OH2ABC>APRS:>x") == (b"OH2ABC>APRS:>x", None), "digits past a float's range are no reading"
 
 
+async def _answering(host: str, body: bytes, asked: list[bytes]) -> "asyncio.Server":
+    """A web server on `host` that answers every request with 200 and `body`, the request's lines kept in `asked`."""
+    async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        asked.extend((await reader.readuntil(b"\r\n\r\n")).split(b"\r\n"))
+        writer.write(b"HTTP/1.0 200 OK\r\n\r\n" + body)
+        await writer.drain()
+        writer.close()
+    return await asyncio.start_server(answer, host, 0)
+
+
+async def test_an_answer_longer_than_the_list_is_said_so_and_not_as_a_failed_connection() -> None:
+    server = await _answering("127.0.0.1", b"[" + b" " * (3 * loralist.MAX_BODY) + b"]", [])
+    try:
+        with pytest.raises(loralist.ListError, match="^the answer is longer than a list of heard packets$"):
+            await loralist._fetch("127.0.0.1", server.sockets[0].getsockname()[1])
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+async def test_a_board_reached_by_an_ipv6_address_is_asked_with_the_address_in_brackets() -> None:
+    asked: list[bytes] = []
+    try:
+        server = await _answering("::1", b"[]", asked)
+    except OSError:
+        pytest.skip("this machine has no IPv6 loopback")
+    try:
+        assert await loralist._fetch("::1", server.sockets[0].getsockname()[1]) == []
+        assert b"Host: [::1]" in asked, asked
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
 def test_esp32_loraprs_report_and_the_igates_log_line_and_the_internets_words_in_a_path() -> None:
     assert signal_report(b"\xff\x8a\xfd\x2b") == Reading(snr=-7.25, rssi=-118.0) and signal_report(b"\x01") is None
     assert console_line(b"<--- LoRa Packet Rx (RSSI:-104 | SNR:-3.25 | FreqErr:812.50) : OH2ABC>APRS:>x") == (b"OH2ABC>APRS:>x", Reading(snr=-3.25, rssi=-104.0))
@@ -128,14 +164,33 @@ async def test_the_first_failure_of_the_list_ends_the_asking_for_the_open_with_o
         await server.stop()
 
 
+def refused_after(monkeypatch: pytest.MonkeyPatch, delay_sec: float) -> None:
+    """The board's list port refuses the connection `delay_sec` after it is asked, on every system: a refusal of a closed loopback port is at once on Linux and after about 2 s of the stack's retries on
+    Windows, so the real one cannot say which of the two ends a frame's wait. Every other connection is the real one."""
+    real = asyncio.open_connection
+
+    async def connect(host: str | None = None, port: int | None = None, **kwargs: Any) -> Any:
+        if port != loralist.PORT:
+            return await real(host, port, **kwargs)
+        await asyncio.sleep(delay_sec)
+        raise ConnectionRefusedError(10061, "the board refused the connection")
+    monkeypatch.setattr(asyncio, "open_connection", connect)
+
+
+@pytest.mark.parametrize(("refused_sec", "wait_sec"), [(0.2, 30.0), (30.0, 0.3)], ids=["the refusal first", "the wait first"])
 @stops
-async def test_a_board_whose_list_refuses_holds_its_first_frame_no_longer_than_the_refusal(lines: Lines) -> None:
+async def test_a_board_whose_list_refuses_holds_its_first_frame_no_longer_than_the_refusal_or_the_wait(lines: Lines, monkeypatch: pytest.MonkeyPatch, refused_sec: float, wait_sec: float) -> None:
+    """A refusal releases the frame that waits at once, not at the end of its wait; and a refusal that is slow (Windows's retries, a board that is not there) holds no frame longer than the wait."""
+    monkeypatch.setattr(loraboard, "LIST_WAIT_SEC", wait_sec)
+    monkeypatch.setattr(loralist, "ANSWER_SEC", 60.0)                      # (neither the refusal nor the wait is cut short by the answer's limit)
+    refused_after(monkeypatch, refused_sec)
     board = Board("igate")
     line, _ = await line_on(lines, board, LORA_TCP)
     board.air(HEARD)
-    await until(lambda: len(line.packets) == 1, 1.0)
+    await until(lambda: len(line.packets) == 1, 1.5)
     board.air(HEARD)
-    await until(lambda: len(line.packets) == 2, 0.5)
+    await until(lambda: len(line.packets) == 2, 1.0)
+    assert [(p.snr, p.rssi) for p in line.packets] == [(None, None), (None, None)]
 
 
 @stops

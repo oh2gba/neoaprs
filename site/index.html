@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NeoAPRS: free APRS client for Windows, macOS, Linux and Raspberry Pi</title>
-<meta name="description" content="Free APRS client for Windows, Mac, Linux and Raspberry Pi: map, messages and beacon on FM with any KISS TNC, and on HF with the Mercury modem built in.">
+<meta name="description" content="Free APRS client for Windows, Mac, Linux and Raspberry Pi: map, messages and beacon with all your radios, FM, HF and LoRa, and the Mercury HF modem built in.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
@@ -18,16 +18,16 @@
 <link rel="preload" as="image" type="image/webp" href="shots/messages-dark.webp" media="(min-width: 641px) and (prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NeoAPRS">
-<meta property="og:title" content="NeoAPRS: free APRS client, now with APRS over HF">
-<meta property="og:description" content="A map, APRS messaging and your beacon, on FM with any KISS TNC and on HF with the Mercury modem built in.">
+<meta property="og:title" content="NeoAPRS: free APRS client for FM, HF and LoRa">
+<meta property="og:description" content="A map, APRS messaging and your beacon, with as many radios as you have: FM with any KISS TNC, HF with the Mercury modem built in, and LoRa APRS boards.">
 <meta property="og:url" content="https://neo.oh2gba.eu/">
 <meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="NeoAPRS: a map of APRS stations around Helsinki with their trails, and the Stations table">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with any KISS TNC on VHF, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["APRS over HF with the Mercury modem","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
-<link rel="stylesheet" href="style.css?v=30">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeoAPRS","url":"https://neo.oh2gba.eu/","description":"NeoAPRS is a free APRS client for Windows, macOS, Linux and the Raspberry Pi: a map, APRS messaging and your beacon, with as many radios as you have side by side: any KISS TNC on VHF, LoRa APRS boards, and the first APRS over HF with the Mercury modem built in.","applicationCategory":"CommunicationApplication","operatingSystem":"Windows, macOS, Linux, Raspberry Pi OS","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/gpl-3.0.html","downloadUrl":"https://github.com/oh2gba/neoaprs/releases/latest","image":"https://neo.oh2gba.eu/shots/og.png","screenshot":["https://neo.oh2gba.eu/shots/messages.png","https://neo.oh2gba.eu/shots/map.png","https://neo.oh2gba.eu/shots/stations-hf.png"],"featureList":["Any number of radios side by side: FM, HF and LoRa APRS","APRS over HF with the Mercury modem","LoRa APRS boards on the network, USB or Bluetooth","Sound-card radios with Direwolf built in","A receive-only radio type for the Yaesu FTM and TNCs without KISS","HF tests: a board of planned tests on HF","APRS map with station trails","APRS messaging with acks, retries and delivery chains","Position beacon with SmartBeaconing","APRS weather graphs","Objects and items","Fill-in digipeater and receive-only iGate","KISS TNC over serial, USB, Bluetooth and TCP"],"inLanguage":["en","de","es","fi","fr","it","ja","nl","pt-BR"],"author":{"@type":"Person","name":"OH2GBA","url":"https://oh2gba.eu/"},"sameAs":["https://github.com/oh2gba/neoaprs"]}</script>
+<link rel="stylesheet" href="style.css?v=31">
 <script src="site.js?v=11" defer></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
     <nav aria-label="Page">
       <a href="#download">Download</a>
       <a href="#features">Features</a>
-      <a href="#radios">FM and HF</a>
+      <a href="#radios">Radios</a>
       <a href="faq.html">FAQ</a>
       <a href="https://github.com/oh2gba/neoaprs">GitHub</a>
     </nav>
@@ -54,8 +54,8 @@
       <div>
         <h1>Neo<span>APRS</span></h1>
         <p class="sub">APRS client for Windows, macOS, Linux and the Raspberry Pi</p>
-        <p class="lead">See who is on the air around you, chat with other hams and know your message arrived. On FM with the radio or TNC you already have, and on HF with an SSB radio and a sound card, through the Mercury modem that comes built in. No internet needed, and it is free.</p>
-        <p class="cta"><a class="btn" href="#download">Download</a><a class="btn ghost" href="#radios">FM and HF</a></p>
+        <p class="lead">See who is on the air around you, chat with other hams and know your message arrived. Use every radio you have at once, from the handheld on your desk to the one that reaches across the continent. No internet needed, and it is free.</p>
+        <p class="cta"><a class="btn" href="#download">Download</a><a class="btn ghost" href="#radios">Radios</a></p>
       </div>
       <a class="stamp" href="first-test.html" aria-label="A first: APRS over HF with the Mercury modem, the first test on the air">
         <span class="s-top">A first</span>
@@ -75,14 +75,14 @@
 <section class="facts-row" aria-label="NeoAPRS in numbers">
   <div class="wrap">
     <ul class="numbers">
-      <li><b>FM + HF</b><span>two radios side by side: one map, one inbox</span></li>
+      <li><b>3</b><span>kinds of radio side by side, FM, HF and LoRa: one map, one inbox</span></li>
       <li><b>40 km</b><span>on 10 W in the first HF test on the air</span></li>
       <li><b>4</b><span>systems: Windows, Mac, Linux, Raspberry Pi</span></li>
-      <li><b>8</b><span>languages</span></li>
+      <li><b>9</b><span>languages</span></li>
     </ul>
     <ul class="highlights">
       <li class=""><svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 10h28a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H18l-8 7v-7H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3z"/><path d="M12 19h16M12 24h10"/><path d="m33 36 3 3 7-8"/></svg><h3>Messaging</h3><p>Conversations, bulletins and email, and the path each message took, hop by hop.</p></li>
-      <li class=""><svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="14" width="20" height="30" rx="3"/><path d="M19 14V4M19 4h4"/><path d="M19 22h10M19 27h10"/><circle cx="24" cy="36" r="3"/></svg><h3>FM: any KISS TNC</h3><p>Kenwood, Mobilinkd, NinoTNC, Direwolf and more, over serial, USB, Bluetooth or TCP.</p></li>
+      <li class=""><svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="14" width="20" height="30" rx="3"/><path d="M19 14V4M19 4h4"/><path d="M19 22h10M19 27h10"/><circle cx="24" cy="36" r="3"/></svg><h3>FM and LoRa</h3><p>Kenwood, Mobilinkd, NinoTNC and any KISS TNC, a sound card with Direwolf built in, or a LoRa APRS board.</p></li>
       <li class="hf"><svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 26v16M17 42h14"/><circle cx="24" cy="22" r="3"/><path d="M16 14a11 11 0 0 0 0 16M32 14a11 11 0 0 1 0 16M10 9a18 18 0 0 0 0 26M38 9a18 18 0 0 1 0 26"/></svg><h3>HF: Mercury built in</h3><p>An SSB radio and a sound card: beacons and messages on HF, where 40 m and 20 m usually reach 1000 to 2000 km.</p></li>
       <li class=""><svg class="ico" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="10" width="30" height="20" rx="2"/><path d="M1 34h36"/><rect x="34" y="18" width="13" height="24" rx="2"/><path d="M39 38h3"/></svg><h3>On every screen</h3><p>Run it on a Raspberry Pi by the radio; open it on a phone, tablet or laptop.</p></li>
     </ul>
@@ -156,7 +156,7 @@
     <h2>Features</h2>
     <ol class="walk">
       <li>
-        <div class="txt"><h3>Stations</h3><p>Every station heard, with distance, bearing and when, tagged FM or HF. The row menu sends a message or an APRS query.</p></div>
+        <div class="txt"><h3>Stations</h3><p>Every station heard, with distance, bearing and when, tagged with the radio that heard it. The row menu sends a message or an APRS query.</p></div>
         <a class="zoom pic" href="shots/stations-menu.png" data-dark="shots/stations-menu-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/stations-menu-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/stations-menu-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/stations-menu.webp"><img src="shots/thumbs/stations-menu.png" width="640" height="400" loading="lazy" decoding="async" alt="The Stations table of NeoAPRS with a row menu open"></picture></a>
       </li>
       <li>
@@ -176,7 +176,7 @@
         <a class="zoom pic" href="shots/beacon-gps.png" data-dark="shots/beacon-gps-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/beacon-gps-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/beacon-gps-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/beacon-gps.webp"><img src="shots/thumbs/beacon-gps.png" width="640" height="400" loading="lazy" decoding="async" alt="The My station tab of a moving station with a GPS fix"></picture></a>
       </li>
       <li>
-        <div class="txt"><h3>Objects</h3><p>Your own APRS objects and items on the map, sent on FM, HF or both.</p></div>
+        <div class="txt"><h3>Objects</h3><p>Your own APRS objects and items on the map, sent on the radios you tick.</p></div>
         <a class="zoom pic" href="shots/objects.png" data-dark="shots/objects-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/objects-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/objects-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/objects.webp"><img src="shots/thumbs/objects.png" width="640" height="400" loading="lazy" decoding="async" alt="The map with three APRS objects"></picture></a>
       </li>
       <li>
@@ -184,7 +184,14 @@
         <a class="zoom pic" href="shots/packets.png" data-dark="shots/packets-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/packets-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/packets-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/packets.webp"><img src="shots/thumbs/packets.png" width="640" height="400" loading="lazy" decoding="async" alt="The packet log"></picture></a>
       </li>
       <li>
-        <div class="txt"><h3>Phone and tablet</h3><p>Open it on any device at home with an access key. Eight languages.</p></div>
+        <div class="txt"><h3>Your radios</h3><p>As many as you have, FM, HF and LoRa side by side, each with its own name. Route picks the radio for a station.</p></div>
+        <a class="zoom pic" href="shots/settings-tnc.png" data-dark="shots/settings-tnc-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/settings-tnc-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/settings-tnc-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/settings-tnc.webp"><img src="shots/thumbs/settings-tnc.png" width="640" height="400" loading="lazy" decoding="async" alt="NeoAPRS Settings, the Radio group with a radio&#x27;s box opened: its type and its settings"></picture></a>
+      </li>
+      <li>
+        <div class="txt"><h3>HF tests and the waterfall</h3><p>Say when and on which frequency you will test APRS on HF, and see who else will. The waterfall of the channel, also over the map.</p></div>
+      </li>
+      <li>
+        <div class="txt"><h3>Phone and tablet</h3><p>Open it on any device at home with an access key. Nine languages.</p></div>
         <a class="zoom pic tall" href="shots/phone-map.png" data-dark="shots/phone-map-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/phone-map-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/phone-map-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/phone-map.webp"><img src="shots/thumbs/phone-map.png" width="270" height="584" loading="lazy" decoding="async" alt="The map on a phone"></picture></a>
       </li>
     </ol>
@@ -193,7 +200,7 @@
 
 <section class="sec" id="radios">
   <div class="wrap">
-    <h2>Radios: FM and HF</h2>
+    <h2>Radios: FM, HF and LoRa</h2>
     <div class="cols">
       <dl class="rlist">
         <div><dt>Kenwood TH-D7, TM-D700, TS-2000; TNC-2 clones (MFJ-1270B, 1274, 1278, TAPR)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d7-and-tm-d700">serial, 9600</a></dd></div>
@@ -201,13 +208,14 @@
         <div><dt>Kenwood TH-D74, TH-D75</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kenwood-th-d74-and-th-d75">USB or Bluetooth</a></dd></div>
         <div><dt>Mobilinkd TNC3, TNC4</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mobilinkd-tnc3-and-tnc4">USB, Bluetooth or Bluetooth LE</a></dd></div>
         <div><dt>BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#btech-uv-pro-vero-vr-n76-radioddity-ga-5wb">Bluetooth</a></dd></div>
+        <div><dt>Yaesu FTM-100, 400, 500 (FTM-300 <i>untested</i>); a TNC without KISS (TAPR TNC-2, PK-232) <i>(receive only)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#rx-only-yaesu-ftm-tnc-text">serial: what it hears, on the map</a></dd></div>
         <div><dt>PicoAPRS V4 <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#picoaprs-v4">Bluetooth, USB-C or TCP</a></dd></div>
       </dl>
       <dl class="rlist">
-        <div><dt>LoRa APRS, CA2RXU firmware <i>(untested)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-ca2rxu-firmware">KISS over TCP or Bluetooth LE</a></dd></div>
+        <div><dt>LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU, esp32_loraprs <i>(not yet tried on a board)</i></dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#lora-aprs-boards">on the network, USB or Bluetooth</a></dd></div>
         <div><dt>NinoTNC, TNC-Pi, TNC-X, any TNC in KISS mode</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#ninotnc">USB or serial</a></dd></div>
         <div><dt>Kantronics KPC-3+</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#kantronics-kpc-3">RS-232</a></dd></div>
-        <div><dt>Yaesu, Icom or any radio with a sound-card interface (Digirig, SignaLink), through Direwolf</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">KISS over TCP</a></dd></div>
+        <div><dt>Yaesu, Icom or any radio with a sound-card interface (Digirig, AIOC, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#direwolf-sound-card">Direwolf, built in (Windows, Linux)</a></dd></div>
         <div><dt>HF: an SSB radio with a USB sound card or an interface (DigiRig, SignaLink)</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#mercury-hf-modem">Mercury modem, built in</a></dd></div>
         <div><dt>A GPS receiver</dt><dd><a href="https://github.com/oh2gba/neoaprs/blob/master/docs/RADIOS.md#a-gps-receiver">gpsd or serial</a></dd></div>
       </dl>
@@ -224,7 +232,7 @@
     <p class="newslink"><a href="aprs-below-the-noise.html">APRS Below the Noise, the article: what it sends, and what you need &rarr;</a></p>
     <p class="newslink"><a href="aprs-over-hf-one-page.html">On one page: the signal, the key numbers, getting on the air &rarr;</a></p>
     <p class="newslink"><a href="aprs-over-hf-mercury.html">How it works, and what was measured: the technical note &rarr;</a></p>
-    <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica. NeoAPRS puts APRS on it, as a second radio beside the FM one: an SSB radio with a sound card. HF stations are on the same map and in the same messages, tagged HF.</p>
+    <p class="lead-sm">Mercury is a modern HF modem by Rhizomatica. NeoAPRS puts APRS on it: an SSB radio with a sound card is one more radio of your station, beside FM and LoRa or on its own. HF stations are on the same map and in the same messages, tagged with the radio that heard them.</p>
     <table class="why">
       <thead><tr><th scope="col"></th><th scope="col">Old HF packet, 300 baud</th><th scope="col">Mercury in NeoAPRS</th></tr></thead>
       <tbody>
@@ -264,7 +272,7 @@
         <table class="freqs" id="frequencies"><caption>Suggested frequencies</caption><tbody><tr><th scope="row">40 m</th><td>&nbsp;7.0541 MHz USB</td></tr><tr><th scope="row">20 m</th><td>14.1070 MHz USB</td></tr><tr><th scope="row">&nbsp;6 m</th><td>50.6200 MHz USB</td></tr></tbody></table>
       </div>
       <div class="hfshots">
-        <a class="zoom pic" href="shots/settings-hf.png" data-dark="shots/settings-hf-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/settings-hf-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/settings-hf-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/settings-hf.webp"><img src="shots/thumbs/settings-hf.png" width="640" height="400" loading="lazy" decoding="async" alt="NeoAPRS Settings, the Radio group: the FM radio and the HF radio with the sound card, keying, frequency, Tune and Test"></picture></a>
+        <a class="zoom pic" href="shots/settings-hf.png" data-dark="shots/settings-hf-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/settings-hf-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/settings-hf-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/settings-hf.webp"><img src="shots/thumbs/settings-hf.png" width="640" height="400" loading="lazy" decoding="async" alt="NeoAPRS Settings, the Radio group: the HF radio with the sound card, keying, frequency, Tune and Test"></picture></a>
         <a class="zoom pic" href="shots/stations-hf.png" data-dark="shots/stations-hf-dark.png"><picture><source type="image/webp" srcset="shots/thumbs/stations-hf-dark.webp" media="(prefers-color-scheme: dark)"><source srcset="shots/thumbs/stations-hf-dark.png" media="(prefers-color-scheme: dark)"><source type="image/webp" srcset="shots/thumbs/stations-hf.webp"><img src="shots/thumbs/stations-hf.png" width="640" height="400" loading="lazy" decoding="async" alt="The Stations table with APRS stations heard on FM nearby and on HF hundreds of kilometres away"></picture></a>
       </div>
     </div>

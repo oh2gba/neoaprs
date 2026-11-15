@@ -205,7 +205,7 @@ def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId 
             named = pick.get(radio)
             raise MessagingError("there is no such radio" if named is None else f"the radio {named.name} is off" if named.name else "that radio is off")
         if not any(r.id == radio for r in pick.senders()):
-            raise MessagingError(f"the {found.name} radio only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
+            raise MessagingError(f"radio {found.name} only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
         chosen = found
     if not chosen.usable:
         raise MessagingError(chosen.why_unusable())

@@ -3,7 +3,6 @@ import {
   SYMBOL_CHOICES,
   degreesText,
   fieldsFrom,
-  portChoices,
   NEW_STATION_BEACON_MIN,
   radioReady,
   radioStepKeys,
@@ -18,7 +17,7 @@ import { pageRadios } from "@/lib/radios";
 import { symbolLayers } from "@/lib/symbols";
 import { SYMBOL_TABLES } from "@/protocol/lists";
 import type { RadioRow } from "@/protocol/protocol";
-import { configValues, portRow, radioRow, radiosTopic } from "@/test/fixtures";
+import { configValues, radioRow, radiosTopic } from "@/test/fixtures";
 
 /** The settings of a fresh install: no call, no position. */
 const fresh = () =>
@@ -189,26 +188,6 @@ describe("the radio step", () => {
   it("has RX only as the group's own row: the radios' fields are their boxes'", () => {
     const values = configValues().values;
     expect(radioStepKeys(values, values)).toEqual(["station/transmit"]);
-  });
-
-  it("lists the ports with what the system calls them: Automatic first where the daemon searches, a blank where it does not", () => {
-    const row = (device: string, description: string) => portRow(device, description);
-    const list = {
-      type: "ports" as const,
-      sound_cards: [],
-      keying: "",
-      search: true,
-      find: true,
-      ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a"), row("COM1", "COM1")],
-    };
-    expect(portChoices(list)).toEqual([
-      { value: "", label: "Automatic" },
-      { value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R USB UART" },
-      { value: "/dev/ttyS0", label: "/dev/ttyS0" },
-      { value: "COM1", label: "COM1" },
-    ]);
-    expect(portChoices({ ...list, search: false })[0]).toEqual({ value: "", label: "-" });
-    expect(portChoices(null)).toEqual([{ value: "", label: "Automatic" }]);
   });
 });
 

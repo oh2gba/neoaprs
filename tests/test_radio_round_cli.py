@@ -2,7 +2,8 @@
 has its own tests; here one data folder goes through both. A new installation has no radio until one is added, which `neoaprs db`, `neoaprs doctor` and the bundle say, and then show the one added;
 a radio added and set with the command line on a stopped daemon's file is what the next start runs with, and a save of the page is what `db get` reads; the HF radio added on the page is a second
 radio for the command line and the bundle, and a database made of that bundle (tests/support/bundledb.py) and migrated has the same radios and the stations' choices of them; a removed radio is no
-setting of the station's on the page, on the command line or in the bundle."""
+setting of the station's on the page, on the command line or in the bundle. A Sound card radio (`direwolf`) is a new installation's radio 1 by `radios add` where the installation carries Direwolf, and the first
+start runs it on its own Direwolf; where none is carried the command refuses it and stores no radio."""
 import asyncio
 import json
 import sqlite3
@@ -11,10 +12,12 @@ from typing import Any
 
 import pytest
 
+from neoaprs import direwolfmodem, radioregistry
 from neoaprs.cli import dbcmd, doctor, hostcheck, servicecmd
 from neoaprs.cli.supportmake import make_bundle
 from neoaprs.clock import utc
 from neoaprs.config import BY_KEY, KEYS, MESSAGE_RADIOS
+from neoaprs.direwolfdriver import DirewolfDriver
 from neoaprs.configradios import FLAT_HOMES, radios_from_rows
 from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.radiosql import radio_rows, radio_settings
@@ -22,10 +25,12 @@ from neoaprs.serialprobe import PortInfo
 from neoaprs.store import DB_NAME
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.air import on_air
+from tests.support import fakedirewolf
 from tests.support.bundledb import bundle_database
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until
 from tests.support.migrated import opened
+from tests.support.modemports import base_of_this_test
 from tests.support.supportdata import zip_members
 from tests.support.wsclient import WsClient
 
@@ -135,6 +140,31 @@ async def test_a_new_installation_has_no_radio_until_one_is_added_and_the_comman
     _, members = await bundle(tmp_path / "out2", data)
     assert bundle_radios(members) == [(FM_ID, "fm", "kiss", "FM", True, False)] and summary_titles(members) == ["Radio 1: FM"]
     assert "radios_problem" not in json.loads(members["settings.json"]) or not json.loads(members["settings.json"])["radios_problem"]
+
+
+
+async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_line_where_direwolf_is_carried_and_refused_with_nothing_stored_where_it_is_not(tmp_path: Path, capsys: pytest.CaptureFixture[str],
+                                                                                                                                                          monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: None)
+    none = tmp_path / "none"
+    code, _, err = await db(capsys, none, "radios", "add", "direwolf")
+    assert code == 2 and "'direwolf' is not a type of radio of this installation" in err and (not (none / DB_NAME).exists() or tables(none / DB_NAME)[0] == []), "a wheel installed with pip, a checkout: no Direwolf, so no radio that would only wait for it"
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one)
+    monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
+    monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    data = tmp_path / "data"
+    code, out, _ = await db(capsys, data, "radios", "add", "direwolf")
+    assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "direwolf", "on", "(position", "1)"], "a new installation's first radio is radio 1"
+    assert (await db(capsys, data, "set", "radio/1/sound_card", "plughw:7,0"))[0] == 0 and (await db(capsys, data, "set", "radio/1/keying", "vox"))[0] == 0, "and its own settings by its number"
+    e = Env(data, operator=False, first_radio=False)
+    await e.start(connected=False)
+    try:
+        radio = e.ctl.radios.get(FM_ID)
+        assert radio is not None and isinstance(radio.driver, DirewolfDriver) and e.ctl.config.main_radio == FM_ID, "the first start runs radio 1 as the type the command line gave it"
+        await until(lambda: radio.usable, 20)
+        assert (radio.driver.modem.sound_card, radio.driver.modem.keying.text) == ("plughw:7,0", "vox")
+    finally:
+        await e.stop()
 
 
 async def test_db_set_on_a_stopped_daemons_file_is_what_the_next_start_runs_with_and_a_save_of_the_page_is_what_db_get_reads(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

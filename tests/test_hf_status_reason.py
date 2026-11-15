@@ -7,6 +7,7 @@ import pytest
 from neoaprs import mercurymodem
 from neoaprs.mercury import BROADCAST_PORT
 from neoaprs.mercuryhelper import PORT_TRIES
+from neoaprs.direwolfmodem import REASONS as DIREWOLF_REASONS
 from neoaprs.mercurymodem import NOT_INSTALLED, OPEN_TO_NETWORK, REASONS, Mercury
 from neoaprs.source import Backoff
 from neoaprs.web.tncwire import ModemState
@@ -23,7 +24,7 @@ def _ports_of_this_test(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_the_codes_of_the_modem_are_the_codes_of_the_wire() -> None:
-    assert set(REASONS) == set(ModemState.model_fields["reason"].annotation.__args__)    # type: ignore[union-attr]
+    assert set(REASONS) | set(DIREWOLF_REASONS) == set(ModemState.model_fields["reason"].annotation.__args__), "the codes of the two modems, Mercury's and Direwolf's"    # type: ignore[union-attr]
     assert Mercury(Path("."), finder=lambda: None).reason == ""
 
 

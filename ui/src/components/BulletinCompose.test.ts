@@ -164,7 +164,7 @@ describe("Post and the main radio, which a bulletin goes on", () => {
     const one = on({}, { ...FM, state: "waiting" });
     await one.wrapper.find("#post-text").setValue("Net tonight 20 UTC");
     expect(one.post().element.disabled).toBe(true);
-    expect(one.post().attributes("title")).toBe("The TNC is not connected");
+    expect(one.post().attributes("title")).toBe("The radio is not connected");
     await one.wrapper.find("form").trigger("submit");
     expect(one.wrapper.emitted("post")).toBeUndefined();
     await tell(one.daemon, { radios: radiosTopic(FM) });

@@ -6,7 +6,7 @@ has no digipeater to turn on; the status and the bulletins go on the main radio 
 radio's own path; a radio switched off for two hours sends nothing and hears nothing in them, forgets none of the stations the other Dummy HF radios still hear (the HF worlds share their six cities), and a
 message on its way on it goes on by another HF radio that hears the station. What went out on each radio is counted, by kind and by path, and the counts are held here: a change of any of them is a change on
 the air of a station with many radios. The same day is played again with two real types beside the six, a LoRa iGate on the network and a text monitor (`tnc-text`), each on a fake line: the six's counts are the
-same, the board keys its own beacons and nothing else, and the monitor's line gets not one byte.
+same, the board keys its own beacons and nothing else, and the monitor's line gets not one byte; a Sound card radio (`direwolf`, on the made-up Direwolf) beside them sends its own beacons alone.
 
 The day is played in steps of a minute (two seconds in the minutes after the messages go out); in each step every Dummy line asks its world and every timer looks at the clock several times, and each radio's
 random pause after a timed beacon is drawn from a seed of its own, so the day is the same at every run.
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import ax25, dummyline, loralist
+from neoaprs import ax25, direwolfmodem, dummyline, loralist, radioregistry
 from neoaprs.aprsmessage import parse_message
 from neoaprs.clock import utc
 from neoaprs.controller import Controller
@@ -36,11 +36,13 @@ from neoaprs.radiospec import RadioError, RadioId
 from neoaprs.services.beacon import Beacon
 from neoaprs.services.digipeater import BURST_MAX
 from neoaprs.source import Source
+from tests.support import fakedirewolf
 from tests.support.air import on_air
 from tests.support.clock import FixedClock
 from tests.support.env import Env, until, until_started
 from tests.support.fakelora import Board, BoardOnTcp, ListServer
 from tests.support.fakeradio import FakeRadio
+from tests.support.modemports import base_of_this_test
 
 ROOT = Path(__file__).resolve().parent.parent
 START = utc(2026, 11, 16, 0, 0, 0)
@@ -70,11 +72,11 @@ OUT = {
                                                                        # attempts to the station nobody heard (the main radio's)
     HF1: {"beacon": 41, "message": 3, "ack": 1},                       # every 30 minutes and its pause, but for its two hours off; the message to the city (it heard the city last of the three) and the
                                                                        # first two attempts to the quiet city before it was switched off
-    FM2: {"object": 73, "message": 1, "ack": 1},                       # Send on unticked: no beacon; the object set for it and LoRa (at 0, 1, 3, 7, 15 and 31 minutes, then every 20: 6 + 67);
+    FM2: {"object": 50, "message": 1, "ack": 1},                       # Send on unticked: no beacon; the object set for it and LoRa (at 0, 1, 3, 7, 15 and 31 minutes, then every 30, LoRa's floor, on both: 6 + 44);
                                                                        # its home station's message
     HF2: {"beacon": 44},
     HF3: {"beacon": 44, "message": 2},                                 # the last two attempts to the quiet city, once HF1 was off
-    LORA: {"beacon": 44, "object": 73, "query": 1, "message": 1, "ack": 1},
+    LORA: {"beacon": 44, "object": 50, "query": 1, "message": 1, "ack": 1},
 }
 # The paths our own frames went by on each radio, by kind (the digipeater's repeats aside): the radio's own path (FM1 the station's, FM2 none of its own: the symbol's WIDE2-2, LoRa its WIDE1-1, HF none at all) for
 # what is not a message, a query with RFONLY after it; the first attempts of a message by the path the station was heard by (direct, for a world's home station: policy.HEARD_PATH_ATTEMPTS), the later ones and
@@ -83,14 +85,15 @@ PATHS = {
     FM1: {("beacon", "WIDE1-1,WIDE2-1"): 72, ("status", "WIDE1-1,WIDE2-1"): 25, ("bulletin", "WIDE1-1,WIDE2-1"): 14, ("query", "WIDE1-1,WIDE2-1,RFONLY"): 1, ("message", ""): 1,
           ("message", "WIDE1-1,WIDE2-1"): 4, ("ack", "WIDE1-1,WIDE2-1"): 1},
     HF1: {("beacon", ""): 41, ("message", ""): 3, ("ack", ""): 1},
-    FM2: {("object", "WIDE2-2"): 73, ("message", ""): 1, ("ack", "WIDE2-2"): 1},
+    FM2: {("object", "WIDE2-2"): 50, ("message", ""): 1, ("ack", "WIDE2-2"): 1},
     HF2: {("beacon", ""): 44},
     HF3: {("beacon", ""): 44, ("message", ""): 2},
-    LORA: {("beacon", "WIDE1-1"): 44, ("object", "WIDE1-1"): 73, ("query", "WIDE1-1,RFONLY"): 1, ("message", ""): 1, ("ack", "WIDE1-1"): 1},
+    LORA: {("beacon", "WIDE1-1"): 44, ("object", "WIDE1-1"): 50, ("query", "WIDE1-1,RFONLY"): 1, ("message", ""): 1, ("ack", "WIDE1-1"): 1},
 }
 NAMES = {FM1: "FM", HF1: "HF", FM2: "FM 2", HF2: "HF 2", HF3: "HF 3", LORA: "LoRa"}
-TEXT, BOARD = 7, 8                    # beside the six: a text monitor (tnc-text) and a LoRa iGate on the network (lora-tcp), each a real type on a fake line
+TEXT, BOARD, WOLF = 7, 8, 9           # beside the six: a text monitor (tnc-text), a LoRa iGate on the network (lora-tcp) and a Sound card radio (direwolf), each a real type on a fake line or program
 BOARD_BEACONS = 44                    # the board's beacons over the day: LoRa's 30 minutes and the pause, as the Dummy LoRa radio's
+WOLF_BEACONS = 72                     # the Sound card radio's: the station's 20 minutes, as radio 1's
 FLOOR_SEC = {FM1: 20 * 60, HF1: 30 * 60, HF2: 30 * 60, HF3: 30 * 60, LORA: 30 * 60}
 PAUSE_SEC = {FM1: 0, HF1: 300, HF2: 300, HF3: 300, LORA: 300}
 
@@ -204,17 +207,21 @@ async def beside_boards(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[
     await end.start()
     await text.start()
     monkeypatch.setattr(loralist, "PORT", server.port)
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (the Sound card radio's Direwolf is the made-up one: it gives back each frame it is sent as heard)
+    monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
+    monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: its card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
     yield board, end, text
     await end.aclose()
     await text.aclose()
     await server.stop()
 
 
-@pytest.mark.parametrize("beside", [False, True], ids=["six", "six-and-a-lora-board-and-a-text-monitor"])
+@pytest.mark.parametrize("beside", [False, True], ids=["six", "six-and-a-lora-board-a-text-monitor-and-a-sound-card-radio"])
 async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on_a_radio_it_should_not_go_on(tmp_path: Path, quick: None, beside: bool,
                                                                                                     beside_boards: tuple[Board, BoardOnTcp, FakeRadio]) -> None:
-    """With `beside`, a real LoRa iGate on the network (radio 8) and a text monitor (radio 7, `tnc-text`) are added after the six: the six's day is the same frame for frame, the board sends its own beacons
-    and nothing else, and not one byte goes to the monitor's line, though a station it hears asks for an answer."""
+    """With `beside`, a real LoRa iGate on the network (radio 8), a text monitor (radio 7, `tnc-text`) and a Sound card radio (radio 9, `direwolf`) are added after the six: the six's day is the same frame for
+    frame, the board and the Sound card radio send their own beacons and nothing else, and not one byte goes to the monitor's line, though a station it hears asks for an answer."""
     board, end, text = beside_boards
     day = Day(tmp_path)
     e = day.e
@@ -222,8 +229,9 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
     for type in ("dummy", "dummy-hf", "dummy-hf", "dummy-lora"):
         await e.ctl.add_radio(type)
     if beside:
-        assert await e.ctl.add_radio("tnc-text") == TEXT and await e.ctl.add_radio("lora-tcp") == BOARD
+        assert await e.ctl.add_radio("tnc-text") == TEXT and await e.ctl.add_radio("lora-tcp") == BOARD and await e.ctl.add_radio("direwolf") == WOLF
         assert await e.ctl.save_radio_settings(TEXT, {"port": text.url}) and await e.ctl.save_radio_settings(BOARD, {"tcp_host": "127.0.0.1", "tcp_port": str(end.port)})
+        assert await e.ctl.save_radio_settings(WOLF, {"sound_card": "plughw:7,0", "keying": "vox"})
     assert [(s.id, s.type) for s in e.ctl.config.live_radios][:6] == [(FM1, "dummy"), (HF1, "dummy-hf"), (FM2, "dummy"), (HF2, "dummy-hf"), (HF3, "dummy-hf"), (LORA, "dummy-lora")]
     assert {id: e.ctl.radios.name_of(id) for id in IDS} == NAMES, "each radio is called by its kind and its number in the kind"
     assert await e.ctl.save_radio_settings(FM2, {"beacon": "false"})              # (Send on unticked on the second FM radio; its digipeater is off, as a new radio's is)
@@ -231,7 +239,7 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         with pytest.raises(RadioError):
             await e.ctl.save_radio_settings(id, {"digipeat": "true"})
     await until_started(lambda: all(r.usable and r.beacon.running for r in e.ctl.radios.all() if r.id != TEXT))      # (connected, settled and its beacon's timer going while the clock stands: each first beacon 30 s in)
-    assert [r.id for r in e.ctl.radios.beaconing()] == [FM1, HF1, HF2, HF3, LORA, *((BOARD,) if beside else ())] and e.ctl.radios.main is not None and e.ctl.radios.main.id == FM1
+    assert [r.id for r in e.ctl.radios.beaconing()] == [FM1, HF1, HF2, HF3, LORA, *((BOARD, WOLF) if beside else ())] and e.ctl.radios.main is not None and e.ctl.radios.main.id == FM1
     if beside:
         monitor = e.ctl.radios.get(TEXT)
         assert monitor is not None
@@ -303,6 +311,10 @@ async def test_six_made_up_radios_for_a_day_each_by_its_own_rules_and_nothing_on
         assert monitor is not None and text.connections >= 1 and monitor.stats.bytes_out == 0 and await text.said(1, 0.3) == b"" and not day.out(TEXT), \
             "not one byte on the monitor's line in the whole day, though a station it heard asked for an answer"
         assert {s.call for s in stations if s.heard_on(TEXT).count} == {"OH2TXT-7"}, "what the monitor hears is the station's as anything heard on the air"
+        wolf = Counter((kind_of(f), path_of(f)) for _, f in day.out(WOLF))
+        assert wolf == {("beacon", "WIDE2-2"): WOLF_BEACONS}, f"the Sound card radio sends its own beacons, every 20 minutes by the symbol's WIDE2-2 (no path of its own), and nothing else: {wolf}"
+        gaps = [(b - a).total_seconds() for (a, _), (b, _) in zip(day.out(WOLF), day.out(WOLF)[1:])]
+        assert min(gaps) >= 20 * 60 and max(gaps) <= 20 * 60 + STEP_SEC, f"at the station's 20 minutes, as the FM radio's: {gaps}"
         ours = Counter((kind_of(f), path_of(f)) for _, f in day.out(BOARD))
         assert ours == {("beacon", "WIDE1-1"): BOARD_BEACONS} and len(board.transmitted) == BOARD_BEACONS, f"the board keys its own beacons, on LoRa's WIDE1-1, and nothing else: {ours}"
         gaps = [(b - a).total_seconds() for (a, _), (b, _) in zip(day.out(BOARD), day.out(BOARD)[1:])]

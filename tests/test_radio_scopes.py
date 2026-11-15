@@ -85,3 +85,21 @@ async def test_a_radio_whose_type_has_no_scope_is_refused_with_its_name_and_a_st
     await page.quiet(0.3)
     assert len(page.of("error")) == 3 and page.binary == [], "a stop is never refused, and sends nothing"
     await e.stop()
+
+
+async def test_the_scope_of_a_radio_removed_lets_go_of_its_modem(tmp_path: Path) -> None:
+    """A page looked at a radio's scope and the radio is removed: its feed is no longer connected to that modem's rows (it was kept until a page asked for that radio again)."""
+    e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "mercury"})
+    three = await added(page, "mercury")
+    modem = e.ctl.radios.get(three).driver.modem                      # type: ignore[union-attr]
+    assert modem is not None
+    await page.send({"cmd": "radio_scope", "radio": three, "on": True})
+    await page.frames(1)
+    followed = len(modem.scope_row)
+    assert followed >= 1 and e.server is not None and e.server.api.topics.scopes.pages(three) == 1
+    assert await e.ctl.remove_radio(three)
+    assert e.server.api.topics.scopes.pages(three) == 0 and len(modem.scope_row) == followed - 1, "the feed let go of the removed radio's modem"
+    made(modem, ROW)
+    await page.quiet(0.2)
+    assert len(page.binary) == 1, "and its rows reach no page"
+    await e.stop()

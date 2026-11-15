@@ -95,7 +95,7 @@ describe("the one source of the radios, on the daemon's topic", () => {
     const named = radios.flatMap((radio) => (radio.problem === null ? [] : [[radio.problem.code, problemText(radio.problem)]]));
     expect(named).toEqual([
       ["radio.not_connected", "Not connected"],
-      ["radio.resource_held", "that device is in use by Mobile: choose another"],
+      ["radio.resource_held", "the device is in use by radio Mobile: choose another"],
     ]);
   });
 

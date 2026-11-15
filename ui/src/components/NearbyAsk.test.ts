@@ -271,7 +271,7 @@ describe("the radio of Ask around (plan rule 3.6)", () => {
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     expect(ask(wrapper).attributes("title")).toBe("HF: not connected");
     const one = on({}, { ...FM, state: "waiting" });
-    expect(ask(one.wrapper).attributes("title")).toBe("The TNC is not connected");
+    expect(ask(one.wrapper).attributes("title")).toBe("The radio is not connected");
     const none = on({ status: status({ main_radio: null }) }, { ...FM, enabled: false, state: "stopped" });
     expect(ask(none.wrapper).attributes("title")).toBe("there is no radio: add one, or turn one on");
   });
@@ -284,8 +284,8 @@ describe("the radio of Ask around (plan rule 3.6)", () => {
     expect(lines(wrapper)[0]?.text()).toBe(`HF: Asked who is around at ${time} by direct; answers arrive on the map and in Stations`);
     expect(lines(wrapper)[1]?.text()).toBe("Listening for stations that were quiet in the 10 minutes before…");
     await ask(wrapper).trigger("click");
-    await tell(daemon, { lastError: toastOf("general_query: the HF radio is not connected", "radio.not_connected", { name: "HF" }) });
-    expect(lines(wrapper)[0]?.text()).toBe("Not sent: the HF radio is not connected");
+    await tell(daemon, { lastError: toastOf("general_query: radio HF is not connected", "radio.not_connected", { name: "HF" }) });
+    expect(lines(wrapper)[0]?.text()).toBe("Not sent: radio HF is not connected");
     expect(lines(wrapper)).toHaveLength(2);
   });
 

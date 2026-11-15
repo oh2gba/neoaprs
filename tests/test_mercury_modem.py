@@ -14,6 +14,7 @@ import signal
 import socket
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -25,9 +26,13 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying, SerialPort, SoundCard
 from neoaprs.mercurycontrol import EMPTY, HELD, ControlLine
 from neoaprs import mercuryhelper, mercurymodem
-from neoaprs.mercuryhelper import end_stale, environment, find, free_ports, list_sound_cards, pair_free
+from neoaprs.mercuryhelper import environment, find, free_ports, list_sound_cards, pair_free
+from neoaprs.mercurystale import end_stale
 from neoaprs.claims import Claim, Claims
 from neoaprs.mercurymodem import CHANNEL_BUSY, INI_FILE, NOT_INSTALLED, PID_FILE, SOUND_CARD_FAILED, TRANSMITTING, Mercury, proposal
+from neoaprs.mercurydriver import MercuryDriver
+from neoaprs.radiodriver import RunOverrides
+from neoaprs.radiospec import RadioSpec
 from neoaprs.radiotype import HF_ID
 from neoaprs.serialprobe import PortInfo, claim_value
 from neoaprs.source import Backoff, Source
@@ -195,6 +200,25 @@ async def test_the_modem_chooses_the_sound_card_and_the_keying_when_the_settings
         await stopped(m)
 
 
+async def test_an_hf_radio_after_radio_2_was_removed_runs_its_modem_on_its_own_sound_card_keying_and_gain(tmp_path: Path) -> None:
+    """The modem reads its own radio's settings, never radio 2's: a station that removed its radio 2 and later added a Mercury radio (id 5) runs that radio's modem on the card, the keying and the gain the
+    operator gave radio 5, not on the daemon's own choice and 0 dB."""
+    fm = RadioSpec(1, "fm", "kiss", "", True, 1, None, {"port": "/dev/ttyUSB0"})
+    gone = RadioSpec(2, "hf", "mercury", "", False, 2, datetime(2026, 11, 1, tzinfo=timezone.utc), {"sound_card": "plughw:1,0", "keying": "rts:/dev/ttyUSB1"})
+    five = RadioSpec(5, "hf", "mercury", "", True, 3, None, {"sound_card": "plughw:2,0", "keying": "rts:/dev/ttyUSB2", "tx_gain_db": "-6"})
+    station = Config.from_data({}, radios=(fm, gone, five))
+    m = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path, 5))
+    m.ports = lambda: []
+    driver = MercuryDriver(five, m.claims or Claims(), m.home, modem=m)
+    driver.configure(five, station, RunOverrides(check_sec=0.0))
+    await driver.start()
+    try:
+        await until_started(lambda: m.state == "running")
+        assert (m.sound_card, m.keying, m.tx_gain_db) == ("plughw:2,0", Keying("rts", "/dev/ttyUSB2"), -6), "radio 5's own, not radio 2's and not the daemon's choice"
+    finally:
+        await driver.stop()
+
+
 @SHAPES
 async def test_the_modem_writes_its_configuration_starts_the_program_on_free_ports_and_hears_its_control_port(tmp_path: Path, radio: bool) -> None:
     m = modem(tmp_path, radio=radio)
@@ -254,12 +278,12 @@ async def test_a_program_that_cannot_be_started_is_said_in_the_systems_words(tmp
 
 @SHAPES
 async def test_a_stale_program_of_ours_is_ended_at_the_next_start_and_a_pid_that_is_not_a_mercury_is_left_alone(tmp_path: Path, radio: bool) -> None:
-    pid_file = tmp_path / PID_FILE
-    assert not end_stale(pid_file), "no file: nothing to end"
+    pid_file, ini, program = tmp_path / PID_FILE, tmp_path / INI_FILE, fakemercury.program()
+    assert not end_stale(pid_file, ini, program), "no file: nothing to end"
     pid_file.write_text("not a number")
-    assert not end_stale(pid_file) and not pid_file.exists()
+    assert not end_stale(pid_file, ini, program) and not pid_file.exists()
     pid_file.write_text(str(os.getpid()))
-    assert not end_stale(pid_file), "our own process is never a Mercury"
+    assert not end_stale(pid_file, ini, program), "our own process is never a Mercury"
     first = modem(tmp_path, radio=radio)
     await first.start(HF)
     await until_started(lambda: first.state == "running")
@@ -733,6 +757,21 @@ async def test_the_fm_radios_the_gpss_the_skipped_and_another_radios_ports_are_n
         await stopped(m)
 
 
+def test_a_card_a_setting_names_by_its_number_is_held_by_its_name_so_that_another_radio_leaves_it_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A setting from before 0.17.3 names the card by its number (`plughw:1,0`), the list of cards by its name: one card, one claim, so that another radio's modem neither chooses it nor runs on it."""
+    card1 = tmp_path / "asound" / "card1"
+    card1.mkdir(parents=True)
+    (card1 / "id").write_text("CODEC\n")
+    monkeypatch.setenv("NEOAPRS_ALSA_ROOT", str(tmp_path / "asound"))
+    claims = Claims()
+    two, five = Mercury(tmp_path, **of_radio(tmp_path, 2, claims)), Mercury(tmp_path, **of_radio(tmp_path, 5, claims))
+    assert two._hold_setup("plughw:1,0", None) is None and claims.all() == (Claim("sound_card", "plughw:CARD=CODEC,DEV=0", 2),)
+    cards = [SoundCard("plughw:CARD=CODEC,DEV=0", "USB Audio CODEC", True, True, True, "plughw:1,0"), SoundCard("plughw:CARD=Device,DEV=0", "USB Audio Device", True, True, False, "plughw:2,0")]
+    assert proposal(cards, [], DEFAULTS, claims=claims, holder=5)[0] != "plughw:CARD=CODEC,DEV=0", "radio 2's card is proposed to no other radio"
+    assert five._hold_setup("plughw:CARD=CODEC,DEV=0", None) == Claim("sound_card", "plughw:CARD=CODEC,DEV=0", 2), "the same card by its name is radio 2's"
+    assert five._hold_setup("plughw:2,0", None) is None and Claim("sound_card", "plughw:2,0", 5) in claims.all(), "a card ALSA does not know by a name is held as it is named"
+
+
 def test_the_page_is_proposed_the_card_and_the_keying_the_daemon_would_choose_and_the_ports_of_the_other_radios_key_nothing() -> None:
     cards = [SoundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", True, True, False), SoundCard("plughw:0,0", "HDA Intel PCH", True, True, True)]
     usb = [PortInfo("/dev/ttyUSB0", "CP2102", "USB VID:PID=10C4:EA60", 0x10C4, 0xEA60)]
@@ -751,7 +790,7 @@ async def test_the_stale_program_is_ended_before_the_sound_cards_are_listed_and_
     order: list[str] = []
     real_free, real_stale, real_cards = mercurymodem.free_ports, mercurymodem.end_stale, mercuryhelper.list_sound_cards
     monkeypatch.setattr(mercurymodem, "free_ports", lambda: (order.append("ports"), real_free())[1])
-    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file: (order.append("stale"), real_stale(pid_file))[1])
+    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file, ini, program: (order.append("stale"), real_stale(pid_file, ini, program))[1])
     monkeypatch.setattr(mercuryhelper, "list_sound_cards", lambda command, timeout_sec=15.0: (order.append("cards"), real_cards(command, timeout_sec))[1])
     m = modem(tmp_path)
     await m.start(replace(HF, mercury_sound_card="", mercury_keying=""))

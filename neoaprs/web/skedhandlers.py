@@ -17,7 +17,7 @@ async def skeds_wanted(ctx: Ctx, cmd: SkedsWanted) -> None:
 async def sked_post(ctx: Ctx, cmd: SkedPost) -> None:
     """Posts a sked of our call. It is no transmission, so RX only does not matter; a call that may not be used (none set, a placeholder) is refused as the transmit interlock does."""
     if reason := call_problem(ctx.ctl.config.station_call):
-        raise UserError(f"{cmd.cmd}: {reason}")
+        raise UserError(f"{cmd.cmd}: nothing is sent: {reason}", "transmit.call", params={"reason": reason})
     start, end = when(cmd.from_), when(cmd.to)
     assert start is not None and end is not None                      # (the model checked both)
     try:

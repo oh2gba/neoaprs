@@ -1,6 +1,6 @@
 """What the app's window shows from the moment it is made until the daemon's page answers: the mark and the name on the page's own background, in the light scheme and in the dark one, with the colours of
 the page's tokens (ui/src/styles/tokens.css: --bg and --text). Nothing on it moves and there is nothing on it to read but the name; the page takes its place in the same window as soon as it answers, and when
-no page comes the window closes and the app says why, as it did before there was a window to wait in. One page for both shells: qtwindow.py gives it to the web view, winshell.py to pywebview."""
+no page comes the window closes and the app says why, as it did before there was a window to wait in. One page for both shells: qtwindow.py gives it to the web view, webshell.py to pywebview."""
 
 BACKGROUND = {False: "#eff0f2", True: "#0e1f2c"}         # --bg of the page, light and dark
 TEXT = {False: "#0a2a3d", True: "#ffffff"}               # --text

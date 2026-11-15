@@ -1,11 +1,12 @@
 // What the page remembers in the browser (the panel's width and tab, the map's view): per-viewer conveniences only, so every access is in try/catch and the page works without it
 // (a private window, blocked site data).
 
-const PREFIX = "NeoAPRS.";
+/** What every key of the page begins with. */
+export const STORE_PREFIX = "NeoAPRS.";
 
 export function readStored(key: string): string | null {
   try {
-    return localStorage.getItem(PREFIX + key);
+    return localStorage.getItem(STORE_PREFIX + key);
   } catch {
     return null;
   }
@@ -13,7 +14,7 @@ export function readStored(key: string): string | null {
 
 export function writeStored(key: string, value: string): void {
   try {
-    localStorage.setItem(PREFIX + key, value);
+    localStorage.setItem(STORE_PREFIX + key, value);
   } catch {
     // nowhere to keep it: the page goes on
   }
@@ -21,7 +22,7 @@ export function writeStored(key: string, value: string): void {
 
 export function removeStored(key: string): void {
   try {
-    localStorage.removeItem(PREFIX + key);
+    localStorage.removeItem(STORE_PREFIX + key);
   } catch {
     // nothing to remove
   }

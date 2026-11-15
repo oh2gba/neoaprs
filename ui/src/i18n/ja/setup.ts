@@ -17,7 +17,6 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.finish": "完了",
 
   "setup.call.label": "あなたのコールサイン",
-  "setup.port_automatic": "自動",
   "setup.symbols": "シンボル",
   "setup.symbol.house": "住宅",
   "setup.symbol.car": "自動車",

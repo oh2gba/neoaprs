@@ -8,7 +8,7 @@ The palette has no green, no amber and no red. **Ok** is the plain text, with it
 
 Tags (`TagMark`) use only the soft pairs, by meaning: a count is **accent**, a label **neutral**, a state **ok**, **warn**, **bad** or **info**, what is made up (the Dummy radio) **neutral** with a dashed border. The HF radio's tag is the site's inverse pill (`--hf-soft-*`: a petrol plate with white in the light theme, a mint one with petrol in the dark), told from every other tag by its lightness; the FM radio's tag is the neutral; the LoRa radio's is the sage (`--lora-soft-*`). The strong colours are for a line, a word, or the rare loud fill.
 
-Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`, `--bad`, and the Dummy's `--neutral-soft-fg`) reads at 4.5 to 1 on the panel, the page, a selected and a hovered row, a raised note and an input, in both themes, and on a group while it flashes (`--attention-bg`); every word on a plate reads at 4.5 to 1 on it; a drag across text (`--selection`) has the text at 4.5 to 1 and is told from every ground. The map, the weather graphs, the waterfall, the level bar and the symbol sprites keep their own colours.
+Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`, `--bad`, and the Dummy's `--neutral-soft-fg`) reads at 4.5 to 1 on the panel, the page, a selected and a hovered row, a raised note and an input, in both themes, and on a group while it flashes (`--attention-bg`); every word on a plate reads at 4.5 to 1 on it; a drag across text (`--selection`) has the text at 4.5 to 1 and is told from every ground. The map, the weather graphs, the waterfall, the level bar, the phone code and the symbol sprites keep their own colours.
 
 | token | light | dark | recipe | for |
 |---|---|---|---|---|
@@ -86,6 +86,8 @@ Every tone that stands as a small word (`--text`, `--muted`, `--accent`, `--ok`,
 | `--wx-rain` | `#1565c0` | `#64b5f6` | as it was | the weather graphs: rain |
 | `--speed` | `#2e7d32` | `#81c784` | as it was | the speed graph of a moving station's card |
 | `--signal` | `#ad1457` | `#f48fb1` | as it was | the signal graph of a station's card |
+| `--code-field` | `#ffffff` | `#ffffff` | white | the phone code in Settings, Web page: its field, white in both themes, for every camera |
+| `--code-dark` | `#0a2a3d` | `#0a2a3d` | petrol | the phone code: its dark modules, the same in both themes |
 
 ## The icon
 

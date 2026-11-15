@@ -1,0 +1,10 @@
+--- a/src/textcolor.c
++++ b/src/textcolor.c
+@@ -378,6 +378,7 @@
+ // TODO: other possible destinations...
+ 
+ 	fputs (buffer, stdout);
++	fflush (stdout);		// NeoAPRS: each line reaches the program that reads it at once, also on Windows, whose C runtime buffers a pipe (packaging/direwolf/flush.patch)
+ 	return (len);
+ }
+ 

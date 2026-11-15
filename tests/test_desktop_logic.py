@@ -1,7 +1,8 @@
 """The desktop app's logic, with no window and no tray: which addresses stay in the window, the tray menu as data and what its items do, the decision to attach to a daemon or start one, what the app remembers, which shell
-this computer can run and the fallbacks when none can show a window. The shells themselves are tests/test_desktop_qt.py and tests/test_desktop_winshell.py."""
+this computer can run and the fallbacks when none can show a window. The shells themselves are tests/test_desktop_qt.py and tests/test_desktop_webshell.py."""
 import json
 import subprocess
+import sys
 import threading
 import types
 from pathlib import Path
@@ -13,6 +14,7 @@ from neoaprs.desktop import appstate, links, shell
 from neoaprs.desktop.autostart import AutoStartError
 from neoaprs.desktop.menu import AUTOSTART, BROWSER, KEEPS_RUNNING, OPEN, QUIT, SUPPORT, AppActions, Item
 from neoaprs.desktop.session import Daemon, DaemonWatch, NoPage, Session, open_session, stop_owned
+from tests.conftest import ROOT
 from tests.support.fakeshell import FakeFrame
 
 PAGE = "http://127.0.0.1:7303/"
@@ -321,14 +323,123 @@ def test_a_toolkit_that_is_installed_and_broken_is_a_fallback_and_not_a_crash() 
     assert choice.module is None and "libEGL" in choice.describe()
 
 
+# ---- the web window on Linux and macOS, the trial: NEOAPRS_WINDOW=web chooses it in place of Qt's
+
+def gtk_importer(missing: set[str], typelibs: set[tuple[str, str]], named: list[str] | None = None) -> Any:
+    """`importer` with a `gi` whose require_version knows the namespaces and versions of `typelibs` (a ValueError for any other, as gi says it) and, as gi does, keeps the first version required of a
+    namespace and refuses another one after it; its repository lists the versions of `typelibs`; and a GLib that writes down the program's name."""
+    plain = importer(missing)
+    required: dict[str, str] = {}
+
+    def require_version(namespace: str, version: str) -> None:
+        if required.get(namespace, version) != version:
+            raise ValueError(f"Namespace {namespace} already requires version {required[namespace]}")
+        if (namespace, version) not in typelibs:
+            raise ValueError(f"Namespace {namespace} not available for version {version}")
+        required[namespace] = version
+
+    repository = types.SimpleNamespace(enumerate_versions=lambda namespace: [v for n, v in sorted(typelibs) if n == namespace])
+
+    def load(name: str) -> object:
+        module = plain(name)
+        if name == "gi":
+            module.require_version = require_version  # type: ignore[attr-defined]
+            module.Repository = types.SimpleNamespace(get_default=lambda: repository)  # type: ignore[attr-defined]
+        elif name == "gi.repository.GLib":
+            module.set_prgname = (named if named is not None else []).append  # type: ignore[attr-defined]
+        return module
+    return load
+
+
+GTK = {("Gtk", "3.0"), ("WebKit2", "4.1"), ("Soup", "3.0")}
+WEB = {"NEOAPRS_WINDOW": "web"}
+
+
+@pytest.fixture
+def ground(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """gtkenv's ground stood in for (it would set the variables of this process): how often it was laid."""
+    laid: list[int] = []
+    monkeypatch.setattr("neoaprs.desktop.gtkenv.prepare", lambda: laid.append(1) or ["the carried typelibs of girepository-tray"])
+    return laid
+
+
+def test_without_the_switch_linux_keeps_the_qt_window(ground: list[int]) -> None:
+    for environ in ({}, {"NEOAPRS_WINDOW": "qt"}, {"NEOAPRS_WINDOW": ""}):
+        assert shell.choose("linux", gtk_importer(set(), GTK), environ=environ) == shell.Choice("neoaprs.desktop.qtshell", True)
+    assert ground == [], "nothing of GTK is touched while the trial is off"
+
+
+def test_with_the_switch_linux_has_the_web_window_and_its_tray_and_the_program_is_named_first(ground: list[int]) -> None:
+    named: list[str] = []
+    environ = dict(WEB)
+    choice = shell.choose("linux", gtk_importer(set(), GTK, named), environ=environ)
+    assert choice == shell.Choice("neoaprs.desktop.webshell", True, (), True) and "window and tray (neoaprs.desktop.webshell)" in choice.describe()
+    assert named == ["neoaprs"] and ground == [1]
+    assert environ["PYSTRAY_BACKEND"] == "appindicator", "pystray's other backends show nothing on Wayland, and its gtk one is never wanted"
+
+
+def test_the_webkitgtk_4_0_api_of_ubuntu_22_04_is_taken_when_4_1_is_not_there(ground: list[int]) -> None:
+    choice = shell.choose("linux", gtk_importer(set(), {("Gtk", "3.0"), ("WebKit2", "4.0"), ("Soup", "2.4")}), environ=dict(WEB))
+    assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", True, True)
+
+
+def test_webkit_4_1_without_its_soup_3_typelib_takes_the_4_0_api_that_is_there(ground: list[int]) -> None:
+    typelibs = {("Gtk", "3.0"), ("WebKit2", "4.1"), ("WebKit2", "4.0"), ("Soup", "2.4")}
+    choice = shell.choose("linux", gtk_importer(set(), typelibs), environ=dict(WEB))
+    assert (choice.module, choice.window) == ("neoaprs.desktop.webshell", True), choice.describe()
+
+
+def test_the_qt_windows_start_imports_nothing_of_the_web_windows_ground() -> None:
+    program = ("import sys\n"
+               "from neoaprs.desktop import cmd, shell\n"
+               "shell.choose('linux', lambda name: object(), environ={})\n"
+               "print(sorted(n for n in ('neoaprs.desktop.gtkenv', 'ctypes', '_ctypes') if n in sys.modules))\n")
+    done = subprocess.run([sys.executable, "-c", program], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
+    windows_splash = ["_ctypes", "ctypes"] if sys.platform == "win32" else []         # (on Windows the splash, splash.py, imports ctypes for itself: the Qt window is never started there, gtkenv is never imported)
+    assert done.stdout.strip() == str(windows_splash), done.stdout
+
+
+def test_without_webkitgtk_it_is_the_tray_and_the_browser_and_the_log_names_the_package(ground: list[int]) -> None:
+    choice = shell.choose("linux", gtk_importer(set(), {("Gtk", "3.0")}), environ=dict(WEB))
+    assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", False, True)
+    assert "no WebKitGTK" in choice.describe() and "libwebkit2gtk-4.1-0" in choice.describe() and "no window, the tray and the browser" in choice.describe()
+
+
+def test_a_tray_that_does_not_load_leaves_the_window_without_one(ground: list[int]) -> None:
+    def broken_tray(name: str) -> object:
+        if name == "pystray":
+            raise ValueError("Namespace AyatanaAppIndicator3 not available")        # (what pystray's import ends with when the typelib is missing)
+        return gtk_importer(set(), GTK)(name)
+    choice = shell.choose("linux", broken_tray, environ=dict(WEB))
+    assert (choice.module, choice.window, choice.tray) == ("neoaprs.desktop.webshell", True, False)
+    assert "window, no tray icon: closing the window quits" in choice.describe() and "AyatanaAppIndicator3" in choice.describe()
+
+
+def test_with_neither_the_web_window_nor_its_tray_it_is_the_browser_only(ground: list[int]) -> None:
+    choice = shell.choose("linux", gtk_importer({"gi", "pystray"}, GTK), environ=dict(WEB))           # (pystray's backends need gi too)
+    assert choice.module is None and not choice.window and not choice.tray and "gi: ModuleNotFoundError" in choice.describe()
+
+
+def test_with_the_switch_macos_has_the_web_window_on_wkwebview_and_the_tray_in_the_menu_bar(ground: list[int]) -> None:
+    assert shell.choose("darwin", importer(set()), environ=dict(WEB)) == shell.Choice("neoaprs.desktop.webshell", True, (), True)
+    assert shell.choose("darwin", importer({"PyObjCTools"}), environ=dict(WEB)).tray is False
+    assert shell.choose("darwin", importer({"WebKit"}), environ=dict(WEB)).window is False
+    assert ground == [], "GTK's ground is Linux's"
+
+
+def test_windows_runs_the_web_shell_whatever_the_switch_says() -> None:
+    assert shell.choose("win32", importer(set()), lambda: True, environ={"NEOAPRS_WINDOW": "qt"}) == shell.Choice("neoaprs.desktop.webshell", True)
+
+
 def test_windows_has_the_window_and_the_tray_when_webview2_is_there() -> None:
-    assert shell.choose("win32", importer(set()), lambda: True) == shell.Choice("neoaprs.desktop.winshell", True)
+    assert shell.choose("win32", importer(set()), lambda: True) == shell.Choice("neoaprs.desktop.webshell", True)
+    assert shell.choose("win32", importer({"PIL"}), lambda: True) == shell.Choice("neoaprs.desktop.webshell", True), "the tray needs no Pillow: the app does not ship it"
 
 
 @pytest.mark.parametrize("missing, runtime, module, window", [
-    (set(), False, "neoaprs.desktop.winshell", False),             # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which cannot show the page
-    ({"webview"}, True, "neoaprs.desktop.winshell", False),        # pywebview is not installed
-    ({"pystray"}, True, None, False), ({"PIL"}, True, None, False),
+    (set(), False, "neoaprs.desktop.webshell", False),             # no WebView2 runtime: pywebview would fall back to the old Internet Explorer engine, which cannot show the page
+    ({"webview"}, True, "neoaprs.desktop.webshell", False),        # pywebview is not installed
+    ({"pystray"}, True, None, False),
 ])
 def test_windows_falls_back_to_the_tray_or_the_browser(missing: set[str], runtime: bool, module: str | None, window: bool) -> None:
     choice = shell.choose("win32", importer(missing), lambda: runtime)

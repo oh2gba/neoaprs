@@ -57,7 +57,7 @@ const offline = computed(() => {
 });
 const why = computed(() => {
   const problem = routable.value ? request.value.problem.value : "";
-  if (receiveOnly.value) return t("pill.rx_send");
+  if (receiveOnly.value) return t("error.transmit.off");
   return offline.value ?? (problem !== "" ? problem : wait.value > 0 ? t("nearby.ask_wait", { seconds: wait.value }) : undefined);
 });
 /** The two lines; the first says the radio the latest query went on where a radio is named. */

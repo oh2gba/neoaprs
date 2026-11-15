@@ -168,7 +168,7 @@ describe("useSettings: one save at a time", () => {
     settings.change({ "radio/1/digipeat": "true" });
     settings.change({ "map/radius_km": "200" });
     vi.advanceTimersByTime(ANSWER_MS + 1);
-    expect(settings.errors["radio/1/digipeat"]).toBe("No answer from the daemon.");
+    expect(settings.errors["radio/1/digipeat"]).toBe("No answer from NeoAPRS.");
     expect(sets()).toHaveLength(2);
   });
 
@@ -327,8 +327,11 @@ describe("useSettings: the radios' own settings", () => {
     await nextTick();
     expect(settings.draft["radio/3/port"]).toBe("/dev/ttyACM1");
     settings.change({ "radio/3/port": "/dev/ttyUSB0" });
-    await refuse("set_config: radio/3/port: that device is in use by Mobile: choose another", "radio.resource_held", { resource: "serial", holder: "Mobile" });
-    expect(settings.errors["radio/3/port"]).toBe("that device is in use by Mobile: choose another");
+    await refuse("set_config: radio/3/port: the device is in use by radio Mobile: choose another", "radio.resource_held", {
+      resource: "serial",
+      holder: "Mobile",
+    });
+    expect(settings.errors["radio/3/port"]).toBe("the device is in use by radio Mobile: choose another");
     expect(settings.draft["radio/3/port"]).toBe("/dev/ttyACM1");
   });
 });

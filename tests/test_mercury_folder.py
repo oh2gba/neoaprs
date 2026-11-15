@@ -10,15 +10,16 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import mercuryclaims
+from neoaprs import mercuryclaims, mercurystale
 from neoaprs.claims import Claims
+from neoaprs.config import Config
 from neoaprs.mercuryclaims import RADIOS_FOLDER, radio_folder
 from neoaprs.mercurymodem import INI_FILE, PID_FILE, Mercury, take_folder
 from neoaprs.mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO
 from neoaprs.radiotype import HF_ID
 from neoaprs.source import Backoff
 from tests.support import fakemercury
-from tests.support.env import until_started
+from tests.support.env import Env, until_started
 from tests.support.fakemercury import of_radio
 from tests.test_mercury_modem import HF, QUICK, _alive, _ports_of_this_test, stopped  # noqa: F401 (the fixture keeps two tests from taking the same ports)
 
@@ -28,6 +29,14 @@ def old_modem(data: Path) -> Mercury:
     m = Mercury(data, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]))
     m.ports = lambda: []
     return m
+
+
+def with_radio_five(config: Config) -> Config:
+    """The settings with radio 5 an HF radio of its own beside radio 2: its own sound card and VOX (a modem reads its own radio's, mercurymodem.own_choice)."""
+    hf = config.radio(HF_ID)
+    assert hf is not None
+    five = replace(hf, id=5, position=5, settings={**hf.settings, "sound_card": "plughw:2,0", "keying": "vox"})
+    return replace(config, radios=(*config.radios, five))
 
 
 def radio_modem(data: Path, holder: int = HF_ID) -> Mercury:
@@ -74,8 +83,8 @@ async def test_what_an_older_neoaprs_left_in_the_data_folder_moves_to_radio_2s_f
 
 
 def test_an_old_process_id_beside_one_of_the_radios_own_is_honoured_where_it_is_and_the_radios_is_kept(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ended: list[tuple[Path, str]] = []
-    monkeypatch.setattr(mercuryclaims, "end_stale", lambda pid_file: ended.append((pid_file, pid_file.read_text())) or pid_file.unlink())
+    ended: list[tuple[Path, str, Path]] = []
+    monkeypatch.setattr(mercuryclaims, "end_stale", lambda pid_file, ini, program: ended.append((pid_file, pid_file.read_text(), ini)) or pid_file.unlink())
     home = radio_folder(tmp_path, HF_ID)
     home.mkdir(parents=True)
     (home / PID_FILE).write_text("4321")
@@ -83,7 +92,7 @@ def test_an_old_process_id_beside_one_of_the_radios_own_is_honoured_where_it_is_
     (tmp_path / PID_FILE).write_text("1234")
     (tmp_path / INI_FILE).write_text("; an older NeoAPRS's\n")
     take_folder(tmp_path, home)
-    assert ended == [(tmp_path / PID_FILE, "1234")], "the older one's Mercury is ended: its file names it once"
+    assert ended == [(tmp_path / PID_FILE, "1234", tmp_path / INI_FILE)], "the older one's Mercury is ended, as the one it ran with the data folder's configuration: its file names it once"
     assert (home / PID_FILE).read_text() == "4321" and (home / INI_FILE).read_text() == "; the radio's own\n" and list(tmp_path.iterdir()) == [tmp_path / RADIOS_FOLDER]
     take_folder(tmp_path, home)
     assert len(ended) == 1, "honoured once: the data folder names nothing any more"
@@ -134,10 +143,57 @@ async def test_two_radios_modems_keep_their_files_apart(tmp_path: Path) -> None:
     two.ports = five.ports = lambda: []
     try:
         await two.start(HF)
-        await five.start(replace(HF, mercury_sound_card="plughw:2,0", mercury_keying="vox"))
+        await five.start(with_radio_five(HF))
         await until_started(lambda: two.running and five.running)
         assert (two.home / PID_FILE).read_text() == str(two.pid) and (five.home / PID_FILE).read_text() == str(five.pid) and two.pid != five.pid
         assert "tx_leadin_ms" not in (two.home / INI_FILE).read_text() and "tx_leadin_ms" in (five.home / INI_FILE).read_text(), "each its own configuration (VOX has the lead-in)"
+        assert (two.sound_card, five.sound_card) == ("plughw:1,0", "plughw:2,0"), "each on its own radio's sound card"
     finally:
         await stopped(two)
         await stopped(five)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the command line of another process is not read on Windows: there the time the process was made tells (tests/test_mercury_pidfile.py)")
+async def test_a_radios_old_file_naming_another_radios_live_mercury_ends_nothing(tmp_path: Path) -> None:
+    """After a power cut both radios' files survive, and radio 2's fresh Mercury may get the id in radio 5's old file: radio 5's start leaves radio 2's Mercury alone, which runs with its own configuration."""
+    claims = Claims()
+    two = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path, 2, claims))
+    five = Mercury(tmp_path, finder=fakemercury.program, backoff=QUICK, control_backoff=Backoff([0.05, 0.05]), **of_radio(tmp_path, 5, claims))
+    two.ports = five.ports = lambda: []
+    try:
+        await two.start(HF)
+        await until_started(lambda: two.running)
+        live = two.pid
+        five.home.mkdir(parents=True)
+        (five.home / PID_FILE).write_text(str(live))                     # (radio 5's file of before the power cut, whose id radio 2's Mercury has now)
+        await five.start(with_radio_five(HF))
+        await until_started(lambda: five.running)
+        assert two.running and two.pid == live and _alive(live) and two.starts == 1, "radio 2's Mercury runs on, never ended by radio 5's start"
+        assert (five.home / PID_FILE).read_text() == str(five.pid)
+    finally:
+        await stopped(two)
+        await stopped(five)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the command line of another process is not read on Windows: a pid there is ended only when its program file is the radio's")
+async def test_a_mercury_a_killed_daemon_left_for_a_radio_that_is_off_or_gone_now_is_ended_at_the_next_start(tmp_path: Path) -> None:
+    """Mercury.stop never runs for a radio that is not started, and nothing ends a Mercury when its daemon dies: the next daemon's start ends it (mercuryclaims.end_left_behind), whether its radio is off, removed
+    or no radio of the settings at all, so that it does not hold the sound card and the keying line."""
+    first = radio_modem(tmp_path, 5)
+    await first.start(HF)
+    await until_started(lambda: first.state == "running")
+    orphan = first.pid
+    assert orphan is not None
+    first._program._process = None                                        # (the daemon was killed: its program lives on, the pid file stays)
+    await first.stop()
+    try:
+        assert _alive(orphan) and (first.home / PID_FILE).read_text() == str(orphan)
+        e = Env(tmp_path, operator=False)                                   # (the next daemon: its settings have no radio 5)
+        await e.start()
+        try:
+            assert e.ctl.config.radio(5) is None and mercurystale._gone(orphan) and not (first.home / PID_FILE).exists(), "ended before any radio started, and its file consumed"
+        finally:
+            await e.stop()
+    finally:
+        if _alive(orphan) and not mercurystale._gone(orphan):
+            os.kill(orphan, signal.SIGTERM)

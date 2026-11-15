@@ -33,7 +33,7 @@ import neoaprs.web.protocol as protocol  # noqa: E402
 from errorcodes import error_codes  # noqa: E402
 from neoaprs.aprsmessage import FORBIDDEN, MAX_TEXT  # noqa: E402
 from neoaprs.cipher import MAX_LOCKED  # noqa: E402
-from neoaprs import mercury, mercuryscope  # noqa: E402
+from neoaprs import direwolf, mercury, mercuryscope  # noqa: E402
 from neoaprs.web import scopefeed  # noqa: E402
 from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
@@ -279,6 +279,7 @@ def limits() -> dict[str, Any]:
                   "historySec": mercuryscope.HISTORY_SEC},
         "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
+        "soundCard": {"levelMax": direwolf.LEVEL_MAX, "levelLow": direwolf.LEVEL_LOW, "levelHigh": direwolf.LEVEL_HIGH, "levelGood": list(direwolf.LEVEL_GOOD), "txGainMinDb": direwolf.TX_GAIN_MIN_DB, "txGainMaxDb": direwolf.TX_GAIN_MAX_DB},
     }
 
 

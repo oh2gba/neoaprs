@@ -87,4 +87,6 @@ def port_key(path: str) -> str:
     if _on_windows():
         name = path.strip()
         return name[4:].upper() if name.startswith("\\\\.\\") else name.upper()
+    if sys.platform == "darwin" and path.startswith("/dev/tty."):
+        path = "/dev/cu." + path.removeprefix("/dev/tty.")                 # (macOS gives one device two nodes: the call-in one and the call-out one, which is the one opened)
     return os.path.realpath(path)

@@ -16,7 +16,6 @@ export const setup: Readonly<Record<keyof typeof en, Message>> = {
   "setup.finish": "Terminar",
 
   "setup.call.label": "Tu indicativo",
-  "setup.port_automatic": "Automático",
   "setup.symbols": "Símbolos",
   "setup.symbol.house": "Casa",
   "setup.symbol.car": "Coche",

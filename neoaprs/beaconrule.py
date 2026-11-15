@@ -7,7 +7,7 @@ that are ticked, read as every stored set of radios is (`radiospec.in_force_set`
 from collections.abc import Iterable
 
 from .radiospec import RadioId, RadioSpec, enabled, in_force_set, log_name
-from .radiotype import RadioTypeError
+from .radiotype import Limits, RadioTypeError
 from .radiotypes import TYPES, kind_field, types_of
 
 SETTING_MIN_MIN = 20                 # the shortest `beacon/interval_min` the settings take (config.MIN_BEACON_INTERVAL_MIN: a stored lower one is raised as the settings are read): a floor up to it raises nothing
@@ -22,17 +22,33 @@ def floor_of(spec: RadioSpec) -> int:
         return max(t.limits.beacon_min_min for t in types_of(spec.kind) or TYPES)
 
 
+def own_floor_min(floor_min: int) -> int:
+    """The part of a radio's floor (minutes) that is its own: the floor where it is above what the setting holds by itself (SETTING_MIN_MIN: the FM radio's 20 minutes are the setting's own), else 0. A floor
+    above it is about airtime (HF and LoRa, 30 minutes: a slow channel that is everyone's)."""
+    return floor_min if floor_min > SETTING_MIN_MIN else 0
+
+
+def repeat_floor_sec(limits: Limits) -> int:
+    """The least time, in seconds, between two repeats of a live object of ours on a radio with these limits: its own floor (`own_floor_min`), so that a radio whose airtime is everyone's repeats an object
+    no more often than it beacons; 0 (the decay's net cycle alone) on FM and wherever the floor is the setting's own."""
+    return 60 * own_floor_min(limits.beacon_min_min)
+
+
 def beacon_interval(station_min: int, spec: RadioSpec, specs: Iterable[RadioSpec] = ()) -> int:
-    """The beacon interval in force on the radio, in minutes (0: off): `beacon/interval_min`, raised to the radio's own floor (`floor_of`) where that is above what the setting holds by itself
-    (SETTING_MIN_MIN: the FM radio's 20 minutes are the setting's own); the other radios change nothing of it (`specs` is the seam's, unused)."""
-    floor = floor_of(spec)
-    return max(station_min, floor) if station_min and floor > SETTING_MIN_MIN else station_min
+    """The beacon interval in force on the radio, in minutes (0: off): `beacon/interval_min`, raised to the radio's own floor (`floor_of`, `own_floor_min`); the other radios change nothing of it (`specs`
+    is the seam's, unused)."""
+    floor = own_floor_min(floor_of(spec))
+    return max(station_min, floor) if station_min and floor else station_min
 
 
 def ticked(spec: RadioSpec, *, say: bool = False) -> bool:
-    """The radio's own "beacon" tick (Send on): its setting `beacon`, ticked where it has none, and for a kind none of whose types are known. A stored text that is not true or false is the field's default;
-    it is said in the log only where `say` (RadioSpec.value: the beacon's start), for this is read at every tick of every radio's beacon."""
-    found = kind_field(spec.kind, "beacon")
+    """The radio's own "beacon" tick (Send on): its setting `beacon`, ticked where its type has no such field (a receive-only one: a tick it kept from another type is not read), and where neither its type
+    nor its kind is known (a type that is none is read by its kind's field). A stored text that is not true or false is the field's default; it is said in the log only where `say` (RadioSpec.value: the
+    beacon's start), for this is read at every tick of every radio's beacon."""
+    try:
+        found = spec.rtype.field("beacon")
+    except RadioTypeError:
+        found = kind_field(spec.kind, "beacon")
     if found is None:
         return True
     if say:

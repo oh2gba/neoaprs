@@ -106,7 +106,7 @@ def save_pref(db: sqlite3.Connection, call: str, path: str | None, rf_only: bool
 
 def delete_pref(db: sqlite3.Connection, call: str) -> int:
     """Removes what `save_pref` keeps of a station without naming a radio: RF only, the alert and its path on the FM radio of today (radio 1); its paths on other radios stay (`clear_station_path`
-    takes one away, `clear_station_paths` all). How many rows of the two tables."""
+    takes one away). How many rows of the two tables."""
     gone = db.execute("DELETE FROM station_pref WHERE call = ?", (call,)).rowcount
     return gone + stationsql.clear_station_path(db, call, 1)
 

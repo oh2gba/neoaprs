@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import serialport, serialprobe
+from neoaprs.claims import Claim, Claims
 from neoaprs.config import LAST_PORT
 from neoaprs.source import Backoff, Source
 from neoaprs.tnc import ENTER_KISS, Tnc
@@ -309,6 +310,20 @@ async def test_a_search_with_every_port_skipped_or_held_says_so(ptys: Ptys, tmp_
             await asyncio.wait_for(tnc.start(), 2.0)
             assert tnc.state is Source.State.WAITING
             assert tnc.problem.startswith("no port could be listened to") and str(tmp_path / "port_1") in tnc.problem
+    finally:
+        await tnc.stop()
+
+
+async def test_a_search_whose_every_port_another_radio_holds_says_which_radio_not_another_program(ptys: Ptys, tmp_path: Path) -> None:
+    _, pattern = await make_links(tmp_path, ptys, 2)
+    claims = Claims()
+    claims.hold(Claim("serial", serialprobe.claim_value(str(tmp_path / "port_1")) or "", 1))              # (radio 1 has the port its TNC is on: a second FM radio searches before its own TNC is plugged in)
+    tnc = Tnc(pattern=pattern, probe_seconds=5.0, backoff=tiny_backoff(), skip=(str(tmp_path / "port_2"),), claims=claims)
+    tnc.radio_id = 3
+    try:
+        await asyncio.wait_for(tnc.start(), 2.0)
+        assert tnc.state is Source.State.WAITING
+        assert tnc.problem == f"no port could be listened to: {tmp_path / 'port_1'} held by radio 1, {tmp_path / 'port_2'} on the skip list" and "another program" not in tnc.problem
     finally:
         await tnc.stop()
 

@@ -19,7 +19,7 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useSure } from "@/composables/useSure";
 import { useRadios } from "@/composables/useRadios";
-import { radioTone, titled } from "@/lib/channels";
+import { HEARD_ON_RADIOS, radioTone, titled } from "@/lib/channels";
 import { inForce, stateText } from "@/lib/ownobjects";
 import type { PageRadio } from "@/lib/radios";
 import { categoryLabel, groupName } from "@/lib/qrucategories";
@@ -30,21 +30,19 @@ const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
 const { fallbackPath, now } = useDaemonContext();
 /** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on, else the main radio). */
 const { severalSenders: several, senders: enabled, main, byId } = useRadios();
-/** How many radios a row names before "+n". */
-const NAMED = 2;
 /** The tags of each row's radios, by the object's name: the first two by name, then "+n" whose hover names the rest; none with one radio on. */
 const radioTags = computed(() => {
   const on = enabled.value.map((radio) => radio.id);
   return new Map(
     [...props.objects.values()].map((row) => {
       const radios = several.value ? inForce(row.radios, on, main.value?.id ?? null).flatMap((id) => byId(id) ?? []) : [];
-      return [row.name, { shown: radios.slice(0, NAMED), rest: radios.slice(NAMED) }];
+      return [row.name, { shown: radios.slice(0, HEARD_ON_RADIOS), rest: radios.slice(HEARD_ON_RADIOS) }];
     }),
   );
 });
 const NONE = { shown: [], rest: [] } as const;
 const tagsOf = (row: OwnObjectRow): { readonly shown: readonly PageRadio[]; readonly rest: readonly PageRadio[] } => radioTags.value.get(row.name) ?? NONE;
-/** The tone of a radio's tag: its kind's, dashed for a Dummy radio. */
+/** The hover words of a radio's tag: "Sent on radio 20 m". */
 const sentOn = (radio: PageRadio): string => t("objects.sent_on", { name: radio.name });
 const sure = useSure<string>(); // (the name of a row)
 /** The copy menu of a row: the name of the object. */
@@ -125,9 +123,9 @@ watch(
               <TagMark v-for="radio in tagsOf(row).shown" :key="radio.id" :tone="radioTone(radio)" class="own-radio" :title="sentOn(radio)">{{
                 radio.name
               }}</TagMark>
-              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="titled(tagsOf(row).rest.map(sentOn))">{{
-                t("radio.more", { n: tagsOf(row).rest.length })
-              }}</TagMark>
+              <TagMark v-if="tagsOf(row).rest.length > 0" tone="neutral" class="own-radio" :title="titled(tagsOf(row).rest.map(sentOn))"
+                >{{ t("radio.more", { n: tagsOf(row).rest.length }) }}<span class="sr-only"> {{ titled(tagsOf(row).rest.map(sentOn)) }}</span></TagMark
+              >
             </div>
           </li>
         </ul>

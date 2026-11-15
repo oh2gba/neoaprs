@@ -95,7 +95,7 @@ def run(args: argparse.Namespace) -> int:
         return 0
     opening = Opening(data, lambda: open_session(data, timeout=args.timeout, encryption=args.encryption)).start()
     choice = shell.choose()
-    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe())
+    launch = Launch(data, opening, args.tray, choice.window, autostart_for(data, encryption=args.encryption), single, describe=choice.describe(), tray=choice.tray)
     try:
         if choice.module is None:
             splash.done()

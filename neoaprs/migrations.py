@@ -5,7 +5,7 @@ a newer NeoAPRS than this one is refused, not damaged. Before the first migratio
 succeeded every other copy taken before a migration is removed, so the folder holds that one: a migration that fails, or is cut short, removes none. If no copy stands and none can be made, or the
 disk has no room for the migration, nothing is migrated. While a migration runs, the note `neoaprs.migrating` beside the file says so (stopfile.py), and the process holds the lock
 `neoaprs.migrate.lock`: a second NeoAPRS that is to migrate the file (the daemon started while `neoaprs db` migrates it) waits for the first while its note stays fresh, then goes on from what it left
-(`_migration_lock`). Every step that ran is written to the table
+(`_migration_lock`). `neoaprs db set` holds the same lock for its whole run (`hold_for_writing`), and `neoaprs db restore` takes it too: a copy is never put in the place of a file a tool writes. Every step that ran is written to the table
 schema_history (version, name, a checksum of the function's source, the time). A migration that has been applied is never edited: a change is a new migration (the checksum of the
 source of each step is pinned by tests/test_migrations.py; the steps keep the names and the annotations they were written with, which is why they name sqlite3 and not dberror.py's aliases).
 
@@ -99,7 +99,7 @@ def open_database(path: str | Path, busy_ms: int = DEFAULT_BUSY_MS, clock: Clock
         return _refused(db, f"the database {path} was not migrated: {type(e).__name__}: {e} (the step that failed is rolled back; the copy taken before it is in backup/)")
     finally:
         note.stop()
-        _let_go(lock)                                       # (after the note is gone: one who takes the lock next writes a note of its own, which this one's end must not remove)
+        let_go(lock)                                        # (after the note is gone: one who takes the lock next writes a note of its own, which this one's end must not remove)
 
     if str(path) != ":memory:":
         sweep(Path(path).absolute().parent / "backup", clock().timestamp())      # the temporary files of a copy that a kill ended before this start
@@ -131,7 +131,7 @@ def _migration_lock(path: Path, busy_ms: int) -> InstanceLock | None:
     """The lock of the folder's migration (`neoaprs.migrate.lock`), taken; held from before the copy to the end of the last step. The system lets go of a lock when its process ends, however it ends (a
     kill, the OOM killer, TerminateProcess), so one that is held is a living NeoAPRS's that migrates the file now: this one waits for it, saying so once, for as long as its note stays fresh (stopfile.py:
     neither stale nor dated ahead of the clock) and at most MIGRATION_WAIT_SEC, and then takes the lock and goes on from what it left. Raises StoreError, nothing changed, when the other holds it with no fresh
-    note for the busy time, or past the bound. None when this process holds it already (an open within an open, which only the tests make: the lock is between processes) or its file cannot be made (the
+    note for the busy time, or past the bound. None when this process holds it already (an open within an open: `neoaprs db set` holds it for its whole run, hold_for_writing; the lock is between processes) or its file cannot be made (the
     folder cannot be written): the open goes on as before, and the steps' own check keeps a step from running twice."""
     folder = path.absolute().parent
     lock = InstanceLock(folder, MIGRATE_LOCK_NAME)
@@ -164,7 +164,26 @@ def _migration_lock(path: Path, busy_ms: int) -> InstanceLock | None:
         _sleep(WAIT_POLL_SEC)
 
 
-def _let_go(lock: InstanceLock | None) -> None:
+def hold_for_writing(folder: Path) -> InstanceLock | None:
+    """The folder's migration lock (`neoaprs.migrate.lock`) taken by a tool that writes the database outside the daemon (`neoaprs db set`), for its whole run: from before it opens the file, which may
+    migrate it, to after it has closed it. A restore (backupfolder.restore) is refused while it is held, so that the file is not put aside under the tool's write, and the tool's own migration runs under
+    it (an open within this hold: `_migration_lock` finds it held here). Raises AlreadyRunning when another NeoAPRS holds it (it migrates the file, restores a copy, or writes as this tool does). None when
+    this process holds it already or its file cannot be made (the folder cannot be written: the open says what is wrong). Let go of with `let_go`."""
+    folder = folder.absolute()
+    lock = InstanceLock(folder, MIGRATE_LOCK_NAME)
+    with _HELD_GUARD:
+        if folder in _HELD_HERE:
+            return None
+        try:
+            lock.acquire()
+        except OSError:
+            return None
+        _HELD_HERE.add(folder)
+    return lock
+
+
+def let_go(lock: InstanceLock | None) -> None:
+    """The lock of `_migration_lock` or `hold_for_writing` let go of (None: nothing)."""
     if lock is not None:
         with _HELD_GUARD:
             _HELD_HERE.discard(lock.path.parent)

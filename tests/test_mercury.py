@@ -199,7 +199,7 @@ def test_the_keying_is_read_from_the_setting_and_written_back_the_same() -> None
     assert mercury.keying_of("vox") == mercury.Keying("vox") and mercury.keying_of(" VOX ").text == "vox"
     assert mercury.keying_of("cm108").kind == "cm108"
     assert mercury.keying_of("rts:/dev/ttyUSB0") == mercury.Keying("rts", "/dev/ttyUSB0") and mercury.keying_of("DTR: COM3 ").text == "dtr:COM3"
-    for wrong in ("", "ptt", "rts", "dtr:", "vox:/dev/ttyUSB0", "cm108:3"):
+    for wrong in ("", "ptt", "rts", "dtr:", "vox:/dev/ttyUSB0", "cm108:3", "rts:a\nb", "rts:RIG 2 h:1", "dtr:\x1b", "rts:/dev/tty\tUSB0", "rts:" + "x" * 256):
         with pytest.raises(ValueError, match="not a way of keying") as e:
             mercury.keying_of(wrong)
         assert e.value.code == "setting.not_keying"       # type: ignore[attr-defined]

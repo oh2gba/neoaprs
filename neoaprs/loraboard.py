@@ -19,6 +19,7 @@ from typing import Any, Coroutine, Protocol
 from . import ax25, kiss, loralist
 from .btle import is_ble
 from .lorasignal import console_line, from_internet, list_key, ninth_element, path_reading, signal_report
+from .radiotype import ONLY_RECEIVES
 from .reading import LIST_WAIT_SEC, NO_READING, REPORT_WAIT_SEC, Following, Reading
 from .tnc2line import LineReader, TextLine, read_line, text_of
 from .tncport import TncPort
@@ -28,7 +29,7 @@ from .tncwatchdog import TncStats
 log = logging.getLogger("neoaprs.tnc")
 
 TEXT_LINES = "the board sends text lines: set it to KISS"
-RECEIVE_ONLY = "the radio only receives"
+RECEIVE_ONLY = ONLY_RECEIVES
 KEPT_USED = 64                         # how many entries of the board's list are remembered as given to a frame (it holds 10)
 
 

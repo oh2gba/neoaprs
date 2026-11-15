@@ -16,6 +16,7 @@ still declared at another size than its file: a run with no --only that leaves a
 import argparse
 import asyncio
 import io
+import json
 import logging
 import os
 import re
@@ -59,8 +60,10 @@ SETTINGS = {
 RADIO_TYPE = "kiss-tcp"                                              # the operator's radio, radio 1: the demo's own KISS TNC over TCP
 AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "145.500MHz QRV", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
 GPSD_PORT = 2947                                                    # (gpsd's usual port: what the fake gpsd of the beacon-gps shot listens on when it is free)
-SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the addresses: the daemon's own key is made at random for the run and never shown
-SHOWN_URLS = ["http://192.168.1.20:7303/", "http://neoaprs-pi.local:7303/"]
+SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the address in the phone code: the daemon's own key is made at random for the run and never shown
+SHOWN_URL = "http://192.168.1.20:7303/"
+QR_FIXTURE = ROOT / "ui" / "src" / "lib" / "qr.fixture.json"       # (its symbol "shown" is the code of SHOWN_URL with SHOWN_KEY, held to uqr by the page's qr.test.ts)
+QR_QUIET = 4                                                        # (the light modules round the code, as ui/src/lib/qr.ts draws it)
 
 
 class Daemon:
@@ -383,7 +386,8 @@ async def shot_stations_menu(s: Shots, _: str) -> None:
 async def shot_update(s: Shots, _: str) -> None:
     """The window of an update (the daemon of this shot is told by a version page of its own that a newer version is out, and plays a Windows install): what is new, Update now and the steps by hand."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=WIDE_PANEL, url=s.update_url)
-    await page.locator("#set-update-now").click()                     # (Check now finds the newer version: the Update mark of the header and the Update button of the row say so)
+    await made_up_web(page)                                             # (the Web page group is in view above the dialog)
+    await page.locator("#set-update-now").click()                    # (Check now finds the newer version: the Update mark of the header and the Update button of the row say so)
     await settle(page, 1500)
     await page.locator(".updateline .btn").click()                    # (the button of the row opens the window of the update)
     await page.locator(".updatedialog-hand summary").click()
@@ -505,24 +509,38 @@ async def whole_groups(page: Any, first: str | None = None) -> None:
     await settle(page, 400)
 
 
+def shown_code() -> tuple[int, str]:
+    """The phone code of SHOWN_URL with SHOWN_KEY as the page draws it (ui/src/lib/qr.ts, qrPath: the symbol in its quiet zone, a run of dark modules in a row one rectangle): its size in modules and its path."""
+    shown = json.loads(QR_FIXTURE.read_text(encoding="utf-8"))["shown"]
+    if shown["text"] != f"{SHOWN_URL}#key={SHOWN_KEY}":
+        raise SystemExit(f"{QR_FIXTURE.name}: the code 'shown' is not of {SHOWN_URL} with the made-up key")
+    runs = [f"M{m.start() + QR_QUIET} {y + QR_QUIET}h{len(m[0])}v1h-{len(m[0])}z" for y, row in enumerate(shown["rows"]) for m in re.finditer("1+", row)]
+    return len(shown["rows"]) + 2 * QR_QUIET, "".join(runs)
+
+
 async def made_up_web(page: Any) -> None:
-    """Puts the made-up access key and addresses (and the usual KISS port) in place of the daemon's own on a page that shows the Settings tab: the machine's own address and name never appear in a shot."""
-    await page.evaluate("""([key, urls]) => {
+    """Puts the made-up access key and phone code (and the usual KISS port) in place of the daemon's own on a page that shows the Settings tab: the machine's own address, name and key never appear in a shot."""
+    size, path = shown_code()
+    await page.evaluate("""([key, size, path]) => {
         const put = () => {
             const field = document.getElementById("set-web-key");
             if (field) field.value = key;
             for (const port of document.querySelectorAll('#set-tcp-port, [id$="-tcp_port"]')) port.value = "8001";       // (Direwolf's usual KISS port; the demo's own TNC listens where there was room. The field's id of today, and a radio's own, radio-ID-tcp_port, as 1.12 of the round names it)
-            const inputs = [...document.querySelectorAll('[id^="set-web-url-"]')];
-            while (inputs.length && inputs.length < urls.length) { const copy = inputs[0].cloneNode(true); inputs[0].parentElement.append(copy); inputs.push(copy); }
-            inputs.forEach((input, i) => { if (i < urls.length) input.value = urls[i]; else input.remove(); });
+            const code = document.querySelector("svg.phonecode");
+            if (code) {
+                code.setAttribute("viewBox", `0 0 ${size} ${size}`);
+                code.querySelector("rect")?.setAttribute("width", `${size}`);
+                code.querySelector("rect")?.setAttribute("height", `${size}`);
+                code.querySelector("path")?.setAttribute("d", path);
+            }
         };
         put();
-        setInterval(put, 25);                                   // (the page draws the settings again when the radio's state changes, and puts its own key and addresses back: they are put over again)
-    }""", [SHOWN_KEY, SHOWN_URLS])
+        setInterval(put, 25);                                   // (the page draws the settings again when the radio's state changes, and puts its own key and code back: they are put over again)
+    }""", [SHOWN_KEY, size, path])
 
 
 async def shot_settings_web(s: Shots, _: str) -> None:
-    """Settings, the Web page group: the switch on, the access key and where to open the page (the daemon's own key and addresses are replaced by made-up ones on the screen)."""
+    """Settings, the Web page group: the switch on, the access key and the phone code (the daemon's own key and code are replaced by made-up ones on the screen)."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)                  # (the width the project page crops it to)
     await made_up_web(page)
     await whole_groups(page, "fieldset:has(#set-web-key)")

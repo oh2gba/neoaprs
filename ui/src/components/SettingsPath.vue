@@ -10,7 +10,7 @@ import SettingsField from "@/components/SettingsField.vue";
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
 import { t } from "@/i18n";
-import { followRadioValues, pathRows, radioValueOf } from "@/lib/beaconstatus";
+import { pathRows, radioValueOf } from "@/lib/beaconstatus";
 import { DIRECT, callListText } from "@/lib/calls";
 import { problemOf } from "@/lib/fieldcheck";
 import { fieldId } from "@/lib/radios";
@@ -37,14 +37,9 @@ const rows = computed(() => (props.row || page === null ? null : pathRows(radios
 const settings = page?.settings;
 const inForce = (key: string): string => radioValueOf(page?.config.value ?? null, key) ?? "";
 const valueOf = (key: string): string => settings?.draft[key] ?? inForce(key);
-const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== (key in settings.values.value ? settings.expected(key) : inForce(key));
+const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== settings.expected(key);
 const infoOf = (name: string | null): FieldInfo => (name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) });
 const idOf = (key: string): string => `set-${fieldId(key)}`;
-// a radio's path that the settings do not hold yet follows the daemon, as their own keys do
-watch(
-  () => Object.fromEntries((rows.value ?? []).map((one) => [one.key, inForce(one.key)])),
-  (now, before) => settings && followRadioValues(settings.draft, settings.values.value, now, before),
-);
 /** A radio's typed path is checked as the beacon's is (the setting's rule), and sent. */
 function commitRow(key: string): void {
   if (settings === undefined) return;
@@ -55,7 +50,6 @@ function commitRow(key: string): void {
 function cancelRow(key: string): void {
   if (settings === undefined) return;
   settings.cancel(key);
-  if (!(key in settings.values.value) && !settings.saving.value) settings.draft[key] = inForce(key);
 }
 
 const RECOMMENDED_CHOICE = "recommended";

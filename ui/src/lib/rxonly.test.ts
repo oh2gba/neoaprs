@@ -35,6 +35,14 @@ describe("a radio that only listens", () => {
     expect(rx({}, false)).toBeUndefined();
   });
 
+  it("alone leads the RX only mark to the box of the first radio that is on, where its type is chosen, and the RX only tick to the tick", () => {
+    const rows = radiosTopic(radioRow(1, "kiss", { enabled: false }), radioRow(3, "tnc-text"), radioRow(4, "lora-console"));
+    const link = { connection: "open", now: 0, inApp: false, told: true, radios: pageRadios(rows, configValues()) } as const;
+    const rx = (values: Record<string, string>) => headerPills(values, null, null, null, link, null, listensOnly(rows)).find((pill) => pill.id === "rx");
+    expect(rx({})?.focus).toBe("set-radio-3-enabled");
+    expect(rx({ "station/transmit": "false" })?.focus).toBe("set-station-transmit");
+  });
+
   it("alone makes a pane's test context receive only, as the shell is", () => {
     expect(fakeDaemon({ radios: radiosTopic(radioRow(1, "tnc-text")) }).receiveOnly.value).toBe(true);
     expect(fakeDaemon({ radios: radiosTopic(radioRow(1, "tnc-text"), radioRow(3, "dummy")) }).receiveOnly.value).toBe(false);

@@ -91,7 +91,7 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
         daemon.gps.value,
         daemon.igate.value,
         daemon.status.value?.update ?? null,
-        { connection: daemon.connection.value, now: now.value, inApp: app, radios: radios.all.value },
+        { connection: daemon.connection.value, now: now.value, inApp: app, radios: radios.all.value, told: daemon.radios.value !== null },
         daemon.map.value,
         listensOnly(daemon.radios.value),
       ),
@@ -110,9 +110,9 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
 /** The models of the tabs that have something not seen (messages, email, bulletins, skeds), and the count of them all: the one of the header, of the folded panel's handle and of the browser tab's title. */
 function useTabs(daemon: ReturnType<typeof useDaemon>, panel: ReturnType<typeof usePanel>) {
   const { messages, send } = daemon;
-  const talk = useMessagesView(messages, panel, send);
-  const mail = useEmail(messages, panel, send);
-  const board = useBulletins(daemon.bulletins, panel);
+  const talk = useMessagesView(messages, panel, send, daemon.messagesLoaded);
+  const mail = useEmail(messages, panel, send, daemon.messagesLoaded);
+  const board = useBulletins(daemon.bulletins, panel, daemon.bulletinsLoaded);
   const sked = useSkeds(
     daemon.skeds,
     panel,
@@ -174,13 +174,27 @@ function useMapOverlays(scopeAvailable: Readonly<Ref<boolean>>, phone: Readonly<
   return { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays };
 }
 
+/** The ports the system lists, for the Settings tab and the setup guide: asked once each time the daemon is connected (not before: a command then is refused with a toast), and only once the topic `radios` is told,
+ * so that a radio with sound cards is asked for by its id (the connection opens with the hello, before the radios come; on a reconnect the radios kept are told already). */
+function askPortsOnOpen(daemon: ReturnType<typeof useDaemon>): void {
+  const { connection, radios, send } = daemon;
+  let owed = false;
+  const ask = (): void => {
+    if (!owed || connection.value !== "open" || radios.value === null) return;
+    owed = false;
+    for (const one of portsAsks(radios.value.values())) send(one);
+  };
+  watch(connection, (state) => {
+    owed = state === "open";
+    ask();
+  });
+  watch(radios, ask);
+}
+
 export function useAppShell() {
   const daemon = useDaemon();
   const { config, connection, lastError, send } = daemon;
-  // the ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast)
-  watch(connection, (state) => {
-    if (state === "open") for (const ask of portsAsks(daemon.radios.value?.values() ?? [])) send(ask);
-  });
+  askPortsOnOpen(daemon);
   const derived = useDerived(daemon);
   const guide = useSetupGuide(config, lastError, send, daemon.radios);
   openGuideOnce(config, guide);

@@ -55,7 +55,7 @@ export const packets: Readonly<Record<keyof typeof en, Message>> = {
   "packets.fact.came": "Arrivata da",
   "packets.fact.came_value": "{channel} - {what}",
   "packets.came_by.hf": "ricevuta sulla radio HF",
-  "packets.came_by.radio": "heard on radio {name}",
+  "packets.came_by.radio": "ricevuta sulla radio {name}",
   "packets.fact.time_in_packet": "Ora nel pacchetto",
 
   "packets.position_approximate": "{position} (approssimata)",

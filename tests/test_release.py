@@ -70,7 +70,7 @@ def test_a_failed_tag_run_is_run_again_and_never_retagged() -> None:
     """Every artifact may be written over by a later attempt, assemble takes the release's files alone (not the logs of a failed update test), the release is a draft until scripts/release has signed it, a run on a
     tag whose draft exists writes over its files and deletes its signature, a published release is never written over, and a version with a dash (1.0.0-rc1) is a pre-release, which is never `latest`."""
     uploads = [re.split(r"\n      - |\n  \w[\w-]*:\n", block, maxsplit=1)[0] for block in re.split(r"uses: actions/upload-artifact@[0-9a-f]{40} # v[\d.]+\n", WORKFLOW)[1:]]       # each upload's `with:` up to the next step or job
-    assert len(uploads) == 10 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
+    assert len(uploads) == 12 and all("overwrite: true" in block for block in uploads), f"an attempt that is run again uploads the same names: {uploads}"
     assemble = WORKFLOW.split("\n  assemble:\n", 1)[1].split("\n  release:\n", 1)[0]
     pattern = re.search(r'pattern: "\{([^}]+)\}"', assemble)
     assert pattern and set(pattern.group(1).split(",")) == {"dist", "windows-installer", "appimage", "macos-app", "deb-amd64", "deb-arm64"}, "the release's six artifacts and no other"
@@ -147,7 +147,8 @@ def test_the_frozen_app_has_three_programs_whose_names_differ_for_a_system_that_
     names = re.findall(r'EXE\(pyz, a\.scripts, \[\], name="([^"]+)", console=(True|False)', spec)
     assert names == [("neoaprs", "True"), ("neoaprsw", "False"), ("neoaprs-app", "False")]
     assert len({name.lower() for name, _ in names}) == 3, "NeoAPRS.exe would be neoaprs.exe"
-    assert "icon=icon" in spec and 'excludes=["tkinter", "PySide6", "shiboken6"]' in spec and "COLLECT(console, windowed, app," in spec
+    assert "icon=icon" in spec and 'excludes=["tkinter", "PySide6", "shiboken6", "PIL"]' in spec and "COLLECT(console, windowed, app," in spec
+    assert '"PIL' not in spec.split("excludes=", 1)[0], "Pillow is no hidden import: the tray is given icon.ico as it is, and pystray's X11 backend would pull Pillow in without the exclude"
 
 
 @pytest.mark.parametrize("program, calls", [("neoaprs.exe", "main"), ("neoaprsw.exe", "gui_main"), ("neoaprs-app.exe", "app_main"), ("NeoAPRS-App.EXE", "app_main")])
@@ -183,6 +184,33 @@ def test_the_release_has_the_installer_the_appimage_the_macos_app_and_the_packag
     assert 'cp -- "neoaprs_${version}_amd64.deb" neoaprs_amd64.deb' in assemble and 'cp -- "neoaprs_${version}_arm64.deb" neoaprs_arm64.deb' in assemble
     assert assemble.index("NeoAPRS-Setup.exe") < assemble.index("sha256sum"), "the copies are in SHA256SUMS"
     assert '[ "$(ls | wc -l)" = 13 ]' in assemble, "the eight files (the wheel and install.sh among them) and the five fixed names, before SHA256SUMS"
+
+
+def test_the_windows_job_measures_what_it_ships_and_guards_what_it_must_ship() -> None:
+    """The size printout and the must-ship guard (scripts/shipped-size, packaging/windows/must_ship.py, tests/test_shipped.py): right after PyInstaller, before Mercury and the installer, so that a folder that
+    lacks a needed file is never packed; the list this build would make, and every module of the Python archive, printed for the next build to be compared with."""
+    job = workflow_jobs()["release.yml:windows"]
+    frozen = job.index("neoaprs.spec")
+    printout = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\"")
+    archives = job.index("scripts/shipped-size --pyi-archive")
+    modules = job.index("scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe")
+    guard = job.index("packaging/windows/must_ship.py packaging/windows/must-ship.txt dist/NeoAPRS")
+    assert frozen < printout < archives < modules < guard < job.index("bundle_mercury.py") < job.index("Inno Setup")
+    assert all(f"dist/NeoAPRS/{name}.exe" in job[archives:modules] for name in ("neoaprs", "neoaprsw", "neoaprs-app"))
+    assert "GITHUB_STEP_SUMMARY= build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe" in job, "the modules go to the log alone"
+    made = job.index('must_ship.py --write "$RUNNER_TEMP/must-ship-of-this-build.txt" dist/NeoAPRS')
+    assert made < job.index('cat "$RUNNER_TEMP/must-ship-of-this-build.txt"') < guard and '>> "$GITHUB_STEP_SUMMARY"' in job[made:guard], "the list this build would make is printed, in the log and on the run's page"
+    assert "scripts/shipped-size dist-installer/NeoAPRS-Setup-*.exe" in job and 'scripts/shipped-size --depth 2 --title "the installed app"' in job
+
+
+def test_the_windows_job_ships_no_pillow_and_nothing_it_needs_imports_it() -> None:
+    """Pillow is in neither the folder nor any program's Python archive, and PyInstaller's record names only pystray's backends of other systems as importers of PIL, before Mercury and the installer."""
+    job = workflow_jobs()["release.yml:windows"]
+    frozen = job.index("neoaprs.spec")
+    folder = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\" --absent _internal/PIL dist/NeoAPRS")
+    archives = job.index("scripts/shipped-size --pyi-archive --absent PIL dist/NeoAPRS/neoaprs.exe dist/NeoAPRS/neoaprsw.exe dist/NeoAPRS/neoaprs-app.exe")
+    importers = job.index("packaging/windows/must_ship.py --excluded build/neoaprs/warn-neoaprs.txt PIL pystray._xorg pystray._gtk pystray._appindicator pystray._darwin\n")
+    assert frozen < folder < archives < importers < job.index("bundle_mercury.py")
 
 
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
@@ -246,7 +274,7 @@ def job(name: str) -> str:
 
 def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_linux_downloads_wait_for_it() -> None:
     mercury_job = job("mercury")
-    assert "arch: amd64\n            runner: ubuntu-latest" in mercury_job and "arch: arm64\n            runner: ubuntu-24.04-arm" in mercury_job
+    assert "arch: amd64\n            runner: ubuntu-26.04" in mercury_job and "arch: arm64\n            runner: ubuntu-24.04-arm" in mercury_job
     assert "container: ubuntu:22.04" in mercury_job, "glibc 2.35, the floor the AppImage and the .deb document"
     assert "python3 scripts/build-mercury --tar --out dist-mercury" in mercury_job, "run by the Python 3.10 of the container"
     assert "build-essential pkg-config libasound2-dev libasound2-data python3" in mercury_job and " patch" in mercury_job, "patch applies packaging/mercury/loopback.patch"
@@ -260,9 +288,16 @@ def test_mercury_is_built_for_both_architectures_in_the_oldest_system_and_the_li
     assert pattern and "mercury" not in pattern.group(1), "the tarballs are build material and not files of the release"
 
 
+def test_the_appimage_is_tried_on_the_oldest_ubuntu_the_manual_promises() -> None:
+    """While GitHub still has a runner of the oldest Ubuntu the manual names for the AppImage, the file is run there: leaving it gives up the proof of what the manual says, a decision of its own."""
+    promised = re.search(r"glibc (\d+\.\d+) or newer \(Ubuntu (\d\d\.\d\d),", (ROOT / "docs" / "manual" / "install.md").read_text(encoding="utf-8"))
+    assert promised is not None, "the manual's sentence of what the AppImage runs on"
+    assert f"runs-on: ubuntu-{promised.group(2)}\n" in job("appimage"), f"the AppImage job runs on Ubuntu {promised.group(2)}, glibc {promised.group(1)}, as the manual promises"
+
+
 def test_the_macos_app_is_built_with_its_own_mercury_on_a_mac_signed_and_tried_before_it_joins_the_release() -> None:
     macos = job("macos")
-    assert "runs-on: macos-latest" in macos and re.search(r"needs: \[verify, wheel\]", macos), "the wheel of the wheel job; Mercury is built in this job (a Mac's build), not taken from the Linux ones"
+    assert "runs-on: macos-26" in macos and re.search(r"needs: \[verify, wheel\]", macos), "the wheel of the wheel job; Mercury is built in this job (a Mac's build), not taken from the Linux ones"
     assert "scripts/build-mercury --tar --out dist-mercury" in macos and "mercury-$version-macos-arm64.tar.gz" in macos
     assert "scripts/build-macos-app --wheel dist/neoaprs-*.whl --mercury dist-mercury/mercury-*-macos-arm64.tar.gz --out dist-macos" in macos
     assert "scripts/smoke-macos-app dist-macos/NeoAPRS-*.dmg" in macos and "--no-mercury" not in macos
@@ -286,9 +321,29 @@ def test_the_package_is_proved_to_need_nothing_of_the_system_for_mercury() -> No
     assert "smoke-appimage dist-appimage/NeoAPRS-*.AppImage" in job("appimage") and "--no-mercury" not in job("appimage")
 
 
+def test_the_installed_direwolf_of_the_deb_and_of_the_appimage_loads_what_it_carries_and_is_the_pinned_release() -> None:
+    """Direwolf carries its ALSA and udev libraries: an installed package whose program does not load them, or is not the pinned build, must not ship green (only the Windows job ran the program before)."""
+    deb = job("deb")
+    assert "/opt/neoaprs/bin/python3 -I packaging/windows/smoke_direwolf.py /opt/neoaprs/tools/direwolf/direwolf" in deb and "[ ! -e /opt/neoaprs/tools/direwolf/dev ]" in deb
+    docker = deb.split("docker run", 1)[1]
+    assert '-v "$PWD/packaging/windows:/checks:ro" debian:bookworm-slim' in docker.split("\n", 1)[0]
+    assert 'ldd "$dw/direwolf"' in docker and '"$dw/lib/libasound.so.2"' in docker and '"$dw/lib/libudev.so.1"' in docker and '/checks/smoke_direwolf.py "$dw/direwolf"' in docker
+    smoke = (ROOT / "scripts" / "smoke-appimage").read_text(encoding="utf-8")
+    assert 'ldd "$folder/direwolf"' in smoke and "for lib in libasound.so.2 libudev.so.1" in smoke and 'packaging/windows/smoke_direwolf.py" "$folder/direwolf"' in smoke
+    assert "--no-direwolf" not in job("appimage"), "the release's AppImage is checked with its Direwolf"
+
+
+def test_the_frozen_windows_app_finds_its_own_direwolf_after_it_is_bundled() -> None:
+    """A frozen app whose Direwolf is not where direwolfprogram.find() looks offers no Sound card (Direwolf): `db radios add direwolf` refuses it with 2 (radioedits.new_radio), and the job fails."""
+    steps = job("windows").split("steps:", 1)[1]
+    found = 'dist/NeoAPRS/neoaprs.exe db --data "$RUNNER_TEMP/direwolfdata" radios add direwolf'
+    assert found in steps and "NEOAPRS_NO_DEVICES" not in steps, "under NEOAPRS_NO_DEVICES every type is offered: the check would prove nothing"
+    assert steps.index("bundle_tool.py direwolf dist/NeoAPRS") < steps.index("smoke_direwolf.py dist/NeoAPRS/bin/direwolf/direwolf.exe") < steps.index(found) < steps.index("Inno Setup")
+
+
 def test_mercury_for_windows_is_built_from_the_pinned_source_on_linux_with_the_packages_of_rhizomaticas_own_workflow() -> None:
     built = job("mercury-windows")
-    assert "runs-on: ubuntu-latest" in built and "container: debian:trixie" in built, "the container Mercury's own release workflow builds its Windows zip in"
+    assert "runs-on: ubuntu-26.04" in built and "container: debian:trixie" in built, "the container Mercury's own release workflow builds its Windows zip in"
     assert "gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common" in built and " patch" in built and "python3" in built, "the cross compiler, its headers and runtime, and patch for the two patches"
     assert "python3 scripts/build-mercury --windows --tar --out dist-mercury-windows" in built
     assert built.index("apt-get install") < built.index("actions/checkout") < built.index("build-mercury --windows") < built.index("file dist-mercury-windows") < built.index("upload-artifact")

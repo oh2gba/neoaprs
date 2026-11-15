@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { shown } from "@/test/shown";
+import { seen, shown } from "@/test/shown";
 import { describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import ObjectsPane from "@/components/ObjectsPane.vue";
@@ -92,7 +92,7 @@ describe("ObjectsPane", () => {
       const wrapper = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon({ ...station, ...given })) });
       return wrapper
         .findAll(".ownobject")
-        .map((i) => i.findAll(".own-tags .tag").map((tag) => [tag.text(), tag.attributes("title"), tag.classes().find((c) => c.startsWith("tag-"))]));
+        .map((i) => i.findAll(".own-tags .tag").map((tag) => [seen(tag), tag.attributes("title"), tag.classes().find((c) => c.startsWith("tag-"))]));
     };
 
     it("tags every object with the radios it goes out on, beside its category, each by its name in its kind's tone", () => {
@@ -144,6 +144,18 @@ describe("ObjectsPane", () => {
           ["HFdummy", "Sent on radio HFdummy", "tag-dummy"],
           ["Remote12", "Sent on radio Remote12", "tag-neutral"],
         ],
+      ]);
+    });
+
+    it("says the radios of its +n to a keyboard and a screen reader as its hover does, and nothing more for the tags of a name", () => {
+      const six = ofRadios(...[1, 2, 3].map((id) => radioRow(id, "kiss", { name: `R${id}`, number: id })));
+      const table = new Map([ownObject("ALL", { radios: [1, 2, 3] })].map((r) => [r.name, r]));
+      const form = useOwnObjects(table, () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
+      const tags = mount(ObjectsPane, { props: { objects: table, form }, global: withDaemon(fakeDaemon(six)) }).findAll(".own-tags .own-radio");
+      expect(tags.map((tag) => [seen(tag), tag.find(".sr-only").exists() ? tag.find(".sr-only").text() : null])).toEqual([
+        ["R1", null],
+        ["R2", null],
+        ["+1", "Sent on radio R3"],
       ]);
     });
 

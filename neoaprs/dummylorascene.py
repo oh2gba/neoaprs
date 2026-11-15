@@ -75,8 +75,8 @@ class LoraScene:
         self.centre = centre or HELSINKI
         self.started = now
         self.seed = seed
-        turn = math.radians(TURN_DEG * (seed - 1) % 360)
-        self._turn = (math.cos(turn), math.sin(turn))
+        self._turn_deg = TURN_DEG * (seed - 1) % 360
+        self._turn = (math.cos(math.radians(self._turn_deg)), math.sin(math.radians(self._turn_deg)))
         self.igate = call_of(IGATE, seed)
         self._rng = random.Random(seed)  # noqa: S311  (the made-up stations of the Dummy LoRa radio, the same for the same seed: nothing secret is drawn)
         self._fading = random.Random(seed + 1)  # noqa: S311  (the same, for the readings of each frame: apart, so that the times of the traffic do not depend on how many frames were read)
@@ -175,6 +175,7 @@ class LoraScene:
         def make(now: datetime) -> list[ax25.Frame]:
             east, north, course = route.at(phase + kmh * (now - self.started).total_seconds() / 3600)
             lat, lon = self.where(east, north)
+            course = (course + self._turn_deg) % 360                 # (turned with its places, as Scene's movers are)
             return [air(call, b"=" + compressed_position(lat, lon, symbol[0], symbol[1], course, kmh) + comment.encode("utf-8"), PATH, TOCALL)]      # (the comment as the trackers send it: UTF-8)
 
         return Actor(call, every, first, make, rssi, snr)

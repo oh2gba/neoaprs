@@ -200,7 +200,7 @@ describe("sending", () => {
     [() => Promise.resolve(new Response(null, { status: 401 })), "No access: reload the page, enter the access key and try again."],
     [() => Promise.resolve(new Response(null, { status: 429 })), "Another file is being made. Try again in a minute."],
     [() => Promise.resolve(new Response(null, { status: 500 })), "The file could not be made (error 500)."],
-    [() => Promise.reject(new TypeError("network")), "The daemon could not be reached."],
+    [() => Promise.reject(new TypeError("network")), "NeoAPRS could not be reached."],
   ])("says the reason in plain words when it was not sent (%#)", async (answer, text) => {
     daemonSays(answer);
     make();

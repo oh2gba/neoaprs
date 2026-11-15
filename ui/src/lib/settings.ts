@@ -195,8 +195,8 @@ const SPECS: Record<string, FieldSpec> = {
   },
   "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
   "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
-  "lora/host": { label: "settings.tcp_host.label", empty: plain(""), tip: ["settings.board_host.tip1"] },
-  "lora/port": { label: "settings.tcp_port.label", tip: ["settings.board_port.tip1"] },
+  "lora/host": { label: "settings.board_host.label", empty: plain(""), tip: ["settings.board_host.tip1"] },
+  "lora/port": { label: "settings.board_port.label", tip: ["settings.board_port.tip1"] },
   "mercury/sound_card": {
     label: "settings.sound_card.label",
     tipLabel: "settings.sound_card.tip_label",
@@ -218,7 +218,7 @@ const SPECS: Record<string, FieldSpec> = {
     label: "settings.network.label",
     kind: "bool",
     tipLabel: "settings.network.tip_label",
-    tip: ["settings.network.tip1", "settings.network.tip2"],
+    tip: ["settings.network.tip1", "phone.network.tip2"],
     picture: "network",
   },
   "web/key": {

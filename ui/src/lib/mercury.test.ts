@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { portRow, soundCard } from "@/test/fixtures";
 import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
+import { holderOf } from "@/lib/portchoice";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const row = (device: string, description: string) => portRow(device, description);
@@ -14,6 +15,7 @@ const ports: PortsMessage = {
     soundCard("plughw:0,0", "HDA Intel PCH", { default: false, pick: false }),
   ],
   keying: "rts:/dev/ttyUSB0",
+  radio: 2,
 };
 
 describe("the keying choices of the Mercury HF modem", () => {
@@ -58,6 +60,21 @@ describe("the sound cards as a plain choice", () => {
       sound_cards: [soundCard("hw:1,0", "USB Audio", { default: false, pick: false }), soundCard("hw:2,0", "USB Audio", { default: false, pick: false })],
     };
     expect(soundCardChoices(two).map((c) => c.label)).toEqual(["USB Audio (hw:1,0)", "USB Audio (hw:2,0)"]);
+  });
+
+  it("grey a card another radio holds, with its name, but not in that radio's own box nor the card in force", () => {
+    const held: PortsMessage = {
+      ...ports,
+      radio: 3,
+      sound_cards: [soundCard("plughw:1,0", "USB Audio CODEC", { held_by: 2 }), soundCard("plughw:0,0", "HDA Intel PCH", { pick: true })],
+    };
+    const names = (id: number) => ({ 2: "20 m" })[id];
+    expect(soundCardChoices(held, holderOf(3, names)).map((c) => [c.label, c.disabled ?? false])).toEqual([
+      ["20 m: USB Audio CODEC", true],
+      ["HDA Intel PCH", false],
+    ]);
+    expect(soundCardChoices(held, holderOf(2, names)).map((c) => c.disabled ?? false)).toEqual([false, false]);
+    expect(soundCardChoices(held, holderOf(3, names), "plughw:1,0").map((c) => c.disabled ?? false)).toEqual([false, false]);
   });
 
   it("find the whole Windows card of a setting that names one of its two devices, and nothing for a whole card or an unknown one", () => {

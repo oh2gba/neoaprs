@@ -1,0 +1,7 @@
+{
+  "labels": ["ubuntu-26.04", "ubuntu-24.04-arm", "ubuntu-22.04", "windows-2025", "macos-26"],
+  "latest": {"ubuntu-latest": "26.04", "windows-latest": "10.0.26100", "macos-latest": "26"},
+  "image_version": "20261111.196.1",
+  "facts": {"os": "26.04", "gcc": "15", "march": "x86-64-v3", "glibc": "2.43", "php": "8.5"},
+  "announcements": {"13518": null, "14226": null, "14254": "2027-02-21", "14404": null, "14592": null, "14602": null, "14745": null, "14747": null, "14748": null, "14826": null, "14856": null, "15253": null, "15314": null, "15315": "2026-12-06"}
+}

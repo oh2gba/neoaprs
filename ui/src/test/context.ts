@@ -51,6 +51,11 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const config = part(over.config, configValues());
   const lastError = part(over.lastError, null);
   const ports = part(over.ports, null);
+  /** The answers by radio: the ones a test gave, else the one `ports` holds when it names a radio (as the store keeps it). */
+  const portsByRadio =
+    over.portsByRadio === undefined
+      ? computed(() => new Map(ports.value?.radio == null ? [] : [[ports.value.radio, ports.value]]))
+      : part(over.portsByRadio, new Map());
   const map = part(over.map, null);
   const status = part(over.status, null);
   const connected = part(over.connected, true);
@@ -74,6 +79,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     map,
     selfUpdate: part(over.selfUpdate, null),
     ports,
+    portsByRadio,
     findRadio:
       over.findRadio ??
       useFindRadio(shallowRef<RadioSearchMessage | null>(null), lastError, shallowRef<Connection>("open"), sender, settings, config, () => undefined),

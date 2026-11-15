@@ -197,7 +197,7 @@ describe("the radio of a request for local info (plan rule 3.6)", () => {
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     expect(ask(wrapper).attributes("title")).toBe("HF: not connected");
     const one = on({}, { ...FM, state: "waiting" });
-    expect(ask(one.wrapper).attributes("title")).toBe("The TNC is not connected");
+    expect(ask(one.wrapper).attributes("title")).toBe("The radio is not connected");
   });
 
   it("says on the state word of the status line the radio the request went on, and sends a group's button and Ask again on that radio while it is on", async () => {

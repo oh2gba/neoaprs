@@ -21,7 +21,7 @@ describe("leftTitle", () => {
 describe("sendBlockedReason", () => {
   it("is the one sentence while the TNC is not connected, and nothing when it is", () => {
     expect(sendBlockedReason(false)).toBe(tncNotConnected());
-    expect(sendBlockedReason(false)).toBe("The TNC is not connected");
+    expect(sendBlockedReason(false)).toBe("The radio is not connected");
     expect(sendBlockedReason(true)).toBeUndefined();
   });
 });

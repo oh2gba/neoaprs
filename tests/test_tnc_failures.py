@@ -168,7 +168,7 @@ async def test_the_scan_for_a_program_that_holds_the_port_is_not_made_on_the_loo
         threads.append(threading.get_ident())
         return ""
 
-    monkeypatch.setattr("neoaprs.tnc.held_by", held_by)
+    monkeypatch.setattr("neoaprs.serialprobe.held_by", held_by)                     # (the radio's own open asks it through tncsearch.may_open)
     async with started():
         pass
     assert threads and threading.get_ident() not in threads

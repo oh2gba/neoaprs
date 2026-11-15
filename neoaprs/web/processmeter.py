@@ -43,7 +43,7 @@ def resident_mb() -> float | None:
                 return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / _MB, 1)     # (bytes on macOS, and the peak: there is no cheaper reading of the current one)
             with open("/proc/self/statm", encoding="ascii") as f:
                 return round(int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") / _MB, 1)
-        except (OSError, ValueError, IndexError):
+        except (OSError, ValueError, IndexError, ImportError):         # (ImportError: a system that says darwin without `resource`, as one a test makes: the figure is left out, the status still goes)
             return None
 
 

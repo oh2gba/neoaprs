@@ -1,13 +1,14 @@
 """The registry of the types of radio: one module for each family of types and one line here for each. A type is a description here, a driver in the adapters found by
 `RadioType.driver`, and its texts in the page's catalogues."""
+import sys
 from collections.abc import Mapping
 from types import MappingProxyType
 
 from neoaprs.radiotype import Field, Kind, RadioType, RadioTypeError
-from neoaprs.radiotypes import dummy, dummylora, kisstcp, lora, mercury, serialtnc, tnctext
+from neoaprs.radiotypes import dummy, dummylora, kisstcp, lora, mercury, serialtnc, soundcard, tnctext
 from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS
 
-TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *tnctext.TYPES, *dummy.TYPES, *mercury.TYPES, *lora.TYPES, *dummylora.TYPES)
+TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *tnctext.TYPES, *soundcard.TYPES, *dummy.TYPES, *mercury.TYPES, *lora.TYPES, *dummylora.TYPES)
 BY_KEY: Mapping[str, RadioType] = MappingProxyType({t.key: t for t in TYPES})
 DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "lora-tcp"})      # a new radio of the kind (LoRa: the iGate at home on the network, which speaks KISS as it comes and alone says the signal to a client)
 
@@ -44,3 +45,9 @@ def kind_field(kind: Kind, key: str) -> Field | None:
 def recommended_path(kind: Kind) -> str:
     """The path of our frames on a radio of the kind whose own path is empty, as its types recommend it (LoRa WIDE1-1); "" where they recommend none: the station's symbol's then (Config.recommended_path)."""
     return next((t.recommended_path for t in types_of(kind) if t.recommended_path), "")
+
+
+def unavailable_types(system: str | None = None) -> tuple[str, ...]:
+    """The keys of the types whose program this kind of installation does not carry (a Mac carries no Direwolf), on this system or the one named: the page does not offer them, and a radio of one is not added."""
+    on = system or sys.platform
+    return tuple(t.key for t in TYPES if t.systems and on not in t.systems)

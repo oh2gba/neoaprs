@@ -19,6 +19,7 @@ from datetime import datetime
 from neoaprs import ax25
 from neoaprs.clock import Clock, utcnow
 from neoaprs.interlock import Interlock
+from neoaprs.radiospec import in_force_set
 from neoaprs.radiotype import RadioId
 from neoaprs.services.common import ConfigSource, Radio, as_pick
 from neoaprs.services.pace import SPACING_SEC
@@ -71,9 +72,11 @@ class Sender:
         return True
 
     def radios_for(self, ids: Iterable[RadioId]) -> list[AirRadio]:
-        """The radios of these ids (an object's `radios`) that are enabled and can send, in that order; the main radio when none of them is (one radio on: everything goes on it, whatever was chosen); none while there is none."""
+        """The radios of these ids (an object's `radios`) as the set is in force (radiospec.in_force_set, as the beacon's: those that are enabled and can send, by position; one radio on: everything goes on it,
+        whatever was chosen; the main radio when none of them is; none while there is none). Where the settings name a radio the registry does not have (an old shape of a test's), the registry's main radio."""
+        config = self._config()
         on = {radio.id: radio for radio in self.radios.senders()}
-        found = [on[i] for i in ids if i in on]
+        found = [on[i] for i in in_force_set(ids, config.radios, config.main_radio) if i in on]
         main = self.radios.main
         return found or ([main] if main is not None else [])
 

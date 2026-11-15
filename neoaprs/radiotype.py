@@ -47,6 +47,7 @@ FM_ID: Final = 1                     # the ids the migration gives today's radio
 HF_ID: Final = 2                     # ... and the HF radio (hf/profile); the same ids are used before the migration exists
 
 ResourceKind = Literal["serial", "sound_card", "keying", "modem_ports", "gps"]
+ONLY_RECEIVES = "the radio only receives"         # why a radio of a type that sends nothing (Can.transmit false) takes no frame and sends no beacon
 FieldKind = Literal["text", "int", "bool", "choice", "port", "path"]
 Transport = Literal["serial", "tcp", "dummy", "modem"]        # "tcp": a program or a bridge reached by host and port; "serial": a serial port (which may be a socket:// URL); "dummy": no line, made-up traffic; "modem": a modem program the daemon starts itself
 
@@ -94,6 +95,7 @@ class Can:
     tx_gain: bool
     frequencies: bool                 # the suggested dials are shown in its box
     transmit: bool = True             # it can send: False for a radio that only listens (the receive-only types: a TNC's text, a LoRa iGate's log), which no rule picks to send on and whose line is never written to
+    rx_level: bool = False            # the level of the packets it hears is shown in its box (a sound-card modem's)
 
 
 @dataclass(frozen=True)
@@ -117,7 +119,7 @@ class RadioType:
     name: str                         # English, for the log and the support bundle (the page has its own words by `text`)
     text: str                         # the catalogue id of its name: "radio.type.kiss"
     transport: Transport
-    driver: str                       # the adapters' driver by key: "tnc" (serial, tcp and dummy lines) or "mercury"
+    driver: str                       # the adapters' driver by key: "tnc" (serial, tcp and dummy lines), "mercury" or "direwolf"
     profile: str                      # the tncprofile key its line speaks (the KISS entry, the probe); "" for none
     fields: tuple[Field, ...]         # its own fields, then the common ones it is allowed (radiotypes/common.py: beacon always, path and digipeat where allowed)
     limits: Limits
@@ -125,6 +127,7 @@ class RadioType:
     can: Can
     dummy: bool                       # made-up traffic: the dashed tag
     recommended_path: str = ""        # the path of our frames on it when its own "path" is empty (LoRa WIDE1-1, as its networks repeat); "": the recommended path of the station's symbol (FM's)
+    systems: frozenset[str] = frozenset()     # the systems (sys.platform) whose installations carry the type's program; empty: every system. A type is offered only where its program is
 
     def field(self, key: str) -> Field | None:
         """Its field of this key; None when it has none."""

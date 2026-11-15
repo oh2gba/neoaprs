@@ -3,17 +3,22 @@ an older or a newer version, one the daemon is bringing up to date), a write tha
 before of a radio's setting (`serial/port`, `hf/enabled`), which is refused with its new key. The commands as processes, through the main command, are in tests/test_cli.py."""
 import asyncio
 import sqlite3
+import threading
+import time
 from typing import Any
 from pathlib import Path
 
 import pytest
 
+from neoaprs import backupfolder
 from neoaprs.cli import dbcmd
 from neoaprs.config import BEACON_SENT, INSTALL_ID
 from neoaprs.dberror import SqlError
+from neoaprs.instancelock import LOCK_NAME, InstanceLock
 from neoaprs.migrations import SCHEMA_VERSION
 from neoaprs.radiosql import insert_radio, put_radio_settings, remove_radio
-from neoaprs.stopfile import MIGRATING_NAME
+from neoaprs.radiotypes import type_of
+from neoaprs.stopfile import MIGRATE_LOCK_NAME, MIGRATING_NAME
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 from tests.support.migrated import opened
@@ -111,6 +116,112 @@ def test_set_on_a_database_of_an_older_version_migrates_it_and_says_what_the_mig
     assert db("get", "station/call", data=tmp_path) == 0 and capsys.readouterr().err == "", "a command that does not write says nothing of the kind"
 
 
+def test_set_beside_a_running_daemon_on_an_older_file_migrates_nothing_and_says_to_wait_or_to_stop_it(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A daemon of the version before has the file open: the steps run here would break its statements (a packet's radio is a number since migration 32, migration 33 dropped the station's column of what radio 1 heard) until
+    it is restarted. The new daemon brings the file up to date at its start. A daemon of this version that has just started holds the folder before it writes its migration's note, and looks the
+    same from here: the sentence is true of both."""
+    at_thirty(tmp_path / DB_NAME).close()
+    daemon = InstanceLock(tmp_path, LOCK_NAME)
+    daemon.acquire()
+    try:
+        capsys.readouterr()
+        assert db("set", "station/call", "OH2XYZ", data=tmp_path) == 1
+        assert capsys.readouterr().err.strip() == (f"neoaprs db: {tmp_path / DB_NAME}: NeoAPRS is running with this folder and the database is not up to date yet: if it has just started, it is "
+                                                   "bringing it up to date, so try again in a minute; if it is the version before, stop it (`neoaprs stop`), and the new one brings it up to date "
+                                                   "at its start")
+        assert rows_of(tmp_path, "PRAGMA user_version") == [(30,)] and not list((tmp_path / "backup").glob("premigrate-*")), "not migrated, and no copy taken"
+    finally:
+        daemon.release()
+    assert db("set", "station/call", "OH2XYZ", data=tmp_path) == 0 and rows_of(tmp_path, "PRAGMA user_version") == [(SCHEMA_VERSION,)], "with that daemon stopped, the set migrates as before"
+
+
+def test_set_beside_a_running_daemon_of_this_version_goes_through_though_the_files_header_is_behind_its_log(data: Path) -> None:
+    """The version is SQLite's, through the write-ahead log: a migration that has not reached a checkpoint leaves the file's header at the version before."""
+    user_version(data, SCHEMA_VERSION - 1)
+    held = sqlite3.connect(data / DB_NAME)                          # (the daemon's connection: the log is not checkpointed into the file while it is open)
+    held.execute("SELECT 1 FROM settings").fetchall()
+    user_version(data, SCHEMA_VERSION)
+    daemon = InstanceLock(data, LOCK_NAME)
+    daemon.acquire()
+    try:
+        assert backupfolder.file_version(data / DB_NAME) == SCHEMA_VERSION - 1, "the header is behind"
+        assert db("set", "station/comment", "beside the daemon", data=data) == 0
+    finally:
+        daemon.release()
+        held.close()
+    assert rows_of(data, "SELECT value FROM settings WHERE key = 'station/comment'") == [("beside the daemon",)]
+
+
+def test_set_while_another_neoaprs_writes_or_migrates_the_file_is_refused_and_writes_nothing(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The lock of the migration is held by a NeoAPRS that migrates the file, restores a copy, or writes it as `set` does (migrations.hold_for_writing), for longer than a set waits its turn."""
+    monkeypatch.setattr(dbcmd, "WRITE_WAIT_MS", 200)
+    other = InstanceLock(data, MIGRATE_LOCK_NAME)
+    other.acquire()
+    try:
+        capsys.readouterr()
+        assert db("set", "station/comment", "beside another", data=data) == 1
+        assert capsys.readouterr().err.strip() == f"neoaprs db: {data / DB_NAME}: another `neoaprs db` command is writing it now; try again when that is done"
+    finally:
+        other.release()
+    assert rows_of(data, "SELECT value FROM settings WHERE key = 'station/comment'") == []
+    assert db("set", "station/comment", "alone", data=data) == 0, "and with the lock let go it goes through"
+
+
+def test_a_second_set_waits_its_turn_behind_a_set_that_writes_and_then_goes_through(data: Path) -> None:
+    """Two sets at once (two terminals, a script that runs them side by side): SQLite put them one after the other before the lock, and so does the lock, for as long as a set waits for SQLite's
+    write lock."""
+    other = InstanceLock(data, MIGRATE_LOCK_NAME)
+    other.acquire()
+    done = threading.Timer(0.3, other.release)                     # (the first set ends)
+    done.start()
+    try:
+        assert db("set", "station/comment", "second", data=data) == 0
+    finally:
+        done.join()
+    assert rows_of(data, "SELECT value FROM settings WHERE key = 'station/comment'") == [("second",)]
+
+
+def test_a_set_that_waits_its_turn_stops_waiting_when_a_migration_is_seen_to_hold_the_lock(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A tool does not wait for a migration (it may take minutes): the note that appears while the set waits ends the wait at once, with the migration's sentence."""
+    monkeypatch.setattr(dbcmd, "WRITE_WAIT_MS", 60_000)
+    other = InstanceLock(data, MIGRATE_LOCK_NAME)
+    other.acquire()
+    note = threading.Timer(0.2, (data / MIGRATING_NAME).write_text, ("migrating\n",))      # (the daemon's note, written just after its lock)
+    note.start()
+    began = time.monotonic()
+    try:
+        capsys.readouterr()
+        assert db("set", "station/comment", "beside the migration", data=data) == 1
+        assert time.monotonic() - began < 5, "not the minute of the wait"
+        assert "NeoAPRS is bringing it up to date now" in capsys.readouterr().err
+    finally:
+        note.join()
+        other.release()
+    assert rows_of(data, "SELECT value FROM settings WHERE key = 'station/comment'") == []
+
+
+def test_a_restore_while_set_writes_is_refused_so_that_the_setting_does_not_land_in_the_file_put_aside(data: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """From before the open (which may migrate the file) to after the close: on POSIX a rename goes through under an open file, and the set would go on in the file put aside."""
+    (data / "backup").mkdir()
+    source = sqlite3.connect(data / DB_NAME)
+    source.execute("VACUUM INTO ?", (str(data / "backup" / "mine.sqlite"),))           # (a copy this NeoAPRS can open)
+    source.close()
+    refusals: list[str] = []
+    store_setting = dbcmd.store_setting
+
+    async def beside(*args: Any) -> int:
+        try:
+            backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
+        except backupfolder.RestoreRefused as e:
+            refusals.append(str(e))
+        return await store_setting(*args)
+
+    monkeypatch.setattr(dbcmd, "store_setting", beside)
+    assert db("set", "station/comment", "kept", data=data) == 0
+    assert refusals == ["NeoAPRS is writing to the database or bringing it up to date now: try again when that is done"]
+    assert rows_of(data, "SELECT value FROM settings WHERE key = 'station/comment'") == [("kept",)] and not list(data.glob("neoaprs-set-aside-*"))
+
+
 def test_a_database_of_a_newer_version_is_read_but_never_written(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
     user_version(data, SCHEMA_VERSION + 1)
     assert db("get", "station/call", data=data) == 0
@@ -205,6 +316,21 @@ def test_radios_lists_each_radio_by_its_name_with_its_own_settings_and_whether_e
     assert own["radio/1/port"] == ["/dev/ttyUSB0", "stored"] and own["radio/1/baud"] == ["default"] and own["radio/2/keying"] == ["vox", "stored"]
     assert own[f"radio/{third}/tcp_host"] == ["10.0.0.9", "stored"] and own[f"radio/{third}/tcp_port"] == ["8001", "default"]
     assert [key for key in own if key.startswith("radio/1/")][:2] == ["radio/1/port", "radio/1/baud"], "in the order the type lists them"
+
+
+def test_radios_lists_a_radios_type_fields_and_of_its_kinds_other_fields_only_a_value_it_keeps_from_a_type_it_had(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    folder = tmp_path / "kiss"
+    assert db("radios", "add", "kiss", data=folder) == 0
+    capsys.readouterr()
+    assert db("radios", data=folder) == 0
+    keys = [line.split()[0] for line in capsys.readouterr().out.splitlines() if line.startswith("  radio/")]
+    assert keys == [f"radio/1/{f.key}" for f in type_of("kiss").fields], "a KISS radio lists its type's fields alone: no sound card, keying or gain of the Sound card type, no server of KISS over TCP"
+    connection = sqlite3.connect(folder / DB_NAME, isolation_level=None)
+    put_radio_settings(connection, 1, {"tcp_host": "10.0.0.9"})
+    connection.close()
+    assert db("radios", data=folder) == 0
+    own = {line.split()[0]: line.split()[1:] for line in capsys.readouterr().out.splitlines() if line.startswith("  radio/")}
+    assert own["radio/1/tcp_host"] == ["10.0.0.9", "stored"] and "radio/1/tcp_port" not in own and "radio/1/sound_card" not in own, "a value kept from a type it had is listed, a default of another type is not"
 
 
 def test_radios_on_a_database_without_radios_says_the_station_has_none_yet_and_how_to_add_one(data: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -374,9 +500,11 @@ def test_the_port_the_search_found_is_set_in_radio_1s_own_state_row_once_the_rad
 def test_set_refuses_the_rows_the_daemon_keeps_each_radios_own_and_the_two_of_before_and_writes_none(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
     before = rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key")
     capsys.readouterr()
-    for key in ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/1/last_port", "radio/3/last_port", "beacon/last_sent_at", "hf/beacon_last_sent_at", "status/last_sent_at"):
+    for key in ("radio/1/beacon_last_sent_at", "radio/2/beacon_last_sent_at", "radio/1/last_port", "beacon/last_sent_at", "hf/beacon_last_sent_at", "status/last_sent_at"):
         assert db("set", key, "2026-11-14T10:00:00Z", data=stored) == 2, key
         assert capsys.readouterr().err.strip().startswith(f"neoaprs db: {key}: kept by the daemon ("), key
+    assert db("set", "radio/2/last_port", "/dev/ttyUSB9", data=stored) == 2
+    assert capsys.readouterr().err.strip() == "neoaprs db: radio/2/last_port: a radio of the kind hf has no such setting", "only radio 1 remembers a port: radio 2's is no row of anything"
     assert rows_of(stored, "SELECT key, value, rev FROM settings ORDER BY key") == before, "nothing written"
     assert db("set", "radio/1/last_port", "/dev/ttyUSB9", data=stored) == 2 and capsys.readouterr().err.strip().endswith("; db set serial/last_port sets it"), "radio 1's is told the setting that sets it"
     assert db("set", "serial/last_port", "/dev/ttyUSB9", data=stored) == 0, "the setting of the port found is still set, in radio 1's own row"

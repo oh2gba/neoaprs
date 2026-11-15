@@ -157,7 +157,7 @@ export const messages = {
   "pathbuilder.seen_next": { one: "Next to {call} in the routes of {n} station", other: "Next to {call} in the routes of {n} stations" },
   "pathbuilder.add_hop": "Add {call}",
 
-  "compose.tnc_not_connected": "The TNC is not connected",
+  "compose.tnc_not_connected": "The radio is not connected",
   "compose.left": "{n} left",
   "compose.over": "{n} over",
   "compose.left_title.bytes": "{left} of {max} bytes left",

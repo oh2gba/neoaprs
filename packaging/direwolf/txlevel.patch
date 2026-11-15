@@ -1,0 +1,48 @@
+--- a/src/direwolf.c
++++ b/src/direwolf.c
+@@ -207,9 +207,9 @@
+ static struct misc_config_s misc_config;
+ 
+ 
+-static const int audio_amplitude = 100;	/* % of audio sample range. */
++static int audio_amplitude = 100;	/* % of audio sample range. */
+ 					/* This translates to +-32k for 16 bit samples. */
+-					/* Currently no option to change this. */
++					/* NeoAPRS: -G pct sets it, 1 to 100 (packaging/direwolf/txlevel.patch). */
+ 
+ static int d_u_opt = 0;			/* "-d u" command line option to print UTF-8 also in hexadecimal. */
+ static int d_p_opt = 0;			/* "-d p" option for dumping packets over radio. */				
+@@ -465,7 +465,7 @@
+ 
+ 	  /* ':' following option character means arg is required. */
+ 
+-          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:Q",
++          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:QG:",
+                         long_options, &option_index);
+           if (c == -1)
+             break;
+@@ -778,6 +778,16 @@
+ 	    i_opt = atoi(optarg);
+             break;
+ 
++	  case 'G':			// NeoAPRS: -G pct, the transmit level as a percentage of full scale (packaging/direwolf/txlevel.patch)
++
++	    audio_amplitude = atoi(optarg);
++	    if (audio_amplitude < 1 || audio_amplitude > 100) {
++	      text_color_set(DW_COLOR_ERROR);
++	      dw_printf ("Transmit level -G must be 1 to 100.\n");
++	      exit (EXIT_FAILURE);
++	    }
++	    break;
++
+ 	  case 'Q':			// NeoAPRS: -Q, end cleanly at the end of standard input (packaging/direwolf/quit.patch)
+ 
+ 	    Q_opt = 1;
+@@ -1818,6 +1828,7 @@
+ #endif
+ 	dw_printf ("    -x             Send Xmit level calibration tones.\n");
+ 	dw_printf ("    -Q             Exit cleanly at the end of standard input.\n");
++	dw_printf ("    -G pct         Transmit level, 1 to 100 percent of full scale.\n");
+ 	dw_printf ("       a             a = Alternating mark/space tones.\n");
+ 	dw_printf ("       m             m = Steady mark tone (e.g. 1200Hz).\n");
+ 	dw_printf ("       s             s = Steady space tone (e.g. 2200Hz).\n");

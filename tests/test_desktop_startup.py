@@ -1,6 +1,6 @@
 """The desktop app's start: the window is made at once with the loading page (neoaprs/desktop/loading.py), the daemon is started without waiting for it and the toolkit is looked for while it comes up,
 and the window goes to the daemon's page when it answers (polled every 0.05 s), or closes with the words the app has always said when no page comes. `neoaprs app` with the scripted shell of
-tests/support/fakeshell.py on a slow daemon in virtual time (the wait's clock and sleep are the test's), and the Windows shell against the stand-ins of tests/test_desktop_winshell.py; the Qt shell's
+tests/support/fakeshell.py on a slow daemon in virtual time (the wait's clock and sleep are the test's), and the Windows shell against the stand-ins of tests/test_desktop_webshell.py; the Qt shell's
 part is in tests/test_desktop_qt.py."""
 import re
 import subprocess
@@ -13,14 +13,14 @@ from typing import Any
 import pytest
 
 from neoaprs.cli import opencmd
-from neoaprs.desktop import cmd, loading, session, winshell
+from neoaprs.desktop import cmd, loading, session, webshell
 from neoaprs.desktop.menu import OPEN_LABEL
 from neoaprs.desktop.session import Daemon, NoPage, Opening, Session
 from neoaprs.desktop.shell import Choice, Launch
 from neoaprs.desktop.single import SingleApp
 from tests.support import fakeshell
 from tests.test_desktop_logic import PAGE
-from tests.test_desktop_winshell import FakeMenu, Rig, until
+from tests.test_desktop_webshell import FakeMenu, Rig, until
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -204,7 +204,7 @@ def pending(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[R
     codes: list[int] = []
 
     def go() -> threading.Thread:
-        thread = threading.Thread(target=lambda: codes.append(winshell.run(launch)), daemon=True)
+        thread = threading.Thread(target=lambda: codes.append(webshell.run(launch)), daemon=True)
         thread.start()
         until(lambda: rig.toolkits.started)
         return thread
@@ -268,4 +268,4 @@ def test_the_dark_scheme_of_windows_is_read_where_its_settings_keep_it() -> None
             return Key(value)
         return types.SimpleNamespace(HKEY_CURRENT_USER="HKCU", OpenKey=open_key, QueryValueEx=lambda key, name: (key.value, 4))
 
-    assert winshell.dark_scheme(registry(0)) is True and winshell.dark_scheme(registry(1)) is False and winshell.dark_scheme(registry(None)) is False
+    assert webshell.dark_scheme(registry(0)) is True and webshell.dark_scheme(registry(1)) is False and webshell.dark_scheme(registry(None)) is False

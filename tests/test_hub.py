@@ -221,6 +221,24 @@ def test_a_page_that_is_behind_is_sent_no_patch_and_the_whole_topic_when_it_has_
     assert slow.frames[-1]["type"] == "patch" and slow.frames[-1]["rev"] == 3, "patches again"
 
 
+def test_a_page_that_was_behind_is_sent_the_topics_it_missed_in_the_order_of_the_hello() -> None:
+    """The whole of each topic it missed, in the order the hub has them (as a page that opens is sent them: the radios before the settings), not by name."""
+    hub, rows = StateHub(clock=Seconds()), {"a": {"n": 1}}
+    for name in ("zebra", "rows", "alpha"):
+        hub.add(Topic(name, lambda: dict(rows), rows.get))
+    page = Page()
+    hub.attach(page)
+    assert [f["topic"] for f in page.frames] == ["zebra", "rows", "alpha"]
+    page.frames.clear()
+    page.held = BEHIND + 1
+    for name in ("alpha", "zebra", "rows"):
+        hub.changed(name, "a")
+    hub.flush()
+    page.held = 0
+    hub.flush()
+    assert [(f["type"], f["topic"]) for f in page.frames] == [("state", "zebra"), ("state", "rows"), ("state", "alpha")]
+
+
 def test_a_socket_that_cannot_say_how_much_it_holds_is_behind() -> None:
     hub, rows, _ = hub_of()
 

@@ -23,7 +23,8 @@ def has_adapter(path: str) -> bool:
 
 
 class AdapterFollow:
-    def __init__(self) -> None:
+    def __init__(self, label: Callable[[], str] = lambda: "tnc") -> None:
+        self._label = label                                              # what the log calls the radio (Tnc.label)
         self._adapter: serialprobe.AdapterId | None = None
         self._learnt_for: tuple[str, ...] = ()                           # the paths the adapter was found at: the one that was named and the one that opened
 
@@ -38,16 +39,20 @@ class AdapterFollow:
         """Whether the adapter behind the port has been learnt (the memory is made a moment after the port opens)."""
         return self._remembered(path) is not None
 
-    async def open(self, path: str, named: bool, opener: Callable[[str], Awaitable[Port]], note: Callable[[str], None]) -> tuple[Port, str]:
-        """`opener(path)`; for a named adapter that cannot be opened and is at another port now, `opener` of that port. The port opened, and its path. Raises SerialError. Nothing is awaited once a port is open."""
+    async def open(self, path: str, named: bool, opener: Callable[[str], Awaitable[Port]], note: Callable[[str], None], taken: Callable[[str], str] = lambda path: "") -> tuple[Port, str]:
+        """`opener(path)`; for a named adapter that cannot be opened and is at another port now, `opener` of that port, unless that port is another radio's (`taken`: why it is, "" when it is not). The port
+        opened, and its path. Raises SerialError. Nothing is awaited once a port is open."""
         try:
             return await opener(path), path
         except SerialError:
             moved = await asyncio.to_thread(serialprobe.moved_to, self._remembered(path), path) if self.following(path, named) else None
             if moved is None:
                 raise
+            if why := taken(moved):
+                log.info("%s: %s is gone; an adapter like it is on %s, which is left alone: %s", self._label(), path, moved, why)
+                raise
         note(f"{path} is gone; the adapter is on {moved}")
-        log.warning("tnc: %s is gone; the adapter is on %s", path, moved)
+        log.warning("%s: %s is gone; the adapter is on %s", self._label(), path, moved)
         return await opener(moved), moved
 
     async def remember(self, asked: str, where: str) -> None:

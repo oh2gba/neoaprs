@@ -98,7 +98,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.category": "Dê a um objeto uma categoria para oferecê-lo às estações que pedem info local.",
   "objects.tip.category_code": "Sua própria categoria: até {max} letras ou dígitos, não INFO nem NEXT. As estações pedem por esta palavra.",
   "objects.tip.on_request": "Não é enviado em baliza; só vai para a estação que pede info local.",
-  "objects.sent_on": "Sent on radio {name}",
+  "objects.sent_on": "Enviado pelo rádio {name}",
 
   "objects.problem.name_chars": "Sem espaço nas pontas, nem ! _ | ~",
   "objects.problem.at_most": "No máximo {max} caracteres",

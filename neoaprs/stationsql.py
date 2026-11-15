@@ -53,8 +53,3 @@ def put_station_path(db: sqlite3.Connection, call: str, radio_id: int, path: str
 def clear_station_path(db: sqlite3.Connection, call: str, radio_id: int) -> int:
     """Removes the path of the station on the radio; how many rows it found (0 or 1)."""
     return db.execute("DELETE FROM station_path WHERE call = ? AND radio_id = ?", (call, radio_id)).rowcount
-
-
-def clear_station_paths(db: sqlite3.Connection, call: str) -> int:
-    """Removes the paths of the station on every radio; how many rows."""
-    return db.execute("DELETE FROM station_path WHERE call = ?", (call,)).rowcount

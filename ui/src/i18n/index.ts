@@ -81,6 +81,11 @@ export function formatNumber(n: number, digits?: number): string {
   return numberText(n, tag(), digits);
 }
 
+/** Names in a row as the language lists them: "FM and HF", "FM、HF". */
+export function listText(names: readonly string[]): string {
+  return new Intl.ListFormat(tag(), { type: "conjunction" }).format(names);
+}
+
 /** The short name of the weekday of a date, in the viewer's time: "Mon". */
 export function weekdayShort(date: Date): string {
   return new Intl.DateTimeFormat(tag(), { weekday: "short" }).format(date);

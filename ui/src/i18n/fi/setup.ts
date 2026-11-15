@@ -17,7 +17,6 @@ export const setup: Record<keyof typeof source, Message> = {
   "setup.finish": "Valmis",
 
   "setup.call.label": "Kutsusi",
-  "setup.port_automatic": "Automaattinen",
   "setup.symbols": "Symbolit",
   "setup.symbol.house": "Talo",
   "setup.symbol.car": "Auto",

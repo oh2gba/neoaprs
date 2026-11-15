@@ -7,13 +7,16 @@ import logging
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 
-from neoaprs.claims import Claims
+from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.cli.redaction import shown_value
 from neoaprs.config import BY_KEY, Config, SettingError, radio_key_of
 from neoaprs.configradios import flat_moved
+from neoaprs.mercurycards import stable_alsa_id
+from neoaprs.mercuryhelper import alsa_card_names
 from neoaprs.radiospec import RadioError, RadioId, RadioSpec, log_name
 from neoaprs.radiotype import ResourceKind
 from neoaprs.radiotypes import kind_field
+from neoaprs.serialprobe import claim_value
 
 from .access import LOCAL_ONLY
 from .configwire import SetConfig
@@ -34,11 +37,17 @@ def shown(key: str, value: str) -> str:
     return text or "(empty)"
 
 
+def local_only(key: str) -> bool:
+    """Whether the key is one of LOCAL_ONLY; a radio's own key (`radio/<id>/<key>`) is one as `radio/*/<key>`, whatever the radio."""
+    own = radio_key_of(key)
+    return key in LOCAL_ONLY or (own is not None and f"radio/*/{own[1]}" in LOCAL_ONLY)
+
+
 def refuse_from_afar(conn: Connection, keys: Iterable[str]) -> None:
-    """A SettingError for the first of `keys` that is one of LOCAL_ONLY, when the page is not on this computer itself; nothing for a page that is."""
+    """A SettingError for the first of `keys` that is one of LOCAL_ONLY (`local_only`), when the page is not on this computer itself; nothing for a page that is."""
     if conn.local:
         return
-    key = next((k for k in keys if k in LOCAL_ONLY), None)
+    key = next((k for k in keys if local_only(k)), None)
     if key is not None:
         log.warning("a page of another device (%s) was refused %s: it is set on this computer itself", conn.ip, key)
         raise SettingError(key, "setting.local_only", {}, f"{key}: only a page on the computer NeoAPRS runs on can do this")
@@ -48,7 +57,7 @@ def no_radio(key: str, id: RadioId, specs: Sequence[RadioSpec]) -> SettingError:
     """`radio.unknown` for the key: a radio the settings keep as removed is said to be removed, with its `name` and `removed` 1; any other is "there is no radio N"."""
     removed = removed_name(id, specs)
     if removed is not None:
-        return SettingError(key, "radio.unknown", {"radio": id, "name": removed, "removed": 1}, f"{key}: the {removed} radio is removed")
+        return SettingError(key, "radio.unknown", {"radio": id, "name": removed, "removed": 1}, f"{key}: radio {removed} is removed")
     return SettingError(key, "radio.unknown", {"radio": id}, f"{key}: there is no radio {id}")
 
 
@@ -86,7 +95,7 @@ def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
             raise no_radio(key, id, base.radios)
         if (own_field := kind_field(spec.kind, field)) is None:
             name = log_name(spec, base.radios)
-            raise SettingError(key, "radio.no_setting", {"name": name, "radio": id}, f"{key}: the {name} radio has no such setting")
+            raise SettingError(key, "radio.no_setting", {"name": name, "radio": id}, f"{key}: radio {name} has no such setting")
         try:
             value = Config.check_radio(spec, field, text)
         except RadioError as e:
@@ -97,29 +106,65 @@ def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
     return replace(base, radios=radios)
 
 
-def _holder(spec: RadioSpec, kind: ResourceKind, value: str, after: Config, claims: Claims, moved: set[RadioId]) -> tuple[str, RadioId] | None:
-    """Who else holds the device once the save is in force, by name and id (`GPS` and 0 for the GPS receiver): another radio that is on and names it in its settings, else whoever holds it in the station's table now
-    (a radio this save changes is judged by its new settings alone, so that two radios can swap their devices in one save); None for nobody."""
+def _gps_device(config: Config) -> str:
+    """The GPS receiver's serial device as the station's table holds it; "" when the GPS reads none (gps/source is not serial, or its device is a TCP address)."""
+    return (claim_value(config.gps_device) or "") if config.gps_source == "serial" else ""
+
+
+def _same(kind: ResourceKind, a: str, b: str, names: Mapping[int, str]) -> bool:
+    """Whether two values name one device: a sound card by its number or by its name is one card (`plughw:1,0` and `plughw:CARD=CODEC,DEV=0` while card 1 is CODEC), as a Mercury holds it (mercuryclaims)."""
+    return a == b or (kind == "sound_card" and stable_alsa_id(a, names) == stable_alsa_id(b, names))
+
+
+def _holder(spec: RadioSpec, kind: ResourceKind, value: str, after: Config, claims: Claims, moved: set[RadioId | None], names: Mapping[int, str]) -> tuple[str, RadioId] | None:
+    """Who else holds the device once the save is in force, by name and id (`GPS` and 0 for the GPS receiver): another radio that is on and names it in its settings, the GPS receiver that reads it, else whoever
+    holds it in the station's table now (a radio, or the GPS, this save changes is judged by its new settings alone, so that two radios can swap their devices in one save); None for nobody. `names` are ALSA's
+    names of the sound cards (alsa_card_names), so that a card named by its number and by its name is one card."""
     for other in after.enabled_radios:
-        if other.id != spec.id and any(one_device(k, kind) and v == value for _, k, v in devices(other)):
+        if other.id != spec.id and any(one_device(k, kind) and _same(kind, v, value, names) for _, k, v in devices(other)):
             return log_name(other, after.radios), other.id
-    held = next((c for c in claims.all() if c.holder != spec.id and c.holder not in moved and c.value == value and one_device(c.kind, kind)), None)
+    if one_device(kind, "gps") and value == _gps_device(after):
+        return "GPS", 0
+    held = next((c for c in claims.all() if c.holder != spec.id and c.holder not in moved and _same(kind, c.value, value, names) and one_device(c.kind, kind)), None)
     return None if held is None else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
 
 
 def refuse_held(before: Config, after: Config, claims: Claims) -> None:
     """A SettingError (`radio.resource_held`, with the kind of device and the holder's name) when a save names for a radio a device another radio or the GPS receiver holds, or another radio that is on is set
-    to (a port, a sound card, a keying line); a device a radio named before the save is not looked at again. The key is the radio's own (`radio/<id>/<key>`)."""
-    moved = {s.id for s in after.radios if (was := before.radio(s.id)) is None or (was.type, was.enabled, was.removed, dict(was.settings)) != (s.type, s.enabled, s.removed, dict(s.settings))}
+    to (a port, a sound card, a keying line), or the GPS receiver reads; a device a radio named before the save is not looked at again. The key is the radio's own (`radio/<id>/<key>`); a new device of the GPS
+    receiver that a radio is set to or holds is refused under `gps/device`, with that radio as the holder."""
+    moved: set[RadioId | None] = {s.id for s in after.radios if (was := before.radio(s.id)) is None or (was.type, was.enabled, was.removed, dict(was.settings)) != (s.type, s.enabled, s.removed, dict(s.settings))}
+    if (gps := _gps_device(after)) != _gps_device(before):
+        moved.add(None)                                                  # (the GPS receiver this save changes: judged by its new device alone)
+        if gps and (found := _gps_holder(gps, after, claims, moved)) is not None:
+            raise SettingError("gps/device", "radio.resource_held", {"resource": "gps", "holder": found[0], "held_by": found[1]}, f"gps/device: that device is in use by {found[0]}: choose another")
+    names = alsa_card_names()                                            # (read once: a sound card is one card by its number or its name)
     for spec in after.live_radios:
         was = before.radio(spec.id)
         had = set() if was is None else {(key, value) for key, _, value in devices(was)}
         for field, kind, value in devices(spec) if spec.id in moved else ():
-            if (field, value) in had or (found := _holder(spec, kind, value, after, claims, moved)) is None:
+            if (field, value) in had or (found := _holder(spec, kind, value, after, claims, moved, names)) is None:
                 continue
             holder, held_by = found
             key = f"radio/{spec.id}/{field}"
-            raise SettingError(key, "radio.resource_held", {"resource": kind, "holder": holder, "held_by": held_by}, f"{key}: that device is in use by {holder}: choose another")
+            by = "the GPS receiver" if held_by == 0 else f"radio {holder}"      # (the GPS receiver holds it as 0)
+            raise SettingError(key, "radio.resource_held", {"resource": kind, "holder": holder, "held_by": held_by}, f"{key}: the device is in use by {by}: choose another")
+
+
+def _gps_holder(gps: str, after: Config, claims: Claims, moved: set[RadioId | None]) -> tuple[str, RadioId] | None:
+    """The radio that is on and is set to the GPS receiver's new device, else the one that holds it in the station's table now and that this save does not change; None for none."""
+    for other in after.enabled_radios:
+        if any(one_device(k, "gps") and v == gps for _, k, v in devices(other)):
+            return log_name(other, after.radios), other.id
+    held = next((c for c in claims.all() if c.holder is not None and c.holder not in moved and c.value == gps and c.kind in PORT_KINDS), None)
+    return None if held is None or held.holder is None else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
+
+
+def _own_value(config: Config, key: str) -> str | None:
+    """The radio's own setting the key names (`radio/<id>/<key>`) as these settings have it, its kind's default where it has none of its own; None for a radio they do not have."""
+    id, field = radio_key_of(key) or (0, "")
+    spec = config.radio(id)
+    return None if spec is None else spec.settings.get(field, getattr(kind_field(spec.kind, field), "default", None))
 
 
 def _main_radio(base: Config, config: Config) -> Config:
@@ -148,7 +193,7 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
         if "station/main_radio" in flat:
             _main_radio(base, after)
         refuse_held(base, after, ctx.ctl.radios.claims)
-        refuse_from_afar(ctx.conn, base.changed(after))
+        refuse_from_afar(ctx.conn, [*base.changed(after), *(key for key in own if _own_value(base, key) != _own_value(after, key))])
         return after
 
     try:

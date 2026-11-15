@@ -15,16 +15,19 @@ describe("App", () => {
     const socket = FakeSocket.last();
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0);
     socket.say(hello());
+    await flushPromises();
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(0); // (not before the daemon has told its radios)
+    socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow()) });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports")).toHaveLength(1);
-    expect(wrapper.text()).not.toContain("Not connected to the daemon");
+    expect(wrapper.text()).not.toContain("there is no connection to NeoAPRS");
   });
 
   it("says Daemon: connecting… in the header while the socket opens, then Daemon and Radio; the header has the title and not our call, and the panel has no footer", async () => {
     const wrapper = mountApp();
     await flushPromises();
-    expect(wrapper.find(".appheader .pill-daemon").text()).toBe("Server: connecting…");
+    expect(wrapper.find(".appheader .pill-daemon").text()).toBe("NeoAPRS: connecting…");
     expect(wrapper.find(".appheader .pill-daemon").classes()).toContain("tag-warn");
     const socket = FakeSocket.last();
     socket.say(hello());
@@ -32,7 +35,7 @@ describe("App", () => {
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Radio"]);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2GBA");
     expect(wrapper.find(".appheader a").attributes("href")).toBe("https://neo.oh2gba.eu/");
     expect(wrapper.find(".panelfoot").exists()).toBe(false);
@@ -58,7 +61,7 @@ describe("App", () => {
     socket.say({ type: "state", topic: "radios", rev: 2, value: radiosValue(fmRow()) });
     await flushPromises();
     expect(mark().text()).toBe("Radio");
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Radio"]);
   });
 
   it("says Daemon: offline in orange when the socket closes, with the radio unknown meanwhile, and connects again", async () => {
@@ -67,7 +70,7 @@ describe("App", () => {
     socket.hangUp();
     await flushPromises();
     const daemon = wrapper.find(".appheader .pill-daemon");
-    expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["Server: offline", true]);
+    expect([daemon.text(), daemon.classes().includes("tag-bad")]).toEqual(["NeoAPRS: offline", true]);
     expect(wrapper.find(".appheader .pill-radio").text()).toBe("Radio: waiting…");
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
@@ -78,12 +81,15 @@ describe("App", () => {
     const wrapper = mountApp();
     await flushPromises();
     const first = FakeSocket.last();
+    // (each frame is a task of its own in a browser: the page's watchers run between them)
     first.say(hello());
+    await flushPromises();
     first.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow(), hfRow()) });
+    await flushPromises();
     first.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     const asks = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports");
-    expect(asks(first).at(-1)).toEqual({ cmd: "list_ports", radio: 2 });
+    expect(asks(first)).toEqual([{ cmd: "list_ports", radio: 2 }]);
     vi.useFakeTimers();
     first.hangUp();
     await flushPromises();

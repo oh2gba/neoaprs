@@ -72,7 +72,8 @@ def radios_from_flat(config: FlatRadios) -> tuple[RadioSpec, ...]:
     fm = {"port": config.serial_port, "baud": stored_text(config.serial_baud), "tcp_host": config.tcp_host, "tcp_port": stored_text(config.tcp_port),
           "beacon": "true", "path": config.beacon_path, "digipeat": stored_text(config.digi_enabled)}
     hf = {"sound_card": config.mercury_sound_card, "keying": config.mercury_keying, "tx_gain_db": stored_text(config.mercury_tx_gain_db), "beacon": "true"}
-    return (RadioSpec(FM_ID, "fm", config.tnc_profile, "", config.fm_enabled, 1, settings=fm), RadioSpec(HF_ID, "hf", config.hf_profile, "", config.hf_enabled, 2, settings=hf))
+    flat = (RadioSpec(FM_ID, "fm", config.tnc_profile, "", config.fm_enabled, 1, settings=fm), RadioSpec(HF_ID, "hf", config.hf_profile, "", config.hf_enabled, 2, settings=hf))
+    return tuple(replace(spec, settings={**{f.key: f.default for f in kind_fields(spec.kind)}, **spec.settings}) for spec in flat)      # (the kind's other fields, which no flat key holds, at their defaults)
 
 
 def radios_from_rows(rows: Iterable[Sequence[Any]], settings: Iterable[Sequence[Any]]) -> tuple[RadioSpec, ...]:

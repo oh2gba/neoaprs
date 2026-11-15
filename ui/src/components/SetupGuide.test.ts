@@ -32,6 +32,7 @@ const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],
+  radio: null,
   ...extra,
 });
 /** A station of radio 1 alone, a serial TNC. */
@@ -771,6 +772,21 @@ describe("SetupGuide: the radio, on a station with no radio (a fresh installatio
     await tell(daemon, { radioAdded: { type: "radio_added", id: 4 }, radios: radiosTopic(radioRow(4, "kiss")) }); // (added from elsewhere: the guide does not lead to it)
     await flushPromises();
     expect(document.activeElement?.id).not.toBe("setup-radio-4-enabled");
+  });
+
+  it("waits for the radio it adds, not for a change of the row of one it added before and is removed since", async () => {
+    const gone = (name: string) => radioRow(4, "kiss", { removed: true, enabled: false, state: "stopped", name });
+    const { wrapper, stand, daemon } = make({ radios: radiosTopic(gone("Old")) });
+    await stand(3);
+    await tell(daemon, { radioAdded: { type: "radio_added", id: 4 } }); // (added before, and removed since)
+    expect(legends(wrapper)).toEqual(["New radio"]);
+    await wrapper.find("#setup-radio-add").setValue("kiss");
+    await wrapper.find("#setup-radio-add-button").trigger("click");
+    await tell(daemon, { radios: radiosTopic(gone("Older")) });
+    await flushPromises();
+    await tell(daemon, { radioAdded: { type: "radio_added", id: 5 }, radios: radiosTopic(gone("Older"), radioRow(5, "kiss", { number: 2 })) });
+    await flushPromises();
+    expect(document.activeElement?.id).toBe("setup-radio-5-type");
   });
 });
 

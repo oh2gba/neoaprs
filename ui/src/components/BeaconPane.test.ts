@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BeaconPane from "@/components/BeaconPane.vue";
+import { t } from "@/i18n";
 import type { RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
@@ -810,8 +811,23 @@ describe("BeaconPane with several radios", () => {
 
     it("with one radio, is off without the link and says so as Send does", () => {
       const { wrapper } = pane({ "status/source": "text" }, { connected: false });
-      expect(buttons(wrapper).map((button) => button.attributes("title"))).toEqual(["The TNC is not connected", "The TNC is not connected"]);
+      expect(buttons(wrapper).map((button) => button.attributes("title"))).toEqual(["The radio is not connected", "The radio is not connected"]);
       expect(buttons(pane({ "status/source": "text" }).wrapper).map((button) => button.attributes("title"))).toEqual([undefined, undefined]);
+    });
+
+    it("with one radio that sends beside one that only listens, is off while the one that sends is not connected, whatever the other is", async () => {
+      const text = (extra: Partial<RadioRow> = {}) => radioRow(3, "tnc-text", { number: 2, ...extra });
+      const { wrapper, daemon } = radiosPane([FM({ state: "waiting" }), text()], { "status/source": "text" });
+      const words = t("compose.tnc_not_connected"); // (the words of Send's title with one radio)
+      expect(buttons(wrapper).map((button) => [button.attributes("disabled") !== undefined, button.attributes("title")])).toEqual([
+        [true, words],
+        [true, words],
+      ]);
+      await tell(daemon, { radios: radiosTopic(FM(), text({ state: "waiting" })) });
+      expect(buttons(wrapper).map((button) => [button.attributes("disabled") !== undefined, button.attributes("title")])).toEqual([
+        [false, undefined],
+        [false, undefined],
+      ]);
     });
   });
 

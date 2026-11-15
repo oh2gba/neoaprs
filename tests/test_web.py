@@ -194,7 +194,7 @@ async def test_list_ports_is_answered_with_the_ports_of_the_machine_and_whether_
     await page.send({"cmd": "list_ports"})
     assert await page.expect("ports") == {"type": "ports", "search": False, "find": True, "ports": [
         {"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001", "vid": 1027, "pid": 24577, "held_by": None},
-        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": ""}
+        {"device": "COM4", "description": "Bluetooth", "hwid": "BTHENUM", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": "", "radio": None}
     monkeypatch.setattr(web_handlers, "available_ports", lambda: [])
     await page.send({"cmd": "list_ports"})
     await page.until(lambda: len(page.of("ports")) == 2)

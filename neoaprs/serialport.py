@@ -38,6 +38,14 @@ class SerialError(Exception):
     """The port could not be opened, or read, or written; the text is the system's words."""
 
 
+class HeldError(SerialError):
+    """The port is held by another radio of the station, or by the GPS receiver (the station's table, claims.py): the radio waits for it, and does not look for another port meanwhile."""
+
+
+class NotChosenError(SerialError):
+    """The radio has no port or address to open and is not looked for: only a change of its settings (which restarts it) can change that, so it is not tried again meanwhile."""
+
+
 def normalize(path: str) -> str:
     """The port as pyserial opens it: `tcp://host:port`, which is what people type for a KISS TCP port, is `socket://host:port`."""
     path = path.strip()
@@ -112,6 +120,30 @@ def _keep_alive(ser: Any) -> None:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         except OSError as e:
             log.debug("keep-alive not set: %s", os_error_text(e))
+            return
+        _keep_alive_times(sock)
+
+
+KEEP_IDLE_SEC, KEEP_INTERVAL_SEC, KEEP_COUNT = 60, 15, 4     # a TCP line quiet for a minute is asked whether its end is there, every 15 s, four times: a LoRa board that lost power is found gone in two minutes, not two hours
+
+
+def _keep_alive_times(sock: socket.socket) -> None:
+    """The system's keep-alive is asked to start after KEEP_IDLE_SEC of quiet and to give up after KEEP_COUNT probes KEEP_INTERVAL_SEC apart (the system's own default is two hours): a radio that only listens writes
+    nothing, so a board that went away without a word is found only by these. Each option the system has is set (macOS names the first TCP_KEEPALIVE); one it refuses is said in the debug log."""
+    idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
+    options = [(idle, KEEP_IDLE_SEC), (getattr(socket, "TCP_KEEPINTVL", None), KEEP_INTERVAL_SEC), (getattr(socket, "TCP_KEEPCNT", None), KEEP_COUNT)]
+    if sys.platform == "win32" and all(option is None for option, _ in options):     # (an older Windows has only the one call, which has no count)
+        try:
+            sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEP_IDLE_SEC * 1000, KEEP_INTERVAL_SEC * 1000))
+        except OSError as e:
+            log.debug("keep-alive times not set: %s", os_error_text(e))
+        return
+    for option, value in options:
+        if option is not None:
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, option, value)
+            except OSError as e:
+                log.debug("keep-alive time not set: %s", os_error_text(e))
 
 
 class _Handover:
@@ -271,6 +303,10 @@ class SerialPort:
             threading.Thread(target=_close_quietly, args=(line.ser,), name=f"serial-close {self.path}", daemon=True).start()
         else:
             _close_quietly(line.ser)
+
+    def let_go(self) -> None:
+        """Closed for a radio whose settings name the port (tncsearch.let_go): a search of this process, or Find my radio, that has it open gives it up at once."""
+        self.close()
 
     def write(self, data: bytes) -> int:
         """Hands `data` to the writer thread, which writes it in order; returns at once. A line that does not take it (it fails, or the write times out) is lost a moment later, like a read that fails."""

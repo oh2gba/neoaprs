@@ -164,6 +164,7 @@ def test_a_station_of_another_world_answers_under_its_own_call_and_its_digipeate
     assert any(str(f.source) == ME and str(f.path[0]) == "Q4DIG-2*" for f in heard), "our position, repeated by this world's digipeater"
     club = [f for f in heard if str(f.source) == "Q3CLB" and (f.info[:1] == b";" or b" de " in f.info)]
     assert len(club) >= 2 and any(f.info.endswith(b"de Q3CLB") for f in club) and not any(b"Q1CLB" in f.info for f in heard), "the QRU server is this world's club, in its words too"
+    assert [f.info[1:10].decode().strip() for f in club if f.info[:1] == b";"] == [name_of("Q1RPT", 3)] == ["Q1RPT3"], "its objects have this world's names, as the club's beaconed ones do: two Dummy radios put no object at two places"
 
 
 # ---- the seed is the radio's id

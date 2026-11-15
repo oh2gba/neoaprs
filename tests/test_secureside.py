@@ -3,6 +3,7 @@ told when the certificates cannot be made or loaded, a certificate that cannot b
 daemon is in tests/test_web_https.py."""
 import asyncio
 import ssl
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -69,6 +70,15 @@ async def test_a_library_that_fails_in_a_way_nobody_listed_is_a_problem_for_the_
     assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
     assert side.state == SecureState(False, 0, "", "the certificates could not be made: the library broke") and side.server is None and side.retry_sec == RETRY_SEC
     assert any("the secure connection is not working" in r.getMessage() for r in caplog.records) and any(r.exc_info for r in caplog.records)
+
+
+@pytest.mark.expects_errors
+async def test_a_cryptography_library_that_does_not_load_is_a_problem_for_the_page_and_the_plain_page_goes_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setitem(sys.modules, "neoaprs.web.tls", None)                   # (an install whose cryptography does not load: the import of neoaprs/web/tls.py fails)
+    side = made(tmp_path)
+    assert await side.follow(True, "127.0.0.1", PLAIN_PORT, factory) is True
+    assert side.state.on is False and side.state.problem == "the secure connection cannot be had in this installation" and side.server is None and side.retry_sec == RETRY_SEC
+    assert any("cannot be loaded" in r.getMessage() and r.exc_info for r in caplog.records)
 
 
 @pytest.mark.expects_errors

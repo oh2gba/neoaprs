@@ -22,13 +22,30 @@ from neoaprs.config import Config
 from neoaprs.message import EMAIL_GATEWAY, MessagingError, normal_path, path_choice
 from neoaprs.messagelog import MessageLog
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN, Alert, Pref
-from neoaprs.radiotype import FM_ID, RadioId
+from neoaprs.radiospec import RadioSpec
+from neoaprs.radiotype import FM_ID, RadioId, RadioTypeError
 from neoaprs.radiotypes import kind_field, recommended_path
 from neoaprs.route import Deliveries, automatic_path, rf_only_path
 from neoaprs.signal import Signal
 
 
 log = logging.getLogger("neoaprs.messaging")
+
+
+def _has_path(spec: RadioSpec) -> bool:
+    """Whether the radio's type has a "path" field (a type that is none: its kind's)."""
+    try:
+        return spec.rtype.field("path") is not None
+    except RadioTypeError:
+        return kind_field(spec.kind, "path") is not None
+
+
+def _recommended(spec: RadioSpec) -> str:
+    """The path its type recommends (a type that is none: its kind's)."""
+    try:
+        return spec.rtype.recommended_path
+    except RadioTypeError:
+        return recommended_path(spec.kind)
 
 
 class PathLog(Protocol):
@@ -100,14 +117,14 @@ class PrefBook:
 
     def _radio_path(self, radio_id: RadioId) -> tuple[str, ...]:
         """The radio's own path, for a station with none set on it: radio 1's (`Config.path_calls`) for radio 1, for a radio the settings do not have and for one of a kind that has no path setting (whether a
-        frame may carry a path on a radio is the fit's to say, services/radioset.py); else the radio's "path", which empty is the path its kind recommends (LoRa WIDE1-1), else the recommended path of the
+        frame may carry a path on a radio is the fit's to say, services/radioset.py); else the radio's "path", which empty is the path its type recommends (LoRa WIDE1-1), else the recommended path of the
         station's symbol, and DIRECT none."""
         config = self._config()
         spec = None if radio_id == FM_ID else config.radio(radio_id)
-        if spec is None or kind_field(spec.kind, "path") is None:
+        if spec is None or not _has_path(spec):
             return config.path_calls(FM_ID)
         chosen = path_choice(str(spec.value("path")))
-        return tuple(c for c in (recommended_path(spec.kind) or config.recommended_path).split(",") if c) if chosen is None else chosen
+        return tuple(c for c in (_recommended(spec) or config.recommended_path).split(",") if c) if chosen is None else chosen
 
     # ---- the path
     async def set_path(self, call: str, path: str, radio_id: RadioId = FM_ID) -> tuple[str, ...]:

@@ -140,7 +140,7 @@ class Scene:
         except MessageError:
             return
         if read.addressee == "QRU":
-            for after, reply in qru_answer(read.text, str(frame.source), now, self.where):
+            for after, reply in qru_answer(read.text, str(frame.source), now, self.where, lambda name: name_of(name, self.seed)):
                 self._put(now + timedelta(seconds=after), self._from_club(reply))
             return
         talker = next((a for a in self.actors if a.answers and a.call == read.addressee), None)

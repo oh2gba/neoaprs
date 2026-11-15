@@ -128,20 +128,22 @@ async def test_the_right_key_gives_a_session_cookie_that_opens_the_socket_and_th
     assert e.server is not None and len(e.server.api.clients) == 1
 
 
+class Request:
+    def __init__(self, value: str, protocol: str = "http") -> None:
+        from http.cookies import SimpleCookie
+        self.cookies = SimpleCookie()
+        self.cookies[COOKIE] = value
+        self.remote_ip = "192.168.1.30"
+        self.headers: dict[str, str] = {}
+        self.protocol = protocol
+
+
 async def test_a_session_is_kept_across_a_restart_and_ends_after_a_year_or_with_a_changed_token() -> None:
     clock = FixedClock()
     config = replace(DEFAULTS, web_network=True, web_key=KEY)
     first = Access(lambda: config, clock)
     token = first.session()
     assert KEY not in token and KEY.replace("-", "") not in token
-
-    class Request:
-        def __init__(self, value: str) -> None:
-            from http.cookies import SimpleCookie
-            self.cookies = SimpleCookie()
-            self.cookies[COOKIE] = value
-            self.remote_ip = "192.168.1.30"
-            self.headers: dict[str, str] = {}
 
     again = Access(lambda: config, clock)
     assert again.allowed(Request(token)) is True, "a session is not stored: another Access with the same key knows it"
@@ -152,6 +154,20 @@ async def test_a_session_is_kept_across_a_restart_and_ends_after_a_year_or_with_
     assert Access(lambda: replace(config, web_network=False), clock).allowed(Request(token)) is False, "and so does switching the network off"
     clock.advance(SESSION_DAYS * 86400 + 1)
     assert again.allowed(Request(token)) is False
+
+
+async def test_a_session_bought_over_plain_http_does_not_open_the_secure_page_and_one_bought_over_https_does() -> None:
+    """A cookie bought over plain http (perhaps read off the network) does not open the secure port once https is on: the device logs in there again. Plain http takes both."""
+    clock = FixedClock()
+    config = replace(DEFAULTS, web_network=True, web_https=True, web_key=KEY)
+    access = Access(lambda: config, clock)
+    plain, secure = access.session(), access.session(secure=True)
+    assert access.allowed(Request(plain, "https")) is False, "bought over http: refused on the secure port"
+    assert access.allowed(Request(secure, "https")) is True, "bought over https: taken there"
+    assert access.allowed(Request(plain, "http")) is True and access.allowed(Request(secure, "http")) is True, "plain http takes a session of the key as before"
+    body, _, mac = plain.rpartition(".")
+    assert access.allowed(Request(f"{body}.s.{mac}", "https")) is False and access.allowed(Request(f"{body}.x.{mac}", "http")) is False, "the mark is signed: adding it is no session"
+    assert access.allowed(Request(secure.replace(".s.", ".t.", 1), "https")) is False
 
 
 def test_wrong_keys_are_counted_for_each_address_and_forgotten_after_the_minute_or_a_right_key() -> None:

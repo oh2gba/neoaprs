@@ -31,9 +31,9 @@ export const stats = {
   "stats.direct_share": "Heard direct",
   "stats.rate": "Rate",
 
-  "stats.section.radio": "Since the daemon started",
+  "stats.section.radio": "Since NeoAPRS started",
   "stats.running": "Running for",
-  "stats.frames": "Frames from the TNC",
+  "stats.frames": "Frames from the radios",
   "stats.bytes": "Bytes in · out",
   "stats.digipeated": "Repeated for others",
   "stats.gated": "Put on the internet",

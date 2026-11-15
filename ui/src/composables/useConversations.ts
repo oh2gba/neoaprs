@@ -1,6 +1,8 @@
 // The conversations of the Messages tab: the messages grouped by the other station, which one is open, and how many messages the user has not seen. What was seen is the highest message id of
-// each conversation, kept in the browser (lib/storage.ts) per call: a conversation counts as seen while the Messages tab is on show with it open.
+// each conversation, kept in the browser (lib/storage.ts) per call: a conversation counts as seen while the Messages tab is on show with it open, and every one counts as seen once in a window whose
+// store was new (lib/firststart.ts).
 import { computed, ref, watch, type Ref } from "vue";
+import { seenAtStart } from "@/lib/firststart";
 import { conversations, newestIncomingByCall, newestIncomingId, threadOf, unreadTotal } from "@/lib/messages";
 import { readStoredNumber, writeStored } from "@/lib/storage";
 import type { MessageRow } from "@/protocol/protocol";
@@ -43,9 +45,15 @@ export function useReadMarks() {
   return { readUpTo, mark, settle };
 }
 
-/** `viewing` is true while the Messages tab is on show; `showOverheard` lists the messages we only heard as conversations of their own. */
-export function useConversations(messages: ReadonlyMap<string, MessageRow>, viewing: Ref<boolean>, showOverheard: Ref<boolean> = ref(false)) {
+/** `viewing` is true while the Messages tab is on show; `showOverheard` lists the messages we only heard as conversations of their own; `loaded`, that the daemon has told the messages whole. */
+export function useConversations(
+  messages: ReadonlyMap<string, MessageRow>,
+  viewing: Ref<boolean>,
+  showOverheard: Ref<boolean> = ref(false),
+  loaded?: Readonly<Ref<boolean>>,
+) {
   const marks = useReadMarks();
+  if (loaded) seenAtStart(loaded, () => newestIncomingByCall(messages.values()).forEach((id, call) => marks.mark(call, id)));
   const selected = ref<string | null>(null);
   const list = computed(() => conversations(messages.values(), marks.readUpTo, showOverheard.value));
   const unread = computed(() => unreadTotal(list.value));

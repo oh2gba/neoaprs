@@ -1,7 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import ObjectForm from "@/components/ObjectForm.vue";
+import { setLocale, t } from "@/i18n";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Command, OwnObjectRow } from "@/protocol/protocol";
@@ -633,6 +634,19 @@ describe("Send on, the radios of an object", () => {
     expect(field("Path")?.find<HTMLButtonElement>("button.pathbuild-open").element.disabled).toBe(false);
     await wrapper.find("form").trigger("submit");
     expect(sent.at(-1)).toMatchObject({ radios: [1, 2] });
+  });
+
+  it("names the radios ticked that carry no path as the page's language lists names", async () => {
+    const { field, tick } = withRadios(ofRadios(FM, HF, radioRow(3, "dummy-hf", { number: 2 })));
+    await tick("HF");
+    await tick("HF 2");
+    await tick("FM");
+    const path = field("Path");
+    expect(path?.attributes("title")).toBe("HF and HF 2: no path");
+    setLocale("ja");
+    await nextTick();
+    expect(path?.attributes("title")).toBe(t("radio.no_path", { name: "HF、HF 2" }));
+    setLocale("en");
   });
 
   it("leaves the Path row out while no radio that is on may carry a path, as with the HF radio alone (plan 6: left out only when no enabled radio may carry one)", () => {

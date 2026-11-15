@@ -17,6 +17,7 @@ const ports = (find = true): PortsMessage => ({
   search: find,
   find,
   ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")],
+  radio: null,
 });
 
 const FM_OFF = fmRow({ enabled: false, state: "stopped" });
@@ -289,6 +290,7 @@ describe("the toast of Find my radio", () => {
 describe("the HF radio's box in the Radio group", () => {
   const cards = (): PortsMessage => ({
     ...ports(),
+    radio: 2,
     keying: "rts:/dev/ttyUSB0",
     sound_cards: [
       soundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", { default: true, pick: true }),

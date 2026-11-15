@@ -1,12 +1,14 @@
 """The radio recovers by itself, with no click on Reconnect: a radio that is silent (the port open, no answer) when it comes back, a port that goes away and comes back (a USB adapter plugged in again) and, where the radio is not
 searched for (Windows, macOS), an adapter that comes back as another COM port. The Tnc runs on fake radios (TCP servers on the loopback) with short periods; the pieces of each case are tested closer in tests/test_silent.py, tests/test_tnc.py and
 tests/test_tnc_pty.py."""
+import logging
 import threading
 from types import SimpleNamespace
 
 import pytest
 
 from neoaprs import serialprobe, tncfollow
+from neoaprs.claims import Claim, Claims
 from neoaprs.serialprobe import AdapterId, PortInfo
 from neoaprs.serialport import SerialError
 from neoaprs.source import Source
@@ -313,3 +315,51 @@ async def test_a_port_that_cannot_be_an_adapter_is_not_asked_about(ports: FakePo
     finally:
         identifying.go.set()
         await tnc.stop()
+
+
+async def test_an_adapter_is_not_followed_to_a_port_another_radio_holds_or_is_set_to(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setattr(serialprobe, "can_search", lambda: False)                   # (Windows, macOS: the named port's adapter is followed)
+    monkeypatch.setattr(serialprobe, "identity_of", lambda path: AdapterId(0x0403, 0x6001, ""))
+    monkeypatch.setattr(serialprobe, "moved_to", lambda adapter, gone: "COM7")       # (an adapter like it, with no serial number: another radio's, not yet opened)
+    caplog.set_level(logging.INFO, "neoaprs")
+    opened: list[str] = []
+
+    async def opener(path: str) -> str:
+        opened.append(path)
+        if path == "COM5":
+            raise SerialError("COM5: not there")
+        return path
+
+    follow = AdapterFollow(lambda: "FM 2")
+    await follow.remember("COM5", "COM5")
+    with pytest.raises(SerialError, match="COM5: not there"):
+        await follow.open("COM5", True, opener, lambda text: None, lambda path: "held by FM" if path == "COM7" else "")
+    assert opened == ["COM5"] and "FM 2: COM5 is gone; an adapter like it is on COM7, which is left alone: held by FM" in caplog.text
+    assert await follow.open("COM5", True, opener, lambda text: None) == ("COM7", "COM7") and "FM 2: COM5 is gone; the adapter is on COM7" in caplog.text
+
+
+@pytest.mark.usefixtures("no_search")
+async def test_the_radios_line_follows_its_adapter_to_no_port_another_radio_is_set_to(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, "neoaprs")
+    first, second = FakeRadio(), FakeRadio()
+    await first.start()
+    await second.start()
+    ports = TwoAdapters(first, second, "A50285BI")
+    monkeypatch.setattr(serialprobe, "available_ports", ports)
+    monkeypatch.setattr(serialprobe, "claim_value", lambda path: path)              # (the fake radios' sockets stand for COM ports: each is a device of the station's table)
+    claims = Claims()
+    claims.named, claims.name_of = lambda: (Claim("serial", second.url, 1),), {1: "FM"}.get     # type: ignore[assignment]   # (radio 1 is set to the port the adapter comes back on)
+    tnc = Tnc(first.url, backoff=tiny_backoff(), fallback_probe=True, claims=claims)
+    tnc.radio_id = 3
+    try:
+        await tnc.start()
+        await first.connected()
+        await until(lambda: tnc._follow.knows(first.url))
+        ports.move()
+        await until(lambda: f"is on {second.url}, which is left alone: held by FM" in caplog.text)
+        await idle_for(0.3)
+        assert tnc.state is not Source.State.CONNECTED and tnc.path != second.url and second.connections == 0, "the line stays with its own port"
+    finally:
+        await tnc.stop()
+        await first.aclose()
+        await second.aclose()

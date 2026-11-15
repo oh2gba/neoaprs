@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The receive level of a radio's audio, one row of the scope: a bar with its good range, and the number. The level comes with every row of the waterfall of `radio` (the page's memory of that radio's rows; null while no radio has a scope: no level) while `on` (the caller asks for the rows), and from the
-// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received. The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
+// newest of the rows the daemon kept when they come; while the radio transmits the rows are of our own signal, so the bar is dimmed and holds the last level received (the bar is components/LevelBar.vue). The box in Settings (components/HfScope.vue) has the (i) of it (`tip`); the monitor card over the map (components/MonitorCard.vue) has the row alone.
 import { computed, onBeforeUnmount, ref, useId, watch } from "vue";
 import InfoTip from "@/components/InfoTip.vue";
+import LevelBar from "@/components/LevelBar.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { t } from "@/i18n";
 import { GOOD_PERCENT, dbText, levelPercent, levelZone } from "@/lib/hflevel";
@@ -47,79 +48,22 @@ watch(
 onBeforeUnmount(() => listen(false));
 
 const zone = computed(() => (level.value === null ? "low" : levelZone(level.value)));
-const fill = computed(() => `${level.value === null ? 0 : levelPercent(level.value)}%`);
-const good = computed(() => ({ left: `${GOOD_PERCENT[0]}%`, width: `${GOOD_PERCENT[1] - GOOD_PERCENT[0]}%` }));
+const fill = computed(() => (level.value === null ? 0 : levelPercent(level.value)));
 </script>
 
 <template>
-  <div class="field">
-    <label :for="id">{{ t("settings.scope.level") }}</label>
-    <div class="field-control scope-level">
-      <div :id="id" class="levelbar" :class="{ held: transmitting }" role="meter" :aria-label="t('settings.scope.level')">
-        <span class="levelgood" :style="good"></span>
-        <span class="levelfill" :class="zone" :style="{ width: fill }"></span>
-      </div>
-      <output class="mono levelvalue">{{ t("settings.scope.value", { value: dbText(level) }) }}</output>
-      <InfoTip v-if="tip" :label="t('settings.scope.tip_label')" picture="scope"
-        ><span class="info-line">{{ t("settings.scope.tip1") }}</span
-        ><span class="info-line">{{ t("settings.scope.tip2") }}</span></InfoTip
-      >
-    </div>
-  </div>
+  <LevelBar
+    :id="id"
+    :label="t('settings.scope.level')"
+    :percent="fill"
+    :zone="zone"
+    :good="GOOD_PERCENT"
+    :held="transmitting"
+    :value="t('settings.scope.value', { value: dbText(level) })"
+  >
+    <InfoTip v-if="tip" :label="t('settings.scope.tip_label')" picture="scope"
+      ><span class="info-line">{{ t("settings.scope.tip1") }}</span
+      ><span class="info-line">{{ t("settings.scope.tip2") }}</span></InfoTip
+    >
+  </LevelBar>
 </template>
-
-<style scoped>
-.scope-level {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.levelbar {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 60px;
-  height: 10px;
-  overflow: hidden;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-}
-.levelbar.held {
-  opacity: 0.45;
-}
-.levelgood {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--level-band);
-}
-.levelfill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  transition: width 0.2s linear;
-}
-.levelfill.low {
-  background: var(--level-low);
-}
-.levelfill.good {
-  background: var(--level-good);
-}
-.levelfill.high {
-  background: var(--level-high);
-}
-.levelfill.clip {
-  background: var(--level-clip);
-}
-.levelvalue {
-  flex: 0 0 auto;
-  min-width: 9ch;
-  text-align: right;
-}
-@media (prefers-reduced-motion: reduce) {
-  .levelfill {
-    transition: none;
-  }
-}
-</style>

@@ -34,9 +34,9 @@ export const stats: Record<keyof typeof source, Message> = {
   "stats.direct_share": "Direct gehoord",
   "stats.rate": "Tempo",
 
-  "stats.section.radio": "Sinds de daemon gestart is",
+  "stats.section.radio": "Sinds NeoAPRS gestart is",
   "stats.running": "Draait al",
-  "stats.frames": "Frames van de TNC",
+  "stats.frames": "Frames van de sets",
   "stats.bytes": "Bytes in · uit",
   "stats.digipeated": "Herhaald voor anderen",
   "stats.gated": "Op internet gezet",

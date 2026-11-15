@@ -98,4 +98,14 @@ describe("RadioStatus", () => {
     );
     expect(wrapper.find("pre.tnclines").text()).toContain("Q1ABC>APRS");
   });
+
+  it("has no terminal for a radio whose type says it has none", () => {
+    const row = radioRow(1, "kiss", { lines: lines("NeoAPRS: opened /dev/ttyUSB0") });
+    expect(
+      radio({ ...row, can: { ...row.can, terminal: false } })
+        .find("pre.tnclines")
+        .exists(),
+    ).toBe(false);
+    expect(radio(row).find("pre.tnclines").exists()).toBe(true);
+  });
 });

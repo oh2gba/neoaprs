@@ -30,7 +30,7 @@ An ack from the addressee that quotes your id makes the message *acked*. A rejec
 
 While the station is RX only (Settings → Radio → RX only ticked, [beacon.md](beacon.md#rx-only)) a new message is refused with "RX only: nothing is sent", and the messages being sent wait in the same way as for a TNC that is away: no attempt is used up and none fails, and they go on when transmitting is switched on. The acks of messages you receive are not sent meanwhile.
 
-While the TNC is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the TNC is back. After a restart the schedule goes on from the latest attempt that was made.
+While the message's radio is not connected, an attempt that is due waits for it. None is used up, the waits that were running are moved on by the time the radio was away, and the log says so once. A message written then is kept and its first attempt goes out when the radio is back. After a restart the schedule goes on from the latest attempt that was made.
 
 ### One message to a station at a time
 
@@ -95,11 +95,12 @@ Resize the panel and the layout follows, with the same conversation open.
 
 ### The conversation
 
-- The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the path the messages to the station go by and the **RF only** tickbox; Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route. A station that messages go to over the HF radio has a small tag **HF** in place of Route ([below](#a-station-heard-on-the-hf-radio)).
-- The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2"), and one that came in over the HF radio has the tag **HF** before its route words.
-- When the radio measured the signal of a packet that came in, the SNR ends that line ("HF direct · SNR −3 dB", in whole dB; RSSI in dBm too for a radio that gives it); a radio that measures none, a KISS TNC, leaves it out.
+- The header has the call (and the back arrow on a narrow tab) and a small **Route** button at its right. It opens a box under the header with the radio the messages go on (while several radios that can send are on), the path they go by and the **RF only** tickbox ([below](#the-radio-of-a-message)); Esc or a click outside closes it. A dot on the button says that the route is not the default. An overheard pair has no Route.
+- While several radios that can send are on, the tag of the radio the messages go on stands after the call, such as **FM** or **20 m**. Its hover text says "Messages to this station go on radio 20 m". The tag keeps the room of the longest name, so nothing beside it moves when the radio changes.
+- The thread is bubbles, yours at the right and theirs at the left, filling the height and scrolled to the newest. Under your message, small, are the time, the mark and state with the attempts ("attempt 3 of 4" while it is being sent), **Retry** or **Cancel** where they apply, and the chain of digipeaters its packet went by. A message that came in shows the route it came by in small type ("via OH2RCH-2"), and while several radios are on the tag of the radio it came on before its route words.
+- When the radio measured the signal of a packet that came in, the SNR ends that line ("HF direct · SNR −3 dB", in whole dB; RSSI in dBm too for a radio that gives it, a LoRa board); a radio that measures none, a KISS TNC, leaves it out.
 - Each message of yours has a mark: a clock while it is being sent or is queued; a check once it is acked (the title has the time of the ack and the SNR of the ack, when the radio measured it); a hollow check, a ring with a check in it, when it was sent and no ack is expected; a cross when it failed or was rejected; a dash when it was cancelled. A message that came in has its time only.
-- The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the TNC is not connected, or the text is empty or too long. There is no To field: the conversation is the station.
+- The box to write in is at the bottom, always in view, in one line: the text, the bytes left of the 67 ("67 left") and **Send**. Send is off while the radio the messages go on is not connected (its title says "The TNC is not connected", or "HF: not connected" with the radio's name while several are on), or the text is empty or too long. There is no To field: the conversation is the station.
 - An overheard pair has no box to write in and no Route, only the bubbles, since the messages are not yours to answer.
 - What you typed stays when you go back to the list or open another conversation.
 - **Esc** deselects the open conversation, on a wide tab as on a narrow one. The Route box, if it is open, takes the first Esc. A text box with text in it keeps the text and the conversation; with it empty, Esc goes through.
@@ -112,7 +113,7 @@ Under a message of yours the thread shows the digipeaters its latest attempt wen
 - A copy of your message that the radio hears again (also one an iGate gated back) is linked to the attempt it belongs to, and each hop of the path that a copy was heard with is marked as used. A hop that is used implies the hops before it, so `OH2RCH-2,OH2RDG*` shows both.
 - A hop heard has a check. A hop not heard is grey with a `?`; its title says "beyond what this station can hear" when that digipeater was never heard direct. A hop seen only in a copy gated back from the internet is blue with `internet`.
 - The recipient at the end is plain on the ack, orange on failure and grey while the message waits.
-- An attempt that went out over the HF radio has the mark **HF** after the first chip ("sent 12:03 over HF" is its hover text): `you HF → OH2CUB-7`. There is no digipeater in it, because nothing on HF repeats.
+- While several radios are on, the chain says the radio of the attempt after the first chip ("sent 12:03 on radio HF" is its hover text): `you HF → OH2CUB-7`. An attempt over HF has no digipeater in it, because nothing on HF repeats.
 - Acks and copies of other messages are not linked. The chain goes with the message when it or its conversation is deleted, and a retry starts a new chain.
 
 ### One text to several stations
@@ -144,7 +145,7 @@ The numbers (60 minutes, 2 packets, 3 digipeaters, 2 attempts) are fixed in the 
 
 A station can have a path of its own, which overrides the automatic choice: the digipeaters that everything you send to it goes by, which means its messages (every attempt), their repeats and the acks of the messages it sends you. It is up to 8 digipeater calls separated by commas, checked as the beacon's path is, or the word `DIRECT` for no digipeaters at all. An empty field is not a path: it is the automatic choice. The requests to all stations round you (the Nearby tab's Ask around and the Objects tab's Local info) have a path of their own under their Advanced, checked the same way.
 
-The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
+The path belongs to the call as written, so OH2RDG and OH2RDG-7 have one each, and to the radio it was set on: with several radios a station may have one path on each. A change counts from the next frame, and a message that is being sent goes on by the new path. The paths are yours, kept in the database apart from the station cache, so they survive a rebuilt cache and a restart.
 
 Set it in the field under **Route** of a conversation, or build it with the [path builder](#the-path-builder) beside the field. It is saved when you change the field and leave it (Enter does it). The x beside the field, or emptying it, gives the choice back to the automatic one.
 
@@ -199,21 +200,27 @@ A station marked **RF only** (the tickbox beside the path, in the header of a co
 
 A path of 8 digipeaters has no room for it. A message to the station is then refused with `path too long for RF only`. An attempt that is due waits (it is not used up; the log says why once). An ack or an answer is not sent. The email gateway `EMAIL-2` is on the internet and can never be RF only.
 
-## A station heard on the HF radio
+## The radio of a message
 
-With the HF radio off nothing here changes. With it on ([radio.md](radio.md#the-mercury-hf-modem)), each conversation has one radio, chosen when the message goes: the radio that heard the station in the last six hours, the FM radio when both did; else the radio that heard it last. A station heard on both radios lately is messaged over FM, and its header is as above. A station never heard goes on the radio that is on, FM before HF.
+With one radio on, every message goes on it and nothing here applies. With several radios on that can send, each conversation has one radio, which the daemon chooses when a message goes:
 
-A message keeps its radio for all its retries, unless you choose another radio for the station or switch its radio off, or it went on the other radio only because the station's own was off: then its next attempt goes on the station's own once that is on again.
+1. the radio you chose for the station in Route, while it is on;
+2. else the radio that heard the station in the last six hours, a local one (FM, LoRa) before HF when both did;
+3. else the radio that heard it last;
+4. a station never heard goes on the [main radio](radio.md#the-main-radio).
 
-- **The header** of a conversation with a station heard on the HF radio alone, one you chose the HF radio for, or any while the FM radio is off, has the small tag **HF** where Route would be. Its hover text says "Messages to this station go over the HF radio: direct, no path". When [encrypted messages](#encrypted-messages) are on, the Key menu and the padlock are there as for any station.
-- **No path.** Every frame on HF is direct, so a station's own path and **RF only** are not used for it, and are kept for the day it is messaged over FM. The station panel of the Stations tab has no Route for such a station either.
-- **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is.
-- **Email** (`EMAIL-2`) goes out over the FM radio only, because it needs an iGate to put it on the internet and HF has none. While the FM radio is off, Send of the Email tab is off with the title "Email goes out over the FM radio, which is off".
-- The length is the same: every message of 67 characters fits an HF frame. A message that does not fit the frame of the radio it goes out on now fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
+A message keeps the radio of its first attempt for all its retries, after a restart too. It moves when you choose another radio in Route, or when its radio is switched off or removed; a message that went on another radio only because its own was off goes back to its own once that is on again. A message that no longer fits the radio it moves to fails with its reason.
+
+- **Route** starts with the row **Radio**: **Automatic**, which names the radio it gives now ("Automatic: HF"), then each radio that is on and can send, by its name. A choice applies from the next attempt and is kept for the call across a restart; forgetting the station forgets it too. For a call that was never heard the row is there, greyed on Automatic, until the station is heard.
+- **Path and RF only** under it belong to the radio in force. On a radio that carries no path (HF) they are greyed with their value kept, their hover text says "HF: no path", and the line under them says "Automatic: direct". The path you set for a station on one radio is not used on another.
+- **The station panel** of the Stations tab has the same Route, and its questions go on the station's radio. **Trace the route** is greyed on a radio that carries no path.
+- **An ack or an answer** goes back on the radio the message came in on, whatever the conversation's radio is. A message heard only on a radio that receives is acked on the radio a message to that station would take; a query heard only there is not answered.
+- **Email** (`EMAIL-2`) goes on the radio that internet gateways hear ([email.md](email.md#the-email-tab)), never HF.
+- **The length.** Every message of 67 characters fits an HF frame. A message that does not fit the frame of its radio fails at once, and its state reads "too long for the radio" in place of the attempts; **Retry** says by how many characters to shorten it.
 
 ## Encrypted messages
 
-A message can be locked so that only one station can read it. This is off unless the daemon is started with `--encryption` ([commands.md](commands.md#the-daemon)): the amateur regulations of most countries forbid hiding the meaning of a transmission, so it is there for the circumstances that allow it, and for nothing else. Without the flag there is no Key menu, no padlock and no **Encrypted messages** group in Settings, and nothing locked is sent. A locked message that arrives is still read when its key is here.
+A message can be locked so that only one station can read it. This is off unless the daemon is started with `--encryption` ([commands.md](commands.md#the-daemon)), for exceptional circumstances. Without the flag there is no Key menu, no padlock and no **Encrypted messages** group in Settings, and nothing locked is sent. A locked message that arrives is still read when its key is here.
 
 How it goes:
 

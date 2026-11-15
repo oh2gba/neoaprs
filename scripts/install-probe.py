@@ -165,15 +165,17 @@ async def give_radios(page: "smoke.PageSocket", seconds: float) -> None:
     await smoke.give_radio(page, "hf", HF_TYPE, {}, seconds)
 
 
-def seed(args: argparse.Namespace) -> None:
-    async def commands(page: "smoke.PageSocket") -> None:
-        await page.until("the settings told", lambda p: "config" in p.topics, args.timeout)
-        await page.set_config(SETTINGS, args.timeout)
-        await give_radios(page, args.timeout)
-        await page.send({"cmd": "send_message", "to": MESSAGE_TO, "text": MESSAGE_TEXT})
+async def seed_commands(page: "smoke.PageSocket", seconds: float) -> None:
+    """What the seed asks of the old daemon: the station's settings, both radios (give_radios: the radio commands, or the settings of an old release) and one message."""
+    await page.until("the settings told", lambda p: "config" in p.topics, seconds)
+    await page.set_config(SETTINGS, seconds)
+    await give_radios(page, seconds)
+    await page.send({"cmd": "send_message", "to": MESSAGE_TO, "text": MESSAGE_TEXT})
 
+
+def seed(args: argparse.Namespace) -> None:
     def work(base: str) -> None:
-        seen = asyncio.run(follow(base, seed_ready, args.timeout, commands))
+        seen = asyncio.run(follow(base, seed_ready, args.timeout, lambda page: seed_commands(page, args.timeout)))
         stations = stations_of(seen)
         Path(args.out).write_text(json.dumps({"stations": stations, "message": MESSAGE_TEXT, "settings": SETTINGS, "hf_radio": HF_TYPE, "from_version": seen.hello.get("version")}), encoding="utf-8")
         smoke.say(f"the old daemon ({seen.hello.get('version')}) has {len(stations)} stations, one message and both radios set")

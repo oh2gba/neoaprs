@@ -18,7 +18,7 @@ from neoaprs.kiss import KissDecoder
 from neoaprs.radiotypes import BY_KEY as TYPES
 from tests.conftest import ROOT
 from tests.support.files import FIXTURES, text_if_readable
-from tests.support.proc import NEW_GROUP, stop
+from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, stop
 from tests.support.hfchannel import NONBLOCK
 from tests.support.ptyline import NOCTTY, posix_only
 
@@ -93,7 +93,7 @@ def test_a_replayed_capture_fills_the_database_of_a_daemon_without_a_radio_over_
         assert packets.returncode == 0 and len(lines) == 2 and lines[1].endswith("OH2PU-9>APOTC1,OH2RCH-2*:!/0&m]TbwX>z!GQRV D-STAR 144.650MHz -> position 60.1991 24.6501 />" + " QRV D-STAR 144.650MHz")
         assert lines[0] < lines[1] or lines[0][:20] <= lines[1][:20], "the oldest first"
         stop(daemon)
-        out, err = daemon.communicate(timeout=10)
+        out, err = daemon.communicate(timeout=STOP_PATIENCE_SEC)
         assert daemon.returncode == 0, (out, err)
     finally:
         for proc in (daemon, replay):
@@ -121,7 +121,7 @@ def test_the_replay_on_a_pseudo_terminal_ends_on_ctrl_c_and_says_what_it_does(tm
     frames = KissDecoder().feed(bytes(heard))
     assert len(frames) >= 12 and [f.payload for f in frames[:4]] == [f.payload for f in KissDecoder().feed(CAPTURE.read_bytes())]
     replay.send_signal(signal.SIGINT)
-    out, err = replay.communicate(timeout=10)
+    out, err = replay.communicate(timeout=STOP_PATIENCE_SEC)
     assert replay.returncode == 0 and "waiting for a port to open" in err and "a port opened it" in err and "frame 9 sent" in err and "stopped" in err
 
 
@@ -302,6 +302,82 @@ def test_the_install_probe_reads_and_gives_the_radios_of_a_release_before_the_ro
         "a daemon of the radios: the FM radio first (a new installation has none), then the HF radio"
 
 
+def test_the_upgrade_seeds_a_release_from_before_the_radios_on_its_own_wire_and_this_tree_on_the_wire_of_the_radios() -> None:
+    """scripts/check-installs runs THIS tree's install-probe seed against the old release's daemon (0.18.2: its hello lists `tnc` and `hf`, no `radios`, and it knows no radio command): the probe gives that
+    daemon its HF radio by the flat settings, and reads its FM radio in the topic `tnc`; a daemon of the round gets its HF radio by the radio commands, as before."""
+    import asyncio
+    probe = load_script("install-probe.py")
+    smoke = probe.smoke                                                                 # (the smoke the probe loaded: its Failure and PageSocket are the ones it uses)
+    old_hello = {"type": "hello", "version": "0.18.2", "topics": ["stations", "packets", "tnc", "hf", "messages", "config"]}
+    old = FakeDaemonPage(smoke, old_hello, {"config": {"values": {}}}, refuse="radio_add")      # (an old daemon answers a radio command it does not know with an error)
+    asyncio.run(probe.seed_commands(old, 1))
+    assert old.sent == [{"cmd": "set_config", "values": {"station/call": "OH2TST"}}, {"cmd": "set_config", "values": {"hf/enabled": "true", "hf/profile": "dummy-hf"}},
+                        {"cmd": "send_message", "to": probe.MESSAGE_TO, "text": probe.MESSAGE_TEXT}], "the old release's HF radio by its flat settings, no radio command"
+    assert probe.OldRelease.HF_SETTINGS["hf/profile"] == probe.HF_TYPE, "the old radio the migration makes is the one verify and the database check look for"
+    old.topics.update({"stations": {"OH2X": {"call": "OH2X"}}, "messages": {"1": {"text": probe.MESSAGE_TEXT}}, probe.OldRelease.TOPIC: {"state": "waiting"}})
+    assert probe.has_settings(probe.Seen(old)) and not probe.seed_ready(probe.Seen(old)), "the FM radio not yet connected"
+    old.topics[probe.OldRelease.TOPIC] = {"state": "connected"}
+    assert probe.seed_ready(probe.Seen(old)), "the old release's FM radio read in its topic tnc"
+    new = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {}})          # (a daemon of the round on a new installation: no radio)
+    asyncio.run(probe.seed_commands(new, 1))
+    assert [command["cmd"] for command in new.sent] == ["set_config", "radio_add", "radio_change", "radio_add", "radio_change", "send_message"] and new.sent[0]["values"] == probe.SETTINGS, \
+        "this tree's daemon: the radio commands, the FM radio first (a new installation has none), then the HF radio"
+    assert [command["type"] for command in new.sent if command["cmd"] == "radio_add"] == [probe.FM_TYPE, probe.HF_TYPE]
+    new.topics["radios"]["1"]["state"] = "connected"
+    new.topics.update({"stations": {"OH2X": {"call": "OH2X"}}, "messages": {"1": {"text": probe.MESSAGE_TEXT}}, probe.OldRelease.TOPIC: {"state": "connected"}})
+    assert probe.has_settings(probe.Seen(new)) and probe.seed_ready(probe.Seen(new)) and probe.fm_state(probe.Seen(new)) == "connected"
+    new.topics["radios"]["1"]["state"] = "waiting"
+    assert not probe.seed_ready(probe.Seen(new)), "a daemon of the round is read in its topic radios, never in a topic tnc"
+
+
+class Running:
+    """A daemon process, as wait_for_interrupt asks after it: still running."""
+    returncode = None
+
+    def poll(self) -> None:
+        return None
+
+
+@pytest.mark.parametrize("windows", [True, False])
+def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped_not_killed(windows: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """scripts/sim-radios --keep waits for Ctrl+C and then stops its daemon as a service manager does. On Windows asyncio.run's own Ctrl+C cancels the run (the daemon killed, a traceback) unless the script
+    takes SIGINT itself; on POSIX the loop's handler. Either way the wait returns, a second Ctrl+C during the stop does not cut the stop short (Python's default or asyncio.run's handler would: a kill and a
+    traceback), and asyncio.run's SIGINT is given back once the stop and its checks are done."""
+    import asyncio
+    import importlib.machinery
+    import importlib.util
+    if not windows and sys.platform == "win32":
+        pytest.skip("a loop's signal handler is POSIX's")
+    loader = importlib.machinery.SourceFileLoader("sim_radios", str(ROOT / "scripts" / "sim-radios"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    sim = importlib.util.module_from_spec(spec)
+    loader.exec_module(sim)
+    monkeypatch.setattr(sim.smoke, "WINDOWS", windows)
+    before = signal.getsignal(signal.SIGINT)
+    stops: list[str] = []
+
+    def stop_daemon() -> None:
+        """The stop and the checks of its end, during which the operator presses Ctrl+C again."""
+        signal.raise_signal(signal.SIGINT)
+        time.sleep(0.05)                                                                # (a Python handler runs between two steps of this code: here, if at all)
+        stops.append("stopped")
+
+    async def keep() -> object:
+        runs = signal.getsignal(signal.SIGINT)                                          # asyncio.run's own
+        asyncio.get_running_loop().call_later(0.3, signal.raise_signal, signal.SIGINT)
+        await asyncio.wait_for(sim.keep_then_stop(Running(), stop_daemon), 30)
+        assert signal.getsignal(signal.SIGINT) == runs, "asyncio.run's Ctrl+C is back after the stop"
+        return "returned"
+
+    try:
+        assert asyncio.run(keep()) == "returned"
+    except KeyboardInterrupt:
+        pytest.fail(f"Ctrl+C ended the run ({'during' if stops == [] else 'after'} the stop): the daemon would be killed, not stopped, or a traceback")
+    assert stops == ["stopped"], "the stop ran to its end"
+    assert signal.getsignal(signal.SIGINT) == before, "the Ctrl+C of before is back"
+
+
 def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() -> None:
     """settings-hf's daemon is started with --hf-port, which is the station's first Mercury radio's: the Mercury radio given through the page must be that one, whatever its id, and its modem `running` before
     the shot; otherwise its shots are left out with the reason (a Failure), never a picture of a Mercury radio with no modem."""
@@ -318,6 +394,47 @@ def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() 
     with pytest.raises(smoke.Failure, match="radio 3, and --hf-port names radio 2"):
         asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "hf", "mercury", 3, enabled=False),
                                                                                                          "3": radio_row(3, "hf", "dummy-hf", 2)}}, modem=running), "mercury", {}, 1))      # (radio 3, first by position, made a Mercury: radio 2 is the first Mercury radio)
+
+
+def test_the_settings_shots_draw_the_phone_code_of_the_made_up_address_and_key_as_the_page_draws_a_code() -> None:
+    """made_up_web puts the code of SHOWN_URL with SHOWN_KEY over the daemon's own: the golden symbol "shown" of the page's QR test (ui/src/lib/qr.fixture.json, held to uqr there), in its quiet zone of four
+    modules, a run of dark modules in a row one rectangle as qrPath writes it. Read back, the path is that symbol and nothing else."""
+    import json
+    shots = load_script("screenshots.py")
+    size, path = shots.shown_code()
+    shown = json.loads((ROOT / "ui/src/lib/qr.fixture.json").read_text(encoding="utf-8"))["shown"]
+    assert shown["text"] == "http://192.168.1.20:7303/#key=k7m2-x9pq-4hrt" == f"{shots.SHOWN_URL}#key={shots.SHOWN_KEY}"
+    assert size == len(shown["rows"]) + 8
+    assert re.fullmatch(r"(M\d+ \d+h\d+v1h-\d+z)+", path)
+    drawn = [["0"] * size for _ in range(size)]
+    for x, y, run, back in re.findall(r"M(\d+) (\d+)h(\d+)v1h-(\d+)z", path):
+        assert run == back
+        for i in range(int(run)):
+            drawn[int(y)][int(x) + i] = "1"
+    assert ["".join(row[4:-4]) for row in drawn[4:-4]] == shown["rows"]
+    assert all(c == "0" for row in drawn[:4] + drawn[-4:] for c in row) and all(c == "0" for row in drawn for c in row[:4] + row[-4:])
+
+
+def test_every_shot_that_opens_the_settings_tab_puts_the_made_up_key_and_code_over_the_daemons_own_at_once() -> None:
+    """The Settings tab shows the access key and the phone code, which hold the screenshot machine's own key and address: every shot that opens it calls made_up_web on its page in the very next
+    statement, before anything is clicked (the update shot's dialog leaves the Web page group in view above it)."""
+    import ast
+    tree = ast.parse((ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"))
+
+    def opens_settings(statement: ast.stmt) -> bool:
+        return any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "page" and isinstance(n.func.value, ast.Name) and n.func.value.id == "s"
+                   and any(k.arg == "tab" and isinstance(k.value, ast.Constant) and k.value.value == "settings" for k in n.keywords) for n in ast.walk(statement))
+
+    def made_up(statement: ast.stmt) -> bool:
+        return (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Await) and isinstance(call := statement.value.value, ast.Call)
+                and isinstance(call.func, ast.Name) and call.func.id == "made_up_web" and [ast.unparse(a) for a in call.args] == ["page"])
+
+    shots = [f for f in tree.body if isinstance(f, ast.AsyncFunctionDef) and f.name.startswith("shot_")]
+    opening = {f.name: [i for i, st in enumerate(f.body) if opens_settings(st)] for f in shots}
+    assert {"shot_update", "shot_settings", "shot_settings_web", "shot_settings_tnc", "shot_settings_hf"} <= {name for name, at in opening.items() if at}
+    for f in shots:
+        for i in opening[f.name]:
+            assert i + 1 < len(f.body) and made_up(f.body[i + 1]), f"{f.name}: the Settings tab is shown without the made-up key and code"
 
 
 def test_a_run_into_the_site_or_of_everything_refuses_to_draw_the_street_maps_on_the_placeholder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

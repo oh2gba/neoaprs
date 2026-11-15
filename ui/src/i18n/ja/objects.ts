@@ -98,7 +98,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.category": "オブジェクトにカテゴリを付けると、ローカル情報を問い合わせた局に提供されます。",
   "objects.tip.category_code": "独自のカテゴリ: 英数字{max}文字まで、INFO と NEXT は使えません。局はこの単語で問い合わせます。",
   "objects.tip.on_request": "ビーコンでは送らず、ローカル情報を問い合わせた局にだけ送ります。",
-  "objects.sent_on": "Sent on radio {name}",
+  "objects.sent_on": "無線機「{name}」で送信",
 
   "objects.problem.name_chars": "両端に空白不可、! _ | ~ は使えません",
   "objects.problem.at_most": "最大{max}文字",

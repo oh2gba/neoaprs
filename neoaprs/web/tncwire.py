@@ -39,17 +39,18 @@ class FrequencyRow(_Model):
 
 
 class ModemState(_Model):
-    """The Mercury HF modem behind a radio's line, while its type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal."""
+    """The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether
+    it hears a signal."""
     state: Literal["stopped", "starting", "running", "waiting"] = Field(description="`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why")
     problem: str = Field(description="why the modem is not running (not installed, stopped); empty while it runs")
-    reason: Literal["", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card"] = Field(description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting`")
-    mode: str = Field(description="the modem's mode, the same for every station: `DATAC3`")
+    reason: Literal["", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying"] = Field(description="why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting`")
+    mode: str = Field(description="the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf)")
     keyed: bool = Field(description="the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on")
     busy: bool = Field(description="another station's signal is on the channel: our frames wait. The daemon judges it from the modem's spectrum (a signal as wide as a frame; a step in the noise or a carrier is none) while it reads that, else it is the modem's own fixed-threshold detector")
     test: Literal["", "tune", "key"] = Field(description="`tune` while the tune tone is on (`radio_tune`), `key` during the keying test (`radio_key_test`); empty otherwise. Our frames wait while either is on")
     snr: float | None = Field(description="the signal-to-noise ratio of the latest frame decoded, in dB; null before one")
     frames_keyed: int = Field(ge=0, description="how many times the radio was keyed since the modem started")
-    max_frame: int = Field(ge=1, description="the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut")
+    max_frame: int | None = Field(ge=1, description="the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf)")
     sound_card: str = Field(description="the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device")
     frequencies: list[FrequencyRow] = Field(max_length=MAX_FREQUENCIES, description="the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in "
                                                                        "two; the page shows them in the HF radio's box as they are, with the words \"suggested\": they are not read from the radio")
@@ -57,6 +58,7 @@ class ModemState(_Model):
     scope: bool = Field(description="the daemon reads the modem's UI interface: the spectrum scope can be shown (`radio_scope`) and the transmit gain is set live; false for a modem without the interface (the page shows no scope, and a change of the gain restarts the modem)")
     tx_gain_db: int = Field(ge=-20, le=20, description="the transmit gain the modem runs with, in dB (`mercury/tx_gain_db`); the tune tone follows it")
     tx_peak_dbfs: int | None = Field(description="the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read")
+    rx_level: int | None = Field(ge=0, description="the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury)")
 
 
 class Frequencies(_Command):
@@ -69,7 +71,7 @@ class Frequencies(_Command):
 # ---- the topic `radios`
 
 RadioProblemCode = Literal["radio.not_connected", "radio.searching", "radio.silent", "radio.text_lines", "radio.resource_held", "modem.not_installed", "modem.stopped", "modem.network", "modem.no_port", "modem.not_started",
-                           "modem.sound_card", "transmit.off", "beacon.not_sent"]
+                           "modem.sound_card", "modem.keying", "transmit.off", "beacon.not_sent"]
 
 
 class RadioProblem(_Model):
@@ -105,6 +107,7 @@ class RadioCan(_Model):
     tx_gain: bool = Field(description="the transmit gain (`radio/<id>/tx_gain_db`)")
     frequencies: bool = Field(description="the station's suggested frequencies are shown in its box")
     transmit: bool = Field(description="it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to")
+    rx_level: bool = Field(description="the level of the packets it hears is shown in its box (its modem's `rx_level`)")
 
 
 class RadioChoices(_Model):
@@ -150,5 +153,5 @@ class RadioRow(_Model):
     can: RadioCan
     choices: RadioChoices
     beacon: RadioBeaconState
-    modem: ModemState | None = Field(description="its Mercury modem, while its type is Mercury; null for every other type and for a removed radio")
+    modem: ModemState | None = Field(description="its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio")
     holds: list[RadioHold] = Field(description="the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none")

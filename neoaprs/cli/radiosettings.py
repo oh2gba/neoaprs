@@ -73,10 +73,13 @@ def type_or_none(spec: RadioSpec) -> RadioType | None:
 
 
 def own_fields(spec: RadioSpec) -> list[str]:
-    """The keys of a radio's own settings in the order its type lists them, then those of its kind that another type of the kind uses (a value it keeps from a type it had)."""
+    """The keys of a radio's own settings in the order its type lists them, then those of its kind that another type of the kind uses where the radio has one stored (a value it keeps from a type it had;
+    the default of another type's field is not the radio's to show); every field of its kind for a stored type this NeoAPRS does not know."""
     rtype = type_or_none(spec)
-    used = [f.key for f in rtype.fields] if rtype is not None else []
-    return [*used, *(f.key for f in kind_fields(spec.kind) if f.key not in used)]
+    if rtype is None:
+        return [f.key for f in kind_fields(spec.kind)]
+    used = [f.key for f in rtype.fields]
+    return [*used, *(f.key for f in kind_fields(spec.kind) if f.key not in used and f.key in spec.settings)]
 
 
 def value_text(spec: RadioSpec, key: str) -> str:

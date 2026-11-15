@@ -1,6 +1,6 @@
 # The NeoAPRS manual
 
-NeoAPRS is an APRS client for a radio or a TNC. It reads your radio, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of the radio link and the settings.
+NeoAPRS is an APRS client for your radios: one or several, of any kind, an FM radio with its TNC, an SSB radio on HF, a LoRa board. It reads them, keeps every packet and station in a database on your computer, and shows them in a page: a map, a table of stations, the packets as they arrive, your messages as conversations, the state of each radio and the settings.
 
 It sends your position (the beacon: of a fixed station at its place, or of a moving one that follows a GPS) and your messages, email through the APRS gateway, objects and bulletins of your own, and a status text. It answers messages and queries sent to you, and can repeat packets as a fill-in digipeater. Switched on, it also shows the stations of APRS-IS round you, receive only. A Nearby tab lists the digipeaters, voice frequencies, iGates and stations in simplex range that you have heard, and asks the stations round you who is there.
 
@@ -13,16 +13,16 @@ This is the manual for the person who runs it. How NeoAPRS is built and released
 | file | what is in it |
 |---|---|
 | [`install.md`](install.md) | installing on Windows, macOS, Linux (AppImage, .deb), the desktop app, starting at login, updating |
-| [`start.md`](start.md) | the first start, the setup guide, the data folder, how settings apply, trying it without a radio |
+| [`start.md`](start.md) | the first start, the setup guide, after an update, the data folder, how settings apply, trying it without a radio |
 | [`page.md`](page.md) | the page: the tabs, the Stations table and its menu, [the Nearby tab](page.md#nearby), the Packets tab, the Settings tab, the map (the range circle, Follow my position), the station cards you can move, the header, the language, a phone, a tablet and a desktop, the base map |
 | [`desktop.md`](desktop.md) | the desktop app: a window and a tray icon |
-| [`radio.md`](radio.md) | connecting the radio: ports (serial, TCP, Bluetooth, Bluetooth LE), finding the radio, the TNC types, the keep-alive and a silent radio, the HF radio, a LoRa APRS board |
-| [`beacon.md`](beacon.md) | the My station tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
-| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, stations heard on HF, encrypted messages, deleting |
+| [`radio.md`](radio.md) | the radios: adding, naming and removing them, the main radio, what each radio does; each type (a TNC on a serial port, KISS over TCP, a sound card with Direwolf, the Mercury HF modem, a LoRa APRS board, a Yaesu FTM that only receives, the Dummy radios); the port, finding the radio, the TNC types, the keep-alive and a silent radio |
+| [`beacon.md`](beacon.md) | the My station tab: the beacon status, where the position comes from (fixed, or a GPS), the Beacon choice and Off, the beacon on several radios (Send on), RX only, mobile operation with SmartBeaconing, the location and the symbol, the status, answers to queries (and the QRU server), the fill-in digipeater |
+| [`messages.md`](messages.md) | the Messages tab: sending, acks and retries, the path each message chooses, the radio of a message and Route, encrypted messages, deleting |
 | [`igate.md`](igate.md) | stations from the internet on the map: the tickbox, the radius, the server, and advanced use as an iGate |
 | [`email.md`](email.md) | email through the APRS gateway |
 | [`bulletins.md`](bulletins.md) | the message board and posting to it |
-| [`hf-tests.md`](hf-tests.md) | the HF tests tab: meeting another station on HF to try APRS, the board on the project page, planning, joining and deleting a test |
+| [`hf-tests.md`](hf-tests.md) | the HF tests tab, there while an HF radio is on: meeting another station on HF to try APRS, the board on the project page, planning, joining and deleting a test |
 | [`objects.md`](objects.md) | objects and items of your own, and the QRU server that sends them to a station that asks |
 | [`weather.md`](weather.md) | weather stations, the graphs and what else NeoAPRS reads |
 | [`notifications.md`](notifications.md) | being told of a new message |
@@ -36,7 +36,7 @@ The radios and how to connect each (and a GPS receiver for a moving station) are
 ## Words
 
 - A **setting** is a row of the database that you change on the page or with `neoaprs db set`.
-- The **radio** is what you transmit with; the **TNC** is the box that turns a packet into sound or the other way, built into some radios; the **rig** is a radio that a program such as Hamlib's rigctld can read the frequency of.
+- A **radio** is what you transmit with, and the station may have several, each a box in Settings → Radio with a name; the **main radio** carries what is addressed to no station. The **TNC** is the box that turns a packet into sound or the other way, built into some radios; the **rig** is a radio that a program such as Hamlib's rigctld can read the frequency of.
 - A **path** is the list of digipeaters a packet asks to be repeated by. The **route** is what a received packet actually went by, and the **chain** is the same for a message of yours, hop by hop.
 - The **timeout** of a station is how long it stays on the map after its last position: 1, 3, 6, 12 or 24 hours as you choose in the Stations tab (3 by default), the same for every station.
 - The **email gateway** is the APRS-IS station `EMAIL-2`.

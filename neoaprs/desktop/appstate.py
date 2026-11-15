@@ -1,5 +1,6 @@
 """What the app keeps in the data folder, beside the database and not in it: the window's geometry (`neoaprs-app.json`: its size, its place and whether it is maximized, and on Windows the placement Windows itself keeps), the log of the app (`neoaprs-app.log`) and the folder
-where the web engine keeps what the page stores (`webview/`: localStorage, so the page's panel width, map view and read messages survive a restart). A file that cannot be read is the default, never an error: the window must open."""
+where the web engine keeps what the page stores (`webview/`: localStorage, so the page's panel width, map view and read messages survive a restart; `webkit/` for the web window's WebKitGTK on Linux, whose store is
+its own). A file that cannot be read is the default, never an error: the window must open."""
 import json
 import logging
 import logging.handlers
@@ -9,6 +10,7 @@ from pathlib import Path
 STATE_NAME = "neoaprs-app.json"
 LOG_NAME = "neoaprs-app.log"
 PROFILE_NAME = "webview"
+WEBKIT_NAME = "webkit"
 DEFAULT_SIZE = (1280, 800)
 MIN_SIZE = (480, 320)
 MAX_SIZE = (16000, 16000)
@@ -34,6 +36,13 @@ DEFAULT_WINDOW = WindowState(*DEFAULT_SIZE)
 def profile_dir(data: Path) -> Path:
     """The web engine's storage folder (made if it is not there)."""
     folder = data / PROFILE_NAME
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def webkit_dir(data: Path) -> Path:
+    """WebKitGTK's storage folder, the web window's on Linux (made if it is not there): beside the Qt window's, which a version with Qt can still be started on."""
+    folder = data / WEBKIT_NAME
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 

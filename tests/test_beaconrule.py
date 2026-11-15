@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from neoaprs import beaconrule
-from neoaprs.beaconrule import SETTING_MIN_MIN, beacon_interval, beacon_radios, floor_of, interval_words, station_interval, ticked
+from neoaprs.beaconrule import SETTING_MIN_MIN, beacon_interval, beacon_radios, floor_of, interval_words, repeat_floor_sec, station_interval, ticked
 from neoaprs.config import DEFAULTS, MIN_BEACON_INTERVAL_MIN, Config
 from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.radiotypes import TYPES
@@ -59,6 +59,7 @@ def test_each_type_has_its_floor_and_only_a_floor_above_the_settings_own_raises(
         radio = spec(9, t.kind, t.key)
         assert floor_of(radio) == t.limits.beacon_min_min == {"fm": 20, "hf": 30, "lora": 30}[t.kind], t.key
         assert beacon_interval(20, radio) == {"fm": 20, "hf": 30, "lora": 30}[t.kind] and beacon_interval(90, radio) == 90 and beacon_interval(0, radio) == 0, t.key
+        assert repeat_floor_sec(t.limits) == {"fm": 0, "hf": 1800, "lora": 1800}[t.kind], f"{t.key}: an object repeats no more often than the radio's own floor where it is about airtime"
     assert beacon_interval(1, spec(1)) == 1 and beacon_interval(1, spec(2, "hf")) == 30, "a Config made by hand below the setting's own minimum is the FM radio's as it is (the tests' quick beacons)"
 
 
@@ -80,6 +81,8 @@ def test_the_beacon_goes_out_on_the_radios_that_are_ticked_and_on_and_with_every
     assert beacon_radios((spec(1, enabled=False), spec(2, "hf", beacon="false"), spec(3)), 2) == (3,), "a radio that is off is never one, ticked or not"
     assert beacon_radios((spec(1, enabled=False), spec(2, "hf", enabled=False)), None) == () and station_interval(20, (spec(1, enabled=False),), None) == 20, "no radio on: none, and the setting as it is"
     assert ticked(spec(1)) and not ticked(spec(1, beacon="false")) and ticked(spec(4, "lora", "lora-of-tomorrow")), "a kind with no type yet has the field's default"
+    assert not ticked(spec(4, "lora", "lora-of-tomorrow", beacon="false")), "a type that is none is read by its kind's field"
+    assert ticked(spec(5, "fm", "tnc-text", beacon="false")) and ticked(spec(6, "lora", "lora-console", beacon="false")), "a type with no Send on (it only receives): what it kept from its former type is not read"
 
 
 def test_with_one_radio_on_the_beacon_goes_out_on_it_whatever_its_tick() -> None:

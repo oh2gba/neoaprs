@@ -10,8 +10,10 @@ from datetime import timedelta
 from hypothesis import given, strategies as st
 import pytest
 
-from neoaprs import app, ax25, kiss
+from neoaprs import ax25, kiss
+from neoaprs.claims import Claims
 from neoaprs.beaconrule import beacon_radios
+from neoaprs.direwolf import PROFILE as DIREWOLF
 from neoaprs.config import LISTENS_ONLY, RECEIVE_ONLY, can_transmit
 from neoaprs.emailrule import email_radio
 from neoaprs.messagerule import message_radio
@@ -20,11 +22,15 @@ from neoaprs.radiodriver import RunOverrides
 from neoaprs.radiospec import RadioHeard, RadioSpec, in_force_choice, in_force_set, main_radio, senders, transmits
 from neoaprs.radiotypes import BY_KEY, type_of
 from neoaprs.source import Source
+from neoaprs.serialprobe import named_ports
+from neoaprs.serialholders import port_key
 from neoaprs.tncdriver import PROFILES, line_settings
+from neoaprs.tncsearch import claimed
 from neoaprs.tncprofile import TNC_TEXT
+from neoaprs.web.radioview import radio_row
 from tests.support.clock import FixedClock
 from tests.support.env import ON_AIR, Env, idle_for, until, until_started
-from tests.support.ptyline import feed as feed_pty, heard as heard_pty
+from tests.support.ptyline import feed as feed_pty, heard as heard_pty, posix_only
 
 ME = "OH2GBA"
 HEARD = "OH2ABC-7"
@@ -170,12 +176,11 @@ async def test_find_my_radio_tries_no_port_a_radio_that_only_listens_is_set_to(t
     text = await e.ctl.add_radio(TNC_TEXT.key)
     assert text is not None
     page = await e.ws()
-    await page.send({"cmd": "set_config", "values": {f"radio/{text}/port": "socket://127.0.0.1:9"}})
-    await until(lambda: (spec := e.ctl.config.radio(text)) is not None and spec.value("port") == "socket://127.0.0.1:9")
-    asked: list[tuple[str, ...]] = []
-    monkeypatch.setattr(app, "candidates", lambda pattern, skip: asked.append(skip) or [])
-    assert await e.ctl._radio_ports() == []
-    assert asked == [(*e.ctl.config.serial_skip_paths, "socket://127.0.0.1:9")], "a TNC that is written nothing gets no carriage return and no KISS entries, even while its port is not held"
+    port = str(e.ports / "probe_text")                                             # (a port the search pattern matches; nothing is behind it, so the radio never opens it)
+    await page.send({"cmd": "set_config", "values": {f"radio/{text}/port": port}})
+    await until(lambda: (spec := e.ctl.config.radio(text)) is not None and spec.value("port") == port)
+    assert all(c.holder != text for c in e.ctl.radios.claims.all()), "the radio has not opened its port"
+    assert e.ctl.radiofinder._unclaimed([port], 1) == [], "a TNC that is written nothing gets no carriage return and no KISS entries, even while its port is not held"
     await e.stop()
 
 
@@ -207,9 +212,20 @@ def test_every_radio_a_rule_picks_can_send(specs: tuple[RadioSpec, ...], choice:
 
 
 def test_a_type_whose_profile_reads_text_or_writes_nothing_cannot_send_and_every_other_can() -> None:
+    profiles = {**PROFILES, DIREWOLF.key: DIREWOLF}                             # (the Sound card type's line is told Direwolf's profile by its own driver)
     for t in BY_KEY.values():
-        assert PROFILES[t.profile].writes_nothing == (PROFILES[t.profile].framing == "text" or PROFILES[t.profile].receive_only) == (not t.can.transmit), t.key
+        assert profiles[t.profile].writes_nothing == (profiles[t.profile].framing == "text" or profiles[t.profile].receive_only) == (not t.can.transmit), t.key
     assert [t.key for t in BY_KEY.values() if not t.can.transmit] == [TNC_TEXT.key, "lora-console"]
+
+
+def test_the_row_of_a_radio_that_only_receives_has_no_path_and_no_digipeat_choice_its_type_has_no_such_field() -> None:
+    for key in (TNC_TEXT.key, "lora-console"):
+        spec = RadioSpec(3, type_of(key).kind, key, "", True, 3, settings={"port": "/dev/ttyUSB7"})
+        row = radio_row(spec, (spec,), None, Claims())
+        assert row is not None and row["choices"] == {"beacon": True, "path": None, "digipeat": None}, (key, row and row["choices"])
+    tnc = RadioSpec(5, "fm", "kiss", "", True, 5)
+    row = radio_row(tnc, (tnc,), None, Claims())
+    assert row is not None and row["choices"] == {"beacon": True, "path": "", "digipeat": False}
 
 
 def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() -> None:
@@ -219,7 +235,10 @@ def test_a_search_leaves_out_the_ports_the_radios_that_only_listen_are_set_to() 
     config = replace(ON_AIR, radios=(*ON_AIR.radios, text, off, kiss))
     first = config.radio(1)
     assert first is not None and first.type == "kenwood-tnc2" and first.value("port") == "", "radio 1 searches, and a TNC-2 is nudged with a carriage return"
-    assert line_settings(first, config, RunOverrides()).skip == (*ON_AIR.serial_skip_paths, "/dev/ttyUSB7"), "the receive-only radio's port is never searched; a radio that is off, or that sends, is"
+    claims = Claims()
+    claims.named = lambda: named_ports(config)                                     # (as the radio registry has it: the settings in force)
+    assert claimed(claims, 1) == {port_key("/dev/ttyUSB7"): "held by radio 3", port_key("/dev/ttyUSB9"): "held by radio 5"}, "the receive-only radio's port is never searched, nor one a radio that sends is set to; a radio that is off is"
+    assert line_settings(first, config, RunOverrides()).skip == ON_AIR.serial_skip_paths, "read from the table at every listing: no restart of radio 1 when another radio's port changes"
     assert line_settings(text, config, RunOverrides()).skip == ON_AIR.serial_skip_paths and line_settings(first, ON_AIR, RunOverrides()).skip == ON_AIR.serial_skip_paths
     assert line_settings(kiss, config, RunOverrides()).skip == ON_AIR.serial_skip_paths, "a radio with its own port does not search: another radio's port is not in its settings, and restarts it not"
     remembered = replace(config, serial_last_port="/dev/ttyUSB0")
@@ -251,9 +270,11 @@ async def test_a_save_of_the_text_radio_restarts_no_radio_that_has_its_own_port(
     await e.stop()
 
 
+@posix_only
 async def test_the_search_of_a_radio_whose_own_port_is_gone_never_opens_the_port_a_text_radio_is_set_to(tmp_path: object) -> None:
     """The D710's cable is pulled while the Yaesu is switched on: radio 1, with a port of its own that cannot be opened, searches the ports as its fallback; the text monitor's port, which appears after the
-    start and is not held yet, is left out of that search, so that not a carriage return reaches it, and the monitor opens its own port."""
+    start and is not held yet, is left out of that search, so that not a carriage return reaches it, and the monitor opens its own port. The port is a pseudo-terminal behind a device path, as the search
+    lists a serial device (a KISS TCP address is no device, and no search lists one): POSIX only, and the search is made on Linux alone."""
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2"}, probe_nudge_sec=0.1)       # type: ignore[arg-type]
     e.settings["serial/port"] = str(e.ports / "fm_gone")                       # (radio 1's own port: not there, and not in the search's pattern probe_*)
     await e.start(connected=False)

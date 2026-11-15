@@ -11,6 +11,7 @@ import { messages } from "@/i18n/ja/messages";
 import { nearby } from "@/i18n/ja/nearby";
 import { objects } from "@/i18n/ja/objects";
 import { packets } from "@/i18n/ja/packets";
+import { phone } from "@/i18n/ja/phone";
 import { radio } from "@/i18n/ja/radio";
 import { settings } from "@/i18n/ja/settings";
 import { setup } from "@/i18n/ja/setup";
@@ -39,6 +40,7 @@ export const ja: Catalogue = {
   ...symbols,
   ...radio,
   ...settings,
+  ...phone,
   ...beacon,
   ...setup,
   ...help,

@@ -136,6 +136,7 @@ async def test_a_post_with_no_call_is_refused_and_a_command_that_is_not_right_is
     await page.send(post())
     error = await page.expect("error")
     assert error["cmd"] == "sked_post" and "set your call first" in error["text"]
+    assert (error["code"], error["params"]["reason"]) == ("transmit.call", "set your call first"), "coded: the page says it in its language"
     for broken in (post(dial="7.0541 MHz FM"), post(dial="7.0541 MHz USB\n"), post(**{"from": "2026-02-30T18:00:00Z"}), post(**{"from": when(4), "to": when(2)}), post(**{"from": when(2), "to": when(30)}),
                    post(note="x" * 321), {**post(), "call": "OH2XYZ"}, {k: v for k, v in post().items() if k != "from"}, {**post(), "from_": when(2)}, {"cmd": "sked_delete", "id": "7F3A9C21D4E0"}, {"cmd": "sked_delete", "id": "../../etc/pa"},
                    {"cmd": "sked_delete"}, {"cmd": "skeds_wanted", "now": True}):

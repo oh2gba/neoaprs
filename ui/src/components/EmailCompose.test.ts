@@ -52,7 +52,7 @@ describe("EmailCompose", () => {
     expect(send(wrapper).attributes("disabled")).toBeUndefined();
     await wrapper.setProps({ connected: false });
     expect(send(wrapper).attributes("disabled")).toBeDefined();
-    expect(send(wrapper).attributes("title")).toBe("The TNC is not connected");
+    expect(send(wrapper).attributes("title")).toBe("The radio is not connected");
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toBeUndefined();
     wrapper.unmount();

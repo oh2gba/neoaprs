@@ -84,7 +84,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.you": "tu",
   "chain.internet": "internet",
   "chain.sent": "inviato {time}",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "inviato {time} sulla radio {name}",
   "chain.heard": { select: "internet", yes: "ricevuto, e via internet", other: "ricevuto" },
   "chain.heard_at": { select: "internet", yes: "ricevuto {time}, e via internet", other: "ricevuto {time}" },
   "chain.seen_internet": "visto in una copia tornata via internet, non ricevuto qui",
@@ -97,7 +97,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.waiting_for_ack": "in attesa della conferma",
 
   "route.button": "Percorso",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "I messaggi a questa stazione vanno sulla radio {name}",
   "messages.may_not_message": "Questa stazione potrebbe non ricevere messaggi",
   "messages.may_not_message_label": "Perché potrebbe non riceverli",
   "messages.may_not_message_help":
@@ -109,7 +109,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.use_auto": "Percorso automatico",
   "route.automatic": "automatico",
   "route.auto": "Automatico: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "Automatica: {name}",
   "route.auto_direct": "Automatico: diretto, poi {path}",
   "route.auto_via": "Automatico: via {heard}, poi {path}",
   "route.own": "Il tuo percorso: {path}",
@@ -163,7 +163,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "pathbuilder.seen_next": { one: "Accanto a {call} nei percorsi di {n} stazione", other: "Accanto a {call} nei percorsi di {n} stazioni" },
   "pathbuilder.add_hop": "Aggiungi {call}",
 
-  "compose.tnc_not_connected": "Il TNC non è connesso",
+  "compose.tnc_not_connected": "La radio non è connessa",
   "compose.left": "{n} liberi",
   "compose.over": "{n} in più",
   "compose.left_title.bytes": "Restano {left} byte su {max}",

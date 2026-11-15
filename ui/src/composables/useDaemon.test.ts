@@ -230,7 +230,7 @@ describe("useDaemon", () => {
   it("keeps the latest answer to list_ports", () => {
     const { daemon, socket } = setUp();
     expect(daemon.ports.value).toBeNull();
-    socket.say({ type: "ports", sound_cards: [], keying: "", ports: [], search: false, find: true });
+    socket.say({ type: "ports", sound_cards: [], keying: "", ports: [], search: false, find: true, radio: null });
     socket.say({
       type: "ports",
       sound_cards: [],
@@ -238,6 +238,7 @@ describe("useDaemon", () => {
       ports: [portRow("COM3", "USB Serial Port (COM3)")],
       search: false,
       find: true,
+      radio: null,
     });
     expect(daemon.ports.value?.ports.map((p) => p.device)).toEqual(["COM3"]);
   });
@@ -256,7 +257,7 @@ describe("useDaemon", () => {
   it("sends a command, and says so in the toast when it cannot", () => {
     const { daemon, socket } = setUp();
     expect(daemon.send({ cmd: "ping" })).toBe(false);
-    expect(daemon.lastError.value).toMatchObject({ cmd: "", key: null, code: "not_connected", text: "Not connected to the daemon." });
+    expect(daemon.lastError.value).toMatchObject({ cmd: "", key: null, code: "not_connected", text: "Not sent: there is no connection to NeoAPRS" });
     socket.say(hello());
     expect(daemon.send({ cmd: "list_ports" })).toBe(true);
     expect(socket.sent).toEqual([{ cmd: "list_ports" }]);

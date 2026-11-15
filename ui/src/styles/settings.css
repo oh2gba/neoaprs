@@ -139,15 +139,19 @@ fieldset.composebox > legend {
   width: 3em;
   text-align: center;
 }
-.field-control .urls {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
+/* the code a phone's camera opens the page from (PhoneCode): a square of one size, whatever the address, that gives way only where the column is narrower; dark on white in both themes */
+.phonecode {
+  flex: 0 1 196px;
   min-width: 0;
+  max-width: 196px;
+  height: auto;
+  aspect-ratio: 1;
 }
-.field-control .urls .input {
-  flex: none;
+.phonecode-field {
+  fill: var(--code-field);
+}
+.phonecode-dark {
+  fill: var(--code-dark);
 }
 /* (the button that stands first in the value column of a row, and the one of the Radio group, are as wide as the Beacon now of the send rows: Test sound and Test pop-up, one under the other, are one width) */
 .field-control > .btn:first-child,
@@ -222,11 +226,6 @@ fieldset.composebox > legend {
   margin: 0;
   color: var(--bad);
   font-weight: 600;
-}
-.field-hint {
-  grid-column: 2;
-  margin: 0;
-  font-size: 12px;
 }
 .confirm-row {
   display: flex;

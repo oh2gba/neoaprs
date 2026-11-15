@@ -78,6 +78,17 @@ async def test_a_7_bit_line_is_told_once_in_the_log_and_not_on_the_page(rig: Rig
 
 
 @stops_rigs
+async def test_a_line_whose_information_is_longer_than_ax25_carries_is_rejected_as_no_frame_and_is_no_fault_of_ours(rig: Rigs, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    r = await rig(profile=TNC_TEXT)
+    r.radio.feed(b"OH2AB>APRS,WIDE1-1:>" + b"x" * 300 + b"\r\nOH2CD>APRS:>after\r\n")
+    await until(lambda: r.tnc.stats.rejected == 1 and r.tnc.stats.packets == 1)
+    assert [p.source for p in r.packets] == ["OH2CD"]
+    assert sum("rejected, not a frame (an information field of 301 bytes, more than the 256 AX.25 allows)" in line for line in r.tnc.lines) == 1
+    assert not any("internal error" in line for line in r.tnc.lines) and not [rec for rec in caplog.records if rec.levelno >= logging.WARNING], "ordinary bad input, said at no level of a fault"
+
+
+@stops_rigs
 async def test_a_device_that_sends_kiss_frames_after_text_is_read_as_kiss_and_still_never_written_to(rig: Rigs) -> None:
     r = await rig(profile=TNC_TEXT)
     r.radio.feed(fixture_bytes("text/yaesu.txt"))

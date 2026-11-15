@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.web import access as web_access
+from neoaprs.web import confighandlers
 from neoaprs.web.access import LOCAL_ONLY
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support.alertcmd import writing
@@ -78,6 +79,22 @@ async def test_a_page_of_another_device_cannot_change_a_setting_that_names_a_pro
     assert (error["cmd"], error["key"], error["code"]) == ("set_config", key, "setting.local_only")
     assert error["text"] == f"set_config: {key}: only a page on the computer NeoAPRS runs on can do this"
     assert e.ctl.config == before and await e.ctl.store.settings() == stored, "nothing is stored, not even the other value of the same change"
+    await e.stop()
+
+
+async def test_a_radios_own_setting_reaches_the_list_too(tmp_path: Path, away: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No radio's own setting names a program or an address today; one that would is put on the list as `radio/*/<key>` and is then refused to a page of another device for every radio."""
+    monkeypatch.setattr(confighandlers, "LOCAL_ONLY", LOCAL_ONLY | {"radio/*/path"})
+    e = await served(tmp_path)
+    page = await from_afar(e)
+    before, stored = e.ctl.config, await e.ctl.store.radios()
+    await page.send({"cmd": "set_config", "values": {"radio/1/path": "WIDE2-1", "map/radius_km": "200"}})
+    error = await page.expect("error")
+    assert (error["cmd"], error["key"], error["code"]) == ("set_config", "radio/1/path", "setting.local_only")
+    assert e.ctl.config == before and await e.ctl.store.radios() == stored, "nothing is stored"
+    await page.send({"cmd": "set_config", "values": {"radio/1/path": before.radio(1).settings.get("path", "WIDE1-1,WIDE2-1"), "map/radius_km": "200"}})     # type: ignore[union-attr]
+    await until(lambda: e.ctl.config.map_radius_km == 200)
+    assert len(page.of("error")) == 1, "the value in force is let through"
     await e.stop()
 
 

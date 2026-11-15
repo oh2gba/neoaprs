@@ -14,6 +14,7 @@ from datetime import timedelta
 from .app import Radio, Services
 from .config import LAST_PORT, MESSAGE_RADIOS
 from .mercury import DIAL_BAND, SUGGESTED
+from .mercurymodem import Mercury
 from .packet import IS, Packet
 from .packetcodec import tnc2
 from .policy import LOG_KEEP_DAYS
@@ -69,6 +70,7 @@ def wire(parts: Services) -> None:
     parts.stationalerts.fired.connect(parts.alerts.station)                             # (one that fires runs the alert command, as a message to us does; the page is told by its topics)
     wired: list[object] = []                                                             # the lines, modems and beacons connected so far (a radio given another driver may keep its line)
     parts.radios.wire = lambda radio: wire_radio(parts, radio, wired)                   # (a radio made later, or given another driver, is connected the same way)
+    parts.config_changed.connect(lambda config: _tx_gains(parts))                       # (the transmit gain is set live in each radio's modem as it is now, and the tune tone follows it)
     for radio in parts.radios.all():
         wire_radio(parts, radio, wired)
     parts.stationbook.removed.connect(parts.radios.forget)                              # (a station let go takes the operator's radio for it along: neoaprs/radioregistry.py)
@@ -99,12 +101,19 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
         line.state_changed.connect(lambda state: parts.radio_changed.emit(id))
         line.changed.connect(lambda: parts.radio_changed.emit(id))
     if modem is not None and first_time(modem):
-        modem.frequencies = parts.suggested_frequencies
+        if isinstance(modem, Mercury):                                                   # (the suggested dials are the HF modem's; Direwolf's box has none)
+            modem.frequencies = parts.suggested_frequencies
         modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
         modem.changed.connect(lambda: parts.radio_changed.emit(id))
-        parts.config_changed.connect(lambda config: modem.set_tx_gain(radio.spec.value("tx_gain_db")) if parts.radios.get(id) is radio else None)       # (the transmit gain is set live in the modem, and the tune tone follows it; a radio the registry let go of sets nothing, whatever radio has its id now)
     if first_time(beacon):
         beacon.sent.connect(parts.igate.beacon_sent)                                     # (a moving station's beacon is also put on APRS-IS)
+
+
+def _tx_gains(parts: Services) -> None:
+    """Every radio's modem takes the transmit gain of the settings live; a modem replaced or of a radio removed is no radio's and takes nothing."""
+    for radio in parts.radios.all():
+        if (modem := radio.driver.modem) is not None:
+            modem.set_tx_gain(radio.spec.value("tx_gain_db"))
 
 
 def _show_frequencies(parts: Services) -> None:
@@ -114,9 +123,9 @@ def _show_frequencies(parts: Services) -> None:
     parts.suggested_frequencies = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
     parts.skeds.changed.emit()                              # (the Skeds tab offers the same dials)
     for radio in parts.radios.all():
-        if radio.driver.modem is not None:
-            radio.driver.modem.frequencies = parts.suggested_frequencies
-            radio.driver.modem.changed.emit()
+        if isinstance(modem := radio.driver.modem, Mercury):
+            modem.frequencies = parts.suggested_frequencies
+            modem.changed.emit()
 
 
 def _log_packet(packet: Packet) -> None:
@@ -128,9 +137,10 @@ def _log_packet(packet: Packet) -> None:
 
 def _remember_port(parts: Services, radio: Radio, state: Source.State) -> None:
     """A port the search found is stored in radio 1's own state row (`radio/1/last_port`, the settings' serial/last_port) and tried first next time. Not a port that was named (the settings or --port) and
-    opened. Only radio 1 remembers a port (its driver reads it: neoaprs/tncdriver.py), and only a TNC's line is searched for."""
+    opened. Only radio 1 remembers a port (its driver reads it: neoaprs/tncdriver.py), only a TNC's line is searched for, and a radio the registry has let go remembers nothing (a line handed in for
+    an id, a test's, may be the line of the radio that has the id now)."""
     driver = radio.driver
-    if state is not Source.State.CONNECTED or radio.id != FM_ID or not isinstance(driver, TncDriver):
+    if state is not Source.State.CONNECTED or radio.id != FM_ID or not isinstance(driver, TncDriver) or parts.radios.get(radio.id) is not radio:
         return
     path = driver.found_port(radio.spec, parts.config, parts.run)
     if path:

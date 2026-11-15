@@ -13,9 +13,9 @@ from .clock import Clock, utcnow
 from .config import Config
 from .dummyline import DUMMY_PATH
 from .radiodriver import RunOverrides
-from .radiospec import FM_ID, RadioId, RadioSpec, enabled, transmits
+from .radiospec import FM_ID, RadioId, RadioSpec
 from .radiotypes import kind_field
-from .serialprobe import search_pattern
+from .serialprobe import claim_value, named_ports, search_pattern
 from .source import Source
 from .tnc import Tnc
 from .tncprofile import EVERY_BY_KEY, Profile, names_tcp, tcp_url
@@ -60,15 +60,21 @@ def line_settings(spec: RadioSpec, station: Config, run: RunOverrides) -> TncSet
     if profile.transport == "tcp":
         host = _own(spec, "tcp_host")                           # (empty on a LoRa board on the network until its address is typed: then it opens nothing and waits)
         return TncSettings(port if names_tcp(port) else tcp_url(host, _own(spec, "tcp_port", 0)) if host else "", baud, profile, False, station.serial_skip_paths, pattern)
-    named = port or (station.serial_last_port if first else "")
-    return TncSettings(named, baud, profile, profile.search, station.serial_skip_paths if named or not profile.search else (*station.serial_skip_paths, *listening_ports(station, spec.id)), pattern)      # (a LoRa board is never searched for)
+    named = port or (_remembered(station, spec.id) if first else "")
+    return TncSettings(named, baud, profile, profile.search, station.serial_skip_paths, pattern)      # (a LoRa board is never searched for; what the other radios hold or are set to, the search leaves out by the station's table: Claims.others)
 
 
-def listening_ports(station: Config, but: RadioId | None = None) -> tuple[str, ...]:
-    """The ports the enabled radios that only listen are set to (but the one named), which no search and no Find my radio open, so that neither a carriage return nor the KISS entries reach a TNC that is
-    written nothing (one that is open is held and left out anyway; these are left out before it is). Of the radios' settings only one that searches with no port of its own carries them; every line reads
-    them again when its search starts (RadioRegistry._listens_for: the fallback search of a radio whose own port cannot be opened), so that a change of them restarts no radio that has its port."""
-    return tuple(port for s in enabled(station.radios) if s.id != but and not transmits(s) and (port := _own(s, "port")))
+def _remembered(station: Config, mine: RadioId) -> str:
+    """The port radio 1's search found last time, tried first while radio 1 has no port of its own; "" once another enabled radio is set to that device (a USB name that moved to another radio's adapter at a replug)
+    or the GPS receiver reads it."""
+    last, gps = station.serial_last_port, claim_value(station.gps_device) if station.gps_source == "serial" else None
+    others = {c.value for c in named_ports(station) if c.holder != mine} | ({gps} if gps else set())
+    return "" if last and claim_value(last) in others else last
+
+
+def remembered(spec: RadioSpec, station: Config, run: RunOverrides) -> bool:
+    """Whether the line's port is only the one radio 1's search found last time (serial/last_port), not the radio's own nor the run's: held by another, it is searched past, not waited for (Tnc.remembered)."""
+    return not run.port and profile_of(spec).transport == "serial" and not _own(spec, "port") and bool(line_settings(spec, station, run).port)     # (only radio 1 has one with no port of its own)
 
 
 def radio_words(settings: TncSettings) -> str:
@@ -101,11 +107,13 @@ class TncDriver:
 
     def configure(self, spec: RadioSpec, station: Config, run: RunOverrides) -> None:
         apply_tnc_settings(self._line, line_settings(spec, station, run))
+        self._line.remembered = remembered(spec, station, run)
         self._line.set_check(run.check_sec)
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """Its line's settings: a change of the port, the speed, the type, the search's pattern or the ports to skip restarts it; of another radio's, only the port of one that only listens, and only
-        while this one searches with no port of its own (`listening_ports`)."""
+        """Its line's settings: a change of the port, the speed, the type, the search's pattern or the ports to skip restarts it; of another radio's settings none (its search reads what the others are set to
+        whenever it lists the ports and lets go of one a radio's settings name: Claims.others, tncsearch.let_go), but for radio 1 a port another radio is set to, or the GPS receiver reads, that is the one radio 1's
+        search remembered. Whether the port is only the remembered one is not in it: it changes alone only when the radio is set to the port it has open already."""
         return (line_settings(spec, station, run),)
 
     def words(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:

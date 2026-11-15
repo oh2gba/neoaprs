@@ -13,18 +13,20 @@ from neoaprs import config as cfg
 from neoaprs.cli.radiosettings import SHOWN_KEYS
 from neoaprs.configstatus import MAX_STATUS
 from neoaprs.decay import ANNOUNCEMENT, BULLETIN
+from neoaprs.direwolf import TX_GAIN_MAX_DB as DIREWOLF_GAIN_MAX, TX_GAIN_MIN_DB as DIREWOLF_GAIN_MIN
 from neoaprs.message import EMAIL_ATTEMPTS, STATION_ATTEMPTS
 from neoaprs.ownbulletin import MAX_POSTED
 from neoaprs.policy import GPS_STALE_SEC, INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
-from neoaprs.radiotype import HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME
+from neoaprs.radiotype import FM_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_BEACON_MIN_MIN, HF_MAX_FRAME, LORA_BEACON_JITTER_SEC, LORA_BEACON_MIN_MIN
 from neoaprs.radiotype import KINDS
-from neoaprs.radiotypes import TYPES, kind_fields, types_of
+from neoaprs.radiotypes import TYPES, kind_fields
 from neoaprs.services.beacon import FIRST_DELAY_SEC
 from neoaprs.services.ownobjects import MAX_OBJECTS
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.services.updatecheck import EVERY_SEC as UPDATE_EVERY_SEC
 from neoaprs.skeds import SKED_TOKEN
 from neoaprs.smartbeacon import PRESETS
+from neoaprs.tncprofile import PROFILES
 from neoaprs.versions import NOT_COUNTED
 
 BLOCK = re.compile(r"(<!-- doc-settings:(\w+)[^>\n]*-->\n)(.*?)(<!-- /doc-settings -->)", re.S)
@@ -36,12 +38,13 @@ EMPTY = "empty"
 def _numbers() -> dict[str, object]:
     """The `{name}` fields of the descriptions."""
     fields: dict[str, object] = {key.replace("/", "_"): f"{low} to {high}" for key, (low, high) in cfg.RANGES.items()}
+    fields["direwolf_tx_gain_db"] = f"{DIREWOLF_GAIN_MIN} to {DIREWOLF_GAIN_MAX}"
     fields.update(
         comment=cfg.MAX_COMMENT, comment_phg=cfg.MAX_COMMENT_PHG, status=MAX_STATUS, beacon_min=cfg.MIN_BEACON_INTERVAL_MIN, hf_min=HF_BEACON_MIN_MIN, status_min=cfg.MIN_STATUS_INTERVAL_MIN, alert_command=cfg.MAX_ALERT_COMMAND,
         map_station_hours_choices=", ".join(str(h) for h in cfg.STATION_HOURS),
         moving_presets="; ".join(
             f"`{name}` every {p.fast_sec:g} seconds from {p.fast_kmh:g} km/h, a turn of more than {p.turn_min_deg:g} degrees (at least {p.turn_min_sec:g} seconds after the last beacon)" for name, p in PRESETS.items()),
-        profiles=", ".join(f"`{t.key}`" for t in types_of("fm")), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
+        profiles=", ".join(f"`{p.key}`" for p in PROFILES), directions=" ".join(f"`{d}`" for d in cfg.ANTENNA_DIRECTIONS if d != "omni"), tocall=TOCALL,
     )
     return fields
 
@@ -142,8 +145,8 @@ def fixed() -> str:
         f"A GPS fix older than {GPS_STALE_SEC} seconds is not used: a moving station sends no beacon on it, and never the home position instead.",
         f"At most {MAX_OBJECTS} objects and items, and {MAX_POSTED} bulletins, of your own at once. A bulletin is sent for {BULLETIN.lasts // 3600} hours and an announcement for {ANNOUNCEMENT.lasts // 3600} hours.",
         f"The update check asks the version page every {updates} hours.",
-        f"On the HF radio a beacon interval below {HF_BEACON_MIN_MIN} minutes is raised to {HF_BEACON_MIN_MIN}; the FM radio keeps the interval set. The HF beacon waits a random extra time of up to {HF_BEACON_JITTER_SEC} seconds after each interval, so that stations started together do not key up together.",
-        f"A frame on the HF radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
+        f"A beacon interval below a radio's floor is raised to it: {HF_BEACON_MIN_MIN} minutes on an HF radio, {LORA_BEACON_MIN_MIN} on a LoRa radio, {FM_BEACON_MIN_MIN} on an FM radio. The beacon of an HF or a LoRa radio waits a random extra time after each interval (up to {HF_BEACON_JITTER_SEC} seconds on HF, {LORA_BEACON_JITTER_SEC} on LoRa), so that stations started together do not key up together.",
+        f"A frame on an HF radio is at most {HF_MAX_FRAME} bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.",
     ]
     return "\n".join(f"- {item}" for item in items) + "\n"
 
@@ -156,7 +159,7 @@ STATE_WORDS = {
     cfg.STATUS_SENT: "when the status report last went out",
     cfg.STATUS_TEXT: "the text of that status report, which ?APRSS answers with and the page shows",
     cfg.MAP_AUTO: "whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`)",
-    cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station, by call and the radio's number (1 the FM radio, 2 the HF radio), while both radios are on",
+    cfg.MESSAGE_RADIOS: "the radio the operator chose for messages to a station, by call and the radio's number, while several radios that can send are on",
     cfg.INSTALL_ID: "the random number of this installation that the update check sends",
     NOT_COUNTED: "`true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page",
     SKED_TOKEN: "the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle",
@@ -178,9 +181,9 @@ RADIO_DESCRIPTIONS: dict[str, tuple[str, str]] = {
     "beacon": (DB_ONLY, "`true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says"),
     "path": ("My station tab, Beacon, Advanced", "the digipeaters of the beacon on this radio: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-2` for any other; on a LoRa radio it is `WIDE1-1`, the path of the LoRa networks. `DIRECT` is no digipeaters at all. Only a type that may carry a path has it"),
     "digipeat": ("Settings tab, Digipeater", "`true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater))"),
-    "sound_card": ("Settings tab, Radio (HF radio, Sound card)", "the Mercury modem's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-hf-modem))"),
-    "keying": ("Settings tab, Radio (HF radio, Keying)", "how the Mercury modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice"),
-    "tx_gain_db": ("Settings tab, Radio (HF radio, Transmit level)", "the Mercury modem's transmit gain in dB ({mercury_tx_gain_db}; `0`: the modem's own level, a frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame"),
+    "sound_card": ("Settings tab, Radio (Sound card)", "the sound card of the radio's modem (the Mercury HF modem, Direwolf), as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows); one card is one radio's. The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-hf-modem))"),
+    "keying": ("Settings tab, Radio (Keying)", "how the radio's modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice"),
+    "tx_gain_db": ("Settings tab, Radio (Transmit level)", "the transmit gain of the radio's modem in dB (Mercury {mercury_tx_gain_db}, Direwolf {direwolf_tx_gain_db}; `0`: the modem's own level, a Mercury frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once (Direwolf starts its program again with it) and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame"),
 }
 
 

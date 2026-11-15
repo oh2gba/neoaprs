@@ -9,14 +9,10 @@ from dataclasses import replace
 
 from neoaprs.configvalues import host_name
 from neoaprs.radiotype import Allowed, Can, Field, RadioType
-from neoaprs.radiotypes.common import LORA_ALLOWED, LORA_LIMITS, LORA_PATH, fields_of
+from neoaprs.radiotypes.common import LISTENS, LORA_ALLOWED, LORA_LIMITS, LORA_PATH, NOTHING_ALLOWED, TERMINAL_ONLY, fields_of
 from neoaprs.radiotypes.kisstcp import TCP_HOST, TCP_PORT
 from neoaprs.radiotypes.serialtnc import BAUD, PORT
 from neoaprs.tncprofile import LORA_CONSOLE, LORA_SERIAL, LORA_TCP, Profile
-
-TERMINAL = Can(find=False, terminal=True, tune=False, key_test=False, scope=False, tx_gain=False, frequencies=False)
-LISTENS = replace(TERMINAL, transmit=False)          # a radio that only receives (`Can.transmit` False): no rule picks it to send on, and its line is never written to
-NOTHING_GOES_OUT = Allowed(paths=False, digipeat=False, smart_beacon=False, gateway_heard=False, shared_channel=False)     # a radio that only receives: no path, beacon or gateway of ours on it
 
 
 def host_or_empty(text: str) -> str:
@@ -27,12 +23,12 @@ def host_or_empty(text: str) -> str:
 BOARD_HOST = replace(TCP_HOST, parse=host_or_empty, default="")      # a board on the network is never on this computer: no address until the operator types the board's
 
 
-def _board(profile: Profile, fields: tuple[Field, ...], allowed: Allowed = LORA_ALLOWED, can: Can = TERMINAL) -> RadioType:
+def _board(profile: Profile, fields: tuple[Field, ...], allowed: Allowed = LORA_ALLOWED, can: Can = TERMINAL_ONLY) -> RadioType:
     return RadioType(profile.key, "lora", profile.name, f"radio.type.{profile.key}", profile.transport, "tnc", profile.key, fields, LORA_LIMITS, allowed, can, dummy=False, recommended_path=LORA_PATH)
 
 
 TYPES: tuple[RadioType, ...] = (
     _board(LORA_TCP, fields_of((BOARD_HOST, TCP_PORT), LORA_ALLOWED)),
     _board(LORA_SERIAL, fields_of((PORT, BAUD), LORA_ALLOWED)),
-    _board(LORA_CONSOLE, fields_of((PORT, BAUD), NOTHING_GOES_OUT, transmit=False), NOTHING_GOES_OUT, LISTENS),      # (where it is reached, and nothing of what goes out: nothing does)
+    _board(LORA_CONSOLE, fields_of((PORT, BAUD), NOTHING_ALLOWED, transmit=False), NOTHING_ALLOWED, LISTENS),      # (where it is reached, and nothing of what goes out: nothing does)
 )

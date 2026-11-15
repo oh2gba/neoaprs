@@ -18,6 +18,7 @@ import "./styles/help.css";
 import "./styles/pathbuild.css";
 import "./styles/helppictures.css";
 import "./styles/responsive.css";
+import "./lib/firststart"; // (first: it looks at the store before anything of the page writes to it)
 import { createApp } from "vue";
 import AccessGate from "./AccessGate.vue";
 import { listenForInstall } from "./composables/useInstall";

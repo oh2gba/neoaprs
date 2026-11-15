@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Builds NeoAPRS-<version>-x86_64.AppImage, the Linux download: one file that holds CPython, the wheel with the locked dependencies of its extra `app` (Qt with its web engine) and the icon.
 #
-#   scripts/build-appimage (--mercury TARBALL | --no-mercury) [--wheel FILE] [--out DIR]
+#   scripts/build-appimage (--mercury TARBALL | --no-mercury) (--direwolf TARBALL | --no-direwolf) [--wheel FILE] [--out DIR] [--window web --gi TARBALL]
 #   scripts/build-appimage --retag FILE VERSION [--out DIR]
+#
+# --window web makes the trial of the web window (aprs-reference/window-plan.md, 9.1), never a release: no Qt, the window of pywebview on the system's WebKitGTK and pystray's tray in its place, `gi` and what
+# the image carries of GTK's world from TARBALL (what scripts/build-gi makes, gi-VERSION-linux-x86_64.tar.gz: its gi/ goes into site-packages, the rest to usr/lib/neoaprs-gtk), pywebview, pystray and Pillow
+# at the versions and digests of uv.lock and Pillow's Linux wheel by its pin there (packaging/appimage/weblock.py; wheels only, but proxy-tools), and AppRun-web, which sets NEOAPRS_WINDOW=web. The file is NeoAPRS-<version>-web-x86_64.AppImage in DIR (default
+# build/appimage-web/), the work folder build/appimage-web/work/.
 #
 # Without --wheel the wheel is built from this tree (uv build). --mercury is the tarball that scripts/build-mercury --tar makes for x86_64 (mercury-VERSION-linux-x86_64.tar.gz): its folder mercury/ goes to usr/tools/mercury
 # (the simulators of its dev/ folder are left out). A release always carries Mercury, so the build refuses to run with neither --mercury nor --no-mercury (the file of a developer who has no Mercury to hand).
+# --direwolf is the tarball that scripts/build-direwolf --tar makes for x86_64 (direwolf-VERSION-linux-x86_64.tar.gz): its folder direwolf/ goes to usr/tools/direwolf (its dev/ folder is left out); the same rule holds, and it needs --mercury (the Sound card type lists the sound cards with Mercury).
 # The file is made in DIR (default dist-appimage/). --retag makes NeoAPRS-VERSION-x86_64.AppImage out of the AppImage FILE with nothing changed
 # but the VERSION it says: the newer file of the end-to-end test of Update now (scripts/update-e2e.py), never a release. The tools are fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build), each
 # pinned by version and SHA-256 below (the digest GitHub shows for each file of the release; the pin is the trust, not the server): the relocatable CPython of python-build-standalone, appimagetool and the
@@ -25,17 +31,25 @@ RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
 wheel=""
 mercury=""
 no_mercury=0
+direwolf=""
+no_direwolf=0
 retag=""
 retag_version=""
-out="$ROOT/dist-appimage"
+window=qt
+gi=""
+out=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --wheel) shift; wheel="${1:-}"; [ -f "$wheel" ] || { echo "build-appimage: --wheel needs a wheel file" >&2; exit 2; } ;;
         --mercury) shift; mercury="${1:-}"; [ -f "$mercury" ] || { echo "build-appimage: --mercury needs the tarball that scripts/build-mercury --tar makes" >&2; exit 2; } ;;
         --no-mercury) no_mercury=1 ;;
+        --direwolf) shift; direwolf="${1:-}"; [ -f "$direwolf" ] || { echo "build-appimage: --direwolf needs the tarball that scripts/build-direwolf --tar makes" >&2; exit 2; } ;;
+        --no-direwolf) no_direwolf=1 ;;
         --retag) retag="${2:-}"; retag_version="${3:-}"; shift 2
                  [ -f "$retag" ] && [[ "$retag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+)?$ ]] || { echo "build-appimage: --retag needs an AppImage and a version" >&2; exit 2; } ;;
         --out) shift; out="${1:-}"; [ -n "$out" ] || { echo "build-appimage: --out needs a folder" >&2; exit 2; } ;;
+        --window) shift; window="${1:-}"; case "$window" in qt|web) ;; *) echo "build-appimage: --window is qt or web" >&2; exit 2 ;; esac ;;
+        --gi) shift; gi="${1:-}"; [ -f "$gi" ] || { echo "build-appimage: --gi needs the tarball that scripts/build-gi makes" >&2; exit 2; } ;;
         *) echo "build-appimage: unknown argument $1" >&2; exit 2 ;;
     esac
     shift
@@ -44,6 +58,16 @@ if [ -z "$retag" ]; then
     [ -n "$mercury" ] || [ "$no_mercury" = 1 ] || { echo "build-appimage: give --mercury TARBALL (a release carries Mercury) or --no-mercury" >&2; exit 2; }
     [ -z "$mercury" ] || [ "$no_mercury" = 0 ] || { echo "build-appimage: --mercury and --no-mercury exclude each other" >&2; exit 2; }
     case "$(basename "${mercury:-mercury-0-linux-x86_64.tar.gz}")" in mercury-*-linux-x86_64.tar.gz) ;; *) echo "build-appimage: $mercury is not a Mercury tarball for x86_64 (mercury-VERSION-linux-x86_64.tar.gz)" >&2; exit 2 ;; esac
+    [ "$window" = qt ] || [ -n "$gi" ] || { echo "build-appimage: --window web needs --gi TARBALL (scripts/build-gi makes it)" >&2; exit 2; }
+    [ "$window" = web ] || [ -z "$gi" ] || { echo "build-appimage: --gi is for --window web" >&2; exit 2; }
+    case "$(basename "${gi:-gi-0-linux-x86_64.tar.gz}")" in gi-*-linux-x86_64.tar.gz) ;; *) echo "build-appimage: $gi is not the gi tarball for x86_64 (gi-VERSION-linux-x86_64.tar.gz)" >&2; exit 2 ;; esac
+    [ -n "$direwolf" ] || [ "$no_direwolf" = 1 ] || { echo "build-appimage: give --direwolf TARBALL (a release carries Direwolf) or --no-direwolf" >&2; exit 2; }
+    [ -z "$direwolf" ] || [ "$no_direwolf" = 0 ] || { echo "build-appimage: --direwolf and --no-direwolf exclude each other" >&2; exit 2; }
+    [ -z "$direwolf" ] || [ -n "$mercury" ] || { echo "build-appimage: --direwolf needs --mercury: the Sound card type lists the sound cards with Mercury" >&2; exit 2; }
+    case "$(basename "${direwolf:-direwolf-0-linux-x86_64.tar.gz}")" in direwolf-*-linux-x86_64.tar.gz) ;; *) echo "build-appimage: $direwolf is not a Direwolf tarball for x86_64 (direwolf-VERSION-linux-x86_64.tar.gz)" >&2; exit 2 ;; esac
+fi
+if [ -z "$out" ]; then
+    if [ "$window" = web ]; then out="$ROOT/build/appimage-web"; else out="$ROOT/dist-appimage"; fi
 fi
 [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || { echo "build-appimage: this builds for Linux x86_64 only" >&2; exit 1; }
 command -v uv >/dev/null || { echo "build-appimage: uv is not installed" >&2; exit 1; }
@@ -64,14 +88,15 @@ fetch() {
     echo "$file"
 }
 
-# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it
+# pack APPDIR TARGET: the image of the folder with the pinned runtime in front of it. zstd at level 19 (mksquashfs's default is 15; its option comes after appimagetool's own, and the later one wins): the file
+# is smaller and unpacks as fast, only the build takes longer. The blocks stay appimagetool's 128 KiB: larger ones pack smaller and make every start slower, each read through FUSE unpacking a whole block.
 pack() {
     local appimagetool runtime
     appimagetool="$(fetch "$TOOL_URL" "$TOOL_SHA256")"
     runtime="$(fetch "$RUNTIME_URL" "$RUNTIME_SHA256")"
     chmod +x "$appimagetool"
     rm -f "$2"
-    ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd "$1" "$2"
+    ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --no-appstream --runtime-file "$runtime" --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "$1" "$2"
     chmod +x "$2"
 }
 
@@ -104,6 +129,7 @@ case "$(basename "$wheel")" in neoaprs-"$wheel_version"-*.whl) ;; *) echo "build
 python_tar="$(fetch "$PYTHON_URL" "$PYTHON_SHA256")"
 
 work="$ROOT/build/appimage"
+[ "$window" = qt ] || work="$ROOT/build/appimage-web/work"
 app="$work/AppDir"
 rm -rf "$work"
 mkdir -p "$app" "$out"
@@ -114,10 +140,27 @@ mv "$work/python" "$app/usr"
 python="$app/usr/bin/python3"
 "$python" --version
 
-# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for Linux, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (AppRun runs `python -m neoaprs`)
-(cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra app --extra ble -o "$work/requirements.txt")
+# The locked dependencies of the extras `app` and `ble` (a radio on Bluetooth LE) for Linux, then the wheel on top; the programs the installs make have this machine's path in them and are of no use here (AppRun runs `python -m neoaprs`).
+# The web window: the locked dependencies with `ble` and without `app` (it is Qt on Linux), then pywebview, pystray and Pillow at their locked versions and digests as wheels (Pillow's for Linux by weblock's pin; proxy-tools, pure Python, from its sdist), then gi and the rest the gi tarball carries
+if [ "$window" = web ]; then
+    (cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra ble -o "$work/requirements.txt")
+    "$python" -I "$ROOT/packaging/appimage/weblock.py" "$ROOT/uv.lock" > "$work/requirements-web.txt"
+    binary_names="$("$python" -I "$ROOT/packaging/appimage/weblock.py" --binary)"
+    wheels_only=()
+    for name in $binary_names; do wheels_only+=(--only-binary "$name"); done
+else
+    (cd "$ROOT" && uv export --frozen --no-dev --no-emit-project --extra app --extra ble -o "$work/requirements.txt")
+fi
 uv pip install --python "$python" --break-system-packages --no-config --require-hashes -r "$work/requirements.txt"
+[ "$window" = qt ] || uv pip install --python "$python" --break-system-packages --no-config --require-hashes --no-deps "${wheels_only[@]}" -r "$work/requirements-web.txt"
 uv pip install --python "$python" --break-system-packages --no-config --no-deps "$wheel"
+if [ "$window" = web ]; then
+    tar -xzf "$gi" -C "$work"
+    [ -f "$work/neoaprs-gtk/site-packages/gi/__init__.py" ] && [ -d "$work/neoaprs-gtk/lib" ] && [ -d "$work/neoaprs-gtk/girepository-tray" ] || { echo "build-appimage: $gi has no neoaprs-gtk/site-packages/gi, lib or girepository-tray" >&2; exit 1; }
+    mv "$work/neoaprs-gtk/site-packages/gi" "$app/usr/lib/python3.13/site-packages/gi"
+    rmdir "$work/neoaprs-gtk/site-packages"
+    mv "$work/neoaprs-gtk" "$app/usr/lib/neoaprs-gtk"
+fi
 find "$app/usr/bin" -type f ! -name 'python3*' -delete
 find "$app/usr/bin" -xtype l -delete
 
@@ -128,11 +171,22 @@ if [ -n "$mercury" ]; then
     for needed in mercury lib/libasound.so.2 share/alsa/alsa.conf LICENSE; do [ -e "$app/usr/tools/mercury/$needed" ] || { echo "build-appimage: $mercury has no mercury/$needed" >&2; exit 1; }; done
     [ -x "$app/usr/tools/mercury/mercury" ] && [ ! -e "$app/usr/tools/mercury/dev" ]
 fi
+# Direwolf, the FM modem of the Sound card type: the program with its ALSA and udev libraries, the ALSA configuration and its two data files, beside Mercury; its dev/ folder of utilities is not shipped
+if [ -n "$direwolf" ]; then
+    mkdir -p "$app/usr/tools"
+    tar -xzf "$direwolf" -C "$app/usr/tools" --exclude='direwolf/dev'
+    for needed in direwolf lib/libasound.so.2 lib/libudev.so.1 share/alsa/alsa.conf data/tocalls.yaml data/symbols-new.txt LICENSE SOURCE.txt; do [ -e "$app/usr/tools/direwolf/$needed" ] || { echo "build-appimage: $direwolf has no direwolf/$needed" >&2; exit 1; }; done
+    [ -x "$app/usr/tools/direwolf/direwolf" ] && [ ! -e "$app/usr/tools/direwolf/dev" ]
+fi
 
-# Size: what the image does not run is taken out
-"$python" -I "$ROOT/packaging/appimage/prune.py" "$app/usr"
-
-install -m 755 "$ROOT/packaging/appimage/AppRun" "$app/AppRun"
+# Size: what the image does not run is taken out (prune.py says what; the web window has no Qt to prune)
+if [ "$window" = web ]; then
+    "$python" -I "$ROOT/packaging/appimage/prune.py" --python-only "$app/usr"
+    install -m 755 "$ROOT/packaging/appimage/AppRun-web" "$app/AppRun"
+else
+    "$python" -I "$ROOT/packaging/appimage/prune.py" "$app/usr"
+    install -m 755 "$ROOT/packaging/appimage/AppRun" "$app/AppRun"
+fi
 install -m 644 "$ROOT/packaging/appimage/neoaprs.desktop" "$app/neoaprs.desktop"
 # the icon at its largest size (the 256 px frame of the Windows icon is a PNG), for the launcher; .DirIcon is what file managers show for the file
 "$python" -I - "$ROOT/neoaprs/desktop/icon.ico" "$app/neoaprs.png" <<'PY'
@@ -152,5 +206,8 @@ ln -s neoaprs.png "$app/.DirIcon"
 "$python" -I -m compileall -q --invalidation-mode unchecked-hash "$app/usr/lib/python3.13" >/dev/null
 
 target="$out/NeoAPRS-$version-x86_64.AppImage"
+[ "$window" = qt ] || target="$out/NeoAPRS-$version-web-x86_64.AppImage"
+"$python" -I "$ROOT/scripts/shipped-size" --depth 5 --title "the tree of $(basename "$target")" "$app"
 pack "$app" "$target"
-echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1); Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi))"
+"$python" -I "$ROOT/scripts/shipped-size" "$target"
+echo "build-appimage: $target ($(du -h "$target" | cut -f1); the image holds $(du -sh "$app" | cut -f1); Mercury: $(if [ -n "$mercury" ]; then basename "$mercury"; else echo none; fi); Direwolf: $(if [ -n "$direwolf" ]; then basename "$direwolf"; else echo none; fi)$(if [ "$window" = web ]; then echo "; window: web"; fi))"

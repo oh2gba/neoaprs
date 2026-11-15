@@ -15,6 +15,7 @@ from neoaprs.beaconrule import beacon_interval, beacon_radios
 from neoaprs.claims import Claims
 from neoaprs.clock import utc
 from neoaprs.config import DEFAULTS, Config, radio_key_of, radio_state_key, radios_from_flat
+from neoaprs.configradios import FLAT_HOMES
 from neoaprs.emailrule import email_radio
 from neoaprs.mercurymodem import Mercury
 from neoaprs.messagerule import message_radio
@@ -22,7 +23,7 @@ from neoaprs.policy import MESSAGE_RADIO_RECENT_HOURS, TNC_CHECK_SEC
 from neoaprs.radiodriver import RunOverrides
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError, RadioHeard
 from neoaprs.radiotype import Allowed, Limits, RadioType
-from neoaprs.radiotypes import type_of
+from neoaprs.radiotypes import kind_field, type_of
 from neoaprs.services import common, radioset, sender
 from neoaprs.services.common import fit_frame, our_frame
 from neoaprs.services.radioset import NO_RADIO, fit
@@ -49,6 +50,7 @@ SHAPES: list[dict[str, str]] = [            # the settings of today's stations, 
 ]
 FLAT = {"port": "serial_port", "baud": "serial_baud", "tcp_host": "tcp_host", "tcp_port": "tcp_port", "path": "beacon_path", "digipeat": "digi_enabled",
         "sound_card": "mercury_sound_card", "keying": "mercury_keying", "tx_gain_db": "mercury_tx_gain_db"}
+HOMES = set(FLAT_HOMES.values())           # (radio, key): the keys a flat setting holds, by radio
 
 
 @pytest.mark.parametrize("rows", SHAPES, ids=lambda rows: ",".join(f"{k}={v}" for k, v in rows.items()) or "fresh")
@@ -61,9 +63,12 @@ def test_the_radios_of_the_settings_are_todays_fm_and_hf_radio_made_of_the_flat_
     for spec in (fm, hf):
         assert spec.rtype.kind == spec.kind and spec.value("beacon") is True, "the beacon goes out on every radio that is on, as today"
         for key, text in spec.settings.items():
-            assert key == "beacon" or spec.value(key) == getattr(config, FLAT[key]), key
+            if key != "beacon" and (spec.id, key) in HOMES:
+                assert spec.value(key) == getattr(config, FLAT[key]), key
+            elif key != "beacon":                                          # (a field of the kind that no flat key of this radio holds is at its default: radio 1's sound card, keying and gain)
+                assert text == kind_field(spec.kind, key).default, key     # type: ignore[union-attr]
             assert Config.check_radio(spec, key, text) == text, "what is stored reads back as it is"
-    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "beacon", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "beacon"}
+    assert set(fm.settings) == {"port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "path", "digipeat"} and set(hf.settings) == {"sound_card", "keying", "tx_gain_db", "beacon"}
     today = "fm" if config.fm_enabled else "hf" if config.hf_enabled else None
     assert config.main_radio == {"fm": FM_ID, "hf": HF_ID, None: None}[today], "the main radio is today's default radio (none for none: today's stopped FM radio)"
     assert [s.id for s in config.enabled_radios] == [i for i, on in ((FM_ID, config.fm_enabled), (HF_ID, config.hf_enabled)) if on]

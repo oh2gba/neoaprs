@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One setting: its label, the input (a checkbox for a yes/no setting, a choice for a short list, the call with its SSID dropdown, read-only for one the daemon writes), the default as the placeholder, a unit after it, the daemon's complaint under it, and a slot after it for a button. What it says of itself: `update:modelValue` with the text as it is typed (and for a choice), `choose`
 // when a choice is made (a list, a switch), `commit` when a typed field is finished with Enter or left (with the element focus went to), `cancel` for Esc in a field that holds a change or a complaint.
-// A `hint` is a quiet line under the field (advice, never a block). A `disabled` field is shown greyed with its value, as the My station tab shows what belongs to a beacon that is Off. A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
+// A `disabled` field is shown greyed with its value, as the My station tab shows what belongs to a beacon that is Off. A field whose meaning a non-developer may not know has a small (i) after it (`info.tip`); nothing else explains it, and the one thing a word cannot say is the `title` of the field.
 import { computed } from "vue";
 import CallInput from "@/components/CallInput.vue";
 import InfoTip from "@/components/InfoTip.vue";
@@ -20,8 +20,6 @@ const props = defineProps<{
   apply?: boolean;
   /** greyed out: the control and its label are dimmed and cannot be changed, the value is kept (the (i) still opens) */
   disabled?: boolean;
-  /** a quiet line under the field that advises and blocks nothing (the frequency of the status text); the complaint of the daemon takes its place */
-  hint?: string;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: [] }>();
 
@@ -89,7 +87,9 @@ function onEscape(event: KeyboardEvent): void {
         :aria-describedby="describedBy"
         @change="onInput"
       >
-        <option v-for="choice in options" :key="choice.value" :value="choice.value" :title="choice.title">{{ choice.label }}</option>
+        <option v-for="choice in options" :key="choice.value" :value="choice.value" :title="choice.title" :disabled="choice.disabled">
+          {{ choice.label }}
+        </option>
       </select>
       <CallInput
         v-else-if="info.kind === 'call'"
@@ -131,6 +131,5 @@ function onEscape(event: KeyboardEvent): void {
       </InfoTip>
     </div>
     <p v-if="error" :id="errorId" class="field-error" role="alert">{{ error }}</p>
-    <p v-else-if="hint" class="field-hint muted">{{ hint }}</p>
   </div>
 </template>

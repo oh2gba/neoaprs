@@ -1,5 +1,5 @@
 """The text a TNC or a radio prints of the packets it hears, read as AX.25 frames (aprs-reference/text-monitor-plan.md, section 5.4): a Yaesu FTM on its data port with Output PACKET, a TAPR TNC-2, a
-Kantronics KPC-3 or an AEA PK-232 in its own monitor mode, or (`monitor=False`) the one-line TNC2 text of a LoRa board. Each heard packet becomes `ax25.Frame(destination, source, path, UI, F0, information)`,
+Kantronics KPC-3 or an AEA PK-232 in its own monitor mode (a LoRa board's lines of TNC2 text are tnc2line.py's). Each heard packet becomes `ax25.Frame(destination, source, path, UI, F0, information)`,
 so that the log, the codec, the SQL and the iGate read it as they read a frame that came in KISS.
 
 `TextReader.feed` takes the bytes as they come, in any pieces, and gives the frames, and the lines that began like a header and are none (`Rejected`, with the reason). What it reads, in this order:
@@ -16,7 +16,7 @@ so that the log, the codec, the SQL and the iGate read it as they read a frame t
   TNC2 source never carries a star); a Yaesu's ` [06/02/18 13:47:54]`; a Kantronics' or a Yaesu's ` <UI>` (`<UI…>`; any other mark is a frame of another kind, passed over), after a colon or not; then the
   colon. The calls are read by the one grammar of TNC2 text (tnc2line.addresses). The digipeaters up to and including the last one with a star are the ones the frame has been through (a TNC-2 marks each
   of them, a Kantronics the last, a PK-232 the one heard); a star on a PK-232's source marks none (the station was heard direct).
-- **The information** is the bytes after that colon, as they came. A header with none is held for the next line that is no header (the two-line form of HEADERLN ON and of a Yaesu): that line is its
+- **The information** is the bytes after that colon, as they came, at most the 256 bytes of AX.25 (a longer one is a `Rejected`). A header with none is held for the next line that is no header (the two-line form of HEADERLN ON and of a Yaesu): that line is its
   information if it comes within `pending_sec`, else the header is dropped; a header that comes meanwhile drops the one held.
 - **Passed over:** a line with no `>` before its last colon (`cmd:`, `?EH`, `*** CONNECTED to`, a sign-on banner, an echo, `$GPRMC`, `$PKWDWPL`); it is said at DEBUG in the log. A line that began like a
   header and is none (a mark that is not `<UI…>`, a call that is no call, more than eight digipeaters, curly braces) is a `Rejected`.
@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass
 
 from . import ax25
-from .tnc2line import Tnc2Error, addresses, frame_of
+from .tnc2line import Tnc2Error, addresses
 
 log = logging.getLogger("neoaprs.tnc")
 
@@ -94,10 +94,10 @@ def _looks_like_header(text: bytes) -> bool:
 
 
 class TextReader:
-    """The frames in the text a TNC prints, from its bytes as they come (one reader for one open of the line). `monitor`: every form of a TNC's monitor mode and of a Yaesu; else the one-line TNC2 text alone."""
+    """The frames in the text a TNC prints, every form of a TNC's monitor mode and of a Yaesu, from its bytes as they come (one reader for one open of the line)."""
 
-    def __init__(self, *, monitor: bool, pending_sec: float = PENDING_SEC, max_line: int = MAX_LINE) -> None:
-        self.monitor, self.pending_sec, self.max_line = monitor, pending_sec, max_line
+    def __init__(self, *, pending_sec: float = PENDING_SEC, max_line: int = MAX_LINE) -> None:
+        self.pending_sec, self.max_line = pending_sec, max_line
         self.bits = 0                           # 0 while not decided, else 7 (with a parity bit) or 8
         self.parity = ""                        # "even" or "odd" for a line of 7 bits
         self._seen: set[int] = set()            # the parities of the bytes so far (the count of one bits, mod 2)
@@ -172,8 +172,6 @@ class TextReader:
             self._read(line)
 
     def _read(self, line: bytes) -> None:
-        if not self.monitor:
-            return self._plain(line)
         if self._held is not None and self._now - self._held.at > self.pending_sec:
             self._held = None
         text = line
@@ -204,22 +202,17 @@ class TextReader:
             self._held = _Head(destination, source, path, self._now)
 
     def _frame(self, destination: ax25.Address, source: ax25.Address, path: tuple[ax25.Address, ...], info: bytes, line: bytes) -> None:
+        if len(info) > ax25.MAX_INFO:                                   # (a garbled line, two run together: no frame AX.25 carries, and no fault of ours)
+            self._out.append(Rejected(line.decode("latin-1"), f"an information field of {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows"))
+            return
         try:
             self._out.append(ax25.Frame(destination, source, path, info=info))
         except ax25.Ax25Error as error:
             self._out.append(Rejected(line.decode("latin-1"), str(error)))
 
-    def _plain(self, line: bytes) -> None:
-        """A line of one-line TNC2 text (a LoRa board's): a frame, a Rejected for a line that begins like a header and is none, nothing for any other."""
-        try:
-            self._out.append(frame_of(line))
-        except Tnc2Error as error:
-            if _looks_like_header(line):
-                self._out.append(Rejected(line.decode("latin-1"), str(error)))
-
 
 def looks_like_text(heard: bytes) -> bool:
     """Whether some line of what a port said reads as a heard packet (the search for a radio of a type that reads text)."""
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     found = reader.feed(heard, 0.0) + reader.feed(b"", reader.pending_sec + 1.0)
     return any(isinstance(item, ax25.Frame) for item in found)

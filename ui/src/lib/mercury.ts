@@ -1,17 +1,25 @@
 // The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a choice among what the daemon found (`sound_cards` of the ports message), and the keying
 // as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how a radio's `keying` is written.
 import { t } from "@/i18n";
+import { heldChoice, type HolderOf } from "@/lib/portchoice";
 import type { Choice } from "@/lib/settingchoices";
 import { LIMITS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const LINES = ["rts", "dtr"] as const;
 
-/** The sound cards as the choice of the Sound card field: the system's name for each, with the id as the hover title; a name that two cards share has its id after it. There is no choice of leaving it to the daemon: the daemon's proposal
- * (`soundCardPick`) is preselected and stored. */
-export function soundCardChoices(ports: PortsMessage | null): Choice[] {
+/** The sound cards as the choice of the Sound card field: the system's name for each, with the id as the hover title; a name that two cards share has its id after it; a card another radio holds is greyed with its name (lib/portchoice.ts,
+ * not the one in force, `current`). There is no choice of leaving it to the daemon: the daemon's proposal (`soundCardPick`) is preselected and stored. */
+export function soundCardChoices(ports: PortsMessage | null, holder: HolderOf = () => null, current = ""): Choice[] {
   const cards = ports?.sound_cards ?? [];
-  return cards.map((c) => ({ value: c.id, label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name, title: c.id }));
+  return cards.map((c) =>
+    heldChoice(
+      { value: c.id, label: cards.filter((o) => o.name === c.name).length > 1 ? `${c.name} (${c.id})` : c.name, title: c.id },
+      c.held_by,
+      holder,
+      current,
+    ),
+  );
 }
 
 /** The sound card the daemon proposes (the id), "" when none is listed. */

@@ -98,7 +98,7 @@ export const objects: Record<keyof typeof source, Message> = {
   "objects.tip.category": "Anna kohteelle luokka, jotta se tarjotaan paikallistietoa kysyville asemille.",
   "objects.tip.category_code": "Oma luokkasi: enintään {max} kirjainta tai numeroa, ei INFO tai NEXT. Asemat kysyvät sitä tällä sanalla.",
   "objects.tip.on_request": "Ei majakkana; lähetetään vain asemalle, joka kysyy paikallistietoa.",
-  "objects.sent_on": "Sent on radio {name}",
+  "objects.sent_on": "Lähtee radiolla {name}",
 
   "objects.problem.name_chars": "Ei välilyöntiä kummassakaan päässä, ei merkkejä ! _ | ~",
   "objects.problem.at_most": "Enintään {max} merkkiä",

@@ -12,6 +12,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from neoaprs.radioedits import MAX_POSITION
+
 from .wirebase import Call, _Command, _Message
 
 RADIO_NAME_ROOM = 64                     # a radio's name as typed: the daemon says what is wrong with one (at most 8 printable characters, coded), with room over it
@@ -51,11 +53,11 @@ class RadioChange(_Command):
     name: str | None = Field(default=None, max_length=RADIO_NAME_ROOM, description="the new name; left out: unchanged")
     type: str | None = Field(default=None, min_length=1, max_length=TYPE_ROOM, description="the new type; left out: unchanged")
     enabled: bool | None = Field(default=None, description="the new Enable; left out: unchanged")
-    position: int | None = Field(default=None, ge=1, description="the new place; left out: unchanged")
+    position: int | None = Field(default=None, ge=1, le=MAX_POSITION, description="the new place; left out: unchanged")
 
 
 class RadioTune(_Command):
-    """Tune on the radio's modem: with `on`, keys the radio through its keying and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
+    """Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"`
     meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and
     while a frame is on the air or the channel is busy (`hf.held`)."""
     cmd: Literal["radio_tune"]

@@ -9,7 +9,7 @@ for the time (`hold`) and opened again after it (`release`), found or not. The s
 A speed is not tried on a port that has none (a Bluetooth port, of Linux or a COM port of Windows). Each try takes `listen_sec` + `answer_sec` (2.5 s) when nothing answers, so a port costs 7 tries, about 18 s; a command-mode TNC is found at 9600 in a few seconds.
 
 With radios side by side the search is for one radio (`find(trying, radio)`): that radio's line is let go and taken again (`hold(radio)`, `release(radio)`), the serial devices another radio or the GPS receiver holds in
-the station's table (`claims`) are not tried (looked at again once the turn is this search's), and the search takes the station's one search at a time (`search_lock`, RadioRegistry's), waiting for its turn while
+the station's table (`claims`), or another enabled radio is set to (`Claims.others`), are not tried (looked at again once the turn is this search's), and the search takes the station's one search at a time (`search_lock`, RadioRegistry's), waiting for its turn while
 another radio's search runs (which gives it up for a while: tncsearch.take_turn); the Tnc of the radio itself lets go of its turn when it is held. Without a radio the search is the one radio's of before, its hold and
 release called with nothing."""
 import asyncio
@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from typing import cast
 
 from neoaprs import serialprobe
-from neoaprs.claims import PORT_KINDS, Claims
+from neoaprs.claims import Claims
 from neoaprs.coded import CodedError
 from neoaprs.radiotype import FM_ID, RadioId
 from neoaprs.radiosearch import Found, Trying
@@ -124,11 +124,13 @@ class RadioFinder:
         await self._tasks.cancel_all()
 
     def _unclaimed(self, paths: list[str], radio: RadioId | None) -> list[str]:
-        """The ports without the serial devices that another radio or the GPS receiver holds (each said in the log as it is passed over)."""
-        mine = FM_ID if radio is None else radio
-        held = {c.value: c.holder for c in (self.claims.all() if self.claims is not None else ()) if c.holder != mine and c.kind in PORT_KINDS}
+        """The ports without the serial devices that another radio or the GPS receiver holds, or another enabled radio is set to (Claims.others: each said in the log as it is passed over)."""
+        claims = self.claims
+        if claims is None:
+            return paths
+        held = claims.others(FM_ID if radio is None else radio, "serial")
         for path in (p for p in paths if port_key(p) in held):
-            log.info("find the radio: passing over %s: held by %s", path, serialprobe.holder_words(held[port_key(path)]))
+            log.info("find the radio: passing over %s: held by %s", path, claims.words(held[port_key(path)]))
         return [p for p in paths if port_key(p) not in held]
 
     async def _run(self, paths: list[str], trying: Callable[[Trying], None], outcome: list[Found | None], radio: RadioId | None) -> None:
@@ -139,7 +141,7 @@ class RadioFinder:
                 paths = self._unclaimed(paths, radio)                    # (what another radio's search found and holds while this one waited for its turn)
                 total, number = sum(len(speeds_for(p, self._speedless)) for p in paths), 0
                 for path in paths:
-                    found = await self._try_port(path, number, total, trying)
+                    found = await self._try_port(path, number, total, trying) if self._unclaimed([path], radio) else None     # (a port a save gave another radio while the others were tried is passed over)
                     number += len(speeds_for(path, self._speedless))
                     if found is not None:
                         outcome.append(found)

@@ -1,5 +1,5 @@
 """`neoaprs app` end to end with the shell and the daemon replaced (tests/support/fakeshell.py, a scripted `open_session`): the second app, the fallbacks when no window can be had, a page that does not come up, a shell that
-fails to start, and `--quit`. The real daemon is tests/test_desktop_session.py, the real toolkits are tests/test_desktop_qt.py and tests/test_desktop_winshell.py."""
+fails to start, and `--quit`. The real daemon is tests/test_desktop_session.py, the real toolkits are tests/test_desktop_qt.py and tests/test_desktop_webshell.py."""
 import subprocess
 import sys
 import threading

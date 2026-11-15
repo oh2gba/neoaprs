@@ -27,6 +27,7 @@ from neoaprs.alertcommand import DEFAULT_ALERT_COMMAND
 from neoaprs.claims import Claims
 from neoaprs.config import Config
 from neoaprs.gpsfeed import GpsFeed
+from neoaprs.mercuryclaims import end_left_behind
 from neoaprs.mercurydriver import MercuryDriver
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryspeaker import player_command
@@ -469,7 +470,7 @@ def test_no_player_of_the_dummy_hf_radios_audio_is_found(under_the_switch: None,
 async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_the_switch: None, doors: Doors, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, logger="neoaprs")
     asked: list[str] = []
-    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file: asked.append(f"end the Mercury of {pid_file}"))
+    monkeypatch.setattr(mercurymodem, "end_stale", lambda pid_file, ini, program: asked.append(f"end the Mercury of {pid_file}"))
     (tmp_path / "mercury.pid").write_text("4242\n", encoding="utf-8")       # a copy of a data folder whose own daemon runs its modem: the file names a Mercury that is another daemon's
     modem = Mercury(tmp_path, finder=lambda: asked.append("where is Mercury") or fake_mercury())       # type: ignore[func-returns-value]
     remember_stop(modem.stop)
@@ -481,6 +482,22 @@ async def test_the_mercury_program_is_not_started_and_lists_no_sound_card(under_
     logged = [r.getMessage() for r in caplog.records]
     assert logged[0] == "NEOAPRS_NO_DEVICES is set: the Mercury modem program is not started and its sound cards are not listed" and logged.count(logged[0]) == 1
     assert not [line for line in logged if line.startswith("no Mercury program at")], "the log names no place where the program is missing: nobody looked for it"
+
+
+@posix_only
+def test_a_mercury_a_copy_of_the_data_folder_names_is_left_alone_at_the_daemons_start(under_the_switch: None, tmp_path: Path) -> None:
+    """A bench daemon on a copy of the station's data folder: radio 5's file names the station's own live Mercury, run with that radio's configuration. mercuryclaims.end_left_behind ends nothing under the
+    switch and leaves the file (on Windows, where the configuration is not read, the station's mercury.exe would pass every other check)."""
+    folder = tmp_path / "radios" / "5"
+    folder.mkdir(parents=True)
+    station = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-C", str(folder / "mercury.ini")])       # (Popen returns once the program runs: its command line is read as written)
+    try:
+        (folder / "mercury.pid").write_text(str(station.pid), encoding="ascii")
+        end_left_behind(tmp_path)
+        assert station.poll() is None and (folder / "mercury.pid").read_text(encoding="ascii") == str(station.pid), "the station's Mercury runs on, and its file stays"
+    finally:
+        station.kill()
+        station.wait()
 
 
 def test_the_hf_radio_has_no_port_unless_a_mercury_was_given_for_this_run(under_the_switch: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:

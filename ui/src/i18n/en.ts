@@ -10,6 +10,7 @@ import { messages } from "@/i18n/en/messages";
 import { nearby } from "@/i18n/en/nearby";
 import { objects } from "@/i18n/en/objects";
 import { packets } from "@/i18n/en/packets";
+import { phone } from "@/i18n/en/phone";
 import { radio } from "@/i18n/en/radio";
 import { settings } from "@/i18n/en/settings";
 import { setup } from "@/i18n/en/setup";
@@ -40,6 +41,7 @@ export const en = {
   ...symbols,
   ...radio,
   ...settings,
+  ...phone,
   ...beacon,
   ...setup,
   ...help,

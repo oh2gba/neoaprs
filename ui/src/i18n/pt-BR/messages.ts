@@ -81,7 +81,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "você",
   "chain.internet": "internet",
   "chain.sent": "enviada {time}",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "enviada {time} pelo rádio {name}",
   "chain.heard": { select: "internet", yes: "recebida, e também pela internet", other: "recebida" },
   "chain.heard_at": { select: "internet", yes: "recebida {time}, e também pela internet", other: "recebida {time}" },
   "chain.seen_internet": "vista em uma cópia devolvida pela internet, não recebida aqui",
@@ -94,7 +94,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "aguardando o ack",
 
   "route.button": "Rota",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "As mensagens para esta estação vão pelo rádio {name}",
   "messages.may_not_message": "Esta estação talvez não receba mensagens",
   "messages.may_not_message_label": "Por que talvez não",
   "messages.may_not_message_help":
@@ -106,7 +106,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.use_auto": "Caminho automático",
   "route.automatic": "automático",
   "route.auto": "Automático: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "Automático: {name}",
   "route.auto_direct": "Automático: direto, depois {path}",
   "route.auto_via": "Automático: via {heard}, depois {path}",
   "route.own": "Seu caminho: {path}",
@@ -161,7 +161,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.seen_next": { one: "Ao lado de {call} nas rotas de {n} estação", other: "Ao lado de {call} nas rotas de {n} estações" },
   "pathbuilder.add_hop": "Adicionar {call}",
 
-  "compose.tnc_not_connected": "O TNC não está conectado",
+  "compose.tnc_not_connected": "O rádio não está conectado",
   "compose.left": "restam {n}",
   "compose.over": "{n} a mais",
   "compose.left_title.bytes": "restam {left} de {max} bytes",

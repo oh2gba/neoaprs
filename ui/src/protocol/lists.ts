@@ -118,7 +118,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "serial",
     "text": "radio.type.kenwood_tnc2",
-    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -174,7 +174,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "serial",
     "text": "radio.type.kenwood_d710",
-    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -230,7 +230,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "serial",
     "text": "radio.type.kantronics",
-    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -286,7 +286,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "serial",
     "text": "radio.type.kiss",
-    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": true, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -342,7 +342,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "tcp",
     "text": "radio.type.kiss_tcp",
-    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -407,7 +407,7 @@ export const RADIO_TYPES = [
     "kind": "fm",
     "transport": "serial",
     "text": "radio.type.tnc_text",
-    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -432,11 +432,76 @@ export const RADIO_TYPES = [
     ],
   },
   {
+    "key": "direwolf",
+    "kind": "fm",
+    "transport": "modem",
+    "text": "radio.type.direwolf",
+    "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": false, "tx_gain": true, "frequencies": false, "transmit": true, "rx_level": true},
+    "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
+    "limits": {"max_frame": null, "beacon_min_min": 20},
+    "fields": [
+      {
+        "key": "sound_card",
+        "kind": "text",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.sound_card",
+      },
+      {
+        "key": "keying",
+        "kind": "text",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.keying",
+      },
+      {
+        "key": "tx_gain_db",
+        "kind": "int",
+        "range": [-20, 0],
+        "choices": [],
+        "default": "0",
+        "together": "",
+        "text": "radio.field.tx_gain_db",
+      },
+      {
+        "key": "beacon",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "true",
+        "together": "",
+        "text": "radio.field.beacon",
+      },
+      {
+        "key": "path",
+        "kind": "path",
+        "range": null,
+        "choices": [],
+        "default": "",
+        "together": "",
+        "text": "radio.field.path",
+      },
+      {
+        "key": "digipeat",
+        "kind": "bool",
+        "range": null,
+        "choices": [],
+        "default": "false",
+        "together": "",
+        "text": "radio.field.digipeat",
+      },
+    ],
+  },
+  {
     "key": "dummy",
     "kind": "fm",
     "transport": "dummy",
     "text": "radio.type.dummy",
-    "can": {"find": false, "terminal": false, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": true, "smart_beacon": true, "gateway_heard": true, "shared_channel": true},
     "limits": {"max_frame": null, "beacon_min_min": 20},
     "fields": [
@@ -474,7 +539,7 @@ export const RADIO_TYPES = [
     "kind": "hf",
     "transport": "modem",
     "text": "radio.type.mercury",
-    "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": true, "tx_gain": true, "frequencies": true, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": true, "key_test": true, "scope": true, "tx_gain": true, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30},
     "fields": [
@@ -521,7 +586,7 @@ export const RADIO_TYPES = [
     "kind": "hf",
     "transport": "dummy",
     "text": "radio.type.dummy_hf",
-    "can": {"find": false, "terminal": false, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": true, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": true, "transmit": true, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 123, "beacon_min_min": 30},
     "fields": [
@@ -541,7 +606,7 @@ export const RADIO_TYPES = [
     "kind": "lora",
     "transport": "tcp",
     "text": "radio.type.lora_tcp",
-    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
     "fields": [
@@ -588,7 +653,7 @@ export const RADIO_TYPES = [
     "kind": "lora",
     "transport": "serial",
     "text": "radio.type.lora_serial",
-    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
     "fields": [
@@ -635,7 +700,7 @@ export const RADIO_TYPES = [
     "kind": "lora",
     "transport": "serial",
     "text": "radio.type.lora_console",
-    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": false, "rx_level": false},
     "allowed": {"paths": false, "digipeat": false, "smart_beacon": false, "gateway_heard": false, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
     "fields": [
@@ -664,7 +729,7 @@ export const RADIO_TYPES = [
     "kind": "lora",
     "transport": "dummy",
     "text": "radio.type.dummy_lora",
-    "can": {"find": false, "terminal": false, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true},
+    "can": {"find": false, "terminal": true, "tune": false, "key_test": false, "scope": false, "tx_gain": false, "frequencies": false, "transmit": true, "rx_level": false},
     "allowed": {"paths": true, "digipeat": false, "smart_beacon": true, "gateway_heard": true, "shared_channel": false},
     "limits": {"max_frame": 250, "beacon_min_min": 30},
     "fields": [
@@ -931,6 +996,7 @@ export const LIMITS = {
   scope: { loHz: 300, hiHz: 2700, signalLoHz: 1200, signalHiHz: 1800, rowBins: 307, rowFirstBin: 39, rowSpectra: 2, rowOffsetDb: -110.0, rowStepDb: 0.5, modemBins: 512, modemRate: 8000, levelMinDbfs: -90, levelMaxDbfs: 0, levelGoodDbfs: [-55, -25], peakClipDbfs: 0.0, historySec: 120 },
   radio: { nameMax: 8, frequenciesMax: 4 },
   mercury: { version: "1.9.24", mode: "DATAC3", maxFrame: 123, frameSec: 3.8, pttKinds: ["vox", "cm108", "rts", "dtr"], frequencies: [[30, "10.1462"], [40, "7.0541"], [20, "14.1070"], [6, "50.6200"]] },
+  soundCard: { levelMax: 200, levelLow: 5, levelHigh: 110, levelGood: [30, 70], txGainMinDb: -20, txGainMaxDb: 0 },
 } as const;
 
 /** The characters a symbol table can be: the primary, the alternate and the overlays (SYMBOL_TABLES of neoaprs/config.py). */

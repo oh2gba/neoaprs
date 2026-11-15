@@ -4,6 +4,7 @@ the wire names a radio: W1 gives each its code) and a type that is none a RadioT
 one transaction, stops it for good and keeps its row; the last enabled radio is neither switched off nor removed."""
 import asyncio
 import json
+import logging
 import sqlite3
 from dataclasses import replace
 from pathlib import Path
@@ -11,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs.claims import Claim
+from neoaprs.radioregistry import driver_key
 from neoaprs.radiospec import FM_ID, HF_ID, RadioError
 from neoaprs.radiotype import RadioTypeError
 from neoaprs.services.beacon import memory_key_of
@@ -120,7 +122,7 @@ async def test_a_radios_own_settings_are_checked_stored_and_restart_that_radio_a
     await until(lambda: added.state is Source.State.CONNECTED and added.line.path == second.url)
     assert e.tnc._generation == line and e.tnc.state is Source.State.CONNECTED, "the other radio is not restarted"
     assert await e.ctl.save_radio_settings(id, {"beacon": "false"}) and added.choice("beacon") is False and added.line.path == second.url
-    for values, key in (({"baud": "fast"}, "radio/2/baud"), ({"sound_card": "plughw:1,0"}, "radio/2/sound_card")):
+    for values, key in (({"baud": "fast"}, "radio/2/baud"), ({"scope": "on"}, "radio/2/scope")):
         with pytest.raises(RadioError, match=key):
             await e.ctl.save_radio_settings(id, values)
     [stored] = [s for s in await e.ctl.store.radios() if s.id == id]
@@ -240,3 +242,60 @@ async def test_a_radio_the_settings_name_by_todays_flat_keys_is_changed_in_its_o
     radios = {s.id: (s.type, s.enabled, dict(s.settings)) for s in await e.ctl.store.radios()}
     assert radios == {FM_ID: ("kiss", True, {"path": "WIDE1-1,WIDE2-1", "port": port}), HF_ID: ("dummy-hf", False, {"keying": "vox"})}
     await e.stop()
+
+
+def _radio_rows(path: Path, id: int) -> tuple[object, ...]:
+    with sqlite3.connect(path / DB_NAME) as db:
+        return (db.execute("SELECT kind, type, name, enabled, position, removed_at FROM radio WHERE id = ?", (id,)).fetchall(),
+                db.execute("SELECT key, value, rev FROM radio_setting WHERE radio_id = ? ORDER BY key", (id,)).fetchall())
+
+
+@pytest.mark.parametrize("on", [False, True])
+async def test_a_stored_radio_of_a_type_this_build_does_not_know_is_left_off_and_its_row_kept(tmp_path: Path, caplog: pytest.LogCaptureFixture, on: bool) -> None:
+    """A row a newer build wrote (its type, `carrier-pigeon`, is none here) neither stops the start nor runs: the radio is not made, nothing is sent on it, the page's topic leaves it out, a save of another
+    radio puts the settings in force with it there, and its row and its own settings stay as they were for the build that knows the type."""
+    from neoaprs.controller import Controller
+    from neoaprs.web.radioview import radio_row
+    first = Controller(tmp_path, check_sec=0)
+    await first.open_database()
+    await first.store.add_radio("fm", "kiss", "", True, 1)
+    await first.store.add_radio("fm", "carrier-pigeon", "Wolf", on, 2, settings={"port": "/dev/ttyUSB9", "sound_card": "plughw:1,0"})
+    assert first.db is not None
+    await first.db.close()
+    stored = _radio_rows(tmp_path, 2)
+    ctl = Controller(tmp_path, check_sec=0)
+    try:
+        await ctl.start()
+        assert [r.id for r in ctl.radios.all()] == [FM_ID] and ctl.radios.get(2) is None
+        assert [r.id for r in ctl.radios.senders()] == [FM_ID] and ctl.radios.main is ctl.radios.get(FM_ID) and [r.id for r in ctl.radios.beaconing()] == [FM_ID]
+        assert "radio 2 is of the type carrier-pigeon, which this NeoAPRS does not have: it is left off" in caplog.text
+        assert await ctl.change_radio(FM_ID, name="Base"), "a save with the radio of the unknown type among the settings"
+        assert ctl.radios.get(2) is None and caplog.text.count("which this NeoAPRS does not have") == 1, "told once"
+        with pytest.raises(RadioError, match="the last one that is enabled"):
+            await ctl.change_radio(FM_ID, enabled=False)                  # (the radio of the unknown type, on or off, runs nothing)
+        rows = {spec.id: radio_row(spec, ctl.config.radios, ctl.radios.get(spec.id), ctl.radios.claims) for spec in ctl.config.radios}
+        assert rows[2] is None and rows[FM_ID] is not None, "the page's topic `radios` leaves it out"
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == [], "nothing fails on the way (the transmit gain of a modem that is no radio's among it)"
+    finally:
+        await ctl.stop()
+    assert _radio_rows(tmp_path, 2) == stored == ([("fm", "carrier-pigeon", "Wolf", int(on), 2, None)], [("port", "/dev/ttyUSB9", 1), ("sound_card", "plughw:1,0", 1)])
+
+
+async def test_a_stored_radio_2_of_another_kind_than_the_start_up_hf_radio_is_made_of_its_own_type_before_the_start(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """A stored radio 2 of another kind than the HF radio radio 2 was before the round (an FM Dummy: nothing makes radio 2 an HF radio any more) runs with the driver of its own type before any part asks
+    it anything, so the start does not fail on the HF radio's settings."""
+    from neoaprs.controller import Controller
+    first = Controller(tmp_path, check_sec=0)
+    await first.open_database()
+    await first.store.add_radio("fm", "kiss", "", True, 1)
+    await first.store.add_radio("fm", "dummy", "Bench", True, 2)
+    assert first.db is not None
+    await first.db.close()
+    ctl = Controller(tmp_path, check_sec=0)
+    try:
+        await ctl.start()
+        radio = ctl.radios.get(2)
+        assert radio is not None and radio.spec.type == "dummy" and radio.driver_key == driver_key(radio.spec)
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == []
+    finally:
+        await ctl.stop()

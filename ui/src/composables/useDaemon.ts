@@ -129,13 +129,18 @@ function useHello() {
   return { hello, refs: { version, install, local } };
 }
 
+/** The bulletins, and whether the daemon has told them once (`bulletins` is then what was there, not a part of it). */
+function useBulletinTable() {
+  return { bulletins: shallowReactive(new Map<string, BulletinRow>()), bulletinsLoaded: ref(false) };
+}
+
 export function useDaemon(url: () => string = socketUrl) {
   const stations = shallowReactive(new Map<string, StationRow>());
   const stationsLoaded = ref(false); // the daemon has told the stations once: `stations` is then what was there, not a part of it
   const packets = shallowReactive(new Map<string, PacketRow>());
   const messages = shallowReactive(new Map<string, MessageRow>());
   const messagesLoaded = ref(false); // the daemon has told the messages once: `messages` is then what was there, not a part of it
-  const bulletins = shallowReactive(new Map<string, BulletinRow>());
+  const board = useBulletinTable();
   const own = useOwnTables();
   const station = useStationTables();
   const answers = useAnswers();
@@ -158,7 +163,7 @@ export function useDaemon(url: () => string = socketUrl) {
     replaceStations: (rows) => fill(stations, rows, stationsLoaded),
     replacePackets: (rows) => fill(packets, rows),
     replaceMessages: (rows) => fill(messages, rows, messagesLoaded),
-    replaceBulletins: (rows) => fill(bulletins, rows),
+    replaceBulletins: (rows) => fill(board.bulletins, rows, board.bulletinsLoaded),
     ...own.handlers,
     ...station.handlers,
     ...answers.handlers,
@@ -168,11 +173,11 @@ export function useDaemon(url: () => string = socketUrl) {
     setStation: (key, row) => void stations.set(key, row),
     setPacket: (key, row) => void packets.set(key, row),
     setMessage: (key, row) => void messages.set(key, row),
-    setBulletin: (key, row) => void bulletins.set(key, row),
+    setBulletin: (key, row) => void board.bulletins.set(key, row),
     delStation: (key) => void stations.delete(key),
     delPacket: (key) => void packets.delete(key),
     delMessage: (key) => void messages.delete(key),
-    delBulletin: (key) => void bulletins.delete(key),
+    delBulletin: (key) => void board.bulletins.delete(key),
   };
   // a socket that closes before it has heard anything may have been refused for want of a login: if the daemon says so, the page loads again and shows the key screen
   const refused = (): void => void probe().then((access) => access === "locked" && location.reload());
@@ -181,7 +186,7 @@ export function useDaemon(url: () => string = socketUrl) {
   /** Sends a command; the toast says so when the socket is not open. */
   function send(command: Parameters<Hub["send"]>[0]): boolean {
     const sent = hub.send(command);
-    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not connected to the daemon." });
+    if (!sent) store.error({ type: "error", cmd: "", key: null, code: "not_connected", params: {}, text: "Not sent: there is no connection to NeoAPRS" }); // (the page says it in its language: error.not_connected)
     return sent;
   }
 
@@ -196,7 +201,7 @@ export function useDaemon(url: () => string = socketUrl) {
     packets,
     messages,
     messagesLoaded,
-    bulletins,
+    ...board,
     stationPrefs: station.stationPrefs,
     stationKeys: station.stationKeys,
     ownObjects: own.ownObjects,

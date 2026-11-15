@@ -24,6 +24,7 @@ from .clock import Clock, from_unix, utcnow
 from .durable import fsync_dir, fsync_file
 from .instancelock import APP_LOCK_NAME, LOCK_NAME, AlreadyRunning, InstanceLock
 from .paths import default_data_dir
+from .stopfile import MIGRATE_LOCK_NAME
 
 LITTER = re.compile(r"^[^/]+\.sqlite\.tmp(-journal)?$")      # the temporary file of a copy, and the journal SQLite keeps beside it while it is written
 PREMIGRATION = re.compile(r"^premigrate-v(\d+)-to-v(\d+)-\d{8}-\d{6}(-\d+)?\.sqlite$")   # the copy taken before a migration (migrations.premigration_backup), its version and the one it went to in the groups
@@ -313,14 +314,17 @@ def _aside_stem(data_dir: Path, db_name: str, clock: Clock) -> str:
 
 
 def _hold(data_dir: Path) -> list[InstanceLock]:
-    """The locks of the data folder (the daemon's and the desktop app's), taken for the restore; RestoreRefused when either is held by a running NeoAPRS."""
+    """The locks of the data folder (the daemon's, the desktop app's, and the migration's, which `neoaprs db set` holds for its whole run: stopfile.MIGRATE_LOCK_NAME), taken for the restore;
+    RestoreRefused when one is held by a running NeoAPRS."""
     held: list[InstanceLock] = []
-    for name in (LOCK_NAME, APP_LOCK_NAME):
+    for name in (LOCK_NAME, APP_LOCK_NAME, MIGRATE_LOCK_NAME):
         lock = InstanceLock(data_dir, name)
         try:
             lock.acquire()
         except (AlreadyRunning, OSError) as e:
             _release(held)
+            if isinstance(e, AlreadyRunning) and name == MIGRATE_LOCK_NAME:
+                raise RestoreRefused("NeoAPRS is writing to the database or bringing it up to date now: try again when that is done") from e
             if isinstance(e, AlreadyRunning):
                 raise RestoreRefused(f"NeoAPRS is running with the data folder {data_dir}: stop it first (`neoaprs stop`)") from e
             raise RestoreRefused(f"the data folder {data_dir} cannot be used: {e.strerror or e}") from e
@@ -336,7 +340,7 @@ def _release(locks: list[InstanceLock]) -> None:
 def restore(data_dir: Path, db_name: str, name: str, knows: int, clock: Clock = utcnow) -> tuple[Copy, Path | None]:
     """Puts the copy `name` of backup/ in the place of the database `db_name` of `data_dir`. The file that is there (with the files SQLite keeps beside it) is set aside under a name that says when,
     in the data folder, and never deleted; the copy stays in backup/. Returns the copy and where the file was put aside (None when there was none). Raises RestoreRefused, with nothing changed, when
-    a daemon holds the data folder, when the copy is not there, is not a database or is of a version this NeoAPRS (it knows up to `knows`) cannot open, and when the copy cannot be put in place."""
+    a daemon holds the data folder, when a tool writes or migrates the file (`_hold`), when the copy is not there, is not a database or is of a version this NeoAPRS (it knows up to `knows`) cannot open, and when the copy cannot be put in place."""
     if Path(name).name != name or not name.endswith(".sqlite"):
         raise RestoreRefused(f"{name} is not the name of a copy in the backup folder (`neoaprs db restore` lists them)")
     copy = next((c for c in copies(data_dir / FOLDER_NAME) if c.name == name), None)

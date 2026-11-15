@@ -1,10 +1,13 @@
 """The container the size of GitHub's runner (scripts/check-in-container and packaging/ci/Dockerfile) as far as it can be held without docker: the threads a run takes, from made-up lists of siblings; the
 files that go in, from a made-up repository; the tar and what unpacks it, run here with bash, tar and git as they run inside; the command line for docker; the script from end to end against a stand-in
-for docker that writes down what it was asked; and that the Dockerfile and the default commands are the CI's Linux job's. The image itself and a run in it are tried by hand (docs/development.md)."""
+for docker that writes down what it was asked, and a stand-in for the system's loader that says whether the processor has x86-64-v3; that the Dockerfile and the commands of the jobs `python` and `sim`
+are the CI's; and that the Dockerfile and every workflow follow packaging/ci/runner.json (the runners' labels, the facts of the runner's system, the one uv). The image itself and a run in it are
+tried by hand (docs/development.md)."""
 import contextlib
 import importlib.machinery
 import importlib.util
 import io
+import json
 import os
 import re
 import shutil
@@ -28,6 +31,16 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "check-in-container"
 DOCKERFILE = (ROOT / "packaging" / "ci" / "Dockerfile").read_text(encoding="utf-8")
 WORKFLOW = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+
+def workflow_files(folder: Path) -> list[Path]:
+    """Every workflow GitHub runs from the folder: it takes both endings."""
+    return sorted([*folder.glob("*.yml"), *folder.glob("*.yaml")])
+
+
+WORKFLOWS = {path.name: path.read_text(encoding="utf-8") for path in workflow_files(ROOT / ".github" / "workflows")}
+RUNNER = json.loads((ROOT / "packaging" / "ci" / "runner.json").read_text(encoding="utf-8"))
+FOLLOWS = "follows ubuntu-{os} (gcc {gcc}, {march}, glibc {glibc}, image {image})".format(**RUNNER["facts"], image=RUNNER["image_version"])
 PATIENCE_SEC = 60.0          # for a wait that includes the start of a program
 linux_only = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the script reads the cores from /sys, which is Linux's")
 MADE_UP = "made-up-for-this-test"      # what every file that must stay on the machine holds here: the packed tree is searched for it
@@ -383,7 +396,7 @@ def test_nothing_in_the_command_line_can_meet_another_run_and_the_working_tree_i
     for option in ("--name", "--publish", "-p", "--publish-all", "-P", "--network", "--hostname", "--mount", "--privileged"):
         assert option not in before, option
     volumes = dict(value.split(":", 1) for value in options(before, "--volume"))
-    assert volumes == {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm"}
+    assert volumes == {"neoaprs-ci-uv": "/home/runner/.cache/uv", "neoaprs-ci-npm": "/home/runner/.npm", "neoaprs-ci-build": "/home/runner/.cache/neoaprs-build"}, "uv's, npm's and the build cache"
     assert not any("/" in name for name in volumes), "named volumes only: no folder of this machine is mounted"
     assert options(before, "--workdir") == ["/home/runner/work"]
 
@@ -418,19 +431,71 @@ def test_the_image_has_the_libraries_the_ci_job_installs_word_for_word() -> None
     assert f"      {found.group(1).strip()} \\\n" in DOCKERFILE, "the list of libraries of the job `python` of ci.yml is a line of packaging/ci/Dockerfile"
 
 
-def test_the_image_is_ubuntu_with_the_tools_a_runner_has_and_the_user_runner() -> None:
-    assert re.search(r"^FROM ubuntu:24\.04$", DOCKERFILE, re.M)
-    installed = re.search(r"apt-get install -y --no-install-recommends \\\n(.*?)\n && ", DOCKERFILE, re.S)
+def sim_job() -> str:
+    found = re.search(r"^  sim:\n(.*?)(?=^  [\w-]+:\n|\Z)", WORKFLOW, re.S | re.M)
+    assert found is not None
+    return found.group(1)
+
+
+def test_the_sim_jobs_commands_are_the_containers_in_its_order(script: ModuleType) -> None:
+    commands = re.findall(r"^ +(?:- )?run: (uv .+?)(?: 2>&1 \| tee \S+)?$", sim_job(), re.M)
+    assert len(commands) == 3 and commands[0].startswith("uv sync ") and "scripts/build-mercury --install" in commands[1] and "scripts/mercury-sim " in commands[2]
+    assert list(script.SIM_COMMANDS) == commands, "the job `sim` of .github/workflows/ci.yml has changed: SIM_COMMANDS of scripts/check-in-container follows it (without the tee of its log)"
+    assert script.CI_JOBS == {"python": script.CI_COMMANDS, "sim": script.SIM_COMMANDS}
+
+
+def test_the_image_has_the_tools_the_sim_job_installs_word_for_word() -> None:
+    found = re.search(r"apt-get install -y --no-install-recommends (.+)", sim_job())
+    assert found is not None and "build-essential" in found.group(1).split() and "libasound2-dev" in found.group(1).split()
+    assert f"      {found.group(1).strip()} \\\n" in DOCKERFILE, "the list of tools of the job `sim` of ci.yml is a line of packaging/ci/Dockerfile"
+
+
+def test_the_image_is_ubuntu_with_the_tools_a_runner_has_and_the_user_runner(script: ModuleType) -> None:
+    base = re.findall(r"^FROM ubuntu:(\d\d\.\d\d)@sha256:[0-9a-f]{64}$", DOCKERFILE, re.M)
+    assert base == [RUNNER["facts"]["os"]], "one FROM: Ubuntu of the series runner.json names, pinned by its digest"
+    installed = re.search(r"apt-get install -y --no-install-recommends --snapshot [^\n]*\\\n(.*?)\n && ", DOCKERFILE, re.S)         # (the install from the snapshot; the certificates before it are no tool of a runner)
     assert installed is not None
-    for tool in ("ca-certificates", "curl", "git", "php-cli", "build-essential"):
+    for tool in ("ca-certificates", "curl", "git", "php-cli", "build-essential", "pkg-config"):
         assert tool in installed.group(1).split(), tool
     assert "groupadd --gid 1001 runner" in DOCKERFILE and "useradd --uid 1001 --gid 1001" in DOCKERFILE
     assert re.search(r"^USER runner$", DOCKERFILE, re.M) and re.search(r"^WORKDIR /home/runner/work$", DOCKERFILE, re.M)
     after_user = DOCKERFILE.split("\nUSER runner\n", 1)[1]
-    assert "USER " not in after_user and "mkdir -p /home/runner/work /home/runner/.cache/uv /home/runner/.npm" in after_user, "the folders of the volumes are made as the runner, whose they then are"
+    made = re.search(r"^RUN mkdir -p (.+?) \\$", after_user, re.M)
+    assert "USER " not in after_user and made is not None, "the folders are made after the last USER"
+    assert set(made.group(1).split()) == {script.WORK, *script.VOLUMES.values()}, "the folder of the tree and of every volume is made as the runner, whose it then is"
+
+
+def test_the_image_follows_runner_json() -> None:
+    facts = RUNNER["facts"]
+    args = dict(re.findall(r"^ARG (\w+)=(\S+)$", DOCKERFILE, re.M))
+    assert (args["GCC_MAJOR"], args["GCC_MARCH"], args["GLIBC"]) == (facts["gcc"], facts["march"], facts["glibc"])
+    assert re.fullmatch(r"\d{8}T\d{6}Z", args["UBUNTU_SNAPSHOT"]), "a stamp of Ubuntu's snapshot service"
+    served = re.search(r"^# The base's digest as the registry served it at (\d{8}T\d{6}Z)\.[^\n]*\n(?:#[^\n]*\n)*FROM ", DOCKERFILE, re.M)
+    assert served is not None, "the comment right above FROM says when the registry served the digest"
+    assert args["UBUNTU_SNAPSHOT"] >= served.group(1), "the snapshot is not older than the base it upgrades (the same stamp form, so the text compares as the time does)"
+    runs = re.findall(r"^RUN (.*)$", DOCKERFILE.replace("\\\n", " "), re.M)          # (each RUN on one line)
+    asserting = [line for line in runs if "gcc -dumpversion" in line]
+    assert len(asserting) == 1, "one RUN asserts the facts"
+    for name in ("GCC_MAJOR", "GCC_MARCH", "GLIBC"):
+        assert f"${{{name}}}" in asserting[0], name
+    assert 'gcc -Q --help=target | grep -Eq "^\\s+-march=\\s+${GCC_MARCH}$"' in asserting[0] and 'ldd --version | head -n1 | grep -Eq " ${GLIBC}$"' in asserting[0]
+    first_install = DOCKERFILE.index("apt-get install -y --no-install-recommends --snapshot")          # (the install of the tools; the certificates before it are data for every architecture, see the next test)
+    for setting in ("""echo 'APT::Architecture-Variants "amd64v3";' > /etc/apt/apt.conf.d/""", """echo 'APT::Get::Always-Include-Phased-Updates "true";' > /etc/apt/apt.conf.d/"""):
+        assert -1 < DOCKERFILE.find(setting) < first_install, f"before the first install: {setting}"
+    assert DOCKERFILE.find("apt-get upgrade") < first_install, "the base image's packages swapped for their amd64v3 builds"
+    assert DOCKERFILE.index("gcc -dumpversion") > first_install
 
 
 def test_uv_and_node_are_pinned_by_version_and_digest_and_no_file_of_the_project_is_copied_in() -> None:
+    assert re.search(r"^FROM [\w.:-]+@sha256:[0-9a-f]{64}$", DOCKERFILE, re.M), "the base image by its digest, not by a tag that moves"
+    apt = [line for line in DOCKERFILE.splitlines() if not line.startswith("#") and re.search(r"\bapt-get (update|upgrade|install)\b", line)]
+    # The snapshots are served over https only and the base image has no certificates to check the server with: they alone come first, from the archive of the day (an update and one install of that
+    # one package); everything else is read at the snapshot's date.
+    before = [line.strip() for line in apt if "--snapshot" not in line]
+    assert before == ["RUN apt-get update \\", "&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \\"], "only the certificates come from the archive of the day"
+    at_snapshot = [line for line in apt if "--snapshot" in line]
+    assert len(at_snapshot) == 3 and all('--snapshot "${UBUNTU_SNAPSHOT}"' in line for line in at_snapshot), "every other apt-get that reads the archive reads it at the snapshot's date"
+    assert apt.index(at_snapshot[0]) == 2, "and after the certificates"
     assert re.search(r"^ARG UV_VERSION=\d+\.\d+\.\d+$", DOCKERFILE, re.M) and re.search(r"^ARG UV_SHA256=[0-9a-f]{64}$", DOCKERFILE, re.M)
     node = re.search(r"^ARG NODE_VERSION=22\.(\d+)\.\d+$", DOCKERFILE, re.M)
     assert node is not None and int(node.group(1)) >= 12 and re.search(r"^ARG NODE_SHA256=[0-9a-f]{64}$", DOCKERFILE, re.M), "node 22.12 or newer, as scripts/check asks"
@@ -449,13 +514,82 @@ def test_the_python_of_the_image_is_the_one_the_workflows_name() -> None:
     assert f"ARG PYTHON_VERSION={named.pop()}\n" in DOCKERFILE and "UV_PYTHON=${PYTHON_VERSION}" in DOCKERFILE and 'uv python install "${PYTHON_VERSION}"' in DOCKERFILE
 
 
+# ---- every workflow follows runner.json and the image ----
+
+def jobs(workflow: str) -> dict[str, str]:
+    """The jobs of a workflow by their names, each its text."""
+    body = workflow.split("\njobs:\n", 1)[1]
+    return {found.group(1): found.group(2) for found in re.finditer(r"^  ([\w-]+):\n(.*?)(?=^  [\w-]+:\n|\Z)", body, re.S | re.M)}
+
+
+def runners(job: str) -> list[str]:
+    """The labels a job runs on: its `runs-on`, or the values of the matrix that its `runs-on` names."""
+    found = re.search(r"^    runs-on: (.+)$", job, re.M)
+    assert found is not None, job[:200]
+    named = re.fullmatch(r"\$\{\{ matrix\.(\w+) \}\}", found.group(1).strip())
+    if named is None:
+        return [found.group(1).strip()]
+    key = named.group(1)
+    labels = [label.strip() for listed in re.findall(rf"^ +{key}: \[([^\]]*)\]$", job, re.M) for label in listed.split(",")]
+    labels += re.findall(rf"^ +(?:- )?{key}: ([\w.-]+)$", job, re.M)
+    assert labels, f"no value of matrix.{key} found"
+    return labels
+
+
+def test_every_runs_on_label_is_named_in_runner_json() -> None:
+    used: dict[str, list[str]] = {}
+    for name, workflow in WORKFLOWS.items():
+        for job_name, job in jobs(workflow).items():
+            for label in runners(job):
+                used.setdefault(label, []).append(f"{name} {job_name}")
+    latest_jobs = {where for label, places in used.items() if label.endswith("-latest") for where in places}
+    assert latest_jobs == {"audit.yml latest"}, "a -latest label only in the weekly job that says when one moves"
+    assert sorted(label for label, places in used.items() if places == ["audit.yml latest"]) == sorted(RUNNER["latest"]), "that job runs on each -latest label runner.json follows"
+    named = {label: places for label, places in used.items() if not label.endswith("-latest")}
+    assert not set(named) - set(RUNNER["labels"]), f"labels the workflows use that runner.json does not name: {sorted(set(named) - set(RUNNER['labels']))}"
+    assert not set(RUNNER["labels"]) - set(named), f"labels runner.json names that no workflow uses: {sorted(set(RUNNER['labels']) - set(named))}"
+    assert f"ubuntu-{RUNNER['facts']['os']}" in RUNNER["labels"] and RUNNER["latest"]["ubuntu-latest"] == RUNNER["facts"]["os"], "the image's series is a label, and the one -latest names"
+    assert "ubuntu-24.04-arm" in runners(jobs(WORKFLOWS["release.yml"])["deb"]), "the arm64 .deb is installed on the older LTS on purpose"
+
+
+def test_every_workflow_of_either_ending_is_read(tmp_path: Path) -> None:
+    for name in ("ci.yml", "new.yaml", "notes.md"):
+        (tmp_path / name).write_text("")
+    assert [path.name for path in workflow_files(tmp_path)] == ["ci.yml", "new.yaml"]
+    assert {"audit.yml", "ci.yml", "pages.yml", "release.yml"} <= set(WORKFLOWS)
+
+
+def test_the_jobs_the_container_twins_run_on_the_series_it_copies() -> None:
+    """ci.yml's Linux runners are the series of runner.json's facts, the one the image is: another label of runner.json there would leave the container copying a system the job does not run on."""
+    linux = [(job_name, label) for job_name, job in jobs(WORKFLOWS["ci.yml"]).items() for label in runners(job) if label.startswith("ubuntu-")]
+    assert {"python", "smoke", "page", "sim"} <= {job_name for job_name, _ in linux}, linux
+    assert {label for _, label in linux} == {f"ubuntu-{RUNNER['facts']['os']}"}, linux
+
+
+def test_every_setup_uv_names_the_uv_of_the_image() -> None:
+    uv = re.search(r"^ARG UV_VERSION=(\S+)$", DOCKERFILE, re.M)
+    assert uv is not None
+    versions = [version for workflow in WORKFLOWS.values() for block in re.findall(r"uses: astral-sh/setup-uv@\S+.*\n((?: {8,}\S.*\n)*)", workflow)
+                for version in re.findall(r'^ +version: "([^"]*)"$', block, re.M) or ["none"]]
+    uses = sum(workflow.count("uses: astral-sh/setup-uv@") for workflow in WORKFLOWS.values())
+    assert uses >= 10 and len(versions) == uses, "every setup-uv step was read"
+    assert set(versions) == {uv.group(1)}, f"every setup-uv installs the image's uv {uv.group(1)}: {versions}"
+    windows = re.search(r'^UV = Pin\("([^"]+)"', (ROOT / "scripts" / "check-windows").read_text(encoding="utf-8"), re.M)
+    assert windows is not None and windows.group(1) == uv.group(1), "and so does scripts/check-windows"
+
+
 # ---- the script from end to end, on a stand-in for docker ----
 
 FAKE_DOCKER = r"""#!/bin/sh
 # Stands in for docker: writes down the first two words of each call, keeps what `build` and `run` were given, and answers as the files of $FAKE_DOCKER say.
 echo "$1 $2" >> "$FAKE_DOCKER/calls"
 case "$1" in
-    image) [ -e "$FAKE_DOCKER/has-image" ] ;;
+    image)
+        case "$2" in
+            ls) cat "$FAKE_DOCKER/images" 2>/dev/null; exit 0 ;;
+            rm) echo "$3" >> "$FAKE_DOCKER/images-removed"; ! grep -qxF "$3" "$FAKE_DOCKER/in-use" 2>/dev/null ;;
+            *) [ -e "$FAKE_DOCKER/has-image" ] ;;
+        esac ;;
     build) cat > "$FAKE_DOCKER/build.input"; echo "$*" > "$FAKE_DOCKER/build.args"; [ ! -e "$FAKE_DOCKER/build-fails" ] ;;
     ps) cat "$FAKE_DOCKER/ps" 2>/dev/null; exit 0 ;;
     run)
@@ -469,20 +603,35 @@ case "$1" in
 esac
 """
 
+# Stands in for the system's loader: prints, for --help, what the file beside it holds (the help of a machine with x86-64-v3, or of one without).
+FAKE_LOADER = """#!/bin/sh
+cat "$(dirname "$0")/loader-help"
+"""
+HELP_WITH_V3 = "Subdirectories of glibc-hwcaps directories, in priority order:\n  x86-64-v4\n  x86-64-v3 (supported, searched)\n  x86-64-v2 (supported, searched)\n"
+HELP_WITHOUT_V3 = "Subdirectories of glibc-hwcaps directories, in priority order:\n  x86-64-v4\n  x86-64-v3\n  x86-64-v2 (supported, searched)\n"
+SYSTEM_LOADER = 'LOADER = Path("/lib64/ld-linux-x86-64.so.2")'
+
 
 class Rig:
-    """The script in a made-up folder of its own (it packs the repository it lies in), with the stand-in for docker first on the PATH. Its home, its temporary folder and the folder it is started
-    in are the rig's too, each empty: nothing of the user's configuration reaches it, and whatever it left behind would lie there and not in the repository the suite is run in."""
+    """The script in a made-up folder of its own (it packs the repository it lies in), with the stand-in for docker first on the PATH and its loader a stand-in that says this machine has
+    x86-64-v3 (`lacks_v3` makes it say the opposite). Its home, its temporary folder and the folder it is started in are the rig's too, each empty: nothing of the user's configuration reaches it,
+    and whatever it left behind would lie there and not in the repository the suite is run in."""
 
     def __init__(self, folder: Path, tmp_path: Path) -> None:
         self.repo, self.state, self.runtime, self.temp, self.started_in = folder, tmp_path / "docker", tmp_path / "runtime", tmp_path / "temp", tmp_path / "started-in"
         (folder / "scripts").mkdir(parents=True)
         (folder / "packaging" / "ci").mkdir(parents=True)
-        shutil.copy(SCRIPT, folder / "scripts" / "check-in-container")
-        shutil.copy(ROOT / "packaging" / "ci" / "Dockerfile", folder / "packaging" / "ci" / "Dockerfile")
-        home, bin_folder = tmp_path / "home", tmp_path / "bin"
-        for made in (self.state, self.runtime, self.temp, self.started_in, home, bin_folder):
+        home, bin_folder, self.loader = tmp_path / "home", tmp_path / "bin", tmp_path / "loader" / "ld.so"
+        for made in (self.state, self.runtime, self.temp, self.started_in, home, bin_folder, self.loader.parent):
             made.mkdir()
+        source = SCRIPT.read_text(encoding="utf-8")
+        assert source.count(SYSTEM_LOADER) == 1, "the script names the system's loader in one constant"
+        (folder / "scripts" / "check-in-container").write_text(source.replace(SYSTEM_LOADER, f"LOADER = Path({str(self.loader)!r})"), encoding="utf-8")
+        for name in ("Dockerfile", "runner.json"):
+            shutil.copy(ROOT / "packaging" / "ci" / name, folder / "packaging" / "ci" / name)
+        self.loader.write_text(FAKE_LOADER)
+        self.loader.chmod(0o755)
+        (self.loader.parent / "loader-help").write_text(HELP_WITH_V3)
         (bin_folder / "docker").write_text(FAKE_DOCKER)
         (bin_folder / "docker").chmod(0o755)
         self.env = {"PATH": f"{bin_folder}{os.pathsep}{os.environ['PATH']}", "HOME": str(home), "TMPDIR": str(self.temp), "FAKE_DOCKER": str(self.state), "XDG_RUNTIME_DIR": str(self.runtime),
@@ -491,6 +640,9 @@ class Rig:
 
     def has(self, name: str, text: str = "") -> None:
         (self.state / name).write_text(text)
+
+    def lacks_v3(self) -> None:
+        (self.loader.parent / "loader-help").write_text(HELP_WITHOUT_V3)
 
     def run(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run([*self.command, *args], cwd=self.started_in, env=self.env, capture_output=True, text=True, timeout=PATIENCE_SEC)
@@ -523,7 +675,7 @@ def test_a_run_builds_the_image_that_is_missing_feeds_the_tree_and_ends_with_the
     rig.has("exit", "3")
     done = rig.run()
     assert done.returncode == 3, done.stderr
-    assert rig.calls() == ["image inspect", "build --tag", "ps --all", "run --rm"]
+    assert rig.calls() == ["image inspect", "build --tag", "image ls", "ps --all", "run --rm"]
     tag = script.image_tag(rig.repo / "packaging" / "ci" / "Dockerfile")
     assert (rig.state / "build.args").read_text() == f"build --tag {tag} -\n" and (rig.state / "build.input").read_text() == DOCKERFILE
     line = rig.run_line()
@@ -534,6 +686,8 @@ def test_a_run_builds_the_image_that_is_missing_feeds_the_tree_and_ends_with_the
         names = archive.getnames()
     assert "neoaprs/scripts/check-in-container" in names and "neoaprs/new.txt" in names and "tracked" in names and "neoaprs/debug.log" not in names
     assert f"check-in-container: building {tag} from packaging/ci/Dockerfile" in done.stderr and f"check-in-container: {tag} on threads {','.join(cpus)} with 16 GB" in done.stderr
+    assert done.stderr.splitlines()[0] == f"check-in-container: {FOLLOWS}", "the first line says what the image follows"
+    assert " other neoaprs-ci image" not in done.stderr, "no line about other images when there are none"
     assert done.stdout == "" and [file.name for file in rig.runtime.iterdir()] == ["neoaprs-check-in-container.lock"], "the lock of the start is in the user's runtime folder"
     scratch = Path(options(line, "--cidfile")[0]).parent
     assert scratch.parent == rig.temp and scratch.name.startswith("check-in-container-"), "the folder of the container's id is made in the temporary folder"
@@ -545,7 +699,7 @@ def test_an_image_that_is_there_is_not_built_again_and_a_command_of_ones_own_goe
     rig.has("has-image")
     done = rig.run("--starved", "--", "uv", "run", "pytest", "-k", "a name", "tests/test_x.py")
     assert done.returncode == 0, done.stderr
-    assert rig.calls() == ["image inspect", "ps --all", "run --rm"]
+    assert rig.calls() == ["image inspect", "image ls", "ps --all", "run --rm"]
     line = rig.run_line()
     assert line[line.index("check-in-container") + 1:] == ["uv run pytest -k 'a name' tests/test_x.py"]
     assert len(options(line, "--cpuset-cpus")[0].split(",")) <= 2 and options(line, "--memory") == ["7g"]
@@ -580,8 +734,9 @@ def test_a_build_that_fails_ends_with_dockers_own_code_and_runs_nothing(rig: Rig
 
 def test_help_and_a_wrong_argument_ask_docker_nothing(rig: Rig) -> None:
     done = rig.run("--help")
-    assert done.returncode == 0 and "scripts/check-in-container [--starved] [--image-only] [-- COMMAND...]" in done.stdout and "--cpuset" not in done.stderr
+    assert done.returncode == 0 and "scripts/check-in-container [--job python|sim] [--starved] [--image-only] [--prune] [-- COMMAND...]" in done.stdout and "--cpuset" not in done.stderr
     assert rig.run("pytest").returncode == 2 and rig.run("--starved", "pytest").returncode == 2, "a command comes after `--`"
+    assert rig.run("--job", "page").returncode == 2, "a job the container does not hold"
     assert rig.calls() == []
 
 
@@ -655,3 +810,70 @@ def test_the_image_is_built_for_image_only_whatever_the_tree_is(script: ModuleTy
     done = plain.run("--image-only")
     assert done.returncode == 0 and done.stdout == script.image_tag(plain.repo / "packaging" / "ci" / "Dockerfile") + "\n", done.stderr
     assert plain.calls() == ["image inspect", "build --tag"] and plain.left_behind() == []
+
+
+# ---- the processor, what the image follows, the job sim and the images of other Dockerfiles ----
+
+def test_the_loader_says_whether_this_processor_runs_the_images_programs(script: ModuleType, tmp_path: Path) -> None:
+    loader = tmp_path / "ld.so"
+    loader.write_text(FAKE_LOADER)
+    loader.chmod(0o755)
+    (tmp_path / "loader-help").write_text(HELP_WITH_V3)
+    assert script.runs_v3(loader)
+    (tmp_path / "loader-help").write_text(HELP_WITHOUT_V3)
+    assert not script.runs_v3(loader), "x86-64-v3 named without `supported` is a level this machine cannot run"
+    assert not script.runs_v3(tmp_path / "no-loader"), "no such loader (another processor's system) is no"
+    assert script.LOADER == Path("/lib64/ld-linux-x86-64.so.2") and script.V3_SUPPORTED == "x86-64-v3 (supported"
+
+
+@pytest.mark.parametrize("args", [(), ("--image-only",), ("--job", "sim"), ("--", "true")])
+def test_a_processor_without_x86_64_v3_is_said_in_one_line_before_docker_is_asked(rig: Rig, args: tuple[str, ...]) -> None:
+    rig.lacks_v3()
+    done = rig.run(*args)
+    assert done.returncode == 2 and done.stdout == "", done.stderr
+    assert done.stderr == "check-in-container: this computer's processor lacks x86-64-v3, which the runner's programs need\n"
+    assert rig.calls() == [] and rig.left_behind() == [], "docker was asked for nothing, and nothing was packed"
+
+
+def test_the_line_of_what_is_followed_is_runner_jsons_and_one_that_cannot_be_read_is_said(script: ModuleType, tmp_path: Path) -> None:
+    assert script.follows() == FOLLOWS and FOLLOWS.startswith(f"follows ubuntu-{RUNNER['facts']['os']} (gcc ")
+    assert script.follows(tmp_path / "runner.json").startswith("follows what runner.json says, which could not be read (")
+    (tmp_path / "runner.json").write_text('{"facts": {}}')
+    assert script.follows(tmp_path / "runner.json").startswith("follows what runner.json says, which could not be read (")
+
+
+@linux_only
+def test_the_job_sim_runs_the_sim_jobs_commands_with_the_build_cache_as_a_volume(script: ModuleType, rig: Rig) -> None:
+    rig.has("has-image")
+    done = rig.run("--job", "sim")
+    assert done.returncode == 0, done.stderr
+    line = rig.run_line()
+    assert line[line.index("check-in-container") + 1:] == list(script.SIM_COMMANDS)
+    assert "neoaprs-ci-build:/home/runner/.cache/neoaprs-build" in options(line, "--volume") and options(line, "--memory") == ["16g"]
+
+
+IMAGES = "{mine}\t1.62GB\nd25d332d8ee8\t1.49GB\n0123456789ab\t1.7GB\n<none>\t1.5GB\n"
+
+
+@linux_only
+def test_other_images_are_said_and_removed_only_by_prune(script: ModuleType, rig: Rig) -> None:
+    mine = script.image_tag(rig.repo / "packaging" / "ci" / "Dockerfile")
+    rig.has("has-image")
+    rig.has("images", IMAGES.format(mine=mine.partition(":")[2]))
+    done = rig.run("--", "true")
+    assert done.returncode == 0, done.stderr
+    assert "check-in-container: 2 other neoaprs-ci images on this machine, 3.2 GB (--prune removes those no container uses)\n" in done.stderr
+    assert "image rm" not in rig.calls(), "a run removes no image: another worktree, check-installs or flaky may be using it"
+    rig.has("in-use", "neoaprs-ci:0123456789ab\n")
+    (rig.state / "calls").unlink()
+    done = rig.run("--prune")
+    assert done.returncode == 0, done.stderr
+    assert rig.calls() == ["image ls", "image rm", "image rm"], "prune asks for no image to be built and starts nothing"
+    assert (rig.state / "images-removed").read_text().splitlines() == ["neoaprs-ci:d25d332d8ee8", "neoaprs-ci:0123456789ab"], "never this Dockerfile's image, never one without a tag"
+    assert done.stderr == "check-in-container: removed 1 image of other Dockerfiles (1.5 GB); kept 1 that a container uses: neoaprs-ci:0123456789ab\n"
+
+
+def test_docker_sizes_are_read_in_its_decimal_units(script: ModuleType) -> None:
+    assert script.size_bytes("1.49GB") == 1_490_000_000 and script.size_bytes("88.9MB") == 88_900_000 and script.size_bytes("12kB") == 12_000 and script.size_bytes("0B") == 0
+    assert script.size_bytes("") is None and script.size_bytes("big") is None
+    assert script.gigabytes([("a", 1_490_000_000), ("b", None)]) == "1.5 GB and more"

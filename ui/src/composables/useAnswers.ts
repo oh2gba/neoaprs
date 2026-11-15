@@ -47,7 +47,10 @@ export function useAnswers() {
   /** Where the stations were over the span the map's replay asked for. */
   const positionHistory = shallowRef<PositionHistoryMessage | null>(null);
   const alertResult = shallowRef<AlertResultMessage | null>(null);
+  /** The latest list of the ports, whichever radio it was asked for (the ports are the machine's). */
   const ports = shallowRef<PortsMessage | null>(null);
+  /** The latest answer for each radio it was asked for: its sound cards and the proposals are that radio's own. */
+  const portsByRadio = shallowRef<ReadonlyMap<number, PortsMessage>>(new Map());
   const updateResult = shallowRef<UpdateResultMessage | null>(null);
   /** What is new up to the version the update dialog asked for. */
   const releaseNotes = shallowRef<ReleaseNotesMessage | null>(null);
@@ -67,7 +70,10 @@ export function useAnswers() {
     stationTraffic: (message) => (stationTrafficByCall.value = new Map(stationTrafficByCall.value).set(message.call, message)),
     positionHistory: (message) => (positionHistory.value = message),
     alertResult: (message) => (alertResult.value = message),
-    ports: (message) => (ports.value = message),
+    ports: (message) => {
+      ports.value = message;
+      if (message.radio !== null) portsByRadio.value = new Map(portsByRadio.value).set(message.radio, message);
+    },
     updateResult: (message) => (updateResult.value = message),
     releaseNotes: (message) => (releaseNotes.value = message),
     radioSearch: (message) => (radioSearch.value = message),
@@ -84,6 +90,7 @@ export function useAnswers() {
     positionHistory,
     alertResult,
     ports,
+    portsByRadio,
     updateResult,
     releaseNotes,
     radioSearch,

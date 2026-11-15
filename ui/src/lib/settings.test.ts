@@ -19,9 +19,9 @@ import {
 } from "@/lib/settingsradio";
 import { pageRadio } from "@/lib/radios";
 import type { RadioRow } from "@/protocol/protocol";
-import { RADIO_TYPES } from "@/protocol/lists";
+import { RADIO_TYPES, TNC_PROFILES } from "@/protocol/lists";
 import { beaconOff, disabledByValues } from "@/lib/beaconoff";
-import { PORT_OTHER, portOptions } from "@/lib/portchoice";
+import { PORT_OTHER, holderOf, portOptions } from "@/lib/portchoice";
 
 describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
@@ -338,6 +338,7 @@ describe("portOptions", () => {
     search,
     find: true,
     ports: [row("/dev/ttyUSB0", "FT232R"), row("/dev/ttyACM0", "n/a")],
+    radio: null,
   });
   it("offers automatic first, the listed ports, the port in force and the port found when unlisted, and Other last", () => {
     expect(portOptions(ports(), "/dev/brainbox_3", "/dev/by-id/x").map((c) => c.value)).toEqual([
@@ -361,6 +362,7 @@ describe("portOptions", () => {
       search: true,
       find: true,
       ports: [row("/dev/ttyUSB0", "FT232R"), { ...row("bt://AA:BB:CC:DD:EE:01", "Bluetooth: TH-D74"), hwid: "" }],
+      radio: null,
     };
     const options = portOptions(listed, "bt://AA:BB:CC:DD:EE:01/2", "");
     expect(options.map((c) => c.value)).toEqual(["", "/dev/ttyUSB0", "bt://AA:BB:CC:DD:EE:01", "bt://AA:BB:CC:DD:EE:01/2", PORT_OTHER]);
@@ -370,6 +372,47 @@ describe("portOptions", () => {
     expect(portOptions(ports(), "", "", true)[0]).toEqual({ value: "", label: "not set" });
     expect(portOptions(ports(false), "", "", true)[0]).toEqual({ value: "", label: "not set" });
     expect(portOptions(null, "", "", true).map((c) => c.label)).toEqual(["not set", "Other..."]);
+  });
+  it("labels each listed port with what the system calls it, where that says more than the port", () => {
+    const listed = { ...ports(), ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyS0", "n/a"), row("COM1", "COM1")] };
+    expect(portOptions(listed, "", "").slice(1, -1)).toEqual([
+      { value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R USB UART" },
+      { value: "/dev/ttyS0", label: "/dev/ttyS0" },
+      { value: "COM1", label: "COM1" },
+    ]);
+  });
+  it("greys a port another radio or the GPS receiver holds, with the holder's name, but not in the holder's own box nor the port in force", () => {
+    const held = {
+      ...ports(),
+      ports: [
+        { ...row("/dev/ttyUSB0", "FT232R"), held_by: 2 },
+        { ...row("/dev/ttyACM0", "n/a"), held_by: 0 },
+        { ...row("/dev/ttyS0", "n/a"), held_by: 1 },
+      ],
+    };
+    const names = (id: number) => ({ 1: "FM", 2: "Mobile" })[id];
+    const listedOf = (own: number, current = "") => portOptions(held, current, "", false, holderOf(own, names)).slice(1, -1);
+    expect(listedOf(1)).toEqual([
+      { value: "/dev/ttyUSB0", label: "Mobile: /dev/ttyUSB0 - FT232R", disabled: true },
+      { value: "/dev/ttyACM0", label: "GPS: /dev/ttyACM0", disabled: true },
+      { value: "/dev/ttyS0", label: "/dev/ttyS0" },
+    ]);
+    expect(listedOf(2).map((c) => c.disabled ?? false)).toEqual([false, true, true]);
+    expect(listedOf(0).map((c) => c.disabled ?? false)).toEqual([true, false, true]);
+    expect(listedOf(1, "/dev/ttyUSB0")[0]).toEqual({ value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R" });
+    expect(portOptions(held, "", "").every((c) => c.disabled !== true)).toBe(true); // (a box that gives no holder)
+  });
+  it("greys a port a radio the page does not know holds, with its own label", () => {
+    const held = { ...ports(), ports: [{ ...row("/dev/ttyUSB0", "FT232R"), held_by: 9 }] };
+    expect(
+      portOptions(
+        held,
+        "",
+        "",
+        false,
+        holderOf(1, () => undefined),
+      ).slice(1, -1),
+    ).toEqual([{ value: "/dev/ttyUSB0", label: "/dev/ttyUSB0 - FT232R", disabled: true }]);
   });
   it("calls the empty port not set where the daemon does not search", () => {
     expect(portOptions(ports(false), "", "")[0]).toEqual({ value: "", label: "not set" });
@@ -468,7 +511,12 @@ describe("the radios' own settings in the form", () => {
   });
 
   it("name the types of radio in the catalogue's words, the radio type of before's list too", () => {
-    expect(FIELDS["tnc/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.label))).toEqual(typeChoices("fm").map((c) => c.label));
+    const flat = new Set<string>(TNC_PROFILES.map((profile) => profile.key)); // (the FM types the setting of before takes: a type with no TNC profile, the Sound card's, is the radios' own alone)
+    expect(FIELDS["tnc/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.label))).toEqual(
+      typeChoices("fm")
+        .filter((c) => flat.has(c.value))
+        .map((c) => c.label),
+    );
     expect(FIELDS["hf/profile"]?.choices?.map((c) => (typeof c === "string" ? c : c.value))).toEqual(["mercury", "dummy-hf"]);
     expect(typeChoices().map((c) => c.value)).toEqual(RADIO_TYPES.map((type) => type.key));
     expect([typeText("kiss-tcp"), typeText("dummy-hf"), typeText("nothing")]).toEqual([

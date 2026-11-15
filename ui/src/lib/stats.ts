@@ -100,22 +100,24 @@ function reachLines(rows: readonly StationRow[], map: MapState | null): StatLine
   ];
 }
 
-/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by the word of their tag: by radio (its name where the radios are named, HF for the HF radio),
- * iGate and Internet. */
+/** The latest packets as the page has them (the daemon keeps 200): the ones heard, not those we sent. "By channel" counts them by their tag, said by its word: by radio (its name where the radios are named, HF for the
+ * HF radio), iGate and Internet; two radios are never added together, even where their words are the same (a removed radio beside a live one). */
 function latestLines(packets: ReadonlyMap<string, PacketRow>, radios: readonly PageRadio[]): StatLine[] {
   const rows = [...packets.values()].filter((row) => row.direction === "in");
   if (rows.length === 0) return [];
   const kinds = new Map<string, number>();
-  const channels = new Map<string, number>();
+  const channels = new Map<string, { label: string; n: number }>(); // (by the tag's key: a radio's is its id's)
   for (const row of rows) {
     kinds.set(row.kind, (kinds.get(row.kind) ?? 0) + 1);
-    const label = packetTag(row, radios).label;
-    channels.set(label, (channels.get(label) ?? 0) + 1);
+    const { key, label } = packetTag(row, radios);
+    const counted = channels.get(key);
+    if (counted === undefined) channels.set(key, { label, n: 1 });
+    else counted.n++;
   }
   const byKind = KINDS.filter((kind) => kinds.has(kind))
     .map((kind) => t("stats.kind_count", { n: whole(kinds.get(kind) ?? 0), kind: t(`stats.kind.${kind}`) }))
     .join(" · ");
-  const byChannel = [...channels.entries()].map(([label, n]) => t("stats.kind_count", { n: whole(n), kind: label })).join(" · ");
+  const byChannel = [...channels.values()].map(({ label, n }) => t("stats.kind_count", { n: whole(n), kind: label })).join(" · ");
   const onRadio = rows.filter((row) => row.via === "rf" || row.via === "dummy");
   const direct = onRadio.filter((row) => row.route === "direct").length;
   const times = rows.map((row) => Date.parse(row.heard_at)).filter((ms) => !Number.isNaN(ms));

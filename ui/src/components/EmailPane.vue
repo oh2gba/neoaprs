@@ -34,7 +34,7 @@ const radios = useRadios();
 const mail = computed(() => radios.email.value);
 const named = computed(() => mail.value !== null && radios.named(mail.value.id));
 /** Why email cannot go: no radio internet gateways hear is on, or its link is down; undefined while it can. */
-const offline = computed(() => (mail.value === null ? t("email.fm_off") : radioBlockedReason(mail.value, named.value)));
+const offline = computed(() => (mail.value === null ? t("email.no_gated_radio") : radioBlockedReason(mail.value, named.value)));
 const checking = computed(() => checkingMail(props.thread));
 const away = computed(() => offline.value ?? (checking.value ? t("email.checking") : undefined));
 </script>

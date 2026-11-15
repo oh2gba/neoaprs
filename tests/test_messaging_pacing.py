@@ -1,10 +1,14 @@
-"""Several messages written at once (to several stations) go out one after the other: between two attempts of any messages `spacing_sec` pass (neoaprs/services/messaging.py)."""
+"""Several messages written at once (to several stations) go out one after the other: between two attempts on one radio `spacing_sec` pass (neoaprs/services/messaging.py, services/pace.py), and a
+message on another radio does not wait for that pause (plan rule 3.1: the pause is each radio's)."""
 from pathlib import Path
 
 import pytest
 
+from neoaprs.messagelog import MessageLog
+from neoaprs.radiotype import HF_ID
 from neoaprs.source import Source
-from tests.test_messaging import Rig, started_rig
+from tests.support.storedb import log_at
+from tests.test_messaging import Rig, started_rig, with_hf
 
 
 @pytest.fixture
@@ -48,3 +52,22 @@ async def test_messages_that_waited_for_the_radio_go_out_spaced_when_it_is_back(
     assert len(rig.tnc.sent) == 1
     await rig.pass_time(10)
     assert len(rig.tnc.sent) == 2
+
+
+async def test_the_pause_between_attempts_is_each_radios_own(tmp_path: Path) -> None:
+    log, _, clock = await log_at(tmp_path, MessageLog)
+    two = Rig(log, clock, spacing_sec=10.0, hf_enabled=True)
+    hf = with_hf(two, two.radios)
+    two.radios.hf_stations = ("OH2FAR", "OH2FAB")
+    await two.start()
+    await two.m.send("OH2AAA", "on FM")
+    await two.m.send("OH2FAR", "on HF")
+    assert (len(two.tnc.sent), len(hf.sent)) == (1, 1), "written at the same moment to stations on two radios: both go at once (before: HF waited for FM's pause)"
+    await two.m.send("OH2BBB", "FM again")
+    await two.m.send("OH2FAB", "HF again")
+    assert (len(two.tnc.sent), len(hf.sent)) == (1, 1), "a second on each radio waits for that radio's pause"
+    await two.pass_time(9)
+    assert (len(two.tnc.sent), len(hf.sent)) == (1, 1)
+    await two.pass_time(1)
+    assert (len(two.tnc.sent), len(hf.sent)) == (2, 2), "ten seconds after, one more on each"
+    assert [a.radio_id for n in (2, 4) for a in two.m.delivery.attempts_of(n)] == [HF_ID, HF_ID]

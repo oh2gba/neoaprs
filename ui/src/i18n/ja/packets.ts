@@ -56,7 +56,7 @@ export const packets: Record<keyof typeof source, Message> = {
   "packets.fact.came": "受信経路",
   "packets.fact.came_value": "{channel} - {what}",
   "packets.came_by.hf": "HF無線機で受信",
-  "packets.came_by.radio": "heard on radio {name}",
+  "packets.came_by.radio": "無線機「{name}」で受信",
   "packets.fact.time_in_packet": "パケット内の時刻",
 
   "packets.position_approximate": "{position}(概略)",

@@ -23,7 +23,7 @@ from neoaprs.source import Backoff, Source
 from tests.conftest import ROOT
 from tests.support.clock import FixedClock
 from tests.support.env import idle_for, remember_stop, until
-from tests.support.proc import NEW_GROUP, interrupt
+from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, interrupt
 from tests.support.rig import ServiceRig
 
 HELSINKI = (60.43, 24.145)
@@ -245,10 +245,10 @@ def test_as_a_process_it_prints_the_address_and_reports_the_drive_to_a_plain_soc
     finally:
         interrupt(proc)
         try:
-            out, err = proc.communicate(timeout=30)
+            out, err = proc.communicate(timeout=STOP_PATIENCE_SEC)
         except subprocess.TimeoutExpired:
             proc.kill()
-            raise AssertionError(f"gps-replay did not end 30 s after the interrupt; it said: {proc.communicate()[1]}") from None
+            raise AssertionError(f"gps-replay did not end {STOP_PATIENCE_SEC:g} s after the interrupt; it said: {proc.communicate()[1]}") from None
     assert proc.returncode == 0 and "a drive from 61.5,25.5 at 50 km/h" in err and "a client connected" in err and "stopped" in err
 
 

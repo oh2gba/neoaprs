@@ -1,7 +1,7 @@
 // How a station or a packet reached us, as the page names it. The daemon marks every packet with the channel it came by (`via`: `rf` heard on a radio, `rf-gated` heard on a radio from an iGate that took it from the
 // internet, `is` received from the internet itself, `dummy` made up by a Dummy radio) and the radio it came on (`radio_id`), and counts each station's packets by channel and by radio (`heard`). A radio is named only
 // where more than one is on, and always where it is off or removed (lib/radios.ts `isNamed`): a named radio's tag is its short name in the tone of its kind (dashed for a Dummy, dimmed once removed); the one radio that
-// is on keeps the words it always had (RF, HF for an HF radio, Dummy for a Dummy one). iGate and Internet are channels, not radios, and are told after the radios. Only what was on the air near us (a radio, an iGate's,
+// is on keeps the words it always had (RF, HF for an HF radio, Dummy for a Dummy one), in the tone of its kind (a LoRa radio's RF is sage, as its named tag is). iGate and Internet are channels, not radios, and are told after the radios. Only what was on the air near us (a radio, an iGate's,
 // a Dummy's) is Nearby's and the routes'; a station known from the internet alone is marked so on the map, in the table and on its card. Plain functions of rows and of the radios (`radios`: every radio, removed ones
 // too, in the order of their boxes: composables/useRadios.ts `all`).
 import { t } from "@/i18n";
@@ -86,8 +86,11 @@ export interface HeardPart {
   dummy: boolean;
 }
 
-/** The word a radio's packets of the air always had where it is the one radio on: Dummy for a Dummy radio's, HF for an HF radio's, else RF. */
+/** The word a radio's packets of the air always had where it is the one radio on: Dummy for a Dummy radio's, HF for an HF radio's, else RF (a LoRa radio's too: one radio is the page it always was). */
 const wordOf = (radio: Pick<PageRadio, "dummy" | "kind">): Channel => (radio.dummy ? "dummy" : radio.kind === "hf" ? "hf" : "rf");
+
+/** The tone of the one radio that is on, by its word: RF in the tone of the radio's kind (LoRa's sage, FM's neutral), the colour of its named tag; HF and Dummy their own. */
+const unnamedTone = (radio: PageRadio, word: Channel): HeardTone => (word === "rf" ? radioTone(radio) : toneOf(word));
 
 /** The one radio that is on, unnamed: the word it always had (RF, HF, Dummy) and when that radio last heard the station (a Dummy's: its made-up packets). */
 function unnamedPart(radio: PageRadio, at: string | null, row?: Heard & Times): HeardPart {
@@ -97,7 +100,7 @@ function unnamedPart(radio: PageRadio, at: string | null, row?: Heard & Times): 
     key: `radio-${radio.id}`,
     label: name(channel),
     title: meaning(channel),
-    tone: toneOf(channel),
+    tone: unnamedTone(radio, channel),
     at: when,
     named: false,
     plain: true,
@@ -112,7 +115,6 @@ function radioPart(id: RadioId, at: string | null, radios: readonly PageRadio[],
   const radio = radios.find((one) => one.id === id);
   if (radio === undefined) return { ...channelPart("rf", at), key: `radio-${id}` };
   if (!isNamed(radios, id)) return unnamedPart(radio, at, row);
-  const plain = radio.row.name === "" && radio.row.number === 1; // (its kind's word, "FM", "HF": no typed name, no number)
   return {
     key: `radio-${id}`,
     label: radio.name,
@@ -120,7 +122,7 @@ function radioPart(id: RadioId, at: string | null, radios: readonly PageRadio[],
     tone: radioTone(radio),
     at,
     named: true,
-    plain,
+    plain: radio.plain, // (its kind's word, "FM", "HF": no typed name, no number; never `row`, which a stats-only patch of the topic makes anew)
     radio: true,
     dummy: radio.dummy,
   };
@@ -182,8 +184,8 @@ export interface HeardTag {
   tone: HeardTone;
 }
 
-/** How many radios "Heard on" shows by their tags; the rest are one tag "+n". */
-const HEARD_ON_RADIOS = 2;
+/** How many radios "Heard on" shows by their tags (and My objects a row's radios); the rest are one tag "+n". */
+export const HEARD_ON_RADIOS = 2;
 
 /** The tags of "Heard on" (the Stations table): the radios that heard the station last, `room` of them, in the order of their boxes, then "+n" whose title lists the rest with their times, then iGate and Internet
  * (which are not counted among the radios). One tag for each, so that a station heard in two ways has two small tags and not one long one that a narrow table would cut. */
@@ -244,7 +246,7 @@ export function packetTag(packet: Packet, radios: readonly PageRadio[]): HeardTa
   }
   if (!named) {
     const word = channel === "dummy" ? "dummy" : wordOf(radio); // (the one radio that is on: the word it always had)
-    return { key: `radio-${id}`, label: name(word), title: meaning(word), tone: toneOf(word) };
+    return { key: `radio-${id}`, label: name(word), title: meaning(word), tone: unnamedTone(radio, word) };
   }
   const { label, title, tone } = radioPart(id, null, radios);
   return { key: `radio-${id}`, label, title, tone };

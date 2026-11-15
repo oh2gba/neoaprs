@@ -152,11 +152,11 @@ describe("what a radio's problem says", () => {
       said("modem.not_started"),
       said("modem.sound_card"),
     ]).toEqual([
-      "This installation carries no Mercury",
+      "This installation does not carry this radio's modem",
       "Not running",
-      "Not run: Mercury would be open to the network",
+      "Not run: the modem would be open to the network",
       "Not running: no free port",
-      "Mercury could not be started",
+      "The modem could not be started",
       "Sound card could not be opened: choose another",
     ]);
   });
@@ -167,7 +167,7 @@ describe("what a radio's problem says", () => {
 
   it("is the sentence of a device another holds where the catalogue has it, else not connected", () => {
     const text = said("radio.resource_held", { resource: "serial", holder: "HF" });
-    expect(["that device is in use by HF: choose another", "Not connected"]).toContain(text);
+    expect(["the device is in use by radio HF: choose another", "Not connected"]).toContain(text);
   });
 });
 
@@ -191,6 +191,19 @@ describe("the main radio", () => {
     delete before.main_radio;
     expect([mainRadio(radios, before)?.id, mainRadio(radios, null)?.id, mainRadio(radios, status({ main_radio: 3 }))?.id]).toEqual([2, 2, 2]);
     expect(mainRadio([], null)).toBeNull();
+  });
+
+  it("falls back on the first radio on that can send, as the daemon chooses it: a radio that only listens, first in order, is never the main radio", () => {
+    const listening = pageRadios(
+      topic(
+        radioRow(3, "tnc-text", { position: 1, number: 2 }),
+        radioRow(1, "kenwood-tnc2", { position: 2 }),
+        radioRow(4, "kiss", { position: 3, enabled: false, number: 3 }),
+      ),
+      null,
+    );
+    expect([mainRadio(listening, null)?.id, mainRadio(listening, status({ main_radio: 4 }))?.id]).toEqual([1, 1]);
+    expect(mainRadio(pageRadios(topic(radioRow(3, "tnc-text", { number: 2 })), null), null)).toBeNull();
   });
 });
 

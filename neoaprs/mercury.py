@@ -130,7 +130,7 @@ def keying_of(text: str) -> Keying:
     value = text.strip()
     kind, _, device = value.partition(":")
     kind, device = kind.strip().lower(), device.strip()
-    if kind not in PTT_KINDS or (kind in PTT_WITH_DEVICE) != bool(device):
+    if kind not in PTT_KINDS or (kind in PTT_WITH_DEVICE) != bool(device) or len(device) > 255 or not device.isprintable() or any(c.isspace() for c in device):      # (a port is one word: no line of a program's conf comes with it)
         raise CodedError(f"{text!r} is not a way of keying the radio: vox, cm108, rts:PORT or dtr:PORT", "setting.not_keying", value=text)
     return Keying(kind, device)
 
@@ -210,7 +210,7 @@ class SerialPort:
     pid: int | None = None
 
 
-_RADIO_CARD = re.compile(r"usb|codec|pnp|digirig|radio|c-media|cm108|texas|pcm290", re.IGNORECASE)      # what a radio's sound card calls itself: a USB codec (the IC-7300's PCM2903 "USB Audio CODEC", a DigiRig's or a dongle's C-Media "USB PnP Sound Device"); the computer's own card is "HDA Intel" or the like
+_RADIO_CARD = re.compile(r"usb|codec|pnp|digirig|radio|c-media|cm108|texas|pcm290|all-in-one", re.IGNORECASE)      # what a radio's sound card calls itself: a USB codec (the IC-7300's PCM2903 "USB Audio CODEC", a DigiRig's or a dongle's C-Media "USB PnP Sound Device", an AIOC's "All-In-One-Cable"); the computer's own card is "HDA Intel" or the like
 _RADIO_SERIAL_VID = {0x10C4, 0x0403, 0x067B, 0x1A86}                 # Silicon Labs CP210x (a DigiRig, an IC-7300, an FT-710), FTDI, Prolific and WCH adapters: what a radio's or an interface's serial port is
 _USB_CHIP_VID = {0x0D8C}                                              # C-Media: a CM108 or CM119 sound chip, whose GPIO keys the radio on a DigiRig Lite, an AIOC and the dongles
 

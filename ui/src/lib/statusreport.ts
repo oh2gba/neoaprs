@@ -12,7 +12,7 @@ export interface ReportLook {
 
 /** The look for the time of the last report (ISO, null for none), the interval in minutes as the settings hold it, whether the beacon is Off (no timed status), whether transmitting is switched off, and the time now. */
 export function reportLook(lastSent: string | null, minutes: string, beaconOff: boolean, rxOnly: boolean, nowMs: number): ReportLook {
-  if (rxOnly) return { state: t("beacon.state.off"), tone: "tnc-waiting", line: t("beacon.line.rx_only") };
+  if (rxOnly) return { state: t("beacon.state.off"), tone: "tnc-waiting", line: t("error.transmit.off") };
   const on = { state: t("beacon.state.on"), tone: "beacon-on" };
   if (lastSent === null) return { ...on, line: t("beacon.status.line.none") };
   const ago = agoWords(lastSent, nowMs);

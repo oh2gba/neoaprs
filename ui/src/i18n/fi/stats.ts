@@ -34,9 +34,9 @@ export const stats: Record<keyof typeof source, Message> = {
   "stats.direct_share": "Kuultu suoraan",
   "stats.rate": "Tahti",
 
-  "stats.section.radio": "Palvelun käynnistyksestä",
+  "stats.section.radio": "NeoAPRS:n käynnistyksestä",
   "stats.running": "Käynnissä",
-  "stats.frames": "Kehyksiä TNC:ltä",
+  "stats.frames": "Kehyksiä radioilta",
   "stats.bytes": "Tavuja sisään · ulos",
   "stats.digipeated": "Toistettu muille",
   "stats.gated": "Viety internetiin",

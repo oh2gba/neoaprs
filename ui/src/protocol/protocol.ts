@@ -552,7 +552,7 @@ export interface InstallInfo {
   arch: string;
 }
 
-/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, also the sound cards Mercury lists while that radio's type is Mercury, and the proposals leave out what the other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`). */
+/** Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, also the sound cards its modem lists while that radio's type has a modem on a sound card (Mercury, Sound card), and the proposals leave out what the other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`). */
 export interface ListPortsCommand {
   cmd: "list_ports";
   /** the radio the list is for (its id): the sound cards and the proposals are its own; left out: the ports alone, with no sound card and no proposal */
@@ -715,15 +715,15 @@ export interface MessageRow {
   seal: "" | "key" | "key_other" | "open" | "shut";
 }
 
-/** The Mercury HF modem behind a radio's line, while its type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal. */
+/** The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether it hears a signal. */
 export interface ModemState {
   /** `starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why */
   state: "stopped" | "starting" | "running" | "waiting";
   /** why the modem is not running (not installed, stopped); empty while it runs */
   problem: string;
-  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting` */
-  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card";
-  /** the modem's mode, the same for every station: `DATAC3` */
+  /** why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting` */
+  reason: "" | "not_installed" | "stopped" | "network" | "no_port" | "not_started" | "sound_card" | "keying";
+  /** the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf) */
   mode: string;
   /** the modem keys the radio now: a frame is on the air (about four seconds), or the tune tone or the keying test is on */
   keyed: boolean;
@@ -735,8 +735,8 @@ export interface ModemState {
   snr: number | null;
   /** how many times the radio was keyed since the modem started */
   frames_keyed: number;
-  /** the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut */
-  max_frame: number;
+  /** the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf) */
+  max_frame: number | null;
   /** the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device */
   sound_card: string;
   /** the frequencies the project suggests, one to four: the list of the project's file (site/frequencies.json, asked a minute after the start and when a page sends `frequencies`), else the dial the version page names, else the built-in two; the page shows them in the HF radio's box as they are, with the words "suggested": they are not read from the radio */
@@ -749,6 +749,8 @@ export interface ModemState {
   tx_gain_db: number;
   /** the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read */
   tx_peak_dbfs: number | null;
+  /** the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury) */
+  rx_level: number | null;
 }
 
 /** Makes a new key pair of ours in place of the old: the stations that have the old key must be sent the new one (`send_key`) before they can read us again. The fingerprint of the new key comes with the next `status`. Answered by that `status`, or by an `error` when the key could not be kept. */
@@ -848,7 +850,7 @@ export interface OwnObjectRow {
   sent: number;
   /** when it was last sent; null while it has not been sent (the call is not set, or the radio is away) */
   last_sent_at: string | null;
-  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
+  /** when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on HF and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request` */
   next_at: string | null;
 }
 
@@ -981,10 +983,12 @@ export interface PortsMessage {
   search: boolean;
   /** whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS */
   find: boolean;
-  /** the sound cards the Mercury HF modem lists, for a `radio` named whose type is Mercury while the program is installed; empty otherwise */
+  /** the sound cards the radio's modem lists, for a `radio` named whose type has a modem on a sound card (Mercury, Sound card) while the program is installed; empty otherwise */
   sound_cards: SoundCardRow[];
   /** the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as the radio's `keying` while that is empty; empty when no sound card is listed */
   keying: string;
+  /** the radio the list was asked for (`radio` of `list_ports`: the sound cards and the proposals are its own); null for a list that named none. The ports are the machine's, the same whoever asked */
+  radio: number | null;
 }
 
 /** A position as the parser made it: decimal degrees, south and west negative, speed in km/h, altitude in metres. */
@@ -1163,6 +1167,8 @@ export interface RadioCan {
   frequencies: boolean;
   /** it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to */
   transmit: boolean;
+  /** the level of the packets it hears is shown in its box (its modem's `rx_level`) */
+  rx_level: boolean;
 }
 
 /** Changes what is given of the radio and nothing else: its `name` (empty: none), its `type` (one of its own kind), its Enable (`enabled`) or its place in the list (`position`, from 1; the others keep theirs, a tie goes by id). Stored, then in force; the radio is restarted when its type or its Enable changed what runs. Answered by the row, or an `error`: `radio.unknown`, `radio.last_enabled` (the last radio that is on is not switched off), `radio.name_form`, `radio.name_taken`, `radio.name_label`, `radio.type_kind`, `radio.unknown_type`, `setting.not_stored`. */
@@ -1216,7 +1222,7 @@ export interface RadioLimits {
 /** Why a radio, or its beacon, does not do what it is set to, as a code the page puts in its own words, with the values its sentence is made of (the English of the log is not told). */
 export interface RadioProblem {
   /** `radio.not_connected` its line is not open (`name`: the radio's name in the log); `radio.searching` the daemon looks for its port; `radio.silent` its line is open and the radio does not answer (`since`: when the latest byte came, UTC); `radio.text_lines` its line is open and the LoRa board on it sends text lines, not KISS: nothing is sent until it is set to KISS; `radio.resource_held` a device it is set to use is another's (`resource`: `serial`, `sound_card`, `keying`, `modem_ports` or `gps`; `holder`: the name of the radio that holds it, `GPS` for the GPS receiver; `held_by`: its id, 0 for the GPS receiver); `modem.<reason>` its Mercury modem is not running, `reason` as `ModemState.reason` says it; for its beacon `transmit.off` (RX only) and `beacon.not_sent` (`reason`: the English of the log) */
-  code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.text_lines" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "transmit.off" | "beacon.not_sent";
+  code: "radio.not_connected" | "radio.searching" | "radio.silent" | "radio.text_lines" | "radio.resource_held" | "modem.not_installed" | "modem.stopped" | "modem.network" | "modem.no_port" | "modem.not_started" | "modem.sound_card" | "modem.keying" | "transmit.off" | "beacon.not_sent";
   /** the values of the sentence, by name; empty for a code that has none */
   params: { [key: string]: string | number };
 }
@@ -1260,7 +1266,7 @@ export interface RadioRow {
   can: RadioCan;
   choices: RadioChoices;
   beacon: RadioBeaconState;
-  /** its Mercury modem, while its type is Mercury; null for every other type and for a removed radio */
+  /** its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio */
   modem: ModemState | null;
   /** the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none */
   holds: RadioHold[];
@@ -1296,7 +1302,7 @@ export interface RadioSearchMessage {
   radio_type: string;
 }
 
-/** Tune on the radio's modem: with `on`, keys the radio through its keying and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"` meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and while a frame is on the air or the channel is busy (`hf.held`). */
+/** Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: "tune"` meanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and while a frame is on the air or the channel is busy (`hf.held`). */
 export interface RadioTuneCommand {
   cmd: "radio_tune";
   /** the radio's id, the `id` of its row in the topic `radios` */
@@ -1767,6 +1773,8 @@ export interface StatusMessage {
   main_radio: number | null;
   /** the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off */
   email_radio: number | null;
+  /** the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`) */
+  unavailable_types: string[];
   /** the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone */
   station_status: string;
   /** when the latest status report was sent (kept over a restart); null for none yet */

@@ -19,13 +19,16 @@ The tab is a mail list, not a conversation. It has one row for each message to o
 **At the top** is the button **Check email** and a small (i): mail goes through the gateway and an iGate, so it may show "Not confirmed" although it arrived, and Check email asks the gateway for the mail it kept for you (24 hours).
 
 - Check email asks the gateway to send again the mail it kept for you. The list shows a row "Checked email" with its state.
-- It is off while the TNC is not connected, and it says "Already checking" while an earlier question is still being sent, so the gateway is not asked twice.
+- It is off while the radio of email is not connected, and it says "Already checking" while an earlier question is still being sent, so the gateway is not asked twice.
+- While several radios are on, the tag of the radio email goes on stands beside it (its hover text: "Email goes on radio FM").
 
 **At the bottom**, always there, is the group box **Write an email**, a row for each field with an (i) after it:
 
 - **To** is an email address. While the box has the focus, the addresses used before that match what you typed are listed under it, opening upward over the list, newest first. A click picks one, and the trash can beside it forgets it. The addresses are kept in your browser. **Esc** closes that list; with none open, it clears the address and the text being written.
 - **Text** and "N left", the characters left of the 67 over the address, the space and the text.
-- **Send** at the lower right. It is off while the TNC is not connected, the address or the text is empty, the address has a space in it, or the line is more than 67 bytes. Email goes out over the FM radio only (the gateway is reached through the iGates of the VHF network, never over HF): while the FM radio is off, Send and Check email are off with the title "Email goes out over the FM radio, which is off". After Send the text is empty again and the address stays, for the next mail to the same person.
+- **Send** at the lower right. It is off while the radio of email is not connected, the address or the text is empty, the address has a space in it, or the line is more than 67 bytes. After Send the text is empty again and the address stays, for the next mail to the same person.
+
+**The radio of email** is one that internet gateways hear: an FM or a LoRa radio, never HF, which has no iGates. It is the [main radio](radio.md#the-main-radio) when that is such a radio, else the first such radio that is on. While none is on, Send and Check email are off with the title "No radio that internet gateways hear is on".
 
 ## The rows
 

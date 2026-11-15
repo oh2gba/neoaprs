@@ -5,7 +5,7 @@
 import { computed, ref, watch } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import { t } from "@/i18n";
-import { PORT_OTHER, portOptions } from "@/lib/portchoice";
+import { PORT_OTHER, portOptions, type HolderOf } from "@/lib/portchoice";
 import type { FieldInfo } from "@/lib/settings";
 import type { PortsMessage } from "@/protocol/protocol";
 
@@ -18,13 +18,15 @@ const props = defineProps<{
   /** the empty port is "not set", not "find automatically": the port of the GPS receiver */
   unset?: boolean;
   ports: PortsMessage | null;
+  /** who holds each port, for this box (a port another radio or the GPS receiver holds is greyed with its name) */
+  holder?: HolderOf;
   error: string;
   changed: boolean;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: string]; choose: [value: string]; commit: [next: EventTarget | null]; cancel: []; refresh: [] }>();
 
 const typing = ref(false);
-const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset));
+const options = computed(() => portOptions(props.ports, props.modelValue, props.found, props.unset, props.holder));
 const field = computed<FieldInfo>(() => ({ ...props.info, kind: "choice", choices: options.value }));
 
 function pick(value: string): void {

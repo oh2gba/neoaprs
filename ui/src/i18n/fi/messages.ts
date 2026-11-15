@@ -86,7 +86,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "sinä",
   "chain.internet": "internet",
   "chain.sent": "lähetetty {time}",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "lähetetty {time} radiolla {name}",
   "chain.heard": { select: "internet", yes: "kuultu, ja internetin kautta", other: "kuultu" },
   "chain.heard_at": { select: "internet", yes: "kuultu {time}, ja internetin kautta", other: "kuultu {time}" },
   "chain.seen_internet": "nähty internetin kautta palautetussa kopiossa, ei kuultu täällä",
@@ -99,7 +99,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "odottaa kuittausta",
 
   "route.button": "Reitti",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "Viestit tälle asemalle lähtevät radiolla {name}",
   "messages.may_not_message": "Tämä asema ei ehkä vastaanota viestejä",
   "messages.may_not_message_label": "Miksi ei ehkä",
   "messages.may_not_message_help":
@@ -111,7 +111,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.use_auto": "Automaattinen polku",
   "route.automatic": "automaattinen",
   "route.auto": "Automaattinen: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "Automaattinen: {name}",
   "route.auto_direct": "Automaattinen: suoraan, sitten {path}",
   "route.auto_via": "Automaattinen: {heard} kautta, sitten {path}",
   "route.own": "Oma polkusi: {path}",
@@ -167,7 +167,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.seen_next": { one: "Vieressä {call}, {n} aseman reitillä", other: "Vieressä {call}, {n} aseman reiteillä" },
   "pathbuilder.add_hop": "Lisää {call}",
 
-  "compose.tnc_not_connected": "TNC ei ole yhdistetty",
+  "compose.tnc_not_connected": "Radio ei ole yhdistetty",
   "compose.left": "{n} jäljellä",
   "compose.over": "{n} yli",
   "compose.left_title.bytes": "{left}/{max} tavua jäljellä",

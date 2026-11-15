@@ -75,6 +75,15 @@ def _in_line(record: MessageRecord) -> bool:
     return record.direction == "out" and record.state == "sending" and record.msg_id is not None and record.attempts_max > UNCONFIRMED_MAX
 
 
+def _pace_running(pace: Pace, radios: MessageRadios, record: MessageRecord) -> bool:
+    """Whether the pause after our latest attempt on the radio the message would go on now is not over (`peek`: nothing kept, nothing logged). With no radio, no pause: the attempt says why it waits."""
+    try:
+        radio = radios.peek(record)
+    except MessagingError:
+        return False
+    return pace.too_soon(radio.id)
+
+
 def _sealed(keyring: Keyring | None, ours: str, to: str, text: str) -> str:
     """The text that goes on the air for an encrypted message to the station. Raises MessagingError with the cipher's code: encrypted messages off, no key from the station, a text too long or unprintable."""
     if keyring is None:
@@ -101,7 +110,7 @@ class Messaging:
         self._log = messagelog
         self._paths = paths                                     # the digipeaters of what we send to a station, for attempt n of a message, on a radio (PrefBook.path_for)
         self.clock, self.tick_sec = clock, tick_sec
-        self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other, never in a burst
+        self.pace = Pace(clock, spacing_sec)                    # several messages written together go out one after the other on each radio, never in a burst
         self.changed: Signal[[MessageRecord]] = Signal("messaging_changed")
         self.removed: Signal[[MessageRecord]] = Signal("messaging_removed")
         self._records: dict[int, MessageRecord] = {}            # every message by id
@@ -327,8 +336,8 @@ class Messaging:
         return frame
 
     def attempt(self, record: MessageRecord) -> MessageRecord:
-        """Transmits the message once, when the radio can and it does not wait for another to the same station (`queued`); the message as it is after that."""
-        if self.queued(record) or not self.retries.radio_up(record) or self.pace.too_soon():
+        """Transmits the message once, when the radio can, its pause after our latest attempt is over (services/pace.py: each radio's) and it does not wait for another to the same station (`queued`); the message as it is after."""
+        if self.queued(record) or not self.retries.radio_up(record) or _pace_running(self.pace, self.message_radios, record):
             return record                                            # (what waits is due at the next tick)
         reply = None if record.msg_id is None else self.inbox.heard.reply_for(record.to_call, self.clock()) or ""
         try:
@@ -345,7 +354,7 @@ class Messaging:
         self._refused.pop(record.id, None)
         if not sent:
             return record                                            # (the TNC is restarting into KISS mode, or the write failed: it is tried again at the next tick)
-        at = self.pace.stamp()
+        at = self.pace.stamp(radio.id)
         self.message_radios.sent(record, radio, at)
         record = replace(record, attempts=record.attempts + 1, last_attempt_at=at)
         self.delivery.sent(record, tuple(str(a) for a in frame.path), at, radio.id)

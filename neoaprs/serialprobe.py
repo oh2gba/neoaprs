@@ -17,10 +17,12 @@ import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from . import nodevices
 from .btpaired import paired_devices
-from .config import DEFAULT_SERIAL_PATTERN
+from .claims import PORT_KINDS, Claim
+from .config import DEFAULT_SERIAL_PATTERN, Config
 from .serialboards import board_kind, describe
 from .serialholders import held_by, port_key
-from .radiotype import RadioId
+from .radiospec import RadioSpec, enabled, live
+from .radiotype import RadioId, RadioTypeError
 from .serialport import SerialError, SerialPort, normalize
 
 log = logging.getLogger("neoaprs.serialport")
@@ -31,6 +33,7 @@ HEARD_KEPT_BYTES = 16384            # a listening port keeps this much of the la
 NUDGE_SEC = 10.0                    # how long a port is listened to before a carriage return is written to it: a TNC in command mode answers it, one in KISS mode ignores it
 RELIST_SEC = 10.0                   # how often a search that listens lists its ports again: one that appeared is opened, one that vanished is closed
 NOT_LISTED = "the serial ports and the paired Bluetooth devices are not listed or searched"       # what the no-devices switch says of every list of this module: each is empty under it, as on a machine that has no port
+LISTENING: dict[str, SerialPort] = {}              # the ports the searches of this process and Find my radio have open, by port_key (one closed may linger): tncsearch.let_go closes one a radio's settings name
 
 
 @dataclass(frozen=True)
@@ -125,8 +128,37 @@ def claim_value(path: str) -> str | None:
 
 
 def holder_words(holder: RadioId | None) -> str:
-    """Who holds a resource of the station, as the log says it: "radio 3", or "the GPS receiver" for the station's own claim."""
+    """Who holds a resource of the station, as the log says it without the station's table: "radio 3", or "the GPS receiver" for the station's own claim (with the table, `Claims.words` names the radio)."""
     return "the GPS receiver" if holder is None else f"radio {holder}"
+
+
+def keying_device(text: str) -> str:
+    """The serial device a keying line is on (`rts:/dev/ttyUSB0`, `dtr:COM4`); "" for a keying that is on no serial line (vox, cm108, none)."""
+    way, _, device = text.strip().partition(":")
+    return device if way in ("rts", "dtr") else ""
+
+
+def device_claims(spec: RadioSpec) -> list[Claim]:
+    """The serial devices the radio's settings name, whatever its type (its port, the port of its keying line), as its claims in the station's table; none for a field left empty, a KISS TCP address, and a
+    radio of a type that is none."""
+    try:
+        fields = spec.rtype.fields
+    except RadioTypeError:
+        return []
+    found = []
+    for f in fields:
+        if f.claims in PORT_KINDS:
+            text = str(spec.settings.get(f.key, f.default))
+            if (value := claim_value(keying_device(text) if f.claims == "keying" else text)) is not None:
+                found.append(Claim(f.claims, value, spec.id))
+    return found
+
+
+def named_ports(station: Config, off_too: bool = False) -> tuple[Claim, ...]:
+    """The serial devices the settings name for every enabled radio (`device_claims`): the station's table reads them as its `named` (claims.py), so that a device a radio is set to is left out by every other
+    radio's search, by Find my radio for another radio and by the keying choice of another radio's modem, whether that radio has opened it yet or not. `off_too`: of the radios that are off as well (not the
+    removed ones), for the keying choice, which a modem keeps while it runs: a radio switched on later is not to find its TNC's port keying another."""
+    return tuple(claim for spec in (live if off_too else enabled)(station.radios) for claim in device_claims(spec))
 
 
 def can_search() -> bool:
@@ -211,18 +243,22 @@ class _Listener(SerialPort):
         self.valid = False
         self.opened_at = 0.0                                  # loop time of the open: the nudge comes a while after it
         self.nudged = False
-        self._wake = wake
+        self.wake = wake                                      # (set when the probe is to look at its ports again)
 
     def _deliver(self, chunk: bytes) -> None:
         self.heard.extend(chunk)
         del self.heard[:-HEARD_KEPT_BYTES]
         if not self.valid and self.looks_valid(bytes(self.heard)):
             self.valid = True
-            self._wake.set()
+            self.wake.set()
 
     def _lost(self, reason: str) -> None:
         super()._lost(reason)
-        self._wake.set()
+        self.wake.set()
+
+    def let_go(self) -> None:
+        super().let_go()
+        self.wake.set()                                       # (the probe looks at its ports again, without this one)
 
 
 async def _open_one(port: _Listener, level: int) -> bool:
@@ -232,6 +268,7 @@ async def _open_one(port: _Listener, level: int) -> bool:
         log.log(level, "probe: skipping %s", e)
         return False
     port.opened_at = asyncio.get_running_loop().time()
+    LISTENING[port_key(port.path)] = port
     return True
 
 
@@ -263,15 +300,25 @@ async def _relist(ports: list[_Listener], listing: Callable[[], Awaitable[list[s
     """The ports as they are listed now: the open ones that are still listed stay, the ones no longer listed (the device went away) or held by another radio of the station meanwhile (`claimed`) are closed, and the
     others, new or not openable before, are tried (quietly: a port that is still held says nothing new). `on_open` is told the new set when it differs."""
     paths = await listing()
-    held = claimed or {}
-    kept = [p for p in ports if p.path in paths and not (held and port_key(p.path) in held)]
-    for port in ports:
-        if port not in kept:
-            port.close()
+    for port in (p for p in ports if p.path not in paths):
+        port.close()
+    kept = _still_mine(ports, claimed)
     opened = await _open_all([path for path in paths if all(path != p.path for p in kept)], baud, looks_valid, wake, skip, logging.DEBUG, claimed)
     if on_open is not None and (opened or len(kept) != len(ports)):
         on_open([p.path for p in kept + opened])
     return kept + opened
+
+
+def _still_mine(ports: list[_Listener], claimed: Mapping[str, str] | None, on_open: Callable[[list[str]], None] | None = None) -> list[_Listener]:
+    """The ports that are open, without the ones another radio of the station holds or is set to now (`claimed`: a save named it a moment ago, before the next listing), which are closed and never the
+    search's answer; `on_open` is told the set when it shrank (that, a port a radio took: tncsearch.let_go, or a line that died)."""
+    held = dict(claimed or {})
+    for port in (p for p in ports if p.is_open and port_key(p.path) in held):
+        port.close()
+    left = [p for p in ports if p.is_open]
+    if on_open is not None and len(left) != len(ports):
+        on_open([p.path for p in left])
+    return left
 
 
 def _first_valid(ports: list[_Listener]) -> tuple[str, bytes] | None:
@@ -279,11 +326,16 @@ def _first_valid(ports: list[_Listener]) -> tuple[str, bytes] | None:
     return next(((p.path, bytes(p.heard)) for p in ports if p.valid), None)
 
 
-def _nudge_due(ports: list[_Listener], nudge: bytes, after_sec: float, now: float) -> float | None:
-    """Writes the nudge to the ports that have been open for `after_sec` and were not nudged yet (a port that cannot be written to is dropped); the loop time the next nudge is due at, None when none is."""
+def _nudge_due(ports: list[_Listener], nudge: bytes, after_sec: float, now: float, nudged: set[str] | None = None) -> float | None:
+    """Writes the nudge to the ports that have been open for `after_sec` and were not nudged yet (a port that cannot be written to is dropped); the loop time the next nudge is due at, None when none is.
+    `nudged`: the ports (by `port_key`) the caller's search has nudged already, in an earlier turn of it: each is nudged once in the whole search, and the ones nudged now are added."""
     due = [p for p in ports if not p.nudged and now >= p.opened_at + after_sec]
     for port in due:
         port.nudged = True
+        if nudged is not None:
+            if (key := port_key(port.path)) in nudged:
+                continue
+            nudged.add(key)
         try:
             port.write(nudge)
         except SerialError as e:
@@ -315,8 +367,10 @@ async def probe(paths: list[str], baud: int, seconds: float | None, looks_valid:
 
 
 async def probe_heard(paths: list[str], baud: int, seconds: float | None, looks_valid: Callable[[bytes], bool], nudge: bytes | None = None, nudge_after_sec: float = NUDGE_SEC,
-                      on_open: Callable[[list[str]], None] | None = None, skip: Collection[str] = (), relist: Callable[[], Awaitable[list[str]]] | None = None, claimed: Mapping[str, str] | None = None) -> tuple[str, bytes] | None:
-    """`probe`, with what the port it chose was heard to say (the latest HEARD_KEPT_BYTES of it), so that the caller can tell a TNC that types command-mode text from one that sends KISS frames."""
+                      on_open: Callable[[list[str]], None] | None = None, skip: Collection[str] = (), relist: Callable[[], Awaitable[list[str]]] | None = None, claimed: Mapping[str, str] | None = None,
+                      nudged: set[str] | None = None) -> tuple[str, bytes] | None:
+    """`probe`, with what the port it chose was heard to say (the latest HEARD_KEPT_BYTES of it), so that the caller can tell a TNC that types command-mode text from one that sends KISS frames. `nudged`: the
+    ports the caller's search nudged in its earlier turns, which are not nudged again (`_nudge_due`)."""
     loop = asyncio.get_running_loop()
     wake = asyncio.Event()
     ports = await _open_all(paths, baud, looks_valid, wake, skip, claimed=claimed)
@@ -326,7 +380,7 @@ async def probe_heard(paths: list[str], baud: int, seconds: float | None, looks_
         deadline = loop.time() + seconds if seconds else None
         relist_at = loop.time() + RELIST_SEC if relist is not None else None
         while True:
-            ports = [p for p in ports if p.is_open]
+            ports = _still_mine(ports, claimed, on_open)
             if (found := _first_valid(ports)) is not None:
                 return found
             now = loop.time()
@@ -336,7 +390,7 @@ async def probe_heard(paths: list[str], baud: int, seconds: float | None, looks_
                 relist_at = now + RELIST_SEC
                 ports = await _relist(ports, relist, baud, looks_valid, wake, skip, on_open, claimed)
                 continue
-            nudge_at = _nudge_due(ports, nudge, nudge_after_sec, now) if nudge is not None else None
+            nudge_at = _nudge_due(ports, nudge, nudge_after_sec, now, nudged) if nudge is not None else None
             wake.clear()
             await _sleep_until(wake, [t for t in (deadline, nudge_at, relist_at) if t is not None], now)
     finally:

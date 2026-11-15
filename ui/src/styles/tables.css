@@ -457,10 +457,6 @@
 .alertbox-km {
   width: 6em;
 }
-.alertbox-note {
-  padding-left: 24px;
-  font-size: 12px;
-}
 /* "On map for" [3 h]: the label and a select as narrow as its longest choice, in the line of the tickboxes */
 .onmap {
   gap: 6px;

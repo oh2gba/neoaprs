@@ -84,6 +84,7 @@ const ports: PortsMessage = {
   search: true,
   find: true,
   ports: [portRow("/dev/ttyUSB0", "FT232R")],
+  radio: null,
 };
 
 function daemon(extra: Record<string, string> = {}, more: Parameters<typeof fakeDaemon>[0] = {}): FakeDaemon {

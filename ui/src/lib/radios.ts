@@ -25,6 +25,8 @@ export interface PageRadio {
   type: RadioTypeKey;
   /** what the page calls it: the name typed, else its kind's word and its number in the kind ("HF 2") */
   name: string;
+  /** its name is its kind's word alone ("FM", "HF"): no name typed and the first of its kind. Its own field, so that a tag that names the radio does not read `row` (which follows the counts) */
+  plain: boolean;
   /** it is on: its Enable is ticked and it is not removed */
   enabled: boolean;
   removed: boolean;
@@ -44,7 +46,7 @@ export interface PageRadio {
 }
 
 /** The word of each kind. */
-const KIND_WORDS: Record<RadioRow["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.lora" };
+export const KIND_WORDS: Record<RadioRow["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.lora" };
 
 /** What the page calls a radio: the name typed, else the word of its kind, with its number in the kind from the second on ("HF", "HF 2"). */
 export function radioLabel(row: Pick<RadioRow, "name" | "kind" | "number">, words: typeof t = t): string {
@@ -71,6 +73,7 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "modem.no_port": "settings.tnc.hf.no_port",
   "modem.not_started": "settings.tnc.hf.not_started",
   "modem.sound_card": "settings.tnc.hf.sound_card",
+  "modem.keying": "settings.tnc.hf.keying",
 };
 
 /** What a radio's problem says to the operator: the words of its line's state, else (a device another holds, RX only, a beacon not sent) the sentence of its refusal, and "Not connected" where the catalogue has none.
@@ -95,6 +98,7 @@ export function pageRadio(row: RadioRow, radioValues: Values = {}, live?: () => 
     kind: row.kind,
     type: row.type as RadioTypeKey, // (the daemon's rows and RADIO_TYPES are made from the one registry of types)
     name: radioLabel(row),
+    plain: row.name === "" && row.number === 1,
     enabled,
     removed: row.removed,
     dummy: row.dummy,
@@ -126,6 +130,7 @@ export function sameRadio(a: PageRadio, b: PageRadio): boolean {
     radio.kind,
     radio.type,
     radio.name,
+    radio.plain,
     radio.enabled,
     radio.removed,
     radio.dummy,
@@ -158,12 +163,12 @@ export const isOn = (radios: readonly PageRadio[], id: RadioId): boolean => radi
 /** Whether a radio is named where something of it is shown: where more than one radio is on, and always for one that is not on (off, removed, or not known), so that what came by it keeps its name. */
 export const isNamed = (radios: readonly PageRadio[], id: RadioId): boolean => enabledRadios(radios).length > 1 || !isOn(radios, id);
 
-/** The main radio: the one the daemon's status names (`main_radio`, none while no radio is on), else, against a daemon that does not name it or one the page does not know yet, the first radio that is on. */
+/** The main radio: the one the daemon's status names (`main_radio`, none while no radio is on), else, against a daemon that does not name it or one the page does not know yet, the first radio that is on and can send, as the
+ * daemon chooses it (neoaprs/radiospec.py `main_radio`: a radio that only listens is never the main radio). */
 export function mainRadio(radios: readonly PageRadio[], status: Partial<Pick<StatusMessage, "main_radio">> | null): PageRadio | null {
   const named = status?.main_radio;
   if (named === null) return null;
-  const on = enabledRadios(radios);
-  return (named === undefined ? undefined : on.find((radio) => radio.id === named)) ?? on[0] ?? null;
+  return (named === undefined ? undefined : enabledRadios(radios).find((radio) => radio.id === named)) ?? senders(radios)[0] ?? null;
 }
 
 /** The email radio, which the internet gateways hear: the one the status names (`email_radio`, none while there is none), else the first radio on whose type an internet gateway hears. */

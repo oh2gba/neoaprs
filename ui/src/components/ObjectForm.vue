@@ -16,7 +16,7 @@ import InfoTip from "@/components/InfoTip.vue";
 import LocationField from "@/components/LocationField.vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import SymbolField from "@/components/SymbolField.vue";
-import { t } from "@/i18n";
+import { listText, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { OwnObjectsView } from "@/composables/useOwnObjects";
 import { leftTitle } from "@/lib/compose";
@@ -39,7 +39,7 @@ const sendOn = computed(() => inForce(draft.radios, on.value, main.value?.id ?? 
 /** No radio it goes out on may carry a path: the Path row is greyed. */
 const noPath = computed(() => !sendOn.value.some((id) => byId(id)?.carriesPath === true));
 /** Why Path is greyed, as Route says it: "HF: no path" for the radios ticked. */
-const pathless = computed(() => t("radio.no_path", { name: sendOn.value.map((id) => byId(id)?.name ?? "").join(", ") }));
+const pathless = computed(() => t("radio.no_path", { name: listText(sendOn.value.map((id) => byId(id)?.name ?? "")) }));
 /** A tick of Send on: the radio is added to the object's, or taken off (never the last: its tick is greyed). */
 const tick = (id: number): void => {
   draft.radios = ticked(draft.radios, on.value, main.value?.id ?? null, id);

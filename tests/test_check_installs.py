@@ -7,6 +7,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import re
 import shlex
 import shutil
 import stat
@@ -68,7 +69,11 @@ def test_the_deb_check_holds_what_the_release_workflows_deb_job_holds(installs: 
 
 def test_the_two_debian_images_are_the_ones_the_release_workflow_names(installs: ModuleType) -> None:
     assert installs.DEBIAN == "debian:bookworm-slim" and "debian:bookworm-slim" in deb_job()
-    assert installs.UBUNTU == "ubuntu:24.04" and "ubuntu-latest" in deb_job() and "FROM ubuntu:24.04" in (ROOT / "packaging" / "ci" / "Dockerfile").read_text(encoding="utf-8")
+    ubuntu = re.fullmatch(r"ubuntu:(\d\d\.\d\d)@sha256:[0-9a-f]{64}", installs.UBUNTU)
+    assert ubuntu is not None and ubuntu.group(1) == "24.04", "the older LTS, pinned by its digest"
+    assert re.search(r"^ +runner: ubuntu-24\.04-arm$", deb_job(), re.M), "as the release workflow's job `deb` installs on its arm64 runner"
+    series = json.loads((ROOT / "packaging" / "ci" / "runner.json").read_text(encoding="utf-8"))["facts"]["os"]
+    assert re.search(rf"^FROM ubuntu:{re.escape(series)}@sha256:", (ROOT / "packaging" / "ci" / "Dockerfile").read_text(encoding="utf-8"), re.M), "the wheel and the AppImage: the runner's series"
 
 
 def test_the_probe_names_what_the_scripts_it_starts_have(installs: ModuleType) -> None:
@@ -81,6 +86,7 @@ def test_the_upgrade_proves_this_build_by_its_files_and_its_database_not_by_its_
     """The build before the round and this one have the same version number: apt would leave the old files where they are, and a check of the version would pass on the old program."""
     upgrade = installs.UPGRADE
     assert "md5sum --quiet -c /tmp/upgrade/control/md5sums" in upgrade and installs.DATABASE_CHECK in upgrade and '"$before" "$NEW_SCHEMA"' in upgrade
+    assert installs.tree_schema() == SCHEMA_VERSION, "NEW_SCHEMA, read from the text of this tree's migrations, is the version its daemon brings a file to"
     assert upgrade.index("install-probe.py seed") < upgrade.index("before=") < upgrade.index("/work/dist-deb/neoaprs_${VERSION}_amd64.deb") < upgrade.index("md5sum") < upgrade.index("install-probe.py verify") < upgrade.index("<<'PY'")
     lines = [line for line in upgrade.splitlines() if line.startswith(("again=", '[ "$OLD_VERSION" != "$VERSION" ]'))]
     for old, new, flag in (("0.18.2", "0.18.2", "--reinstall"), ("0.18.1", "0.18.2", "")):
@@ -145,6 +151,7 @@ case "$(basename "$0")" in
     build-mercury) echo tar > "$out/mercury-1.2.3-linux-x86_64.tar.gz" ;;
     build-deb) echo deb > "$out/neoaprs_0.0.1_amd64.deb" ;;
     build-appimage) echo image > "$out/NeoAPRS-0.0.1-x86_64.AppImage" ;;
+    build-gi) echo gi > "$out/gi-3.50.2-linux-x86_64.tar.gz" ;;
 esac
 """
 
@@ -159,14 +166,15 @@ class Rig:
             folder.mkdir(parents=True)
         shutil.copy(SCRIPT, scripts / "check-installs")
         shutil.copy(ROOT / "scripts" / "check-in-container", scripts / "check-in-container")
-        shutil.copy(ROOT / "packaging" / "ci" / "Dockerfile", self.repo / "packaging" / "ci" / "Dockerfile")
+        for name in ("Dockerfile", "runner.json"):
+            shutil.copy(ROOT / "packaging" / "ci" / name, self.repo / "packaging" / "ci" / name)
         (self.repo / "neoaprs" / "__init__.py").write_text('VERSION = "0.0.1"\n', encoding="utf-8")
         (self.repo / "neoaprs" / "mercury.py").write_text('VERSION = "1.2.3"\n', encoding="utf-8")
         (self.repo / "neoaprs" / "migrations.py").write_text("MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_v1, _v2, _v3]\nSCHEMA_VERSION = len(MIGRATIONS)\n", encoding="utf-8")
         for name in ("smoke.py", "install-probe.py", "smoke-appimage"):
             (scripts / name).write_text("# a stand-in\n", encoding="utf-8")
         (self.repo / "tests" / "fixtures" / "kiss" / "thd7-2026-10-21.bin").write_bytes(b"\xc0")
-        for name in ("build-mercury", "build-deb", "build-appimage"):
+        for name in ("build-mercury", "build-deb", "build-appimage", "build-gi"):
             (scripts / name).write_text(FAKE_BUILD, encoding="utf-8")
             (scripts / name).chmod(0o755)
         self.bin = tmp_path / "bin"
@@ -210,7 +218,7 @@ def option(line: list[str], name: str) -> list[str]:
     return [line[index + 1] for index, word in enumerate(line) if word == name and index + 1 < len(line)]
 
 
-def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig: Rig) -> None:
+def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig: Rig, installs: ModuleType) -> None:
     rig.pin()
     rig.cached()
     done = rig.run()
@@ -224,13 +232,13 @@ def test_every_check_builds_what_it_needs_and_runs_in_a_container_of_its_own(rig
     runs = rig.runs()
     assert len(runs) == 5
     images = [line[line.index("sh") - 1] for line in runs]
-    assert images[1:3] == ["debian:bookworm-slim", "ubuntu:24.04"] and images[4] == "ubuntu:24.04" and images[0] == images[3] and images[0].startswith("neoaprs-ci:")
+    assert images[1:3] == ["debian:bookworm-slim", installs.UBUNTU] and images[4] == installs.UBUNTU and images[0] == images[3] and images[0].startswith("neoaprs-ci:")
     for line in runs:
         assert option(line, "--volume")[0] == f"{rig.work}:/work:ro" and "--rm" in line and "--init" in line and "NEOAPRS_NO_DEVICES=1" in option(line, "--env") and "NEOAPRS_UPDATE_CHECK=0" in option(line, "--env")
         assert not {"--publish", "-p", "--device", "--privileged", "--network", "--cap-add"} & set(line), "no port, no device, nothing of this machine's"
         assert all(volume.endswith(":ro") for volume in option(line, "--volume")), "every mount is read-only"
     assert "VERSION=0.0.1" in option(runs[1], "--env") and "MERCURY_VERSION=1.2.3" in option(runs[1], "--env")
-    assert "--shm-size" in runs[3] and "SMOKE_APPIMAGE_ARGS=" in option(runs[3], "--env")
+    assert "--shm-size" in runs[3] and "SMOKE_APPIMAGE_ARGS=--no-direwolf" in option(runs[3], "--env"), "the AppImage is built without Direwolf here: its smoke test is told so"
     upgrade = runs[4]
     assert f"{rig.cache}/old-releases:/old:ro" in option(upgrade, "--volume") and "OLD_FILE=neoaprs_0.0.0_amd64.deb" in option(upgrade, "--env") and "OLD_VERSION=0.0.0" in option(upgrade, "--env")
     assert "NEW_SCHEMA=3" in option(upgrade, "--env"), "the version of the database this tree's daemon makes: its number of migrations"
@@ -242,7 +250,7 @@ def test_without_mercury_nothing_of_it_is_built_or_asked(rig: Rig) -> None:
     assert done.returncode == 0, done.stdout + done.stderr
     assert not any(line.startswith("build-mercury") for line in rig.builds()) and all("--no-mercury" in line for line in rig.builds() if line.startswith(("build-deb", "build-appimage")))
     runs = rig.runs()
-    assert "MERCURY_VERSION=" in option(runs[0], "--env") and "SMOKE_APPIMAGE_ARGS=--no-mercury" in option(runs[1], "--env")
+    assert "MERCURY_VERSION=" in option(runs[0], "--env") and "SMOKE_APPIMAGE_ARGS=--no-mercury --no-direwolf" in option(runs[1], "--env")
 
 
 def test_one_check_builds_only_what_it_needs(rig: Rig) -> None:
@@ -415,3 +423,33 @@ def test_the_probe_is_given_what_it_needs_or_says_so(tmp_path: Path) -> None:
     done = subprocess.run([sys.executable, "-I", str(ROOT / "scripts" / "install-probe.py"), "seed", "--command", "x", "--data", str(tmp_path)], capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)
     assert done.returncode == 2 and "seed needs --out" in done.stderr
 
+
+
+def test_the_trial_of_the_web_window_runs_only_when_named_and_tries_every_case_of_its_own_in_a_container(rig: Rig, installs: ModuleType) -> None:
+    for name in ("smoke-appimage-web", "webkit-probe.py"):
+        (rig.repo / "scripts" / name).write_text("# a stand-in\n", encoding="utf-8")
+    done = rig.run("--no-mercury", "--only", "appimage-web")
+    assert done.returncode == 0, done.stdout + done.stderr
+    builds = rig.builds()
+    assert [line.split()[0] for line in builds] == ["uv", "build-gi", "build-appimage"]
+    web = builds[-1]
+    assert "--window web" in web and f"--gi {rig.work}/dist-gi/gi-3.50.2-linux-x86_64.tar.gz" in web and "--no-mercury" in web and f"--out {rig.work}/dist-appimage-web" in web
+    assert "--no-direwolf" in web, "the trial carries no Mercury, so no Direwolf either (build-appimage refuses Direwolf without Mercury)"
+    assert "build-gi --docker" in builds[1]
+    runs = rig.runs()
+    assert len(runs) == len(installs.WEB_CASES) and [line[line.index("sh") - 1] for line in runs] == [case[0] for case in installs.WEB_CASES]
+    scripts = [line[-1] for line in runs]
+    assert all("smoke-appimage-web" in script and "/work/dist-appimage-web/" in script for script in scripts)
+    assert sum("--expect window --probe" in script and "libgl1-mesa-dri" in script for script in scripts) == 6 and sum("--expect tray" in script and "webkit2gtk" not in script for script in scripts) == 6
+    assert any("libwebkit2gtk-4.0-37 gir1.2-webkit2-4.0" in script and "--expect window" in script for script in scripts), "Ubuntu 22.04's desktop: the 4.0 API"
+    for line in runs:
+        assert not {"--publish", "-p", "--device", "--privileged", "--network", "--cap-add"} & set(line)
+    assert (rig.work / "probe" / "scripts" / "smoke-appimage-web").is_file()
+    assert "appimage-web" in done.stdout and done.stdout.splitlines()[-1] == "all green"
+
+
+def test_the_default_run_leaves_the_trial_out(rig: Rig) -> None:
+    rig.pin()
+    rig.cached()
+    done = rig.run("--no-mercury")
+    assert done.returncode == 0 and "appimage-web" not in done.stdout and not any(line.startswith("build-gi") for line in rig.builds())

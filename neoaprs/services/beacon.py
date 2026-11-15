@@ -20,7 +20,7 @@ is settling after KISS ON is not usable either, and the beacon waits for it quie
 `status_frame()` and `position_info()` are kept for the tests of the old shape (W3).
 """
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 import random
 from datetime import datetime, timedelta
 
@@ -32,6 +32,7 @@ from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
 from neoaprs.radiospec import RadioId, transmits
+from neoaprs.radiotype import ONLY_RECEIVES as ONLY_RECEIVES                 # (a radio of a type that sends nothing: radiospec.transmits; it has no Send on)
 from neoaprs.services.beaconframe import BeaconError as BeaconError, BeaconFrames, NoFix as NoFix, air_of, phg_text as phg_text
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
@@ -42,8 +43,6 @@ from neoaprs.smartbeacon import Reason
 from neoaprs.source import Source
 from neoaprs.tasks import TaskSet, every
 
-MEMORY_KEYS: Mapping[RadioId, str] = {}        # a radio whose last send is kept under another row than radio/<id>/beacon_last_sent_at: none since migration 31 renamed those of radios 1 and 2
-
 log = logging.getLogger("neoaprs.beacon")
 
 FIRST_DELAY_SEC = 30.0
@@ -52,12 +51,11 @@ RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the radio refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the radio refusing the frame this many times in a row skips the interval
 NOT_ON_THIS_RADIO = "the beacon does not go out on this radio (its Send on is not ticked)"
-ONLY_RECEIVES = "the radio only receives"                       # a radio of a type that sends nothing (radiospec.transmits), which has no Send on
 
 
 def memory_key_of(radio: RadioId) -> str:
-    """The row a radio's beacon keeps its last send in (services/memory.py)."""
-    return MEMORY_KEYS.get(radio) or radio_state_key(radio, "beacon_last_sent_at")
+    """The row a radio's beacon keeps its last send in (services/memory.py): its own, `radio/<id>/beacon_last_sent_at` (migration 31 put radios 1 and 2's there)."""
+    return radio_state_key(radio, "beacon_last_sent_at")
 
 
 class Beacon:

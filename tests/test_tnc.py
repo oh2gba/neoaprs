@@ -407,6 +407,20 @@ async def test_where_the_ports_are_not_searched_a_tnc_with_no_port_says_to_choos
         await tnc.stop()
 
 
+@pytest.mark.parametrize("where", ["no port", "no address"])
+async def test_a_radio_that_only_a_change_of_its_settings_can_open_is_not_tried_again_meanwhile(where: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="win32"))
+    tnc = Tnc(pattern=str(tmp_path / "*"), backoff=Backoff([0.05]), profile=KENWOOD_TNC2 if where == "no port" else replace(KISS_TCP, search=False))
+    try:
+        with caplog.at_level(logging.WARNING, "neoaprs"):
+            await tnc.start()
+            await idle_for(0.3)
+        assert tnc.state is Source.State.WAITING and tnc.problem.startswith(f"{where} is chosen")
+        assert len([r for r in caplog.records if "is chosen" in r.getMessage()]) == 1 and not any("trying again" in line for line in tnc.lines), "said once, and not tried every 30 s"
+    finally:
+        await tnc.stop()
+
+
 async def test_where_the_ports_are_not_searched_a_named_port_that_fails_is_tried_again_not_replaced_by_a_search(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(serialprobe, "sys", SimpleNamespace(platform="darwin"))
     radio = FakeRadio()

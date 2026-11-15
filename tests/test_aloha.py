@@ -8,14 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs.aloha import circle, kind_of
+from neoaprs.aloha import circle, counted, kind_of
 from neoaprs.clock import utc
 from neoaprs.geo import KM_PER_DEGREE
+from neoaprs.packet import Other, Packet, ThirdParty
 from neoaprs.policy import ALOHA_PACKETS, ALOHA_WINDOW_MIN
 from neoaprs.radiospec import FM_ID, HF_ID, RadioHeard, RadioId
 from neoaprs.radiotypes.common import FM_ALLOWED, HF_ALLOWED
 from neoaprs.services.aloha import Aloha
 from neoaprs.stationbook import Station, StationBook
+from neoaprs.stationnotes import note_heard
 from tests.support.clock import FixedClock
 from tests.support.env import Env
 
@@ -234,3 +236,15 @@ async def test_the_stations_the_hf_radio_heard_make_no_circle_on_the_map(tmp_pat
                                     last_position_at=now, heard_by={HF_ID: RadioHeard(1, now)}) for n in range(900)])
     e.ctl.aloha.refresh()
     assert e.ctl.aloha.radius_km is None
+
+
+def test_a_station_only_an_igate_put_on_a_radios_channel_is_not_in_that_radios_circle() -> None:
+    """Heard direct on the HF radio and, on the FM radio, only in an iGate's third-party packet (stationnotes.note_heard, as the book notes them): not on the FM channel, though the FM radio heard it last."""
+    s = at_km("OH1ABC", 5.0)
+    note_heard(s, Packet(NOW - timedelta(minutes=5), "in", b"", "OH1ABC", "APRS", (), b">hello", Other("status", ">hello"), radio_id=HF_ID))
+    note_heard(s, Packet(NOW - timedelta(minutes=1), "in", b"", "OH2IGATE", "APRS", ("WIDE2-1",), b">hello", Other("status", ">hello"), ThirdParty("OH1ABC", "APRS"), "rf-gated", radio_id=FM_ID))
+    since = NOW - timedelta(minutes=ALOHA_WINDOW_MIN)
+    assert s.heard_on(FM_ID).last_at == NOW - timedelta(minutes=1) and counted(s, since, HF_ID), "the FM radio heard of it, the HF radio heard it"
+    assert not counted(s, since, FM_ID), "not on the FM channel from where it is (before: counted)"
+    note_heard(s, Packet(NOW, "in", b"", "OH1ABC", "APRS", ("OH2RCH-2*", "WIDE2*"), b">hello", Other("status", ">hello"), radio_id=FM_ID))
+    assert counted(s, since, FM_ID), "heard by a digipeater on the FM channel: it is on it"

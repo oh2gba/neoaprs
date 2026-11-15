@@ -329,6 +329,53 @@ def test_an_interrupted_run_ends_what_its_stages_started_and_takes_its_folder_aw
     assert list(temp.iterdir()) == [] and "all green" not in output
 
 
+FORK = '( set +m; run_stage "$name" ) </dev/null &\n'
+
+
+@pytest.mark.parametrize(("sent", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (SIGHUP, 129)])
+def test_a_signal_between_a_stages_start_and_its_pid_written_down_still_ends_that_stage(gate: Gate, sent: signal.Signals, code: int) -> None:
+    """The moment of the flake of the test above, made wide: the copy stops after it has started the stage pytest, before it writes down its pid, until the signal has come. A trap that ended the script
+    there would leave that stage to run on unsignalled, and the run would wait for it (the 300 s of its sleep here; a whole pytest after a Ctrl-C). The signal is held until every pid is written down."""
+    pids, temp, signalled = gate.folder / "pids", gate.folder / "tmp", gate.folder / "signalled"
+    temp.mkdir()
+    script = gate.folder / "scripts" / "check"
+    text = script.read_text(encoding="utf-8")
+    assert text.count(FORK) == 1, "the runner starts its stages at once in one line"
+    script.write_text(text.replace(FORK, f'{FORK}        [ "$name" != pytest ] || until [ -e "{signalled}" ]; do :; done\n'), encoding="utf-8")      # (builtins only: the trap may run at any of them)
+    gate.bodies["pytest"] = f'sleep 300 & echo "$BASHPID $!" > "{pids}"; wait'
+    run = subprocess.Popen(["scripts/check"], cwd=gate.folder, env=gate.environment(TMPDIR=str(temp)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    started: list[int] = []
+    try:
+        until(lambda: len((text_if_readable(pids) or "").split()) == 2, "the stage pytest never started")
+        started = [int(pid) for pid in pids.read_text().split()]
+        run.send_signal(sent)
+        time.sleep(0.2)                    # (the copy spins in its loop meanwhile: a trap that exits runs there)
+        signalled.touch()
+        output, _ = run.communicate(timeout=30)
+        assert run.returncode == code, output
+        until(lambda: not any(alive(pid) for pid in started), "the stage or what it started is still running")
+    finally:
+        run.kill()
+        for pid in started:
+            if alive(pid):
+                os.kill(pid, SIGKILL)
+    assert "end pytest" not in gate.events() and list(temp.iterdir()) == []
+
+
+def test_no_signal_ends_the_runner_while_it_starts_the_stages_at_once() -> None:
+    """The text that holds the test above wherever a stage is started: from `set -m` to `set +m` no trap exits, and after `set +m` the traps exit again and a signal held meanwhile is acted on."""
+    runner = SCRIPT.read_text(encoding="utf-8").split("\n# --- the runner ---", 1)[1]
+    lines = [line.split("#", 1)[0].strip() for line in runner.splitlines()]
+    begin = lines.index("set -m")
+    end = lines.index("set +m", begin)
+    assert not [line for line in lines[begin:end] if line.startswith("trap ") and "exit" in line], "a trap that exits while the stages are started"
+    assert all(f"trap 'pending={number}' {name}" in lines[:begin] for name, number in (("INT", 130), ("TERM", 143), ("HUP", 129))), "the signals held before the stages are started"
+    after = lines[end + 1:end + 5]
+    assert after == ["trap 'exit 130' INT", "trap 'exit 143' TERM", "trap 'exit 129' HUP", '[ -z "$pending" ] || exit "$pending"'], after
+    waited = lines.index('wait "${running[$i]}" || true', end)
+    assert lines[waited + 1] == "unset 'running[i]'", "a stage waited for is taken out of `running`: `finish` never signals a group by a pid that may by now be another's"
+
+
 def test_the_runner_has_no_command_substitution_for_a_signal_to_come_in_the_middle_of() -> None:
     """When a signal comes while bash 5.2 reads a `$(...)`, it cannot read the command of the signal's trap: the run ends with exit code 2 and a syntax error, about one interrupted run in fifty when the result
     lines were read with `$(cat ...)`. The test above meets that moment too seldom to hold it, so the text of the runner is held: what runs between the stages reads files with `read` and the clock from a
@@ -412,7 +459,7 @@ def test_beside_the_other_stages_vitest_has_eight_workers_at_most_and_no_more_th
     (("--stage", "ui-tests"), {}, ["npx vitest run"]),
     (("--stage", "page"), {}, [PAGE]),
     (("--stage", "security"), {}, [SECURITY]),
-    (("--stage", "audit"), {}, [f"{SECURITY} --audit"]),
+    (("--stage", "audit"), {}, [f"{SECURITY} --audit", "python scripts/runner-facts --published --announcements"]),
     (("--stage", "flaky"), {}, ["python scripts/flaky"]),
     (("--serial",), {}, [MYPY, MYPY_WINDOWS, ARCHITECTURE, SUITE, "npx vitest run", PAGE, SECURITY]),
 ])

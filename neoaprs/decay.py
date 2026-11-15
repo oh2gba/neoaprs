@@ -4,7 +4,8 @@
 New information is sent more often than old: the decay algorithm sends a packet once and n seconds later, doubles n for each new transmission and, when n reaches the net cycle time, goes on at that rate.
 The net cycle time follows the path (the spec's chapter 2, point 4): 10 minutes for a packet that goes direct or by one digipeater (WIDE2-1 is one), 20 for two, 30 for three or more.
 
-* An object or an item (`object_wait_sec`): decay from FIRST_WAIT_SEC (60 s: 0, 1, 3, 7, 15 min ...), capped at the net cycle time of its path, until it is changed (then the decay starts again) or killed.
+* An object or an item (`object_wait_sec`): decay from FIRST_WAIT_SEC (60 s: 0, 1, 3, 7, 15 min ...), capped at the net cycle time of its path, or at the radio's own floor where that is longer (the
+  caller's: beaconrule.repeat_floor_sec, 30 minutes on HF and LoRa), until it is changed (then the decay starts again) or killed.
 * A killed object or item (`kill_wait_sec`): KILL_SENDS transmissions, 0, 1 and 3 minutes after the kill, and then it is forgotten.
 * A bulletin or a group bulletin ("sent a few times an hour for a few hours"): BULLETIN, an announcement ("less frequently but perhaps for several days"): ANNOUNCEMENT. Both go out at once, then
   after the waits of `early`, then every `every` seconds as long as the next one is no later than `lasts` seconds after the first (`bulletin_wait_sec`; None when it is over).
@@ -39,9 +40,10 @@ def net_cycle_sec(path: tuple[str, ...]) -> int:
     return 60 * (_NET_CYCLE_MIN[count] if count < len(_NET_CYCLE_MIN) else _NET_CYCLE_FAR_MIN)
 
 
-def object_wait_sec(sent: int, path: tuple[str, ...]) -> int:
-    """How long after the `sent`-th transmission (1 or more) of a live object or item the next is due: 60, 120, 240 ... seconds, never more than the net cycle time of the path."""
-    return min(FIRST_WAIT_SEC << (max(sent, 1) - 1), net_cycle_sec(path))
+def object_wait_sec(sent: int, path: tuple[str, ...], floor_sec: int = 0) -> int:
+    """How long after the `sent`-th transmission (1 or more) of a live object or item the next is due: 60, 120, 240 ... seconds, never more than the net cycle time of the path, or than `floor_sec` where
+    that is longer (the decay of the first sends stays; the repeats come no more often than the floor)."""
+    return min(FIRST_WAIT_SEC << (max(sent, 1) - 1), max(net_cycle_sec(path), floor_sec))
 
 
 def first_due(changed_at: datetime, last_sent_at: datetime | None) -> datetime:

@@ -398,7 +398,7 @@ describe("MessagesPane, the box to write in", () => {
     expect(send().attributes("title")).toBeUndefined();
     await tell(daemon, { connected: false });
     expect(send().attributes("disabled")).toBeDefined();
-    expect(send().attributes("title")).toBe("The TNC is not connected");
+    expect(send().attributes("title")).toBe("The radio is not connected");
     expect(wrapper.find(".compose p").exists()).toBe(false);
     await wrapper.find("form").trigger("submit");
     expect(wrapper.emitted("send")).toBeUndefined();

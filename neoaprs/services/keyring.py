@@ -74,7 +74,7 @@ class Keyring:
     def refuse_unless_on(self) -> None:
         """Raises MessagingError (`lock.off`) while encrypted messages are not allowed."""
         if not self.enabled:
-            raise MessagingError("encrypted messages are not allowed: the daemon was started without --encryption", "lock.off")
+            raise MessagingError("encrypted messages are not allowed: NeoAPRS was started without --encryption", "lock.off")
 
     # ---- our own key
     def _read_own(self) -> bytes | None:

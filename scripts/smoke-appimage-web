@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# The smoke test of the trial AppImage of the web window (scripts/build-appimage --window web), in a container that has what a desktop of the system has (scripts/check-installs --only appimage-web installs it):
+# the desktop app started with no arguments on an X server of its own (Xvfb: software GL, the worst case) and a session bus of its own (dbus-run-session: the tray's library wants one), on a data folder of
+# its own, with no radio and nothing leaving the loopback.
+#
+#   scripts/smoke-appimage-web FILE --expect window|tray [--probe]
+#
+# --expect window: the app must start its daemon and the web window ("the web shell runs (window"), the page must answer, and the app must stay up and end at `app --quit` with its daemon. --expect tray:
+# the system has no WebKitGTK; the app must say so in its log, naming the package, and go on with the tray and the page in the browser, and end the same way. --probe also runs scripts/webkit-probe.py
+# with the image's own Python against the page and prints what it counted. Without FUSE (a container) the file is extracted once and its AppRun run with the variables the runtime would set.
+# Exit code 0: all is well; 1: the first thing that was not; 2: wrong arguments.
+case "${1:-}" in -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;; esac
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+file="${1:-}"
+[ -f "$file" ] || { echo "smoke-appimage-web: usage: scripts/smoke-appimage-web FILE --expect window|tray [--probe]" >&2; exit 2; }
+file="$(readlink -f "$file")"
+shift
+expect=""
+probe=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --expect) expect="${2:-}"; shift ;;
+        --probe) probe=1 ;;
+        *) echo "smoke-appimage-web: unknown argument $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+case "$expect" in window|tray) ;; *) echo "smoke-appimage-web: --expect is window or tray" >&2; exit 2 ;; esac
+
+export NEOAPRS_UPDATE_CHECK=0 NEOAPRS_NO_DEVICES=1
+say() { echo "smoke-appimage-web: $*"; }
+fail() { echo "smoke-appimage-web: FAILED: $*" >&2; exit 1; }
+
+work="$(mktemp -d)"
+pids=()
+cleanup() {
+    for pid in ${pids[@]+"${pids[@]}"}; do kill "$pid" 2>/dev/null || true; done
+    rm -rf "$work"
+}
+trap cleanup EXIT
+unset NEOAPRS_DATA_DIR NEOAPRS_DEBUG
+export XDG_DATA_HOME="$work/xdg-data" XDG_CONFIG_HOME="$work/xdg-config" XDG_RUNTIME_DIR="$work/run"
+mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+
+run="$file"
+root=""
+if [ ! -c /dev/fuse ] || { ! command -v fusermount >/dev/null && ! command -v fusermount3 >/dev/null; }; then
+    say "no FUSE here: the file is extracted and its AppRun run"
+    (cd "$work" && "$file" --appimage-extract > /dev/null)
+    root="$work/squashfs-root"
+    run="$work/run-appimage"
+    printf '#!/bin/sh\nAPPIMAGE_EXTRACT_AND_RUN=1 APPIMAGE=%q APPDIR=%q exec %q "$@"\n' "$file" "$root" "$root/AppRun" > "$run"
+    chmod +x "$run"
+fi
+
+wait_for() {
+    local i
+    for ((i = 0; i < $3 * 4; i++)); do
+        grep -qs -- "$2" "$1" && return 0
+        sleep 0.25
+    done
+    return 1
+}
+
+say "an X server of its own"
+Xvfb :91 -screen 0 1280x800x24 -nolisten tcp > "$work/xvfb.out" 2>&1 &
+pids+=($!)
+export DISPLAY=:91
+for _ in $(seq 40); do [ -e /tmp/.X11-unix/X91 ] && break; sleep 0.25; done
+[ -e /tmp/.X11-unix/X91 ] || { cat "$work/xvfb.out"; fail "Xvfb did not start"; }
+
+say "the desktop app (no arguments) on a session bus of its own, expecting the $expect"
+app_data="$work/app-data"
+"$run" db --data "$app_data" set web/port 0 > /dev/null
+"$run" db --data "$app_data" set serial/pattern /dev/neoaprs-smoke-no-such-port > /dev/null
+export NEOAPRS_DATA_DIR="$app_data"
+dbus-run-session -- "$run" > "$work/app.out" 2>&1 &
+app=$!
+pids+=("$app")
+log="$app_data/neoaprs-app.log"
+if [ "$expect" = window ]; then
+    wait_for "$log" "the web shell runs (window" 120 || { cat "$work/app.out"; tail -n 30 "$log" >&2 || true; fail "the app did not start the web window"; }
+else
+    wait_for "$log" "the web shell runs (tray only)" 120 || { cat "$work/app.out"; tail -n 30 "$log" >&2 || true; fail "the app did not go on with the tray"; }
+    if ! grep -q "no WebKitGTK" "$log" || ! grep -q "libwebkit2gtk-4.1-0" "$log"; then fail "the log does not say that WebKitGTK is missing, with the package's name"; fi
+fi
+grep "the web window's ground\|web shell runs\|choice\|window and tray\|no window" "$log" || true
+url="$(sed -n 's/.*web page at \(http:[^ ]*\).*/\1/p' "$app_data/neoaprs.log" | tail -n 1)"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" = 200 ] || fail "the page at $url does not answer 200"
+if [ "$probe" = 1 ] && [ "$expect" = window ]; then
+    [ -n "$root" ] || { root="$work/probe-root"; mkdir -p "$root"; (cd "$root" && "$file" --appimage-extract > /dev/null); root="$root/squashfs-root"; }
+    say "the probe in WebKitGTK"
+    dbus-run-session -- "$root/usr/bin/python3" -I "$here/webkit-probe.py" --url "$url" --seconds 20 || fail "the probe did not run"
+fi
+sleep 5
+kill -0 "$app" 2>/dev/null || { cat "$work/app.out"; tail -n 30 "$log" >&2 || true; fail "the app ended by itself"; }
+"$run" app --quit --data "$app_data" || fail "app --quit failed"
+wait "$app" || { cat "$work/app.out"; fail "the app did not end with exit code 0"; }
+pids=("${pids[0]}")
+unset NEOAPRS_DATA_DIR
+tail -n 1 "$app_data/neoaprs.log" | grep -q 'NeoAPRS ended$' || fail "the daemon of the app did not end cleanly"
+say "ok ($expect)"

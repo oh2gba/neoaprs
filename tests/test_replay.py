@@ -18,7 +18,7 @@ from neoaprs.tnc import Tnc
 from tests.conftest import ROOT
 from tests.support.env import idle_for, until
 from tests.support.files import FIXTURES
-from tests.support.proc import NEW_GROUP, interrupt
+from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, interrupt
 
 CAPTURE = FIXTURES / "kiss" / "thd7-2026-10-21.bin"
 FRAMES = frames_of(CAPTURE.read_bytes())
@@ -147,10 +147,10 @@ def test_as_a_process_it_prints_the_address_and_plays_to_a_plain_socket_and_ends
     finally:
         interrupt(proc)
         try:
-            out, err = proc.communicate(timeout=30)
+            out, err = proc.communicate(timeout=STOP_PATIENCE_SEC)
         except subprocess.TimeoutExpired:
             proc.kill()
-            raise AssertionError(f"the replay did not end 30 s after the interrupt; it said: {proc.communicate()[1]}") from None
+            raise AssertionError(f"the replay did not end {STOP_PATIENCE_SEC:g} s after the interrupt; it said: {proc.communicate()[1]}") from None
     assert proc.returncode == 0 and "waiting for a port to connect" in err and "a port connected" in err and "frame 9 sent" in err and "stopped" in err
 
 
@@ -169,7 +169,7 @@ def test_the_sample_capture_of_the_package_is_the_capture_of_the_tests_and_is_pl
         assert [f.payload for f in kiss.KissDecoder().feed(data)] == [f.payload for f in kiss.KissDecoder().feed(CAPTURE.read_bytes())]
     finally:
         interrupt(proc)
-        out, err = proc.communicate(timeout=30)
+        out, err = proc.communicate(timeout=STOP_PATIENCE_SEC)
     assert proc.returncode == 0 and "4 frames from" in err and "thd7.kiss" in err
 
 

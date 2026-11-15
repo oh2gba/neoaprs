@@ -25,13 +25,15 @@ def test_the_live_radios_are_the_ones_not_removed_and_the_enabled_ones_are_also_
     assert enabled([]) == []
 
 
-def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_keeps_its_number() -> None:
+def test_a_radio_is_numbered_within_its_kind_by_id_and_a_removed_one_after_the_live_ones() -> None:
     assert [number_in_kind(s, SIX) for s in SIX] == [1, 1, 2, 2, 1, 3]
     assert [log_name(s, SIX) for s in SIX] == ["FM", "HF", "HF 2", "FM 2", "LoRa", "20m"]
     one = [radio(4, removed=True), radio(7)]
-    assert log_name(one[1], one) == "FM", "the live one is the first FM radio once the other is removed"
+    assert [log_name(s, one) for s in one] == ["FM 2", "FM"], "the live one is the first FM radio once the other is removed"
     two_gone = [radio(1, removed=True), radio(3, removed=True), radio(5)]
-    assert [log_name(s, two_gone) for s in two_gone] == ["FM", "FM 2", "FM"], "a removed radio is numbered by id among all of its kind, a live one among the live ones"
+    assert [log_name(s, two_gone) for s in two_gone] == ["FM 2", "FM 3", "FM"], "a live radio among the live ones of its kind, a removed one after them, by id among the removed"
+    hf = [radio(1), radio(2, "hf", removed=True), radio(5, "hf")]
+    assert log_name(hf[1], hf) != log_name(hf[2], hf), "a removed HF radio 2 and a live HF radio 5 are not both called HF"
 
 
 def test_the_main_radio_is_the_chosen_one_while_it_is_enabled_else_the_first_enabled_by_position() -> None:
@@ -76,8 +78,8 @@ def test_a_radios_value_is_parsed_by_its_field_and_a_missing_or_wrong_one_is_the
     with caplog.at_level(logging.WARNING, "neoaprs.radiospec"):
         assert spec.value("tcp_port") == 8001
     assert "radio/1/tcp_port" in caplog.text and "the default 8001 is used" in caplog.text
-    with pytest.raises(RadioError, match="radio/1/sound_card"):
-        spec.value("sound_card")
+    with pytest.raises(RadioError, match="radio/2/port"):
+        radio(2, "hf").value("port")                                    # (a key of another kind: the FM kind's port; every HF key is an FM one too, the Sound card type's)
     assert radio(2, "hf").value("tx_gain_db") == 0
     assert (FM_ID, HF_ID) == (1, 2)
 

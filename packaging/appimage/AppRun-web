@@ -1,0 +1,8 @@
+#!/bin/sh
+# The entry of the trial AppImage of the web window (scripts/build-appimage --window web; aprs-reference/window-plan.md): as AppRun, with the window of pywebview on the system's WebKitGTK in the place of Qt's
+# (NEOAPRS_WINDOW=web, which neoaprs/desktop/shell.py reads; a value the environment has already is kept). Whether the web content runs in WebKit's sandbox the app decides (neoaprs/desktop/gtkenv.py).
+here="$(dirname "$(readlink -f "$0")")"
+[ $# -gt 0 ] || set -- app
+export NEOAPRS_WINDOW="${NEOAPRS_WINDOW:-web}"
+# -I: nothing of the user's Python environment (PYTHONPATH, user site) gets into the image's
+exec "$here/usr/bin/python3" -I -m neoaprs "$@"

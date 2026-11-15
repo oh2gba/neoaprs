@@ -5,18 +5,21 @@ from dataclasses import replace
 import pytest
 
 from neoaprs.config import DEFAULTS, RANGES, Config
+from neoaprs.direwolf import PROFILE as DIREWOLF
 from neoaprs.radiotype import FM_ID, HF_ID, KINDS, LOCAL_KINDS, Can, Limits, RadioTypeError, radio_id_of, stored_text
-from neoaprs.radiotypes import BY_KEY, COMMON_FIELDS, DEFAULT_TYPE, TYPES, kind_field, kind_fields, type_of, types_of
+from neoaprs.radiotypes import BY_KEY, COMMON_FIELDS, DEFAULT_TYPE, TYPES, kind_field, kind_fields, recommended_path, type_of, types_of, unavailable_types
+from neoaprs.radiotypes.common import LISTENS, NOTHING_ALLOWED, TERMINAL_ONLY
+from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import DEFAULT, DUMMY_HF, EVERY_BY_KEY, HF_DEFAULT, HF_PROFILES, LORA_PROFILES, PROFILES
 
 OLD_KEY = {"port": "serial/port", "baud": "serial/baud", "tcp_host": "tcp/host", "tcp_port": "tcp/port", "sound_card": "mercury/sound_card", "keying": "mercury/keying", "tx_gain_db": "mercury/tx_gain_db",
            "path": "beacon/path", "digipeat": "digi/enabled"}       # the flat setting of today that each field of a radio is (the beacon is new: on, as both beacons are today)
-NONE_CAN = Can(False, False, False, False, False, False, False)
+DUMMY_CAN = Can(False, True, False, False, False, False, False)            # (a Dummy: nothing to find or tune, and the Terminal of its made-up traffic)
 
 
 def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field() -> None:
-    profiles = EVERY_BY_KEY
-    assert set(BY_KEY) == set(profiles) and len(TYPES) == len(profiles), "one type for each entry of the lists of profiles"
+    profiles = {**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}
+    assert set(BY_KEY) == set(profiles) and len(TYPES) == len(profiles), "one type for each entry of the lists of profiles, and the Sound card type for Direwolf's profile (neoaprs/direwolf.py)"
     for t in TYPES:
         p = profiles[t.key]
         kind = "hf" if p in HF_PROFILES else "lora" if p in LORA_PROFILES else "fm"
@@ -26,11 +29,11 @@ def test_every_type_is_todays_profile_and_the_rules_of_its_kind_field_by_field()
         sends = {"hf": (False, False, False), "lora": (True, False, True), "fm": (True, True, True)}[kind]
         assert (t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon) == (sends if t.can.transmit else (False, False, False)), f"{t.key}: a radio that sends nothing is allowed nothing that sends"
         assert (t.allowed.gateway_heard, t.allowed.shared_channel) == ((t.kind != "hf", t.kind == "fm") if t.can.transmit else (False, False)), "internet gateways hear FM and LoRa; the ALOHA circle is FM's 1200 baud alone; neither for a radio that sends nothing"
-        assert t.driver == ("mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
+        assert t.driver == ("direwolf" if p is DIREWOLF else "mercury" if p.transport == "modem" or p is DUMMY_HF else "tnc") and t.dummy == (p.transport == "dummy")
 
 
 def test_each_kind_lists_its_types_in_todays_order_and_a_new_radio_gets_todays_default() -> None:
-    assert [t.key for t in types_of("fm")] == [p.key for p in PROFILES]
+    assert [t.key for t in types_of("fm")] == [*(p.key for p in PROFILES[:-1]), "direwolf", PROFILES[-1].key], "today's list, the Sound card type before the Dummy"
     assert [t.key for t in types_of("hf")] == [p.key for p in HF_PROFILES]
     assert [t.key for t in types_of("lora")] == [p.key for p in LORA_PROFILES] == ["lora-tcp", "lora-serial", "lora-console", "dummy-lora"]
     assert (DEFAULT_TYPE["fm"], DEFAULT_TYPE["hf"], DEFAULT_TYPE["lora"]) == (DEFAULT.key, HF_DEFAULT.key, "lora-tcp"), "a new LoRa radio is the iGate at home on the network"
@@ -40,9 +43,19 @@ def test_each_kind_lists_its_types_in_todays_order_and_a_new_radio_gets_todays_d
 def test_what_each_type_can_do() -> None:
     serial, tcp = Can(True, True, False, False, False, False, False), Can(False, True, False, False, False, False, False)
     can = {t.key: t.can for t in TYPES}
-    assert can == {"kenwood-tnc2": serial, "kenwood-d710": serial, "kantronics": serial, "kiss": serial, "kiss-tcp": tcp, "tnc-text": Can(False, True, False, False, False, False, False, transmit=False), "dummy": NONE_CAN,
-                   "mercury": Can(False, True, True, True, True, True, True), "dummy-hf": Can(False, False, False, False, False, False, True), "dummy-lora": NONE_CAN,
-                   "lora-tcp": tcp, "lora-serial": tcp, "lora-console": replace(tcp, transmit=False)}, "a LoRa board has its terminal, and no Find: an open may restart one; a text TNC and the iGate's log send nothing"
+    assert can == {"kenwood-tnc2": serial, "kenwood-d710": serial, "kantronics": serial, "kiss": serial, "kiss-tcp": tcp, "tnc-text": Can(False, True, False, False, False, False, False, transmit=False), "dummy": DUMMY_CAN,
+                   "mercury": Can(False, True, True, True, True, True, True), "dummy-hf": Can(False, True, False, False, False, False, True), "dummy-lora": DUMMY_CAN,
+                   "lora-tcp": tcp, "lora-serial": tcp, "lora-console": replace(tcp, transmit=False),
+                   "direwolf": Can(False, True, True, True, False, True, False, rx_level=True)}, "a LoRa board has its terminal, and no Find: an open may restart one; a text TNC and the iGate's log send nothing"
+    assert [key for key, c in can.items() if c.rx_level] == ["direwolf"], "the level of the packets heard: Direwolf's alone"
+
+
+def test_the_types_that_only_receive_share_one_can_and_one_allowed_and_every_line_cuts_text_where_its_type_does() -> None:
+    receiving = [t for t in TYPES if not t.can.transmit]
+    assert {t.key for t in receiving} == {"tnc-text", "lora-console"} and all(t.can is LISTENS and t.allowed is NOTHING_ALLOWED for t in receiving), "said once, in radiotypes/common.py"
+    assert LISTENS == replace(TERMINAL_ONLY, transmit=False) and type_of("kiss-tcp").can is type_of("lora-tcp").can is TERMINAL_ONLY and type_of("mercury").allowed is NOTHING_ALLOWED
+    for t in TYPES:
+        assert Tnc("", profile={**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}[t.profile]).rtype.limits.max_text == t.limits.max_text, f"{t.key}: the line refuses what the fit lets through, or the other way round"
 
 
 def test_a_type_has_its_own_fields_then_the_beacon_and_the_path_and_digipeater_where_allowed() -> None:
@@ -60,7 +73,7 @@ def test_a_type_has_its_own_fields_then_the_beacon_and_the_path_and_digipeater_w
 
 
 def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_same_field_in_every_type() -> None:
-    assert [f.key for f in kind_fields("fm")] == ["port", "baud", "tcp_host", "tcp_port", "beacon", "path", "digipeat"]
+    assert [f.key for f in kind_fields("fm")] == ["port", "baud", "tcp_host", "tcp_port", "sound_card", "keying", "tx_gain_db", "beacon", "path", "digipeat"]
     assert [f.key for f in kind_fields("hf")] == ["sound_card", "keying", "tx_gain_db", "beacon"]
     assert [f.key for f in kind_fields("lora")] == ["tcp_host", "tcp_port", "port", "baud", "beacon", "path"]
     for kind in KINDS:
@@ -71,10 +84,10 @@ def test_a_radio_of_a_kind_may_store_the_fields_of_every_type_of_it_each_the_sam
 
 
 def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> None:
-    fields = {f.key: f for kind in reversed(KINDS) for f in kind_fields(kind)}       # (today's flat settings are the FM radio's and the HF radio's)
+    fields = {f.key: f for kind in ("lora", "fm", "hf") for f in kind_fields(kind)}       # (today's flat settings are the FM radio's and the HF radio's: the transmit gain is Mercury's)
     defaults = DEFAULTS.to_data()
     differ = {(kind, f.key) for kind in KINDS for f in kind_fields(kind) if replace(f, claims=None) != replace(fields[f.key], claims=None)}
-    assert differ == {("lora", "tcp_host")}, "a key is one field in every kind but the LoRa board's address, which is never this computer's"
+    assert differ == {("lora", "tcp_host"), ("fm", "tx_gain_db")}, "a key is one field in every kind but the LoRa board's address, which is never this computer's, and the transmit gain, in each modem's own range"
     for key, old in OLD_KEY.items():
         f = fields[key]
         assert f.default == defaults[old], key
@@ -92,6 +105,17 @@ def test_each_field_is_todays_setting_its_default_range_parser_and_claim() -> No
     assert {f.key: f.claims for f in fields.values() if f.claims} == {"port": "serial", "sound_card": "sound_card", "keying": "keying"}
     assert {f.key: f.together for f in fields.values() if f.together} == {"tcp_host": "tcp", "tcp_port": "tcp"}
     assert all(f.text == f"radio.field.{f.key}" for f in fields.values())
+
+
+def test_the_sound_card_type_and_the_dummy_lora_type_stand_side_by_side_in_the_one_registry_each_in_its_kind() -> None:
+    sound, lora = type_of("direwolf"), type_of("dummy-lora")
+    assert (sound.kind, sound.driver, sound.dummy, lora.kind, lora.driver, lora.dummy) == ("fm", "direwolf", False, "lora", "tnc", True)
+    assert [t.key for t in types_of("fm")][-2:] == ["direwolf", "dummy"] and [t.key for t in types_of("lora")][-1] == "dummy-lora", "the Sound card type among FM's real ones, the Dummy LoRa type last in its kind"
+    assert sound.systems == {"linux", "win32"} and lora.systems == frozenset(), "the LoRa Dummy carries no program, so every installation offers it"
+    assert [unavailable_types(system) for system in ("linux", "win32", "darwin")] == [(), (), ("direwolf",)]
+    assert (sound.recommended_path, recommended_path("fm"), recommended_path("lora")) == ("", "", "WIDE1-1"), "the Sound card type's empty path is FM's (the symbol's), LoRa's is its own"
+    assert [f.key for f in sound.fields] == ["sound_card", "keying", "tx_gain_db", "beacon", "path", "digipeat"] == [f.key for f in kind_fields("fm") if sound.field(f.key)], "the Sound card type's own fields, in FM's order"
+    assert [f.key for f in lora.fields] == [f.key for f in kind_fields("lora") if lora.field(f.key)], "the Dummy LoRa type's own fields, in LoRa's order"
 
 
 def test_an_unknown_type_is_refused_with_the_types_there_are() -> None:

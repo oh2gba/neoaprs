@@ -26,7 +26,7 @@ describe("StatsCard", () => {
       attachTo: document.body,
     });
     expect(wrapper.find(".card-head strong").text()).toBe("Statistics");
-    expect(wrapper.findAll("h3.stats-section").map((h) => h.text())).toEqual(["Stations", "Reach", "Packets", "Since the daemon started"]);
+    expect(wrapper.findAll("h3.stats-section").map((h) => h.text())).toEqual(["Stations", "Reach", "Packets", "Since NeoAPRS started"]);
     const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
     expect(rows["Heard"]).toBe("2");
     expect(rows["Farthest direct"]).toBe("OH2PU-9, 16 km");
@@ -48,7 +48,7 @@ describe("StatsCard", () => {
     const wrapper = mount(StatsCard, { props: { packets }, global: withDaemon(daemon) });
     const rows = Object.fromEntries(wrapper.findAll("dt").map((dt, i) => [dt.text(), wrapper.findAll("dd")[i]?.text()]));
     expect(rows["By channel"]).toBe("1 FM · 1 HF · 1 Shack");
-    expect(rows["Frames from the TNC"]).toMatch(/^123\b/);
+    expect(rows["Frames from the radios"]).toMatch(/^123\b/);
   });
 
   it("moves as the stations do", async () => {

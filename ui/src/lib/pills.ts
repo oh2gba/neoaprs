@@ -1,5 +1,5 @@
 // The marks at the top right of the header, before the count of messages, each with a short hover title and the place where it is set. In this order (Update first, when a newer version is known), which is the order they fold in on a narrow screen (the last first): Daemon (in a browser only: ok while the page is connected, warn while it connects, bad when it is offline; in the app page and daemon are one),
-// the radios (one radio on: the Radio mark as it always was, ok while connected, the Dummy radio dummy, else warn with the state in words; two on: a mark each with its short name in place of "Radio"; three and more: one mark "Radios", warn and naming the radio in trouble ("20 m: not connected") or the count of them ("Radios: 2 not connected"), its title each radio with its state, dashed only when every radio is a Dummy; each leads to Settings → Radio, to the radio's box or the first in trouble), RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
+// the radios (none while the daemon has told that the station has no radio; while the socket is not open, waiting, with the Daemon mark's words as the title; one radio on: the Radio mark as it always was, ok while connected, the Dummy radio dummy, else warn with the state in words; two on: a mark each with its short name in place of "Radio"; three and more: one mark "Radios", warn and naming the radio in trouble ("20 m: not connected") or the count of them ("Radios: 2 not connected"), its title each radio with its state, dashed only when every radio is a Dummy; each leads to Settings → Radio, to the radio's box or the first in trouble), RX only (warn, while transmitting is off), Beacon off (neutral, only while transmitting is on),
 // GPS (only when a GPS is the position source: ok with a fix, warn without), Internet (info, while Internet stations is connected and receiving), Map (info, while the detailed map is being downloaded: the percent of the step; it opens Settings → Map). Plain functions of the settings, the radios and the states the daemon told; the marks are the TagMark of the page: RX only is warn, Beacon off neutral, Internet info, GPS ok with a fix and warn without.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
@@ -8,7 +8,8 @@ import { beaconOff } from "@/lib/beaconoff";
 import { isMoving } from "@/lib/gpsstatus";
 import { silentText } from "@/lib/format";
 import type { Connection } from "@/lib/hub";
-import { enabledRadios, fieldId, problemText, type PageRadio, type RadioId } from "@/lib/radios";
+import { enabledRadios, problemText, type PageRadio, type RadioId } from "@/lib/radios";
+import { enableId } from "@/lib/settingsradio";
 import type { GpsState, IgateState, MapState, RadioRow, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
@@ -29,23 +30,26 @@ export interface HeaderPill {
   focus: string;
 }
 
-/** What the page knows of the link to the daemon and to the radios: the socket, the radios (composables/useRadios.ts `all`), the time now (for how long a radio has been silent), and whether the page is the
- * desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
+/** What the page knows of the link to the daemon and to the radios: the socket, the radios (composables/useRadios.ts `all`) and whether the daemon has told them yet (`told`: a station with no radio has none to
+ * wait for), the time now (for how long a radio has been silent), and whether the page is the desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
 export interface Link {
   connection: Connection;
   now: number;
   inApp: boolean;
   radios: readonly PageRadio[];
+  told: boolean;
 }
+
+/** The words of the Daemon mark for each state of the socket: a radio's mark says the same while the socket is not open (nothing is known of the radio then, and it is the link to NeoAPRS that is away). */
+const DAEMON_STATES = {
+  open: { text: "pill.daemon", title: "pill.daemon_title", tone: "ok" },
+  connecting: { text: "pill.daemon_connecting", title: "pill.daemon_connecting_title", tone: "warn" },
+  closed: { text: "pill.daemon_offline", title: "pill.daemon_offline_title", tone: "bad" },
+} as const;
 
 /** The Daemon mark: how the page's socket stands. */
 function daemonPill(connection: Connection): HeaderPill {
-  const states = {
-    open: { text: "pill.daemon", title: "pill.daemon_title", tone: "ok" },
-    connecting: { text: "pill.daemon_connecting", title: "pill.daemon_connecting_title", tone: "warn" },
-    closed: { text: "pill.daemon_offline", title: "pill.daemon_offline_title", tone: "bad" },
-  } as const;
-  return { id: "daemon", ...states[connection], target: null, focus: "" };
+  return { id: "daemon", ...DAEMON_STATES[connection], target: null, focus: "" };
 }
 
 /** The line of a radio as a mark says it: its state, whether it is a Dummy, since when it is silent and why it is not connected; null while nothing is known of it. */
@@ -82,7 +86,7 @@ function lineOf(link: Link, radio: PageRadio | undefined): Line | null {
 
 /** The control a radio's mark leads to, inside its box in Settings → Radio (which is flashed): its Enable; Add radio while the station has none. */
 function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
-  return radio === undefined ? "set-radio-add" : `set-${fieldId(`radio/${radio.id}/enabled`)}`;
+  return radio === undefined ? "set-radio-add" : enableId(radio);
 }
 
 /** The title "{why}. Settings → Radio": the reason without a stop of its own (the title puts its stop after it). */
@@ -93,7 +97,10 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
   const base = { id, target: "settings", focus } as const;
   const values = name === null ? undefined : { radio: name, name }; // (`name` for the shared words of a radio: "{name}: not connected")
   const word = (plain: MessageId, withName: MessageId) => ({ text: name === null ? plain : withName, textValues: values }) as const;
-  if (line === null) return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...whyTitle(t("pill.radio_waiting_why")) };
+  if (line === null) {
+    const title = link.connection === "open" ? whyTitle(t("pill.radio_waiting_why")) : { title: DAEMON_STATES[link.connection].title }; // (the socket away: what the Daemon mark says)
+    return { ...base, ...word("pill.radio_waiting", "pill.radio_named_waiting"), tone: "warn", ...title };
+  }
   if (line.state === "connected") {
     if (line.dummy) return { ...base, ...word("pill.radio", "pill.radio_named"), title: "pill.radio_dummy_title", tone: "dummy" };
     return name === null
@@ -124,7 +131,8 @@ function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | und
   const title = whyTitle(said.reduce((all, one) => t("channel.title_join", { first: all, second: one })));
   const trouble = lines.filter(({ line }) => line?.state !== "connected");
   const base = { id: "radios", target: "settings" } as const;
-  if (link.connection !== "open") return { ...base, text: "pill.radios_waiting", tone: "warn", ...title, focus: radioFocus(first) };
+  if (link.connection !== "open")
+    return { ...base, text: "pill.radios_waiting", tone: "warn", title: DAEMON_STATES[link.connection].title, focus: radioFocus(first) };
   const [one] = trouble;
   if (one === undefined) return { ...base, text: "pill.radios", tone: on.every((radio) => radio.dummy) ? "dummy" : "ok", ...title, focus: radioFocus(first) };
   if (trouble.length === 1) return { ...radioPill(link, one.line, "radios", radioFocus(one.radio), one.radio.name), ...title };
@@ -132,9 +140,10 @@ function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | und
 }
 
 /** The radio marks: one radio on is the one Radio mark, whichever radio it is (the page names a radio only where there are several); two on are a mark each with its name, each in the state of its own radio; three and
- * more are one Radios mark (at 375 px there is room for about two marks of radios). */
+ * more are one Radios mark (at 375 px there is room for about two marks of radios); none for a station the daemon has told has no radio (there is nothing to wait for: the setup's Add radio makes the first). */
 function radioPills(link: Link): HeaderPill[] {
   const radios = link.radios;
+  if (link.told && radios.length === 0) return [];
   const on = enabledRadios(radios);
   if (on.length >= 3)
     return [
@@ -160,16 +169,18 @@ const updatePill = (update: UpdateInfo): HeaderPill => ({
   focus: "set-update-now",
 });
 
-/** RX only while transmitting is off, or while no radio that is on can send (`listening`: each is of a type that only listens), else Beacon off while the beacon is (nothing, when neither). */
-function sendingPill(values: Readonly<Record<string, string>>, listening: boolean): HeaderPill | null {
+/** RX only while transmitting is off, or while no radio that is on can send (`listening`: each is of a type that only listens; the mark leads to the box of `first`, the first radio that is on), else
+ * Beacon off while the beacon is (nothing, when neither). */
+function sendingPill(values: Readonly<Record<string, string>>, listening: boolean, first: PageRadio | undefined): HeaderPill | null {
   if (values["station/transmit"] === "false" || listening) {
+    const radios = listening && values["station/transmit"] !== "false";
     return {
       id: "rx",
       text: "pill.rx",
-      title: listening && values["station/transmit"] !== "false" ? "pill.rx_title_radios" : "pill.rx_title",
+      title: radios ? "pill.rx_title_radios" : "pill.rx_title",
       tone: "warn",
       target: "settings",
-      focus: "set-station-transmit",
+      focus: radios && first !== undefined ? radioFocus(first) : "set-station-transmit",
     };
   }
   if (!beaconOff(values)) return null;
@@ -218,7 +229,7 @@ export function headerPills(
   const marks = [
     update === null ? null : updatePill(update),
     ...linked,
-    sendingPill(values, listening),
+    sendingPill(values, listening, link === null ? undefined : enabledRadios(link.radios)[0]),
     gpsPill(values, gps),
     internetPill(igate),
     mapPill(map),

@@ -17,6 +17,7 @@ const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\
 const ENGLISH = Object.values(en as Record<string, Message>)
   .flatMap(texts)
   .filter((text) => text.replace(/\{\w+\}/g, "").trim().length >= (/\{\w+\}/.test(text) ? 8 : 3))
+  .filter((text) => text !== "NeoAPRS") // (the program's name, which no language translates: the station's own words, its comment, may be it too)
   .map((text) => ({
     text,
     re: new RegExp(

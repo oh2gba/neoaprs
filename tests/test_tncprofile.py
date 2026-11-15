@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from neoaprs import ax25, kiss
+from neoaprs.direwolf import PROFILE as DIREWOLF
 from neoaprs.radiotypes import BY_KEY as TYPES_BY_KEY, type_of
 from neoaprs.source import Backoff, Source
 from neoaprs.config import LAST_PORT
@@ -40,8 +41,9 @@ def test_the_table_has_the_profiles_the_page_offers_in_its_order_and_the_default
 
 
 def test_every_profile_is_named_by_its_types_key_so_a_line_of_it_knows_its_kind_and_its_limits() -> None:
-    assert set(EVERY_BY_KEY) == set(TYPES_BY_KEY), "one type for each profile, by the same key"
-    for p in EVERY_BY_KEY.values():
+    profiles = {**EVERY_BY_KEY, DIREWOLF.key: DIREWOLF}
+    assert set(profiles) == set(TYPES_BY_KEY), "one type for each profile, by the same key (the Sound card type's is Direwolf's, neoaprs/direwolf.py)"
+    for p in profiles.values():
         t = type_of(p.key)                       # (Tnc.rtype: a profile whose key named no type would raise at the line's first read of its kind or its frame cap)
         tnc = Tnc("", profile=p)
         assert tnc.rtype is t and t.profile == p.key and tnc.max_frame == t.limits.max_frame and tnc.label == ("hf radio" if t.kind == "hf" else "tnc"), p.key

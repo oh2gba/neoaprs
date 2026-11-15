@@ -17,10 +17,10 @@ import { useRadios } from "@/composables/useRadios";
 import { useSendNow, type SendKey } from "@/composables/useSendNow";
 import { rxOnlyReason, tncNotConnected } from "@/lib/compose";
 import { beaconOff } from "@/lib/beaconoff";
-import { beaconRadios, followRadioValues, notConnectedWhy, radioValueOf, sendOnTicks, type SendOnTick } from "@/lib/beaconstatus";
+import { beaconRadios, notConnectedWhy, radioValueOf, sendOnTicks, type SendOnTick } from "@/lib/beaconstatus";
 import { fieldId, type PageRadio } from "@/lib/radios";
 import { statusSource } from "@/lib/status";
-import { computed, shallowRef, toRef, watch } from "vue";
+import { computed, shallowRef, toRef } from "vue";
 
 const props = withDefaults(defineProps<{ picking?: boolean; picked?: Picked | null }>(), { picking: false, picked: null });
 const emit = defineEmits<{ pickPosition: [] }>();
@@ -30,14 +30,13 @@ const radios = useRadios();
 const several = computed(() => radios.severalSenders.value);
 /** The radios Beacon now and the timer send on; with one radio on, that one. */
 const beaconOn = computed(() => beaconRadios(radios.senders.value, radios.main.value));
-/** A radio Beacon now would send on is connected (with one radio on, the page's link to it says it, as before). */
-const beaconUp = computed(() => !several.value || beaconOn.value.some((radio) => radio.connected));
-/** The main radio, which Send status now goes on, is connected (the same with one radio on). */
-const statusUp = computed(() => !several.value || (radios.main.value?.connected ?? false));
+/** A radio Beacon now would send on is connected (a radio that only listens is none of them); until the daemon has told the radios, the page's link to any radio says it. */
+const beaconUp = computed(() => (radios.told.value ? beaconOn.value.some((radio) => radio.connected) : connected.value));
+/** The main radio, which Send status now goes on, is connected (the same until the radios are told). */
+const statusUp = computed(() => (radios.told.value ? (radios.main.value?.connected ?? false) : connected.value));
 /** The button that waits for its second press: its radio dropping forgets the press, as the link dropping does. */
 const armedOf = shallowRef<() => SendKey | null>(() => null);
 const linked = computed(() => {
-  if (!several.value) return connected.value;
   const armed = armedOf.value();
   return armed === "beacon" ? beaconUp.value : armed === "status" ? statusUp.value : beaconUp.value || statusUp.value;
 });
@@ -47,8 +46,8 @@ armedOf.value = () => sending.armed.value;
 function why(up: boolean, on: readonly PageRadio[]): string | undefined {
   if (receiveOnly.value) return rxOnlyReason();
   if (sending.why.value !== undefined) return sending.why.value;
-  if (!several.value) return connected.value ? undefined : tncNotConnected();
-  return up ? undefined : notConnectedWhy(on);
+  if (up) return undefined;
+  return several.value ? notConnectedWhy(on) : tncNotConnected();
 }
 const beaconReady = computed(() => sending.ready.value && !receiveOnly.value && beaconUp.value);
 const statusReady = computed(() => sending.ready.value && !receiveOnly.value && statusUp.value);
@@ -70,10 +69,6 @@ function ticked(key: string, radio: PageRadio): boolean {
 const ticks = computed<SendOnTick[]>(() => (several.value ? sendOnTicks(radios.senders.value, ticked, radios.main.value) : []));
 /** The daemon's refusal of a tick, under the row. */
 const tickError = computed(() => ticks.value.map((tick) => settings.errors[tick.key] ?? "").find((text) => text !== "") ?? "");
-watch(
-  () => Object.fromEntries(ticks.value.flatMap((tick) => [[tick.key, radioValueOf(config.value, tick.key) ?? ""]])),
-  (inForce, before) => followRadioValues(settings.draft, settings.values.value, inForce, before),
-);
 /** A tick applies at once; the one ticked only because the beacon went out on it stays ticked, as it was seen. The row has one line for a refusal: a new tick takes the old one away. */
 function tick(key: string, event: Event): void {
   if (!(event.target instanceof HTMLInputElement)) return;

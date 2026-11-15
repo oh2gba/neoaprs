@@ -9,7 +9,7 @@ Every file is on the [releases page](https://github.com/oh2gba/neoaprs/releases/
 | Mac with Apple silicon | `NeoAPRS-<version>-arm64.dmg` ([macOS](#macos)) |
 | Raspberry Pi, Debian, Ubuntu | `neoaprs_<version>_arm64.deb` or `_amd64.deb` ([.deb](#raspberry-pi-debian-ubuntu-deb)) |
 
-These four are the supported ways: each carries its own Python and the Mercury HF modem. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
+These four are the supported ways: each carries its own Python and the Mercury HF modem, and all but the Mac's also carry Direwolf for an FM radio on a sound card. A Mac with an Intel processor has no file yet. The release page also has the source tarball, for packagers.
 
 After installing, [start.md](start.md) takes you through the first start. The data you make (settings, messages, packets, the map) is kept in the data folder, which no installer, update or removal touches.
 
@@ -32,11 +32,12 @@ The installer puts three programs in the folder: `neoaprs.exe` (the command, wit
 
 Windows asks whether to let NeoAPRS through its firewall the first time you allow access from the network. Allow it on private networks ([network.md](network.md)).
 
-The radio is a COM port. The page lists the ports of the computer to pick from ([radio.md](radio.md)).
+A radio on a serial cable or USB is a COM port. The page lists the ports of the computer to pick from ([radio.md](radio.md)).
 
 ## Linux AppImage
 
-`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed. It runs on x86_64 Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and newer) and the usual desktop libraries.
+`NeoAPRS-<version>-x86_64.AppImage` is one file with Python, NeoAPRS and the desktop app's web engine inside, and the Mercury HF modem (about 165 MB). Nothing is installed.
+<!-- SIZE: the AppImage's size (165 MB) is that of the release before; put the measured number of this release here --> It runs on x86_64 Linux with glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and newer) and the usual desktop libraries.
 
 ```bash
 chmod +x NeoAPRS-<version>-x86_64.AppImage
@@ -58,7 +59,7 @@ The app is not signed by Apple, so the first start takes a right-click on **NeoA
 
 - **Data** is `~/Library/Application Support/NeoAPRS`. A newer app in the place of the old one finds its settings, messages and map, and the app can be moved to the Bin without touching them.
 - **The command line.** `/Applications/NeoAPRS.app/Contents/MacOS/NeoAPRS doctor` runs the `neoaprs` command (`--version`, `open`, `stop`, `service install`, `map` ...); with no arguments it is the desktop app.
-- **The HF radio's sound card.** The first time the HF radio is switched on, macOS asks whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the HF radio hears nothing.
+- **A Mercury radio's sound card.** The first time a radio on a sound card is switched on, macOS asks whether NeoAPRS may use the microphone, which is what a sound input is to it. Allow it, or the radio hears nothing.
 - **Start at login.** `/Applications/NeoAPRS.app/Contents/MacOS/NeoAPRS service install` writes a launchd agent that starts the daemon at login ([Start at login](#start-at-login)). The tray menu has no *Start at sign-in* item on a Mac.
 - **The radio's port** is a `/dev/cu.*` device. The page lists the ports of the computer to pick from ([radio.md](radio.md)).
 
@@ -66,7 +67,8 @@ The app is not signed by Apple, so the first start takes a right-click on **NeoA
 
 `neoaprs_<version>_arm64.deb` is for a Raspberry Pi with 64-bit Raspberry Pi OS, `neoaprs_<version>_amd64.deb` for a PC with Debian or Ubuntu. It is meant for a machine without a screen. Debian 12, Ubuntu 22.04 and Raspberry Pi OS (Bookworm) and newer are supported. The 32-bit Raspberry Pi OS is not supported: there is no package for it, and the AppImage is for x86_64 only.
 
-NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed). It uses nothing of the system's Python and does not include the desktop app.
+NeoAPRS needs Python 3.13, which Raspberry Pi OS and Debian 12 do not have, so the package brings its own Python and libraries, and the Mercury HF modem (about 30 MB to download, about 100 MB installed).
+<!-- SIZE: the .deb's sizes (30 MB, 100 MB) are those of the release before; put the measured numbers of this release here --> It uses nothing of the system's Python and does not include the desktop app.
 
 ```bash
 sudo apt install ./neoaprs_<version>_arm64.deb      # apt, not dpkg -i; the file name must start with ./
@@ -96,6 +98,8 @@ The page is on port 7303, on this computer only unless you allow access from the
 NeoAPRS asks once a day whether a newer version is out ([the update check](#the-update-check)). When one is, an **Update** mark appears at the top of the page, which opens Settings → Update check; the **Update** button there opens the steps.
 
 A click opens a window in the middle of the page: **NeoAPRS <version> is available**, the version you have, what is new (the project's note, and the release notes of every version between yours and the new one, fetched from the project's changelog on GitHub; when they cannot be fetched, a button to the release page), and what to do for the way this copy was installed. Your settings, messages, packets and map stay in every case, and open pages load the new version by themselves.
+
+What the first start of the new version does with your data, and the way back, are in [start.md](start.md#after-an-update).
 
 **What's new, after the update.** The first time a browser opens the page after an update, a quiet line at the bottom says **Updated to NeoAPRS <version> · What's new**: the link opens the same window with the release notes of every version since the one that browser saw last, and the line does not come back once you open them or dismiss it. **What's new** beside the version in Settings → Update check opens the notes of the version you run at any time.
 
@@ -132,7 +136,7 @@ Once a day the daemon asks the project's version page whether a newer NeoAPRS is
 
 - **What is sent.** One request with the version and the kind of system in the address, `https://neo.oh2gba.eu/version.php?v=<version>&os=linux&id=<number>`, and a User-Agent that says the same. The system is `windows`, `macos`, `linux`, `linux-appimage` or `linux-arm` (a Raspberry Pi). The number is a random number made once for this installation (so that installations can be counted; it says nothing about you). Nothing else: no call, no position, no setting.
   - A clone of the repository, and an installation marked as a test machine (`neoaprs db set update/not_counted true`), send `0` in place of the number, which is not counted.
-- **What comes back.** The latest version, the address of the project page, an optional short note, and the HF frequency the group meets on, which the HF radio's box shows until the project's list of suggested frequencies has come.
+- **What comes back.** The latest version, the address of the project page, an optional short note, and the HF frequency the group meets on, which a Mercury radio's box shows until the project's list of suggested frequencies has come.
 - **What is kept.** The server adds a line with the time (to the minute, UTC), the version, the system and the number to a log, and hands the version, the system and the number to the project's status page, where they are counted. Your address is not used. The source of the page is `server/version.php` in the repository.
 - **The answer** is a few lines of JSON: the latest release, the address of the project page and an optional note. When it is newer than yours, the page shows the **Update** mark and the note is in the update window. A page that cannot be reached, or answers something else, is ignored: nothing is shown and the next question is the next day.
 - **Switching it off.** The check has no setting. `NEOAPRS_UPDATE_CHECK=0` in the environment switches it off for one run. The setting `update/url` can point at a page of your own (`neoaprs db set update/url ADDRESS`).

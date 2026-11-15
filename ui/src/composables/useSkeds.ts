@@ -1,10 +1,11 @@
 // The Skeds tab as the page runs it: the board is asked for (`skeds_wanted`) when the tab comes on show while the daemon is connected (and so when a page loads with the tab in front, once the socket is open, and again after a reconnect) and every 15
 // minutes while it stays on show (the daemon reads at most that often whatever the page asks), and the count of the skeds
 // not seen yet. What was seen is the ids of the skeds that were on the board while the tab was on show, kept in the browser (lib/storage.ts), the last 200 of them. A sked of ours is never new. The tab is on show when
-// it is the tab in front, the panel is open and the page is visible (lib/unread.ts), as for the bulletins.
+// it is the tab in front, the panel is open and the page is visible (lib/unread.ts), as for the bulletins. In a window whose store was new, the first board told is seen (lib/firststart.ts).
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { useVisible } from "@/composables/useVisible";
+import { seenAtStart } from "@/lib/firststart";
 import { newCount } from "@/lib/skeds";
 import { readStored, writeStored } from "@/lib/storage";
 import { isViewingTab } from "@/lib/unread";
@@ -45,14 +46,21 @@ export function useSkeds(skeds: Readonly<Ref<SkedsState | null>>, panel: Panel, 
   );
   onBeforeUnmount(() => clearInterval(timer));
 
+  function see(board: readonly { id: string }[]): void {
+    if (board.every((r) => seen.value.has(r.id))) return;
+    seen.value = new Set([...seen.value, ...board.map((r) => r.id)].slice(-KEPT));
+    writeStored(KEY, JSON.stringify([...seen.value]));
+  }
   watch(
     [viewing, rows],
     ([showing, board]) => {
-      if (!showing || board.every((r) => seen.value.has(r.id))) return;
-      seen.value = new Set([...seen.value, ...board.map((r) => r.id)].slice(-KEPT));
-      writeStored(KEY, JSON.stringify([...seen.value]));
+      if (showing) see(board);
     },
     { immediate: true },
+  );
+  seenAtStart(
+    computed(() => skeds.value !== null),
+    () => see(rows.value),
   );
 
   return { fresh };

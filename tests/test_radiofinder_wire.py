@@ -62,7 +62,8 @@ async def test_a_second_find_and_a_cancel_with_nothing_running_are_refused_with_
     await page.send({"cmd": "find_radio"})
     await page.expect("radio_search")
     await page.send({"cmd": "find_radio"})
-    assert (await page.expect("error"))["code"] == "radio.busy"
+    error = await page.expect("error")
+    assert (error["code"], error["params"]["radio"]) == ("radio.busy", 1)
     await page.send({"cmd": "find_radio_cancel"})
     assert (await page.expect("radio_search"))["state"] == "cancelled"
     await e.stop()
@@ -74,11 +75,13 @@ async def test_no_answer_and_no_port_are_errors_with_a_code(tmp_path: Path) -> N
     e = await started(tmp_path, [tnc.url])
     page = await e.ws()
     await page.send({"cmd": "find_radio"})
-    assert (await page.expect("error"))["code"] == "radio.not_found"
+    error = await page.expect("error")
+    assert (error["code"], error["params"]["radio"]) == ("radio.not_found", 1), "a refusal about a radio names it, as every other"
     await tnc.aclose()
     e.ctl.radiofinder.ports = _none
     await page.send({"cmd": "find_radio"})
-    assert (await page.expect("error"))["code"] == "radio.no_ports"
+    error = await page.expect("error")
+    assert (error["code"], error["params"]) == ("radio.no_ports", {"radio": 1})
     await e.stop()
 
 

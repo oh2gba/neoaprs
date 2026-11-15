@@ -62,6 +62,17 @@ def modem_words(spec: RadioSpec, run: RunOverrides) -> str:
     return "the Mercury modem, which is not started" if nodevices.on() else "the Mercury modem, started by NeoAPRS"
 
 
+def chosen_as_set(before: RadioSpec, after: RadioSpec, state: str, sound_card: str, keying: str) -> RadioSpec:
+    """`before`, with the sound card and the keying that a running modem (its `state`) chose for itself (`sound_card`, `keying`; the settings were empty) taken as set where `after` sets exactly those: the page stores
+    the daemon's proposal as the setting, which changes nothing the modem does, so it is no reason to restart it. The Mercury modem's and Direwolf's (neoaprs/direwolfdriver.py)."""
+    if state not in ("starting", "running"):
+        return before
+    card, key = before.value("sound_card"), before.value("keying")
+    card = sound_card if card == "" and after.value("sound_card") == sound_card else card
+    key = keying if key == "" and after.value("keying") == keying else key
+    return replace(before, settings={**before.settings, "sound_card": card, "keying": key})
+
+
 class MercuryDriver:
     def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None, data_dir: Path | None = None) -> None:
         self.id = spec.id
@@ -97,14 +108,7 @@ class MercuryDriver:
     def made_explicit(self, before: RadioSpec, after: RadioSpec) -> RadioSpec:
         """`before`, with the sound card and the keying that the running modem has chosen for itself (the settings were empty) taken as set where `after` sets exactly those: the page stores the daemon's proposal
         as the setting, which changes nothing the modem does, so it is no reason to restart it."""
-        if self._modem.state not in ("starting", "running"):
-            return before
-        card, keying = before.value("sound_card"), before.value("keying")
-        if card == "" and after.value("sound_card") == self._modem.sound_card:
-            card = self._modem.sound_card
-        if keying == "" and after.value("keying") == self._modem.keying.text:
-            keying = self._modem.keying.text
-        return replace(before, settings={**before.settings, "sound_card": card, "keying": keying})
+        return chosen_as_set(before, after, self._modem.state, self._modem.sound_card, self._modem.keying.text)
 
     def words(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:
         return modem_words(spec, run)

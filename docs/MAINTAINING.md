@@ -60,6 +60,26 @@ The Mercury that every release carries is the four constants at the head of `neo
 5. Measure again what [`docs/mercury.md`](mercury.md) quotes (`scripts/mercury-measure` `frame`, `decode`, `busy`, `autobusy`, `vox` and `acks`, the list under "What 1.9.24 changes for the numbers" of that document; `beacons` is arithmetic) and move the constants of `neoaprs/mercury.py` and `neoaprs/radiotype.py` and the table of the document when a figure has moved.
 6. The five patches (`packaging/mercury/loopback.patch`, `packaging/mercury/leadin.patch`, `packaging/mercury/dsound.patch`, `packaging/mercury/flush.patch`, `packaging/mercury/ffcpu.patch`) must still apply, and the Windows build must still link: `scripts/build-mercury --windows` needs the MinGW-w64 cross compiler (`gcc-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common` on Debian), and a build for testing (above) runs it as the job `mercury-windows`, together with the Linux build for both architectures; the `windows` job then starts the program and checks that it listens on 127.0.0.1 only.
 
+## Moving the Direwolf pin
+
+The Direwolf that every release carries is the four constants at the head of `neoaprs/direwolf.py`: `VERSION`, `SOURCE_COMMIT`, `SOURCE_URL` and `SOURCE_SHA256`, with `BANNER`, the program's banner as its format string. The same source is built for Linux and Windows. A new Direwolf is a change of them in one commit, with these steps:
+
+1. `VERSION` is WB2OSZ's tag, `SOURCE_COMMIT` the commit that tag points at (`git ls-remote https://github.com/wb2osz/direwolf refs/tags/<tag>`), `SOURCE_SHA256` the SHA-256 of the archive at `SOURCE_URL`: fetch it once (`curl -L -o direwolf.tar.gz <SOURCE_URL>`), then `sha256sum direwolf.tar.gz`; `BANNER` is the line `direwolf.c` prints first (`Dire Wolf Release %d.%d.%d, <month> <year>`).
+2. Look for the old version and the old commit in the whole tree (`grep -rn`) and change what names them: `docs/direwolf.md`, the fake in `tests/support/fakedirewolf.py`, the tarball names in `tests/test_direwolf_build.py`.
+3. `scripts/build-direwolf --source direwolf.tar.gz --install` builds it into the venv; it stops when the archive is not the one with the SHA-256 given, when a patch of `packaging/direwolf/` no longer applies or is not held in the source after it, and when the program's banner, its links or its quit run are not what they must be. Every option that `command()` of `neoaprs/direwolf.py` starts the program with has to be in the new `direwolf -h`, and the lines its parsers read (`ready_port`, `bind_failed`, `audio_open_error`, `keying_open_error`, `level_of`, `ptt_of`, `dcd_of`, the Windows device lists) have to be the same words in the new source.
+4. `scripts/build-direwolf --windows` needs the MinGW-w64 cross compilers (`gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common` on Debian); a build for testing runs it as the job `direwolf-windows`, with the Linux build for both architectures, and the Windows 11 N VM checks the installed program ([direwolf.md](direwolf.md#the-build)).
+
+## When GitHub moves an image
+
+GitHub's runners and the container of `scripts/check-in-container` follow `packaging/ci/runner.json`. When the two part, one of three says so: the first step of the CI's jobs `python` and `sim` (`scripts/runner-facts --here`: a red push), the weekly job `latest` of `audit.yml` (a `-latest` label is no longer the system we name), or the weekly stage `audit` (`--published`: GitHub's readme of the image lists another gcc, glibc or PHP; `--announcements`: an announcement that names one of our runners and is not read). Then:
+
+1. Read what parted. An announcement is read, acted on, and added to `announcements` with the day until which it stays read (`null` when it needs nothing more); a retirement keeps a day a month before its first brownout, so that the audit says it again in time.
+2. In one commit: `runner.json` (the labels, `latest`, `image_version`, the facts), in `packaging/ci/Dockerfile` the `FROM` tag with its digest (`docker buildx imagetools inspect ubuntu:SERIES`) and the comment above it with the moment it was taken (`date -u +%Y%m%dT%H%M%SZ`), `UBUNTU_SNAPSHOT` at that moment or later (an older snapshot than the base leaves apt with unmet dependencies), the three ARGs `GCC_MAJOR`, `GCC_MARCH` and `GLIBC`, and the workflows' `runs-on` labels. The tests refuse a commit that moves one without the others.
+3. `scripts/check-in-container`, `scripts/check-in-container --job sim`, `scripts/check-installs` and `scripts/check-windows`, all green.
+4. Push to a `ci/**` branch first and read the lines of the facts step there.
+
+uv moves the same way, in one commit: `UV_VERSION` and `UV_SHA256` of the Dockerfile, `UV` of `scripts/check-windows` and the `version:` of every setup-uv step (the tests hold them together).
+
 ## A release
 
 **Before the notes:** a control that was taken off the page since the last release has a migration that reset its stored value to the default, or a control on the page still. Never leave a user with a state the page cannot change (`CONVENTIONS.md`, "Removing a control from the page"; `tests/test_settings_reachable.py` holds the list of what the page leaves out).

@@ -20,6 +20,8 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+
+from neoaprs import direwolf
 from tests.support.ptyline import posix_only
 
 pytestmark = posix_only      # (stand-ins with a shebang and a lock file for a development check, not the product)
@@ -416,6 +418,10 @@ marker = "-EncodedCommand "
 script = base64.b64decode(remote.split(marker)[1]).decode("utf-16-le") if marker in remote else remote
 with open(folder + "/ssh-calls", "a") as calls:
     calls.write(json.dumps({"args": args, "tty": tty, "script": script}) + "\\n")
+for name in os.environ.get("FAKE_FAIL", "").split():
+    if "# step: " + name + "\\n" in script:
+        print(name + " said: boom")
+        sys.exit(1)
 
 def flag(name):
     return os.path.exists(folder + "/" + name)
@@ -872,3 +878,146 @@ def test_the_python_of_the_steps_is_the_one_the_workflow_names(script: ModuleTyp
     """Left to uv, a clean machine takes the newest Python the project allows; the workflow names one, and the Windows check runs that one."""
     named = set(re.findall(r'python-version: "([0-9.]+)"', WORKFLOW))
     assert named == {script.PYTHON}, "ci.yml names one Python, and scripts/check-windows runs its steps on it"
+
+
+# ---- the install proof (--install) ----
+
+INSTALL_STEPS = ["install", "defender", "daemon", "commands", "app", "map", "direwolf", "smoke", "mercury", "uninstall"]
+
+
+def install_tree(folder: Path) -> Path:
+    """The made-up repository, with what the install proof takes from it: the two smoke scripts, the capture, the Tornado pin and the Direwolf NeoAPRS ships."""
+    tree = make_tree(folder)
+    for name in ("scripts/smoke.py", "tests/fixtures/kiss/thd7-2026-10-21.bin", "packaging/windows/smoke_mercury.py", "neoaprs/direwolf.py"):
+        (tree / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / name, tree / name)
+    (tree / "pyproject.toml").write_text('[project]\ndependencies = ["tornado==6.6.1"]\n', encoding="utf-8")
+    return tree
+
+
+def installer(folder: Path, name: str = "NeoAPRS-Setup-0.20.0.exe") -> Path:
+    path = folder / "dist-installer" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"MZ made up")
+    return path
+
+
+def test_the_install_proof_needs_a_snapshot_and_runs_alone(script: ModuleType) -> None:
+    split = script.load_script("check-in-container").split_command
+    args, _ = script.parse(["--install", "NeoAPRS-Setup-0.20.0.exe", "--snapshot", "clean"], split)
+    assert (args.install, args.snapshot) == ("NeoAPRS-Setup-0.20.0.exe", "clean")
+    for wrong in (["--install", "x.exe"], ["--install", "x.exe", "--snapshot", "clean", "--only", "ruff"], ["--install", "x.exe", "--snapshot", "clean", "--tty"],
+                  ["--install", "x.exe", "--snapshot", "clean", "--", "-k", "x"]):
+        with pytest.raises(SystemExit) as stop:
+            script.parse(wrong, split)
+        assert stop.value.code == 2, wrong
+
+
+def test_the_installer_is_named_by_its_version_and_smoke_runs_with_the_pinned_tornado(script: ModuleType, tmp_path: Path) -> None:
+    assert script.installer_version(installer(tmp_path)) == "0.20.0"
+    assert script.installer_version(installer(tmp_path, "NeoAPRS-Setup-1.0.0-rc1.exe")) == "1.0.0-rc1"
+    for wrong in (installer(tmp_path, "setup.exe"), tmp_path / "NeoAPRS-Setup-0.20.0-missing.exe"):
+        with pytest.raises(script.NotSetUp, match="NeoAPRS-Setup-VERSION.exe"):
+            script.installer_version(wrong)
+    assert script.tornado_pin((ROOT / "pyproject.toml").read_text(encoding="utf-8")) == re.search(r'"tornado==([^"]+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+    with pytest.raises(script.NotSetUp):
+        script.tornado_pin("[project]\n")
+
+
+def test_the_install_steps_are_the_proof_in_order_each_named_and_short_enough_for_cmd(script: ModuleType) -> None:
+    paths = script.windows_paths("John", "RUN-20261115T101010")
+    steps = script.install_steps(paths, "NeoAPRS-Setup-0.20.0.exe", "0.20.0", "6.6.1", "Dire Wolf Release 1.8.1, November 2025")      # (the banner: test_the_direwolf_the_install_proof_asks_for...)
+    assert [name for name, _, _ in steps] == INSTALL_STEPS == list(script.INSTALL_STEP_NAMES)
+    for name, text, timeout in steps:
+        assert text.startswith(f"# step: {name}\n") and text.endswith("exit 0") and timeout >= 300
+        assert "$app = Join-Path $env:LOCALAPPDATA 'Programs\\NeoAPRS'" in text
+        assert len(script.powershell_line(text)) <= script.REMOTE_LINE_MAX, name
+        uses_python = "uv run" in text or "neotest\\uv" in text
+        assert uses_python == (name in script.NEEDS_PYTHON), f"{name}: only the smoke steps have uv and its Python"
+        assert "NEOAPRS_NO_DEVICES" not in text, "the app runs as an operator's would"
+    by_name = {name: text for name, text, _ in steps}
+    install = by_name["install"]
+    assert "-ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=" in install
+    assert "/CURRENTUSER" not in install, "it does nothing: the installer is per user already"
+    assert "C:\\Users\\John\\neoaprs-check\\RUN-20261115T101010\\NeoAPRS-Setup-0.20.0.exe" in install and "installed: {0:N1} MB" in install
+    assert "RealTimeProtectionEnabled" in by_name["defender"] and "MpCmdRun.exe" in by_name["defender"] and "IsInRole" in by_name["defender"], "the scan only as an administrator, never through a prompt"
+    assert "-ArgumentList 'run'" in by_name["daemon"] and "basemap-world.pmtiles" in by_name["daemon"] and "-ArgumentList 'stop'" in by_name["daemon"]
+    assert "'NeoAPRS 0.20.0'" in by_name["commands"] and "doctor" in by_name["commands"] and "support --out" in by_name["commands"]
+    assert "'--tray', '--data', $data" in by_name["app"] and "stop --data $data" in by_name["app"]
+    assert "_internal\\neoaprs\\desktop\\icon.ico" in install, "the tray's icon is a file the app reads as it is"
+    app = by_name["app"]
+    assert app.index("$code -eq 200") < app.index("Start-Sleep 5") < app.index("'uncaught exception|Traceback'") < app.index("stop --data $data"), "a tray that failed in its own thread is in the app's log"
+    assert "--dry-run" in by_name["map"]
+    for f in ("bin\\direwolf\\direwolf.exe", "bin\\direwolf\\data\\tocalls.yaml"):
+        assert f"(Join-Path $app '{f}')" in install, f"{f}: the installer carries the Direwolf of the type Sound card (Direwolf)"
+    sound_card = by_name["direwolf"]
+    assert "neoaprs.exe') db --data 'C:\\Users\\John\\neoaprs-check\\RUN-20261115T101010\\data-direwolf' radios add direwolf" in sound_card, "the installed app finds its own Direwolf, or refuses the type"
+    assert sound_card.index("radios add direwolf") < sound_card.index("$LASTEXITCODE -eq 0") < sound_card.index("direwolf.exe') -h")
+    assert "$said.Contains('Dire Wolf Release 1.8.1, November 2025')" in sound_card, "the installed direwolf.exe runs, as the pinned release"
+    assert "--with 'tornado==6.6.1' scripts\\smoke.py --command" in by_name["smoke"] and "smoke_mercury.py" in by_name["mercury"]
+    uninstall = by_name["uninstall"]
+    assert "unins000.exe" in uninstall and "the uninstall left files in the program folder" in uninstall and "neoaprs.sqlite" in uninstall and "CurrentVersion\\Run" in uninstall
+
+
+def test_the_direwolf_the_install_proof_asks_for_is_the_one_neoaprs_ships(script: ModuleType) -> None:
+    assert script.direwolf_banner((ROOT / "neoaprs" / "direwolf.py").read_text(encoding="utf-8")) == direwolf.BANNER.replace("%d.%d.%d", direwolf.VERSION)
+    with pytest.raises(script.NotSetUp):
+        script.direwolf_banner('VERSION = "1.8.1"\n')
+
+
+def test_the_programs_are_told_apart_by_the_descriptions_the_spec_gives_them(script: ModuleType) -> None:
+    spec = (ROOT / "packaging" / "windows" / "neoaprs.spec").read_text(encoding="utf-8")
+    given = dict(re.findall(r'version=version_file\("([^"]+)", "([^"]+)"\)', spec))
+    assert script.DESCRIPTIONS == {name: given[name] for name in ("neoaprsw", "neoaprs-app")}
+
+
+def test_the_kit_holds_the_smoke_scripts_and_the_capture_smoke_plays(script: ModuleType, tmp_path: Path) -> None:
+    smoke = (ROOT / "scripts" / "smoke.py").read_text(encoding="utf-8")
+    fixture = re.search(r'^FIXTURE = ROOT / (.+)$', smoke, re.M).group(1)
+    assert "/".join(re.findall(r'"([^"]+)"', fixture)) in script.KIT
+    tar = tmp_path / "kit.tar"
+    script.pack_kit(ROOT, tar)
+    with tarfile.open(tar) as packed:
+        assert sorted(packed.getnames()) == sorted(script.KIT)
+
+
+def test_the_install_proof_runs_on_the_clean_snapshot_with_python_only_for_the_smoke_steps(bench: Bench) -> None:
+    tree = install_tree(bench.folder)
+    setup = installer(bench.folder)
+    bench.flag("uv-present")
+    done = run_check(tree, bench, "--install", str(setup), "--snapshot", "clean")
+    assert done.returncode == 0, done.stderr
+    assert [re.sub(r" +\d+\.\ds$", "", line).split()[1] for line in result_lines(done.stdout)] == INSTALL_STEPS
+    assert re.search(r"all green in \d+s$", done.stdout.strip())
+    assert [call for call in bench.vbox_calls() if not call.startswith("showvminfo")][:2] == ["snapshot Windows 11 restore clean", "startvm Windows 11 --type headless"]
+    assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff", "shut down again"
+    copies = [json.loads(line)[-1] for line in (bench.folder / "scp-calls").read_text(encoding="utf-8").splitlines()]
+    assert re.fullmatch(r"John@127\.0\.0\.1:C:/Users/John/neoaprs-check/RUN-\d{8}T\d{6}/NeoAPRS-Setup-0\.20\.0\.exe", copies[0])
+    assert copies[1].endswith("-kit.tar") and len(copies) == 2, "the installer, then the kit; no tree"
+    with tarfile.open(bench.folder / "copied-tree.tar") as kit:
+        assert sorted(kit.getnames()) == sorted(["scripts/smoke.py", "tests/fixtures/kiss/thd7-2026-10-21.bin", "packaging/windows/smoke_mercury.py"])
+    order = [call["script"] for call in bench.ssh_calls()]
+    first_uv = next(i for i, text in enumerate(order) if "uv.exe" in text and "--version" in text)
+    assert first_uv > next(i for i, text in enumerate(order) if text.startswith("# step: map\n")), "uv is asked for only after the steps that run on a machine with nothing"
+    assert first_uv < next(i for i, text in enumerate(order) if text.startswith("# step: smoke\n"))
+
+
+def test_nothing_follows_a_failed_install_and_any_other_failed_step_stops_none(bench: Bench) -> None:
+    tree = install_tree(bench.folder)
+    setup = installer(bench.folder)
+    bench.flag("uv-present")
+    done = run_check(tree, bench, "--install", str(setup), "--snapshot", "clean", FAKE_FAIL="install")
+    assert done.returncode == 1 and [line.split()[:2] for line in result_lines(done.stdout)] == [["FAIL", "install"]]
+    assert "      | install said: boom" in done.stdout and (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
+    done = run_check(tree, bench, "--install", str(setup), "--snapshot", "clean", FAKE_FAIL="daemon")
+    assert done.returncode == 1 and [line.split()[1] for line in result_lines(done.stdout)] == INSTALL_STEPS
+    assert re.search(r"failed in \d+s: daemon$", done.stdout.strip())
+
+
+def test_an_installer_that_is_not_one_is_said_before_the_machine_is_touched(bench: Bench) -> None:
+    tree = install_tree(bench.folder)
+    done = run_check(tree, bench, "--install", str(installer(bench.folder, "something.exe")), "--snapshot", "clean")
+    assert done.returncode == 2 and "NeoAPRS-Setup-VERSION.exe" in done.stderr and bench.vbox_calls() == [] and bench.ssh_calls() == []
+    done = run_check(tree, bench, "--install", str(installer(bench.folder)))
+    assert done.returncode == 2 and "--snapshot" in done.stderr and bench.vbox_calls() == []
+

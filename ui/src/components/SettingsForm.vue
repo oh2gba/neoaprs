@@ -6,7 +6,7 @@
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
 // starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: a box for each radio, the state of its link in view and its fields behind a fold, with Add radio under them; the Digipeater group has an Enable (and its counts) for each radio that may repeat, in a box with the radio's legend where there are several; and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
-// the access key with a New key button and the addresses to open the page at. The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
+// the access key with a New key button and, under it, the code a phone's camera opens the page from, logged in (PhoneCode). The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import ConfirmRow from "@/components/ConfirmRow.vue";
@@ -28,6 +28,7 @@ import SettingsGroup from "@/components/SettingsGroup.vue";
 import SettingsHelp from "@/components/SettingsHelp.vue";
 import SettingsHttps from "@/components/SettingsHttps.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
+import PhoneCode from "@/components/PhoneCode.vue";
 import SymbolField from "@/components/SymbolField.vue";
 import SettingsRadio from "@/components/SettingsRadio.vue";
 import { t } from "@/i18n";
@@ -42,10 +43,11 @@ import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { portsAsks } from "@/lib/radios";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
-import { boxedKey, digiPlaces, inputId, shownByRadios, shownFor } from "@/lib/settingsradio";
+import { boxedKey, digiPlaces, inputId, radioFieldOf, shownByRadios, shownFor } from "@/lib/settingsradio";
 import { useRadios } from "@/composables/useRadios";
+import { holderOf } from "@/lib/portchoice";
+import { keyLink } from "@/lib/access";
 import { statusSource } from "@/lib/status";
-import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
 
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
@@ -66,22 +68,17 @@ const alertTest = useAlertTest(
 const updateCheck = useUpdateCheck(updateResult, lastError, send);
 const newKey = useNewKey();
 const RADIUS_KEY = "map/radius_km";
-const STATUS_TEXT_KEY = "station/status";
 const SYMBOL_TABLE = "station/symbol_table";
 const SYMBOL_CODE = "station/symbol_code";
 const GPS_DEVICE = "gps/device";
 const info = (key: string) => fieldFor(key, draft);
-/** The quiet line under the status text when it has a frequency that radios would not tune to (the way to write it), else empty. */
-function frequencyHint(text: string): string {
-  const form = statusFrequencyHint(text);
-  return form === null ? "" : t("settings.station_status.hint", { freq: form });
-}
 /** A field the My station tab greys out while the beacon is Off (shown, with its value, and not changeable). */
 const greyed = (key: string): boolean =>
   props.scope === "beacon" && disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0); // (no radio on can send: as RX only)
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
-const urls = computed(() => config.value?.urls ?? []);
+/** What the phone code holds: the page's first address for other devices (the one on the network where there is one, else the computer's .local name) with the access key in force. */
+const phoneLink = computed(() => keyLink(config.value?.urls[0] ?? "", config.value?.values[KEY_KEY] ?? ""));
 /** Our call in force (the iGate logs in as it, and the page where a passcode is requested is told it); the iGate group asks for it first. */
 const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
 // the answers of the buttons (Test, New key) are said in the toast, so that nothing moves; the answer of Check now is in its row
@@ -102,6 +99,8 @@ const shown = (keys: readonly string[], inGroup = true) =>
 const radios = useRadios();
 /** The GPS receiver's Refresh asks for the ports by the radios that have sound cards, so that their boxes keep their cards. */
 const askPorts = () => portsAsks(radios.all.value.map((radio) => radio.row)).forEach((ask) => send(ask));
+/** Who holds a port, for the GPS receiver's: a radio by its name. */
+const gpsHolder = holderOf(0, (id) => radios.byId(id)?.name);
 /** The Digipeater group: an Enable for each radio that may repeat and is on, in a box with the radio's legend where there are several, with its own counts. */
 const digi = computed(() => digiPlaces(radios.all.value));
 /** The groups with something to show: the Digipeater group only while a radio that may repeat is on. */
@@ -129,12 +128,17 @@ watch(
 const folds = props.scope === "settings";
 /** A group has something the person must see, so it opens by itself: a complaint of the daemon about one of its fields, or the question it asks about one. */
 const needsLook = (groupKeys: readonly string[]): boolean => groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
+/** A key of a box the Radio group shows: of a radio that is there and not removed (a complaint about a radio removed meanwhile has no field to stand under). */
+const inBox = (key: string): boolean => {
+  const id = radioFieldOf(key)?.id;
+  return boxedKey(key) && id !== undefined && radios.byId(id)?.removed === false;
+};
 /** The fields that open a group: the Digipeater group's are its radios', the Radio group's its own and those of its boxes. */
 const lookKeys = (group: { id: string; keys: readonly string[] }): readonly string[] =>
   group.id === "digi"
     ? digi.value.keys
     : group.id === "serial"
-      ? [...group.keys, ...[...Object.keys(errors), question.value?.key ?? ""].filter(boxedKey)]
+      ? [...group.keys, ...[...Object.keys(errors), question.value?.key ?? ""].filter(inBox)]
       : group.keys;
 const fallback = (key: string) => defaults.value[key] ?? "";
 /** The keys of a group in boxes: a key with a heading of its own (the daemon's alert) starts a box with its legend that runs to the end of the group; the keys before it are in no box. */
@@ -206,6 +210,7 @@ function typed(key: string, text: string): void {
             found=""
             :unset="true"
             :ports="ports"
+            :holder="gpsHolder"
             :error="errors[key] ?? ''"
             :changed="form.changed(key)"
             @update:model-value="settings.edit(key, $event)"
@@ -224,7 +229,6 @@ function typed(key: string, text: string): void {
             :changed="form.changed(key)"
             :apply="true"
             :disabled="greyed(key)"
-            :hint="key === STATUS_TEXT_KEY ? frequencyHint(draft[key] ?? '') : ''"
             @update:model-value="typed(key, $event)"
             @choose="form.choose({ [key]: storedFor(key, draft, $event) })"
             @commit="form.finish(key, $event)"
@@ -255,15 +259,12 @@ function typed(key: string, text: string): void {
           <ConfirmRow v-if="question?.key === key" :message="question.message" @yes="form.answer(true)" @cancel="form.answer(false)" />
           <slot name="after" :field-key="key" :draft="draft"></slot>
           <SettingsHttps v-if="key === 'web/https'" :https="config.https" />
-          <div v-if="key === KEY_KEY && urls.length" class="field">
-            <label for="set-web-url-0">{{ t("settings.urls.label") }}</label>
+          <div v-if="key === KEY_KEY && phoneLink" class="field">
+            <span id="set-web-code-label" class="field-label">{{ t("phone.code.label") }}</span>
             <div class="field-control">
-              <div class="urls">
-                <input v-for="(url, i) in urls" :id="`set-web-url-${i}`" :key="url" class="input" type="text" readonly :value="url" />
-              </div>
-              <InfoTip :label="t('settings.urls.tip_label')">
-                <span class="info-line">{{ t("settings.urls.tip1") }}</span>
-                <span class="info-line">{{ t("settings.urls.tip2") }}</span>
+              <PhoneCode :link="phoneLink" labelledby="set-web-code-label" />
+              <InfoTip :label="t('phone.code.tip_label')">
+                <span class="info-line">{{ t("phone.code.tip1") }}</span>
               </InfoTip>
             </div>
           </div>

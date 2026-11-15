@@ -19,6 +19,7 @@ from .app import Frontend, Services
 from .backupfolder import FOLDER_NAME, LITTER_AGE_SEC, sweep
 from .clock import Clock, days, utcnow
 from .config import DEFAULTS, LAST_PORT, STATION_KEYS, Config
+from .mercuryclaims import end_left_behind
 from .message import MessagingError
 from .policy import INTERNET_KEEP_DAYS, LOG_KEEP_DAYS, TNC_CHECK_SEC
 from .dummyworlds import made_up_calls
@@ -26,6 +27,7 @@ from .db import Db
 from .dbfile import DEFAULT_BUSY_MS
 from .dbopen import open_connection
 from .packetlog import STATION_FLUSH_SEC
+from .radioregistry import is_dummy
 from .radiospec import FM_ID, HF_ID, KIND_WORDS, RadioId, RadioSpec, enabled
 from .store import DB_NAME, Store
 from .tasks import cancel_all, every
@@ -44,7 +46,7 @@ BEACON_NAMES: dict[RadioId, str] = {FM_ID: "the beacon", HF_ID: "the HF beacon"}
 def made_up_alone(was: RadioSpec, config: Config) -> frozenset[str]:
     """The calls a Dummy radio that leaves its world made up (its world by its id as the seed: dummyworlds.py) and no Dummy radio still on in `config` makes up too: the HF worlds share their cities, and
     what another radio still hears stays."""
-    others = (made_up_calls(spec.rtype.profile, spec.id) for spec in enabled(config.radios) if spec.rtype.dummy and spec.id != was.id)
+    others = (made_up_calls(spec.rtype.profile, spec.id) for spec in enabled(config.radios) if is_dummy(spec) and spec.id != was.id)
     return made_up_calls(was.rtype.profile, was.id) - frozenset().union(*others)
 
 
@@ -60,6 +62,7 @@ class Controller(Services):
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
         self._starts: dict[RadioId, asyncio.Task[None]] = {}    # the start of each radio (with its modem): each radio is restarted on its own
+        self._held: set[RadioId] = set()        # the radios Find my radio holds while it tries the ports: none of them is started meanwhile
         self._implied: set[str] = set()         # the station's settings that a row of an older version implies (configlegacy.py), stored at the first save
         wiring.wire(self)
 
@@ -103,6 +106,7 @@ class Controller(Services):
         self.stationalerts.load()                                       # (after the preferences and the station book: the stations as they are now are where the alerts start)
         await self.aloha.start()
         await self.messaging.start()
+        await asyncio.to_thread(end_left_behind, self.data_dir)        # (a Mercury that a daemon which did not stop cleanly left running, a radio's that is off now among them)
         self.start_tnc()                                                # (last of the parts that take its packets: the source after its consumers)
         await self._start_web()
         await self.mapauto.start()
@@ -173,8 +177,11 @@ class Controller(Services):
             self.start_radio(radio.id)
 
     def start_radio(self, id: RadioId) -> None:
-        """(Re)starts one radio (its modem with it) with the settings as they are now, in a task: finding its port can take as long as 20 s a port, and nothing waits for it, another radio least. A start that
-        is still looking for the port is ended first. A radio whose tickbox is off stays stopped. No other radio is touched."""
+        """(Re)starts one radio (its modem with it) with the settings as they are now, in a task: finding its port can take as long as 20 s a port, and nothing waits for it, another radio least. A start that is still
+        looking for the port is ended first. A radio whose tickbox is off stays stopped. No other radio is touched. One that Find my radio holds is started when the search lets go of it (`release_radio`), with the settings as they are then."""
+        if id in self._held:
+            log.info("the %s radio is started once Find my radio lets go of it", self.radios.name_of(id))
+            return
         self._starts[id] = self.tasks.spawn(self._restart(id, self._starts.get(id)), TASK_NAMES.get(id, f"radio-{id}"))
 
     async def _restart(self, id: RadioId, previous: "asyncio.Task[None] | None") -> None:
@@ -206,7 +213,8 @@ class Controller(Services):
             self.tasks.spawn(self.radios.repoint(radio), "hf-tnc" if radio == HF_ID else f"repoint-{radio}")
 
     async def hold_radio(self, id: RadioId) -> None:
-        """One radio lets go of what it holds (its line, its modem), for a search that opens the ports; its start that is still looking for its port is ended first. No other radio is touched."""
+        """One radio lets go of what it holds (its line, its modem), for a search that opens the ports; its start still looking for its port is ended first, and none is made until `release_radio`. No other radio is touched."""
+        self._held.add(id)
         start = self._starts.pop(id, None)
         if start is not None:
             await cancel_all([start])
@@ -215,7 +223,8 @@ class Controller(Services):
             await radio.driver.stop()
 
     def release_radio(self, id: RadioId) -> None:
-        """The radio takes what it holds again, while the daemon runs."""
+        """The radio takes what it holds again, while the daemon runs: one start, with the settings as they are now (a save meanwhile asked for none of its own)."""
+        self._held.discard(id)
         if self.running:
             self.start_radio(id)
 
@@ -255,7 +264,7 @@ class Controller(Services):
         """The settings, stored, put in force: the radios follow them (the one a change is of is restarted, and no other), and every part that reads them is told."""
         restart = self.radios.sync(config)                              # (before they are put in force: what differs of a radio is read against the settings in force)
         previous, self.config = self.config, config
-        now_dummy = {spec.id for spec in enabled(config.radios) if spec.rtype.dummy}
+        now_dummy = {spec.id for spec in enabled(config.radios) if is_dummy(spec)}
         wiring.place_me(self)
         self.gps.settings_changed()
         for radio in self.radios.all():
@@ -265,7 +274,7 @@ class Controller(Services):
             log.info("the %s radio is restarted because its settings changed: %s", self.radios.name_of(id), self.radios.why[id])
             self.start_radio(id)
         for was in enabled(previous.radios):
-            if was.rtype.dummy and was.id not in now_dummy:
+            if is_dummy(was) and was.id not in now_dummy:
                 self._leave_dummy(was)
         self.config_changed.emit(config)
         self.mapauto.settings_changed(previous)

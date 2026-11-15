@@ -1,4 +1,4 @@
-// The Web group of the settings form: the switch for network access, the access key and the addresses.
+// The Web group of the settings form: the switch for network access, the access key and the code a phone opens the page from.
 import { flushPromises, mount } from "@vue/test-utils";
 import { shown } from "@/test/shown";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,8 @@ import { openedAt, resetSeen } from "@/test/fakealert";
 import { FakeFetch } from "@/test/fakefetch";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import { configValues } from "@/test/fixtures";
+import { qrMatrix, qrPath } from "@/lib/qr";
+import { shallowRef } from "vue";
 
 const ON = { "web/network": "true", "web/key": "k7m2-x9pq-4hrt" };
 
@@ -22,6 +24,9 @@ afterEach(() => {
   resetSeen();
 });
 
+/** The row of the phone code. */
+const codeRow = (wrapper: ReturnType<typeof make>["wrapper"]) => wrapper.find(".field:has(#set-web-code-label)");
+
 describe("the network access", () => {
   it("has a switch labelled Allow access from the network, off by default, and applies it at once", async () => {
     const { wrapper, send } = make();
@@ -33,11 +38,12 @@ describe("the network access", () => {
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } });
   });
 
-  it("shows neither the key nor the addresses while the network is off, or before the daemon has made a key", () => {
+  it("shows neither the key nor the code while the network is off, or before the daemon has made a key", () => {
     expect(make().wrapper.find("#set-web-key").exists()).toBe(false);
     expect(make({ "web/network": "true" }).wrapper.find("#set-web-key").exists()).toBe(false);
     expect(make({ "web/key": "k7m2-x9pq-4hrt" }).wrapper.find("#set-web-key").exists()).toBe(false);
-    expect(make({}, ["http://192.168.1.20:7303/"]).wrapper.find("#set-web-url-0").exists()).toBe(false);
+    expect(make({}, ["http://192.168.1.20:7303/"]).wrapper.find(".phonecode").exists()).toBe(false);
+    expect(make({ "web/network": "true" }, ["http://192.168.1.20:7303/"]).wrapper.find(".phonecode").exists()).toBe(false);
   });
 
   it("does not show the key of a switch that is only turned on in the form, until the daemon has made one", async () => {
@@ -46,17 +52,48 @@ describe("the network access", () => {
     expect(wrapper.find("#set-web-key").exists()).toBe(false);
   });
 
-  it("shows the access key, read-only, and the addresses to open the page at, once the network is on", () => {
+  it("shows the access key, read-only, and under it the code a phone opens the page from, once the network is on", () => {
     const { wrapper } = make(ON, ["http://192.168.1.20:7303/", "http://raspberrypi.local:7303/"]);
     const key = wrapper.find<HTMLInputElement>("#set-web-key");
     expect(key.element.value).toBe("k7m2-x9pq-4hrt");
     expect(key.attributes("readonly")).toBeDefined();
     expect(wrapper.find("label[for='set-web-key']").text()).toBe("Access key");
-    expect(wrapper.findAll(".urls input").map((i) => (i.element as HTMLInputElement).value)).toEqual([
-      "http://192.168.1.20:7303/",
-      "http://raspberrypi.local:7303/",
-    ]);
-    expect(wrapper.find("label[for='set-web-url-0']").text()).toBe("Open at");
+    const row = codeRow(wrapper);
+    expect(row.find("#set-web-code-label").text()).toBe("Open on a phone");
+    const code = row.find("svg.phonecode");
+    expect(code.attributes("role")).toBe("img");
+    expect(code.attributes("aria-labelledby")).toBe("set-web-code-label");
+    expect(key.element.closest(".field")?.nextElementSibling).toBe(row.element);
+  });
+
+  it("holds in the code the first address with the key after #, and prints neither the address, the port nor the key", () => {
+    const { wrapper } = make(ON, ["http://192.168.1.20:7303/", "http://raspberrypi.local:7303/"]);
+    const row = codeRow(wrapper);
+    expect(row.find("path").attributes("d")).toBe(qrPath(qrMatrix("http://192.168.1.20:7303/#key=k7m2-x9pq-4hrt")).d);
+    for (const inside of ["192.168", ".local", ":7303", "k7m2", "x9pq", "4hrt", "#key"]) expect(row.html()).not.toContain(inside);
+    expect(row.findAll("input")).toHaveLength(0);
+  });
+
+  it("has no code while the daemon has no address for other devices", () => {
+    const { wrapper } = make(ON, []);
+    expect(wrapper.find("#set-web-key").exists()).toBe(true);
+    expect(wrapper.find(".phonecode").exists()).toBe(false);
+    expect(wrapper.find("#set-web-code-label").exists()).toBe(false);
+  });
+
+  it("draws the new key into the same code when the key is renewed, its box and its size in modules kept", async () => {
+    const config = shallowRef(configValues(ON));
+    config.value.urls = ["http://192.168.1.20:7303/"];
+    const wrapper = mount(SettingsForm, { global: withDaemon(fakeDaemon({ config })) });
+    const before = wrapper.find("svg.phonecode");
+    const [box, d] = [before.attributes("viewBox"), before.find("path").attributes("d")];
+    config.value = { ...config.value, values: { ...config.value.values, "web/key": "abcd-efgh-jkmn" } };
+    await flushPromises();
+    const after = wrapper.find("svg.phonecode");
+    expect(after.element).toBe(before.element);
+    expect(after.attributes("viewBox")).toBe(box);
+    expect(after.find("path").attributes("d")).not.toBe(d);
+    expect(after.find("path").attributes("d")).toBe(qrPath(qrMatrix("http://192.168.1.20:7303/#key=abcd-efgh-jkmn")).d);
   });
 
   it("makes a new key only on the second press, and says so in the toast when the daemon does not answer", async () => {
@@ -81,7 +118,7 @@ describe("the network access", () => {
     await button()?.trigger("click");
     await button()?.trigger("click");
     await flushPromises();
-    expect(say).toHaveBeenCalledExactlyOnceWith("No answer from the daemon.");
+    expect(say).toHaveBeenCalledExactlyOnceWith("No answer from NeoAPRS.");
   });
 });
 

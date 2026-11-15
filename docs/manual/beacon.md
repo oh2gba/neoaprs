@@ -16,9 +16,7 @@ A first transmission on the air is not tried by NeoAPRS's tests, which never ope
 
 The **Beacon** choice is the one control that switches the beacon on and off. A fixed station chooses **Off**, **Every 30 min**, **Every 60 min** or **Every 3 hours**; a moving station (a GPS is chosen) chooses **Off** or **On (SmartBeaconing)**. The setting is `beacon/interval_min`, where 0 is off for both kinds of station. The default is off, so an upgrade never starts to transmit, and the setup guide gives a new station a beacon every 30 minutes.
 
-The one Beacon choice is both radios' ([the Mercury HF modem](radio.md#the-mercury-hf-modem)): on the HF radio the floor is 30 minutes (a shorter interval is raised to it there, and the log says so once, for the HF radio), the FM beacon goes at the interval chosen and the HF beacon at its interval plus a random pause of up to five minutes, so that the two drift a few minutes apart.
-
-Behind the status row's arrow a line per radio says each one's last and next beacon while both are on. Over HF the beacon is a timed one, SmartBeaconing is the FM radio's: a moving station's HF beacon says where it is now at the stored interval (On stores 30 minutes) and sends nothing without a fresh fix.
+The one Beacon choice is the station's, for every radio it goes out on ([below](#the-beacon-on-several-radios)).
 
 While the beacon is **Off**:
 
@@ -29,6 +27,17 @@ While the beacon is **Off**:
 * Only the **timing** is shown **greyed out, with its value kept**: **Travelling** and the status's **Every**. What is sent (the location, the symbol, the comment, the antenna, the path, the status text) stays editable, for **Beacon now** sends it. A header mark **Beacon off** (grey) says so, and opens this tab.
 
 Choosing an interval, or **On**, turns it all on again. Choosing **On** for a moving station that was off stores the interval of 30 minutes, which a moving station does not use but which keeps the setting valid.
+
+## The beacon on several radios
+
+With one radio on, the beacon goes out on it and nothing here applies. With several radios on that can send:
+
+- **Send on**, under the Beacon choice, has a tick for each radio that is on and can send, by its name (a radio that only receives has none, [radio.md](radio.md#what-each-radio-does-and-what-the-station-does-once)). The beacon goes out on every radio that is ticked, and a change applies at once. The last tick that is ticked is greyed, so that the beacon is switched off by the Beacon choice alone. A new radio is ticked.
+- **The interval** is the one you chose, raised for each radio to that radio's own floor. A fixed station's beacon on an HF or a LoRa radio goes every 30 minutes at the most often, each with a random pause of up to five minutes; a moving station's on a LoRa radio follows SmartBeaconing, as on FM. An FM radio keeps the interval chosen: 20 minutes is 20 minutes on FM, beside an HF radio that sends every 30.
+- **The state of the beacon** says the latest and the soonest of the radios, and behind its arrow a line for each radio, by its name, with its last and next beacon and its own interval.
+- **SmartBeaconing** is one plan for the station, the GPS's. It applies on each radio that allows it (FM and LoRa); an HF radio sends the timed beacon with the latest fix, at the stored interval (On stores 30 minutes), and nothing without a fresh fix.
+- **The path** is each radio's own: under Advanced there is a **Path** row for each radio that may carry one, labelled by its name ("FM: path"). An HF radio has none: every frame on HF goes direct.
+- **Beacon now** goes on every ticked radio and is on while one of them is connected. **Send status now** goes on the main radio ([radio.md](radio.md#the-main-radio)), and so does the timed status.
 
 ## RX only
 
@@ -48,11 +57,11 @@ Set the beacon to [Off](#beacon-off), or to every 30 minutes, every 60 minutes o
 The first beacon goes out 30 seconds after the daemon starts, so that the radio and the TNC settle first. After that one goes out every interval, counted from the latest beacon, however it was sent.
 
 - **A restart does not send another.** The time of each beacon is kept. A daemon that starts less than an interval after the last beacon sends its first one an interval after that one, not 30 seconds after the start.
-- **A beacon that falls due while the radio is away is not skipped.** If the TNC is not connected or the radio is silent (switched off at night), the beacon stays due. The log says once `the beacon is due and the radio is silent: it goes out when the radio is back`. The first second the radio is usable again one beacon goes out, however many intervals went by, and the next is an interval after it.
+- **A beacon that falls due while the radio is away is not skipped.** If a radio is not connected or is silent (switched off at night), the beacon stays due on it. The log says once `the beacon is due and the radio is silent: it goes out when the radio is back`. The first second the radio is usable again one beacon goes out on it, however many intervals went by, and the next is an interval after it.
 - **A frame the TNC refuses** (it is settling after entering KISS, or the write failed) is tried again 5 seconds later, six refusals in all. Then that interval is skipped and the next is the first interval boundary after now.
 - **Beacon now** and a changed interval count from the kept time. Saving a new interval takes effect at once, and 0 (Off) stops the timer.
 
-The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of the radio's path (`radio/<id>/path`). Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
+The beacon is a packet from your call to the tocall `APZNEO`, by the digipeaters of that radio's **Path** (Advanced; `radio/<id>/path`). Its information field starts with `=` (a station that takes messages), then your position rounded to the hundredth of a minute, your symbol and your comment. With the defaults (a house, the recommended path of a fixed station) it is:
 
 ```
 OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS
@@ -60,11 +69,12 @@ OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS
 
 A station that stays sends the plain uncompressed form, which every receiver reads; a moving station sends a compressed position ([Mobile operation](#mobile-operation)). `APZNEO` is in the experimental range of destination calls. Every frame NeoAPRS sends carries it: the beacon, status, messages and their acks, answers to queries, objects and bulletins.
 
-The **path** (Advanced) is one choice:
+The **path** (Advanced) is one choice, for each radio that may carry a path (with several radios on, one row for each, labelled by its name):
 
 - **Recommended**, the default, which goes by your station's type. The type is the **symbol** of your station; there is no setting for it. The choice names the path of the symbol you have, and follows it when you change the symbol.
   - A moving or carried station is **Recommended (WIDE1-1,WIDE2-1)**: a small digipeater nearby picks the packet up first and a wide-area one carries it on. Its symbol is a car, truck, van, bus, jeep, motorcycle, bicycle, jogger, wheelchair, boat, ship, canoe, yacht, aircraft, helicopter, glider, balloon, snowmobile, horse, farm vehicle, recreational vehicle, ambulance, fire truck or police car, with any overlay.
   - Any other symbol is a fixed station, which reaches a wide-area digipeater directly and needs no fill-in hop: **Recommended (WIDE2-2)**.
+  - On a LoRa radio, Recommended is WIDE1-1, whatever the symbol.
 - **Direct only (no digipeaters)**, for a station that everyone you talk to hears directly.
 - **Custom...**, which shows a field for up to 8 calls separated by commas, each a call with an optional SSID: `WIDE2-1`, say. A path that is neither of the first two shows as Custom, `WIDE1-1,WIDE2-1` typed in included, and stays as it is when you change the symbol.
 
@@ -95,7 +105,9 @@ PHG is written `PHGphgd`:
 
 ## Beacon now
 
-The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details. **Beacon now** is the row under it, **Send now**: a button that asks twice ("Really send?"). It is off while the TNC is not connected, while a change of the settings is being saved (so what is sent is what is in force), and in [RX only](#rx-only), with a tip that says so; [Off](#beacon-off) does not. The next beacon of the timer is then an interval later.
+The **state of the beacon** is one row under the Beacon choice, the same row as the radio's on the Settings tab: the state in its colour, one quiet line, and an arrow that opens the details.
+
+**Beacon now** is the row under it, **Send now**: a button that asks twice ("Really send?"). It is off while no radio it goes out on is connected (its title then says "The TNC is not connected", or "FM: not connected" with the radio's name while several are on), while a change of the settings is being saved (so what is sent is what is in force), and in [RX only](#rx-only), with a tip that says so; [Off](#beacon-off) does not. The next beacon of the timer is then an interval later.
 
 For a fixed station the state is **on** while the timer runs and **off** while it does not, and the line says when the last beacon went and when the next is due: **Last beacon 4 min ago · next in 56 min (every 60 min)**. The full time of the last beacon is behind the arrow. With the beacon off it reads **No automatic beacon · Beacon now still sends**; in RX only the state is **off** in the warn colour and the line reads **RX only: nothing is sent**. Before the first beacon of a run it reads **No beacon sent yet · next in 5 min (every 30 min)**.
 
@@ -112,7 +124,7 @@ What to set (the Station and Beacon groups of the My station tab):
 1. **Position**: **A GPS via gpsd** reads a gpsd daemon (on this computer or another one on the network; its address, **gpsd address**, is `gps/host`, `127.0.0.1:2947` by default). **A GPS on a serial port** reads the NMEA sentences of a GPS receiver (**GPS port**, `gps/device`, such as `/dev/ttyUSB1`, at **GPS speed**, `gps/baud`: 4800 is NMEA's own speed, and many USB receivers speak 9600). Keep the GPS apart from the radio's port.
 
    The port is picked from the serial ports of the computer, as the radio's is: **not set** first, then the ports listed, **Refresh** for a cable just plugged in, and **Other...** to type a path or a `socket://host:port`. Choosing a GPS is never refused for a missing port or address: the GPS state then reads Connecting and says what to give (**no port set** or **no address set**), and nothing is opened until it is given.
-2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below.
+2. **Travelling** in the Beacon group (`beacon/travel`), if you are not going by car: see below. It is there while a radio that is on does SmartBeaconing (an FM or a LoRa radio).
 3. A symbol of a moving station (a car, say), which also makes the recommended path `WIDE1-1,WIDE2-1`.
 
 The GPS is read as soon as a source is chosen, so you can see the fix before the first beacon, and also while the beacon is Off. The log says `gps: reading` and the address or port when the GPS is read, and `gps: off` when you choose Fixed again.
@@ -212,7 +224,7 @@ A symbol made to carry a letter or a digit (a digipeater, a car, a gateway) has 
 
 ## The status
 
-A status report is a text line that tells what you are doing. It goes out as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
+A status report is a text line that tells what you are doing. It goes out on the main radio as one packet from your call to the tocall, by the beacon's path: `>`, the day, hour and minute in UTC and a `z`, then the text.
 
 **Where it comes from** is the choice **Status**, the setting `status/source`:
 
@@ -245,15 +257,15 @@ OH2GBA>APZNEO,WIDE2-2:>211200zQRV 14.074 MHz USB
 
 The status row says when the last status went and when the next is due (**Last sent 4 min ago · next in 26 min (every 30 min)**, or **Not sent yet**); in RX only it is **off: RX only: nothing is sent**.
 
-**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval. The interval counts from it. It is disabled, with a tip, only in [RX only](#rx-only) and while the TNC is not connected; [Off](#beacon-off) does not stop it.
+**Send status now** is a button at the top of the Status group, beside the status line, there only while the status is not off. It asks twice, acts on the saved settings and sends the status at once, inside the interval. The interval counts from it. It goes out on the main radio, and is disabled, with a tip, only in [RX only](#rx-only) and while that radio is not connected; [Off](#beacon-off) does not stop it.
 
-It is refused when the call is not set, when the TNC is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
+It is refused when the call is not set, when the main radio is not connected, when the text is over 55 characters, when the status is off or the text empty, and with the radio as the source when rigctld is away; it says why.
 
 The status line at the top of the group shows the status last sent and, with the radio as the source, whether rigctld answers. The last text sent is also the answer to the query `?APRSS`.
 
 ## Answers to queries
 
-A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go by the path of the station that asked (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside).
+A message to your call whose text is one of these queries is answered by NeoAPRS. The text is read without regard to case or blanks. The answers are packets of their own, not messages: none is kept as a message, retried or waited for. They go back on the radio the query came in on, by the path of the station that asked on that radio (its own path, else the beacon's; for a packet an iGate wrapped, the sender inside). Over HF that is no path.
 
 | query | the answer |
 |---|---|
@@ -271,24 +283,26 @@ The general query `?APRS?` is a packet and not the text of a message (a message 
 
 It may carry the specification's target footprint, `?APRS?V34.02,-117.15,0200`: latitude and longitude in degrees (the `V` stands for a space and may be left out; a west or south value has its minus) and the radius in miles. Then you answer only when your position is inside the circle, and a footprint that does not read is not answered.
 
-The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radio hears on APRS-IS: switched on, with a passcode, logged in and verified ([Internet stations](igate.md#answering-igate)).
+The general query `?IGATE?` asks the iGates for their capabilities. It is answered only while your iGate puts what the radios hear on APRS-IS: switched on, with a passcode, logged in and verified ([Internet stations](igate.md#answering-igate)).
 
-The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour (those `?APRSD` lists) and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
+The answer to `?IGATE?` is one packet, `<IGATE,MSG_CNT=0,LOC_CNT=3,UPL_CNT=812`: no message sent from the internet to the radio (the iGate is receive only), the stations heard direct in the last hour on the radios that may carry a path, FM and LoRa and the packets put on APRS-IS since NeoAPRS started. It is taken as `?APRS?` is: a packet and not the text of a message, after a random wait of 0 to 120 seconds, not again for 10 minutes (its own 10 minutes, apart from those of `?APRS?`), with the same footprint.
 
 The general query `?WX?` (asking the weather stations for a weather report) is recognised and never answered: NeoAPRS has no weather report of its own to send, and a station that has nothing relevant need not answer. The log notes it at the debug level and the packet is an ordinary packet in the packet log.
 
 A request for local info is not a query to you; if you keep objects in a category, NeoAPRS answers it ([Objects](objects.md#objects-sent-only-when-asked)).
 
-- The answers are not retried and not sent while the TNC is not connected (the log says so). They have no message id.
+- The answers are not retried and not sent while the radio they go back on is not connected (the log says so). They have no message id.
 - The same query from the same station within 30 seconds (copies of one transmission by different digipeaters, an impatient asker) is answered once.
 - A query that cannot be answered, because the settings make no frame, is told in the log.
 - Try the queries live with a station that can ask, such as `?APRSP` from another radio or from the message form of aprs.fi.
 
 ## The fill-in digipeater
 
-The digipeater is off unless the radio's own `radio/<id>/digipeat` is `true` (Settings tab, group Digipeater, with an (i)). It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
+The digipeater is off until you tick its **Enable** in the Settings tab, group Digipeater (with an (i)): the radio's own `radio/<id>/digipeat`. It is a fill-in digipeater for a spot with poor coverage, where nearby stations cannot reach a digipeater of their own. There is nothing else to set.
 
-When it is on, NeoAPRS sends a packet it heard on the radio again, once, when the first digipeater of the packet's path that is not yet marked as used is:
+Each FM radio that is on and can send has its own Enable and its own counts; with several radios on, each is in a box named after its radio. A radio repeats only what it heard, on itself. An HF or a LoRa radio repeats nothing.
+
+When it is on, NeoAPRS sends a packet that radio heard again, once, when the first digipeater of the packet's path that is not yet marked as used is:
 
 - `WIDE1-1`. Your call, marked as used, takes its place: `OH2XYZ>APRS,WIDE1-1,WIDE2-1` goes out as `OH2XYZ>APRS,OH2GBA*,WIDE2-1`.
 - your own call with your SSID (a station routing through you on purpose). That hop is marked as used where it stands.

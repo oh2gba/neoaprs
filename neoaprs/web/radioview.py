@@ -11,8 +11,7 @@ from neoaprs.config import RX_ONLY_REASONS
 from neoaprs.loraboard import TEXT_LINES
 from neoaprs.radiospec import RadioSpec, log_name, number_in_kind
 from neoaprs.radiotype import RadioId, RadioType, RadioTypeError, ResourceKind
-from neoaprs.radiotypes import kind_field
-from neoaprs.serialprobe import claim_value
+from neoaprs.serialprobe import claim_value, keying_device
 from neoaprs.source import Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncwatchdog import TncStats as LineStats
@@ -53,7 +52,7 @@ def radio_row(spec: RadioSpec, specs: Sequence[RadioSpec], radio: RadioAtWork | 
     return RadioRow.row(
         spec, enabled=spec.enabled and not spec.removed, number=number_in_kind(spec, specs), removed=spec.removed, dummy=rtype.dummy, state=radio_state(line),
         problem=radio_problem(spec, specs, line, claims), stats=TncStats.row(LineStats() if line is None else line.stats), lines=lines, limits={"max_frame": rtype.limits.max_frame, "beacon_min_min": rtype.limits.beacon_min_min},
-        allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
+        allowed=plain(rtype.allowed), can=plain(rtype.can), choices=_choices(spec, rtype), beacon=_beacon(spec, None if radio is None or spec.removed else radio.beacon),
         modem=None if line is None else modem_state(line), holds=[{"resource": c.kind, "value": c.value} for c in claims.all() if c.holder == spec.id])
 
 
@@ -68,8 +67,8 @@ def radio_state(line: Tnc | None) -> str:
     return line.state.value
 
 
-def _choices(spec: RadioSpec) -> dict[str, Any]:
-    has = {key: kind_field(spec.kind, key) is not None for key in ("beacon", "path", "digipeat")}
+def _choices(spec: RadioSpec, rtype: RadioType) -> dict[str, Any]:
+    has = {key: rtype.field(key) is not None for key in ("beacon", "path", "digipeat")}            # (the type's fields: a text monitor has no path and does not digipeat)
     return {"beacon": bool(spec.value("beacon")) if has["beacon"] else True, "path": str(spec.value("path")) if has["path"] else None, "digipeat": bool(spec.value("digipeat")) if has["digipeat"] else None}
 
 
@@ -95,6 +94,8 @@ def radio_problem(spec: RadioSpec, specs: Sequence[RadioSpec], line: Tnc | None,
     if (held := _held_elsewhere(spec, specs, spec.rtype, claims)) is not None:
         return held
     modem = modem_state(line)
+    if modem is not None and modem.get("test"):
+        return None                                              # (Tune or the keying test has the radio: the box shows the test, never a problem; a sound-card modem's line is down meanwhile)
     if modem is not None and modem["state"] == "waiting" and modem["reason"]:
         return _problem(f"modem.{modem['reason']}")
     if line.state is Source.State.SILENT:
@@ -107,10 +108,7 @@ def radio_problem(spec: RadioSpec, specs: Sequence[RadioSpec], line: Tnc | None,
 def claimed_value(kind: str, text: str) -> str:
     """The value a radio's setting holds in the station's table of resources (claims.py): a serial port as its claim compares it, the port of a keying on a serial line (vox and cm108 hold none), a sound card as
     it is named; "" for none."""
-    text = text.strip()
-    if kind == "keying":
-        text = text.partition(":")[2] if text.partition(":")[0] in ("rts", "dtr") else ""
-    return (claim_value(text) or "") if kind in ("serial", "keying", "gps") else text
+    return (claim_value(keying_device(text) if kind == "keying" else text) or "") if kind in PORT_KINDS else text.strip()     # (a serial device as serialprobe.device_claims reads it: one rule)
 
 
 def devices(spec: RadioSpec) -> list[tuple[str, ResourceKind, str]]:

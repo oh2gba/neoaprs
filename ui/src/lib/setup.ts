@@ -6,11 +6,9 @@ import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
-import type { Choice } from "@/lib/settingchoices";
 import type { PageRadio } from "@/lib/radios";
 import { groupKeys, shownByValues } from "@/lib/settings";
 import { boxKeys, fieldOfKey, shownFor } from "@/lib/settingsradio";
-import type { PortsMessage } from "@/protocol/protocol";
 
 const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
 export const STEP_COUNT = STEP_IDS.length;
@@ -140,16 +138,6 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
   return Object.fromEntries(Object.entries(wanted).filter(([key, text]) => !sameNumber(text, values[key] ?? "")));
-}
-
-/** The ports to pick from, as a choice: "Automatic" first where the daemon looks for the radio itself, else a blank to say none is picked; each port with what the system calls it. */
-export function portChoices(ports: PortsMessage | null): Choice[] {
-  const first: Choice = ports?.search === false ? { value: "", label: "-" } : { value: "", label: t("setup.port_automatic") };
-  const rows = (ports?.ports ?? []).map((p) => ({
-    value: p.device,
-    label: p.description && p.description !== "n/a" && p.description !== p.device ? `${p.device} - ${p.description}` : p.device,
-  }));
-  return [first, ...rows];
 }
 
 /** The keys of the Radio group of the Settings tab as the form shows them, for the boxes of the Radio step. */

@@ -86,7 +86,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "jij",
   "chain.internet": "internet",
   "chain.sent": "verzonden {time}",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "verzonden {time} via set {name}",
   "chain.heard": { select: "internet", yes: "gehoord, en via internet", other: "gehoord" },
   "chain.heard_at": { select: "internet", yes: "gehoord {time}, en via internet", other: "gehoord {time}" },
   "chain.seen_internet": "gezien in een kopie die via internet terugkwam, hier niet gehoord",
@@ -99,7 +99,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "wacht op de ack",
 
   "route.button": "Route",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "Berichten aan dit station gaan via set {name}",
   "messages.may_not_message": "Dit station neemt misschien geen berichten aan",
   "messages.may_not_message_label": "Waarom misschien niet",
   "messages.may_not_message_help":
@@ -111,7 +111,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.use_auto": "Automatisch pad",
   "route.automatic": "automatisch",
   "route.auto": "Automatisch: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "Automatisch: {name}",
   "route.auto_direct": "Automatisch: direct, dan {path}",
   "route.auto_via": "Automatisch: via {heard}, dan {path}",
   "route.own": "Eigen pad: {path}",
@@ -165,7 +165,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.seen_next": { one: "Naast {call} in de routes van {n} station", other: "Naast {call} in de routes van {n} stations" },
   "pathbuilder.add_hop": "{call} toevoegen",
 
-  "compose.tnc_not_connected": "De TNC is niet verbonden",
+  "compose.tnc_not_connected": "De set is niet verbonden",
   "compose.left": "nog {n}",
   "compose.over": "{n} te veel",
   "compose.left_title.bytes": "Nog {left} van {max} bytes over",

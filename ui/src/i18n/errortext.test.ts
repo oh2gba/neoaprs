@@ -1,4 +1,4 @@
-// A refusal that names a radio, as the page says it: the daemon names the radio in its own English ("the HF 2 radio", "in use by FM") and sends its id beside (`radio`, `held_by`); given the page's radios, the
+// A refusal that names a radio, as the page says it: the daemon names the radio in its own English ("radio HF 2", "in use by radio FM") and sends its id beside (`radio`, `held_by`); given the page's radios, the
 // sentence says the radio as the page calls it (lib/radios.ts), in the page's language, and a radio the page does not know, the GPS receiver, and a page that gives no radios keep the daemon's words.
 import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
@@ -33,57 +33,61 @@ afterEach(() => setLocale("en"));
 
 describe("a refusal that names a radio", () => {
   it("says the radio by the page's name for it, from its id", () => {
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("the HF 2 radio has no modem running");
-    expect(errorReason(refusal("radio.off", { name: "Shack", radio: 4 }, "qru_ask"), names())).toBe("the Shack radio is off: turn it on first");
-    expect(errorLine(refusal("radio.no_scope", { name: "HF", radio: 2 }, "radio_scope"), names())).toBe("the HF radio has no scope");
+    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("radio HF 2 has no modem running");
+    expect(errorReason(refusal("radio.off", { name: "Shack", radio: 4 }, "qru_ask"), names())).toBe("radio Shack is off: turn it on first");
+    expect(errorLine(refusal("radio.no_scope", { name: "HF", radio: 2 }, "radio_scope"), names())).toBe("radio HF has no scope");
   });
 
-  it("says it in the page's language, also where the sentence around it is not translated yet", () => {
+  it("says it in the page's language, the radio's name with the sentence around it", () => {
     setLocale("de");
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("the KW 2 radio has no modem running");
+    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }), names())).toBe("beim Funkgerät KW 2 läuft kein Modem");
     expect(errorReason(refusal("radio.resource_held", { resource: "serial", holder: "HF", held_by: 2 }, "set_config"), names())).toBe(
-      "that device is in use by KW: choose another",
+      "das Gerät ist vom Funkgerät KW belegt: wähle ein anderes",
     );
-    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }))).toBe("the HF 2 radio has no modem running");
+    expect(errorReason(refusal("radio.no_modem", { name: "HF 2", radio: 3 }))).toBe("beim Funkgerät HF 2 läuft kein Modem");
   });
 
-  it("names the holder of a device by its id, and the GPS receiver as the daemon does", () => {
+  it("names the holder of a device by its id, and the GPS receiver by its own words", () => {
     expect(errorReason(refusal("radio.resource_held", { resource: "serial", holder: "Shack", held_by: 4 }, "set_config"), names())).toBe(
-      "that device is in use by Shack: choose another",
+      "the device is in use by radio Shack: choose another",
     );
     expect(errorReason(refusal("radio.resource_held", { resource: "gps", holder: "GPS", held_by: 0 }, "set_config"), names())).toBe(
-      "that device is in use by GPS: choose another",
+      "the device is in use by the GPS receiver: choose another",
     );
   });
 
   it("keeps the daemon's words for a radio the page does not know, and the name typed of a name that is taken", () => {
-    expect(errorReason(refusal("radio.no_line", { name: "FM 4", radio: 9 }, "find_radio"), names())).toBe("the FM 4 radio has no serial line to look for");
+    expect(errorReason(refusal("radio.no_line", { name: "FM 4", radio: 9 }, "find_radio"), names())).toBe("radio FM 4 has no serial line to look for");
     expect(errorReason(refusal("radio.name_taken", { name: "Mobile", radio: 4 }, "radio_add"), names())).toBe(
       "the name 'Mobile' is another radio's already: give this one another",
     );
   });
 
   it("says a removed radio is removed, by its name, and a radio that never was by its number", () => {
-    expect(errorReason(refusal("radio.unknown", { radio: 5, name: "FM 3", removed: 1 }, "radio_change"), names())).toBe("the FM 3 radio is removed");
+    expect(errorReason(refusal("radio.unknown", { radio: 5, name: "FM 3", removed: 1 }, "radio_change"), names())).toBe("radio FM 3 is removed");
     expect(errorReason(refusal("radio.unknown", { radio: 9 }, "radio_change"), names())).toBe("there is no radio 9");
     setLocale("de");
-    expect(errorReason(refusal("radio.unknown", { radio: 3, name: "HF 2", removed: 1 }, "radio_change"), names())).toBe("the KW 2 radio is removed");
+    expect(errorReason(refusal("radio.unknown", { radio: 3, name: "HF 2", removed: 1 }, "radio_change"), names())).toBe("das Funkgerät KW 2 wurde entfernt");
   });
 
   it("says the kind of a radio that takes only a type of its own kind by the page's word for it", () => {
     setLocale("de");
     expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "HF", name: "HF 2", radio: 3 }, "radio_change"), names())).toBe(
-      "the KW 2 radio takes only a type of its own kind (KW)",
+      "das Funkgerät KW 2 nimmt nur einen Typ seiner Art (KW)",
     );
     expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "HF", name: "HF 2", radio: 3 }, "radio_change"))).toBe(
-      "the HF 2 radio takes only a type of its own kind (HF)",
+      "das Funkgerät HF 2 nimmt nur einen Typ seiner Art (HF)",
     );
+    const sentence = {
+      en: (word: string) => `radio Mast takes only a type of its own kind (${word})`,
+      de: (word: string) => `das Funkgerät Mast nimmt nur einen Typ seiner Art (${word})`,
+    };
     for (const locale of ["en", "de"] as const) {
       setLocale(locale);
       for (const kind of ["fm", "hf", "lora"] as const) {
         const one: RadioNames = { byId: () => ({ name: "Mast", kind }) };
         expect(errorReason(refusal("radio.type_kind", { type: "kiss", kind: "LoRa", name: "LoRa", radio: 7 }, "radio_change"), one)).toBe(
-          `the Mast radio takes only a type of its own kind (${radioLabel({ name: "", kind, number: 1 })})`,
+          sentence[locale](radioLabel({ name: "", kind, number: 1 })),
         );
       }
     }

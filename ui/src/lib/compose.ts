@@ -20,7 +20,7 @@ export function radioBlockedReason(radio: PageRadio | null | undefined, named: b
 
 /** The title of every button that sends while transmitting is switched off. */
 export function rxOnlyReason(): string {
-  return t("pill.rx_send");
+  return t("error.transmit.off");
 }
 
 /** What is left of a limit, for the counter of a box: "12 left", or "3 over" when the text is too long. */

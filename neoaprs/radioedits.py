@@ -10,7 +10,9 @@ from .config import Config
 from .radiodriver import RunOverrides
 from .radiospec import FM_ID, KIND_WORDS, RadioError, RadioId, RadioSpec, check_name, enabled, log_name
 from .radiosql import CHANGEABLE
-from .radiotypes import type_of
+from .radioregistry import unavailable_types
+from .radiotypes import BY_KEY, type_of
+from .radiotype import RadioTypeError
 from .store import RadioWrite
 
 
@@ -64,6 +66,9 @@ def refusal(before: Iterable[RadioSpec], after: Iterable[RadioSpec]) -> str | No
 
 
 # ---- the checks of the operator's changes
+MAX_POSITION = 2**31 - 1        # the last place a radio may be given: the next radio added (one place after the last) still fits the database's integer
+
+
 def put(config: Config, spec: RadioSpec) -> Config:
     """The settings with this radio in the place of the one of its id, or added."""
     others = tuple(s for s in config.radios if s.id != spec.id)
@@ -79,8 +84,8 @@ def live_radio(config: Config, id: RadioId) -> RadioSpec:
 
 
 def _refuse_last(config: Config, spec: RadioSpec, what: str) -> None:
-    if spec.enabled and [s.id for s in enabled(config.radios)] == [spec.id]:
-        raise RadioError(f"the {log_name(spec, config.radios)} radio is the last one that is enabled: a station has at least one, so it cannot be {what}; turn another radio on first",
+    if spec.enabled and [s.id for s in enabled(config.radios) if s.type in BY_KEY] == [spec.id]:      # (a radio of a type this build does not have runs nothing: radioregistry.py)
+        raise RadioError(f"radio {log_name(spec, config.radios)} is the last one that is enabled: a station has at least one, so it cannot be {what}; turn another radio on first",
                          "radio.last_enabled", name=log_name(spec, config.radios))
 
 
@@ -88,6 +93,8 @@ def new_radio(config: Config, type: str, name: str = "", on: bool = True) -> Rad
     """A radio of the type to add, after the others (its id 0 until it is stored: the database gives it one that no radio had before); RadioTypeError for a type that is none, RadioError for a name that
     cannot be."""
     rtype = type_of(type)
+    if rtype.key in unavailable_types():
+        raise RadioTypeError(f"{rtype.key!r} is not a type of radio of this installation (its program is not carried here)", "radio.unknown_type", type=rtype.key)
     live = config.live_radios
     return RadioSpec(0, rtype.kind, rtype.key, check_name(name, live, None), on, max((s.position for s in live), default=0) + 1)
 
@@ -102,9 +109,11 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
         new = replace(new, name=check_name(str(columns["name"]), config.live_radios, id))
     if "type" in columns:
         rtype = type_of(str(columns["type"]))
+        if rtype.key in unavailable_types():
+            raise RadioTypeError(f"{rtype.key!r} is not a type of radio of this installation (its program is not carried here)", "radio.unknown_type", type=rtype.key)
         if rtype.kind != spec.kind:
             key, name = f"radio/{id}/type", log_name(spec, config.radios)
-            raise RadioError(f"{key}: {rtype.key} is a type of another kind of radio than the {name} radio ({KIND_WORDS[spec.kind]})", "radio.type_kind", type=rtype.key, kind=KIND_WORDS[spec.kind], name=name)
+            raise RadioError(f"{key}: {rtype.key} is a type of another kind than radio {name} ({KIND_WORDS[spec.kind]})", "radio.type_kind", type=rtype.key, kind=KIND_WORDS[spec.kind], name=name)
         new = replace(new, type=rtype.key)
     if "enabled" in columns:
         if not isinstance(columns["enabled"], bool):
@@ -114,8 +123,8 @@ def changed_radio(config: Config, id: RadioId, columns: Mapping[str, object]) ->
         new = replace(new, enabled=columns["enabled"])
     if "position" in columns:
         position = columns["position"]
-        if not isinstance(position, int) or isinstance(position, bool) or position < 1:
-            raise RadioError(f"radio/{id}/position: a whole number from 1, not {position!r}")
+        if not isinstance(position, int) or isinstance(position, bool) or not 1 <= position <= MAX_POSITION:
+            raise RadioError(f"radio/{id}/position: a whole number from 1 to {MAX_POSITION}, not {position!r}")
         new = replace(new, position=position)
     return new
 

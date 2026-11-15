@@ -420,6 +420,7 @@ export function modemState(extra: Partial<ModemState> = {}): ModemState {
     scope: false,
     tx_gain_db: 0,
     tx_peak_dbfs: null,
+    rx_level: null,
     ...extra,
   };
 }
@@ -643,6 +644,7 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     beacon_next_due: null,
     main_radio: 1,
     email_radio: 1,
+    unavailable_types: [],
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",
@@ -706,6 +708,30 @@ export function radiosOf(connected = true): Map<string, RadioRow> {
   return radiosTopic(radioRow(1, "kenwood-tnc2", { state: connected ? "connected" : "waiting" }));
 }
 
+/** The modem of a Sound card radio (Direwolf) running on its card, no packet heard yet; a test gives what it cares about. */
+export function soundCardModem(extra: Partial<ModemState> = {}): ModemState {
+  return {
+    state: "running",
+    problem: "",
+    reason: "",
+    mode: "AFSK1200",
+    keyed: false,
+    busy: false,
+    test: "",
+    snr: null,
+    frames_keyed: 0,
+    max_frame: null,
+    sound_card: "plughw:CARD=AIOC,DEV=0",
+    frequencies: [],
+    keying: "cm108",
+    scope: false,
+    tx_gain_db: 0,
+    tx_peak_dbfs: null,
+    rx_level: null,
+    ...extra,
+  };
+}
+
 /** A radio of the topic `radios`, as the daemon tells it: of the type given, on, connected, at its own place, with what its type may and can do; a test gives what it cares about. */
 export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}): RadioRow {
   const known = RADIO_TYPES.find((entry) => entry.key === type);
@@ -729,7 +755,7 @@ export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}
     can: { ...known.can },
     choices: { beacon: true, path: known.allowed.paths ? "" : null, digipeat: known.allowed.digipeat ? false : null },
     beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null },
-    modem: known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,
+    modem: type === "direwolf" ? soundCardModem() : known.kind === "hf" && !type.startsWith("dummy") ? modemState() : null,
     holds: [],
     ...extra,
   };

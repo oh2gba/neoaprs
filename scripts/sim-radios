@@ -17,6 +17,7 @@ The daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0 on a 
 nothing but this computer, and nothing goes on any air. Exit code 0 when every radio did what it should, 1 at the first that did not (with the end of the daemon's log), 2 for a wrong argument."""
 import argparse
 import asyncio
+import contextlib
 import importlib.util
 import os
 import re
@@ -25,6 +26,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from collections.abc import Callable, Iterator
 from types import ModuleType
 from typing import Any
 
@@ -162,11 +164,16 @@ async def run(args: argparse.Namespace) -> None:
         others = [id for id in ids if any(m.get("radio_id") == id for m in (page.topics.get("packets") or {}).values() if m.get("direction") == "out" and m.get("kind") == "message") and id not in homes]
         if others:
             raise smoke.Failure(f"a message went out on radios no message was for: {others}")
+
+        def end() -> None:
+            page.close()
+            smoke.check_the_end(data, smoke.stop_gracefully(daemon, args.timeout))
+
         if args.keep:
             say(f"the page of the six radios is at {base} (Ctrl+C stops the daemon)")
-            await wait_for_interrupt(daemon)
-        page.close()
-        smoke.check_the_end(data, smoke.stop_gracefully(daemon, args.timeout))
+            await keep_then_stop(daemon, end)
+        else:
+            end()
     except smoke.Failure as error:
         print(f"sim-radios: FAILED: {error}\n--- the end of the log ---\n{smoke.log_tail(data)}", file=sys.stderr)
         raise
@@ -194,23 +201,43 @@ def wait_for_page(daemon: "subprocess.Popen[bytes]", log: Path, offset: int, sec
     raise smoke.Failure(f"no 'web page at' line in the log within {seconds:g} s")
 
 
-async def wait_for_interrupt(daemon: "subprocess.Popen[bytes]") -> None:
-    """Until Ctrl+C, or until the daemon ends by itself (a Failure: nobody stopped it)."""
-    stop = asyncio.Event()
+@contextlib.contextmanager
+def ctrl_c_only_stops(stop: asyncio.Event) -> Iterator[None]:
+    """While in it, Ctrl+C (a second one too) only sets `stop`, on Windows too, where asyncio.run would otherwise cancel the run (the daemon killed, not stopped, and a traceback). The SIGINT of before
+    (asyncio.run's) is given back after, on POSIX too, where the loop's own removal would leave Python's default in its place."""
     loop = asyncio.get_running_loop()
-    if not smoke.WINDOWS:
+    previous = signal.getsignal(signal.SIGINT)
+    if smoke.WINDOWS:
+        signal.signal(signal.SIGINT, lambda *_: loop.call_soon_threadsafe(stop.set))
+    else:
         loop.add_signal_handler(signal.SIGINT, stop.set)
     try:
-        while not stop.is_set():
-            if daemon.poll() is not None:
-                raise smoke.Failure(f"the daemon ended by itself with exit code {daemon.returncode}")
-            try:
-                await asyncio.wait_for(stop.wait(), 1.0)
-            except TimeoutError:
-                continue
-    except KeyboardInterrupt:
-        pass
+        yield
+    finally:
+        if not smoke.WINDOWS:
+            loop.remove_signal_handler(signal.SIGINT)
+        signal.signal(signal.SIGINT, previous)
+
+
+async def wait_for_interrupt(daemon: "subprocess.Popen[bytes]", stop: asyncio.Event) -> None:
+    """Until Ctrl+C sets `stop`, or until the daemon ends by itself (a Failure: nobody stopped it)."""
+    while not stop.is_set():
+        if daemon.poll() is not None:
+            raise smoke.Failure(f"the daemon ended by itself with exit code {daemon.returncode}")
+        try:
+            await asyncio.wait_for(stop.wait(), 1.0)
+        except TimeoutError:
+            continue
     say("stopping the daemon")
+
+
+async def keep_then_stop(daemon: "subprocess.Popen[bytes]", stop_daemon: Callable[[], None]) -> None:
+    """--keep: the daemon up until Ctrl+C, then `stop_daemon` (the stop a service manager makes and the checks of the end, up to --timeout). Ctrl+C only says stop until the checks are done: a second one
+    during the stop would otherwise cut it short, the daemon killed and a traceback."""
+    stop = asyncio.Event()
+    with ctrl_c_only_stops(stop):
+        await wait_for_interrupt(daemon, stop)
+        stop_daemon()
 
 
 def main() -> int:

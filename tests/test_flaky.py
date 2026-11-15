@@ -363,6 +363,7 @@ MODULES = {"test_a.py": "def test_1():\n    pass\n\n\ndef test_2():\n    pass\n\
 
 
 def collected(folder: Path, *options: str) -> list[str]:
+    (folder / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")         # (the child's own configuration: a folder inside a checkout, as --basetemp under work/ is, would otherwise give it the checkout's -q)
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     done = subprocess.run([sys.executable, "-m", "pytest", "-p", "tests.support.shuffle", "-p", "no:cacheprovider", "--rootdir", str(folder), "--collect-only", "-q", str(folder), *options], cwd=folder, env=env,
                           capture_output=True, text=True, timeout=PATIENCE_SEC, check=False)

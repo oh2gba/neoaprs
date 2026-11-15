@@ -12,12 +12,12 @@ import { typeChoices } from "@/lib/settingsradio";
 
 const props = withDefaults(defineProps<{ id?: string }>(), { id: "set-radio-add" });
 const emit = defineEmits<{ added: [type: string] }>();
-const { send } = useDaemonContext();
+const { send, status } = useDaemonContext();
 const chosen = ref("");
 const info = computed<FieldInfo>(() => ({
   label: t("radio.add"),
   kind: "choice",
-  choices: [{ value: "", label: t("settings.profile.label") }, ...typeChoices()],
+  choices: [{ value: "", label: t("settings.profile.label") }, ...typeChoices(undefined, status.value?.unavailable_types)],
   tipLabel: t("settings.profile.tip_label"),
   tip: [t("settings.profile.tip1"), t("settings.profile.tip2")],
 }));

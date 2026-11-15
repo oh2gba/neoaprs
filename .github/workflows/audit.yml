@@ -1,6 +1,7 @@
 # The weekly audit: the packages of uv.lock and ui/package-lock.json asked of the advisory lists (osv-scanner, `scripts/check --stage audit`; osv-scanner.toml lists what is set aside, each with its reason and the day it
-# ends). A package gets an advisory without a push, so the check is run by the clock as well as by hand. It is a workflow of its own and not a job of ci.yml: the release asks for a green run of ci.yml by the commit
-# (release.yml, `verify`), and a scheduled run of ci.yml on the head of master would be one. No secrets, nothing is published.
+# ends), and GitHub's runners against packaging/ci/runner.json (the job `latest`, and scripts/runner-facts in the same stage). A package gets an advisory and GitHub moves an image without a push,
+# so the check is run by the clock as well as by hand. It is a workflow of its own and not a job of ci.yml: the release asks for a green run of ci.yml by the commit (release.yml, `verify`), and a
+# scheduled run of ci.yml on the head of master would be one. No secrets, nothing is published.
 name: audit
 
 on:
@@ -13,7 +14,7 @@ permissions:
 
 jobs:
   audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,9 +22,39 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --frozen
       - name: The pinned osv-scanner (scripts/security-tools)
         run: python3 scripts/security-tools osv-scanner
+      # The stage also reads what GitHub publishes of its runners (scripts/runner-facts --published --announcements): the readme of the image runner.json follows, and the open announcements that name
+      # one of our runners and have not been read. The job's own token only lifts the API's limit for anonymous requests.
       - run: scripts/check --stage audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Whether each -latest label is still the system the workflows name (packaging/ci/runner.json, "latest"). The workflows run on named runners, so this job is what says, within a week, that GitHub
+  # has moved a label and the names are due to move with it (docs/MAINTAINING.md, "When GitHub moves an image").
+  latest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false     # (no later step uses git with the job's token)
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: false     # (nothing is installed: the script needs the standard library only)
+      - run: uv run --no-project python scripts/runner-facts --latest "$LABEL" --github
+        env:
+          LABEL: ${{ matrix.os }}

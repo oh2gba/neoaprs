@@ -19,7 +19,7 @@ from neoaprs.cli.daemonstate import page_url
 from neoaprs.cli.logfile import LOG_NAME
 from neoaprs.updateasset import wheel_version
 from tests.conftest import ROOT
-from tests.support.proc import NEW_GROUP, stop
+from tests.support.proc import NEW_GROUP, STOP_PATIENCE_SEC, stop
 
 WHEEL_VERSION = VERSION.replace("-rc", "rc")                  # (the wheel's file name and its dist-info folder have the version as PEP 440 writes it: 0.10.0-rc1 is 0.10.0rc1)
 pytestmark = [pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed: the wheel is not built"), pytest.mark.xdist_group("package")]      # (one worker: the builds and installs of uv are one at a time, and a runner has the time for that)
@@ -130,7 +130,7 @@ def test_the_installed_replay_plays_the_sample_that_is_in_the_package(installed:
         assert proc.stdout.readline().startswith("socket://127.0.0.1:"), "it listens: the sample was found in the package"
     finally:
         stop(proc)
-        proc.communicate(timeout=30)
+        proc.communicate(timeout=STOP_PATIENCE_SEC)
 
 
 def test_the_installed_package_finds_its_page_and_unit_template_and_its_daemon_serves_the_page(installed: Path, tmp_path: Path) -> None:
@@ -159,5 +159,5 @@ def test_the_installed_package_finds_its_page_and_unit_template_and_its_daemon_s
             assert response.status == 200
     finally:
         stop(daemon)
-        out, err = daemon.communicate(timeout=30)
+        out, err = daemon.communicate(timeout=STOP_PATIENCE_SEC)
     assert daemon.returncode == 0, err

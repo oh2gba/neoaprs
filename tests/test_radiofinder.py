@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from neoaprs import serialprobe
+from neoaprs import serialprobe, tncsearch
 from neoaprs.claims import Claim, Claims
 from neoaprs.coded import CodedError
 from neoaprs.radiosearch import Found
@@ -290,3 +290,23 @@ async def test_the_log_says_which_ports_are_tried_and_what_the_search_found(capl
     said = [r.getMessage() for r in caplog.records if r.name == "neoaprs.tnc"]
     assert said == [f"find the radio: trying {tnc.url}", f"find the radio: found on {tnc.url} at no speed, profile kiss"]
     await tnc.aclose()
+
+
+async def test_a_port_a_save_gives_a_radio_while_find_my_radio_tries_it_is_let_go_at_once_and_the_search_goes_on(caplog: pytest.LogCaptureFixture) -> None:
+    """The radio a save sets to the port opens it at its first try (tncsearch.let_go reaches Find my radio's line as it reaches the searches' listeners), and what the port said is no answer: it is that radio's."""
+    caplog.set_level(logging.INFO, "neoaprs")
+    given, other = await serve("kiss", "kiss")
+    rig = Rig([given.url, other.url], timing=Timing(listen_sec=1.5, answer_sec=0.3, pace=0.001))
+    finding = asyncio.create_task(rig.finder.find(rig.tried.append))
+    try:
+        key = serialprobe.port_key(given.url)
+        await until(lambda: key in serialprobe.LISTENING and serialprobe.LISTENING[key].is_open, 3.0)
+        tncsearch.let_go(given.url)
+        await until(lambda: given.closed == 1, 1.0)                        # (at once, not when the try of the port ends)
+        assert await finding == Found(other.url, None, "kiss")
+        assert f"passing over {given.url}: {given.url}: a radio is set to it" in caplog.text
+    finally:
+        finding.cancel()
+        await asyncio.gather(finding, return_exceptions=True)
+        await given.aclose()
+        await other.aclose()

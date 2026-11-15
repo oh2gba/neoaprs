@@ -28,7 +28,7 @@ const radios = useRadios();
 const none = computed(() => radios.email.value === null);
 /** Why Send is off: RX only, no radio for email, or its link down (`offline`); undefined when none of them. */
 const blocked = computed(() => {
-  if (!rxOnly.value && none.value) return t("email.fm_off");
+  if (!rxOnly.value && none.value) return t("email.no_gated_radio");
   return rxOnly.value || props.connected ? sendBlockedReason(props.connected, rxOnly.value) : (props.offline ?? sendBlockedReason(false));
 });
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));

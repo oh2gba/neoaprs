@@ -1,16 +1,18 @@
 // The Email tab as the page runs it: the thread with the gateway EMAIL-2, how many of its messages are not seen (only while the Email tab is on show, the panel open and the page visible, lib/unread.ts),
 // the addressees used before, and the messages the tab sends: mail, and `get` (Check email). The daemon sends a message to the gateway twice at most, the gateway's acks reaching a station only through an iGate.
-import { computed, shallowRef, watch } from "vue";
+import { computed, shallowRef, watch, type Ref } from "vue";
 import { useAddressBook } from "@/composables/useAddressBook";
 import { useReadMarks } from "@/composables/useConversations";
 import type { Panel } from "@/composables/usePanel";
 import { useVisible } from "@/composables/useVisible";
 import { GET_HELD, emailLine } from "@/lib/email";
+import { seenAtStart } from "@/lib/firststart";
 import { EMAIL_GATEWAY, newestIncomingId, threadOf, threadUnread } from "@/lib/messages";
 import { isViewingTab } from "@/lib/unread";
 import type { Command, MessageRow } from "@/protocol/protocol";
 
-export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean) {
+/** `loaded`: the daemon has told the messages whole (in a window whose store was new, what it told is seen: lib/firststart.ts). */
+export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
   const visible = useVisible();
   const viewing = computed(() => isViewingTab({ tab: panel.tab.value, collapsed: panel.collapsed.value, visible: visible.value }, "email"));
   const marks = useReadMarks();
@@ -36,6 +38,11 @@ export function useEmail(messages: ReadonlyMap<string, MessageRow>, panel: Panel
     },
     { immediate: true },
   );
+  if (loaded)
+    seenAtStart(loaded, () => {
+      marks.mark(EMAIL_GATEWAY, newestIncomingId(thread.value));
+      freshAfter.value = marks.readUpTo(EMAIL_GATEWAY);
+    });
 
   const toGateway = (text: string): boolean => send({ cmd: "send_message", to: EMAIL_GATEWAY, text });
 

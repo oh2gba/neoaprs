@@ -125,7 +125,7 @@ LORA_TCP = Profile("lora-tcp", "LoRa APRS board on the network (KISS over TCP)",
 LORA_SERIAL = Profile("lora-serial", "LoRa APRS board on USB or Bluetooth (KISS)", "serial", 115200, (), None, False, False,
                       "A CA2RXU Tracker's TNC image over Bluetooth, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs; whether an open restarts a board is not known.",
                       readings=("snr", "rssi"), text_lines="tnc2", nudge=LORA_NUDGE, drop_internet=True, board_readings=True, search=False)
-LORA_CONSOLE = Profile("lora-console", "LoRa APRS iGate's log on USB (receive only)", "serial", 115200, (), None, False, False,
+LORA_CONSOLE = Profile("lora-console", "LoRa APRS iGate's log on USB (RX only)", "serial", 115200, (), None, False, False,
                        "The CA2RXU iGate with its TNC off on USB writes a line for each packet it hears, with its signal; it takes nothing, so nothing is sent.",
                        readings=("snr", "rssi"), text_lines="console", receive_only=True, search=False)
 

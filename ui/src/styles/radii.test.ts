@@ -21,7 +21,7 @@ const strip = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, "");
 const PART = /^(var\(--radius(?:-box|-pill)?\)|0|50%)$/;
 /** The corners written as a number, each with its reason: the file, the value. A listed one that is gone fails too, so the list cannot go stale. */
 const KEPT: Record<string, string> = {
-  "components/HfLevelBar.vue": "5px", // (the level bar: an instrument's scale, plan §7)
+  "components/LevelBar.vue": "5px", // (the level bar: an instrument's scale, plan §7)
   "components/HfScope.vue": "4px", // (the scope's picture: an instrument, plan §7)
 };
 

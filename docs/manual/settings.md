@@ -77,12 +77,13 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `kiss` | fm | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | `port`, `baud`, `beacon`, `path`, `digipeat` |
 | `kiss-tcp` | fm | KISS over TCP (Direwolf, soundmodem) | `port`, `tcp_host`, `tcp_port`, `beacon`, `path`, `digipeat` |
 | `tnc-text` | fm | RX only: Yaesu FTM, TNC text (no KISS) | `port`, `baud` |
+| `direwolf` | fm | Sound card (Direwolf) | `sound_card`, `keying`, `tx_gain_db`, `beacon`, `path`, `digipeat` |
 | `dummy` | fm | Dummy (no radio, made-up traffic) | `beacon`, `path`, `digipeat` |
 | `dummy-hf` | hf | Dummy HF radio (no radio, made-up distant stations) | `beacon` |
 | `mercury` | hf | Mercury HF modem (sound card, SSB radio) | `sound_card`, `keying`, `tx_gain_db`, `beacon` |
 | `lora-tcp` | lora | LoRa APRS board on the network (KISS over TCP) | `tcp_host`, `tcp_port`, `beacon`, `path` |
 | `lora-serial` | lora | LoRa APRS board on USB or Bluetooth (KISS) | `port`, `baud`, `beacon`, `path` |
-| `lora-console` | lora | LoRa APRS iGate's log on USB (receive only) | `port`, `baud` |
+| `lora-console` | lora | LoRa APRS iGate's log on USB (RX only) | `port`, `baud` |
 | `dummy-lora` | lora | Dummy LoRa radio (no radio, made-up stations) | `beacon`, `path` |
 
 | key | default | types | where | what it is |
@@ -91,12 +92,12 @@ The keys of the radios in versions before 0.20 (`tnc/profile`, `serial/port`, `h
 | `radio/<id>/baud` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `tnc-text`, `lora-serial`, `lora-console` | Settings tab, TNC (Speed) | the speed of its serial line, 8N1 (300 to 921600); empty: the type's own, 9600 for every serial type. A TCP or Bluetooth port has none |
 | `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp`, `lora-tcp` | Settings tab, TNC | where a `kiss-tcp` radio connects while its port is empty; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile |
 | `radio/<id>/tcp_port` | `8001` | `kiss-tcp`, `lora-tcp` | Settings tab, TNC | the KISS port there (1 to 65535): Direwolf 8001, UZ7HO SoundModem and QtSoundModem 8100 |
-| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
-| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-2` for any other; on a LoRa radio it is `WIDE1-1`, the path of the LoRa networks. `DIRECT` is no digipeaters at all. Only a type that may carry a path has it |
-| `radio/<id>/digipeat` | `false` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater)) |
-| `radio/<id>/sound_card` | empty | `mercury` | Settings tab, Radio (HF radio, Sound card) | the Mercury modem's sound card, as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows). The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-hf-modem)) |
-| `radio/<id>/keying` | empty | `mercury` | Settings tab, Radio (HF radio, Keying) | how the Mercury modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice |
-| `radio/<id>/tx_gain_db` | `0` | `mercury` | Settings tab, Radio (HF radio, Transmit level) | the Mercury modem's transmit gain in dB (-20 to 20; `0`: the modem's own level, a frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame |
+| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `direwolf`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
+| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `direwolf`, `dummy`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio: up to 8 calls separated by commas, each a call with an optional SSID. Empty is the recommended path of your station's type, which the symbol decides: `WIDE1-1,WIDE2-1` for a mobile symbol (a car, a bike, a boat, an aircraft ...), `WIDE2-2` for any other; on a LoRa radio it is `WIDE1-1`, the path of the LoRa networks. `DIRECT` is no digipeaters at all. Only a type that may carry a path has it |
+| `radio/<id>/digipeat` | `false` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `direwolf`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats a packet that asks for `WIDE1-1`, or for our call: the fill-in digipeater ([beacon.md](beacon.md#the-fill-in-digipeater)) |
+| `radio/<id>/sound_card` | empty | `direwolf`, `mercury` | Settings tab, Radio (Sound card) | the sound card of the radio's modem (the Mercury HF modem, Direwolf), as the list offers it (an id such as `plughw:1,0` on Linux, the device's name on Windows); one card is one radio's. The page stores the daemon's proposal here when it is empty (the one USB sound card that is both playback and capture, else the system's default device) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice ([radio.md](radio.md#the-mercury-hf-modem)) |
+| `radio/<id>/keying` | empty | `direwolf`, `mercury` | Settings tab, Radio (Keying) | how the radio's modem keys the transmitter: `vox` (the radio keys itself: VOX, or its own data mode), `cm108` (the GPIO pin of a CM108 sound chip), `rts:PORT` or `dtr:PORT` (that line of the serial port named, `rts:/dev/ttyUSB0`, `dtr:COM3`: a DigiRig and most interfaces). The page stores the daemon's proposal here when it is empty (RTS of the one USB serial port of a radio or an interface when the sound card is a USB one, else VOX) and never offers the empty choice; a radio that has it empty runs on the daemon's own choice |
+| `radio/<id>/tx_gain_db` | `0` | `direwolf`, `mercury` | Settings tab, Radio (Transmit level) | the transmit gain of the radio's modem in dB (Mercury -20 to 20, Direwolf -20 to 0; `0`: the modem's own level, a Mercury frame peaks at -6 dBFS). Set with the - and + beside Tune; it is sent to the running modem at once (Direwolf starts its program again with it) and written to the modem's configuration at every start, and the tune tone follows it, so that the radio's ALC on the tone moves as it will on a frame |
 <!-- /doc-settings -->
 
 ## Values the program decides
@@ -113,8 +114,8 @@ These are not settings. They are fixed by design, and no field or `neoaprs db se
 - A GPS fix older than 120 seconds is not used: a moving station sends no beacon on it, and never the home position instead.
 - At most 50 objects and items, and 36 bulletins, of your own at once. A bulletin is sent for 4 hours and an announcement for 72 hours.
 - The update check asks the version page every 24 hours.
-- On the HF radio a beacon interval below 30 minutes is raised to 30; the FM radio keeps the interval set. The HF beacon waits a random extra time of up to 300 seconds after each interval, so that stations started together do not key up together.
-- A frame on the HF radio is at most 123 bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.
+- A beacon interval below a radio's floor is raised to it: 30 minutes on an HF radio, 30 on a LoRa radio, 20 on an FM radio. The beacon of an HF or a LoRa radio waits a random extra time after each interval (up to 300 seconds on HF, 300 on LoRa), so that stations started together do not key up together.
+- A frame on an HF radio is at most 123 bytes, addresses included. A beacon's comment is cut to fit, and the longest message always fits.
 <!-- /doc-settings -->
 
 ## State the daemon keeps
@@ -127,7 +128,7 @@ These rows are written by the daemon so that a restart goes on where it stopped.
 - `status/last_sent_at`: when the status report last went out.
 - `status/last_text`: the text of that status report, which ?APRSS answers with and the page shows.
 - `map/auto`: whether the detailed map that was begun by itself is still owed (`wanted`) or settled (`done`).
-- `messages/radio_by_station`: the radio the operator chose for messages to a station, by call and the radio's number (1 the FM radio, 2 the HF radio), while both radios are on.
+- `messages/radio_by_station`: the radio the operator chose for messages to a station, by call and the radio's number, while several radios that can send are on.
 - `update/install_id`: the random number of this installation that the update check sends.
 - `update/not_counted`: `true` when the update check is to send the number 0 in place of this installation's own, so that the project does not count this run (a test machine; a run from the source tree does it by itself); set with `neoaprs db set update/not_counted true`, never shown on the page.
 - `update/sked_token`: the secret of this installation that goes with each HF test it posts, so that only it can delete them; never shown in the log or the support bundle.

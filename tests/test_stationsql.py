@@ -13,7 +13,7 @@ from neoaprs.packetsql import upsert_station
 from neoaprs.pref import Alert
 from neoaprs.radiospec import FM_ID, RadioHeard
 from neoaprs.station import Station
-from neoaprs.stationsql import (clear_station_path, clear_station_paths, delete_station_radios, delete_station_radios_but, put_station_path, put_station_radios, station_paths, station_radio_rows,
+from neoaprs.stationsql import (clear_station_path, delete_station_radios, delete_station_radios_but, put_station_path, put_station_radios, station_paths, station_radio_rows,
                                 upsert_station_radio)
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
@@ -109,8 +109,6 @@ def test_the_path_of_a_station_on_a_radio_is_kept_replaced_and_cleared_for_that_
     assert db.execute("SELECT path, updated_at FROM station_path WHERE call = 'OH2RDG' AND radio_id = 1").fetchall() == [("OH2RCH-2", LATER)], "one row for a station and a radio"
     assert clear_station_path(db, "OH2RDG", 1) == 1 and clear_station_path(db, "OH2RDG", 1) == 0 and clear_station_path(db, "NOBODY", 1) == 0
     assert station_paths(db) == [("OH2AAA", 1, "OH2RCH-2"), ("OH2RDG", 2, "")], "its path on the other radio stays"
-    put_station_path(db, "OH2RDG", 1, "WIDE1-1", LATER)
-    assert clear_station_paths(db, "OH2RDG") == 2 and station_paths(db) == [("OH2AAA", 1, "OH2RCH-2")]
     with pytest.raises(sqlite3.IntegrityError, match="station_path_form"):
         put_station_path(db, "OH2AAA", 1, "wide1-1", LATER)
     db.close()

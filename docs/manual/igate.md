@@ -20,7 +20,7 @@ The setting `igate/server` is `rotate.aprs2.net:14580` unless you change it. Tha
 
 ## Advanced: putting what the radio hears on APRS-IS
 
-NeoAPRS can also act as an iGate for your radio. This is not on the page. With a passcode that belongs to your call (a number from 0 to 32767; `neoaprs db set igate/password NUMBER`) and the switch on, what the radio hears is put on APRS-IS, and your own position with it. The rules are the specification's:
+NeoAPRS can also act as an iGate for your radios. This is not on the page. With a passcode that belongs to your call (a number from 0 to 32767; `neoaprs db set igate/password NUMBER`) and the switch on, what every radio hears is put on APRS-IS, and your own position with it. A receive-only radio, such as a Yaesu FTM, is gated like any other. The rules are the specification's:
 
 Which packets are left out:
 
@@ -34,7 +34,7 @@ A packet heard is not put on APRS-IS when:
 - it has a line break inside (APRS-IS has one packet to a line), or would make a line of more than 512 bytes;
 - the same source, destination and text were put on APRS-IS in the last 30 seconds: a packet repeated by digipeaters is heard more than once and goes once;
 - it was heard while the connection to APRS-IS was not up;
-- it did not come from the air: a packet from the internet, or one made up by the Dummy radio, is never put on APRS-IS. While the radio is the Dummy, your own position is not put there either.
+- it did not come from the air: a packet from the internet, or one made up by a Dummy radio, is never put on APRS-IS. While a Dummy radio is on, your own position is not put there either.
 
 The passcode is kept as a setting in the database on your computer, like the access key of the page. The log then has each packet gated at the debug level and every hour a line with the counts. It has nothing to do with `station/transmit` (the **RX only** pill): the radio does not transmit when it is gated, because nothing of the internet is ever sent on the air.
 
@@ -47,7 +47,7 @@ While the iGate gates (switched on, with a passcode, logged in and verified: the
 ```
 
 - `MSG_CNT` is the messages sent from the internet to the radio: always 0, because nothing of the internet is ever sent on the air;
-- `LOC_CNT` is the "local" stations: those heard direct (by no digipeater) in the last hour on the FM radio, the ones `?APRSD` asked on the FM radio lists;
+- `LOC_CNT` is the "local" stations: those heard direct (by no digipeater) in the last hour on the radios that may carry a path, FM and LoRa;
 - `UPL_CNT` is the packets put on APRS-IS since NeoAPRS started, one of the counts Dire Wolf adds.
 
 It goes after a random wait of 0 to 120 seconds by the path of the station that asked, and once one is taken another is not for 10 minutes, as for `?APRS?` ([Answers to queries](beacon.md#answers-to-queries)). With the iGate off, still connecting, or only listening (no passcode, or one the server did not accept), it is no iGate and the query is not answered; nor under **RX only**, when nothing is sent at all.

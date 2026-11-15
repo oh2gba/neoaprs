@@ -12,12 +12,14 @@ import pytest
 
 from neoaprs import ax25, dummyline
 from neoaprs.aprsmessage import parse_message
+from neoaprs.aprsposition import parse_position
 from neoaprs.clock import utc
 from neoaprs.dummyscene import call_of
-from neoaprs.dummylorascene import ACK_AFTER_SEC, HELLO, IGATE, RSSI_RANGE_DBM, SNR_RANGE_DB, LoraScene, board_air, board_line
+from neoaprs.dummylorascene import ACK_AFTER_SEC, BIKE, CAR, HELLO, IGATE, RSSI_RANGE_DBM, SNR_RANGE_DB, LoraScene, board_air, board_line
 from neoaprs.dummylorascene import calls as lora_calls
 from neoaprs.dummyworlds import DummyLoraPort, made_up_calls
 from neoaprs.dummyframes import air
+from neoaprs.geo import bearing_deg
 from neoaprs.radiotype import FM_ID, Allowed, Can, Limits
 from neoaprs.radiotypes import DEFAULT_TYPE, kind_fields, recommended_path, type_of, types_of
 from neoaprs.services.radioset import fit_frame
@@ -55,7 +57,7 @@ def test_a_packets_text_is_read_into_the_frame_it_is_and_written_back_byte_for_b
     for text in (b"OH2GBA-7>APLRT1,WIDE1-1:!6010.00N/02456.00E>", b"Q9TRK-7>APLRT1,Q9LRG-10*:=/0)dITh.'>9O[LoRa tracker", b"OH2GBA>APRS::Q9KOT    :Hello{12", b"A>B:",
                  "Q9BKE-12>APLRT1:>Pyöräilemässä".encode()):
         frame = frame_of(text)
-        assert text_of(frame) == text and ax25.decode(ax25.encode(frame)) == frame, text
+        assert text_of(frame) == text == frame.tnc2().encode("latin-1") and ax25.decode(ax25.encode(frame)) == frame, text
     frame = frame_of(b"Q1ABC>APRS,Q2DIG,Q7DIG*,WIDE2-1:>status")
     assert [a.repeated for a in frame.path] == [True, True, False], "AX.25 marks every digipeater up to the starred one"
     assert text_of(frame) == b"Q1ABC>APRS,Q2DIG,Q7DIG*,WIDE2-1:>status", "TNC2 text stars only the last one"
@@ -92,6 +94,12 @@ def test_a_boards_lines_are_cut_at_each_line_feed_and_told_apart_into_packets_pa
     assert read_line(b"Q9KOT>APRS:x").frame is not None and len(LineReader().feed(b"x" * 5000)) == 1, "a line that never ends is cut off, not held for ever"
 
 
+def test_a_boards_line_is_the_one_line_form_alone_and_the_forms_of_a_tnc_monitor_are_its_own_lines() -> None:
+    lines = LineReader().feed(b"cmd:OH2AB>APRS:>x\nOH2AB>APRS <UI>:>x\nOH2AB>APRS:\n>x\nOH2AB-16>APRS:>x\n")
+    assert [(line.frame, line.why != "") for line in lines] == [(None, False), (None, False), (ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2AB")), False), (None, False), (None, True)], \
+        "no prompt, no mark and no two-line form: a board prints none (its header alone is a packet with no information); a call that is none is refused"
+
+
 def test_a_line_longer_than_any_lora_packet_is_no_packet_and_the_rest_of_a_line_cut_off_is_no_line_of_its_own() -> None:
     head = b"OH2GBA>APZNEO:>"
     assert MAX_TEXT == MAX_PACKET - len(HEADER) == 252
@@ -118,7 +126,7 @@ def test_the_dummy_lora_type_is_of_the_kind_lora_with_the_limits_and_the_choices
     assert (t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.retry_jitter_sec) >= (hf.beacon_min_min, hf.beacon_jitter_sec, hf.retry_jitter_sec), \
         "its timed beacon goes no more often than an HF radio's (a moving station's SmartBeaconing, which HF has not, goes by its own rates)"
     assert t.allowed == Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False), "no digipeating by us: the network's iGates repeat WIDE1-1"
-    assert t.can == Can(False, False, False, False, False, False, False)
+    assert t.can == Can(False, True, False, False, False, False, False), "nothing to find or tune; the Terminal of the made-up traffic, as any radio's"
     assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora") if f.key in ("beacon", "path", "digipeat")] == ["beacon", "path"], "no digipeater to turn on"
     assert t.recommended_path == recommended_path("lora") == "WIDE1-1" and recommended_path("fm") == recommended_path("hf") == "", "FM and HF go by the station's symbol"
     assert PROFILES[t.profile] is DUMMY_LORA and Tnc("", profile=DUMMY_LORA).rtype is t and DUMMY_LORA.readings == ("snr", "rssi") and (t.limits.max_frame, t.limits.max_text) == (250, MAX_TEXT)
@@ -177,6 +185,21 @@ def test_each_radio_has_a_world_of_its_own_by_its_seed_and_the_same_one_at_every
     assert calls(one) == {IGATE, "Q9KOT", "Q9TRK-7", "Q9BKE-12"} and calls(three) == {"Q1LRG-10", "Q1KOT", "Q1TRK-7", "Q1BKE-12"}
     again = LoraScene(HELSINKI, START, seed=3)
     assert [text_of(f) for _, f in play(again, 900)] == [text_of(f) for _, f in play(LoraScene(HELSINKI, START, seed=3), 900)]
+
+
+def test_a_tracker_of_a_turned_world_heads_where_it_goes() -> None:
+    """The course the car and the bike send is turned with their places: the way from one fix to the next, ten seconds later, is the way they say they head (unturned, the seed 3 heads 110 degrees off)."""
+    for seed in (1, 3):
+        scene = LoraScene(HELSINKI, START, seed=seed)
+        for mover in (call_of(CAR, seed), call_of(BIKE, seed)):
+            [actor] = [a for a in scene.actors if a.call == mover]
+            off = []
+            for t in range(0, 1800, 60):
+                [a], [b] = (actor.make(START + timedelta(seconds=s)) for s in (t, t + 10))
+                one, two = (parse_position(f.info[1:], START, messaging=True) for f in (a, b))
+                assert two.course_deg is not None
+                off.append(abs((bearing_deg(one.lat, one.lon, two.lat, two.lon) - two.course_deg + 180) % 360 - 180))
+            assert sorted(off)[len(off) // 2] < 10, f"seed {seed}, {mover}: heads {sorted(off)[len(off) // 2]:.0f} degrees off the way it goes"
 
 
 # ---- the line
@@ -252,7 +275,7 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
     row = page.topics["radios"][str(id)]
     assert (row["kind"], row["type"], row["dummy"], row["number"], row["enabled"]) == ("lora", "dummy-lora", True, 1, True)
-    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {**dict.fromkeys(row["can"], False), "transmit": True}
+    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {**dict.fromkeys(row["can"], False), "terminal": True, "transmit": True}
     assert row["allowed"] == {"paths": True, "digipeat": False, "smart_beacon": True, "gateway_heard": True, "shared_channel": False} and row["choices"] == {"beacon": True, "path": "", "digipeat": None}
     world = {call_of(call, id) for call in ("Q9LRG-10", "Q9KOT", "Q9TRK-7")}             # (the bike's first beacon may come after the others are in)
     for _ in range(200):

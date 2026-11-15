@@ -1,6 +1,7 @@
 """The statements of the support bundle (neoaprs/cli/supportgather.py): functions of a connection that only read. The bundle opens the database file read-only, on the thread that makes it, beside the
 daemon's own connection (the write-ahead log lets a reader and the writer go on together), and changes nothing: no migration, no pragma that writes, no checkpoint."""
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from .dberror import Connection, Row, limit, rows
@@ -16,6 +17,15 @@ def open_readonly(path: str | Path) -> Connection:
     base = Path(path).absolute()
     quiet = not base.with_name(base.name + "-wal").exists()
     return sqlite3.connect(f"{base.as_uri()}?mode=ro" + ("&immutable=1" if quiet else ""), uri=True, timeout=OPEN_WAIT_SEC)
+
+
+def live_version(path: str | Path) -> int | None:
+    """The schema version of the file as SQLite reads it, through the write-ahead log beside it (`neoaprs db set` beside a daemon: dbwrite.py); None when it cannot be read."""
+    try:
+        with closing(open_readonly(path)) as db:
+            return int(db.execute("PRAGMA user_version").fetchone()[0])
+    except sqlite3.Error:
+        return None
 
 
 def table_counts(db: Connection) -> list[tuple[str, int]]:

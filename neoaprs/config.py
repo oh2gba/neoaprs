@@ -20,7 +20,7 @@ from .configvalues import ANTENNA_DIRECTIONS as ANTENNA_DIRECTIONS, SYMBOL_TABLE
 from .configtypes import access_key, boolean, call_or_empty, int_among, int_in, int_or_off, optional_float, optional_int, over_the_air_refusal, text_of, web_address, word_among
 from .beaconrule import SETTING_MIN_MIN, station_interval
 from .radiospec import FM_ID, RadioId, RadioSpec
-from .radiotype import stored_text as _show
+from .radiotype import ONLY_RECEIVES, stored_text as _show
 from .route import DIRECT_ONLY, recommended_path
 from .smartbeacon import PRESETS, TRAVEL, SmartSettings
 from .tncprofile import Profile, names_tcp, profile_of
@@ -39,7 +39,7 @@ class SettingError(CodedError):
 
 RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
 LISTENS_ONLY = "receive only: no radio that is on can send"       # why it refuses while every enabled radio is one that only listens (to the page the same "transmit.off")
-RX_ONLY_REASONS = (RECEIVE_ONLY, LISTENS_ONLY)
+RX_ONLY_REASONS = (RECEIVE_ONLY, LISTENS_ONLY, ONLY_RECEIVES)      # (and a radio of a type that only receives: to the page each is "transmit.off")
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN      # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
@@ -160,7 +160,7 @@ STATION_KEYS = tuple(s.key for s in SETTINGS if s.attr not in FLAT_HOMES and s.k
 BEACON_SENT = "beacon/last_sent_at"          # the rows of before of the two beacons' last sends, which migration 31 renamed radio/1/ and radio/2/beacon_last_sent_at; a Beacon made without the station's maker of frames (tests, until the round's removals) still keeps the first
 HF_BEACON_SENT = "hf/beacon_last_sent_at"
 STATE_BEFORE_31 = (BEACON_SENT, HF_BEACON_SENT)
-RADIO_STATE = ("beacon_last_sent_at", "last_port")    # a radio's own state rows, radio_state_key(id, name): when its beacon last went out (services/beacon.py), the port its search found (LAST_PORT)
+RADIO_STATE = ("beacon_last_sent_at", "last_port")    # a radio's own state rows, radio_state_key(id, name): when its beacon last went out (services/beacon.py), and radio 1's alone, the port its search found (LAST_PORT: only radio 1 remembers one, wiring._remember_port)
 STATUS_SENT, STATUS_TEXT = "status/last_sent_at", "status/last_text"     # the rows the status report keeps to survive a restart (services/memory.py): state of the daemon, not settings, so not in SETTINGS
 MAP_AUTO = "map/auto"                        # whether the detailed map begun without a click is still owed: wanted (begun, not finished: tried again at the next start), or done (services/mapauto.py)
 MESSAGE_RADIOS = "messages/radio_by_station"   # the radio the operator chose for messages to a station, by call, as JSON, by the radio's id since migration 31 ({"OH2GAX-2": 2}; neoaprs/radioregistry.py)

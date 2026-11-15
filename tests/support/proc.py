@@ -6,6 +6,7 @@ import sys
 
 WINDOWS = sys.platform == "win32"
 NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+STOP_PATIENCE_SEC = 60.0    # the longest a test waits for a program it asked to end (a daemon closing its radios, a replay), on a machine busy with the whole suite: a limit, not how long it takes
 
 
 def send(proc: "subprocess.Popen[str]", sig: int) -> None:

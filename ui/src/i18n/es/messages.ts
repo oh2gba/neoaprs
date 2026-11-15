@@ -80,7 +80,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.you": "tú",
   "chain.internet": "internet",
   "chain.sent": "enviado {time}",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "enviado {time} por la radio {name}",
   "chain.heard": { select: "internet", yes: "escuchado, y por internet", other: "escuchado" },
   "chain.heard_at": { select: "internet", yes: "escuchado {time}, y por internet", other: "escuchado {time}" },
   "chain.seen_internet": "visto en una copia devuelta por internet, no escuchado aquí",
@@ -93,7 +93,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "chain.waiting_for_ack": "esperando el acuse",
 
   "route.button": "Ruta",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "Los mensajes a esta estación salen por la radio {name}",
   "messages.may_not_message": "Puede que esta estación no reciba mensajes",
   "messages.may_not_message_label": "Por qué puede que no",
   "messages.may_not_message_help":
@@ -105,7 +105,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "route.use_auto": "Ruta automática",
   "route.automatic": "automática",
   "route.auto": "Automática: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "Automática: {name}",
   "route.auto_direct": "Automática: directa, luego {path}",
   "route.auto_via": "Automática: vía {heard}, luego {path}",
   "route.own": "Tu ruta: {path}",
@@ -159,7 +159,7 @@ export const messages: Readonly<Record<keyof typeof en, Message>> = {
   "pathbuilder.seen_next": { one: "Junto a {call} en las rutas de {n} estación", other: "Junto a {call} en las rutas de {n} estaciones" },
   "pathbuilder.add_hop": "Añadir {call}",
 
-  "compose.tnc_not_connected": "El TNC no está conectado",
+  "compose.tnc_not_connected": "La radio no está conectada",
   "compose.left": "{n} libres",
   "compose.over": "{n} de más",
   "compose.left_title.bytes": "Quedan {left} de {max} bytes",

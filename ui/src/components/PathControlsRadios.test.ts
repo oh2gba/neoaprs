@@ -271,7 +271,7 @@ describe("the queries of the station panel", () => {
     const wrapper = panel({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury", off)) }, fmHeard, {
       connected: false,
     });
-    expect([query(wrapper, "ask_position").element.disabled, query(wrapper, "ask_position").attributes("title")]).toEqual([true, "The TNC is not connected"]);
+    expect([query(wrapper, "ask_position").element.disabled, query(wrapper, "ask_position").attributes("title")]).toEqual([true, "The radio is not connected"]);
   });
 
   it("grey Trace the route for a station whose radio carries no path, in its place, and leave the others", () => {

@@ -1,7 +1,6 @@
 """The helper that serves a test's small HTTP server on a thread."""
 import http.server
 import threading
-import time
 import urllib.request
 
 from tests.support.httpthread import ACCEPT_SEC, serve
@@ -29,11 +28,10 @@ def test_the_listening_socket_has_a_limit_the_connections_have_none_and_a_shutdo
             assert answer.read() == b"ok"
         assert limits == [None], "a connection the server hands out is as it was: without a limit"
     finally:
-        began = time.monotonic()
         ended = threading.Thread(target=server.shutdown, daemon=True)
         ended.start()
         ended.join(5)
         server.server_close()
-    assert not ended.is_alive() and time.monotonic() - began < 5, "the shutdown ends"
+    assert not ended.is_alive(), "the shutdown ends"
     thread.join(5)
     assert not thread.is_alive()

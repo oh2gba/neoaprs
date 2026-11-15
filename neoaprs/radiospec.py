@@ -99,9 +99,12 @@ def modem_radio(specs: Iterable[RadioSpec]) -> RadioId | None:
 
 
 def number_in_kind(spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
-    """The number of the radio within its kind ("FM", "HF 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered by id among all of its kind, so that it keeps its number."""
-    pool = list(specs) if spec.removed_at is not None else live(specs)
-    return 1 + sum(1 for s in pool if s.kind == spec.kind and s.id < spec.id)
+    """The number of the radio within its kind ("FM", "HF 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered after the live ones of its kind, by id among the
+    removed, so that the log never calls a removed radio and a live one by the same name."""
+    pool = list(specs)
+    if spec.removed_at is None:
+        return 1 + sum(1 for s in live(pool) if s.kind == spec.kind and s.id < spec.id)
+    return 1 + sum(1 for s in pool if s.kind == spec.kind and (s.removed_at is None or s.id < spec.id))
 
 
 def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:

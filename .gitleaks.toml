@@ -21,6 +21,10 @@ description = "the made-up access key of the tests, the screenshots and the exam
 regexes = ['''^k7m2-?x9pq-?4hrt$''']
 
 [[allowlists]]
+description = "a second made-up access key, the first twelve characters of the key alphabet in their order, in the short address of the golden QR symbols (ui/src/lib/qr.fixture.json, PhoneCode.test.ts): no installation has it"
+regexes = ['''^2345-6789-abcd$''']
+
+[[allowlists]]
 description = "an access key of the wrong form (one character too long), which the tests of the settings give to see it refused"
 regexes = ['''^abcd-efgh-jklm0$''']
 

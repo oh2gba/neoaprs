@@ -4,3 +4,10 @@ export function shown(wrapper: { element: Element } | undefined): string {
   copy?.querySelectorAll(".twowords-off").forEach((off) => off.remove());
   return (copy?.textContent ?? "").trim();
 }
+
+/** What a person reads on the screen in an element: its text without what is there for a screen reader only (`sr-only`: the words of a "+n" tag). */
+export function seen(wrapper: { element: Element } | undefined): string {
+  const copy = wrapper?.element.cloneNode(true) as Element | undefined;
+  copy?.querySelectorAll(".sr-only").forEach((hidden) => hidden.remove());
+  return (copy?.textContent ?? "").trim();
+}

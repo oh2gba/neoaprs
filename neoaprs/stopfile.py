@@ -70,7 +70,7 @@ def clear_restart(data_dir: Path) -> None:
 MIGRATING_NAME = "neoaprs.migrating"
 MIGRATING_BEAT_SEC = 5.0                  # how often the note is written again while the migration runs
 MIGRATING_FRESH_SEC = 30.0                # a note older than this is of a migration that a kill ended
-MIGRATE_LOCK_NAME = "neoaprs.migrate.lock"   # held by the process that migrates, from before its copy to its last step (the file stays, as every lock file of the folder does)
+MIGRATE_LOCK_NAME = "neoaprs.migrate.lock"   # held by the process that migrates, from before its copy to its last step, by `neoaprs db set` for its whole run and by a restore (the file stays, as every lock file of the folder does)
 
 
 class MigratingNote:

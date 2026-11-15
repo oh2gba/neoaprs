@@ -23,7 +23,7 @@ const flashed = (control: string) => document.getElementById(control)?.closest("
 describe("the Daemon mark", () => {
   it("is in a browser, between Update and Radio", async () => {
     const { wrapper } = await open();
-    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS", "Radio"]);
   });
 
   it("is not in the desktop app, whose window loads the page with the fragment #app; the Radio mark is", async () => {
@@ -95,5 +95,23 @@ describe("a text that says RX only", () => {
     await flushPromises();
     expect(wrapper.find(".toast button.linkbutton").exists()).toBe(false);
     expect(wrapper.find(".toast").text()).toContain("nothing was sent");
+  });
+});
+
+describe("a station with no radio, on a phone that opens the page by the code", () => {
+  it("has the NeoAPRS mark alone, waiting for no radio, and Settings → Web page still shows the code", async () => {
+    window.innerWidth = 390;
+    window.innerHeight = 800;
+    const { wrapper, socket } = await open();
+    socket.say({ type: "state", topic: "radios", rev: 1, value: {} });
+    const config = configValues({ "web/network": "true", "web/key": "k7m2-x9pq-4hrt" });
+    config.urls = ["http://192.168.1.20:7303/"];
+    socket.say({ type: "state", topic: "config", rev: 1, value: config });
+    await flushPromises();
+    expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["NeoAPRS"]);
+    expect(wrapper.find(".appheader").text()).not.toContain("waiting");
+    await tabButton(wrapper, "Settings")?.trigger("click");
+    await flushPromises();
+    expect(wrapper.find("svg.phonecode").exists()).toBe(true);
   });
 });

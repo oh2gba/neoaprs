@@ -76,7 +76,7 @@ class Topics:
                  tell: Callable[[dict[str, Any]], None] | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
-        self._sent = sent                           # told when a packet of ours went out: the status (the count of packets, the time of the beacon) has changed
+        self._sent = sent                           # told when a packet of ours went out or the settings changed: the status (the count of packets, the time of the beacon, the main radio) has changed
         self._tell = tell                           # a message to every page that is open, which no topic keeps (an alert set on a station fired)
         self.window = PacketWindow()
         self.scopes = RadioScopes(self._wire_scope)              # the pages that have a radio's scope open (`radio_scope`): the rows are sent to them, not to every page
@@ -330,6 +330,7 @@ class Topics:
         radios = radios_in_force(config) != radios_in_force(self._config)
         self._config = config
         self.hub.changed("radios")                  # (a radio's settings, its Enable, its beacon's interval)
+        self.scopes.keep({radio.id: modem for radio in self.ctl.radios.all() if isinstance(modem := radio.driver.modem, Mercury)})      # (a radio removed lets go of its modem's rows; the scope is Mercury's)
         if radios:
             self.hub.changed("stations")            # (the radio a message to each takes now, and the choices in force)
             self.hub.changed("own_objects")         # (a radio removed has left the objects' radios: OwnObjects.forget_radio)
@@ -346,3 +347,5 @@ class Topics:
         self.hub.changed("map")                     # (the area and the zoom it asks for, and whether there is a position)
         if moved:
             self.hub.changed("stations")            # (every row has a new distance and bearing)
+        if self._sent is not None:
+            self._sent()                            # (the status says the main radio, the email radio, the beacon's interval, the call and the place: every page is told them now, not at the next ten seconds)

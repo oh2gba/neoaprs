@@ -5,9 +5,10 @@ A row of `radio_rows` is a tuple in the order of RADIO_COLUMNS, one of `radio_se
 begins or commits a transaction: a write of more than one statement (`put_radio_settings`, `remove_radio`) is whole in the transaction of whoever runs it (`Db.write`, or `transaction()` of dbfile.py)."""
 import json
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from .config import MESSAGE_RADIOS as CHOICES          # the state row of the stations' radios, by call, as JSON ({"OH2GAX-2": 2})
+from .configradios import radio_key_of
 from .dberror import Row, rows
 from .storesql import write_setting
 
@@ -48,6 +49,14 @@ def put_radio_settings(db: sqlite3.Connection, id: int, values: Mapping[str, str
     for key, value in values.items():
         db.execute("INSERT INTO radio_setting (radio_id, key, value) VALUES (?, ?, ?) ON CONFLICT(radio_id, key) DO UPDATE SET value = excluded.value, rev = radio_setting.rev + 1", (id, key, value))
     return True
+
+
+def of_removed_radio(db: sqlite3.Connection, keys: Iterable[str]) -> bool:
+    """Whether one of `keys` is a row of a removed radio's own state (`radio/<id>/<name>`: a beacon's last send, a port found, written by a task that waited behind the removal). `remove_radio` took
+    those away, and nothing would take one away again, for the id never comes back: the Store writes none (Store.put_setting). A radio with no row at all (a database whose radios are not stored yet)
+    is not a removed one."""
+    ids = {found[0] for key in keys if (found := radio_key_of(key)) is not None}
+    return any(db.execute("SELECT 1 FROM radio WHERE id = ? AND removed_at IS NOT NULL", (id,)).fetchone() for id in ids)
 
 
 def remove_radio(db: sqlite3.Connection, id: int, at: str) -> int:

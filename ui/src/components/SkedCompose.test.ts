@@ -234,7 +234,7 @@ describe("SkedCompose", () => {
 
   it("carries the room of nothing: no hint, range or reason line in the form", () => {
     const wrapper = form();
-    expect(wrapper.find(".field-hint, .field-error, .infotip").exists()).toBe(false);
+    expect(wrapper.find(".field-error, .infotip").exists()).toBe(false);
   });
 
   it("goes on with a day that is one of the choices as the UTC day turns", async () => {

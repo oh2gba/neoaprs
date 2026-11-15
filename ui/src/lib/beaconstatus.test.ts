@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  beaconBlock,
-  beaconRadios,
-  followRadioValues,
-  notConnectedWhy,
-  pathKey,
-  pathRows,
-  radioValueOf,
-  sendOnTicks,
-  type BeaconRadio,
-} from "@/lib/beaconstatus";
+import { beaconBlock, beaconRadios, notConnectedWhy, pathKey, pathRows, radioValueOf, sendOnTicks, type BeaconRadio } from "@/lib/beaconstatus";
 import { dateTimeText } from "@/lib/format";
 import { pageRadio, type PageRadio } from "@/lib/radios";
 import type { RadioRow } from "@/protocol/protocol";
@@ -81,7 +71,7 @@ describe("beaconBlock of a fixed station", () => {
   });
 
   it("has no pill and says no word before the daemon has told", () => {
-    expect(beaconBlock(null, null, {}, NOW)).toMatchObject({ moving: false, pill: null, line: "No word from the daemon yet.", hover: undefined });
+    expect(beaconBlock(null, null, {}, NOW)).toMatchObject({ moving: false, pill: null, line: "No word from NeoAPRS yet.", hover: undefined });
   });
 });
 
@@ -134,7 +124,7 @@ describe("beaconBlock of a moving station", () => {
       moving: true,
       label: "GPS",
       pill: null,
-      line: "No word from the daemon yet.",
+      line: "No word from NeoAPRS yet.",
       smart: "No automatic beacon · Beacon now still sends",
     });
     const on = beaconBlock(timed(), gpsState(), { ...GPSD, "beacon/interval_min": "30" }, NOW);
@@ -158,7 +148,7 @@ describe("beaconBlock of a moving station", () => {
   it("goes by what the daemon says the beacon does, and by the settings before it has said", () => {
     expect(beaconBlock(timed(), gpsState({ mobile: false }), GPSD, NOW).moving).toBe(false);
     expect(beaconBlock(timed(), gpsOff(), GPSD, NOW).moving).toBe(false);
-    expect(beaconBlock(timed(), null, GPSD, NOW)).toMatchObject({ moving: true, label: "GPS", pill: null, line: "No word from the daemon yet.", smart: null });
+    expect(beaconBlock(timed(), null, GPSD, NOW)).toMatchObject({ moving: true, label: "GPS", pill: null, line: "No word from NeoAPRS yet.", smart: null });
   });
 });
 
@@ -313,18 +303,5 @@ describe("the radios of the Beacon group", () => {
     expect(radioValueOf({ ...config, radio_values: { ...config.radio_values, "radio/4/path": "DIRECT" } }, "radio/4/path")).toBe("DIRECT");
     expect(radioValueOf(config, "radio/9/path")).toBeUndefined();
     expect(radioValueOf(null, "radio/3/path")).toBeUndefined();
-  });
-
-  it("follow the daemon in the draft of a radio's setting where it was not changed since, and leave the settings' own keys to them", () => {
-    const draft: Record<string, string> = { "radio/3/beacon": "false", "radio/4/beacon": "true", "beacon/path": "DIRECT" };
-    followRadioValues(
-      draft,
-      { "beacon/path": "" },
-      { "radio/3/beacon": "true", "radio/4/beacon": "false", "beacon/path": "" },
-      { "radio/3/beacon": "false", "radio/4/beacon": "false", "beacon/path": "DIRECT" },
-    );
-    expect(draft).toEqual({ "radio/3/beacon": "true", "radio/4/beacon": "true", "beacon/path": "DIRECT" });
-    followRadioValues(draft, {}, { "radio/5/beacon": "true" }, undefined);
-    expect("radio/5/beacon" in draft).toBe(false);
   });
 });

@@ -53,9 +53,8 @@ def frame_of(text: bytes) -> ax25.Frame:
 
 
 def text_of(frame: ax25.Frame) -> bytes:
-    """The packet's text, as a board puts it on the air: the header in ASCII and the information field as its bytes."""
-    path = frame.path_text
-    return f"{frame.source}>{frame.destination}{',' + path if path else ''}:".encode("ascii") + frame.info
+    """The packet's text, as a board puts it on the air: the header in ASCII and the information field as its bytes (the frame's TNC2 line, whose Latin-1 gives each byte back as it was)."""
+    return frame.tnc2().encode("latin-1")
 
 
 def air_of(frame: ax25.Frame) -> bytes:

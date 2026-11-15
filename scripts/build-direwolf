@@ -1,0 +1,360 @@
+#!/usr/bin/env python3
+"""Builds WB2OSZ's Direwolf from the pinned source for Linux, or cross-compiled for Windows on Linux, and lays it out as the folder `direwolf/` that NeoAPRS ships: the program (on Linux with RUNPATH `$ORIGIN/lib`,
+stripped, with the two libraries it needs beyond glibc, libasound and libudev, and the ALSA configuration beside it; for Windows `direwolf.exe`, linked statically and stripped, naming the system's DLLs alone), its two
+data files, the licences of Direwolf and of the code it compiles in, and the source offer; on Linux also, for the tests and the simulators only, `gen_packets`, `atest` and `cm108` in `dev/`.
+
+  scripts/build-direwolf [--windows] [--out DIR] [--tar] [--install] [--source FILE]
+
+  --windows      cross-compile direwolf.exe for 64-bit Windows with the MinGW-w64 compilers (Debian: gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 mingw-w64-x86-64-dev mingw-w64-common), on Linux only, with
+                 packaging/direwolf/mingw-w64.cmake as the toolchain file
+  --out DIR      the folder DIR/direwolf/ is made there (default build/direwolf/dist/, build/direwolf/dist-windows/ with --windows)
+  --tar          also DIR/direwolf-<version>-linux-<x86_64|aarch64>.tar.gz (DIR/direwolf-<version>-windows-x86_64.tar.gz with --windows), with direwolf/ as its top folder: what the AppImage, the .deb, the Windows
+                 installer (packaging/windows/bundle_tool.py direwolf) and the release workflow take
+  --install      the folder is copied to <sys.prefix>/tools/direwolf of the virtual environment this script runs in, where the daemon run from a checkout looks for it (neoaprs/bundled.py); the default when neither --out
+                 nor --tar is given (not with --windows). Run it as `.venv/bin/python scripts/build-direwolf`
+  --source FILE  the source archive at hand instead of the download; it has to be the pinned one all the same
+
+The version, the commit, the URL and the SHA-256 of the source are the pins at the top of neoaprs/direwolf.py and nowhere else: the archive is fetched once into $NEOAPRS_BUILD_CACHE (default ~/.cache/neoaprs-build) and
+checked against the pin, and a different file is refused (so is a build while the SHA-256 is not pinned). The tree is built in build/direwolf/work/ (work-windows/ with --windows) with CMake, Release, without the unit
+tests, the announcement on the LAN (DNS-SD), gpsd, hamlib and libgpiod (NeoAPRS has its own GPS; an FM interface keys on RTS or DTR, a CM108 pin or VOX; GPIO keying on a Pi is not in this build). Four patches of
+packaging/direwolf/ are applied first, each checked in the source after it: every listener bound to 127.0.0.1 (loopback.patch: Direwolf's KISS and AGW ports and its UDP audio input have no password and bind every
+interface), each line of its output flushed (flush.patch: Windows buffers a pipe), `-Q` (quit.patch: the end of its standard input ends it as a Ctrl-C does, its keying outputs set to 0) and `-G` (txlevel.patch: the
+transmit level). The program proves what it holds: its banner says the pinned release with `cm108-ptt` as its one optional part, and on Linux a run on its UDP audio input listens on 127.0.0.1 alone and ends with
+"QRT" and exit 0 within a few seconds of its input closing. A program for Windows cannot be run here: its import table is read instead and its banner's bytes are looked for (the release workflow's VM proves the rest).
+Needs cmake, gcc, g++, make, patch, pkg-config, libasound2-dev and libudev-dev on Linux (Ubuntu 22.04 in the release workflow, whose glibc is the floor of the AppImage and the .deb). How it is used: docs/direwolf.md."""
+import argparse
+import datetime
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildtool  # noqa: E402  (the parts of the builds that are not Direwolf's: scripts/buildtool.py, by its path)
+from buildtool import BuildError, folder_size, megabytes, sha256  # noqa: E402
+
+
+def pins() -> dict[str, str]:
+    """The four pins read out of neoaprs/direwolf.py as text: the script runs on the Python of the release workflow's ubuntu:22.04 container (3.10), which cannot import the daemon's modules."""
+    found: dict[str, str] = {}
+    for line in (ROOT / "neoaprs" / "direwolf.py").read_text(encoding="utf-8").splitlines():
+        m = re.match(r'^(VERSION|SOURCE_COMMIT|SOURCE_URL|SOURCE_SHA256|BANNER) = (f?"[^"]*")', line)
+        if m:
+            found[m.group(1)] = eval(m.group(2), {}, dict(found))  # noqa: S307  (a string literal of our own file, f-strings included)
+    missing = {"VERSION", "SOURCE_COMMIT", "SOURCE_URL", "SOURCE_SHA256", "BANNER"} - found.keys()
+    if missing:
+        raise SystemExit(f"build-direwolf: neoaprs/direwolf.py has no pin {', '.join(sorted(missing))}")
+    return found
+
+
+_PINS = pins()
+VERSION, SOURCE_COMMIT, SOURCE_URL, SOURCE_SHA256, BANNER = _PINS["VERSION"], _PINS["SOURCE_COMMIT"], _PINS["SOURCE_URL"], _PINS["SOURCE_SHA256"], _PINS["BANNER"]
+
+PACKAGING = ROOT / "packaging" / "direwolf"
+PATCHES = ("loopback.patch", "flush.patch", "quit.patch", "txlevel.patch")         # in this order: the last two change the same option string
+TOOLCHAIN = PACKAGING / "mingw-w64.cmake"
+LISTENER_FILES = ("src/kissnet.c", "src/server.c", "src/audio.c", "src/audio_win.c")          # every place Direwolf binds a socket; no INADDR_ANY and no getaddrinfo(NULL may be left in them
+FLUSH_FILE, FLUSH_LINE = "src/textcolor.c", "fflush (stdout);"
+OPTIONS_FILE, OPTIONS = "src/direwolf.c", "AI:i:QG:\""                              # the end of the option string with -Q and -G
+WORK, DEFAULT_OUT = ROOT / "build" / "direwolf" / "work", ROOT / "build" / "direwolf" / "dist"
+WORK_WINDOWS, DEFAULT_OUT_WINDOWS = ROOT / "build" / "direwolf" / "work-windows", ROOT / "build" / "direwolf" / "dist-windows"
+ALSA_DATA = Path("/usr/share/alsa")
+ALSA_SKIP = ("ucm", "ucm2", "topology")            # what only the sound servers and alsaucm read: the program never opens them
+DATA = ("tocalls.yaml", "symbols-new.txt")         # read from the program's own folder before any system Direwolf's (deviceid.c:229-243, symbols.c:267-279); symbolsX.txt is never opened at run time
+CMAKE_FLAGS = ("-DCMAKE_BUILD_TYPE=Release", "-DUNITTEST=OFF", "-DOPTIONAL_DNSSD=OFF", "-DCMAKE_DISABLE_FIND_PACKAGE_GPSD=ON", "-DCMAKE_DISABLE_FIND_PACKAGE_hamlib=ON", "-DCMAKE_DISABLE_FIND_PACKAGE_gpiod=ON")
+LINUX_LINK = "-Wl,--enable-new-dtags -Wl,-rpath,$ORIGIN/lib"
+WINDOWS_LINK = "-static -s"
+DEV_PROGRAMS = ("gen_packets", "atest", "cm108")   # for the tests and the simulators; not part of what is shipped
+OPTIONAL_ONLY, OPTIONAL_NEVER = "cm108-ptt", ("gpsd", "hamlib", "libgpiod", "dns-sd")
+NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libmvec\.|libpthread\.|librt\.|libdl\.|libasound\.so|libudev\.so)")      # (libmvec: glibc's vector mathematics, which gcc -O3 links on x86-64)
+NEEDED_NEVER = ("libgps", "libhamlib", "libgpiod", "libavahi", "libportaudio", "libhidapi", "libpulse")
+OWN_LIBS = ("libasound.so.2", "libudev.so.1")
+QUIT_SEC = 3.0                                     # how soon a run whose input closed must have ended (its cleanup sleeps one second)
+READY_SEC = 30.0
+MINGW = "x86_64-w64-mingw32-"
+TOOLS = ("cmake", "gcc", "g++", "make", "patch", "ldd", "readelf", "strip")
+WINDOWS_TOOLS = ("cmake", "make", "patch", f"{MINGW}gcc", f"{MINGW}g++", f"{MINGW}windres")
+
+
+def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
+    return f"direwolf-{VERSION}-{'windows' if system == 'win32' else 'linux'}-{buildtool.machine_name(machine, system)}.tar.gz"
+
+
+def fetch_source() -> Path:
+    return buildtool.fetch_source(SOURCE_URL, SOURCE_SHA256, f"direwolf-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz", "neoaprs-build-direwolf")
+
+
+def apply_patches(tree: Path) -> None:
+    """The four patches, each held in the source after it: a new pin that moved the lines is found here and not by an operator on a LAN."""
+    for name in PATCHES:
+        buildtool.apply_patch(tree, PACKAGING / name)
+    for name in LISTENER_FILES:
+        text = (tree / name).read_text(encoding="latin-1")
+        if "INADDR_ANY" in text or "getaddrinfo(NULL" in text:
+            raise BuildError(f"{name} still binds a socket on every interface after loopback.patch")
+    if FLUSH_LINE not in (tree / FLUSH_FILE).read_text(encoding="latin-1"):
+        raise BuildError(f"{FLUSH_FILE} has no {FLUSH_LINE} after flush.patch")
+    if OPTIONS not in (tree / OPTIONS_FILE).read_text(encoding="latin-1"):
+        raise BuildError(f"{OPTIONS_FILE} has no -Q and -G after quit.patch and txlevel.patch")
+
+
+def commands(tree: Path, windows: bool = False) -> list[list[str]]:
+    """The configure and the build, run one after the other: for Windows with the toolchain file and the static, stripped link; on Linux with the RUNPATH and the utilities of dev/."""
+    build = tree / "build"
+    link = [f"-DCMAKE_TOOLCHAIN_FILE={TOOLCHAIN}", f"-DCMAKE_EXE_LINKER_FLAGS={WINDOWS_LINK}"] if windows else [f"-DCMAKE_EXE_LINKER_FLAGS={LINUX_LINK}"]
+    targets = ["direwolf"] if windows else ["direwolf", *DEV_PROGRAMS]
+    return [["cmake", "-S", str(tree), "-B", str(build), *CMAKE_FLAGS, *link], ["cmake", "--build", str(build), "--parallel", str(os.cpu_count() or 1), "--target", *targets]]
+
+
+def build(tree: Path, windows: bool = False) -> Path:
+    """The patches, then CMake; the folder of the programs made."""
+    apply_patches(tree)
+    env = {key: value for key, value in os.environ.items() if key not in ("CFLAGS", "CPPFLAGS", "CXXFLAGS", "LDFLAGS", "LD_LIBRARY_PATH")}
+    for command in commands(tree, windows):
+        print("+ " + " ".join(command), flush=True)
+        done = subprocess.run(command, cwd=tree, env=env, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if done.returncode != 0:
+            raise BuildError(f"{command[0]} failed with {done.returncode}; the end of its output:\n" + "\n".join(done.stdout.splitlines()[-40:]))
+    programs = tree / "build" / "src"
+    for name in ("direwolf.exe",) if windows else ("direwolf", *DEV_PROGRAMS):
+        if not (programs / name).is_file():
+            raise BuildError(f"the build left no {name}")
+    return programs
+
+
+def notices(tree: Path) -> str:
+    """The copyright notices of the string functions of external/misc compiled into both builds (OpenBSD and NetBSD terms): their comment blocks, whole."""
+    parts = []
+    for name in ("strlcpy.c", "strlcat.c"):
+        text = (tree / "external" / "misc" / name).read_text(encoding="latin-1")
+        start = text.index("/*\t$NetBSD")
+        end = text.index("*/", text.index("Copyright", start)) + 2
+        parts.append(f"external/misc/{name}:\n{text[start:end]}\n")
+    return "\n".join(parts)
+
+
+def stage_common(tree: Path, folder: Path) -> None:
+    """What both builds carry: Direwolf's licence, the GEOTRANS terms, the notices of the string functions, and the two data files."""
+    shutil.copyfile(tree / "LICENSE", folder / "LICENSE")
+    shutil.copyfile(tree / "external" / "geotranz" / "readme.txt", folder / "LICENSE-geotranz.txt")
+    (folder / "LICENSE-misc.txt").write_text(notices(tree), encoding="utf-8")
+    (folder / "data").mkdir()
+    for name in DATA:
+        shutil.copyfile(tree / "data" / name, folder / "data" / name)
+
+
+def stage(tree: Path, programs: Path, out: Path, started: float) -> Path:
+    """The folder OUT/direwolf/ for Linux: the stripped program, libasound and libudev of the build machine under lib/, the ALSA configuration under share/alsa/, the licences and the data, the utilities in dev/."""
+    folder = out / "direwolf"
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "lib").mkdir(parents=True)
+    (folder / "dev").mkdir()
+    shutil.copyfile(programs / "direwolf", folder / "direwolf")
+    (folder / "direwolf").chmod(0o755)
+    buildtool.run(["strip", str(folder / "direwolf")])
+    found = buildtool.libraries(programs / "direwolf")
+    for name in OWN_LIBS:
+        if not found.get(name):
+            raise BuildError(f"the built program does not link {name}")
+        shutil.copyfile(Path(found[name]).resolve(), folder / "lib" / name)           # the file the soname's symlink points at, under the soname
+        (folder / "lib" / name).chmod(0o644)
+    if not (ALSA_DATA / "alsa.conf").is_file():
+        raise BuildError(f"{ALSA_DATA}/alsa.conf is missing (libasound2-data)")
+    shutil.copytree(ALSA_DATA, folder / "share" / "alsa", ignore=shutil.ignore_patterns(*ALSA_SKIP))
+    for name in DEV_PROGRAMS:
+        shutil.copyfile(programs / name, folder / "dev" / name)
+        (folder / "dev" / name).chmod(0o755)
+    stage_common(tree, folder)
+    notes = ("lib/libasound.so.2 is the ALSA library and lib/libudev.so.1 systemd's udev library (both LGPL-2.1-or-later) of the machine that built this, share/alsa/ the ALSA configuration; their source is the distribution's.\n"
+             "dev/ holds Direwolf's gen_packets, atest and cm108, for the tests and the simulators of NeoAPRS; they are not part of what is shipped.\n")
+    (folder / "SOURCE.txt").write_text(source_offer(" ".join((*CMAKE_FLAGS, f"-DCMAKE_EXE_LINKER_FLAGS={LINUX_LINK}")), notes), encoding="utf-8")
+    print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
+    return folder
+
+
+def stage_windows(tree: Path, programs: Path, out: Path, started: float) -> Path:
+    """The folder OUT/direwolf/ for Windows: direwolf.exe, the licences (Direwolf's, GEOTRANS, the string functions, and of the hidapi and the regex library compiled in for Windows), the data and the source offer."""
+    folder = out / "direwolf"
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    shutil.copyfile(programs / "direwolf.exe", folder / "direwolf.exe")
+    stage_common(tree, folder)
+    for source, target in (("hidapi/LICENSE.txt", "LICENSE-hidapi.txt"), ("hidapi/LICENSE-bsd.txt", "LICENSE-hidapi-bsd.txt"), ("hidapi/LICENSE-gpl3.txt", "LICENSE-hidapi-gpl3.txt"),
+                           ("hidapi/LICENSE-orig.txt", "LICENSE-hidapi-orig.txt"), ("regex/COPYING", "LICENSE-regex.txt"), ("regex/LICENSES", "LICENSE-regex-notes.txt")):
+        if not (tree / "external" / source).is_file():
+            raise BuildError(f"external/{source} is missing: it is compiled into the program, and its licence has to travel with it")
+        shutil.copyfile(tree / "external" / source, folder / target)
+    notes = (f"For Windows, cross-compiled on Linux with the MinGW-w64 compilers ({MINGW}gcc and g++, packaging/direwolf/mingw-w64.cmake) and linked statically ({WINDOWS_LINK}): the C runtime's thread library and the "
+             "compiler's runtime library are linked in. external/hidapi (keying a CM108 sound chip) and external/regex are compiled in; see their LICENSE- files.\n")
+    (folder / "SOURCE.txt").write_text(source_offer(" ".join((*CMAKE_FLAGS, "-DCMAKE_TOOLCHAIN_FILE=mingw-w64.cmake", f"-DCMAKE_EXE_LINKER_FLAGS={WINDOWS_LINK}")), notes), encoding="utf-8")
+    print(f"stage: {folder}, {time.monotonic() - started:.0f} s since the start")
+    return folder
+
+
+def source_offer(flags: str, notes: str) -> str:
+    """SOURCE.txt, the written offer of the source that the GPL asks for: what was built, from which source, with which command, every change NeoAPRS made to it, and the credit GEOTRANS asks for."""
+    return (
+        f"Direwolf {VERSION}, WB2OSZ's sound-card modem (GPL-2.0-or-later, see LICENSE), built by NeoAPRS (scripts/build-direwolf).\n"
+        f"Source: {SOURCE_URL}\n"
+        f"Commit: {SOURCE_COMMIT} (the tag {VERSION})\n"
+        f"SHA-256 of the source archive: {SOURCE_SHA256}\n"
+        f"Built: cmake {flags}\n"
+        f"{notes}"
+        "Changes to the source: src/kissnet.c, src/server.c, src/audio.c and src/audio_win.c bind their sockets to 127.0.0.1 instead of every interface (packaging/direwolf/loopback.patch of NeoAPRS: the ports have no password, and the daemon on this computer is their one client).\n"
+        "Changes to the source: src/textcolor.c flushes each line it prints, so that the lines reach the program that reads them as they are written, also on Windows, whose C runtime buffers a pipe (packaging/direwolf/flush.patch of NeoAPRS).\n"
+        "Changes to the source: src/direwolf.c has the option -Q: the end of standard input ends the program as a Ctrl-C does, every keying output set to 0 (packaging/direwolf/quit.patch of NeoAPRS).\n"
+        "Changes to the source: src/direwolf.c has the option -G pct, the transmit level as a percentage of full scale, which was the constant 100 (packaging/direwolf/txlevel.patch of NeoAPRS).\n"
+        "This product includes software developed by the National Geospatial-Intelligence Agency (GEOTRANS, external/geotranz; see LICENSE-geotranz.txt).\n"
+        f"Date: {datetime.date.today().isoformat()}\n")
+
+
+def check_banner(text: str) -> str:
+    """The banner the program printed: the pinned release, with `cm108-ptt` as the one optional part (none of gpsd, hamlib, libgpiod, dns-sd)."""
+    release = BANNER.replace("%d.%d.%d", VERSION)
+    if release not in text:
+        raise BuildError(f"the program does not say {release!r}:\n{text}")
+    optional = next((line.split(":", 1)[1].split() for line in text.splitlines() if line.startswith("Includes optional support for:")), [])
+    if optional != [OPTIONAL_ONLY] or any(word in optional for word in OPTIONAL_NEVER):
+        raise BuildError(f"the program's optional parts are {optional or 'none'}, not {OPTIONAL_ONLY} alone:\n{text}")
+    return f"{release}, optional: {' '.join(optional)}"
+
+
+def check_windows(folder: Path) -> str:
+    """The checks of a program that cannot be run here: a 64-bit program for Windows, with the bytes of the pinned release's banner, importing Windows's own DLLs alone. Returns the imports, for the log."""
+    program = folder / "direwolf.exe"
+    machine, names = buildtool.pe_imports(program)
+    if machine != buildtool.PE_MACHINE_X64:
+        raise BuildError(f"{program.name} is for the machine {machine:#x}, not for x86-64 Windows")
+    if BANNER.encode("ascii") not in program.read_bytes():
+        raise BuildError(f"{program.name} does not hold the banner {BANNER!r} of Direwolf {VERSION}")
+    buildtool.check_imports(program, names)
+    return "imports: " + ", ".join(sorted(names, key=str.lower))
+
+
+def _free(port: int, kind: int) -> bool:
+    with socket.socket(socket.AF_INET, kind) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def check_quit(program: str, env: dict[str, str]) -> str:
+    """The quit run: Direwolf on its UDP audio input (no sound card) with -Q; its sockets, as the kernel's tables have them, are on 127.0.0.1 alone; closing its input ends it with PTT 0 = 0, QRT and exit 0 within QUIT_SEC."""
+    udp = next(port for port in range(17300, 17400) if _free(port, socket.SOCK_DGRAM))
+    kiss = next(port for port in range(17400, 17500) if _free(port, socket.SOCK_STREAM))
+    with tempfile.TemporaryDirectory(prefix="direwolf-quit-") as folder:
+        conf = Path(folder) / "direwolf.conf"
+        conf.write_text(f"ADEVICE udp:{udp} null\nACHANNELS 1\nCHANNEL 0\nMODEM 1200\nKISSPORT 0\nKISSPORT {kiss}\nAGWPORT 0\nDNSSD 0\n", encoding="utf-8")
+        child = subprocess.Popen([program, "-c", str(conf), "-t", "0", "-q", "d", "-d", "o", "-Q"], cwd=folder, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        try:
+            deadline = time.monotonic() + READY_SEC
+            while set(buildtool.listeners({kiss})) != {kiss} and time.monotonic() < deadline and child.poll() is None:
+                time.sleep(0.2)
+            tcp, bound = buildtool.listeners({kiss}), buildtool.listeners({udp}, ("/proc/net/udp", "/proc/net/udp6"))
+            assert child.stdin is not None
+            child.stdin.close()
+            child.stdin = None                                   # (communicate of Python 3.10, the build container's, flushes a closed input and raises)
+            closed = time.monotonic()
+            output = child.communicate(timeout=READY_SEC)[0]
+            took = time.monotonic() - closed
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+    if tcp.get(kiss) != {buildtool.LOOPBACK} or bound.get(udp) != {buildtool.LOOPBACK}:
+        raise BuildError(f"the program's sockets are not on 127.0.0.1 alone (KISS {tcp}, UDP audio {bound}): loopback.patch was not applied?\n{output}")
+    if child.returncode != 0 or "QRT" not in output or "PTT 0 = 0" not in output or took > QUIT_SEC:
+        raise BuildError(f"closing the program's input did not end it cleanly within {QUIT_SEC:g} s (exit {child.returncode}, {took:.1f} s):\n{output}")
+    return f"listens on 127.0.0.1 only (KISS {kiss}, UDP audio {udp}); ends {took:.1f} s after its input closes, exit 0, PTT 0 = 0, QRT"
+
+
+def check(folder: Path, windows: bool = False) -> None:
+    """For Windows check_windows. Else the program as the daemon starts it, from its folder with the ALSA configuration of the folder and no LD_LIBRARY_PATH: the RUNPATH, the newest glibc it asks for, the libraries
+    from its folder alone, its banner, the quit run, and dev/cm108, which lists the CM108-class devices through the folder's libudev."""
+    print(f"check: {folder}")
+    if windows:
+        print("  " + check_windows(folder))
+        return
+    env = {key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"}
+    env["ALSA_CONFIG_PATH"] = str(folder / "share" / "alsa" / "alsa.conf")
+    program = str(folder / "direwolf")
+    print(f"  {buildtool.runpath(folder / 'direwolf')}")
+    print(f"  newest glibc needed: direwolf {buildtool.glibc_needed(folder / 'direwolf')}, " + ", ".join(f"{name} {buildtool.glibc_needed(folder / 'lib' / name)}" for name in OWN_LIBS))
+    print("  " + buildtool.check_links(folder / "direwolf", folder, NEEDED_OK, NEEDED_NEVER, OWN_LIBS).replace("\n", "\n  ").rstrip())
+    shown = subprocess.run([program, "-h"], env=env, check=False, text=True, capture_output=True, timeout=60)
+    print("  " + check_banner(shown.stdout + shown.stderr))
+    print("  " + check_quit(program, env))
+    listed = subprocess.run([str(folder / "dev" / "cm108")], env=env, check=False, text=True, capture_output=True, timeout=60)
+    if "error while loading shared libraries" in listed.stdout + listed.stderr or listed.returncode in (126, 127):
+        raise BuildError(f"dev/cm108 does not run (exit {listed.returncode}):\n{listed.stdout}{listed.stderr}")
+    print(f"  $ dev/cm108 (exit {listed.returncode})\n    " + (listed.stdout + listed.stderr).strip().replace("\n", "\n    "))
+
+
+def install(folder: Path) -> Path:
+    """The folder copied to <sys.prefix>/tools/direwolf of the virtual environment this runs in (neoaprs/bundled.py looks there), whatever was there before replaced."""
+    if sys.prefix == sys.base_prefix:
+        raise BuildError("--install needs the virtual environment's Python: .venv/bin/python scripts/build-direwolf --install")
+    target = Path(sys.prefix) / "tools" / "direwolf"
+    shutil.rmtree(target, ignore_errors=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(folder, target, symlinks=True)
+    return target
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="build-direwolf", description="Builds the pinned Direwolf for Linux or (cross-compiled on Linux) Windows and lays it out as the folder direwolf/ that NeoAPRS ships.")
+    parser.add_argument("--windows", action="store_true", help=f"cross-compile direwolf.exe for 64-bit Windows with MinGW-w64 ({MINGW}gcc), on Linux; the tarball {tarball_name(system='win32')}")
+    parser.add_argument("--out", type=Path, help="the folder in which direwolf/ is made (default build/direwolf/dist)")
+    parser.add_argument("--tar", action="store_true", help=f"also make {tarball_name(system='linux')} in it")
+    parser.add_argument("--install", action="store_true", help="copy the folder to <sys.prefix>/tools/direwolf of the virtual environment (the default when neither --out nor --tar is given)")
+    parser.add_argument("--source", type=Path, help="the pinned source archive at hand, instead of the download")
+    args = parser.parse_args(argv)
+    windows = args.windows
+    if sys.platform != "linux":
+        print("build-direwolf: this builds on Linux, for Linux and (cross-compiled) for Windows", file=sys.stderr)
+        return 1
+    if windows and args.install:
+        print("build-direwolf: --install is for the program of this system; a program for Windows is no use to a checkout here", file=sys.stderr)
+        return 1
+    for tool in WINDOWS_TOOLS if windows else TOOLS:
+        if shutil.which(tool) is None:
+            print(f"build-direwolf: {tool} is not installed", file=sys.stderr)
+            return 1
+    do_install = not windows and (args.install or (args.out is None and not args.tar))
+    out = (args.out or (DEFAULT_OUT_WINDOWS if windows else DEFAULT_OUT)).resolve()
+    started = time.monotonic()
+    try:
+        archive = args.source.resolve() if args.source else fetch_source()
+        if not re.fullmatch(r"[0-9a-f]{64}", SOURCE_SHA256) or not archive.is_file() or sha256(archive) != SOURCE_SHA256:
+            raise BuildError(f"{archive} is not the file with the pinned SHA-256 {SOURCE_SHA256 or '(none pinned yet)'}")
+        tree = buildtool.unpack(archive, WORK_WINDOWS if windows else WORK, "CMakeLists.txt", "Direwolf")
+        programs = build(tree, windows)
+        out.mkdir(parents=True, exist_ok=True)
+        folder = stage_windows(tree, programs, out, started) if windows else stage(tree, programs, out, started)
+        check(folder, windows)
+        tarball = buildtool.make_tarball(folder, out / tarball_name(system="win32" if windows else "linux"), "direwolf") if args.tar else None
+        installed = install(folder) if do_install else None
+        if installed is not None:
+            check(installed)
+    except BuildError as error:
+        print(f"build-direwolf: {error}", file=sys.stderr)
+        return 1
+    print(f"build-direwolf: {folder}, {megabytes(folder_size(folder))}")
+    if tarball is not None:
+        print(f"build-direwolf: {tarball}, {megabytes(tarball.stat().st_size)}")
+    if installed is not None:
+        print(f"build-direwolf: installed at {installed}")
+    print(f"build-direwolf: done in {time.monotonic() - started:.0f} s")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

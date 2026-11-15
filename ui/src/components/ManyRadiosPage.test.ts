@@ -2,7 +2,7 @@
 // radios, its status and behind the arrow its type, its fields and what its type can do, each sent by its own radio's id; the main radio after the last box while more than one radio is on; Add radio last; one Digipeater Enable for each radio that may repeat.
 // A station of six radios with the page set for a phone (375 px; jsdom has no layout, so what fits is the browser's to show), and a station whose database has radio 1 alone.
 import { flushPromises, mount } from "@vue/test-utils";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,12 +13,20 @@ import { setLocale } from "@/i18n";
 import type { PortsMessage, RadioRow, RadioSearchMessage } from "@/protocol/protocol";
 import { shallowRef } from "vue";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, lineStats, portRow, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
+import { configValues, lineStats, portRow, radioRow, radiosTopic, soundCard, status, toastOf } from "@/test/fixtures";
 import { t } from "@/i18n";
 
 const STYLES = join(dirname(fileURLToPath(import.meta.url)), "..", "styles", "settings.css");
 
-const ports: PortsMessage = { type: "ports", sound_cards: [], keying: "", search: true, find: true, ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")] };
+const ports: PortsMessage = {
+  type: "ports",
+  sound_cards: [],
+  keying: "",
+  search: true,
+  find: true,
+  ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")],
+  radio: null,
+};
 
 /** The six radios of the station: the FM and HF radios of before (1, 2), a KISS TNC called Mobile (3), a Dummy HF radio called 20 m (4), a KISS TNC over TCP (5, the third FM radio by its number) and a Mercury modem
  * whose name is eight wide letters (6). */
@@ -197,7 +205,16 @@ describe("a radio other than those of before, in its box", () => {
   it("sends its Enable, its type and its name by radio_change with its id, and its fields by set_config under its own keys", async () => {
     const { box, send } = make();
     const type = box("Mobile").find<HTMLSelectElement>("#set-radio-3-type");
-    expect([...type.element.options].map((o) => o.value)).toEqual(["kenwood-tnc2", "kenwood-d710", "kantronics", "kiss", "kiss-tcp", "tnc-text", "dummy"]);
+    expect([...type.element.options].map((o) => o.value)).toEqual([
+      "kenwood-tnc2",
+      "kenwood-d710",
+      "kantronics",
+      "kiss",
+      "kiss-tcp",
+      "tnc-text",
+      "direwolf",
+      "dummy",
+    ]);
     expect(type.element.value).toBe("kiss");
     await type.setValue("kantronics");
     expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, type: "kantronics" });
@@ -462,6 +479,108 @@ describe("a radio that is off, removed or the only one on", () => {
     expect(daemon.send).not.toHaveBeenCalledWith({ cmd: "list_ports", radio: 4 }); // (the Dummy HF radio has no sound card)
   });
 
+  it("stores no sound card from another radio's answer, never the same refused proposal again, and keeps its cards when an FM radio's ports come", async () => {
+    const CODEC = "plughw:CARD=CODEC,DEV=0";
+    const forRadio = (radio: number, cards: ReturnType<typeof soundCard>[], keying = "vox"): PortsMessage => ({ ...ports, radio, keying, sound_cards: cards });
+    const sets = (send: ReturnType<typeof make>["send"]) =>
+      send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
+    // radio 2 holds the one card; radio 6 has none: radio 2's answer proposes radio 2's own card, which is no proposal for radio 6
+    const second = forRadio(2, [soundCard(CODEC, "USB Audio CODEC", { pick: true, held_by: 2 })]);
+    const a = make({ ports: second }, {});
+    await tell(a.daemon, { config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
+    await flushPromises();
+    expect(sets(a.send)).toEqual([]);
+    expect([...a.box("WWWWWWWW").find<HTMLSelectElement>("#set-radio-6-sound_card").element.options].map((o) => o.value)).toEqual([]);
+    a.wrapper.unmount();
+    // radio 6's own answer proposes a card the daemon then refuses (another radio took it meanwhile): stored once, not again on every refusal
+    const sixth = forRadio(6, [soundCard(CODEC, "USB Audio CODEC", { pick: true })]);
+    const byRadio = new Map([[6, sixth]]);
+    const b = make({ ports: sixth, portsByRadio: byRadio, config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
+    await flushPromises();
+    expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
+    for (let i = 0; i < 3; i++) {
+      await tell(b.daemon, {
+        lastError: toastOf(
+          `set_config: radio/6/sound_card: the device is in use by radio Mobile: choose another`,
+          "radio.resource_held",
+          { resource: "sound_card", holder: "Mobile", held_by: 3 },
+          i + 1,
+        ),
+      });
+      await flushPromises();
+    }
+    expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
+    expect(b.box("WWWWWWWW").find("#set-radio-6-sound_card-error").text()).toContain("in use by radio Mobile");
+    // a new answer for radio 6 (Refresh) may propose again
+    await tell(b.daemon, { portsByRadio: new Map([[6, forRadio(6, [soundCard("plughw:CARD=B,DEV=0", "B", { pick: true })])]]) });
+    await flushPromises();
+    expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }, { "radio/6/sound_card": "plughw:CARD=B,DEV=0" }]);
+    b.wrapper.unmount();
+    // the ports of an FM radio (Refresh in its box) have no sound card: the HF box keeps its own
+    const c = make({ ports: second, portsByRadio: new Map([[2, second]]) });
+    await tell(c.daemon, {
+      ports: forRadio(1, [], ""),
+      portsByRadio: new Map([
+        [2, second],
+        [1, forRadio(1, [], "")],
+      ]),
+    });
+    expect([...c.box("HF radio").find<HTMLSelectElement>("#set-radio-2-sound_card").element.options].map((o) => o.value)).toContain(CODEC);
+  });
+
+  it("stores a refused proposal once while the setup guide's copy of the box is mounted beside the Settings tab's", async () => {
+    const CODEC = "plughw:CARD=CODEC,DEV=0";
+    const sixth: PortsMessage = { ...ports, radio: 6, keying: "vox", sound_cards: [soundCard(CODEC, "USB Audio CODEC", { pick: true })] };
+    const sets = (send: ReturnType<typeof make>["send"]) =>
+      send.mock.calls.filter(([c]) => c.cmd === "set_config").map(([c]) => (c as { values: unknown }).values);
+    const b = make({ ports: sixth, portsByRadio: new Map([[6, sixth]]), config: sixSettings({}, { "radio/6/sound_card": "", "radio/6/keying": "" }) });
+    const other = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(b.daemon), attachTo: document.body });
+    await flushPromises();
+    expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
+    for (let i = 0; i < 3; i++) {
+      await tell(b.daemon, {
+        lastError: toastOf(
+          `set_config: radio/6/sound_card: the device is in use by radio Mobile: choose another`,
+          "radio.resource_held",
+          { resource: "sound_card", holder: "Mobile", held_by: 3 },
+          i + 1,
+        ),
+      });
+      await flushPromises();
+    }
+    expect(sets(b.send)).toEqual([{ "radio/6/sound_card": CODEC }]);
+    other.unmount();
+  });
+
+  it("shows the daemon's tick again when the tick could not be sent, or the connection was lost before its answer", async () => {
+    const off = { enabled: false, state: "stopped" } as const;
+    const alone = sixRadios({ 2: off, 3: off, 4: off, 5: off, 6: off });
+    const ticked = (w: ReturnType<typeof make>) => w.box("Mobile").find<HTMLInputElement>("#set-radio-3-enabled").element.checked;
+    const onlyOne = (w: ReturnType<typeof make>) => w.box("FM radio").find<HTMLInputElement>("#set-radio-1-enabled").element.disabled;
+    const unsent = make({ radios: alone, send: vi.fn(() => false) });
+    await unsent.box("Mobile").find("#set-radio-3-enabled").setValue(true);
+    expect(unsent.send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, enabled: true });
+    expect([ticked(unsent), onlyOne(unsent), unsent.group().find("#set-station-main_radio").exists()]).toEqual([false, true, false]);
+    unsent.wrapper.unmount();
+    const lost = make({ radios: alone });
+    await lost.box("Mobile").find("#set-radio-3-enabled").setValue(true);
+    expect([ticked(lost), onlyOne(lost), lost.group().find("#set-station-main_radio").exists()]).toEqual([true, false, true]);
+    await tell(lost.daemon, { connection: "closed" });
+    expect([ticked(lost), onlyOne(lost), lost.group().find("#set-station-main_radio").exists()]).toEqual([false, true, false]);
+  });
+
+  it("opens the folded Radio group for a complaint about a radio's field, not for one about a radio removed meanwhile", async () => {
+    const { group, daemon } = make({ radios: sixRadios({ 6: { removed: true, enabled: false, state: "stopped" } }) });
+    await group().find("button.groupfold").trigger("click");
+    expect(group().classes()).toContain("folded");
+    daemon.settings.errors["radio/6/sound_card"] = "radio 6 is removed";
+    await flushPromises();
+    expect(group().classes()).toContain("folded");
+    daemon.settings.errors["radio/3/port"] = "that device is in use by FM: choose another";
+    await flushPromises();
+    expect(group().classes()).not.toContain("folded");
+  });
+
   it("greys the only radio on when it is not one of before", () => {
     const off = { enabled: false, state: "stopped" } as const;
     const { box } = make({ radios: sixRadios({ 1: off, 2: off, 4: off, 5: off, 6: off }) });
@@ -483,12 +602,13 @@ describe("Add radio", () => {
       "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
       "KISS over TCP (Direwolf, soundmodem)",
       "RX only: Yaesu FTM, TNC text (no KISS)",
+      "Sound card (Direwolf)",
       "Dummy (no radio, made-up traffic)",
       "Mercury HF modem (sound card, SSB radio)",
       "Dummy HF radio (no radio, made-up distant stations)",
       "LoRa APRS board on the network",
       "LoRa APRS board on USB or Bluetooth",
-      "LoRa APRS iGate's log on USB (receive only)",
+      "LoRa APRS iGate's log on USB (RX only)",
       "Dummy LoRa radio (no radio, made-up stations)",
     ]);
     expect([add().text(), add().element.disabled]).toEqual(["Add", true]);

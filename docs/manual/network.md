@@ -7,9 +7,26 @@ By default the page answers on this computer only. To open it from another devic
 It counts at once, with no restart. The page now also listens on every interface (IPv4 and IPv6), on the same port. The group shows:
 
 - the **access key**: three groups of four letters and digits, such as `k7m2-x9pq-4hrt`, made when the switch is first turned on;
-- **Open at**: the addresses of this computer on the network, such as `http://192.168.1.20:7303/` and `http://NAME.local:7303/` with the name of the computer.
+- **Open on a phone**: a code to point a phone's camera at; it opens the page there, logged in ([On a phone](#on-a-phone)).
 
-On the other device open one of the addresses and type the key into the one field of the key screen. The browser keeps the login for a year, so each device asks once. The log says the addresses too, and `neoaprs db get web/key` prints the key on a computer with no screen.
+Another device, such as a laptop, opens `http://NAME.local:7303/` with the name of the computer, or the address the log says (`other devices open the page at ...`), and types the key into the one field of the key screen. The browser keeps the login for a year, so each device asks once. `neoaprs db get web/key` prints the key on a computer with no screen.
+
+### On a phone
+
+Point the phone's camera at the code and tap the link it shows. The page opens in the browser, logged in. The code holds the page's address with the key after `#`: the browser never sends that part to NeoAPRS, and the page takes it out of the address bar at once. If the key screen comes instead (the key was renewed since, or the code is a photo of an old one), type the key once.
+
+Then put the page on the home screen, with the phone's own menu:
+
+- **iPhone and iPad** (Safari): Share, *Add to Home Screen*, *Add*.
+- **Android** (Chrome): the menu, *Add to home screen*, then *Add*, or *Install* where Chrome offers it.
+
+The icon opens the address that was in the code, without the key. So:
+
+- If the router gives the computer another address, the icon opens nothing: scan the code again and add it again. A DHCP reservation for the computer in the router keeps its address.
+- Keep the default port: with `web/port` 0 the port changes at every start. With the secure connection on, the code has the secure port, 7304 unless that one is taken.
+- A VPN on the computer that takes all its traffic (a full-tunnel WireGuard, for example) puts the VPN's address in the code, which the phone cannot open. Turn the VPN off while you scan, or open `http://NAME.local:7303/` on the phone.
+- With the secure connection on and its certificate not installed on the phone, the browser warns first. Continue, and type the key if the key screen comes.
+- If the icon on the home screen shows the key screen, type the key once there.
 
 Switching the network off closes the pages that came in by it. On a page opened from another device, the page asks first ("This device will lose the page. Turn off?", Yes or Cancel).
 
@@ -57,5 +74,5 @@ The page can be installed so that it opens in a window of its own with an icon. 
 A browser installs a page only from a secure address: `http://127.0.0.1:7303/` or `http://localhost:7303/` on the computer that runs NeoAPRS, an `https://` address (the secure connection above, or a reverse proxy in front of the daemon with its host name in `web/allowed_hosts`).
 
 - **On the computer that runs NeoAPRS** (Chrome, Edge, Brave, Opera): open the page, then use the install icon at the end of the address bar, the browser's menu ("Install NeoAPRS…"), or **Install app** in the Settings tab, In this browser, which is there when the browser offers the install. Firefox and Safari on a computer do not install pages. The [desktop app](desktop.md) is a window of its own already.
-- **On a phone over plain `http://`** the browser refuses the install, and the page works as before with no message. A phone can still put it on the home screen as a shortcut: Android Chrome, menu, *Add to Home screen*; iPhone Safari, Share, *Add to Home Screen*. It opens in its own window with the NeoAPRS icon, and needs the daemon to be reachable, as the page does in a tab. With the secure connection on and the certificate installed, a phone can install the page.
+- **On a phone over plain `http://`** the browser refuses the install, and the page works as before with no message. A phone can still put it on the home screen ([On a phone](#on-a-phone)); the icon needs the daemon to be reachable, as the page does in a tab. With the secure connection on and the certificate installed, a phone can install the page.
 - **What the browser keeps.** The page's numbered files are kept after their first use. The shell, the manifest, the icons, the symbol sheets and the glyph files are asked of the daemon every time, and a kept copy is shown only when the daemon cannot be reached, so an update is never hidden behind an old page. The data connection, the login, the base map and everything that is not a plain read are never kept. A new release brings a new helper that takes over at once and deletes the old files. To clear it: the browser's site settings, *Clear data* for the address.

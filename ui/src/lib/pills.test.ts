@@ -8,7 +8,7 @@ import type { RadioRow } from "@/protocol/protocol";
 import { ago, fmRow, gpsState, hfRow, igateState, mapState, NOW, radioRow, radiosTopic } from "@/test/fixtures";
 
 const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
-const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", radios: radiosOf(fmRow()), now: NOW, inApp: false, ...extra });
+const link = (extra: Partial<Link> = {}): Link => ({ connection: "open", radios: radiosOf(fmRow()), now: NOW, inApp: false, told: true, ...extra });
 const marks = (extra: Partial<Link> = {}, values: Record<string, string> = {}): HeaderPill[] => headerPills(values, null, null, null, link(extra));
 const words = (pills: HeaderPill[]) => pills.map((p) => t(p.text));
 const radio = (row: Partial<RadioRow>, extra: Partial<Link> = {}) => marks({ radios: radiosOf(fmRow(row)), ...extra }).find((p) => p.id === "radio");
@@ -17,9 +17,9 @@ const problem = (code: NonNullable<RadioRow["problem"]>["code"], params: Record<
 describe("the Daemon mark", () => {
   it("is in a browser only, ok while the page is connected, warn while it connects and bad when the daemon is offline, with nothing to open", () => {
     const states = [
-      ["open", "Server", "ok"],
-      ["connecting", "Server: connecting…", "warn"],
-      ["closed", "Server: offline", "bad"],
+      ["open", "NeoAPRS", "ok"],
+      ["connecting", "NeoAPRS: connecting…", "warn"],
+      ["closed", "NeoAPRS: offline", "bad"],
     ] as const;
     for (const [connection, text, tone] of states) {
       const mark = marks({ connection }).find((p) => p.id === "daemon");
@@ -71,7 +71,7 @@ describe("the Radio mark", () => {
 
   it("has the reason as the hover title, with where it leads: the problem in the page's words, or since when it is silent", () => {
     const down = radio({ state: "waiting", problem: problem("modem.not_installed") })!;
-    expect(t(down.title, down.titleValues)).toBe("This installation carries no Mercury. Settings → Radio");
+    expect(t(down.title, down.titleValues)).toBe("This installation does not carry this radio's modem. Settings → Radio");
     const silent = radio({ state: "silent", problem: problem("radio.silent", { since: ago(5 * 3600 + 120) }) })!;
     expect(t(silent.title, silent.titleValues)).toMatch(/^nothing heard since \d\d:\d\d \(5 h\)\. Settings → Radio$/);
     expect(t(radio({})!.title)).toBe("Radio connected. Settings → Radio");
@@ -90,13 +90,19 @@ describe("the Radio mark", () => {
     expect([dummy?.tone, dummy && t(dummy.text)]).toEqual(["dummy", "Radio"]);
   });
 
-  it("is waiting while the daemon has not told the radios, and while the page's socket is not open, whatever the radio was", () => {
-    const none = marks({ radios: [] }).find((p) => p.id === "radio")!;
-    expect([t(none.text), none.focus]).toEqual(["Radio: waiting…", "set-radio-add"]); // (a station with no radio: its mark leads to Add radio)
+  it("is waiting while the daemon has not told the radios, and while the page's socket is not open, whatever the radio was, titled then as the Daemon mark is", () => {
+    const early = marks({ radios: [], told: false }).find((p) => p.id === "radio")!;
+    expect([t(early.text), early.tone, early.focus]).toEqual(["Radio: waiting…", "warn", "set-radio-add"]);
     for (const connection of ["connecting", "closed"] as const) {
       const mark = radio({}, { connection })!;
-      expect([t(mark.text), mark.tone]).toEqual(["Radio: waiting…", "warn"]);
+      const daemon = marks({ connection }).find((p) => p.id === "daemon")!;
+      expect([t(mark.text), mark.tone, t(mark.title, mark.titleValues)]).toEqual(["Radio: waiting…", "warn", t(daemon.title)]);
     }
+  });
+
+  it("is not there for a station the daemon has told has no radio: nothing is waited for, whether the socket is open or not, in a browser and in the app", () => {
+    for (const connection of ["open", "connecting", "closed"] as const)
+      for (const app of [false, true]) expect(marks({ radios: [], told: true, connection, inApp: app }).filter((p) => p.id.startsWith("radio"))).toEqual([]);
   });
 
   it("leads to Settings → Radio and flashes the radio's box", () => {
@@ -118,7 +124,7 @@ describe("the radio marks with the HF radio", () => {
   it("is the one Radio mark too for a station with the HF radio alone, in the state of the HF radio and leading to its box", () => {
     const hfDown = radios([FM_OFF, hfRow({ state: "waiting", problem: problem("modem.not_installed") }, { state: "waiting", reason: "not_installed" })]);
     expect(hfDown.map((p) => [p.id, said(p), String(p.tone), p.focus])).toEqual([["radio", "Radio: not connected", "warn", "set-radio-2-enabled"]]);
-    expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual(["This installation carries no Mercury. Settings → Radio"]);
+    expect(hfDown.map((p) => t(p.title, p.titleValues))).toEqual(["This installation does not carry this radio's modem. Settings → Radio"]);
     expect(radios([FM_OFF, hfRow()]).map((p) => [said(p), String(p.tone)])).toEqual([["Radio", "ok"]]);
   });
 
@@ -149,14 +155,17 @@ describe("the radio marks with the HF radio", () => {
       fmRow(),
       hfRow({ state: "waiting", problem: problem("modem.not_installed") }, { state: "waiting", reason: "not_installed" }),
     ]);
-    expect([said(down), t(down.title, down.titleValues)]).toEqual(["HF: not connected", "This installation carries no Mercury. Settings → Radio"]);
+    expect([said(down), t(down.title, down.titleValues)]).toEqual([
+      "HF: not connected",
+      "This installation does not carry this radio's modem. Settings → Radio",
+    ]);
     expect(said(mark("radio-2", [fmRow(), hfRow({ state: "silent", problem: problem("radio.silent", { since: ago(300) }) })]))).toBe("HF: silent");
     for (const connection of ["connecting", "closed"] as const) {
       const waiting = mark("radio-2", [fmRow(), hfRow()], { connection });
       expect([said(waiting), String(waiting.tone), t(waiting.title, waiting.titleValues)]).toEqual([
         "HF: waiting…",
         "warn",
-        "No word from the TNC yet. Settings → Radio",
+        connection === "connecting" ? "The page is opening its connection to NeoAPRS" : "NeoAPRS does not answer. The page connects again by itself",
       ]);
     }
   });
@@ -227,7 +236,11 @@ describe("the radio marks with any number of radios", () => {
   it("is waiting while the page's socket is not open", () => {
     for (const connection of ["connecting", "closed"] as const) {
       const [mark] = ofRadios(SIX, { connection });
-      expect([mark && said(mark), String(mark?.tone)]).toEqual(["Radios: waiting…", "warn"]);
+      expect([mark && said(mark), String(mark?.tone), mark && t(mark.title, mark.titleValues)]).toEqual([
+        "Radios: waiting…",
+        "warn",
+        t(`pill.daemon_${connection === "closed" ? "offline" : "connecting"}_title`),
+      ]);
     }
   });
 
@@ -255,7 +268,7 @@ describe("the radio marks with any number of radios", () => {
     const [mark] = ofRadios(oneDown);
     expect([mark && said(mark), mark && t(mark.title, mark.titleValues)]).toEqual([
       "Radio: not connected",
-      "This installation carries no Mercury. Settings → Radio",
+      "This installation does not carry this radio's modem. Settings → Radio",
     ]);
   });
 

@@ -11,8 +11,12 @@
     appstate.py   what the app remembers in the data folder: the window's size, the web engine's storage
     shell.py      which shell this computer can run, and the fallback when none can show a window
     qtshell.py    the shell of Linux and macOS: Qt (QWebEngineView and QSystemTrayIcon), one event loop
-    winshell.py   the shell of Windows: pywebview (WebView2) for the window, pystray for the tray icon
+    webshell.py   the shell of Windows, and of Linux and macOS with NEOAPRS_WINDOW=web (the trial): pywebview on the system's web engine for the window, pystray for the tray icon
+    webdesk.py    what the web shell asks of the desktop on Linux and macOS: the tray host, the scheme, the screens, the tray's own loop
+    gtkenv.py     Linux: what the web window needs before GTK starts (the libraries and typelibs the AppImage carries, the web content's sandbox)
+    sizekeep.py   the web window's size, place and maximized on Linux and macOS, from pywebview's events
     winplace.py   the window's placement on Windows (GetWindowPlacement, SetWindowPlacement): saved and given back
 
-Only qtshell.py and winshell.py import a toolkit (PySide6, pywebview, pystray, Pillow); they are the app's optional dependencies (`pip install neoaprs[app]`) and nothing else imports them.
+Only qtshell.py, qtwindow.py, webshell.py and webdesk.py use a toolkit (PySide6, pywebview, pystray, gi, pyobjc, and Pillow for the tray of Linux and macOS: the Windows tray is given icon.ico as it is), and
+shell.py looks for them by importing them; they are the app's optional dependencies (`pip install neoaprs[app]`, and on Linux the `gi` that the AppImage carries) and nothing else imports them.
 """

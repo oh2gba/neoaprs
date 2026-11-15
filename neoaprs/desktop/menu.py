@@ -36,7 +36,7 @@ class Item:
 
 
 class Frame(Protocol):
-    """What the app's logic needs of a toolkit (qtshell.py, winshell.py; a fake in the tests). every method may be called from any thread (a second app's `show` arrives in a thread of its own, Quit runs in one)."""
+    """What the app's logic needs of a toolkit (qtshell.py, webshell.py; a fake in the tests). every method may be called from any thread (a second app's `show` arrives in a thread of its own, Quit runs in one)."""
     has_window: bool
 
     def show_window(self) -> None: ...

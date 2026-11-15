@@ -88,6 +88,7 @@ async def test_a_task_set_given_a_logger_logs_the_failure_of_a_task_as_an_error(
     tasks.spawn(fails(), "bad")
     await asyncio.sleep(0.01)
     assert [(r.name, r.levelno, r.getMessage()) for r in caplog.records] == [("neoaprs.test", logging.ERROR, f"{words}: ValueError('boom')")]
+    assert "in fails" in caplog.text and 'raise ValueError("boom")' in caplog.text, "with the traceback: a task that dies says where"
 
 
 async def test_the_cancellation_of_the_task_that_waits_in_cancel_all_is_not_swallowed() -> None:

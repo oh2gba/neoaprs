@@ -1,6 +1,8 @@
 # What a push or a pull request must pass: the Python half (lock, ruff, mypy, the tests) on Linux and on Windows, the smoke test of the built wheel on both, and the page's half (type check, lint, tests,
 # and neoaprs/page/ is what ui/ builds, and the two duplication ratchets). On Linux every step is a stage of scripts/check (`scripts/check --stage NAME`), so that what runs here cannot differ from what is run
-# before a push, nor from the container of scripts/check-in-container, which runs these steps in this order; Windows has no bash script and runs the commands themselves. No secrets, nothing is published.
+# before a push, nor from the container of scripts/check-in-container, which runs the steps of the jobs `python` (on Linux) and `sim` in their order; Windows has no bash script and runs the commands
+# themselves. No secrets, nothing is published. The runners are named and not `-latest`, so that a commit's result does not depend on the day GitHub moves a label: packaging/ci/runner.json lists
+# them, the weekly audit says when a `-latest` label is no longer what we name, and every setup-uv installs the uv of packaging/ci/Dockerfile (tests/test_check_in_container.py holds all three).
 # The weekly audit of the packages is another workflow (audit.yml): the release asks for a green run of this one by the commit, and a scheduled run of this file would be one.
 name: ci
 
@@ -27,15 +29,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-26.04, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false     # (no later step uses git with the job's token)
+      # This runner's system against packaging/ci/runner.json (scripts/runner-facts, the system's Python): a fact that parts fails the job, since the container of scripts/check-in-container then no
+      # longer matches the runner. The image's version is a notice.
+      - name: The runner is what runner.json says
+        if: runner.os == 'Linux'
+        run: python3 scripts/runner-facts --here --github
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
       # The extra `app` is installed, so that the desktop app is type-checked and tested against the real toolkits: Qt with its web engine on Linux (the headless test needs the system libraries of Chromium), pywebview and pystray on Windows (their stand-ins run everywhere).
@@ -71,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-26.04, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -83,6 +91,7 @@ jobs:
           persist-credentials: false     # (no later step uses git with the job's token)
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
       - run: uv build --wheel
@@ -98,7 +107,7 @@ jobs:
           "$SMOKE_BIN/python$SMOKE_EXE" scripts/smoke.py --command "$SMOKE_BIN/neoaprs$SMOKE_EXE"
 
   page:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -121,6 +130,7 @@ jobs:
       # The duplication ratchets: jscpd over ui/src, and over neoaprs/ and tests/support/ against scripts/dup-baseline.json (scripts/check runs them with the Python of the venv).
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --frozen
@@ -140,14 +150,17 @@ jobs:
   # daemon restarted mid-conversation, a weak link, a poor fading channel at 0 dB, both radios, the iGate. About six minutes (the scenario waits on the air, not on the CPU); the report is an artifact, and the
   # daemons' and Mercury's logs too when it failed. The same as `scripts/check --stage sim`.
   sim:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false     # (no later step uses git with the job's token)
+      - name: The runner is what runner.json says
+        run: python3 scripts/runner-facts --here --github
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
       - name: The tools of the Mercury build

@@ -126,10 +126,14 @@ PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source":
 STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
 RADIO: dict[str, Any] = {"id": 1, "kind": "fm", "type": "kiss", "name": "Mobile", "number": 1, "enabled": True, "position": 1, "removed": False, "dummy": False, "state": "connected", "problem": None, "stats": STATS,
                          "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}], "limits": {"max_frame": None, "beacon_min_min": 20}, "allowed": {"paths": True, "digipeat": True, "smart_beacon": True, "gateway_heard": True, "shared_channel": True},
-                         "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False, "transmit": True}, "choices": {"beacon": True, "path": "", "digipeat": False},
+                         "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False, "transmit": True, "rx_level": False}, "choices": {"beacon": True, "path": "", "digipeat": False},
                          "beacon": {"last_sent": NOW, "next_due": "2026-10-21T12:30:00Z", "interval_min": 30, "problem": None}, "modem": None, "holds": [{"resource": "serial", "value": "/dev/ttyUSB0"}]}
 REMOVED_RADIO: dict[str, Any] = {**RADIO, "id": 2, "kind": "hf", "type": "mercury", "name": "", "number": 1, "enabled": False, "position": 2, "removed": True, "state": "stopped", "lines": [], "holds": [],
                                  "choices": {"beacon": True, "path": None, "digipeat": None}, "beacon": {"last_sent": None, "next_due": None, "interval_min": 0, "problem": {"code": "transmit.off", "params": {}}}}
+SOUND_CARD_RADIO: dict[str, Any] = {**RADIO, "id": 3, "type": "direwolf", "name": "Attic", "number": 2, "position": 3, "holds": [{"resource": "sound_card", "value": "plughw:CARD=AIOC,DEV=0"}, {"resource": "modem_ports", "value": "8002"}],
+                                    "can": {"find": False, "terminal": True, "tune": True, "key_test": True, "scope": False, "tx_gain": True, "frequencies": False, "transmit": True, "rx_level": True},
+                                    "modem": {"state": "running", "problem": "", "reason": "", "mode": "AFSK1200", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 3, "max_frame": None,
+                                              "sound_card": "plughw:CARD=AIOC,DEV=0", "frequencies": [], "keying": "cm108", "scope": False, "tx_gain_db": -3, "tx_peak_dbfs": None, "rx_level": 48}}
 CONFIG: dict[str, Any] = {"values": {"station/call": "OH2GBA"}, "defaults": {"station/call": "OH2GBA"}, "radio_values": {"station/main_radio": "", "radio/1/port": "/dev/ttyUSB0"},
                           "radio_defaults": {"station/main_radio": "", "radio/1/port": ""}, "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
 
@@ -138,18 +142,18 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "local": True, "topics": []},
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "local": False, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "main_radio": 1, "email_radio": 1,
+                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "main_radio": 1, "email_radio": 1, "unavailable_types": [],
                 "station_status": "QRV 14.074 MHz USB", "station_status_last_sent": NOW, "rig_state": "on",
                 "cpu_percent": 0.3, "rss_mb": 42.4, "uptime_sec": 10800,
                 "update": {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}, "message_key": "A1B2 C3D4 E5F6 0718"},
                {"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 0, "stations": 1, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None, "main_radio": None, "email_radio": None,
+                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None, "main_radio": None, "email_radio": None, "unavailable_types": ["direwolf"],
                 "station_status": "", "station_status_last_sent": None, "rig_state": "unused",
                 "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None, "message_key": ""}],
     "pong": [{"type": "pong", "now": NOW}],
     "ports": [{"type": "ports", "search": False, "find": True, "ports": [{"device": "COM3", "description": "USB Serial Port (COM3)", "hwid": "USB VID:PID=0403:6001 SER=A1", "vid": 1027, "pid": 24577, "held_by": 3},
-                                                           {"device": "COM4", "description": "Standard Serial over Bluetooth link (COM4)", "hwid": "BTHENUM\\{00001101}", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": ""},
-              {"type": "ports", "search": True, "find": True, "ports": [], "sound_cards": [{"id": "plughw:CARD=CODEC,DEV=0", "name": "USB Audio CODEC", "numbered": "plughw:1,0", "default": False, "pick": True, "held_by": None}], "keying": "vox"}],
+                                                           {"device": "COM4", "description": "Standard Serial over Bluetooth link (COM4)", "hwid": "BTHENUM\\{00001101}", "vid": None, "pid": None, "held_by": None}], "sound_cards": [], "keying": "", "radio": None},
+              {"type": "ports", "search": True, "find": True, "ports": [], "sound_cards": [{"id": "plughw:CARD=CODEC,DEV=0", "name": "USB Audio CODEC", "numbered": "plughw:1,0", "default": False, "pick": True, "held_by": None}], "keying": "vox", "radio": 2}],
     "weather_series": [{"type": "weather_series", "call": "OH2MUI", "hours": 24, "points": [[NOW, 10.0, 1028.4, 1.6, 1.6, 0.3, 85], ["2026-10-21T12:10:00Z", 10.5, None, None, None, None, None]]},
                        {"type": "weather_series", "call": "OH2NONE", "hours": 168, "points": []}],
     "station_traffic": [{"type": "station_traffic", "call": "OH2RDK-7", "packets": [{**PACKET, "decoded": {**PACKET["decoded"], "telemetry": None}}]}, {"type": "station_traffic", "call": "OH2NONE", "packets": []}],
@@ -177,7 +181,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
               {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
-              {"type": "state", "topic": "radios", "rev": 1, "value": {"1": RADIO, "2": REMOVED_RADIO}}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
+              {"type": "state", "topic": "radios", "rev": 1, "value": {"1": RADIO, "2": REMOVED_RADIO, "3": SOUND_CARD_RADIO}}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
               {"type": "state", "topic": "update", "rev": 4, "value": {"supported": True, "state": "downloading", "version": "0.7.0", "percent": 42, "downloaded": 63_000_000, "total": 150_000_000, "problem": "", "detail": ""}},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
@@ -340,7 +344,7 @@ def test_the_firewall_of_windows_is_no_part_of_the_protocol_any_more() -> None:
         COMMANDS.validate_python({"cmd": "hf_allow_firewall"})
     assert "hf_allow_firewall" not in COMMAND_NAMES
     reasons = ModemState.model_json_schema()["properties"]
-    assert set(reasons["reason"]["enum"]) == {"", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card"}
+    assert set(reasons["reason"]["enum"]) == {"", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card", "keying"}
     assert "lets_in" not in reasons and "allowing" not in reasons
 
 

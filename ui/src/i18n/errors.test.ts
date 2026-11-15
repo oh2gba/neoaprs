@@ -1,6 +1,7 @@
 // The sentences of the daemon's refusals on the page: ui/src/protocol/errors.json is what the daemon says (written from its source by scripts/gen-protocol.py), en/errors.ts is what the page says for the same code. Every code the
 // daemon has a sentence for has one on the page, built of the values the daemon passes (and the lists the page adds), and it reads as the daemon's sentence does.
 import { describe, expect, it } from "vitest";
+import { setLocale, t } from "@/i18n";
 import { en } from "@/i18n/en";
 import { errorLine, errorReason } from "@/i18n/errortext";
 import { fill, placeholders, pick, texts, type Message, type Params } from "@/i18n/message";
@@ -15,12 +16,15 @@ const CODES = daemon as Record<string, Refusal>;
 const ADDED = ["profiles", "settings", "forbidden", "name_forbidden"];
 /** Refusals with a sentence the page cannot make: the daemon's own words are a detail it does not pass on (a parser's message, a list of the topics). They are shown in the daemon's English. */
 const TEXT_ONLY = ["not_json", "topic.unknown"];
+/** The page's own refusal, which no daemon sends: a command while the socket is not open (composables/useDaemon.ts `send`). */
+const PAGE_OWN = ["not_connected"];
 /** The values a sentence is tried with when it chooses by one of them. */
 const VARIANTS: Record<string, Record<string, string[]>> = {
   "object.name_length": { kind: ["object", "item"] },
   "object.comment_length": { motion: ["0", "1"] },
   "message.not_ascii": { chars: ["", "é"] },
   "radio.unknown": { removed: ["", "1"] },
+  "radio.resource_held": { held_by: ["0", "3"] },
 };
 
 const message = (code: string): Message | undefined => (en as Record<string, Message>)[`error.${code}`];
@@ -49,7 +53,11 @@ describe("the refusals of the daemon", () => {
     const ours = Object.keys(en)
       .filter((id) => id.startsWith("error."))
       .map((id) => id.slice(6));
-    expect(ours.filter((code) => !(code in CODES))).toEqual([]);
+    expect(ours.filter((code) => !(code in CODES) && !PAGE_OWN.includes(code))).toEqual([]);
+    expect(
+      PAGE_OWN.filter((code) => code in CODES),
+      "a code of the page's own that the daemon has too",
+    ).toEqual([]);
   });
 
   it("are said on the page with the values the daemon passes (and the lists the page adds), no others", () => {
@@ -100,6 +108,19 @@ describe("a refusal on the page", () => {
     expect(errorReason({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
     expect(errorLine({ cmd: "send_message", key: null, code: "other", params: {}, text })).toBe("OH2GBA is our own call");
     expect(errorReason({ cmd: "", key: null, code: "nope.nothing", params: {}, text: "Not connected to the daemon." })).toBe("Not connected to the daemon.");
+  });
+
+  it("is the page's own sentence, in the page's language, for a command the page could not send (the socket not open), and never names the daemon", () => {
+    const failure = { cmd: "", key: null, code: "not_connected", params: {}, text: "Not connected to the daemon." } as const;
+    try {
+      for (const code of ["en", "de", "fi", "ja"]) {
+        setLocale(code);
+        expect(errorLine(failure), code).toBe(t("error.not_connected"));
+        expect(errorLine(failure), code).not.toMatch(/daemon|デーモン/i);
+      }
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("lists what the daemon does not pass: the settings, the profiles, the characters", () => {

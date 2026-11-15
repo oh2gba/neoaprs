@@ -40,10 +40,10 @@ from neoaprs.packetcodec import tnc2
 from neoaprs.packetlog import PacketLog
 from neoaprs.paths import default_data_dir
 from neoaprs.skeds import SKED_TOKEN
-from neoaprs.stopfile import migrating
 from neoaprs.versions import NOT_COUNTED
 from neoaprs.store import DB_NAME, Store
 
+from .dbwrite import held
 from .output import say
 from .dbradios import Radios, add_radio, show_radios, stamp, stored_radios
 from .radiosettings import SHOWN_KEYS, in_force, own_key, port_problem, shown_settings, stored_text_of, value_text
@@ -81,9 +81,9 @@ def parse(argv: list[str]) -> argparse.Namespace:
 
 
 def daemon_state(key: str) -> bool:
-    """A row only the daemon writes, which `set` refuses: the station's state, a radio's own (its beacon's last send, the port its search found), and the two rows of before migration 31."""
+    """A row only the daemon writes, which `set` refuses: the station's state, a radio's own (its beacon's last send; the port its search found is radio 1's alone), and the two rows of before migration 31."""
     radio = radio_key_of(key)
-    return key in STATE_KEYS or key in STATE_BEFORE_31 or (radio is not None and radio[1] in RADIO_STATE)
+    return key in STATE_KEYS or key in STATE_BEFORE_31 or key == LAST_PORT or (radio is not None and radio[1] in RADIO_STATE and radio[1] != "last_port")
 
 
 def kept_note(key: str) -> str:
@@ -338,28 +338,29 @@ async def run(args: argparse.Namespace) -> int:
     text = before_opening(args, path)
     if isinstance(text, int):
         return text
-    if migrating(path.parent):                               # (the daemon migrates the file: a read would find an older version, and a write would migrate it beside the daemon)
-        say(f"{PROG}: {path}: NeoAPRS is bringing it up to date now (a large file takes minutes); try again when that is done")
-        return 1
-    db = Db(lambda: open_connection(path, WRITE_WAIT_MS)) if writing else Db.at(path, READ_WAIT_MS)
-    try:
-        await db.start()
-    except (StoreError, SqlError) as e:
-        say(f"{PROG}: {path}: {e}")
-        return 1
-    store = Store()
-    store.use(db, path)
-    try:
-        version = await db.read(schema_version)
-        if version < SCHEMA_VERSION and not writing:
-            say(f"{PROG}: {path} is of version {version}, this NeoAPRS needs {SCHEMA_VERSION}: start the daemon once, it migrates the file")
+    with held(path, writing, WRITE_WAIT_MS) as refused:                     # (the daemon migrates the file, another NeoAPRS writes it, or one of the version before has it open: dbwrite.py)
+        if refused:
+            say(f"{PROG}: {path}: {refused}")
             return 1
-        return await answer(args, store, PacketLog(db), text)
-    except (SqlError, DbClosed) as e:
-        say(f"{PROG}: {path}: {e}")
-        return 1
-    finally:
-        await db.close()
+        db = Db(lambda: open_connection(path, WRITE_WAIT_MS)) if writing else Db.at(path, READ_WAIT_MS)
+        try:
+            await db.start()
+        except (StoreError, SqlError) as e:
+            say(f"{PROG}: {path}: {e}")
+            return 1
+        store = Store()
+        store.use(db, path)
+        try:
+            version = await db.read(schema_version)
+            if version < SCHEMA_VERSION and not writing:
+                say(f"{PROG}: {path} is of version {version}, this NeoAPRS needs {SCHEMA_VERSION}: start the daemon once, it migrates the file")
+                return 1
+            return await answer(args, store, PacketLog(db), text)
+        except (SqlError, DbClosed) as e:
+            say(f"{PROG}: {path}: {e}")
+            return 1
+        finally:
+            await db.close()
 
 
 def main(argv: list[str]) -> int:

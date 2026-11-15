@@ -17,6 +17,7 @@ from neoaprs.config import DEFAULTS, KEYS, RADIO_STATION_KEYS, STATION_KEYS, Con
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.mercury import MAX_PAYLOAD, MODE
+from neoaprs.direwolfmodem import DirewolfModem
 from neoaprs.mercurymodem import Mercury
 from neoaprs.message import MessageRecord
 from neoaprs.ownbulletin import OwnBulletin
@@ -188,11 +189,15 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
 
 
 def modem_state(tnc: Tnc) -> dict[str, Any] | None:
-    """The Mercury HF modem behind the Tnc's line, while the radio type is a modem's; None otherwise."""
+    """The modem behind the Tnc's line (the Mercury HF modem, Direwolf), while the radio type is a modem's; None otherwise."""
     modem = tnc.modem
-    if modem is None or tnc.profile.transport != "modem" or not isinstance(modem, Mercury):
+    if modem is None or tnc.profile.transport != "modem":
         return None
-    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, frequencies=[{"band": f.band, "dial": f.dial} for f in modem.frequencies], keying=modem.keying.text)
+    if isinstance(modem, DirewolfModem):
+        return ModemState.row(None, **modem.wire())
+    if not isinstance(modem, Mercury):
+        return None
+    return ModemState.row(modem, mode=MODE, max_frame=MAX_PAYLOAD, frequencies=[{"band": f.band, "dial": f.dial} for f in modem.frequencies], keying=modem.keying.text, rx_level=None)
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:

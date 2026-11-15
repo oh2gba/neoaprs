@@ -16,21 +16,33 @@ On a fresh install the page opens a guide in four steps. It opens by itself once
 1. **Call.** Your call sign in the field, and beside it the **SSID** to choose: none for your main station, -9 for a car and so on ([beacon.md](beacon.md#the-call-and-its-ssid)). Pasting `OH2GBA-9` into the field works too.
 2. **Position.** Press **Choose on map** and click where you are, or drag the pin. Or type latitude and longitude in decimal degrees in the fields under it: north and east positive, south and west negative (Sydney is -33.87, 151.21). A Maidenhead locator works too. It is the same row as the Location of the My station tab ([beacon.md](beacon.md#the-location)), with the fields open the whole time.
 3. **Symbol.** The twelve usual ones are on top; the symbol in force is shown under them, and **More symbols…** beside it opens the picker with every symbol.
-4. **Radio.** The same two boxes as Settings → Radio, each with its **Enable** tickbox: **FM radio**, ticked, with the type of TNC and for a serial one the port and speed, for a TCP one the host and port ([radio.md](radio.md)), and **HF radio**, unticked, which is its Enable alone because the sound card and the keying find themselves (Settings has them for an override). A station with an HF radio alone ticks HF and unticks FM. **Finish** is on this step.
+4. **Radio.** The boxes of Settings → Radio ([radio.md](radio.md#the-radio-group)), and each change is saved at once, as in the Settings tab. A new installation has no radio: the step is one box, **New radio**, with **Add radio**. Choose the type of your radio, of any kind (FM, HF, LoRa), and press **Add**. The radio's box then takes its place: fill in what the type asks for (a port, an address). **Add radio** under it adds another.
+   - **Finish**, on this step, needs one radio on with no field in error. On Windows and macOS a radio on a serial line needs its **Port** chosen (or found with **Find my radio**).
 
 The map under the guide is the world, from the first second. When you press **Next** on the Position step, NeoAPRS saves the place and starts downloading the streets and names 150 km round your station (the radius of Settings → Map), unless the detailed map it has covers the place already, so that it is there soon after the guide. A quiet line in the guide says "Downloading the map of your area…", and a **Map** mark at the top of the page shows the percent until it is done.
 
 The radius (150 km unless you change it) and the **Download map** button are in Settings → Map ([page.md](page.md#the-base-map)).
 
-The Radio step has two helpers under the fields of the FM radio, the same as the Settings tab:
+The Radio step shows each radio's status line, so you see at once whether it is connected, and has the helpers of its box:
 
-- **Find my radio** tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
-- **Terminal**, closed until you open it, shows what the TNC saw and did. Opening it puts the radio you chose in force, so that it shows that radio.
-- The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radio)).
+- **Find my radio**, for a radio on a serial line, tries the ports and, when it finds the radio, fills in the type, the port and the speed (Linux, Windows, macOS).
+- **Terminal**, closed until you open it, shows what the TNC saw and did.
+- A Mercury radio's **Sound card** and **Keying** are chosen for you, with **Test** beside the keying and the **Suggested frequencies**. Tune, the Transmit level and the Spectrum are in the Settings tab only, and so are **RX only** and the main radio.
+- The type **Dummy (no radio, made-up traffic)** needs no port and no speed: pick it to try NeoAPRS without a radio ([radio.md](radio.md#the-dummy-radios)).
 
-**Finish** saves what you set, the two Enable tickboxes too. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
+A radio you change or add in the guide stays when the guide is closed. **Finish** saves the call, the place and the symbol. On a station that has no call and no beacon yet, it also sets the beacon to every 30 minutes (the My station tab shows and changes it). Run again on a station that already has a call, the guide leaves the beacon alone.
 
 **Nothing is transmitted until a call is set.** While the call is empty, `N0CALL`, `NOCALL`, `MYCALL` or not an amateur call (3 to 6 letters and digits, with at least one of each), NeoAPRS only listens: no beacon, status, message, ack, object, bulletin or answer to a query. A message is refused with "set your call first", and the header says "no call set". The commands that put the TNC in KISS are not transmissions and go on.
+
+## After an update
+
+An update keeps everything you have: the settings, the messages, the packets, the stations, the map. At its first start the new NeoAPRS brings your database up to date. It first puts a copy of it into `backup/`, as the version before left it, and the version before can open that copy. The database of any earlier release is brought up to date this way, back to the first one.
+
+- **Your radios** become radios of their own: the radio you had, and the HF radio if you ever switched it on. Their settings, their messages and what they heard stay theirs.
+- **A large database** takes a while, minutes on a slow card. The desktop app and `neoaprs open` wait for it, `neoaprs doctor` says that it is being brought up to date, and a second NeoAPRS started meanwhile waits too.
+- **A start that was cut short** (a power cut) goes on from the same copy the next time: there is still one copy, and the disk does not fill.
+
+**If it does not start**, `neoaprs support` makes the file to send ([support.md](support.md)). To go back to the version before, stop NeoAPRS, install that version again and put its copy back with `neoaprs db restore` ([below](#the-data-folder)).
 
 ## The data folder
 
@@ -54,7 +66,7 @@ Everything NeoAPRS keeps is in one folder, one daemon to a folder. A second daem
 - `neoaprs.log` is the log, rotated (20 MB, five files), with every packet as the TNC2 line and what it is. Warnings and errors, and the lines of a database migration (what an upgrade changed), also go to stderr, which `systemctl status` and the journal show.
 - `basemap.pmtiles` is the detailed base map of your area (the world map ships with NeoAPRS and is not in this folder, unless an earlier version made `basemap-world.pmtiles` here); an earlier version fetched a `pmtiles` tool into `bin/`, which is not used any more and can be deleted; `tls/` holds the certificates of the secure connection.
 - `message.key` is your private key for [encrypted messages](messages.md#encrypted-messages), made the first time it is needed (the daemon has to be started with `--encryption`). It is private to your user; keep it out of any copy you share.
-- `neoaprs.lock` shows that a daemon holds the folder. `neoaprs.migrate.lock` is held while the database is brought up to date. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
+- `neoaprs.lock` shows that a daemon holds the folder. `neoaprs.migrate.lock` is held while the database is brought up to date, while `neoaprs db set` writes it and while `neoaprs db restore` puts a copy back. The desktop app keeps `neoaprs-app.log`, `neoaprs-app.json`, `neoaprs-app.lock`, `neoaprs-app.port` and `webview/` there too.
 
 ## How settings apply
 
@@ -74,7 +86,7 @@ Choosing the radio as the status source fills in the usual rigctld address, `127
 
 The forms carry no sentences under the fields: a label, a placeholder with the default, a unit, and a tooltip at the most. A field that a non-developer may not understand has a small **(i)** that opens a few plain sentences; Esc, a click outside or moving on closes it. What each setting does is in [settings.md](settings.md).
 
-`neoaprs db list` shows the settings and `neoaprs db set KEY VALUE` changes one. The value is checked like the daemon checks it, and the daemon takes it at its next start. A change made on the page is put in force at once.
+`neoaprs db list` shows the settings and `neoaprs db set KEY VALUE` changes one. The value is checked like the daemon checks it, and the daemon takes it at its next start. While a NeoAPRS is running with this folder and the database is not up to date yet, `neoaprs db set` changes nothing: try again in a minute, or, if it is the version before, stop it, and the new one brings the database up to date at its start. A change made on the page is put in force at once.
 
 ## Without the radio
 

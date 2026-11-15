@@ -275,6 +275,47 @@ def test_the_manual_names_no_component_composable_function_or_source_file() -> N
     assert not found, f"move these to docs/development.md or docs/daemon.md, or say them in plain words: {found}"
 
 
+def test_the_manual_gives_the_taps_that_put_the_page_on_a_phones_home_screen_in_one_place() -> None:
+    """One act, one set of steps: the taps are in network.md under "On a phone", and another place of the manual links there instead of telling them in other words."""
+    on_a_phone = section(operator_docs()["network.md"], "### On a phone")
+    assert re.search(r"add to home screen", on_a_phone, re.I)
+    elsewhere = [f"{name}: {line[:70]}" for name, text in operator_docs().items() for line in text.splitlines() if re.search(r"add to home screen", line, re.I) and line not in on_a_phone]
+    assert not elsewhere, f"link to network.md#on-a-phone instead: {elsewhere}"
+
+
+def catalogue_text(area: str, message: str) -> str:
+    """The English of a message of the page's catalogue (ui/src/i18n/en/<area>.ts)."""
+    source = (ROOT / "ui" / "src" / "i18n" / "en" / f"{area}.ts").read_text(encoding="utf-8")
+    return re.search(rf'^  "{re.escape(message)}": "([^"]*)",$', source, re.M).group(1)  # type: ignore[union-attr]
+
+
+def test_the_manual_and_the_readme_say_of_the_sound_card_type_what_the_program_offers_and_where() -> None:
+    from neoaprs.direwolf import TX_GAIN_MAX_DB, TX_GAIN_MIN_DB
+    from neoaprs.radiotypes import type_of, unavailable_types
+
+    name = catalogue_text("radio", "radio.type.direwolf")
+    sound = section(operator_docs()["radio.md"], "### A sound card with Direwolf")
+    assert f"*{name}*" in sound and f"from {TX_GAIN_MIN_DB} to {TX_GAIN_MAX_DB} dB" in sound, "the type by the page's name, and its transmit level's range"
+    assert type_of("direwolf").systems == {"linux", "win32"} and unavailable_types("darwin") == ("direwolf",)
+    assert "On Windows and Linux NeoAPRS carries Direwolf" in sound and f"On a Mac there is no *{name}* type" in sound
+    assert "on Windows and Linux Direwolf" in README and "Direwolf by John Langner, WB2OSZ (GPL-2.0-or-later)" in README, "the downloads that carry it, and its credit"
+    assert "and all but the Mac's also carry Direwolf for an FM radio on a sound card" in operator_docs()["install.md"], "the downloads that carry it, the Mac's alone without"
+
+
+def test_the_manual_names_the_phone_code_by_the_pages_words_and_the_windows_window_by_the_shell_the_program_chooses() -> None:
+    from neoaprs.desktop import shell
+
+    network = operator_docs()["network.md"]
+    label = catalogue_text("phone", "phone.code.label")
+    assert f"- **{label}**: a code" in network and "### On a phone" in network, "the row of Settings, Web page, as the page calls it"
+    everything = lambda name: object()  # noqa: E731  (every toolkit imports)
+    assert shell.choose("win32", everything, runtime=lambda: True, environ={}).module == shell.WEB_SHELL
+    assert shell.choose("linux", everything, environ={}).module == shell.choose("darwin", everything, environ={}).module == "neoaprs.desktop.qtshell", "the web window elsewhere is a trial that is off"
+    toolkit = section(operator_docs()["desktop.md"], "## Which toolkit")
+    assert "**Windows:** pywebview, which uses the Edge engine" in toolkit and "**Linux and macOS:** Qt" in toolkit
+    assert not [name for name, text in operator_docs().items() if shell.WINDOW_SWITCH in text], "the trial's switch is not the operator's"
+
+
 def test_the_contents_of_the_manual_list_every_file_of_it() -> None:
     contents = operator_docs()["README.md"]
     listed = set(re.findall(r"\]\(([\w-]+\.md)\)", contents)) - {"README.md"}

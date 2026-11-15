@@ -4,16 +4,20 @@ started again in the place of one that died; from the table when the modem has o
 
 A modem that is given the table holds its pair, its sound card and its keying line in it as the radio it is (`holder`), so that a second radio's modem is started on another pair and the daemon's own choice of its card and
 its keying leaves them out; what it holds is let go at its stop, and kept while a program that died is started again. A modem made without the table holds nothing and finds its ports by probing alone; one made without a
-folder of its own keeps its files in the data folder. What a NeoAPRS of one HF radio left in the data folder is radio 2's (`take_folder`). A class of its own for its size: it reads and sets the modem's ports and asks
+folder of its own keeps its files in the data folder. What a NeoAPRS of one HF radio left in the data folder is radio 2's (`take_folder`); a Mercury a daemon left running is ended at the next start (`end_left_behind`). A class of its own for its size: it reads and sets the modem's ports and asks
 it for a free pair (`_free_pair`, which the modem part provides)."""
 import logging
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from . import nodevices
 from .claims import Claim, Claims
-from .mercuryhelper import end_stale, free_ports, pair_free
-from .mercury import BROADCAST_PORT, CONTROL_OFFSET
+from .mercurycards import stable_alsa_id
+from .mercuryhelper import Command, alsa_card_names, expected_program, free_ports, pair_free
+from .mercurystale import end_stale
+from .mercury import BROADCAST_PORT, CONTROL_OFFSET, Keying
 from .mercuryspeaker import CAPTURE_FIFO, PLAYBACK_FIFO
 from .radiotype import RadioId, ResourceKind
 from .signal import Signal
@@ -27,15 +31,23 @@ RADIOS_FOLDER = "radios"                                                        
 MODEM_KINDS: frozenset[ResourceKind] = frozenset({"sound_card", "keying", "modem_ports"})     # what a modem holds (its radio's line holds its serial port, which the modem's line, a socket, has none of)
 
 
+def keying_claim(keying: Keying, device: str | None, windows: bool = sys.platform == "win32") -> str | None:
+    """What a modem's keying holds in the station's table: the port of a serial line (its claim value, `device`), and on Windows `cm108` for the whole station, since a CM108 key there is any CM108-class chip (Direwolf
+    keys the last of several, cm108.c:785-817): one radio at a time keys by CM108 there, whatever its type. None for VOX, and for CM108 elsewhere (the card's own chip, which the card's claim covers)."""
+    if device:
+        return device
+    return "cm108" if keying.kind == "cm108" and windows else None
+
+
 def radio_folder(data_dir: Path, radio: RadioId) -> Path:
     """The radio's own folder in the data folder, where the files of its modem are (made at the modem's first start)."""
     return data_dir / RADIOS_FOLDER / str(radio)
 
 
-def take_folder(data_dir: Path, folder: Path, inherit: bool = True) -> None:
-    """Makes the radio's own folder for the modem's files and, for the radio that was the HF radio (`inherit`: radio 2), moves into it what a NeoAPRS of one HF radio left in the data folder: the configuration, and the
-    process id of a Mercury it may have left running, which the start then ends as one of its own (honoured once: from then on the file is in the radio's folder); the speaker's old pipes are removed. A file that cannot
-    be moved is a line in the log, and the start goes on. Nothing when the folder is the data folder. OSError when the folder cannot be made."""
+def take_folder(data_dir: Path, folder: Path, inherit: bool = True, program: Command | None = None) -> None:
+    """Makes the radio's own folder for the modem's files and, for the radio that was the HF radio (`inherit`: radio 2), takes over what a NeoAPRS of one HF radio left in the data folder: the configuration is
+    moved, a Mercury it may have left running (its process id, run with the data folder's configuration, `program` being what this radio runs) is ended there and its file consumed (honoured once), and the
+    speaker's old pipes are removed. A file that cannot be moved is a line in the log, and the start goes on. Nothing when the folder is the data folder. OSError when the folder cannot be made."""
     if folder == data_dir:
         return
     folder.mkdir(parents=True, exist_ok=True)
@@ -44,14 +56,26 @@ def take_folder(data_dir: Path, folder: Path, inherit: bool = True) -> None:
         try:
             if not os.path.lexists(old):
                 continue
-            if name in (INI_FILE, PID_FILE) and not new.exists():
+            if name == PID_FILE:
+                end_stale(old, data_dir / INI_FILE, program or [str(expected_program())])
+            elif name == INI_FILE and not new.exists():
                 os.replace(old, new)
-            elif name == PID_FILE:
-                end_stale(old)
             else:
                 old.unlink()
         except OSError as e:
             log.warning("Mercury's old %s in the data folder could not be moved to %s: %s", name, folder, os_error_text(e))
+
+
+def end_left_behind(data_dir: Path) -> None:
+    """Once at the daemon's start, before any radio starts: every Mercury of ours that a daemon which did not stop cleanly left running is ended (end_stale, by the file in each radio's folder and the one an older
+    NeoAPRS of one HF radio left in the data folder), the radios that are off or removed now among them, whose modem is never started to end it. It holds the sound card and the keying line otherwise. Nothing under
+    the no-devices switch: the daemon starts no Mercury there, and what a copy of a data folder names is another daemon's. Reads the folders and waits for a program to end: for a thread."""
+    if nodevices.on():
+        return
+    program = [str(expected_program())]
+    for pid_file in sorted((data_dir / RADIOS_FOLDER).glob(f"*/{PID_FILE}")):
+        end_stale(pid_file, pid_file.parent / INI_FILE, program)
+    end_stale(data_dir / PID_FILE, data_dir / INI_FILE, program)
 
 
 class HeldPorts:
@@ -117,12 +141,13 @@ class Holding:
 
     def _hold_setup(self, sound_card: str, keying_port: str | None) -> Claim | None:
         """The sound card and the keying line (its port, for a keying on a serial line) the program is to run with, held for the radio in the place of what it held; the claim of the other radio that holds one of them,
-        and then neither is held. None, and nothing held, without the table."""
+        and then neither is held. None, and nothing held, without the table. A card a setting names by its number (`plughw:3,0`, from before 0.17.3) is held by its name, as the list of cards names it
+        (`plughw:CARD=CODEC,DEV=0`), so that one card is one claim whichever way it is named."""
         if self.claims is None:
             return None
         self.claims.release(self.holder, "sound_card")
         self.claims.release(self.holder, "keying")
-        for claim in (Claim("sound_card", sound_card, self.holder), *([Claim("keying", keying_port, self.holder)] if keying_port else [])):
+        for claim in (Claim("sound_card", stable_alsa_id(sound_card, alsa_card_names()), self.holder), *([Claim("keying", keying_port, self.holder)] if keying_port else [])):
             if (other := self.claims.hold(claim)) is not None:
                 self.claims.release(self.holder, "sound_card")
                 return other

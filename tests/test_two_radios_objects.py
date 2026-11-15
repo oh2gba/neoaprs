@@ -2,11 +2,13 @@
 the main one the FM radio while it is on, else the HF one); an object goes out on the radios its choice names by id (fm 1, hf 2, both) while they are on and on the main radio otherwise; a message to the email
 gateway goes on the FM radio and is refused while the FM radio is off. Then the rules of plan rule 3.5 on stub lines: an object none of whose radios is on goes on the main radio and has its own again once
 one is on, a new object is ticked for the main radio, the pause between our frames is each radio's, a kill goes where the object went, and a removed radio leaves the objects."""
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from neoaprs import ax25
+from neoaprs.beaconrule import beacon_radios
 from neoaprs.message import EMAIL_GATEWAY, MessagingError
 from neoaprs.ownlog import OwnLog
 from neoaprs.ownobject import OwnObject
@@ -199,3 +201,60 @@ async def test_a_removed_radio_leaves_the_objects_in_memory_and_an_object_on_it_
     assert (rig.objects.get("BOTH").radios, rig.objects.get("HFONLY").radios) == ((FM_ID,), (HF_ID,)), "as the removal's transaction leaves their rows"      # type: ignore[union-attr]
     rig.objects.forget_radio(7)
     assert rig.objects.get("BOTH").radios == (FM_ID,), "a radio no object is on changes nothing"      # type: ignore[union-attr]
+
+
+def offsets(sent: list[tuple[int, str, str]], line: str, name: str | None = None) -> list[int]:
+    """The seconds at which something (the object `name`, when it is given) went out on the line `fm` or `hf`."""
+    return [t for t, word, what in sent if word == line and name in (None, what)]
+
+
+async def test_a_radio_that_is_connected_but_never_takes_a_frame_holds_an_objects_round_for_a_minute_at_most(tmp_path: Path) -> None:
+    rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.hf.held = "the board sends text lines: set it to KISS"            # connected, never usable (a LoRa board left in text, a TNC that does not answer KISS ON)
+    rig.make("BOTH", radios=(FM_ID, HF_ID))
+    sent = rig.timed(3600)
+    assert offsets(sent, "fm") == [0, 120, 300, 600, 1140, 2160] and offsets(sent, "hf") == [], "FM repeats it on its decay (the round ends a minute after FM took it), held to HF's floor of 30 minutes; it went out once in the hour before"
+    rig.objects.kill("BOTH")
+    sent = rig.timed(600)
+    assert [t for t, word, _ in sent if word == "fm"] == [0, 120, 300] and offsets(sent, "hf") == [], "the kill goes three times on FM"
+    assert rig.objects.get("BOTH") is None, "and the object is forgotten (before: never)"
+
+
+async def test_the_minute_a_connected_radio_holds_the_round_runs_from_the_first_radio_that_took_it_not_from_the_first_try(tmp_path: Path) -> None:
+    rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.hf.held = "the board sends text lines: set it to KISS"
+    rig.tnc.takes = False                                                   # FM is ready but refuses the write (settling after KISS ON) for a minute and a half
+    rig.make("BOTH", radios=(FM_ID, HF_ID))
+    assert rig.timed(89) == []
+    rig.tnc.takes = True
+    sent = rig.timed(300)
+    assert offsets(sent, "fm") == [0, 120, 300] and offsets(sent, "hf") == [], "HF holds the round a minute after FM took it (the round ends at 60, the next at 60 + 60); from the first try it would have ended at once: [0, 60, 240]"
+
+
+async def test_a_live_object_on_hf_repeats_no_more_often_than_hfs_beacon_floor_and_one_on_fm_keeps_its_net_cycle(tmp_path: Path) -> None:
+    rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.make("HFONLY", radios=(HF_ID,))
+    rig.make("FMONLY", radios=(FM_ID,))
+    rig.make("BOTH", radios=(FM_ID, HF_ID))
+    sent = rig.timed(7200)
+    assert offsets(sent, "hf", "HFONLY") == [0, 60, 180, 420, 900, 1860, 3660, 5460], "the decay of the first sends (1, 2, 4, 8, 16 minutes), then every 30 (before: every 10 after the decay)"
+    assert offsets(sent, "fm", "FMONLY") == [1, 61, 181, 421, 901, 1861, 3061, 4261, 5461, 6661], "on FM the decay up to the net cycle of its path, 20 minutes, as before"
+    assert (offsets(sent, "fm", "BOTH"), offsets(sent, "hf", "BOTH")) == ([11, 71, 191, 431, 911, 1871, 3671, 5471], [10, 71, 191, 431, 911, 1871, 3671, 5471]), "the round is one for both radios: on FM too at HF's pace"
+
+
+async def test_an_objects_radios_are_in_force_as_the_beacons_are_by_position(tmp_path: Path) -> None:
+    rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.set(radios=tuple(replace(spec, position={FM_ID: 1, HF_ID: 0}.get(spec.id, spec.position)) for spec in rig.config.radios))      # the HF radio first by position
+    rig.switch()
+    assert [r.id for r in rig.sender.radios_for((FM_ID, HF_ID))] == [HF_ID, FM_ID] == list(beacon_radios(rig.config.radios, rig.config.main_radio)), "radiospec.in_force_set, as the beacon's (before: by id)"
+    rig.make("BOTH", radios=(FM_ID, HF_ID))
+    sent = rig.timed(0)
+    assert sorted((t, line) for t, line, _ in sent) == [(0, "fm"), (0, "hf")], "the round goes on both in one tick"
+
+
+async def test_with_no_radio_on_a_new_object_is_ticked_for_the_first_radio_there_is_not_for_a_removed_one(tmp_path: Path) -> None:
+    rig = await two_at(tmp_path, fm_enabled=True, hf_enabled=True)
+    rig.set(radios=tuple(replace(spec, removed_at=rig.clock()) if spec.id == FM_ID else replace(spec, enabled=False) for spec in rig.config.radios))     # radio 1 removed, radio 2 off
+    rig.switch()
+    assert rig.sender.radios.main is None
+    assert rig.make("NOMAIN").radios == (HF_ID,), "the radio that will be on again (before: radio 1, removed for good)"

@@ -67,7 +67,7 @@ describe("GroupCompose", () => {
     const wrapper = group({ connected: false });
     await wrapper.find("#msg-text").setValue("Hi");
     expect(wrapper.find(".compose button[type='submit']").attributes("disabled")).toBeDefined();
-    expect(wrapper.find(".compose button[type='submit']").attributes("title")).toBe("The TNC is not connected");
+    expect(wrapper.find(".compose button[type='submit']").attributes("title")).toBe("The radio is not connected");
     wrapper.unmount();
   });
 });

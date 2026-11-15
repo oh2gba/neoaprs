@@ -127,6 +127,18 @@ describe("what the page keeps of the waterfall", () => {
     expect(told).toEqual(["heard OH2NEW", "heard OH2OLD"]);
   });
 
+  it("lets go of the stations heard longer ago than the time kept, also on a radio whose rows never come (FM, LoRa): the newest two minutes, in order", () => {
+    const clock = { now: START };
+    const kept = new ScopeMemory(() => clock.now);
+    for (let i = 0; i < 2000; i++) {
+      kept.hear(`OH${i}`, null, clock.now);
+      clock.now += 1000;
+    }
+    const keptSec = LIMITS.scope.historySec;
+    expect(kept.heard.length).toBeLessThanOrEqual(keptSec + 1);
+    expect(kept.heard.map((heard) => heard.call)).toEqual(Array.from({ length: kept.heard.length }, (_, i) => `OH${2000 - kept.heard.length + i}`));
+  });
+
   it("places the stations told late by the daemon's clock, and again when the rows kept say it better: a reconnect after a drop, a computer whose clock is behind", () => {
     const { clock, kept } = memory();
     clock.now = START + 60_000;

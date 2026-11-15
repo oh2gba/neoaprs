@@ -1,6 +1,6 @@
 # The advisories that `scripts/security-check --audit` (osv-scanner over uv.lock and ui/package-lock.json) sets aside.
 # An entry is one advisory that cannot reach NeoAPRS as it uses the package, with the reason and the day the entry ends: from that day the advisory fails the audit again and is looked at again.
-# An advisory against something the installers carry (uv.lock, and of the page maplibre-gl, pmtiles and vue) is not set aside: the package is moved to the fixed version.
+# An advisory against something the installers carry (uv.lock, and of the page maplibre-gl, pmtiles, uqr and vue) is not set aside: the package is moved to the fixed version.
 # The check refuses an entry without a reason or an end. docs/security-checks.md says how an entry is added.
 
 [[IgnoredVulns]]

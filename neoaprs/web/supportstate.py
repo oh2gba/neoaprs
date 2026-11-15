@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from neoaprs.clock import iso
 from neoaprs.config import can_transmit
 from neoaprs.controller import Controller
+from neoaprs.direwolfmodem import DirewolfModem
 from neoaprs.mercurymodem import Mercury
 from neoaprs.serialholders import held_by
 from neoaprs.serialprobe import available_ports
@@ -86,7 +87,7 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
     return state
 
 
-async def sound_cards(modem: Mercury, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+async def sound_cards(modem: Mercury | DirewolfModem, listed: dict[int, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Every sound card the modem's program lists (name, directions, id), once for a report (`listed`, by the modem); none when they cannot be listed, which is logged: a nice-to-have of the report,
     the bundle goes without it."""
     if id(modem) not in listed:

@@ -8,16 +8,17 @@
 //   and with `tools` (the Settings tab; the guide leaves them out) Tune, the transmit level and the scope.
 // A radio is worked by its own settings (`radio/3/port`), `radio_change` for its Enable, type and name, and told by its row of the topic `radios`. The daemon's
 // refusal of a change of the radio stands under the field it is about (its coded text), in the box that asked last (the refusal names no radio), and what was chosen stays shown until the radio's row says it or the
-// daemon refuses it. The fold opens by itself while the radio is on and not connected, for a complaint about one of its fields, and for a refusal; the page leads to a box by lib/attention.ts (the radio just added). The
+// daemon refuses it (a change that could not be sent, or whose answer the lost connection took, shows the daemon's again at once). The fold opens by itself while the radio is on and not connected, for a complaint about one of its fields, and for a refusal; the page leads to a box by lib/attention.ts (the radio just added). The
 // box says which radio it is to what is pressed inside it (`data-radio`, the name while several radios are on, the type): Find my radio searches for that radio. Its ids and its fold are the place's (lib/settingsradio.ts BOX_IDS: the setup
 // guide's Radio step shows the same boxes while the Settings tab's are on the page too).
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfFrequencies from "@/components/HfFrequencies.vue";
 import HfLevelRow from "@/components/HfLevelRow.vue";
 import HfScope from "@/components/HfScope.vue";
 import HfTuneRow from "@/components/HfTuneRow.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
+import SoundCardLevel from "@/components/SoundCardLevel.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsRadioFields from "@/components/SettingsRadioFields.vue";
@@ -29,7 +30,7 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
-import { typeOf, type PageRadio } from "@/lib/radios";
+import { KIND_WORDS, typeOf, type PageRadio } from "@/lib/radios";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
 import { askedOn, boxIds, boxKeys, boxTitle, radioElementId, typeChoices, unnamed, type Asked } from "@/lib/settingsradio";
 import { LIMITS } from "@/protocol/lists";
@@ -53,7 +54,7 @@ const props = withDefaults(
 /** `pending`: the tick of the radio on its way to the daemon (null once it is told back or refused). */
 const emit = defineEmits<{ pending: [enabled: boolean | null] }>();
 const context = useDaemonContext();
-const { send, now, lastError } = context;
+const { send, now, lastError, connection, status } = context;
 const radios = useRadios();
 /** The ids of the place the box is in (the Settings tab's, or the setup guide's: lib/settingsradio.ts BOX_IDS). */
 const ids = boxIds();
@@ -76,7 +77,8 @@ function change(part: Part, values: Omit<RadioChangeCommand, "cmd" | "radio">): 
   refusal.value = null;
   asked.value = { radio: props.radio.id, part };
   pending.value = { ...pending.value, [part]: values[part] };
-  send({ cmd: "radio_change", radio: props.radio.id, ...values });
+  // not sent: the toast says not connected, and the box shows the daemon's again (once the change has been drawn, so that the control the operator worked is drawn back)
+  if (!send({ cmd: "radio_change", radio: props.radio.id, ...values })) void nextTick(() => settle(part));
 }
 function settle(part: Part): void {
   const { [part]: _gone, ...rest } = pending.value;
@@ -99,6 +101,10 @@ watch(
     if (asking.name !== undefined && radio.row.name === asking.name) settle("name");
   },
 );
+// a change lost with the connection is never told back: the box shows the daemon's again, and the radios the daemon tells when it is back say what is in force
+watch(connection, (state) => {
+  if (state !== "open") for (const part of ["enabled", "type", "name"] as const) if (pending.value[part] !== undefined) settle(part);
+});
 watch(
   () => pending.value.enabled,
   (tick) => emit("pending", tick ?? null),
@@ -119,7 +125,7 @@ function tick(text: string): void {
 const typeInfo = computed<FieldInfo>(() => ({
   ...(FIELDS[props.radio.kind === "hf" ? "hf/profile" : "tnc/profile"] ?? { label: t("settings.profile.label") }),
   kind: "choice",
-  choices: typeChoices(props.radio.kind),
+  choices: typeChoices(props.radio.kind, status.value?.unavailable_types),
 }));
 function choose(key: string): void {
   const chosen = typeOf({ type: key })?.key;
@@ -151,7 +157,7 @@ const taken = (typed: string): boolean =>
  * refuses its English labels itself: `radio.name_label`). */
 const labelLike = (typed: string): boolean => {
   const folded = typed.toLowerCase().replace(/ \d+$/, "");
-  return (["channel.fm", "channel.hf", "channel.lora"] as const).some((id) => t(id).toLowerCase() === folded);
+  return Object.values(KIND_WORDS).some((id) => t(id).toLowerCase() === folded);
 };
 function rename(): void {
   const typed = name.value.trim();
@@ -258,6 +264,7 @@ const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.setti
       <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
       <template v-if="tools">
         <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
+        <SoundCardLevel v-if="can.rx_level" :radio="radio" />
         <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
         <HfScope v-if="can.scope" :radio="radio.id" />
       </template>

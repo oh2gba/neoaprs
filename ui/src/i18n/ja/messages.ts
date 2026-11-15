@@ -81,7 +81,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.you": "あなた",
   "chain.internet": "インターネット",
   "chain.sent": "{time}に送信",
-  "chain.sent_on": "sent {time} on radio {name}",
+  "chain.sent_on": "{time}に無線機「{name}」で送信",
   "chain.heard": { select: "internet", yes: "受信、インターネット経由でも受信", other: "受信" },
   "chain.heard_at": { select: "internet", yes: "{time}に受信、インターネット経由でも受信", other: "{time}に受信" },
   "chain.seen_internet": "インターネット経由で戻ってきたコピーで確認。こちらでは受信していません",
@@ -94,7 +94,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "chain.waiting_for_ack": "応答確認を待っています",
 
   "route.button": "経路",
-  "messages.radio_title": "Messages to this station go on radio {name}",
+  "messages.radio_title": "この局へのメッセージは無線機「{name}」で送られます",
   "messages.may_not_message": "この局はメッセージを受信できない可能性があります",
   "messages.may_not_message_label": "その理由",
   "messages.may_not_message_help":
@@ -106,7 +106,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "route.use_auto": "自動のパス",
   "route.automatic": "自動",
   "route.auto": "自動: {path}",
-  "route.radio_auto": "Automatic: {name}",
+  "route.radio_auto": "自動: {name}",
   "route.auto_direct": "自動: 直接、その後 {path}",
   "route.auto_via": "自動: {heard} 経由、その後 {path}",
   "route.own": "指定したパス: {path}",
@@ -158,7 +158,7 @@ export const messages: Record<keyof typeof source, Message> = {
   "pathbuilder.seen_next": { other: "{n}局の経路で{call}の隣" },
   "pathbuilder.add_hop": "{call}を追加",
 
-  "compose.tnc_not_connected": "TNCが接続されていません",
+  "compose.tnc_not_connected": "無線機が接続されていません",
   "compose.left": "残り{n}",
   "compose.over": "{n}超過",
   "compose.left_title.bytes": "残り{left}/{max}バイト",

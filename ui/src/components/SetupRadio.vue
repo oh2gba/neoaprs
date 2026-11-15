@@ -33,8 +33,8 @@ const none = computed(() => radios.all.value.every((radio) => radio.removed));
 const adding = ref(false);
 watch(
   () => radios.added.value,
-  (radio) => {
-    if (radio === null || !adding.value) return;
+  (radio, before) => {
+    if (radio === null || radio.id === before?.id || !adding.value) return; // (a change of the row of the radio added before is no new radio)
     adding.value = false;
     void attend(placedId(PLACE, radioElementId(radio, "type")));
   },

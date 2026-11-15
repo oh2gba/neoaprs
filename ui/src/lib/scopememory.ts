@@ -116,8 +116,10 @@ export class ScopeMemory {
     const fresh = Math.abs(wall + this.offset - now) <= FRESH_MS;
     const heard: Written = fresh ? { at: now, call, snr, wall: null } : { at: wall + this.offset + HALF_SECOND_MS, call, snr: null, wall };
     if (heard.at < now - KEEP_MS) return;
-    this.told.push(heard);
-    this.told.sort((a, b) => a.at - b.at);
+    let at = this.told.length; // (in its place: what is told is in order, and a station heard just now goes at the end)
+    while (at > 0 && this.told[at - 1].at > heard.at) at--;
+    this.told.splice(at, 0, heard);
+    this.forget(); // (also for a radio whose rows never come, or stopped: what it heard is let go as its rows are)
     this.listeners.forEach((listener) => listener.heard?.(heard));
   }
 

@@ -189,7 +189,7 @@ describe("Send of a conversation", () => {
 
   it("says that the TNC is not connected while the one radio on is not", async () => {
     const down = radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
-    expect(await sendOf(header("OH2RDG", [station("OH2RDG")], [], { radios: down, connected: false }))).toEqual([true, "The TNC is not connected"]);
+    expect(await sendOf(header("OH2RDG", [station("OH2RDG")], [], { radios: down, connected: false }))).toEqual([true, "The radio is not connected"]);
   });
 });
 

@@ -26,6 +26,7 @@ export const radio = {
   "radio.type.kantronics": "Kantronics KPC-3+",
   "radio.type.kiss": "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
   "radio.type.kiss_tcp": "KISS over TCP (Direwolf, soundmodem)",
+  "radio.type.direwolf": "Sound card (Direwolf)",
   "radio.type.dummy": "Dummy (no radio, made-up traffic)",
   "radio.type.mercury": "Mercury HF modem (sound card, SSB radio)",
   "radio.type.dummy_hf": "Dummy HF radio (no radio, made-up distant stations)",
@@ -33,5 +34,5 @@ export const radio = {
   "radio.type.dummy_lora": "Dummy LoRa radio (no radio, made-up stations)",
   "radio.type.lora_tcp": "LoRa APRS board on the network",
   "radio.type.lora_serial": "LoRa APRS board on USB or Bluetooth",
-  "radio.type.lora_console": "LoRa APRS iGate's log on USB (receive only)",
+  "radio.type.lora_console": "LoRa APRS iGate's log on USB (RX only)",
 } as const;

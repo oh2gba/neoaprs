@@ -14,11 +14,16 @@ as the new version with everything there, every file of this build in place, and
 
 The files come from the build scripts the release workflow runs, run here on this tree: `uv build --wheel`, scripts/build-mercury --tar, scripts/build-deb and scripts/build-appimage (the architecture is this
 machine's, amd64: the arm64 package and the macOS and Windows builds are not tried here). Each check runs in a container that has nothing of NeoAPRS and none of this tree: the built files and the scripts that test
-them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (Ubuntu 24.04
-with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and ubuntu:24.04 as the release workflow's job `deb` has it (the Debian one also proves that Mercury needs no
-library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
+them are mounted read-only, nothing a container makes reaches this machine, and no container is given a device or a port. The wheel and the AppImage are tried in the image of scripts/check-in-container (the
+Ubuntu of GitHub's runner that packaging/ci/runner.json names, 26.04, with the libraries of the Qt web engine, uv and Python 3.13); the .deb in debian:bookworm-slim and in ubuntu:24.04, the older LTS, as the
+release workflow's job `deb` has it on its arm64 runner and pinned by its digest (the Debian one also proves that Mercury needs no library of the system). The upgrade starts from the .deb in packaging/ci/old-release.json, fetched once into the build cache ($NEOAPRS_BUILD_CACHE, default ~/.cache/neoaprs-build) and checked against the SHA-256 that is
 pinned there; an old release that is not pinned is a check that did not run, which is a failure. An old build of the same version number as this one is installed over with --reinstall (apt would leave it as it is),
 and the proof that this build runs is its files and its database, not its version. Every daemon is started with NEOAPRS_NO_DEVICES=1 and NEOAPRS_UPDATE_CHECK=0.
+
+One more check is run only when it is named, `--only appimage-web`: the trial AppImage of the web window (scripts/build-appimage --window web, never a release; aprs-reference/window-plan.md, 9.3), built
+without Mercury from this tree and the gi tarball of `scripts/build-gi --docker`, and started by scripts/smoke-appimage-web in each container of WEB_CASES, as a desktop of that system has it: with WebKitGTK
+4.1 (the window must come), on ubuntu:22.04 with only the 4.0 API its desktop has (the window must come), and with no WebKitGTK at all (the log must name the package, and the app go on with the tray). A run
+of the window also prints what scripts/webkit-probe.py counted there (software GL: the worst case).
 
 Exit code 0 when every check passed, 1 when one failed or could not run, 2 when docker or uv is missing or does not answer, or an argument is wrong. Needs Linux, docker, uv, curl, dpkg-deb, and for Mercury gcc, make and libasound2-dev.
 """
@@ -42,13 +47,15 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTAINER = ROOT / "scripts" / "check-in-container"
 PIN = ROOT / "packaging" / "ci" / "old-release.json"
 CHECKS = ("wheel", "deb-debian", "deb-ubuntu", "appimage", "upgrade")
-DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04"
+TRIAL_CHECKS = ("appimage-web",)                                          # run only when named with --only
+DEBIAN, UBUNTU = "debian:bookworm-slim", "ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5"          # Ubuntu by its index digest (`docker buildx imagetools inspect ubuntu:24.04`): tag and digest move together
 RELEASES = "https://github.com/oh2gba/neoaprs/releases/download"          # (the same address neoaprs/updateasset.py has)
 MAX_DOWNLOAD = 200_000_000
 TAIL_LINES = 40                                                           # of the log of a check that failed, as many as the report shows
 ENVIRONMENT = ("--env", "NEOAPRS_UPDATE_CHECK=0", "--env", "NEOAPRS_NO_DEVICES=1")
 FIXTURE = Path("tests") / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
 PROBE_FILES = (Path("scripts") / "smoke.py", Path("scripts") / "install-probe.py", Path("scripts") / "smoke-appimage", Path("neoaprs") / "mercury.py", FIXTURE)      # (what the containers run, in the folder `probe`)
+WEB_PROBE_FILES = (Path("scripts") / "smoke-appimage-web", Path("scripts") / "webkit-probe.py")
 
 # What runs inside a container. {work} is where the built files are mounted, read-only, and VERSION, MERCURY_VERSION and the like arrive as variables. Each ends with `echo` of what it proved, so that a log says it.
 WHEEL = """set -eu
@@ -64,6 +71,32 @@ uv venv --python 3.13 "$venv"
 uv pip install --python "$venv/bin/python" /work/dist/*.whl
 /work/probe/scripts/smoke-appimage /work/dist-appimage/NeoAPRS-*.AppImage --python "$venv/bin/python" $SMOKE_APPIMAGE_ARGS
 """
+
+# The trial of the web window: what a desktop of the system has (GTK 3 with its typelibs, girepository-1.0, an X server, a session bus, Mesa's drivers for the window's GL) and the WebKitGTK of the case, then
+# the smoke test. {install} is the system's own installer; {packages} the case's.
+APT = "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq --no-install-recommends xvfb xauth dbus curl ca-certificates gir1.2-gtk-3.0 libgirepository-1.0-1 {packages} > /dev/null"
+DNF = "dnf install -y -q xorg-x11-server-Xvfb dbus-daemon dbus-tools curl gtk3 gobject-introspection {packages} > /dev/null"
+WEB_GL = {"apt": "libgl1-mesa-dri", "dnf": "mesa-dri-drivers"}
+# (image, installer, the WebKitGTK packages, what is expected)
+WEB_CASES = (
+    ("debian:bookworm", "apt", "libwebkit2gtk-4.1-0", "window"), ("debian:trixie", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:24.04", "apt", "libwebkit2gtk-4.1-0", "window"), ("ubuntu:26.04", "apt", "libwebkit2gtk-4.1-0", "window"),
+    ("fedora:latest", "dnf", "webkit2gtk4.1", "window"),
+    ("ubuntu:22.04", "apt", "libwebkit2gtk-4.0-37 gir1.2-webkit2-4.0", "window"),          # the 4.0 API only, as Ubuntu 22.04's desktop has it
+    ("debian:bookworm", "apt", "", "tray"), ("debian:trixie", "apt", "", "tray"), ("ubuntu:22.04", "apt", "", "tray"), ("ubuntu:24.04", "apt", "", "tray"), ("ubuntu:26.04", "apt", "", "tray"),
+    ("fedora:latest", "dnf", "", "tray"),
+)
+WEB = """set -eu
+{install}
+bash /work/probe/scripts/smoke-appimage-web /work/dist-appimage-web/NeoAPRS-*-web-x86_64.AppImage --expect {expect}{probe}
+"""
+
+
+def web_script(installer: str, packages: str, expect: str) -> str:
+    """The script of one case of the trial: the system's packages, then the smoke test (with the probe where the window is expected)."""
+    wanted = " ".join(filter(None, [packages, WEB_GL[installer] if expect == "window" else ""]))
+    return WEB.format(install=(APT if installer == "apt" else DNF).format(packages=wanted), expect=expect, probe=" --probe" if expect == "window" else "")
+
 
 # The .deb as the release workflow's job `deb` has it: installed with apt, the command and the Python of the package, the daemon against a fake TNC, Mercury (when the package carries it) and its libraries,
 # a service install with a systemctl that does nothing, an install over itself and the removal that leaves the data of a user.
@@ -306,7 +339,7 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
     """The wheel, then Mercury, the .deb and the AppImage that the checks need, each folder made anew. What could not be built, and why, is in `failed` under the name of the file (the wheel, the .deb, the AppImage);
     a file that needs another that failed has that one's reason."""
     built = Built(work, {})
-    folders = {name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage")}
+    folders = {name: work / name for name in ("dist", "mercury", "dist-deb", "dist-appimage", "dist-gi", "dist-appimage-web")}
     deb, appimage = bool(wanted & {"deb-debian", "deb-ubuntu", "upgrade"}), "appimage" in wanted
     for folder in folders.values():
         shutil.rmtree(folder, ignore_errors=True)
@@ -318,7 +351,7 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
         return reason is None
 
     if not attempt("wheel", ["uv", "build", "--wheel", "--out-dir", str(folders["dist"])]):
-        built.failed.update({"deb": built.failed["wheel"], "appimage": built.failed["wheel"]})
+        built.failed.update({"deb": built.failed["wheel"], "appimage": built.failed["wheel"], "appimage-web": built.failed["wheel"]})
         return built
     wheel = str(next(iter(sorted(folders["dist"].glob("neoaprs-*.whl"))), ""))
     mercury = ["--no-mercury"]
@@ -329,19 +362,28 @@ def build(work: Path, wanted: set[str], with_mercury: bool) -> Built:
             if not tars:
                 built.failed["mercury"] = "scripts/build-mercury made no mercury-*-linux-x86_64.tar.gz"
         if "mercury" in built.failed:
-            built.failed.update({"deb": built.failed["mercury"], "appimage": built.failed["mercury"]})
+            built.failed.update({"deb": built.failed["mercury"], "appimage": built.failed["mercury"], "appimage-web": built.failed["mercury"]})
             return built
     if deb:
-        attempt("deb", ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, *mercury, "--out", str(folders["dist-deb"])])
+        attempt("deb", ["scripts/build-deb", "--arch", "amd64", "--wheel", wheel, *mercury, "--out", str(folders["dist-deb"]), "--no-direwolf"])
     if appimage:
-        attempt("appimage", ["scripts/build-appimage", "--wheel", wheel, *mercury, "--out", str(folders["dist-appimage"])])
+        attempt("appimage", ["scripts/build-appimage", "--wheel", wheel, *mercury, "--out", str(folders["dist-appimage"]), "--no-direwolf"])
+    if "appimage-web" in wanted:
+        if attempt("gi", ["scripts/build-gi", "--docker", "--out", str(folders["dist-gi"])]):
+            tars = sorted(folders["dist-gi"].glob("gi-*-linux-x86_64.tar.gz"))
+            if tars:
+                attempt("appimage-web", ["scripts/build-appimage", "--wheel", wheel, "--no-mercury", "--no-direwolf", "--window", "web", "--gi", str(tars[-1]), "--out", str(folders["dist-appimage-web"])])
+            else:
+                built.failed["appimage-web"] = "scripts/build-gi made no gi-*-linux-x86_64.tar.gz"
+        else:
+            built.failed["appimage-web"] = built.failed["gi"]
     return built
 
 
-def make_probe(work: Path) -> None:
-    """The scripts the containers run, in a folder of their own that has the layout of the tree they expect (smoke.py finds its capture by its place)."""
+def make_probe(work: Path, web: bool = False) -> None:
+    """The scripts the containers run, in a folder of their own that has the layout of the tree they expect (smoke.py finds its capture by its place); the trial's too when it is run."""
     shutil.rmtree(work / "probe", ignore_errors=True)
-    for name in PROBE_FILES:
+    for name in (*PROBE_FILES, *(WEB_PROBE_FILES if web else ())):
         (work / "probe" / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / name, work / "probe" / name)
 
@@ -375,7 +417,7 @@ def command_of(name: str, work: Path, with_mercury: bool, update_from: str | Non
     if name == "wheel":
         return docker_run(runner_image(), WHEEL, work)
     if name == "appimage":
-        return docker_run(runner_image(), APPIMAGE, work, environment=[("SMOKE_APPIMAGE_ARGS", "" if with_mercury else "--no-mercury")], shm=True)
+        return docker_run(runner_image(), APPIMAGE, work, environment=[("SMOKE_APPIMAGE_ARGS", "--no-direwolf" if with_mercury else "--no-mercury --no-direwolf")], shm=True)
     if name == "deb-debian":
         return docker_run(DEBIAN, DEB, work, environment=deb_environment)
     if name == "deb-ubuntu":
@@ -396,7 +438,27 @@ class Result:
     output: str
 
 
+def run_web(work: Path, built: Built) -> Result:
+    """The trial of the web window: each case of WEB_CASES in a container of its own, one after the other; the log of each is kept, and the output says how each went."""
+    started = time.monotonic()
+    if "appimage-web" in built.failed:
+        return Result("appimage-web", False, 0.0, built.failed["appimage-web"])
+    lines: list[str] = []
+    ok = True
+    for number, (image, installer, packages, expect) in enumerate(WEB_CASES, 1):
+        log = work / "logs" / f"appimage-web-{number:02d}.log"
+        with log.open("wb") as out:
+            done = subprocess.run(docker_run(image, web_script(installer, packages, expect), work), stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, check=False)
+        said = log.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines.append(f"{'ok  ' if done.returncode == 0 else 'FAIL'} {image} {packages or 'no WebKitGTK'}: the {expect} ({log.name})")
+        lines.extend(f"    {line}" for line in said if line.startswith("{") or done.returncode != 0 and line in said[-TAIL_LINES:])
+        ok = ok and done.returncode == 0
+    return Result("appimage-web", ok, time.monotonic() - started, "\n".join(lines))
+
+
 def run_check(name: str, work: Path, built: Built, with_mercury: bool, update_from: str | None = None) -> Result:
+    if name == "appimage-web":
+        return run_web(work, built)
     started = time.monotonic()
     need = {"wheel": "wheel", "appimage": "appimage"}.get(name, "deb")
     if need in built.failed:
@@ -414,7 +476,7 @@ def run_check(name: str, work: Path, built: Built, with_mercury: bool, update_fr
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="check-installs", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--only", action="append", choices=CHECKS, help="one check (may be given several times)")
+    parser.add_argument("--only", action="append", choices=CHECKS + TRIAL_CHECKS, help="one check (may be given several times); appimage-web only when named")
     parser.add_argument("--no-mercury", action="store_true", help="build the packages without Mercury")
     parser.add_argument("--work", type=Path, default=ROOT / "build" / "installs", help="the folder of the built files and the logs")
     parser.add_argument("--pin", metavar="VERSION", help="write packaging/ci/old-release.json for that release")
@@ -435,11 +497,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     work = args.work.resolve()
     (work / "logs").mkdir(parents=True, exist_ok=True)
     built = build(work, wanted, not args.no_mercury)
-    make_probe(work)
-    results = [run_check(name, work, built, not args.no_mercury, args.update_from) for name in CHECKS if name in wanted]
+    make_probe(work, "appimage-web" in wanted)
+    results = [run_check(name, work, built, not args.no_mercury, args.update_from) for name in CHECKS + TRIAL_CHECKS if name in wanted]
     for result in results:
         print(f"{'ok  ' if result.ok else 'FAIL'}  {result.name:<11} {result.seconds:6.1f}s")
-        if not result.ok:
+        if not result.ok or result.name in TRIAL_CHECKS:
             print("\n".join(f"      | {line}" for line in result.output.splitlines()))
     failed = [result.name for result in results if not result.ok]
     print(f"failed: {' '.join(failed)}" if failed else "all green")

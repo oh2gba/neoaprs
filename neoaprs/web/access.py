@@ -2,8 +2,9 @@
 must carry the session cookie that the right access key (`web/key`) bought: the page's files are free (they hold the key screen), everything that carries data (the socket, the base map) is refused until the
 device has logged in. A page of another device does not change the settings that name a program or an address the daemon runs or fetches from, and does not run the alert's Test (`LOCAL_ONLY`).
 
-A session is `expires.nonce.mac`, the mac an HMAC of the first two parts under the access key, so that nothing is stored: it survives a restart, and a new key ends every session at once. The key itself is
-never in a cookie. Wrong keys are counted for each address; too many in a minute shut that address out for a while. The key is compared in constant time.
+A session is `expires.nonce.mac`, the mac an HMAC of the parts before it under the access key, so that nothing is stored: it survives a restart, and a new key ends every session at once. The key itself is
+never in a cookie. A session bought over https is `expires.nonce.s.mac`, and the secure port takes only such a one: a cookie bought over plain http (and so perhaps read off the network) does not open the
+secure page once https is switched on; the device logs in there again. Wrong keys are counted for each address; too many in a minute shut that address out for a while. The key is compared in constant time.
 """
 import hashlib
 import hmac
@@ -29,6 +30,7 @@ log = logging.getLogger("neoaprs.web")
 
 COOKIE = "neoaprs_session"
 SESSION_DAYS = 365
+SECURE_MARK = "s"                       # the part of a session token that says it was bought over https
 _EXPIRES_DIGITS = 12                    # the most digits the expiry of a session token has (a Unix time has 10 until the year 2286)
 MAX_WRONG = 5                              # wrong keys from one address in WRONG_WINDOW_SEC, then it is shut out for BLOCK_SEC
 WRONG_WINDOW_SEC = 60.0
@@ -86,14 +88,18 @@ class Access:
         self._wrong: dict[str, list[float]] = {}          # per address, when the wrong keys came
         self._blocked: dict[str, float] = {}              # per address, until when it is shut out
 
-    def session(self) -> str:
-        body = f"{int(self._clock().timestamp()) + SESSION_DAYS * 86400}.{secrets.token_hex(8)}"
+    def session(self, secure: bool = False) -> str:
+        """A new session token; `secure`: bought over https, which the secure port asks for."""
+        body = f"{int(self._clock().timestamp()) + SESSION_DAYS * 86400}.{secrets.token_hex(8)}{'.' + SECURE_MARK if secure else ''}"
         return f"{body}.{_mac(self._config().web_key, body)}"
 
-    def _session_valid(self, token: str, key: str) -> bool:
+    def _session_valid(self, token: str, key: str, secure: bool) -> bool:
+        """Whether the token is a session of the key that has not ended; with `secure`, one bought over https."""
         body, _, mac = token.rpartition(".")
-        expires = body.split(".", 1)[0]
+        expires, *rest = body.split(".")
         if not (expires.isascii() and expires.isdigit() and len(expires) <= _EXPIRES_DIGITS):          # (a crafted cookie with other digits, or thousands of them, is no session, not an error)
+            return False
+        if secure and rest[1:] != [SECURE_MARK]:
             return False
         return int(expires) > self._clock().timestamp() and hmac.compare_digest(mac.encode(), _mac(key, body).encode())
 
@@ -103,7 +109,7 @@ class Access:
             return True
         config = self._config()
         cookie = request.cookies.get(COOKIE)
-        return config.web_network and config.web_key != "" and cookie is not None and self._session_valid(cookie.value, config.web_key)
+        return config.web_network and config.web_key != "" and cookie is not None and self._session_valid(cookie.value, config.web_key, request.protocol == "https")
 
     def try_key(self, ip: str, typed: str) -> Verdict:
         now = self._clock().timestamp()
@@ -132,7 +138,8 @@ class Access:
             self._wrong = {ip: times for ip, times in self._wrong.items() if times}
 
     def give_session(self, handler: tornado.web.RequestHandler) -> None:
-        handler.set_cookie(COOKIE, self.session(), expires_days=SESSION_DAYS, path="/", httponly=True, samesite="Strict", secure=handler.request.protocol == "https")
+        secure = handler.request.protocol == "https"
+        handler.set_cookie(COOKIE, self.session(secure), expires_days=SESSION_DAYS, path="/", httponly=True, samesite="Strict", secure=secure)
 
 
 class _Answer(Secured):

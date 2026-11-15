@@ -5,7 +5,7 @@ import { hasMessage, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { enabledRadios, fieldId, radioLabel, typeOf, type PageRadio } from "@/lib/radios";
 import type { Choice } from "@/lib/settingchoices";
-import type { RadioRow } from "@/protocol/protocol";
+import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
 
 /** Whether a station setting is a field of the form: the access key while the daemon lets the network in (`network`) and has made one. The port the search found last is no field: the port's own control says it. */
@@ -120,15 +120,30 @@ export function askedOn(page: object): ShallowRef<Asked | null> {
   return found;
 }
 
+/** The proposal (a card or a keying) the page stored last from an answer to `list_ports`, one for every copy of the radio's box (the Settings tab's and the setup guide's are mounted together): refused, it is not
+ * stored again from that answer by either. */
+const proposed = new WeakMap<PortsMessage, { key: string; value: string }>();
+/** Whether `value` for `key` is the proposal stored last from `answer`. */
+export const proposedFrom = (answer: PortsMessage, key: string, value: string): boolean => {
+  const last = proposed.get(answer);
+  return last !== undefined && last.key === key && last.value === value;
+};
+/** The proposal is being stored from `answer`. */
+export const proposing = (answer: PortsMessage, key: string, value: string): void => void proposed.set(answer, { key, value });
+
 /** The name of a type of radio in the page's language: the catalogue id its row of RADIO_TYPES gives (`radio.type.lora_tcp`); the key itself only for a type this page does not know. */
 export function typeText(key: string): string {
   const id = RADIO_TYPES.find((type) => type.key === key)?.text;
   return id !== undefined && hasMessage(id) ? t(id) : key;
 }
 
-/** The types of radio as a list to choose from: those of a kind (a radio's type changes within its kind), or all of them (Add radio), in the order of the daemon's list. */
-export const typeChoices = (kind?: PageRadio["kind"]): Choice[] =>
-  RADIO_TYPES.filter((type) => kind === undefined || type.kind === kind).map((type) => ({ value: type.key, label: typeText(type.key) }));
+/** The types of radio as a list to choose from: those of a kind (a radio's type changes within its kind), or all of them (Add radio), in the order of the daemon's list; without the types whose program this
+ * installation does not carry (`unavailable`, the status's `unavailable_types`). */
+export const typeChoices = (kind?: PageRadio["kind"], unavailable: readonly string[] = []): Choice[] =>
+  RADIO_TYPES.filter((type) => (kind === undefined || type.kind === kind) && !unavailable.includes(type.key)).map((type) => ({
+    value: type.key,
+    label: typeText(type.key),
+  }));
 
 /** The words of a box's legend by the kind of its radio. */
 const BOX_WORDS: Record<PageRadio["kind"], MessageId> = { fm: "settings.group.fm_radio", hf: "settings.group.hf_radio", lora: "settings.group.lora_radio" };

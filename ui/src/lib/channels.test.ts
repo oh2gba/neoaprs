@@ -28,7 +28,7 @@ const ONE = radiosOf(FM, HF_OFF);
 const TWO = radiosOf(FM, HF);
 /** The HF radio alone. */
 const HF_ALONE = radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), HF);
-/** Six radios on: two of them named, two Dummies (one of them named), a LoRa one is not here (no type yet). */
+/** Six radios on: two of them named, two Dummies (one of them named); a LoRa one has its own tests below. */
 const SIX = radiosOf(
   FM,
   HF,
@@ -217,6 +217,24 @@ describe("a station heard on the HF radio", () => {
     expect(packetCameBy(packet(1, { radio_id: 2 }), HF_ALONE)).toBe("heard on the HF radio");
     expect(packetCameBy(packet(1, { radio_id: 2 }), TWO)).toBe("heard on radio HF");
     expect(packetCameBy(packet(1, { radio_id: 1 }), ONE)).toBe("Heard on the radio");
+  });
+});
+
+describe("a station's one LoRa radio", () => {
+  const LORA_ALONE = radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(3, "lora-tcp"));
+  const heard = station("OH2LORA", { heard_rf: 2, heard: heardBy([3, 2, ago(60)]) });
+
+  it("is RF, as the one radio of a station always was, in the sage of its kind, as its tag is once a second radio is on", () => {
+    expect(heardTags(heard, LORA_ALONE, NOW).map((tag) => [tag.label, tag.tone, tag.title])).toEqual([["RF", "lora", "Heard on the radio"]]);
+    expect(packetTag(packet(1, { radio_id: 3 }), LORA_ALONE)).toEqual({ key: "radio-3", label: "RF", title: "Heard on the radio", tone: "lora" });
+    const withFm = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(3, "lora-tcp"));
+    expect(heardTags(heard, withFm, NOW).map((tag) => [tag.label, tag.tone])).toEqual([["LoRa", "lora"]]);
+    expect(packetTag(packet(1, { radio_id: 3 }), withFm).tone).toBe("lora");
+  });
+
+  it("keeps the Dummy's own dashed tone for a Dummy LoRa radio alone", () => {
+    const dummy = radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(3, "dummy-lora"));
+    expect(packetTag(packet(1, { radio_id: 3, via: "dummy" }), dummy).tone).toBe("dummy");
   });
 });
 

@@ -117,7 +117,7 @@ describe("EmailPane: Check email", () => {
   it("is off while the TNC is not connected, and says why", () => {
     const wrapper = pane({ connected: false });
     expect(bar(wrapper, "Check email")?.attributes("disabled")).toBeDefined();
-    expect(bar(wrapper, "Check email")?.attributes("title")).toBe("The TNC is not connected");
+    expect(bar(wrapper, "Check email")?.attributes("title")).toBe("The radio is not connected");
     wrapper.unmount();
   });
 });

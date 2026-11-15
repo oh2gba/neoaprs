@@ -13,6 +13,7 @@ from neoaprs.backupfolder import RestoreRefused
 from neoaprs.cli import dbcmd
 from neoaprs.instancelock import APP_LOCK_NAME, InstanceLock
 from neoaprs.migrations import SCHEMA_VERSION, open_database
+from neoaprs.stopfile import MIGRATE_LOCK_NAME, MigratingNote
 from neoaprs.store import DB_NAME
 from tests.support.clock import FixedClock
 
@@ -183,6 +184,29 @@ def test_restore_is_refused_while_a_neoaprs_holds_the_data_folder_and_nothing_ch
         holder.release()
     assert marker_of(data / DB_NAME) == "newer file" and not list(data.glob("neoaprs-set-aside-*"))
     assert restore_cli(data, "mine.sqlite") == 0, "and with the lock let go it goes through (the refusal left no lock behind)"
+
+
+@pytest.mark.parametrize("migrating", [True, False], ids=["a migration", "a set"])
+def test_restore_is_refused_while_a_neoaprs_migrates_or_writes_the_file_and_the_file_is_not_touched(data: Path, migrating: bool, capsys: pytest.CaptureFixture[str]) -> None:
+    """The lock of the migration is held by `neoaprs db set` for its whole run, and by a migration from before its copy: on POSIX the rename would go through under their open file, and what they
+    write would land in the file put aside."""
+    make_db(data / "backup" / "mine.sqlite", SCHEMA_VERSION, "the copy")
+    before = (data / DB_NAME).read_bytes()
+    holder = InstanceLock(data, MIGRATE_LOCK_NAME)
+    holder.acquire()
+    note = MigratingNote(data)
+    if migrating:
+        note.start()
+    try:
+        with pytest.raises(RestoreRefused, match="^NeoAPRS is writing to the database or bringing it up to date now: try again when that is done$"):
+            backupfolder.restore(data, DB_NAME, "mine.sqlite", SCHEMA_VERSION)
+        capsys.readouterr()
+        assert restore_cli(data, "mine.sqlite") == 1 and "try again when that is done" in capsys.readouterr().err
+    finally:
+        note.stop()
+        holder.release()
+    assert (data / DB_NAME).read_bytes() == before and not list(data.glob("neoaprs-set-aside-*")), "byte for byte as it was"
+    assert restore_cli(data, "mine.sqlite") == 0, "and with the lock let go it goes through (the refusal left no lock of the daemon behind)"
 
 
 def test_a_copy_this_version_cannot_open_is_refused(data: Path, capsys: pytest.CaptureFixture[str]) -> None:

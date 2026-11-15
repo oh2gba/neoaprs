@@ -135,6 +135,13 @@ def test_macos_reads_the_peak_in_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resident_mb() == 64.0
 
 
+def test_a_system_that_says_darwin_without_resource_has_no_memory_and_the_meter_still_samples(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(processmeter, "sys", SimpleNamespace(platform="darwin"))
+    monkeypatch.setitem(sys.modules, "resource", None)               # (None in sys.modules: the import fails with ImportError, as on Windows)
+    assert resident_mb() is None
+    assert ProcessMeter(now=lambda: 0.0, cpu=lambda: 0.0).sample() == (0.0, None), "the status still goes, without the one figure"
+
+
 def test_a_system_without_proc_has_no_memory(monkeypatch: pytest.MonkeyPatch) -> None:
     def no_proc(*args: object, **kwargs: object) -> None:
         raise FileNotFoundError("no /proc")

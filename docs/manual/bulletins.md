@@ -49,7 +49,7 @@ A small (i) beside the kind says what they are. A bulletin is for everyone and n
 
 ### The packet
 
-A bulletin is a message without an id (chapter 14 of the specification), sent by the path of the radio it goes on (`radio/<id>/path`): `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
+A bulletin is a message without an id (chapter 14 of the specification), sent on the main radio by its path (`radio/<id>/path`): `:BLN3     :Snow expected in Tampa RSN`, an announcement `:BLNQ     :Mt St Helen digi will be QRT this weekend`, a group bulletin `:BLN4WX   :Stand by your snowplows`. The addressee is padded to nine characters.
 
 Nobody acknowledges a bulletin, so it is sent more than once:
 
@@ -57,6 +57,8 @@ Nobody acknowledges a bulletin, so it is sent more than once:
 - **an announcement** at once, after 2 minutes, after 6, and then every hour until 72 hours after the first: 74 packets.
 
 A text posted to a slot that holds one replaces it and starts the schedule again, never within a minute of the last packet of the slot. The same text posted again, once the schedule is over, goes out again. You can have at most 36 posted at once.
+
+A bulletin goes on the [main radio](radio.md#the-main-radio), and so do its repeats. **Post** is off while that radio is not connected, with that as its title ("The TNC is not connected", or "FM: not connected" while several radios are on).
 
 Nothing is posted while the call is not set. What is due waits for the radio, and one packet goes out when it is back. At most one packet of yours of this kind (an object or a bulletin) goes out every 10 seconds, and a restart sends no burst ([objects.md](objects.md#when-it-is-sent)).
 

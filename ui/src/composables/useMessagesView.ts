@@ -1,5 +1,5 @@
 // The Messages tab as the page runs it: the conversations (a message is seen only while the tab is in front of the user, lib/unread.ts), whether the overheard ones are listed (remembered), the group compose (one text to several stations: `group`, opened by `openGroup`), and the ways to the tab: the Message button of a station's card, the mail in the header, a message sent, a conversation deleted.
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import type { Panel } from "@/composables/usePanel";
 import { usePersistedFlag } from "@/composables/usePersisted";
 import { useConversations } from "@/composables/useConversations";
@@ -10,11 +10,11 @@ import { addable } from "@/lib/recipients";
 import { isViewingTab } from "@/lib/unread";
 import type { Command, MessageRow } from "@/protocol/protocol";
 
-export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean) {
+export function useMessagesView(messages: ReadonlyMap<string, MessageRow>, panel: Panel, send: (command: Command) => boolean, loaded?: Readonly<Ref<boolean>>) {
   const visible = useVisible();
   const viewing = computed(() => isViewingTab({ tab: panel.tab.value, collapsed: panel.collapsed.value, visible: visible.value }, "messages"));
   const showOverheard = usePersistedFlag("overheard", ["on", "off"], false);
-  const talk = useConversations(messages, viewing, showOverheard);
+  const talk = useConversations(messages, viewing, showOverheard, loaded);
   /** The calls of the group compose that is open, null when there is none. It and an open conversation exclude each other. */
   const group = ref<string[] | null>(null);
 

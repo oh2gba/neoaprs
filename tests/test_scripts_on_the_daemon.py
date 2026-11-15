@@ -1,16 +1,23 @@
 """The scripts that talk to a daemon's page against a real daemon of this tree, over its page's socket: scripts/smoke.py's readers (which update-e2e, install-probe, mercury-sim and the screenshots take) and
 tests/support/realmercury.Page (the Mercury bench's and the simulation's page) find the wire of the radios that the hello names, read the radios, what a station's row says each kind heard and a radio's own
-settings in `radio_values`, and give the HF radio by the radio commands. tests/test_scripts.py holds the same pieces on stand-ins of both wires; this file holds them to the daemon they are run against."""
+settings in `radio_values`, and give the HF radio by the radio commands. On a new installation's daemon, which has no radio, the scripts that set a station up add every radio they need by the radio
+commands: smoke.py's first radio (radio 1, on the port of the run), install-probe's seed (the FM radio, radio 1, then the HF radio) and scripts/sim-radios' six (radios 1 to 6, in the order of
+their boxes). tests/test_scripts.py holds the same pieces on stand-ins of both wires; this file holds them to the daemon they are run against."""
 import asyncio
+import importlib.machinery
+import importlib.util
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from neoaprs.radiospec import FM_ID, HF_ID
-from tests.support.env import Env
+from neoaprs.source import Source
+from neoaprs.web.protocol import TOPIC_NAMES
+from tests.support.air import on_air
+from tests.support.env import Env, until
 from tests.support.realmercury import Page
 from tests.support.wireworld import heard
-from tests.test_scripts import load_script
+from tests.test_scripts import ROOT, load_script
 
 
 async def closed(connection: Any) -> None:
@@ -52,3 +59,64 @@ async def test_the_scripts_read_the_radios_of_the_daemon_and_give_it_the_hf_radi
         bench.close()
         await closed(bench._connection)
     await e.stop()
+
+
+def sim_radios() -> Any:
+    loader = importlib.machinery.SourceFileLoader("sim_radios", str(ROOT / "scripts" / "sim-radios"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    assert spec is not None
+    sim = importlib.util.module_from_spec(spec)
+    loader.exec_module(sim)
+    return sim
+
+
+def told_radios(page: Any) -> list[tuple[int, str, str, bool]]:
+    return sorted((int(id), row["kind"], row["type"], bool(row["enabled"])) for id, row in (page.topics.get("radios") or {}).items() if not row.get("removed"))
+
+
+async def test_on_a_new_installations_daemon_the_install_probe_and_sim_radios_add_each_radio_they_need_the_first_as_radio_1(tmp_path: Path) -> None:
+    probe, sim = load_script("install-probe.py"), sim_radios()
+    for name, give, expected in (
+            ("probe", lambda page: probe.give_radios(page, 20), [(1, "fm", probe.FM_TYPE, True), (2, "hf", probe.HF_TYPE, True)]),
+            ("sim", lambda page: sim.make_six(page, 20), [(id, kind, type, True) for id, (kind, type) in enumerate(sim.SIX, 1)])):
+        e = Env(tmp_path / name, radio=False, web=True, operator=False, first_radio=False)        # (a new installation: no settings row and no radio)
+        e.mercury._finder = lambda: None
+        await e.start(connected=False)
+        page = await sim.smoke.PageSocket.open(f"http://127.0.0.1:{e.port}/")
+        try:
+            await page.until("every topic told", lambda p: set(TOPIC_NAMES) <= set(p.topics), 10)
+            assert told_radios(page) == [] and e.ctl.config.radios == (), "a new installation has no radio"
+            ids = await give(page)
+            if name == "sim":
+                assert ids == [1, 2, 3, 4, 5, 6], "each of the six added, numbered by the database in the order of their boxes"
+            await page.until("the radios told", lambda p, expected=expected: told_radios(p) == expected, 10)
+            assert [(s.id, s.kind, s.type, s.enabled) for s in e.ctl.config.radios] == expected, name
+        finally:
+            await closed(page.connection)
+            await e.stop()
+
+
+async def test_the_smoke_test_gives_a_new_installation_its_first_radio_which_takes_the_port_of_the_run_and_hears_the_fake_tnc(tmp_path: Path) -> None:
+    smoke = load_script("smoke.py")
+    e = Env(tmp_path, web=True, operator=False, first_radio=False)              # (a new installation, started with --port: the fake TNC, which no radio takes yet)
+    await e.start(connected=False)
+    try:
+        assert e.ctl.config.radios == ()
+        opened: list[Any] = []
+        real_open = smoke.PageSocket.open
+
+        async def open_and_keep(base: str) -> Any:
+            opened.append(await real_open(base))
+            return opened[-1]
+
+        smoke.PageSocket.open = open_and_keep                                    # (the socket the smoke test opens, read to its end after it)
+        watch = asyncio.create_task(smoke.watch_the_socket(f"http://127.0.0.1:{e.port}/", 20))
+        await until(lambda: e.ctl.radios.get(FM_ID) is not None and e.tnc.state is Source.State.CONNECTED, 20)
+        e.feed(on_air("OH2RDG", b"!6010.00N/02456.00E>heard by the smoke test"))
+        state, packets = await watch
+        await closed(opened[0].connection)
+        assert (state, packets) == ("connected", 1)
+        spec = e.ctl.config.radio(FM_ID)
+        assert spec is not None and (spec.kind, spec.type, spec.enabled) == ("fm", smoke.FIRST_RADIO, True), "radio 1, the type the setup guide gives first, on the port of the run"
+    finally:
+        await e.stop()

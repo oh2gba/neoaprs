@@ -37,7 +37,7 @@ describe("the About group", () => {
   it("says what NeoAPRS is with the daemon's version, who made it, and has one control: Download logs, a link on the last line", () => {
     const wrapper = make();
     expect(wrapper.find("legend").text()).toBe("About");
-    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radio, on VHF and over HF. Made by OH2GBA, 2026.");
+    expect(wrapper.findAll("p")[0]?.text()).toBe("NeoAPRS 0.9.1, an APRS client for your radios: FM, HF and LoRa. Made by OH2GBA, 2026.");
     const controls = wrapper.findAll("button:not(.groupfold), input, select");
     expect(controls.map((c) => [c.text(), c.classes()])).toEqual([["Download logs", ["linkbtn"]]]);
     const paragraphs = wrapper.findAll("p");
@@ -254,7 +254,7 @@ describe("Download logs, the last line", () => {
     const wrapper = make();
     await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();
-    expect(wrapper.get(".about-download").text()).toBe("Download logs · The daemon could not be reached.");
+    expect(wrapper.get(".about-download").text()).toBe("Download logs · NeoAPRS could not be reached.");
     daemonSays(() => Promise.resolve(new Response("PK", { status: 200, headers: ZIP })));
     await wrapper.get("#set-help-logs").trigger("click");
     await flushPromises();

@@ -56,6 +56,8 @@ async def test_a_radio_that_only_receives_hears_everything_and_sends_nothing_wha
 
         # what the station sends: never on it
         assert [r.id for r in e.ctl.radios.beaconing()] == [1] and not radio.beacon.send_now() and radio.beacon.problem == ONLY_RECEIVES
+        await page.until(lambda: page.topics["radios"][str(id)]["beacon"]["problem"] is not None)
+        assert page.topics["radios"][str(id)]["beacon"]["problem"]["code"] == "transmit.off", "the page's RX only, not a reason in English"
         assert getattr(e.ctl.radios.for_station("OH2ABC-7"), "id", None) == 1, "a message to a station heard only on it goes on a radio that sends"
         packet = next(p for p in await e.packets() if p.source == "OH2ABC-7" and b"?APRSP" in p.info)
         assert not answerable(e.ctl.radios, packet), "a query heard on it alone is not answered: the copy a radio that sends hears is"

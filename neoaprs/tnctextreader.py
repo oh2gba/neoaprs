@@ -56,7 +56,7 @@ class TextLineReader(Reader):
 
     def reset(self) -> None:
         super().reset()
-        self.text = TextReader(monitor=True)
+        self.text = TextReader()
         self.told_bits = False                                           # the log has said that this open's line is 7 bits
 
     def command_mode_unanswered(self) -> bool:

@@ -15,7 +15,7 @@ from .db import Db
 from .dberror import Connection, DbClosed, Row, SqlError, StoreError as StoreError           # (kept here: the names the rest of the program imports them by)
 from .packetcodec import stamp
 from .radiospec import RadioId, RadioSpec
-from .radiosql import insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
+from .radiosql import insert_radio, of_removed_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
 from .storesql import Settings, delete_setting, read_setting, read_settings, write_setting, write_settings
 
 log = logging.getLogger("neoaprs.store")
@@ -34,6 +34,14 @@ class RadioWrite(NamedTuple):
 
 class _Refused(Exception):
     """A radio of a save is not there or is removed: the save is rolled back whole."""
+
+
+def _unless_removed(db: Connection, keys: Iterable[str], write: Callable[[], None]) -> bool:
+    """`write` done, in the transaction of the caller, unless one of `keys` is a row of a removed radio's own state (radiosql.of_removed_radio); whether it was done."""
+    if of_removed_radio(db, keys):
+        return False
+    write()
+    return True
 
 
 class Store:
@@ -93,28 +101,32 @@ class Store:
         return await self._read(lambda db: read_setting(db, key), None, f"the setting {key} could not be read")
 
     async def put_setting(self, key: str, value: str) -> bool:
-        """One setting, replaced in one statement."""
+        """One setting, replaced; False, and nothing stored, for a row of a removed radio's own state (radiosql.of_removed_radio)."""
         db = self.db
         if db is None or not db.is_open:
             return False
         try:
-            await db.write(lambda conn: write_setting(conn, key, value))
+            written = await db.write(lambda conn: _unless_removed(conn, [key], lambda: write_setting(conn, key, value)))
         except (SqlError, DbClosed) as e:
             log.error("the setting %s could not be stored: %s", key, e)
             return False
-        return True
+        if not written:
+            log.info("%s was not stored: its radio has been removed", key)
+        return written
 
     async def put_settings(self, data: Settings) -> bool:
-        """Every key of `data` in one transaction (all of it or none); the other settings stay."""
+        """Every key of `data` in one transaction (all of it or none); the other settings stay. False, and nothing stored, when one is a row of a removed radio's own state (radiosql.of_removed_radio)."""
         db = self.db
         if db is None or not db.is_open:
             return False
         try:
-            await db.write(lambda conn: write_settings(conn, data))
+            written = await db.write(lambda conn: _unless_removed(conn, data, lambda: write_settings(conn, data)))
         except (SqlError, DbClosed) as e:
             log.error("the settings could not be stored: %s", e)
             return False
-        return True
+        if not written:
+            log.info("%s were not stored: a radio of theirs has been removed", ", ".join(data))
+        return written
 
     async def delete_setting(self, key: str) -> None:
         await self._quietly(lambda db: delete_setting(db, key), f"the setting {key} could not be deleted")

@@ -27,6 +27,7 @@ os.environ["NEOAPRS_UPDATE_CHECK"] = "0"
 
 # No test may read the sound cards of the machine it runs on (neoaprs/mercuryhelper.py, alsa_card_names): the cards' names come from a folder that is not there. A test of the names gives its own folder.
 os.environ["NEOAPRS_ALSA_ROOT"] = "/nonexistent/neoaprs-test-asound"
+os.environ["NEOAPRS_SYS_ROOT"] = "/nonexistent/neoaprs-test-sys"           # (nor where its USB devices sit: neoaprs/usbtie.py)
 
 
 # No test may play sound on the developer's speakers: a daemon a test starts on the Dummy HF radio plays what it sends as Mercury's real audio through the system's player (neoaprs/mercuryspeaker.py), which John heard

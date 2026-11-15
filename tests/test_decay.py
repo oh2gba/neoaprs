@@ -21,6 +21,8 @@ def test_an_object_decays_from_a_minute_by_doubling_up_to_the_net_cycle_time_of_
     assert [object_wait_sec(n, ("WIDE2-1",)) for n in range(1, 9)] == [60, 120, 240, 480, 600, 600, 600, 600]
     assert [object_wait_sec(n, ("WIDE1-1", "WIDE2-1")) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1200, 1200, 1200]
     assert [object_wait_sec(n, ("WIDE3-3",)) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1800, 1800, 1800]
+    assert [object_wait_sec(n, (), 1800) for n in range(1, 9)] == [60, 120, 240, 480, 960, 1800, 1800, 1800], "a radio's floor above the net cycle: the decay stays, the repeats keep the floor"
+    assert [object_wait_sec(n, ("WIDE3-3",), 600) for n in (1, 6)] == [60, 1800], "a floor below the net cycle changes nothing"
 
 
 def test_a_kill_is_sent_three_times_a_minute_and_two_apart() -> None:

@@ -138,11 +138,11 @@ describe("the header with the FM radio alone", () => {
         .join(" "),
     ]);
   };
-  const open: Link = { connection: "open", radios: pageRadiosOf(fmRow()), now: NOW, inApp: false };
+  const open: Link = { connection: "open", radios: pageRadiosOf(fmRow()), now: NOW, inApp: false, told: true };
 
   it("is the Server mark and the one Radio mark, mint while connected, whether the HF radio's topic is there or not", () => {
     const today = [
-      ["SPAN", "Server", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
+      ["SPAN", "NeoAPRS", "The page is connected to NeoAPRS", "tag-ok pill-daemon"],
       ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],
     ];
     expect(marks(open)).toEqual(today);
@@ -150,8 +150,8 @@ describe("the header with the FM radio alone", () => {
   });
 
   it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching", () => {
-    const radio = (row: Parameters<typeof fmRow>[0] | null) => marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)) })[1];
-    expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the TNC yet. Settings → Radio", "tag-warn pill-radio"]);
+    const radio = (row: Parameters<typeof fmRow>[0] | null) => marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)), told: row !== null })[1];
+    expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the radio yet. Settings → Radio", "tag-warn pill-radio"]);
     // (the daemon's English reason of before is the log's: the title says the state in the page's words; "entering KISS" is no state of a radio's row)
     expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
       "BUTTON",
@@ -170,8 +170,8 @@ describe("the header with the FM radio alone", () => {
 
   it("keeps the other marks of the station where they were, after the Radio mark", () => {
     const rx = marks(open, { "station/transmit": "false" }).map((m) => m[1]);
-    expect(rx).toEqual(["Server", "Radio", "RX only"]);
+    expect(rx).toEqual(["NeoAPRS", "Radio", "RX only"]);
     const beaconOff = marks(open, { "beacon/interval_min": "0" }).map((m) => m[1]);
-    expect(beaconOff).toEqual(["Server", "Radio", "Beacon off"]);
+    expect(beaconOff).toEqual(["NeoAPRS", "Radio", "Beacon off"]);
   });
 });

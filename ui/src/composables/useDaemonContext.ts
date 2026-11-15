@@ -71,7 +71,10 @@ export interface DaemonContext {
   map: Read<MapState | null>;
   /** Update now: whether this copy can update itself, and how the update it is doing goes */
   selfUpdate: Read<UpdateState | null>;
+  /** the latest list of the ports (the machine's, whichever radio asked) */
   ports: Read<PortsMessage | null>;
+  /** the latest answer to `list_ports` for each radio named: its sound cards and the proposals are its own */
+  portsByRadio: Read<ReadonlyMap<number, PortsMessage>>;
   /** Find my radio: the button of the Settings tab, and the search it starts */
   findRadio: FindRadio;
   alertResult: Read<AlertResultMessage | null>;

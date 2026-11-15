@@ -4,6 +4,7 @@ test away from the radio's device files. What is about a real device file (the l
 import asyncio
 import logging
 import os
+import socket
 import subprocess
 import sys
 import textwrap
@@ -19,7 +20,7 @@ import pytest_asyncio
 import serial  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
-from neoaprs import serialport, serialprobe
+from neoaprs import serialholders, serialport, serialprobe
 from neoaprs.kiss import KissDecoder, encode
 from neoaprs.serialholders import held_by, holders, port_key
 from neoaprs.serialport import SerialError, SerialPort, is_socket, normalize
@@ -832,3 +833,23 @@ async def test_the_scan_for_a_program_that_holds_a_port_is_not_made_on_the_loop_
     monkeypatch.setattr(serialprobe, "held_by", held)
     assert await probe(["/dev/ttyUSB7"], 9600, 1.0, lambda data: True) is None
     assert threads and threading.get_ident() not in threads
+
+
+@pytest.mark.skipif(not hasattr(socket, "TCP_KEEPINTVL"), reason="the system has no keep-alive times to set on a socket")
+def test_a_tcp_line_asks_after_a_minute_of_quiet_whether_its_end_is_there_and_gives_up_within_two_minutes() -> None:
+    server = socket.create_server(("127.0.0.1", 0))
+    client = socket.create_connection(server.getsockname())
+    try:
+        serialport._keep_alive(SimpleNamespace(_socket=client))
+        idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE")      # noqa: B009 (macOS names it TCP_KEEPALIVE, which the stubs of the other systems lack)
+        assert client.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
+        assert (client.getsockopt(socket.IPPROTO_TCP, idle), client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL), client.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)) == (60, 15, 4), \
+            "a LoRa board that lost power is found gone in two minutes, not the system's two hours"
+    finally:
+        client.close()
+        server.close()
+
+
+def test_on_macos_the_call_in_and_the_call_out_node_of_a_port_are_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(serialholders, "sys", SimpleNamespace(platform="darwin"))
+    assert port_key("/dev/tty.usbserial-A50285BI") == port_key("/dev/cu.usbserial-A50285BI") == os.path.realpath("/dev/cu.usbserial-A50285BI")

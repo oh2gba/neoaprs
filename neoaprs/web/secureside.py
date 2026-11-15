@@ -90,7 +90,12 @@ class SecureSide:
         return before != self.state
 
     async def _ensure(self, address: str, plain_port: int, make_server: ServerFactory) -> None:
-        from .tls import CertificateStore, TlsError
+        try:
+            from .tls import CertificateStore, TlsError
+        except Exception:                                            # (a cryptography library that does not load, in a broken install: the plain page still works; the log says what is missing)
+            log.exception("the library of the secure connection cannot be loaded")
+            self._fail("the secure connection cannot be had in this installation")
+            return
         if self._store is None:
             self._store = CertificateStore(self._folder, self._clock)
         try:

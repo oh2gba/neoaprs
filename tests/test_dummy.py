@@ -1,6 +1,7 @@
 """The Dummy radio (neoaprs/dummyscene.py, dummyline.py): made-up traffic around the station that the parser reads like a radio's, stations that answer a message, a digipeater that repeats a position of ours, calls that
 can be nobody's, and nothing ever written or sent anywhere. The scene is pure, so it is driven by hand with a clock; the Tnc and the Controller run it on a fast tick."""
 import asyncio
+import logging
 import socket
 from dataclasses import replace
 from datetime import timedelta
@@ -339,3 +340,15 @@ async def test_the_daemon_with_the_dummy_radio_type_has_stations_on_the_map_and_
     assert near and all(distance_km(60.2231, 24.7152, s.lat, s.lon) < 8 for s in near if s.lat is not None and s.lon is not None)
     assert e.ctl.config.serial_last_port == ""
     assert replace(e.ctl.config).profile.transport == "dummy"
+
+
+async def test_each_dummy_radio_says_in_the_log_which_radio_it_is(fast: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    refuse_the_world(monkeypatch)
+    caplog.set_level(logging.INFO, "neoaprs")
+    tnc = Tnc(profile=DUMMY, port=DUMMY_PATH, clock=FixedClock(START))
+    tnc.radio_name = "FM 3"
+    try:
+        await tnc.start()
+        assert any(r.getMessage().startswith("FM 3: the dummy radio makes") for r in caplog.records)
+    finally:
+        await tnc.stop()

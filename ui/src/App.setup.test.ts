@@ -149,6 +149,7 @@ describe("App: the first-run guide", () => {
       search: true,
       find: true,
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
+      radio: null,
     });
     await flushPromises();
     await wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");

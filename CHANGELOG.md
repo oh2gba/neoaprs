@@ -2,44 +2,49 @@
 
 ## Unreleased
 
-- **New:** a LoRa APRS board is a radio: an iGate on your network, or a board on USB or Bluetooth.
-- **New:** packets heard by a LoRa APRS board show their signal strength and signal-to-noise ratio where the board says them.
+As many radios as you have, FM, HF and LoRa side by side, a new look, HF tests and the page in Dutch.
+
+- **New:** as many radios as you have, of any type: add, name and remove them in Settings → Radio, and choose the main radio.
+- **New:** with several radios, Send on chooses the radios of the beacon and of each object; Ask around and Local info choose theirs.
+- **New:** LoRa APRS boards are radios: an iGate on the network, or a board on USB or Bluetooth, with each packet's signal where given.
 - **New:** radios on Bluetooth LE work from the downloads.
+- **New:** the radio type Sound card (Direwolf): on Windows and Linux, a Digirig, AIOC or USB sound card needs nothing else installed.
+- **New:** a Yaesu FTM or a TNC without KISS can be a receive-only radio: what it hears is on the map, and nothing is sent.
+- **New:** the **HF tests** tab, with an HF radio on: plan a test on the air, and see when and on which frequency others test.
+- **New:** **Monitor** in the map's menu shows a sharper HF waterfall with a frequency ruler; a right-click sets how fast it scrolls.
+- **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
+- **New:** the page speaks Nederlands, its ninth language.
+- **New:** **Open on a phone** in Settings → Web page, in place of the addresses: a phone's camera reads the code and opens the page.
 - **New:** `neoaprs db radios` lists the radios, `neoaprs db set radio/1/port ...` sets one of their settings, and `neoaprs doctor` names each radio.
 - **New:** a new installation starts with no radio; `neoaprs db radios add TYPE` adds one from the command line.
-- **New:** the page speaks Nederlands.
-- **New:** Yaesu FTM radios and TNCs not in KISS can be listened to: an RX only radio type shows and gates what they hear.
-- **New:** a right-click on the monitor card sets how fast its waterfall scrolls.
-- **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
-- **Changed:** the HF modem is Mercury 1.9.24.
-- **Changed:** the detailed map no longer downloads a helper program first, and the Windows program is smaller.
-- **Changed:** the app's window opens at once while NeoAPRS starts; on Windows a small loading window comes first.
-- **New:** an **HF tests** tab: say when and on which frequency you will try APRS on HF, and join the tests of others.
-- **New:** a sharper HF waterfall with a frequency ruler keeps its last two minutes; **Monitor** in the map's menu shows it over the map.
+- **New:** `neoaprs db restore` puts back the copy of your data that an update keeps, to go back to the release before.
 - **New:** Update now installs a release only when its list of checksums carries the project's signature.
-- **Changed:** the recommended path of a fixed station is WIDE2-2.
+- **New:** the Terminal shows the Dummy radios' made-up traffic too.
+- **Changed:** a new look: the page takes the colours and shapes of the project's site, light and dark, and the icon is petrol and mint.
+- **Changed:** a conversation shows the radio its messages go on; the FM and HF buttons beside Send moved into Route.
+- **Changed:** a message goes on the radio that heard the station within six hours, FM or LoRa before HF, and keeps it for retries.
+- **Changed:** an FM beacon under 30 minutes is no longer slowed to 30 while an HF radio is on; HF and LoRa beacons wait 30.
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
-- **Changed:** with the HF radio on, an FM beacon set under 30 minutes is no longer slowed to 30; HF still waits 30.
-- **Changed:** a message goes on the radio that heard the station in the last six hours, FM first, and keeps that radio for its retries.
-- **Changed:** a message that went over HF only because the FM radio was off goes back to FM once it is on again.
-- **Changed:** Find my radio no longer stops the HF radio while it looks for the FM radio.
-- **Changed:** a conversation shows the radio its messages really go on, and Route and Send follow it.
-- **Changed:** a port, sound card or keying line the other radio is set to is refused at Save, instead of the radio waiting for it.
-- **Changed:** the page has the colours and shapes of the project's site, in the light and the dark theme, and so has the icon.
-- **New:** any number of radios of any type: add, name and remove them in Settings → Radio, and choose the main radio.
-- **New:** with several radios, Route chooses a station's radio, and each tag, message, object and Monitor names its radio.
-- **New:** with several radios, Send on chooses the radios of the beacon and of each object; Ask around and Local info choose theirs.
-- **Changed:** the HF tests tab shows only while an HF radio is on.
+- **Changed:** the recommended path of a fixed station is WIDE2-2.
 - **Changed:** Post, Ask, Ask around, a station's questions, Beacon now, Send status now, Retry and Send my key wait for their radio, as Send does.
-- **Changed:** the setup guide's Radio step saves each change at once; Find my radio shows only for a radio on a serial port.
+- **Changed:** Find my radio shows only for a radio on a serial port, skips the GPS port, and no longer stops the other radios.
+- **Changed:** the setup guide's Radio step saves each change at once, as Settings does, and can add any radio.
+- **Changed:** a port, sound card or keying line that another radio or the GPS receiver uses is greyed with its user and refused.
+- **Changed:** the app's window opens at once while NeoAPRS starts; on Windows a small loading window comes first.
+- **Changed:** the HF modem is Mercury 1.9.24.
+- **Changed:** the detailed map no longer downloads a helper program first.
+- **Changed:** the connection mark at the top says NeoAPRS, not Server.
+- **Changed:** texts that mean any radio say radio, not TNC, and more of the page is translated in every language.
+- **Changed:** an object on an HF or LoRa radio repeats at most every 30 minutes once its first sends are out.
+- **Changed:** the alert's distance tickbox is greyed while there is no position; two lines of explanation are gone.
+- **Changed:** a radio of a type this version does not have, from a newer NeoAPRS, is left off and the station starts.
+- **Changed:** the Windows program takes about 63 MB less disk space.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.
 - **Fixed:** a message too long for its radio waited for ever. It now fails at once and says it is too long for the radio.
 - **Fixed:** the support summary showed an old error as the present problem.
 - **Fixed:** the HF radio's status lost the reason the modem had stopped at its next try. It now keeps it until the modem runs again.
-- **Fixed:** a database from a newer NeoAPRS stopped the start with no way back. `neoaprs db restore` now puts a backup copy back.
-- **Fixed:** after an update, the app gave up after a minute while a large database was still being brought up to date. It now waits.
-- **Fixed:** NeoAPRS stopped with an error when started while `neoaprs db` was bringing the database up to date. It now waits.
+- **Fixed:** while a database was being brought up to date, the app gave up after a minute and a second start stopped. Both now wait.
 - **Fixed:** an update interrupted again and again (a power cut) could fill the disk. NeoAPRS now keeps one copy of your data from before it.
 - **Fixed:** a burst of questions could make NeoAPRS send a flood of answers. It now sends at most ten frames of answers a minute.
 - **Fixed:** an object sent on HF alone repeated at the slow rate of its VHF path.
@@ -47,6 +52,10 @@
 - **Fixed:** a message with `&`, `<` or `>` came out garbled in the Linux alert notification.
 - **Fixed:** with network access off, the page opened on a Raspberry Pi by its own name could not connect.
 - **Fixed:** a click on a tab could move the whole page a little to the left.
+- **Fixed:** in the Windows app's window, "Download certificate" and "Download logs" did nothing; they save the file now.
+- **Fixed:** a program of yours with Mercury in its name could be ended as a Mercury NeoAPRS left running; now only its own is.
+- **Fixed:** a device logged in over plain http could open the page over https. It now logs in once more.
+- **Fixed:** a message not sent for want of the connection to NeoAPRS said so in English in every language.
 
 ## 0.18.2
 

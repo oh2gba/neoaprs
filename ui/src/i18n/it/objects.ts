@@ -97,7 +97,7 @@ export const objects: Readonly<Record<keyof typeof en, Message>> = {
   "objects.tip.category": "Dai una categoria a un oggetto per offrirlo alle stazioni che chiedono info locali.",
   "objects.tip.category_code": "La tua categoria: al massimo {max} lettere o cifre, non INFO né NEXT. Le stazioni la chiedono con questa parola.",
   "objects.tip.on_request": "Non inviato in beacon; inviato solo a una stazione che chiede info locali.",
-  "objects.sent_on": "Sent on radio {name}",
+  "objects.sent_on": "Inviato sulla radio {name}",
 
   "objects.problem.name_chars": "Niente spazi alle estremità, né ! _ | ~",
   "objects.problem.at_most": "Al massimo {max} caratteri",

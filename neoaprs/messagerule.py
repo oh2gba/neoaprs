@@ -11,7 +11,7 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 
 from .policy import MESSAGE_RADIO_RECENT_HOURS
-from .radiospec import NOT_HEARD, RadioHeard, RadioId, RadioSpec, senders
+from .radiospec import NOT_HEARD, RadioHeard, RadioId, RadioSpec, in_force_choice, senders
 from .radiotype import LOCAL_KINDS
 
 RECENT = timedelta(hours=MESSAGE_RADIO_RECENT_HOURS)
@@ -20,10 +20,8 @@ RECENT = timedelta(hours=MESSAGE_RADIO_RECENT_HOURS)
 def message_radio(choice: RadioId | None, heard: Mapping[RadioId, RadioHeard], specs: Iterable[RadioSpec], main: RadioId | None, now: datetime) -> RadioId | None:
     """The id of the radio the message goes out on; None when no radio that can send is enabled (`main` is then None too)."""
     on = senders(specs)
-    if len(on) == 1:
-        return on[0].id
-    if choice is not None and any(spec.id == choice for spec in on):
-        return choice
+    if (picked := in_force_choice(choice, on)) is not None:            # (one radio that sends: that one; else the operator's choice while it names one)
+        return picked
     heard_on = [(order, spec, found) for order, spec in enumerate(on) if (found := heard.get(spec.id, NOT_HEARD)).count > 0]
     if not heard_on:
         return main

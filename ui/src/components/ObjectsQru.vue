@@ -88,7 +88,9 @@ const offline = (id: RadioId | null): string | undefined => {
 /** Why a request on the radio that waits `seconds` may not go, or undefined when it may (RX only, the radio, the path, its wait). */
 const heldBy = (id: RadioId | null, seconds: number): string | undefined => {
   const problem = routable(id) ? requestOn(id).problem.value : "";
-  return receiveOnly.value ? t("pill.rx_send") : (offline(id) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
+  return receiveOnly.value
+    ? t("error.transmit.off")
+    : (offline(id) ?? (problem !== "" ? problem : seconds > 0 ? t("objects.qru_wait", { seconds }) : undefined));
 };
 const why = computed(() => heldBy(radio.value, wait.value));
 /** Why a group's button is off, or undefined when it may be pressed (RX only, the radio, the path, or its own wait). */

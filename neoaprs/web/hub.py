@@ -238,7 +238,7 @@ class StateHub:
             if self._is_behind(peer, behind):
                 waiting = True
                 continue
-            for name in sorted(peer.stale):
+            for name in [name for name in self.topics if name in peer.stale]:      # (in the order of the hello: the radios before the settings, so that the form comes with its radios)
                 self.deliver(peer, self.topics[name].state())
             peer.stale.clear()
         return waiting

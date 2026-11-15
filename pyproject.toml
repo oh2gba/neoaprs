@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 # The desktop app (`neoaprs app`, `neoaprs-app`; neoaprs/desktop/) is an extra, so that `uv tool install neoaprs` for the daemon stays lean. Windows: the page in the system's WebView2 (pywebview) and the tray icon
-# (pystray, which draws it from a Pillow image). Elsewhere: Qt, whose QtWebEngine (PySide6-WebEngine, which needs the Essentials and the Addons) is the window and whose QSystemTrayIcon is the tray, so one event loop does both.
+# (pystray, given the icon file as it is; Pillow is pinned here because pystray requires it, and the frozen Windows app leaves it out: packaging/windows/neoaprs.spec). Elsewhere: Qt, whose QtWebEngine (PySide6-WebEngine, which needs the Essentials and the Addons) is the window and whose QSystemTrayIcon is the tray, so one event loop does both.
 [project.optional-dependencies]
 app = [
     "pywebview==6.2.1; sys_platform == 'win32'",
@@ -155,6 +155,8 @@ extend-exclude = ["ui", "neoaprs/page"]
 # The tools that are Python and have no .py in their name: ruff knows a Python file by its ending and would pass these by, the release script among them. The list is exact: tests/test_lint_scope.py finds a tool
 # that begins with a python line and is not here, and an entry whose file is gone or is not Python; the spec of the Windows build has no such line and is named there (NO_FIRST_LINE).
 extend-include = [
+    "scripts/build-direwolf",
+    "scripts/build-gi",
     "scripts/build-mercury",
     "scripts/check-in-container",
     "scripts/check-windows",
@@ -167,8 +169,10 @@ extend-include = [
     "scripts/mercury-sim",
     "scripts/migration-size",
     "scripts/release",
+    "scripts/runner-facts",
     "scripts/security-check",
     "scripts/security-tools",
+    "scripts/shipped-size",
     "scripts/sim-radios",
     "scripts/site-check",
     "packaging/windows/neoaprs.spec",

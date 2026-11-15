@@ -1,0 +1,90 @@
+--- a/src/direwolf.c
++++ b/src/direwolf.c
+@@ -143,6 +143,33 @@
+ 
+ static void usage (void);
+ 
++
++/* NeoAPRS: -Q, the end of standard input ends the program as a Ctrl-C does: QRT, every keying output set to 0, a second, exit 0 (packaging/direwolf/quit.patch). */
++/* The program that started Direwolf closes the pipe to stop it, and a program that dies closes it too, so the radio is never left keyed. */
++
++static int Q_opt = 0;
++
++#if __WIN32__
++#include <process.h>
++static unsigned __stdcall quit_at_end_of_input (void *arg)
++#else
++static void * quit_at_end_of_input (void *arg)
++#endif
++{
++	char buffer[256];
++
++	(void)arg;
++	while (fread (buffer, 1, sizeof(buffer), stdin) > 0) {
++	}
++#if __WIN32__
++	cleanup_win (CTRL_C_EVENT);
++	return (0);
++#else
++	cleanup_linux (0);
++	return (NULL);
++#endif
++}
++
+ #if defined(__SSE__) && !defined(__APPLE__)
+ 
+ static void __cpuid(int cpuinfo[4], int infotype){
+@@ -438,7 +465,7 @@
+ 
+ 	  /* ':' following option character means arg is required. */
+ 
+-          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:",
++          c = getopt_long(argc, argv, "hP:B:gjJD:U:c:px:r:b:n:d:q:t:ul:L:Sa:E:T:e:X:AI:i:Q",
+                         long_options, &option_index);
+           if (c == -1)
+             break;
+@@ -751,6 +778,11 @@
+ 	    i_opt = atoi(optarg);
+             break;
+ 
++	  case 'Q':			// NeoAPRS: -Q, end cleanly at the end of standard input (packaging/direwolf/quit.patch)
++
++	    Q_opt = 1;
++	    break;
++
+ 	  case 'A':			// -A 	convert AIS to APRS object
+ 
+ 	    A_opt_ais_to_obj = 1;
+@@ -1051,6 +1083,24 @@
+ 	xmit_init (&audio_config, d_p_opt);
+ 
+ /*
++ * NeoAPRS: -Q.  The thread that watches standard input starts once the keying is set up (ptt_init, in xmit_init), so that its cleanup can set
++ * every output to 0, and before the -x calibration run and before any network port opens.  Audio read from standard input ends the program
++ * at its own end of file already.
++ */
++	if (Q_opt && strcmp(audio_config.adev[0].adevice_in, "stdin") != 0) {
++#if __WIN32__
++	  if (_beginthreadex (NULL, 0, quit_at_end_of_input, NULL, 0, NULL) == 0) {
++#else
++	  pthread_t quit_tid;
++	  if (pthread_create (&quit_tid, NULL, quit_at_end_of_input, NULL) != 0) {
++#endif
++	    text_color_set(DW_COLOR_ERROR);
++	    dw_printf ("Could not start the thread that watches standard input (-Q).\n");
++	    exit (1);
++	  }
++	}
++
++/*
+  * If -x N option specified, transmit calibration tones for transmitter
+  * audio level adjustment, up to 1 minute then quit.
+  * a: Alternating mark/space tones
+@@ -1767,6 +1817,7 @@
+ 	dw_printf ("    -p             Enable pseudo terminal for KISS protocol.\n");
+ #endif
+ 	dw_printf ("    -x             Send Xmit level calibration tones.\n");
++	dw_printf ("    -Q             Exit cleanly at the end of standard input.\n");
+ 	dw_printf ("       a             a = Alternating mark/space tones.\n");
+ 	dw_printf ("       m             m = Steady mark tone (e.g. 1200Hz).\n");
+ 	dw_printf ("       s             s = Steady space tone (e.g. 2200Hz).\n");

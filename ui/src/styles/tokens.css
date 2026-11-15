@@ -12,7 +12,8 @@
      a mint one in the dark), told from every soft tone by its lightness; the FM radio's tag is the neutral.
    - The shapes: --radius (a control), --radius-box (a group, a card, a menu), --radius-pill (the tag); the fonts --font and --mono; --shadow, petrol.
    - What the map draws with: --map-* and --wx-* (the map keeps its own colours: the palette does not reach it). The receive level bar: --level-*, an instrument's scale, as it was.
-   - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the strongest, the same in both themes. */
+   - The HF scope's waterfall: --waterfall-*, a rig's colour scale from the floor to the strongest, the same in both themes.
+   - The phone code (Settings, Web page): --code-field and --code-dark, dark modules on white in both themes, as a camera reads them. */
 :root {
   color-scheme: light dark;
   --bg: #eff0f2; /* the site's grey */
@@ -90,6 +91,8 @@
   --wx-rain: #1565c0;
   --speed: #2e7d32; /* the speed graph of a moving station's card */
   --signal: #ad1457; /* the signal graph of a station's card */
+  --code-field: #ffffff; /* the phone code (components/PhoneCode.vue): white, the same in both themes, for every camera */
+  --code-dark: #0a2a3d; /* the phone code's dark modules: petrol, the same in both themes */
   --radius: 4px; /* a control: a button, an input, a small box in a line */
   --radius-box: 6px; /* a group, a card, a menu, a dialog, a bubble */
   --radius-pill: 999px; /* the tag, a grip: round ends whatever the height */

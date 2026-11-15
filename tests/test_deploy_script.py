@@ -59,7 +59,8 @@ def tools(tmp_path: Path) -> Path:
 
 def run(repo: Path, tools: Path, *args: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
     sent = repo.parent / "curl-args.txt"
-    env = {"PATH": f"{tools}:{os.environ['PATH']}", "HOME": str(repo.parent), "SECRETS_FILE": str(repo.parent / "token.txt"), "CURL_ARGS": str(sent), "BWS": str(tools / "bws")}
+    env = {"PATH": f"{tools}:{os.environ['PATH']}", "HOME": str(repo.parent), "SECRETS_FILE": str(repo.parent / "token.txt"), "CURL_ARGS": str(sent), "BWS": str(tools / "bws"),
+           "GIT_CEILING_DIRECTORIES": str(repo.parent)}                         # (a folder whose .git is gone is no checkout, even inside one: --basetemp under work/ puts it in this tree)
     done = subprocess.run(["bash", str(repo / "server" / "deploy.sh"), *args], capture_output=True, text=True, env=env, timeout=60)
     return done, sent.read_text(encoding="utf-8").splitlines() if sent.exists() else []
 

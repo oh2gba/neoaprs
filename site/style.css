@@ -253,6 +253,7 @@ table.skeds td.dial { font-family: var(--mono); font-weight: 650; }
 .hfshots .pic { border: clamp(4px, 0.6vw, 7px) solid #000000; border-radius: 10px; background: #000000; box-shadow: 0 18px 32px -20px rgba(10, 42, 61, 0.7); }
 .pic.tall { width: min(100%, 140px); justify-self: center; }
 .pic.tall img { aspect-ratio: auto; }
+.walk li:not(:has(.pic)) { grid-template-columns: minmax(0, 1fr); }      /* a card with no screenshot: its text across the card */
 @media (max-width: 1000px) { .walk { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 560px) { .walk li { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 

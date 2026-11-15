@@ -35,7 +35,7 @@ import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { timedOut } from "@/lib/aging";
 import { normalizeCall, validCall } from "@/lib/calls";
-import { heardTags, internetOnly } from "@/lib/channels";
+import { HEARD_ON_RADIOS, heardParts, heardTags, internetOnly } from "@/lib/channels";
 import { ageText, bearingTitle, dateTimeText, distanceText } from "@/lib/format";
 import { isGateway } from "@/lib/messages";
 import { receivedFrom } from "@/lib/qru";
@@ -55,8 +55,12 @@ const { stations, now, aging, call: ownCall, send, qru, prefs } = useDaemonConte
 const radios = useRadios();
 const root = ref<HTMLElement | null>(null);
 const width = useElementWidth(root);
-/** How many radios "Heard on" shows by their tags with several radios on: two, and one where the table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts; 0 until it is measured: two). One radio on is the page of today. */
-const radioRoom = computed(() => (radios.several.value && width.value > 0 && width.value < STATIONS_TWO_RADIOS ? 1 : undefined));
+/** The table is narrower than STATIONS_TWO_RADIOS (lib/layout.ts; 0 until it is measured: not narrow). */
+const narrow = computed(() => width.value > 0 && width.value < STATIONS_TWO_RADIOS);
+/** How many radios "Heard on" shows by their tags: two, and one in a narrow table where several radios are on or the station has more radio tags than two (radios off or removed with one on, or a Dummy part
+ * beside them): the row stays in the width with one tag and "+n". A station with one radio on keeps the two tags of today (that radio and one that is off). */
+const radioRoom = (row: StationRow): number | undefined =>
+  narrow.value && (radios.several.value || heardParts(row, radios.all.value).filter((part) => part.radio).length > HEARD_ON_RADIOS) ? 1 : undefined;
 /** The objects that came in answer to a request for local info, with the server that sent each (the Local info tag). */
 const localInfo = computed(() => receivedFrom(qru.value?.servers ?? []));
 const emit = defineEmits<{
@@ -199,9 +203,9 @@ function ariaSort(key: SortKey | null): "ascending" | "descending" | "none" | un
               ><AlertBell :alert="prefs.alerts.value.get(row.call)" /><DirectMark v-if="heardDirect(row)" />
             </td>
             <td class="heard">
-              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom)" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title">{{
-                tag.label
-              }}</TagMark>
+              <TagMark v-for="tag in heardTags(row, radios.all.value, now, radioRoom(row))" :key="tag.key" :tone="tag.tone" class="via" :title="tag.title"
+                >{{ tag.label }}<span v-if="tag.key === 'more'" class="sr-only"> {{ tag.title }}</span></TagMark
+              >
               <TagMark
                 v-if="localInfo.has(row.call)"
                 tone="neutral"

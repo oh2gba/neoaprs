@@ -13,7 +13,7 @@ Each radio's scope is a feed of that radio's modem (`RadioScopes`), in frames th
 page first asks for that radio, and follows that modem's rows from then on."""
 import struct
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryscope import KeptRow, history_frame, row_frame, scope_clock
@@ -142,6 +142,12 @@ class RadioScopes:
         """How many pages look at the radio's rows."""
         held = self._feeds.get(radio)
         return 0 if held is None else held[0].pages
+
+    def keep(self, modems: Mapping[RadioId, Mercury]) -> None:
+        """Only the feeds of these radios' modems as they are now are kept: one of a radio removed, or of a modem the radio no longer has, lets go of that modem's signals."""
+        for radio, (_, modem) in list(self._feeds.items()):
+            if modems.get(radio) is not modem:
+                self._drop(radio)
 
     def _drop(self, radio: RadioId) -> None:
         held = self._feeds.pop(radio, None)

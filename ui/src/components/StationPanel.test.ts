@@ -159,16 +159,18 @@ describe("the settings in the panel", () => {
       expect(km.classes(), String(bad)).toContain("invalid");
     }
     expect(send).not.toHaveBeenCalled();
-    expect(wrapper.find(".alertbox-note").exists()).toBe(false);
+    expect(tick("within").attributes("disabled")).toBeUndefined();
     await km.setValue(25);
     await km.trigger("change");
     expect(km.classes()).not.toContain("invalid");
     expect(send).toHaveBeenLastCalledWith({ cmd: "set_station_alert", call: "OH2RDG", on_air: true, within_km: 25, direct: false });
   });
 
-  it("say only that our position is missing when it is", () => {
+  it("grey the distance's tickbox while our position is missing, with that as its title, and no line says it", () => {
     make(station("OH2RDG"), { home: null });
-    expect(wrapper.find(".alertbox-note").text()).toBe("Needs your position (Settings)");
+    expect(tick("within").attributes("disabled")).toBeDefined();
+    expect(tick("within").element.closest("label")?.getAttribute("title")).toBe("Needs your position (Settings)");
+    expect(wrapper.find(".alertbox-group").text()).not.toContain("Needs your position");
   });
 
   it("show the alert the station has, and take in a change of it from the daemon", async () => {

@@ -5,8 +5,9 @@ The method is that of Bob Bruninga's text "The ALOHA Circle" (aprs.org, 7 Novemb
 and rises by one after each digipeater (everything farther away is repeated once more). The circle ends at the station where the total reaches 1800, the packets a 1200 baud channel carries in 30 minutes. If the stations heard
 never reach that, the channel is not full and there is no circle.
 
-The circle is a radio's (plan rule 3.8): it is worked out for a radio whose type says it shares a 1200 baud channel (an FM radio's), from the stations that radio heard; the stations another radio heard
-(an HF radio's, hundreds of kilometres away) are not on that channel. Without a radio named, every station heard on the air counts (as before the radios were by id).
+The circle is a radio's (plan rule 3.8): it is worked out for a radio whose type says it shares a 1200 baud channel (an FM radio's), from the stations that radio heard on its channel; the stations another radio heard
+(an HF radio's, hundreds of kilometres away) are not on that channel, nor is a station that radio heard only in an iGate's third-party packet (`on_channel_at`). Without a radio named, every station heard on
+the air counts (as before the radios were by id).
 
 Pure code: the stations are those of the station book, and the kinds are told by their symbols."""
 from dataclasses import dataclass
@@ -48,8 +49,17 @@ def counted(station: Station, since: datetime, radio: RadioId | None = None) -> 
     from APRS-IS, does not show that the station is on the channel from where it is."""
     if station.kind != "station" or station.is_me or not station.has_position or station.last_on_air_at is None or station.last_on_air_at < since:
         return False
-    last = None if radio is None else station.heard_on(radio).last_at
+    last = None if radio is None else on_channel_at(station, radio)
     return radio is None or (last is not None and last >= since)
+
+
+def on_channel_at(station: Station, radio: RadioId) -> datetime | None:
+    """When the radio last heard a packet the station itself put on its channel (direct or by digipeaters, the Dummy radio's too; not an iGate's third-party packet): the latest time of its routes on that
+    radio (`Station.routes_on`: a third-party packet is counted there with no time). A station whose routes on the radio are not known (one made by hand) is taken by what the radio heard of it at all."""
+    routes = station.routes_on(radio)
+    if routes is None:
+        return station.heard_on(radio).last_at
+    return max((kept[-1] for kept in routes.times.values() if kept), default=None)
 
 
 def circle(position: tuple[float, float] | None, stations: list[Station], now: datetime, radio: RadioId | None = None) -> Circle | None:

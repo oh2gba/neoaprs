@@ -15,6 +15,7 @@ from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.coded import CodedError
 from neoaprs.config import can_transmit
 from neoaprs.radioregistry import LiveRadio
+from neoaprs.mercurymodem import Mercury
 from neoaprs.radiospec import KIND_WORDS, RadioError, RadioId, RadioSpec, live, log_name
 from neoaprs.radiotype import RadioTypeError
 
@@ -41,7 +42,7 @@ def radio_refused(name: str, id: RadioId | None = None, specs: Sequence[RadioSpe
         if id is None:
             raise UserError(f"{name}: {e}", e.code, None, e.params) from None
         if e.code == "radio.type_kind":                     # (the command line's sentence names the key and the type's key it typed)
-            raise UserError(f"{name}: the {e.params['name']} radio takes only a type of its own kind ({e.params['kind']})", "radio.type_kind", None, {**e.params, "radio": id}) from None
+            raise UserError(f"{name}: radio {e.params['name']} takes only a type of its own kind ({e.params['kind']})", "radio.type_kind", None, {**e.params, "radio": id}) from None
         if e.code == "radio.last_enabled":
             raise UserError(name + ": " + str(e), "radio.last_enabled", None, {**e.params, "radio": id}) from None
         if e.code == "radio.unknown" and removed_name(id, specs) is not None:
@@ -55,7 +56,7 @@ def no_radio(name: str, id: RadioId, specs: Sequence[RadioSpec]) -> UserError:
     """`radio.unknown` for the id: a radio the settings keep as removed is said to be removed, with its `name` and `removed` 1; any other is "there is no radio N"."""
     removed = removed_name(id, specs)
     if removed is not None:
-        return UserError(f"{name}: the {removed} radio is removed", "radio.unknown", params={"radio": id, "name": removed, "removed": 1})
+        return UserError(f"{name}: radio {removed} is removed", "radio.unknown", params={"radio": id, "name": removed, "removed": 1})
     return UserError(f"{name}: there is no radio {id}", "radio.unknown", params={"radio": id})
 
 
@@ -79,11 +80,11 @@ def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
         return None
     radio = named_radio(ctx, name, id)
     if not radio.spec.enabled:
-        raise UserError(f"{name}: the {radio.name} radio is off: turn it on first", "radio.off", params={"name": radio.name, "radio": id})
+        raise UserError(f"{name}: radio {radio.name} is off: turn it on first", "radio.off", params={"name": radio.name, "radio": id})
     if not radio.rtype.can.transmit:
-        raise UserError(f"{name}: the {radio.name} radio only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": id})
+        raise UserError(f"{name}: radio {radio.name} only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": id})
     if not radio.usable:
-        raise UserError(f"{name}: the {radio.name} radio is not connected", "radio.not_connected", params={"name": radio.name, "radio": id})
+        raise UserError(f"{name}: radio {radio.name} is not connected", "radio.not_connected", params={"name": radio.name, "radio": id})
     return id
 
 
@@ -138,11 +139,11 @@ def may_transmit(ctx: Ctx, name: str) -> None:
     if not config.station_transmit or config.listens_only:
         raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
     if reason := can_transmit(config):
-        raise UserError(f"{name}: {reason}")
+        raise UserError(f"{name}: nothing is sent: {reason}", "transmit.call", params={"reason": reason})
 
 
 def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:
-    return UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name, "radio": radio.id})
+    return UserError(f"{name}: radio {radio.name} has no modem running", "radio.no_modem", params={"name": radio.name, "radio": radio.id})
 
 
 def _modem(ctx: Ctx, name: str, id: RadioId) -> tuple[LiveRadio[Any], Any]:
@@ -170,6 +171,8 @@ async def radio_tune(ctx: Ctx, cmd: RadioTune) -> None:
     if not cmd.on:
         await modem.tune_stop()
         return
+    if not radio.rtype.can.tune:                     # (the type says what the radio may do: the Dummy HF radio's modem is a speaker, which tunes nothing)
+        raise _no_modem(cmd.cmd, radio)
     may_transmit(ctx, cmd.cmd)
     await _on_the_modem(cmd.cmd, radio, modem.tune)
 
@@ -177,6 +180,8 @@ async def radio_tune(ctx: Ctx, cmd: RadioTune) -> None:
 @command(RadioKeyTest)
 async def radio_key_test(ctx: Ctx, cmd: RadioKeyTest) -> None:
     radio, modem = _modem(ctx, cmd.cmd, cmd.radio)
+    if not radio.rtype.can.key_test:
+        raise _no_modem(cmd.cmd, radio)
     may_transmit(ctx, cmd.cmd)
     await _on_the_modem(cmd.cmd, radio, modem.key_test)
 
@@ -192,8 +197,8 @@ async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
         return
     radio = named_radio(ctx, cmd.cmd, cmd.radio)
     modem = radio.driver.modem
-    if modem is None or not radio.rtype.can.scope:
-        raise UserError(f"{cmd.cmd}: the {radio.name} radio has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
+    if not isinstance(modem, Mercury) or not radio.rtype.can.scope:
+        raise UserError(f"{cmd.cmd}: radio {radio.name} has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
     ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True)
 
 
@@ -205,7 +210,7 @@ async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
     except CallsignError as e:
         raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
     if cmd.radio is not None and not (radio := named_radio(ctx, cmd.cmd, cmd.radio)).rtype.can.transmit:      # (a radio that only receives is no radio for messages: the page offers it not)
-        raise UserError(f"{cmd.cmd}: the {radio.name} radio only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": radio.id})
+        raise UserError(f"{cmd.cmd}: radio {radio.name} only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": radio.id})
     if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:            # (a radio the store cannot choose: none is always taken)
         raise no_radio(cmd.cmd, cmd.radio, ctx.ctl.config.radios)
     station = ctx.ctl.stationbook.get(call)

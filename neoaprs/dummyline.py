@@ -52,6 +52,7 @@ class DummyPort(TncPort):
         self._where, self._clock, self._tick_sec, self._seed = where, clock, TICK_SEC if tick_sec is None else tick_sec, seed
         self._scene_of, self._speaker = scene_of, speaker             # (`seed`: which world the scene makes, the id of the radio this is the line of; 1 when the Tnc gives none)
         self.scene: SceneLike | None = None
+        self.label = "tnc"                                               # what the log calls the radio (the Tnc's label, which it sets)
         self._task: asyncio.Task[None] | None = None
         self._reading = NO_READING                                       # the reading of the frame being handed over
 
@@ -63,7 +64,7 @@ class DummyPort(TncPort):
         self.scene = self._scene_of(self._where(), self._clock(), self._seed)
         self._task = asyncio.get_running_loop().create_task(self._play(self.scene), name="dummy-radio")
         self._task.add_done_callback(self._ended)
-        log.info("tnc: the dummy radio makes %s", self.scene.description)
+        log.info("%s: the dummy radio makes %s", self.label, self.scene.description)
 
     def close(self) -> None:
         task, self._task = self._task, None

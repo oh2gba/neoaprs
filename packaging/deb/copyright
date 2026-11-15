@@ -31,6 +31,28 @@ Comment: Mercury is built for this package from the source at
  which /opt/neoaprs/tools/mercury/SOURCE.txt names as well. Its licence is in
  /opt/neoaprs/tools/mercury/LICENSE.
 
+Files: opt/neoaprs/tools/direwolf/*
+Copyright: John Langner, WB2OSZ, and the authors of Direwolf, the sound-card modem that NeoAPRS starts for the radio type "Sound card (Direwolf)"
+License: GPL-2.0-or-later
+Comment: Direwolf is built for this package from the source at
+ https://github.com/wb2osz/direwolf (the commit and the SHA-256 of the archive are
+ in /opt/neoaprs/tools/direwolf/SOURCE.txt, with NeoAPRS's four changes to it). Its
+ licence is in /opt/neoaprs/tools/direwolf/LICENSE; the GEOTRANS terms are in
+ LICENSE-geotranz.txt and the notices of the string functions it compiles in, in
+ LICENSE-misc.txt. This product includes software developed by the National
+ Geospatial-Intelligence Agency. data/tocalls.yaml is CC BY-SA 2.0 per its header.
+ On Debian systems, the complete text of the GNU General Public License version 2
+ can be found in /usr/share/common-licenses/GPL-2.
+
+Files: opt/neoaprs/tools/direwolf/lib/* opt/neoaprs/tools/direwolf/share/alsa/*
+Copyright: the authors of the ALSA project (alsa-lib) and of systemd (libudev), the libraries Direwolf uses on Linux
+License: LGPL-2.1-or-later
+ The libraries and the ALSA configuration are those of the machine that built the
+ package (Ubuntu 22.04), unchanged; the sources are at https://www.alsa-project.org/
+ and https://github.com/systemd/systemd. On Debian systems, the complete text of the
+ GNU Lesser General Public License version 2.1 can be found in
+ /usr/share/common-licenses/LGPL-2.1.
+
 Files: opt/neoaprs/tools/mercury/lib/* opt/neoaprs/tools/mercury/share/alsa/*
 Copyright: the authors of the ALSA project (alsa-lib), the sound library that Mercury uses on Linux
 License: LGPL-2.1

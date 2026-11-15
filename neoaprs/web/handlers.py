@@ -17,7 +17,8 @@ from neoaprs.message import MessagingError
 from neoaprs.ownbulletin import PostError
 from neoaprs.ownobject import OwnError
 from neoaprs.pref import Alert
-from neoaprs.mercurymodem import proposal
+from neoaprs.direwolfmodem import DirewolfModem, proposal as sound_card_proposal
+from neoaprs.mercurymodem import left_out, proposal
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.radiospec import FM_ID
 from neoaprs.radiotype import ResourceKind
@@ -107,13 +108,19 @@ def _holder(claims: Claims, kind: ResourceKind, value: str | None) -> int | None
 
 @command(ListPorts)
 async def list_ports(ctx: Ctx, cmd: ListPorts) -> None:
-    """The ports and, for a Mercury radio named, the sound cards, each with who of the station holds it; the proposals leave out what the others hold."""
+    """The ports and, for a radio named that has a modem on a sound card, the sound cards, each with who of the station holds it; the proposals leave out what the others hold."""
     radio, claims = None if cmd.radio is None else named_radio(ctx, cmd.cmd, cmd.radio), ctx.ctl.radios.claims
     modem = None if radio is None else radio.driver.modem
     ports = await asyncio.to_thread(lambda: with_links(available_ports()) + paired_bluetooth_ports())   # (the system's lists are read from files, the registry and BlueZ: not on the loop); the by-id names and the user's own links too, then the paired Bluetooth devices
-    cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []        # (the Mercury program is run for its list: only while the radio is the Mercury modem)
-    pick, keying = ("", "") if radio is None else proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
-    ctx.conn.send({"type": "ports", "search": can_search(), "find": can_find(), "keying": keying,
+    cards = await asyncio.to_thread(modem.sound_cards) if modem is not None else []        # (the modem's program is run for its list: only while the radio has a modem on a sound card)
+    if radio is None:
+        pick, keying = "", ""
+    elif isinstance(modem, DirewolfModem):
+        holder = radio.id
+        pick, keying = await asyncio.to_thread(lambda: sound_card_proposal(cards, ports, left_out(ctx.ctl.config, holder), claims=claims, holder=holder))       # (which ports are the card's is read from sysfs)
+    else:
+        pick, keying = proposal(cards, ports, ctx.ctl.config, claims=claims, holder=radio.id)
+    ctx.conn.send({"type": "ports", "radio": cmd.radio, "search": can_search(), "find": can_find(), "keying": keying,
                    "ports": [{"device": p.device, "description": p.description, "hwid": p.hwid, "vid": p.vid, "pid": p.pid, "held_by": _holder(claims, "serial", claim_value(p.device))} for p in ports],
                    "sound_cards": [{"id": c.id, "name": c.name, "numbered": c.numbered, "default": c.default, "pick": c.id == pick, "held_by": _holder(claims, "sound_card", c.id)} for c in cards]})
 
@@ -124,11 +131,11 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     (`radio.receive_only`, with its name): its line is written nothing, and Find my radio writes a carriage return and the KISS entries to the ports it tries. The finder lets go of the radio it is given alone."""
     finder = ctx.ctl.radiofinder
     radio = FM_ID if cmd.radio is None else cmd.radio
-    named = named_radio(ctx, cmd.cmd, cmd.radio) if cmd.radio is not None else ctx.ctl.radios.get(radio)
-    if named is not None and not named.rtype.can.transmit:
-        raise UserError(f"{cmd.cmd}: the {named.name} radio only receives: nothing is written to its line", "radio.receive_only", params={"name": named.name, "radio": named.id})
-    if cmd.radio is not None and named is not None and not named.rtype.can.find:
-        raise UserError(f"{cmd.cmd}: the {named.name} radio has no serial line to look for", "radio.no_line", params={"name": named.name, "radio": named.id})
+    named = named_radio(ctx, cmd.cmd, radio)                         # (radio 1 when none is named, refused as `radio.unknown` once it is removed)
+    if not named.rtype.can.transmit:
+        raise UserError(f"{cmd.cmd}: radio {named.name} only receives: nothing is written to its line", "radio.receive_only", params={"name": named.name, "radio": named.id})
+    if cmd.radio is not None and not named.rtype.can.find:
+        raise UserError(f"{cmd.cmd}: radio {named.name} has no serial line to look for", "radio.no_line", params={"name": named.name, "radio": named.id})
     base = {"radio": cmd.radio, "radio_type": "", "profile": "", "number": 0, "total": 0}
 
     def trying(step: Trying) -> None:
@@ -139,7 +146,7 @@ async def find_radio(ctx: Ctx, cmd: FindRadio) -> None:
     try:
         found = await finder.find(trying, radio)
     except CodedError as e:
-        raise UserError(f"find_radio: {e}", e.code, params=e.params) from None
+        raise UserError(f"find_radio: {e}", e.code, params={**e.params, "radio": radio}) from None
     if found is None:
         ctx.conn.send({**base, "type": "radio_search", "state": "cancelled", "port": "", "baud": None})
     else:
@@ -267,18 +274,16 @@ async def overheard_delete(ctx: Ctx, cmd: OverheardDelete) -> None:
 
 @command(SetStationPath)
 async def set_station_path(ctx: Ctx, cmd: SetStationPath) -> None:
-    if cmd.radio is not None:
-        named_radio(ctx, cmd.cmd, cmd.radio)
+    radio = named_radio(ctx, cmd.cmd, FM_ID if cmd.radio is None else cmd.radio).id          # (radio 1 when none is named: `radio.unknown` once it is removed, and no row names a radio that is gone)
     with refused(cmd.cmd):
-        await ctx.ctl.prefbook.set_path(cmd.call, cmd.path, FM_ID if cmd.radio is None else cmd.radio)
+        await ctx.ctl.prefbook.set_path(cmd.call, cmd.path, radio)
 
 
 @command(ClearStationPath)
 async def clear_station_path(ctx: Ctx, cmd: ClearStationPath) -> None:
-    if cmd.radio is not None:
-        named_radio(ctx, cmd.cmd, cmd.radio)
+    radio = named_radio(ctx, cmd.cmd, FM_ID if cmd.radio is None else cmd.radio).id
     with refused(cmd.cmd):
-        await ctx.ctl.prefbook.clear_path(cmd.call, FM_ID if cmd.radio is None else cmd.radio)
+        await ctx.ctl.prefbook.clear_path(cmd.call, radio)
 
 
 @command(SetStationRfOnly)

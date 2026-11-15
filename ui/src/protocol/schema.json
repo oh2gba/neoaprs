@@ -2172,7 +2172,7 @@
     },
     "ListPorts": {
       "additionalProperties": false,
-      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a\nport of the machine: it is typed. With `radio`, also the sound cards Mercury lists while that radio's type is Mercury, and the proposals leave out what the other radios and the GPS receiver hold; each row says\nwho holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`).",
+      "description": "Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a\nport of the machine: it is typed. With `radio`, also the sound cards its modem lists while that radio's type has a modem on a sound card (Mercury, Sound card), and the proposals leave out what the other radios and\nthe GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`).",
       "properties": {
         "cmd": {
           "const": "list_ports",
@@ -2824,7 +2824,7 @@
     },
     "ModemState": {
       "additionalProperties": false,
-      "description": "The Mercury HF modem behind a radio's line, while its type is Mercury: the program's state, whether it keys the radio now and whether its busy detector hears a signal.",
+      "description": "The modem program behind a radio's line, while its type is one the daemon starts a modem for (the Mercury HF modem, Direwolf on a sound card): the program's state, whether it keys the radio now and whether\nit hears a signal.",
       "properties": {
         "state": {
           "description": "`starting`: the program was started (or a Mercury something else runs is not yet answering on its control port); `running`: its control port answers; `waiting`: it is not running, `problem` says why",
@@ -2841,7 +2841,7 @@
           "type": "string"
         },
         "reason": {
-          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no Mercury; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card and was ended, another is to be chosen; empty unless the state is `waiting`",
+          "description": "why the modem is `waiting`, as a code the page puts in its own words in the language of the viewer (`problem` is the English of the log and is not shown): `not_installed` this installation carries no such program; `stopped` the program ended and is started again; `network` the program listens on the network and is not run; `no_port` no port was free for it; `not_started` the program could not be started or its configuration written; `sound_card` the program could not open its sound card (or, on Windows, find it among the devices) and was ended, another is to be chosen; `keying` the program could not open its keying device (or, on Windows, found several CM108 chips) and was ended, another way of keying is to be chosen; empty unless the state is `waiting`",
           "enum": [
             "",
             "not_installed",
@@ -2849,12 +2849,13 @@
             "network",
             "no_port",
             "not_started",
-            "sound_card"
+            "sound_card",
+            "keying"
           ],
           "type": "string"
         },
         "mode": {
-          "description": "the modem's mode, the same for every station: `DATAC3`",
+          "description": "the modem's mode, the same for every station of the type: `DATAC3` (Mercury), `AFSK1200` (Direwolf)",
           "type": "string"
         },
         "keyed": {
@@ -2891,9 +2892,16 @@
           "type": "integer"
         },
         "max_frame": {
-          "description": "the longest packet the modem carries whole, in bytes (123): a longer message is refused, a longer beacon has its comment cut",
-          "minimum": 1,
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the longest packet the modem carries whole, in bytes (Mercury 123): a longer message is refused, a longer beacon has its comment cut; null for AX.25's own (Direwolf)"
         },
         "sound_card": {
           "description": "the sound card the modem runs with (`mercury/sound_card`, or the daemon's choice while that is empty); empty for the system's default device",
@@ -2931,6 +2939,18 @@
             }
           ],
           "description": "the peak of the latest transmission (a frame, or the tune tone) in whole dBFS, as the modem says it; 0 or more clips in the sound card; null before one, and while the interface is not read"
+        },
+        "rx_level": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the level of the latest packet heard, on Direwolf's own scale (0 to about 200: about 50 for most stations, under 5 too low, over 110 too high; `LIMITS.sound_card` has the zones); null before one, and for a modem that says none (Mercury)"
         }
       },
       "required": [
@@ -2949,7 +2969,8 @@
         "keying",
         "scope",
         "tx_gain_db",
-        "tx_peak_dbfs"
+        "tx_peak_dbfs",
+        "rx_level"
       ],
       "title": "ModemState",
       "type": "object"
@@ -3352,7 +3373,7 @@
               "type": "null"
             }
           ],
-          "description": "when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart; a time that has passed means it waits for the radio or for the call; null for one that is `on_request`"
+          "description": "when it is sent next: 1, 2, 4 ... minutes after the last packet, never more than the net cycle time of its path apart (30 minutes on HF and LoRa: the radio's floor); a time that has passed means it waits for the radio or for the call; null for one that is `on_request`"
         }
       },
       "required": [
@@ -3900,7 +3921,7 @@
           "type": "boolean"
         },
         "sound_cards": {
-          "description": "the sound cards the Mercury HF modem lists, for a `radio` named whose type is Mercury while the program is installed; empty otherwise",
+          "description": "the sound cards the radio's modem lists, for a `radio` named whose type has a modem on a sound card (Mercury, Sound card) while the program is installed; empty otherwise",
           "items": {
             "$ref": "#/$defs/SoundCardRow"
           },
@@ -3909,6 +3930,17 @@
         "keying": {
           "description": "the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as the radio's `keying` while that is empty; empty when no sound card is listed",
           "type": "string"
+        },
+        "radio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the radio the list was asked for (`radio` of `list_ports`: the sound cards and the proposals are its own); null for a list that named none. The ports are the machine's, the same whoever asked"
         }
       },
       "required": [
@@ -3917,7 +3949,8 @@
         "search",
         "find",
         "sound_cards",
-        "keying"
+        "keying",
+        "radio"
       ],
       "title": "PortsMessage",
       "type": "object"
@@ -4608,6 +4641,10 @@
         "transmit": {
           "description": "it can send: false for a receive-only type, which is never the main radio, a message's, the beacon's, an object's or the email radio, and whose line is never written to",
           "type": "boolean"
+        },
+        "rx_level": {
+          "description": "the level of the packets it hears is shown in its box (its modem's `rx_level`)",
+          "type": "boolean"
         }
       },
       "required": [
@@ -4618,7 +4655,8 @@
         "scope",
         "tx_gain",
         "frequencies",
-        "transmit"
+        "transmit",
+        "rx_level"
       ],
       "title": "RadioCan",
       "type": "object"
@@ -4678,6 +4716,7 @@
         "position": {
           "anyOf": [
             {
+              "maximum": 2147483647,
               "minimum": 1,
               "type": "integer"
             },
@@ -4829,6 +4868,7 @@
             "modem.no_port",
             "modem.not_started",
             "modem.sound_card",
+            "modem.keying",
             "transmit.off",
             "beacon.not_sent"
           ],
@@ -4982,7 +5022,7 @@
               "type": "null"
             }
           ],
-          "description": "its Mercury modem, while its type is Mercury; null for every other type and for a removed radio"
+          "description": "its modem, while its type is one the daemon starts a modem for (Mercury, Sound card); null for every other type and for a removed radio"
         },
         "holds": {
           "description": "the devices it holds now: a serial port, a sound card, a keying line, a Mercury port pair; empty while it holds none",
@@ -5121,7 +5161,7 @@
     },
     "RadioTune": {
       "additionalProperties": false,
-      "description": "Tune on the radio's modem: with `on`, keys the radio through its keying and sends a steady tone (1000 Hz, Mercury's own TUNE) through its sound card for ten seconds, then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: \"tune\"`\nmeanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and\nwhile a frame is on the air or the channel is busy (`hf.held`).",
+      "description": "Tune on the radio's modem: with `on`, keys the radio through its keying and sends its modem's tuning tone through its sound card for ten seconds (Mercury a steady 1000 Hz, its own TUNE; Direwolf its two tones by turns), then stops by itself; with `on` false, stops it early. The radio's row says `modem.test: \"tune\"`\nmeanwhile. Answered with an `error` for a radio that is none (`radio.unknown`), whose type has no modem or whose modem is not running (`radio.no_modem`, with its `name`), while RX only is ticked (`transmit.off`) and\nwhile a frame is on the air or the channel is busy (`hf.held`).",
       "properties": {
         "cmd": {
           "const": "radio_tune",
@@ -6979,6 +7019,13 @@
           ],
           "description": "the radio an email to the gateway goes out on (its id): the main radio when internet gateways hear its kind, else the first enabled radio of such a kind (FM, LoRa; never HF); null while there is none, and Send of an email is off"
         },
+        "unavailable_types": {
+          "description": "the types of radio (keys of `RADIO_TYPES`) whose program this kind of installation does not carry (a Mac carries no Direwolf): the page does not offer them, and `radio_add` refuses them (`radio.unknown_type`)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "station_status": {
           "description": "the text of the status report last sent in this run (services/rigstatus.py); empty until one has gone",
           "type": "string"
@@ -7054,6 +7101,7 @@
         "beacon_next_due",
         "main_radio",
         "email_radio",
+        "unavailable_types",
         "station_status",
         "station_status_last_sent",
         "rig_state",

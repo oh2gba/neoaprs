@@ -1,17 +1,21 @@
 """A new installation's first radio of one of the new types, as the setup guide makes it over the page's socket: a new installation has no radio, and the first one added, radio 1, is a LoRa APRS board on the
-network with no address yet, or a text monitor (`tnc-text`). Neither tells the page an error while the operator has not asked for anything; the board's row is "not connected" until its address is typed, and
-then it is a radio as any other; the monitor alone makes the station receive only, every sending command is refused as RX only, and not one byte goes to its line."""
+network with no address yet, a text monitor (`tnc-text`), or a Sound card radio (`direwolf`). None tells the page an error while the operator has not asked for anything; the board's row is "not connected" until
+its address is typed, and then it is a radio as any other; the monitor alone makes the station receive only, every sending command is refused as RX only, and not one byte goes to its line; the Sound card radio
+is offered on a station that has no radio yet, is radio 1 and the station's radio to send on, and its beacon goes out through its own Direwolf."""
 import asyncio
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from neoaprs import loralist
+from neoaprs import direwolfmodem, loralist, radioregistry
 from neoaprs.source import Source
+from neoaprs.web.protocol import TOPIC_NAMES
+from tests.support import fakedirewolf
 from tests.support.env import Env, until, until_started
 from tests.support.fakelora import HEADER, Board, BoardOnTcp, ListServer
 from tests.support.fakeradio import FakeRadio
+from tests.support.modemports import base_of_this_test
 from tests.support.wsclient import WsClient
 from tests.test_radios_wire import added
 
@@ -98,3 +102,29 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
     finally:
         await e.stop()
         await line.aclose()
+
+
+async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one, which gives back each frame it is sent as heard)
+    monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
+    monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    e, page = await fresh(tmp_path)
+    try:
+        await page.until(lambda: set(TOPIC_NAMES) <= set(page.topics) and bool(page.of("status")))
+        assert page.topics["radios"] == {} and e.ctl.config.radios == (), "a new installation has no radio, and the page is told so (the header waits for none)"
+        assert page.of("status")[-1]["unavailable_types"] == [], "the type is offered to a station that has no radio yet"
+        id = await added(page, "direwolf")
+        assert id == 1, "the first radio added is radio 1"
+        await page.send({"cmd": "set_config", "values": {f"radio/{id}/sound_card": "plughw:7,0", f"radio/{id}/keying": "vox"}})
+        radio = e.ctl.radios.get(id)
+        assert radio is not None
+        await until_started(lambda: radio.usable)
+        await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected" and page.topics["radios"][str(id)]["problem"] is None)
+        row = page.topics["radios"][str(id)]
+        assert (row["kind"], row["type"], row["enabled"], row["can"]["transmit"], row["can"]["tune"]) == ("fm", "direwolf", True, True, True), row
+        assert e.ctl.config.main_radio == id and not e.ctl.config.listens_only, "the Sound card radio is the station's radio to send on"
+        assert radio.beacon.send_now(), radio.beacon.problem
+        await until(lambda: radio.stats.bytes_out > 0)
+        assert errors(page) == [], "no error the operator did not ask for"
+    finally:
+        await e.stop()

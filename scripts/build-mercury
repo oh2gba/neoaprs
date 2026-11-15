@@ -26,22 +26,20 @@ the floor of the AppImage and the .deb. On a Mac it needs the command line tools
 machine it runs on; Rhizomatica's own universal build is not taken because it asks for macOS 26. How it is used: docs/development.md, "Scripts"."""
 import argparse
 import datetime
-import hashlib
 import os
-import platform
 import re
 import shutil
 import socket
-import struct
 import subprocess
 import sys
-import tarfile
 import tempfile
 import time
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildtool  # noqa: E402  (the parts of the builds that are not Mercury's: scripts/buildtool.py, by its path)
+from buildtool import BuildError, cache_dir, folder_size, megabytes, pe_imports, sha256  # noqa: E402,F401  (named here as before)
 
 
 def pins() -> dict[str, str]:
@@ -73,7 +71,7 @@ FFCPU_FILE, FFCPU_NAME = "audioio/audioio.c", "int _ffcpu_features;"           #
 LISTENERS_FILE = "data_interfaces/tcp_interfaces.c"          # the file with the two TCP listeners the loopback patch changes; no INADDR_ANY may be left in it
 WEBSOCKET_FILE = "gui_interface/websocket/mercury_websocket.c"          # the third place Mercury binds a socket (its UI interface and web page, which NeoAPRS turns on in the ini for the scope and the channel-busy control); the patch gives it the loopback too
 WEBSOCKET_BIND = 'opts.bind_addr = "127.0.0.1";'
-LOOPBACK = "0100007F"                                        # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
+LOOPBACK = buildtool.LOOPBACK                                # 127.0.0.1 as /proc/net/tcp writes a local address (little-endian hex)
 LISTEN_WAIT_SEC = 30.0                                       # how long the started program is given to open its four ports
 WORK = ROOT / "build" / "mercury" / "work"
 DEFAULT_OUT = ROOT / "build" / "mercury" / "dist"
@@ -103,12 +101,8 @@ WINDOWS_MAKE_EMPTY = ("HAMLIB_CFLAGS", "HAMLIB_LDFLAGS", "WS_TLS_CFLAGS", "WS_TL
 WINDOWS_STRIP = "EXTRA_LDFLAGS=-s -static"
 HIDAPI_DIR = "radio_io/hidapi-w64"                    # the vendored hidapi of the Windows build: its licences travel with the program
 PE_MACHINE_X64 = 0x8664
-# The DLLs a program for Windows may not name: those that do not come with Windows and would have to travel with it, which the folder (one file) has no room for. A DLL of MinGW (libwinpthread-1, libgcc_s_seh-1, libstdc++-6),
-# of a library (hamlib, libusb, OpenSSL, zlib) or of a C runtime that needs a redistributable (msvcr100, msvcp140, vcruntime140); msvcrt.dll and the universal runtime, which Windows has, are not among them. Whatever
-# else a program imports is Windows's own, and one that is missing there is found by the release workflow, which starts the program.
-# A DLL of Windows that is not on every Windows: dsound.dll is there, but on an "N" edition it needs ResampleDmo.dll, which is not, and Windows stops a program that imports it before it runs (packaging/mercury/dsound.patch).
-WINDOWS_DLL_NOT_EVERYWHERE = {"dsound.dll"}
-WINDOWS_DLL_NEVER = re.compile(r"^(lib|zlib|mingw|msvcr(?!t\.)|msvcp|vcruntime|vcomp|concrt|vccorlib|ucrtbased)", re.IGNORECASE)
+# The DLLs a program for Windows may not name, and the one that is not on every Windows (dsound.dll: packaging/mercury/dsound.patch), are buildtool.py's: whatever else a program imports is Windows's own, and one that is
+# missing there is found by the release workflow, which starts the program.
 
 NEEDED_OK = re.compile(r"^(linux-vdso|ld-linux|libc\.|libm\.|libpthread\.|librt\.|libdl\.|libasound\.so)")
 NEEDED_NEVER = ("libpulse", "libhamlib", "libhidapi", "libssl", "libcrypto")
@@ -117,91 +111,32 @@ MACOS_MIN = "14.0"                                       # the oldest macOS the 
 MACOS_NEEDED_OK = ("/System/Library/Frameworks/", "/usr/lib/libSystem.")           # what a self-contained program of a Mac may load: the system's frameworks and its C library
 
 
-class BuildError(Exception):
-    pass
-
-
 def machine_name(machine: str | None = None, system: str = sys.platform) -> str:
-    """The architecture as the tarball names it: on Linux x86_64 or aarch64 (what Debian calls amd64 and arm64), whatever platform.machine() says for it; on a Mac arm64 or x86_64, Apple's words; for Windows (`win32`,
-    made on Linux for the 64-bit PC) x86_64 always."""
-    name = (machine or platform.machine()).lower()
-    if system == "win32":
-        return "x86_64"
-    if system == "darwin":
-        return {"aarch64": "arm64", "amd64": "x86_64"}.get(name, name)
-    return {"amd64": "x86_64", "arm64": "aarch64"}.get(name, name)
+    """The architecture as the tarball names it (buildtool.machine_name)."""
+    return buildtool.machine_name(machine, system)
 
 
 def tarball_name(machine: str | None = None, system: str = sys.platform) -> str:
     return f"mercury-{VERSION}-{ {'darwin': 'macos', 'win32': 'windows'}.get(system, 'linux')}-{machine_name(machine, system)}.tar.gz"
 
 
-def cache_dir() -> Path:
-    return Path(os.environ.get("NEOAPRS_BUILD_CACHE") or Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "neoaprs-build")
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
 def fetch_source() -> Path:
-    """The pinned source archive in the cache: used as it is when its digest is the pin's, downloaded when it is not there, and removed when what came is another file (the pin is the trust, not the server)."""
-    cache = cache_dir()
-    cache.mkdir(parents=True, exist_ok=True)
-    file = cache / f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz"
-    if file.is_file() and sha256(file) == SOURCE_SHA256:
-        return file
-    part = file.with_name(file.name + ".part")
-    last: Exception | None = None
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(urllib.request.Request(SOURCE_URL, headers={"User-Agent": "neoaprs-build-mercury"}), timeout=60) as reply, part.open("wb") as out:  # noqa: S310  (SOURCE_URL, the https address of the pinned source as neoaprs/mercury.py writes it; what arrives is kept only with the pinned SHA-256)
-                shutil.copyfileobj(reply, out)
-            last = None
-            break
-        except OSError as error:
-            last = error
-            time.sleep(2 * (attempt + 1))
-    if last is not None:
-        part.unlink(missing_ok=True)
-        raise BuildError(f"{SOURCE_URL} could not be fetched: {last}")
-    if sha256(part) != SOURCE_SHA256:
-        part.unlink()
-        raise BuildError(f"{SOURCE_URL} is not the file with SHA-256 {SOURCE_SHA256}")
-    part.replace(file)
-    return file
+    """The pinned source archive in the cache (buildtool.fetch_source: kept only with the pinned SHA-256)."""
+    return buildtool.fetch_source(SOURCE_URL, SOURCE_SHA256, f"mercury-{VERSION}-{SOURCE_COMMIT[:8]}.tar.gz", "neoaprs-build-mercury")
 
 
 def unpack(archive: Path, into: Path) -> Path:
     """The tree of the archive (one folder, mercury-<commit>/) under INTO, which is made empty first."""
-    shutil.rmtree(into, ignore_errors=True)
-    into.mkdir(parents=True)
-    with tarfile.open(archive) as tar:
-        tar.extractall(into, filter="data")
-    folders = [entry for entry in into.iterdir() if entry.is_dir()]
-    if len(folders) != 1 or not (folders[0] / "Makefile").is_file():
-        raise BuildError(f"{archive} does not hold one Mercury source folder")
-    return folders[0]
+    return buildtool.unpack(archive, into, "Makefile", "Mercury")
 
 
 def run(command: list[str]) -> str:
     """The output of a small tool (ldd, readelf, strip), its error output with it; BuildError when it fails."""
-    done = subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if done.returncode != 0:
-        raise BuildError(f"{command[0]} failed with {done.returncode}:\n{done.stdout}")
-    return done.stdout
+    return buildtool.run(command)
 
 
 def apply_patch(tree: Path, patch: Path) -> None:
-    if not patch.is_file():
-        raise BuildError(f"{patch} is missing")
-    done = subprocess.run(["patch", "-p1", "--forward", "--batch", "-i", str(patch)], cwd=tree, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if done.returncode != 0:
-        raise BuildError(f"{patch.name} does not apply to the pinned source (patch exited {done.returncode}):\n{done.stdout}")
+    buildtool.apply_patch(tree, patch)
 
 
 def apply_patches(tree: Path, windows: bool = False) -> None:
@@ -263,15 +198,7 @@ def build(tree: Path, windows: bool = False) -> None:
 
 def libraries(program: Path) -> dict[str, str]:
     """What ldd finds for PROGRAM: library name -> the path it resolves to ('' for one not found)."""
-    found: dict[str, str] = {}
-    for line in run(["ldd", str(program)]).splitlines():
-        name, arrow, rest = line.strip().partition(" => ")
-        if not arrow:
-            name = name.split(" ")[0]
-            found[Path(name).name if name.startswith("/") else name] = name if name.startswith("/") else ""
-            continue
-        found[name] = "" if rest.startswith("not found") else rest.split(" (")[0]
-    return found
+    return buildtool.libraries(program, run)
 
 
 def check_links_mac(program: Path) -> str:
@@ -286,32 +213,16 @@ def check_links_mac(program: Path) -> str:
 
 def check_links(program: Path, folder: Path) -> str:
     """The ldd output of the staged program, after the checks: only libasound (from the folder's lib/), glibc and its helpers; nothing of PulseAudio, hamlib, hidapi or OpenSSL; nothing not found."""
-    text = run(["ldd", str(program)])
-    found = libraries(program)
-    for name, path in found.items():
-        if any(name.startswith(never) for never in NEEDED_NEVER):
-            raise BuildError(f"{program.name} links {name}, which the bundle does not carry:\n{text}")
-        if not path and not NEEDED_OK.match(name):
-            raise BuildError(f"{program.name} needs {name}, which is not found:\n{text}")
-        if not NEEDED_OK.match(name):
-            raise BuildError(f"{program.name} links {name} ({path}), which is none of libasound and glibc:\n{text}")
-    asound = found.get("libasound.so.2", "")
-    if not asound or Path(asound).resolve() != (folder / "lib" / "libasound.so.2").resolve():
-        raise BuildError(f"libasound.so.2 is not taken from {folder / 'lib'} (ldd says {asound or 'nothing'}):\n{text}")
-    return text
+    return buildtool.check_links(program, folder, NEEDED_OK, NEEDED_NEVER, ("libasound.so.2",), run)
 
 
 def runpath(program: Path) -> str:
-    for line in run(["readelf", "-d", str(program)]).splitlines():
-        if "RUNPATH" in line or "RPATH" in line:
-            return line.strip()
-    raise BuildError(f"{program} has no RUNPATH")
+    return buildtool.runpath(program, run)
 
 
 def glibc_needed(path: Path) -> str:
     """The newest glibc symbol version PATH asks for (what decides the oldest system the folder runs on)."""
-    versions = {tuple(int(part) for part in found.split(".")) for found in re.findall(r"GLIBC_(\d+(?:\.\d+)+)", run(["readelf", "--dyn-syms", "--wide", str(path)]))}
-    return ".".join(str(part) for part in max(versions)) if versions else "none"
+    return buildtool.glibc_needed(path, run)
 
 
 def stage(tree: Path, out: Path, started: float) -> Path:
@@ -388,41 +299,6 @@ def stage_windows(tree: Path, out: Path, started: float) -> Path:
     return folder
 
 
-def pe_imports(path: Path) -> tuple[int, list[str]]:
-    """The machine type and the names of the DLLs that a program for Windows (a PE32+ file) imports, those loaded with it and the delay-loaded ones, read out of the file itself (no objdump is needed, and none is
-    trusted to be of the MinGW the program was made with). ValueError for a file that is not a 64-bit PE."""
-    data = path.read_bytes()
-    if data[:2] != b"MZ" or len(data) < 0x40:
-        raise ValueError(f"{path.name} is not a program for Windows (no MZ header)")
-    pe = struct.unpack_from("<I", data, 0x3C)[0]
-    if data[pe:pe + 4] != b"PE\0\0":
-        raise ValueError(f"{path.name} is not a program for Windows (no PE signature)")
-    machine, count, _, _, _, optional_size, _ = struct.unpack_from("<HHIIIHH", data, pe + 4)
-    optional = pe + 24
-    if struct.unpack_from("<H", data, optional)[0] != 0x20B:
-        raise ValueError(f"{path.name} is not a 64-bit program")
-    directories = optional + 112
-    sections = [struct.unpack_from("<IIII", data, optional + optional_size + 40 * index + 8) for index in range(count)]
-
-    def offset(rva: int) -> int:
-        for size, address, raw_size, raw in sections:
-            if address <= rva < address + max(size, raw_size):
-                return raw + rva - address
-        raise ValueError(f"{path.name}: the address {rva:#x} is in no section")
-
-    names: list[str] = []
-    for directory, length, name_at in ((1, 20, 12), (13, 32, 4)):                  # (the import table, 20 bytes a DLL, and the delay-load table, 32)
-        rva = struct.unpack_from("<I", data, directories + 8 * directory)[0]
-        if rva == 0:
-            continue
-        at = offset(rva)
-        while data[at:at + length] != bytes(length):
-            start = offset(struct.unpack_from("<I", data, at + name_at)[0])
-            names.append(data[start:data.index(b"\0", start)].decode("ascii"))
-            at += length
-    return machine, names
-
-
 def check_windows(folder: Path) -> str:
     """The checks of a program that cannot be run here: it is a 64-bit program for Windows, it says the pinned version, and it imports no DLL that does not come with Windows (so that nothing but mercury.exe has to travel).
     The listening on 127.0.0.1 is held against the running program by the Windows job of the release workflow; the patch is held against the source here (apply_patches). Returns the imports, for the log."""
@@ -432,32 +308,13 @@ def check_windows(folder: Path) -> str:
         raise BuildError(f"{program.name} is for the machine {machine:#x}, not for x86-64 Windows")
     if VERSION.encode("ascii") not in program.read_bytes():
         raise BuildError(f"{program.name} does not say it is Mercury {VERSION}")
-    foreign = [name for name in names if WINDOWS_DLL_NEVER.match(name)]
-    if foreign:
-        raise BuildError(f"{program.name} imports {', '.join(foreign)}, which do not come with Windows and would have to travel with it:\n  " + "\n  ".join(names))
-    fragile = [name for name in names if name.lower() in WINDOWS_DLL_NOT_EVERYWHERE]
-    if fragile:
-        raise BuildError(f"{program.name} imports {', '.join(fragile)}, which stops it before it runs on a Windows without the Media Feature Pack (packaging/mercury/dsound.patch was not applied?)")
+    buildtool.check_imports(program, names)
     return "imports: " + ", ".join(sorted(names, key=str.lower))
-
-
-def folder_size(folder: Path) -> int:
-    return sum(path.stat().st_size for path in folder.rglob("*") if path.is_file() and not path.is_symlink())
 
 
 def make_tarball(folder: Path, out: Path, system: str = sys.platform) -> Path:
     """OUT/mercury-<version>-<linux|macos|windows>-<machine>.tar.gz with mercury/ as its top folder, the entries in name order and owned by no one."""
-    target = out / tarball_name(system=system)
-
-    def anonymous(info: tarfile.TarInfo) -> tarfile.TarInfo:
-        info.uid = info.gid = 0
-        info.uname = info.gname = ""
-        return info
-
-    with tarfile.open(target, "w:gz", compresslevel=9) as tar:
-        for path in sorted([folder, *folder.rglob("*")]):
-            tar.add(path, arcname=str(Path("mercury") / path.relative_to(folder)), recursive=False, filter=anonymous)
-    return target
+    return buildtool.make_tarball(folder, out / tarball_name(system=system), "mercury")
 
 
 def install(folder: Path) -> Path:
@@ -501,20 +358,7 @@ def check(folder: Path, windows: bool = False) -> None:
 
 def listeners(ports: set[int]) -> dict[int, set[str]]:
     """The local addresses (as /proc/net/tcp writes them, hex) of the sockets in LISTEN on these ports, over IPv4 and IPv6."""
-    found: dict[int, set[str]] = {}
-    for name in ("/proc/net/tcp", "/proc/net/tcp6"):
-        try:
-            lines = Path(name).read_text(encoding="ascii").splitlines()[1:]
-        except OSError:
-            continue
-        for line in lines:
-            fields = line.split()
-            if len(fields) < 4 or fields[3] != "0A":                                    # (0A is LISTEN)
-                continue
-            address, _, port = fields[1].rpartition(":")
-            if int(port, 16) in ports:
-                found.setdefault(int(port, 16), set()).add(address)
-    return found
+    return buildtool.listeners(ports)
 
 
 def check_loopback(program: str, env: dict[str, str]) -> str:
@@ -558,10 +402,6 @@ def _free(port: int) -> bool:
         except OSError:
             return False
     return True
-
-
-def megabytes(size: int) -> str:
-    return f"{size:,} bytes, {size / (1 << 20):.1f} MB"
 
 
 def main(argv: list[str] | None = None) -> int:

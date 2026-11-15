@@ -204,19 +204,11 @@ class Answers:
         return True
 
 
-# ---- a radio named in the old shape, and the radio of a request
+# ---- a radio named in the old shape
 
 def air_of(radio: AirRadio | Radio, config: ConfigSource) -> AirRadio:
     """A radio as an AirRadio: an old one as an OldAir of services/common.py (a test of today names a radio by its Tnc)."""
     return cast(AirRadio, radio) if hasattr(radio, "allowed") else OldAir(radio, config)
-
-
-def request_radio(radios: RadioPick | Radio, config: ConfigSource) -> AirRadio:
-    """The radio a request of the operator's to no station in particular goes on (asking around, asking QRU): the main radio. MessagingError while there is none, or it does not take frames now (why not)."""
-    radio = as_pick(radios, config).main
-    if radio is None or not radio.usable:
-        raise MessagingError(NO_RADIO if radio is None else radio.why_unusable())
-    return radio
 
 
 def radio_word(radio: AirRadio) -> str:

@@ -19,9 +19,9 @@ NOW = datetime(2026, 11, 15, 12, 0, tzinfo=UTC)
 CALL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
-def read(data: bytes, *, monitor: bool = True, pieces: int = 0) -> tuple[list[ax25.Frame], list[Rejected], TextReader]:
+def read(data: bytes, *, pieces: int = 0) -> tuple[list[ax25.Frame], list[Rejected], TextReader]:
     """What a reader makes of the bytes, fed whole or in pieces of `pieces` bytes, and then a quiet line."""
-    reader = TextReader(monitor=monitor)
+    reader = TextReader()
     chunks = [data] if pieces == 0 else [data[i:i + pieces] for i in range(0, len(data), pieces)]
     found = [item for chunk in chunks for item in reader.feed(chunk, 0.0)] + reader.feed(b"", PENDING_SEC + 1.0)
     return [f for f in found if isinstance(f, ax25.Frame)], [r for r in found if isinstance(r, Rejected)], reader
@@ -56,7 +56,7 @@ def test_the_same_bytes_in_any_pieces_give_the_same_frames(name: str) -> None:
     whole = read(data)[0]
     assert read(data, pieces=1)[0] == whole, "byte by byte"
     for cut in range(1, len(data)):
-        reader = TextReader(monitor=True)
+        reader = TextReader()
         found = reader.feed(data[:cut], 0.0) + reader.feed(data[cut:], 0.1) + reader.feed(b"", PENDING_SEC + 1.0)
         assert [f for f in found if isinstance(f, ax25.Frame)] == whole, f"cut at {cut}"
 
@@ -117,7 +117,7 @@ def test_a_frame_printed_as_its_tnc2_text_and_read_back_is_the_packet_its_kiss_f
 # ---- the forms one at a time
 
 def test_a_header_without_its_information_takes_the_next_line_and_is_dropped_when_none_comes_in_time_or_another_header_comes() -> None:
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     assert reader.feed(b"OH2AB>APRS:\r", 0.0) == []
     [frame] = reader.feed(b"\n\n>hello\r", 1.0)
     assert isinstance(frame, ax25.Frame) and frame.info == b">hello", "the Yaesu's line feeds between the two lines do no harm"
@@ -127,7 +127,7 @@ def test_a_header_without_its_information_takes_the_next_line_and_is_dropped_whe
 
 
 def test_a_piece_of_a_line_is_forgotten_after_a_quiet_time_and_an_overlong_line_is_dropped_with_its_rest() -> None:
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     assert reader.feed(b"OH2AB>APRS:>hal", 0.0) == [] and reader.feed(b"OH2CD>APRS:>whole\r", PENDING_SEC + 0.5) == [ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2CD"), info=b">whole")]
     long = b"OH2AB>APRS:>" + b"x" * MAX_LINE
     assert reader.feed(long[:300], 10.0) + reader.feed(long[300:] + b"tail\rOH2CD>APRS:>next\r", 10.1) == [ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2CD"), info=b">next")]
@@ -155,11 +155,14 @@ def test_a_mark_that_allows_another_letter_after_ui_is_a_ui_frame_and_a_stamp_be
         {"source": "OH2AB", "destination": "APRS", "path": [], "info": ">x"}, {"source": "OH2CD", "destination": "APRS", "path": [], "info": ">y"}, {"source": "OH2EF", "destination": "APRS", "path": [], "info": ">z"}]
 
 
-def test_lora_text_is_the_one_line_form_alone() -> None:
-    frames, rejected, _ = read(fixture_bytes("text/tnc2-oneline.txt").replace(b"\r", b"\n"), monitor=False)
-    assert [as_json(f) for f in frames] == expected("tnc2-oneline.txt")["frames"] and rejected == []
-    frames, rejected, _ = read(b"cmd:OH2AB>APRS:>x\nOH2AB>APRS <UI>:>x\nOH2AB>APRS:\n>x\nOH2AB-16>APRS:>x\n", monitor=False)
-    assert frames == [ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2AB"))] and len(rejected) == 3, "no prompt, no mark and no two-line form: a LoRa board prints none (its header alone is a packet with no information)"
+def test_an_information_field_longer_than_ax25_carries_is_rejected_with_its_reason_in_the_one_line_and_the_two_line_form() -> None:
+    head, info = b"OH2AB>APRS,WIDE1-1:", b">" + b"x" * 300
+    assert len(head + info) < MAX_LINE and len(info) > ax25.MAX_INFO
+    for data, text in ((head + info + b"\r", head + info), (head + b"\r" + info + b"\r", info)):
+        frames, rejected, _ = read(data)
+        assert frames == [] and rejected == [Rejected(text.decode("latin-1"), f"an information field of 301 bytes, more than the {ax25.MAX_INFO} AX.25 allows")], data[:24]
+    [frame] = read(head + b">" + b"x" * (ax25.MAX_INFO - 1) + b"\r")[0]
+    assert len(frame.info) == ax25.MAX_INFO and ax25.decode(ax25.encode(frame)) == frame, "256 bytes are a frame"
 
 
 def test_the_search_takes_a_port_whose_text_reads_as_a_heard_packet() -> None:
@@ -170,7 +173,7 @@ def test_the_search_takes_a_port_whose_text_reads_as_a_heard_packet() -> None:
 def test_a_short_line_of_7_bits_is_decided_when_the_line_goes_quiet() -> None:
     line = parity(b"OH2AB>APRS:>Hello\r")
     assert len(line) < DECIDE_BYTES
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     assert reader.feed(line, 0.0) == [] and reader.bits == 0, "not decided yet: the bytes above 0x7F wait"
     assert reader.feed(b"", PENDING_SEC + 1.0) == [ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2AB"), info=b">Hello")] and reader.seven_bit
 
@@ -178,7 +181,7 @@ def test_a_short_line_of_7_bits_is_decided_when_the_line_goes_quiet() -> None:
 @pytest.mark.parametrize("first", [b"cmd:\r", b"OH2AB>APRS:", b"\r\ncmd:cmd:\r"], ids=["prompt", "piece of a line", "eleven bytes"])
 def test_a_short_piece_of_7_bits_and_a_quiet_line_leave_the_line_undecided_so_that_the_packets_after_it_are_read_at_7_bits(first: bytes) -> None:
     assert len(first) < DECIDE_QUIET and any(b > 0x7F for b in parity(first))
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     assert reader.feed(parity(first), 0.0) == [] and reader.feed(b"", PENDING_SEC + 1.0) == [] and reader.bits == 0, "too few bytes to tell 7 bits from 8"
     oneline = fixture_bytes("text/tnc2-oneline.txt")
     later = reader.feed(parity(oneline), PENDING_SEC + 2.0) + reader.feed(b"", 2 * PENDING_SEC + 4.0)
@@ -186,7 +189,7 @@ def test_a_short_piece_of_7_bits_and_a_quiet_line_leave_the_line_undecided_so_th
 
 
 def test_a_line_with_letters_outside_ascii_is_8_bits_at_once() -> None:
-    reader = TextReader(monitor=True)
+    reader = TextReader()
     assert reader.feed("OH2AB>APRS:>Hyvää päivää\r".encode(), 0.0) == [ax25.Frame(ax25.Address("APRS"), ax25.Address("OH2AB"), info=">Hyvää päivää".encode())] and reader.bits == 8
 
 
@@ -209,7 +212,7 @@ def frames(draw: st.DrawFn, seven: bool = False) -> ax25.Frame:
 @given(st.lists(frames(), min_size=1, max_size=5), st.lists(st.integers(1, 40), min_size=1, max_size=20))
 def test_any_frame_survives_its_text_whatever_the_pieces(sent: list[ax25.Frame], sizes: list[int]) -> None:
     data = b"".join(f.tnc2().encode("latin-1") + b"\r" for f in sent)
-    reader, found, at = TextReader(monitor=True), [], 0
+    reader, found, at = TextReader(), [], 0
     while at < len(data):
         size = sizes[len(found) % len(sizes)]
         found += reader.feed(data[at:at + size], 0.0)

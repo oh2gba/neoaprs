@@ -7,6 +7,7 @@ import { fakeDaemon, withDaemon } from "@/test/context";
 import type { RadioRow, StationRow } from "@/protocol/protocol";
 import { ago, heardBy, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 import { STATIONS_TWO_RADIOS } from "@/lib/layout";
+import { seen } from "@/test/shown";
 import { stubWidth } from "@/test/width";
 
 const me = station("OH2GBA", { is_me: true, distance_km: null, bearing_deg: null, last_heard: ago(900), heard_rf: 0 });
@@ -36,7 +37,7 @@ const labels = (wrapper: ReturnType<typeof make>): [string, string][] =>
     tr.find(".callname").text(),
     tr
       .findAll(".via")
-      .map((v) => v.text())
+      .map((v) => seen(v))
       .join(" · "),
   ]);
 
@@ -202,6 +203,8 @@ describe("how a station was heard, with several radios", () => {
     const tags = wrapper.findAll("tr[data-call='OH2SIX'] .via");
     expect(tags.map((tag) => tag.classes()[1])).toEqual(["tag-neutral", "tag-dummy", "tag-neutral", "tag-info"]);
     expect(tags[2]?.attributes("title")).toBe("FM: 10 min ago; Bench: 1 h ago"); // (a colon on every part once one needs it, as on the card)
+    expect(tags[2]?.find(".sr-only").text()).toBe("FM: 10 min ago; Bench: 1 h ago"); // (what the hover says, also for a keyboard and a screen reader)
+    expect(tags.filter((tag) => tag.find(".sr-only").exists())).toHaveLength(1);
   });
 
   describe("by the width of the table", () => {
@@ -215,7 +218,7 @@ describe("how a station was heard, with several radios", () => {
       heard_rf: 12,
       heard: Object.fromEntries(eight.map((row, i) => [String(row.id), { count: 2, last_at: ago(60 * (i + 1)) }])),
     });
-    const shown = (wrapper: ReturnType<typeof withRadios>) => wrapper.findAll("tr[data-call='OH2ALL'] .via").map((tag) => tag.text());
+    const shown = (wrapper: ReturnType<typeof withRadios>) => wrapper.findAll("tr[data-call='OH2ALL'] .via").map((tag) => seen(tag));
 
     it("shows at six radios and names of eight letters one radio and +n in a table as narrow as a phone's (375 px), so that the row stays in the width", async () => {
       width = stubWidth(375);
@@ -238,6 +241,34 @@ describe("how a station was heard, with several radios", () => {
       width.restore();
       width = stubWidth(0);
       expect(shown(withRadios(eight, heardByAll))).toEqual(["Radio A1", "Radio B1", "+4"]);
+    });
+
+    it("shows one radio and +n at 375 px for a station that more radios heard than two, also with one radio on (the others off or removed)", async () => {
+      width = stubWidth(375);
+      const three = station("OH2THREE", { heard_rf: 6, heard: heardBy([1, 2, ago(30)], [2, 2, ago(60)], [3, 2, ago(90)]) });
+      const wrapper = withRadios(
+        [
+          radioRow(1, "kenwood-tnc2"),
+          radioRow(2, "mercury", { enabled: false, state: "stopped" }),
+          radioRow(3, "kiss", { number: 2, removed: true, enabled: false, state: "stopped" }),
+        ],
+        three,
+      );
+      await nextTick();
+      expect(wrapper.findAll("tr[data-call='OH2THREE'] .via").map((tag) => seen(tag))).toEqual(["RF", "+2"]);
+    });
+
+    it("counts a Dummy part beside the radios among them at 375 px: two radios and the Dummy's packets with one radio on are one tag and +2", async () => {
+      width = stubWidth(375);
+      const mixed = station("OH2MIX", {
+        heard_rf: 4,
+        heard_dummy: 3,
+        last_dummy_at: ago(90),
+        heard: heardBy([1, 2, ago(30)], [2, 2, ago(60)]),
+      });
+      const wrapper = make(mixed);
+      await nextTick();
+      expect(wrapper.findAll("tr[data-call='OH2MIX'] .via").map((tag) => seen(tag))).toEqual(["RF", "+2"]);
     });
 
     it("keeps for a station with one radio on the tags of today at 375 px, a radio that is off among them", async () => {

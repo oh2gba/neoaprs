@@ -143,7 +143,7 @@ export function beaconBlock(
 ): BeaconBlock {
   const moving = gps === null ? isMoving(values) : gps.mobile;
   const rxOnly = receiveOnly || values["station/transmit"] === "false";
-  const quiet = rxOnly ? t("beacon.line.rx_only") : beaconOff(values) ? t("beacon.line.off") : "";
+  const quiet = rxOnly ? t("error.transmit.off") : beaconOff(values) ? t("beacon.line.off") : "";
   if (moving) return movingBlock(gps, values, nowMs, quiet, radios);
   if (quiet) {
     return {
@@ -223,15 +223,4 @@ export function pathRows(enabled: readonly PageRadio[]): PathRow[] {
 /** A radio's own setting as the page has it in force: in the settings' values once they hold the radios' keys, else in `config.radio_values`; undefined for none. */
 export function radioValueOf(config: Pick<ConfigValues, "values" | "radio_values"> | null, key: string): string | undefined {
   return config?.values[key] ?? config?.radio_values[key];
-}
-
-/** The draft of a radio's own setting that the settings' values do not hold (only `config.radio_values` has it) follows the value in force where it was not changed since, as the settings' own keys do
- * (composables/useSettingsAnswers.ts); a key the values hold is theirs. `now` and `before` are the values in force of the keys, by key. */
-export function followRadioValues(
-  draft: Record<string, string>,
-  values: Readonly<Record<string, string>>,
-  now: Readonly<Record<string, string>>,
-  before: Readonly<Record<string, string>> | undefined,
-): void {
-  for (const [key, text] of Object.entries(now)) if (!(key in values) && key in draft && draft[key] === before?.[key]) draft[key] = text;
 }

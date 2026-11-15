@@ -1,20 +1,24 @@
 """The radios in the database (neoaprs/radiosql.py, and the Store's part of them, neoaprs/store.py): a radio is added with an id no radio had before, its columns and its own settings are changed,
 the stored radios are read as `RadioSpec`s (configradios.radios_from_rows), and Remove keeps the row and takes back what chooses the radio, all of it or none."""
+import asyncio
 import json
 import logging
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
 from neoaprs.clock import utc
-from neoaprs.config import Config
+from neoaprs.config import DEFAULTS, LAST_PORT, Config
 from neoaprs.configradios import radios_from_rows
 from neoaprs.dbfile import transaction
 from neoaprs.packetcodec import stamp
 from neoaprs.radiospec import RadioSpec
 from neoaprs.radiosql import CHANGEABLE, insert_radio, put_radio_settings, radio_rows, radio_settings, remove_radio, update_radio
 from neoaprs.store import DB_NAME, Store
+from neoaprs.wiring import _store_last_port
 from tests.support.clock import FixedClock
 from tests.support.migrated31 import radio_tables
 from tests.support.storedb import sql, store_at
@@ -106,7 +110,7 @@ def test_the_stored_radios_are_read_with_the_settings_of_their_kind_and_a_wrong_
     remove_radio(db, 3, AT)
     with caplog.at_level(logging.WARNING, logger="neoaprs.config"):
         found = radios_from_rows(radio_rows(db), radio_settings(db))
-    assert found == (RadioSpec(1, "fm", "kenwood-d710", "", True, 2, None, {"port": "/dev/ttyUSB0", "path": "WIDE2-2"}), RadioSpec(2, "hf", "mercury", "20 m", False, 1, None, {"sound_card": "plughw:1,0", "tx_gain_db": "-6"}),
+    assert found == (RadioSpec(1, "fm", "kenwood-d710", "", True, 2, None, {"port": "/dev/ttyUSB0", "path": "WIDE2-2", "sound_card": "plughw:1,0"}), RadioSpec(2, "hf", "mercury", "20 m", False, 1, None, {"sound_card": "plughw:1,0", "tx_gain_db": "-6"}),
                      RadioSpec(3, "fm", "kiss-tcp", "Shack", True, 3, T0, {})), "by id; a key that is no setting of the kind is left in the table, and the removed radio is among them with its time"
     assert [r.getMessage() for r in caplog.records] == ["radio/1/baud: 'fast' is not a whole number; the default (empty) is used"]
     assert (found[0].value("baud"), found[0].value("tcp_port"), found[1].value("keying"), found[1].value("beacon")) == (None, 8001, "", True), "what is not stored is the field's default"
@@ -168,6 +172,36 @@ def test_a_row_of_choices_that_is_not_one_is_left_alone_by_remove(tmp_path: Path
 
 
 # ---- the Store
+
+async def test_a_row_of_a_removed_radios_own_state_written_after_the_removal_is_not_stored(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """A write that waited behind the removal (the beacon's last send, services/memory.py; the port the search found, wiring._store_last_port) writes nothing for the removed radio: the removal took
+    its rows away, and its id never comes back, so nothing would take them away again."""
+    store = await store_of(tmp_path, FixedClock(T0))
+    assert await store.add_radio("fm", "kiss", "", True, 1) == 1 and await store.add_radio("lora", "dummy-lora", "", True, 2) == 2
+    assert await store.put_settings({"radio/2/beacon_last_sent_at": AT, "radio/1/last_port": "/dev/ttyUSB0"})
+    assert await store.remove_radio(2)
+    caplog.set_level(logging.INFO, "neoaprs.store")
+    assert not await store.put_settings({"radio/2/beacon_last_sent_at": AT}) and not await store.put_setting("radio/2/last_port", "/dev/ttyUSB1")
+    assert not await store.put_settings({"station/comment": "x", "radio/2/beacon_last_sent_at": AT}), "all of it or none"
+    rows = await store.settings()
+    assert not [key for key in rows if key.startswith("radio/2/")] and "station/comment" not in rows
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING], "told in the log, as no error"
+    assert await store.put_setting("radio/1/last_port", "/dev/ttyUSB1") and await store.put_settings({"radio/7/beacon_last_sent_at": AT}), \
+        "a live radio's, and one of a radio that has no row (radios not stored yet), as before"
+
+
+async def test_the_port_found_is_neither_stored_nor_put_in_force_when_radio_1_was_removed_while_it_waited(tmp_path: Path) -> None:
+    store = await store_of(tmp_path, FixedClock(T0))
+    assert await store.add_radio("fm", "kiss", "", True, 1) == 1 and await store.add_radio("fm", "kiss", "", True, 2) == 2
+    told: list[Config] = []
+    parts = SimpleNamespace(config_lock=asyncio.Lock(), store=store, config=DEFAULTS, config_changed=SimpleNamespace(emit=told.append))
+    async with parts.config_lock:                                   # (Controller.remove_radio holds it)
+        waiting = asyncio.create_task(_store_last_port(cast(Any, parts), "/dev/ttyUSB0"))
+        await asyncio.sleep(0)
+        assert await store.remove_radio(1)
+    await waiting
+    assert await store.setting(LAST_PORT) is None and parts.config.serial_last_port == "" and told == []
+
 
 async def test_the_store_adds_changes_reads_and_removes_radios_on_the_database_thread(tmp_path: Path) -> None:
     clock = FixedClock(T0)
