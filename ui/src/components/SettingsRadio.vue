@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then, while the station has several radios, the main radio (MainRadio), then a box for each radio of the station that
-// is not removed, in the daemon's order (RadioBox: its Enable, its Name and Remove while the station has several radios, its status line and behind the arrow its type, its fields and what its type can do), and Add radio
-// last (RadioAdd). The main radio and the Names are there for every box, not only once a second radio is on, so that ticking a radio moves nothing under the pointer and a radio that is off can be renamed and removed
-// (plan section 6); the main radio is greyed while one radio is on. A station with one radio has its one box as it always had. The Enable of the only radio that is on is greyed, since a station keeps one on: a radio's
+// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then a box for each radio of the station that is not removed, in the daemon's order (RadioBox: its Enable, its Name
+// and Remove while the station has several radios, its status line and behind the arrow its type, its fields and what its type can do), then, while more than one radio is on, the main radio (MainRadio), and Add radio
+// last (RadioAdd). The main radio stands after the last box, so that its coming and going as a radio is ticked or unticked moves nothing above it, the tickbox just clicked least of all; a station with one radio on sees
+// no main radio (plan section 6, decision 4). The Names are there for every box while the station has several radios, not only once a second radio is on, so that ticking a radio moves nothing under the pointer and a
+// radio that is off can be renamed and removed (plan section 6). A station with one radio has its one box as it always had. The Enable of the only radio that is on is greyed, since a station keeps one on: a radio's
 // tick counts at once, before the daemon tells it back. The sound cards and the ports are asked for again when the HF radio of before is ticked, and for a radio whose type has a sound card when it is ticked (the daemon
 // lists the sound cards only for a radio that is on); the page leads to the box of a radio this group's Add radio has just added once its row comes (lib/attention.ts: the box opens, comes into view and its Enable takes the keyboard),
 // and not to one that another place added (the setup guide's Radio step, which is this group with `guide`: no RX only, no main radio, no Tune, level or scope, and the ids of its place).
@@ -75,7 +76,6 @@ watch(lastError, (toast) => {
 
 <template>
   <SettingsSwitch v-if="!guide && keys.includes(RX_ONLY_KEY)" :name="RX_ONLY_KEY" :settings="settings" :form="form" :defaults="defaults" />
-  <MainRadio v-if="several && !guide" :settings="settings" :form="form" :off="onCount < 2" />
   <RadioBox
     v-for="radio in boxes"
     :key="radio.id"
@@ -89,5 +89,6 @@ watch(lastError, (toast) => {
     :tools="!guide"
     @pending="pending(radio, $event)"
   />
+  <MainRadio v-if="!guide && onCount > 1" :settings="settings" :form="form" />
   <RadioAdd :id="ids('set-radio-add')" @added="adding = true" />
 </template>

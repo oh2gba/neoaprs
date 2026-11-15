@@ -94,11 +94,11 @@ describe("SettingsForm", () => {
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1 + // (Language)
         1 + // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list")
-        1 + // (the main radio under RX only, greyed while one radio is on: the station has two radios, so that ticking the second moves nothing; plan section 6 decision 4)
         2, // (the Name of each of the two boxes: plan section 6, "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed")
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
+    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false); // (one radio on, the HF radio off: no main radio; plan section 6 decision 4)
   });
 
   it("has no field for what is fixed or left to the shell: the log time, the daily update check, the page's port and host names", () => {
