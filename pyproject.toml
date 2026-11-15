@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 # The desktop app (`neoaprs app`, `neoaprs-app`; neoaprs/desktop/) is an extra, so that `uv tool install neoaprs` for the daemon stays lean. Windows: the page in the system's WebView2 (pywebview) and the tray icon
-# (pystray, which draws it from a Pillow image). Elsewhere: Qt, whose QtWebEngine (PySide6-WebEngine, which needs the Essentials and the Addons) is the window and whose QSystemTrayIcon is the tray, so one event loop does both.
+# (pystray, given the icon file as it is; Pillow is pinned here because pystray requires it, and the frozen Windows app leaves it out: packaging/windows/neoaprs.spec). Elsewhere: Qt, whose QtWebEngine (PySide6-WebEngine, which needs the Essentials and the Addons) is the window and whose QSystemTrayIcon is the tray, so one event loop does both.
 [project.optional-dependencies]
 app = [
     "pywebview==6.2.1; sys_platform == 'win32'",

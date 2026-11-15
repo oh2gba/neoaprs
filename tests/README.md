@@ -373,7 +373,7 @@
   a shell that cannot start, `--quit`. `test_desktop_session.py` is the same decision against real detached daemons (fixtures of `test_open_stop.py`).
   `test_desktop_autostart.py`: start at sign-in on Windows (the stand-in for winreg of `test_service.py`) and on Linux (a configuration folder of the test's
   own). `test_desktop_single.py`: the one-app rule (the lock, the loopback port and `show` / `quit`). `test_desktop_winshell.py`: the Windows shell against
-  stand-ins for pywebview, pystray and Pillow in `sys.modules`. `test_desktop_qt.py`: the Qt shell headless with the real PySide6-WebEngine
+  stand-ins for pywebview and pystray in `sys.modules` (and, where the real pystray is installed, its own code for what it asks of the tray's image). `test_desktop_qt.py`: the Qt shell headless with the real PySide6-WebEngine
   (`QT_QPA_PLATFORM=offscreen`; skipped when the extra `app` is not installed: `uv sync --frozen --extra app`): the window, its size, the stored page data, the
   links, the tray menu, and the window that shows the loading page before the daemon answers and closes when no page comes.
 * `test_desktop_splash.py`: the splash of Windows (`neoaprs/desktop/splash.py`) but its Win32 calls: the quick look at the app's arguments against the real parser's
@@ -392,7 +392,7 @@
   Windows job measures what it ships and runs the must-ship guard right after PyInstaller.
 * `test_shipped.py`: what is shipped, without a build: `scripts/shipped-size` over a made-up tree (by group, the largest files, a link counted nowhere, the step summary, `--absent`) and over a listing of a
   PyInstaller program's archive (summed by top package, every module listed when asked; a listing without its PYZ part or with columns it cannot read refused); the must-ship guard
-  (`packaging/windows/must_ship.py`): the committed list is a real build's (it fails while it is the never-drop names alone) and holds the never-drop files; a made-up Windows folder passes and fails
+  (`packaging/windows/must_ship.py`): the committed list is a real build's (it fails while it is the never-drop names alone) and holds the never-drop files and nothing of Pillow; a made-up Windows folder passes and fails
   when one needed file is taken from it, though another processor's copy of the same DLL is still there, whatever the list says; the list made from a build names every `.dll` and `.pyd` and the data, and a
   folder that lacks a never-drop file gets no list but its names printed; a new DLL is named without failing; case is ignored; who imports a module the spec excludes, from PyInstaller's warn file (only
   the importers named pass; a file of another form is refused).

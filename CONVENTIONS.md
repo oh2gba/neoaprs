@@ -16,7 +16,7 @@ Read this before writing a module. `docs/ARCHITECTURE.md` has the layers, `docs/
   - **cryptography** for the certificates of the secure connection (`neoaprs/web/tls.py`), encrypted messages (`neoaprs/cipher.py`) and the signature of an update (`neoaprs/updateasset.py`, `neoaprs/services/selfupdate.py`, `neoaprs/services/selfinstall.py`);
   - **bleak** (the extra `ble` of `pyproject.toml`) for a Bluetooth LE KISS TNC as a port, only in `neoaprs/btle.py`, imported when such a port is opened, so that everything
     else runs and is tested without it (`tests/test_architecture.py` holds it to that module);
-  - the desktop app's toolkits (the extra `app` of `pyproject.toml`: PySide6 with its web engine on Linux and macOS, pywebview, pystray and Pillow on Windows),
+  - the desktop app's toolkits (the extra `app` of `pyproject.toml`: PySide6 with its web engine on Linux and macOS, pywebview and pystray on Windows),
     only in the shells of `neoaprs/desktop/`, so that everything else of the app runs and is tested without them.
 - No `aprslib`, no `pyserial-asyncio`. The APRS parser is ours (`neoaprs/ax25.py`, `neoaprs/aprs*.py`, tested against captured frames). The serial line is read
   and written by a thread of its own that hands the bytes to the one event loop with `call_soon_threadsafe` (`neoaprs/serialport.py`); no descriptor goes to the

@@ -203,6 +203,16 @@ def test_the_windows_job_measures_what_it_ships_and_guards_what_it_must_ship() -
     assert "scripts/shipped-size dist-installer/NeoAPRS-Setup-*.exe" in job and 'scripts/shipped-size --depth 2 --title "the installed app"' in job
 
 
+def test_the_windows_job_ships_no_pillow_and_nothing_it_needs_imports_it() -> None:
+    """Pillow is in neither the folder nor any program's Python archive, and PyInstaller's record names only pystray's backends of other systems as importers of PIL, before Mercury and the installer."""
+    job = workflow_jobs()["release.yml:windows"]
+    frozen = job.index("neoaprs.spec")
+    folder = job.index("scripts/shipped-size --depth 2 --title \"dist/NeoAPRS, as PyInstaller made it\" --absent _internal/PIL dist/NeoAPRS")
+    archives = job.index("scripts/shipped-size --pyi-archive --absent PIL dist/NeoAPRS/neoaprs.exe dist/NeoAPRS/neoaprsw.exe dist/NeoAPRS/neoaprs-app.exe")
+    importers = job.index("packaging/windows/must_ship.py --excluded build/neoaprs/warn-neoaprs.txt PIL pystray._xorg pystray._gtk pystray._appindicator pystray._darwin\n")
+    assert frozen < folder < archives < importers < job.index("bundle_mercury.py")
+
+
 def test_no_workflow_step_name_breaks_the_yaml() -> None:
     """An unquoted value with ": " in it is a mapping in YAML, and GitHub then reads the whole workflow as having no triggers (a tag would start nothing):
     the names of jobs and steps that say something with a colon are quoted."""

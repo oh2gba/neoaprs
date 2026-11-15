@@ -130,7 +130,7 @@ jobs:
       - name: The version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
-      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
+      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, and the Pillow pystray requires, which the spec leaves out) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
         # PyInstaller from its source with the bootloader compiled here (the runner's MSVC), not the bootloader of the wheel, which every program packed with it shares, malware included: Windows
         # Defender's guess took NeoAPRS for a trojan (4 Nov 2026)
         env:
@@ -145,14 +145,17 @@ jobs:
       - name: PyInstaller, run where there is no neoaprs/ folder, so that the installed wheel is what is frozen
         working-directory: packaging/windows
         run: ../../build-venv/Scripts/pyinstaller.exe --noconfirm --distpath ../../dist --workpath ../../build neoaprs.spec
-      # What the folder carries, by folder and largest file, and each program's Python archive by package (scripts/shipped-size): every cut in size is a measured number
-      - name: What the app folder carries and the programs' Python archives
+      # What the folder carries, by folder and largest file, and each program's Python archive by package (scripts/shipped-size): every cut in size is a measured number. Nothing of Pillow is in either:
+      # the tray is given icon.ico as it is (neoaprs/desktop/winshell.py), and the spec excludes PIL. PyInstaller's record of who imports PIL names only pystray's backends of other systems: any other
+      # importer would fail in the frozen app
+      - name: What the app folder carries and the programs' Python archives, and no Pillow in them
         run: |
-          build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "dist/NeoAPRS, as PyInstaller made it" dist/NeoAPRS
-          build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive dist/NeoAPRS/neoaprs.exe dist/NeoAPRS/neoaprsw.exe dist/NeoAPRS/neoaprs-app.exe
+          build-venv/Scripts/python.exe scripts/shipped-size --depth 2 --title "dist/NeoAPRS, as PyInstaller made it" --absent _internal/PIL dist/NeoAPRS
+          build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --absent PIL dist/NeoAPRS/neoaprs.exe dist/NeoAPRS/neoaprsw.exe dist/NeoAPRS/neoaprs-app.exe
           echo "::group::Every module of the Python archive of neoaprs-app.exe (the three programs are made of one analysis), to compare with another build's"
           GITHUB_STEP_SUMMARY= build-venv/Scripts/python.exe scripts/shipped-size --pyi-archive --modules dist/NeoAPRS/neoaprs-app.exe
           echo "::endgroup::"
+          build-venv/Scripts/python.exe packaging/windows/must_ship.py --excluded build/neoaprs/warn-neoaprs.txt PIL pystray._xorg pystray._gtk pystray._appindicator pystray._darwin
       # The guard against a folder that is too lean: every file of packaging/windows/must-ship.txt (taken from a real build) must be there. The list this build would make is printed, in the log and on the
       # run's page, for the commit that adds a new package's DLLs; a line leaves the list only in the commit that removes its file, with the clean install on the Windows 11 N machine as its proof
       - name: Every file the app needs is in the folder (packaging/windows/must-ship.txt)

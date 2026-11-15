@@ -59,7 +59,7 @@ The app chooses what the computer can run and says what it chose, and why, in `n
 ## Which toolkit
 
 - **Linux and macOS:** Qt (`PySide6-Essentials`, `PySide6-Addons` and `PySide6-WebEngine`, which is its own wheel and needs the other two), with the web engine of Qt, a Chromium: about 260 MB to download and 670 MB installed on Linux.
-- **Windows:** pywebview, which uses the Edge engine that is already on the computer, and pystray with Pillow for the tray icon: about 9 MB of wheels. The frozen app carries no browser.
+- **Windows:** pywebview, which uses the Edge engine that is already on the computer, and pystray for the tray icon: about 9 MB of wheels, with the Pillow that pystray asks for. The installed app carries no browser and no Pillow.
 
 ## Files in the data folder
 
