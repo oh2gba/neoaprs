@@ -319,16 +319,16 @@ def test_a_migration_killed_while_two_others_wait_for_it_is_taken_over_by_one_an
     """A tool migrates (in a step longer than any busy time), and two more NeoAPRS start meanwhile: this process (the daemon) and a child (another tool). Both wait. The tool is killed in its step (on
     Windows TerminateProcess, the parent's kill: it runs everywhere). One of the two takes over: it stands on the tool's copy, makes none and runs the step the kill ended; the other waits for that one and
     finds the file at the newest version. The file ends whole, each step in it once, and backup/ holds one copy, of the old version."""
-    from tests.test_migration_waits import NEWEST, WAITS, a_station_to_migrate, another_neoaprs, ended, in_the_second_step, open_in_a_thread, said, until, version_of
+    from tests.test_migration_waits import NEWEST, WAITS, a_station_to_migrate, another_neoaprs, ended, in_the_second_step, open_in_a_thread, said, until, version_of, who
     caplog.set_level(logging.INFO, MIGRATION_LOG)
     path, held = a_station_to_migrate(tmp_path, monkeypatch)
     tool = another_neoaprs(path, held)
     second: subprocess.Popen[bytes] | None = None
     try:
-        until(lambda: tool.pid in in_the_second_step(held), "the tool runs the second step")
+        until(lambda: who(tool) in in_the_second_step(held), "the tool runs the second step")
         second = another_neoaprs(path, held, busy_ms=300)
         thread, out = open_in_a_thread(path, busy_ms=300)
-        child_log = held / f"log-{second.pid}"
+        child_log = held / f"log-{who(second)}"
         until(lambda: said(caplog, WAITS) == 1 and child_log.is_file() and WAITS in child_log.read_text(encoding="utf-8"), "both say that they wait")
         tool.kill()
         tool.wait(60)
@@ -342,8 +342,8 @@ def test_a_migration_killed_while_two_others_wait_for_it_is_taken_over_by_one_an
         if second is not None:
             ended(second)
     assert out == [("", NEWEST)]
-    took_over = in_the_second_step(held) - {tool.pid}
-    assert len(took_over) == 1 and took_over <= {second.pid, os.getpid()}, "the step the kill ended ran once more, in one of the two"
+    took_over = in_the_second_step(held) - {who(tool)}
+    assert len(took_over) == 1 and took_over <= {who(second), os.getpid()}, "the step the kill ended ran once more, in one of the two"
     lines = [r.getMessage() for r in caplog.records if r.name == MIGRATION_LOG] + child_log.read_text(encoding="utf-8").splitlines()
     assert sum("taken by a start that did not get through; no other is made" in line for line in lines) == 1 and not any("a copy of it is in" in line for line in lines)
     assert sum(WAITS in line for line in lines) == 2, "each said once that it waits"

@@ -5,6 +5,7 @@ says of the daemon meanwhile (neoaprs/cli/daemonstate.py). The migration is made
 And a NeoAPRS that is to migrate the file while another one does (the daemon started while `neoaprs db` migrates it: the lock `neoaprs.migrate.lock`, migrations._migration_lock): it waits for the
 other, a child process that holds a slow made-up step, says so once and comes up at the newest version; it is refused at once, as before, by a file another writer holds while the note is stale; it never
 waits on a stale note or past its bound; and a start with nothing to migrate does not wait at all. (The other killed in the middle, and a third waiting with it: tests/safety/test_migration_faults.py.)"""
+import itertools
 import logging
 import os
 import sqlite3
@@ -202,17 +203,19 @@ def test_a_note_ahead_of_the_clock_is_not_fresh_and_a_start_with_nothing_to_migr
 # ---- a NeoAPRS that is to migrate the file while another one does
 
 # Two made-up steps after the program's own, the same in every process (exec'd: no source to hash, so the history does not hold one process's code against another's): the second tells the test that it
-# runs, by a file named after its process, and waits until the test lets it go (the file `go`).
+# runs, by a file named after its process, and waits until the test lets it go (the file `go`). A child is named by the number the test gave it (NEOAPRS_TEST_WHO), not by its process id: on Windows the
+# python of a virtual environment is a launcher that starts the interpreter as a process of its own, so the id the test has of its child is not the one the child reads of itself.
 STEPS = r'''
 import os, time
 from pathlib import Path
+WHO = os.environ.get("NEOAPRS_TEST_WHO") or str(os.getpid())
 
 def k2_first(db):
     db.execute("CREATE TABLE k2_first (x INTEGER)")
 
 def k2_second(db):
     held = Path(HELD)
-    (held / f"in-the-second-step-{os.getpid()}").write_text("")
+    (held / f"in-the-second-step-{WHO}").write_text("")
     deadline = time.monotonic() + 60
     while not (held / "go").exists():
         if time.monotonic() > deadline:
@@ -228,7 +231,7 @@ from pathlib import Path
 from neoaprs import migrations
 path, HELD, busy = sys.argv[1], sys.argv[2], int(sys.argv[3])
 ''' + STEPS + r'''
-logging.basicConfig(filename=str(Path(HELD) / f"log-{os.getpid()}"), level=logging.INFO, format="%(message)s")
+logging.basicConfig(filename=str(Path(HELD) / f"log-{WHO}"), level=logging.INFO, format="%(message)s")
 migrations.MIGRATIONS = [*migrations.MIGRATIONS, k2_first, k2_second]
 migrations.SCHEMA_VERSION = len(migrations.MIGRATIONS)
 db, why = migrations.open_database(path, busy)
@@ -258,7 +261,20 @@ def a_station_to_migrate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tup
 def another_neoaprs(path: Path, held: Path, busy_ms: int = 30000) -> "subprocess.Popen[bytes]":
     """`open_database` of `path` in a child process with the same made-up steps (a tool, `neoaprs db set`, has the tools' busy time); it ends with 0 when it opened the file, 3 when refused."""
     root = Path(__file__).resolve().parents[1]
-    return subprocess.Popen([sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms)], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    name = next(_names)
+    proc = subprocess.Popen([sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms)], cwd=root, env={**os.environ, "NEOAPRS_TEST_WHO": str(name)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    _who[proc.pid] = name
+    _watched.append((held, proc))
+    return proc
+
+
+_names = itertools.count(1_000_000_000)             # (above every process id, so that a child's name is never taken for this process's own id, which names the steps it runs itself)
+_who: dict[int, int] = {}
+
+
+def who(proc: "subprocess.Popen[bytes]") -> int:
+    """The name the test gave this child, which its steps' files and its log carry."""
+    return _who[proc.pid]
 
 
 def in_the_second_step(held: Path) -> set[int]:
@@ -269,8 +285,24 @@ def in_the_second_step(held: Path) -> set[int]:
 def until(done: Callable[[], bool], what: str, seconds: float = 60.0) -> None:
     deadline = time.monotonic() + seconds
     while not done():
-        assert time.monotonic() < deadline, f"never: {what}"
+        assert time.monotonic() < deadline, f"never: {what}{_said_by_the_others()}"
         time.sleep(0.02)
+
+
+_watched: list[tuple[Path, "subprocess.Popen[bytes]"]] = []
+
+
+def _said_by_the_others() -> str:
+    """What the child processes of this test logged and how each stands, for the message of a wait that ran out: without it a child that failed at its first line looks like one that never got there."""
+    lines = []
+    for held, proc in _watched:
+        lines.append(f"\nchild {proc.pid}: {'running' if proc.poll() is None else f'ended with {proc.returncode}'}")
+        log = held / f"log-{who(proc)}"
+        if log.exists():
+            lines.append(log.read_text(encoding="utf-8", errors="replace")[-3000:])
+        if proc.poll() is not None and proc.stdout is not None:
+            lines.append(proc.stdout.read().decode("utf-8", "replace")[-3000:])
+    return "".join(lines)
 
 
 def open_in_a_thread(path: Path, busy_ms: int) -> tuple[threading.Thread, list[tuple[str, int]]]:
@@ -316,7 +348,7 @@ def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_on
     path, held = a_station_to_migrate(tmp_path, monkeypatch)
     tool = another_neoaprs(path, held)
     try:
-        until(lambda: tool.pid in in_the_second_step(held), "the tool runs the second step")
+        until(lambda: who(tool) in in_the_second_step(held), "the tool runs the second step")
         assert migrating(tmp_path) and version_of(path) == SCHEMA_VERSION + 1
         thread, out = open_in_a_thread(path, busy_ms=300)
         until(lambda: said(caplog, WAITS) == 1, "the start says that it waits")
@@ -330,7 +362,7 @@ def test_a_start_while_another_neoaprs_migrates_the_file_waits_for_it_says_so_on
         ended(tool)
     assert out == [("", NEWEST)]
     assert said(caplog, WAITS) == 1, "said once"
-    assert said(caplog, "is now version") == 0 and said(caplog, "a copy of it is in") == 0 and in_the_second_step(held) == {tool.pid}, "the start ran no step and made no copy"
+    assert said(caplog, "is now version") == 0 and said(caplog, "a copy of it is in") == 0 and in_the_second_step(held) == {who(tool)}, "the start ran no step and made no copy"
     [copy] = taken(tmp_path)
     assert copy.startswith(f"premigrate-v{SCHEMA_VERSION}-to-v{NEWEST}-") and copy.endswith(".sqlite"), "one copy, the tool's, of the old version"
     assert not (tmp_path / MIGRATING_NAME).exists()
