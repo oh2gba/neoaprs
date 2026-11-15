@@ -216,6 +216,12 @@ def mac_tree(tmp_path: Path) -> Path:
     (shiboken / "include").mkdir(parents=True)
     (shiboken / "Shiboken.abi3.so").write_bytes(mach_o("libshiboken6.abi3.6.12.dylib"))
     (shiboken / "libshiboken6.abi3.6.12.dylib").write_bytes(mach_o())
+    for folder in ("objc/_objc.cpython-313-darwin.so.dSYM/Contents/Resources/DWARF", "PyObjCTest", "CoreBluetooth"):          # (what bleak brings on macOS: PyObjC, with its own tests and debug symbols)
+        (site / folder).mkdir(parents=True)
+    (site / "objc" / "_objc.cpython-313-darwin.so").write_bytes(mach_o())
+    (site / "objc" / "_objc.cpython-313-darwin.so.dSYM" / "Contents" / "Resources" / "DWARF" / "_objc.cpython-313-darwin.so").write_bytes(b"x")
+    (site / "PyObjCTest" / "testbndl2.cpython-313-darwin.so").write_bytes(b"x")
+    (site / "CoreBluetooth" / "__init__.py").write_text("", encoding="utf-8")
     return res
 
 
@@ -229,6 +235,9 @@ def test_the_macos_pruning_keeps_the_web_engine_its_helper_and_what_they_name_an
         assert not (lib / gone).exists(), gone
     for gone in ("include", "share", "lib/tcl9.0", "lib/tk9.0", "lib/libtcl9.0.dylib", "bin/python3.13-config"):
         assert not (res / gone).exists(), gone
+    site = lib / "site-packages"
+    assert (site / "objc" / "_objc.cpython-313-darwin.so").is_file() and (site / "CoreBluetooth" / "__init__.py").is_file(), "PyObjC itself stays: Bluetooth LE needs it"
+    assert not (site / "PyObjCTest").exists() and not list(site.rglob("*.dSYM")), "its own tests and its debug symbols go"
     pyside = lib / "site-packages" / "PySide6"
     qt = pyside / "Qt"
     kept_modules = {p.name for p in pyside.glob("*.abi3.so")}

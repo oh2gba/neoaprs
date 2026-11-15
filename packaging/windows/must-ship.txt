@@ -71,6 +71,7 @@ _internal/webview/lib/runtimes/win-x64/native/WebView2Loader.dll
 _internal/webview/lib/runtimes/win-x86/native/WebView2Loader.dll
 _internal/webview/lib/WebBrowserInterop.x64.dll
 _internal/webview/lib/WebBrowserInterop.x86.dll
+_internal/winrt/_winrt.cp313-win_amd64.pyd
 _internal/_asyncio.pyd
 _internal/_bz2.pyd
 _internal/_cffi_backend.cp313-win_amd64.pyd

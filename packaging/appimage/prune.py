@@ -55,6 +55,8 @@ def prune_python(usr: Path, macos: bool = False) -> None:
         remove(path)
     for path in list(site.rglob("*.pyi")):
         remove(path)
+    for path in [site / "PyObjCTest", *site.rglob("*.dSYM")]:          # (PyObjC's own tests and the debug symbols of its modules, which bleak brings on macOS: 14 MB that nothing runs)
+        remove(path)
 
 
 def prune_modules(site: Path, plugins: dict[str, set[str] | None]) -> Path:
