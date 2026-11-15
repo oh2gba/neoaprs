@@ -103,7 +103,7 @@ def test_a_daemon_that_holds_the_folder_is_said_so_and_its_state_is_in_the_bundl
     assert "running, up 3 h 2 min (since 2026-10-26T09:00:00Z)" in summary
     assert "waiting" in section(summary, "Radio 1: FM") and "no radio found" in section(summary, "Radio 1: FM"), "the radio's state is under the radio"
     assert "no_fix" in summary and "TNC not connected" in summary and "127.0.0.1, port 7303" in summary
-    assert json.loads(members["state.json"])["tnc"]["state"] == "waiting" and json.loads(members["state.json"])["radios"][0]["tnc"]["state"] == "waiting"
+    assert json.loads(members["state.json"])["radios"][0]["tnc"]["state"] == "waiting"
     assert "state.json" in members["README.txt"]
 
 
@@ -219,7 +219,7 @@ async def test_the_daemon_tells_every_radio_it_runs_with_its_line_and_its_beacon
     radios = {r["id"]: r for r in state["radios"]}
     assert set(radios) == {r.id for r in e.ctl.radios.all()} and 1 in radios
     fm = radios[1]
-    assert (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True) and fm["tnc"] == state["tnc"], "radio 1's line is the one the old `tnc` tells"
+    assert (fm["kind"], fm["name"], fm["enabled"]) == ("fm", "FM", True) and fm["tnc"]["state"] == "connected" and fm["tnc"]["path"] == e.link, "radio 1's line"
     assert set(fm["beacon"]) == {"last_sent", "last_reason", "next_due", "problem"}
     members = (await asyncio.to_thread(made, tmp_path / "bundle", e.dir, running=True, live=state, by="the running daemon"))[1]      # (in a thread, as the daemon makes one)
     assert re.search(r"State:\s+connected", section(members["summary.txt"], "Radio 1: FM")) and "doctor.txt" in members
@@ -250,24 +250,6 @@ def test_the_flat_keys_of_a_removed_radio_are_its_defaults_in_the_settings(tmp_p
     assert (settings["values"]["mercury/keying"], settings["values"]["mercury/sound_card"], settings["values"]["hf/enabled"]) == ("", "", "false"), "not the removed radio's values"
     assert {"mercury/keying", "mercury/sound_card", "hf/enabled"} <= set(settings["defaults_are_used_for"]) and "mercury/keying" not in settings["stored_text_differs"]
     assert settings["radios"][1]["stored"] == {"keying": "rts:/dev/ttyUSB1", "sound_card": "plughw:1,0"}, "the removed radio's own rows are told with it"
-
-
-async def test_the_old_hf_part_of_the_state_takes_the_sound_cards_radio_2s_entry_listed(monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
-    from neoaprs.config import Config
-    from neoaprs.web import supportstate
-    asked: list[str] = []
-
-    class Modem:
-        def sound_cards(self) -> list[object]:
-            asked.append("again")
-            return []
-    monkeypatch.setattr(supportstate, "tnc_state", lambda tnc: {})
-    ctl = SimpleNamespace(config=Config.from_data({"hf/enabled": "true"}), mercury=Modem(), hf=None)
-    cards = [{"name": "USB Audio CODEC", "id": "plughw:1,0", "records": True, "plays": True, "default": False}]
-    hf = await supportstate.hf_state(ctl, {}, [{"id": 1}, {"id": 2, "sound_cards": cards}])  # type: ignore[arg-type]
-    assert hf["sound_cards"] == cards and asked == [], "the program is asked once for a report, though the modem of radio 2 is not the one the controller names"
-    assert (await supportstate.hf_state(ctl, {}, [{"id": 1}]))["sound_cards"] == [] and asked == ["again"], "without radio 2's listing it lists them as before"  # type: ignore[arg-type]
 
 
 def test_the_page_and_its_errors_are_members_when_given(tmp_path: Path) -> None:

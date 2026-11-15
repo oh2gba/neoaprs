@@ -13,7 +13,7 @@ from neoaprs.aprsweather import Weather
 from neoaprs.bulletin import BulletinRecord
 from neoaprs.chain import AT_GATE, Attempt
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS, Config
+from neoaprs.config import DEFAULTS, KEYS, RADIO_STATION_KEYS, STATION_KEYS, Config
 from neoaprs.geo import Point
 from neoaprs.gpsfix import Fix
 from neoaprs.mercury import MAX_PAYLOAD, MODE
@@ -45,10 +45,11 @@ from .prefwire import StationAlertMsg, StationPref
 from .qruwire import QruAsked, QruGroup, QruServer, QruState
 from .generalwire import GeneralAsked, GeneralState
 from .stationwire import StationRow, TelemetryValues, WeatherValues
-from .tncwire import ModemState, RadioRulesState, TncState, TncStats
+from .tncwire import ModemState
 from .wirebase import HISTORY_MAX_HOURS
 
-LINES_MAX = 100                     # lines of the TNC told to a page
+LINES_MAX = 100                     # lines of a radio's line told to a page
+CONFIG_KEYS = tuple(key for key in KEYS if (key in STATION_KEYS or key == "serial/last_port") and key not in RADIO_STATION_KEYS)      # the keys of `config.values`, in the form's order: the station's settings, and the port radio 1's search found last (the radios' own are `radio_values`)
 
 
 def _routes(station: Station, now: datetime) -> dict[str, Any]:
@@ -186,12 +187,6 @@ def station_alert_message(fired: Fired) -> dict[str, Any]:
     return StationAlertMsg.row(fired, type="station_alert")
 
 
-def tnc_state(tnc: Tnc) -> dict[str, Any]:
-    lines = [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]
-    return TncState.row(tnc, state=tnc.state.value, describe=tnc.describe(), dummy=tnc.is_dummy, stats=TncStats.row(tnc.stats), lines=lines, modem=modem_state(tnc), rules=RadioRulesState.row(tnc.rules),
-                        readings=list(tnc.profile.readings))
-
-
 def modem_state(tnc: Tnc) -> dict[str, Any] | None:
     """The Mercury HF modem behind the Tnc's line, while the radio type is a modem's; None otherwise."""
     modem = tnc.modem
@@ -201,9 +196,10 @@ def modem_state(tnc: Tnc) -> dict[str, Any] | None:
 
 
 def config_values(config: Config, urls: list[str], https: dict[str, Any] | None = None) -> dict[str, Any]:
-    """The topic `config`: the settings of the form of before in `values`, and the radios' own (`radio/<id>/<key>`, every field of its kind for each radio not removed) with the station's settings of the
-    radios in `radio_values`, apart, so that a form that shows every key of `values` shows none of them."""
+    """The topic `config`: the station's settings in `values`, and the radios' own (`radio/<id>/<key>`, every field of its kind for each radio not removed) with the station's settings of the radios in
+    `radio_values`, apart, so that a form that shows every key of `values` shows none of them."""
     values, defaults = config.to_data(), DEFAULTS.to_data()
+    values, defaults = {k: v for k, v in values.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}, {k: v for k, v in defaults.items() if k in CONFIG_KEYS or k in RADIO_STATION_KEYS}
     values["station/main_radio"] = values["station/main_radio"] if config.radio(config.main_choice or 0) in config.live_radios else ""     # (a main radio removed is none: the first that is on is the main one)
     radio_values = {key: values[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": spec.settings.get(f.key, f.default) for spec in config.live_radios for f in kind_fields(spec.kind)}
     radio_defaults = {key: defaults[key] for key in RADIO_STATION_KEYS} | {f"radio/{spec.id}/{f.key}": f.default for spec in config.live_radios for f in kind_fields(spec.kind)}
@@ -250,6 +246,15 @@ class MobilePlanSource(Protocol):
     def last(self) -> Sent | None: ...
     @property
     def last_reason(self) -> Reason | None: ...
+
+
+class _NoPlan:
+    """The moving station's plan while no radio the beacon goes out on has SmartBeaconing: no beacon of it yet."""
+    last: Sent | None = None
+    last_reason: Reason | None = None
+
+
+NO_PLAN: MobilePlanSource = _NoPlan()
 
 
 def gps_state(config: Config, gps: GpsSource, plan: MobilePlanSource, next_due: datetime | None) -> dict[str, Any]:

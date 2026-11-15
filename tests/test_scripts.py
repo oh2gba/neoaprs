@@ -189,8 +189,7 @@ def load_script(name: str) -> ModuleType:
     return module
 
 
-OLD_HELLO = {"type": "hello", "topics": ["stations", "packets", "tnc", "hf", "config"]}
-NEW_HELLO = {"type": "hello", "topics": ["stations", "packets", "tnc", "hf", "radios", "config"]}
+HELLO = {"type": "hello", "topics": ["stations", "packets", "radios", "config"]}
 
 
 def radio_row(id: int, kind: str, type: str, position: int, enabled: bool = True, removed: bool = False, state: str = "connected") -> dict[str, object]:
@@ -198,33 +197,32 @@ def radio_row(id: int, kind: str, type: str, position: int, enabled: bool = True
     return {"id": id, "kind": kind, "type": type, "name": "", "number": 1, "enabled": enabled, "position": position, "removed": removed, "dummy": type.startswith("dummy"), "state": state, "problem": None, "modem": None}
 
 
-def test_the_scripts_read_the_radios_on_the_wire_the_hello_names_and_refuse_a_daemon_that_names_none() -> None:
+def test_the_scripts_read_the_radios_in_the_topic_radios_and_refuse_a_daemon_whose_hello_names_it_not() -> None:
     smoke = load_script("smoke.py")
-    assert smoke.wire_of(OLD_HELLO) == "tnc" and smoke.wire_of(NEW_HELLO) == "radios"
-    with pytest.raises(smoke.Failure, match="tells of no radio"):
-        smoke.wire_of({"type": "hello", "topics": ["stations"]})
-    old = {"tnc": {"state": "connected"}, "hf": {"state": "waiting"}}
-    assert smoke.radio_state(old, "fm") == "connected" and smoke.radio_state(old, "hf") == "waiting" and smoke.radio_state({}, "fm") is None
+    assert smoke.wire_of(HELLO) == "radios"
+    for topics in (["stations"], ["stations", "packets", "tnc", "hf", "config"]):
+        with pytest.raises(smoke.Failure, match="tells of no radio"):
+            smoke.wire_of({"type": "hello", "topics": topics})
+    assert smoke.radio_state({"tnc": {"state": "connected"}}, "fm") is None and smoke.radio_state({}, "fm") is None, "a topic of a radio's kind is no radio"
     new = {"radios": {"1": radio_row(1, "fm", "kiss", 2, state="waiting"), "3": radio_row(3, "fm", "kiss-tcp", 1), "2": radio_row(2, "hf", "mercury", 3, enabled=False),
-                      "4": radio_row(4, "hf", "dummy-hf", 4, state="silent"), "5": radio_row(5, "hf", "dummy-hf", 0, removed=True)}, "tnc": {"state": "stopped"}}
-    assert smoke.radio_of(new, "fm")["id"] == 3, "the first enabled radio of the kind by position, not radio 1, and not the old topic once `radios` is told"
+                      "4": radio_row(4, "hf", "dummy-hf", 4, state="silent"), "5": radio_row(5, "hf", "dummy-hf", 0, removed=True)}}
+    assert smoke.radio_of(new, "fm")["id"] == 3, "the first enabled radio of the kind by position, not radio 1"
     assert smoke.radio_state(new, "hf") == "silent", "a radio that is off and a removed one are passed by"
     assert [r["id"] for r in smoke.live_radios(new, "hf")] == [2, 4] and smoke.radio_state({"radios": {}}, "lora") is None
-    row = {"call": "OH2X", "heard": {"1": {"count": 3, "last_at": None}, "3": {"count": 2, "last_at": None}, "4": {"count": 5, "last_at": None}}, "heard_fm": 0, "heard_hf": 0}
-    assert (smoke.heard_on(new, row, "fm"), smoke.heard_on(new, row, "hf")) == (5, 5), "heard by radio id, counted for the radios of the kind (the new field wins where both are told)"
-    assert smoke.heard_on({}, {"call": "OH2X", "heard_fm": 7, "heard_hf": 1}, "hf") == 1
-    with pytest.raises(smoke.Failure, match="neither heard"):
-        smoke.heard_on(new, {"call": "OH2X"}, "hf")
-    assert smoke.heard_on({"stations": {}}, {"call": "OH2X", "heard": {"2": {"count": 4, "last_at": None}}}, "hf") == 0, "a row of the round read before the topic radios has come: nothing counted yet"
+    row = {"call": "OH2X", "heard": {"1": {"count": 3, "last_at": None}, "3": {"count": 2, "last_at": None}, "4": {"count": 5, "last_at": None}}}
+    assert (smoke.heard_on(new, row, "fm"), smoke.heard_on(new, row, "hf")) == (5, 5), "heard by radio id, counted for the radios of the kind"
+    for without in ({"call": "OH2X"}, {"call": "OH2X", "heard_" "hf": 1}):
+        with pytest.raises(smoke.Failure, match="has no heard"):
+            smoke.heard_on(new, without, "hf")
+    assert smoke.heard_on({"stations": {}}, {"call": "OH2X", "heard": {"2": {"count": 4, "last_at": None}}}, "hf") == 0, "a row read before the topic radios has come: nothing counted yet"
     assert smoke.heard_on(new, {"call": "OH2X", "heard": {"9": {"count": 4, "last_at": None}}}, "hf") == 0, "a radio the topic radios does not yet tell"
-    assert smoke.modem_state(new, "hf") is None and smoke.modem_state({"hf": {"modem": {"state": "running"}}}, "hf") == "running"
+    assert smoke.modem_state(new, "hf") is None and smoke.modem_state({"hf": {"modem": {"state": "running"}}}, "hf") is None
     assert smoke.modem_state({"radios": {"2": {**radio_row(2, "hf", "mercury", 1, enabled=False), "modem": {"state": "starting"}}}}, "hf", 2) == "starting", "by its id, enabled or not"
 
 
 class FakeDaemonPage:
-    """What `smoke.give_radio` and `PageSocket.set_config` see of a daemon, answering their commands at once as the daemon of either wire does: the old one stores the flat keys in `config`; the new one
-    adds a radio (`radio_added`), changes it in `radios` and tells `radio/<id>/<key>` in `config`'s `radio_keys_in`: `radio_values` as the round's wire keeps them apart from the form's keys, or `values`
-    as breakdown 1.11 words it. A Mercury radio's row gets `modem` (null: no modem came up). A command it is told to refuse is answered with an `error` naming it."""
+    """What `smoke.give_radio` and `PageSocket.set_config` see of a daemon, answering their commands at once as the daemon does: it adds a radio (`radio_added`), changes it in `radios` and tells
+    `radio/<id>/<key>` in `config`'s `radio_keys_in`: `radio_values` as the round's wire keeps them apart from the form's keys, or `values` as breakdown 1.11 words it. A Mercury radio's row gets `modem` (null: no modem came up). A command it is told to refuse is answered with an `error` naming it."""
 
     def __new__(cls, smoke: ModuleType, hello: dict[str, object], topics: dict[str, object], refuse: str = "", radio_keys_in: str = "radio_values", modem: object = None) -> Any:
         class Page(smoke.PageSocket):  # type: ignore[name-defined, misc]
@@ -257,25 +255,22 @@ class FakeDaemonPage:
         return page
 
 
-def test_a_radio_is_given_by_the_flat_keys_before_the_radios_and_by_the_radio_commands_after() -> None:
+def test_a_radio_is_given_by_the_radio_commands() -> None:
     import asyncio
     smoke = load_script("smoke.py")
-    old = FakeDaemonPage(smoke, OLD_HELLO, {"config": {"values": {}}})
-    asyncio.run(smoke.give_radio(old, "hf", "mercury", {"keying": "vox", "sound_card": ""}, 1))
-    assert old.sent == [{"cmd": "set_config", "values": {"hf/enabled": "true", "hf/profile": "mercury", "mercury/keying": "vox", "mercury/sound_card": ""}}]
     for told_in in ("radio_values", "values"):                                          # (the round's wire tells a radio's keys apart from the form's, in radio_values; 1.11 words them as config's values)
-        new = FakeDaemonPage(smoke, NEW_HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}, radio_keys_in=told_in)
+        new = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}, "radio_values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}, radio_keys_in=told_in)
         assert asyncio.run(smoke.give_radio(new, "hf", "mercury", {"keying": "vox", "sound_card": ""}, 1)) == 2
         assert new.sent == [{"cmd": "radio_add", "type": "mercury"}, {"cmd": "radio_change", "radio": 2, "enabled": True},
                             {"cmd": "set_config", "values": {"radio/2/keying": "vox", "radio/2/sound_card": ""}}], "a station with no HF radio is given one; its keys by its id"
         assert new.topics["config"][told_in] == {"radio/2/keying": "vox", "radio/2/sound_card": ""} and new.config()["radio/2/keying"] == "vox", told_in
-    there = FakeDaemonPage(smoke, NEW_HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss", 1), "2": radio_row(2, "hf", "mercury", 2, enabled=False)}})
+    there = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss", 1), "2": radio_row(2, "hf", "mercury", 2, enabled=False)}})
     asyncio.run(smoke.give_radio(there, "hf", "dummy-hf", {}, 1))
     assert there.sent == [{"cmd": "radio_change", "radio": 2, "type": "dummy-hf", "enabled": True}], "the HF radio there is changed, and nothing more is sent"
     for refused in ("radio_add", "set_config"):
-        page = FakeDaemonPage(smoke, NEW_HELLO if refused == "radio_add" else OLD_HELLO, {"config": {"values": {}}, "radios": {}}, refuse=refused)
+        page = FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {}}, refuse=refused)
         with pytest.raises(smoke.Failure, match=f"{refused} was refused: {refused}: no"):
-            asyncio.run(smoke.give_radio(page, "hf", "dummy-hf", {}, 1))
+            asyncio.run(smoke.give_radio(page, "hf", "mercury", {"keying": "vox"}, 1))
 
 
 def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() -> None:
@@ -285,13 +280,12 @@ def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() 
     shots = load_script("screenshots.py")
     smoke = shots.smoke                                                                 # (the smoke the script imported: its Failure is the one raised)
     running = {"state": "running"}
-    for hello, topics in ((NEW_HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), (OLD_HELLO, {"config": {"values": {}}, "hf": {"state": "connected", "modem": running}})):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, hello, topics, modem=running), "mercury", {"keying": "vox"}, 1))
-    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, NEW_HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "dummy-hf", {}, 1))                # (no modem waited for)
+    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}, modem=running), "mercury", {"keying": "vox"}, 1))
+    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "dummy-hf", {}, 1))                # (no modem waited for)
     with pytest.raises(smoke.Failure, match="the Mercury modem of the HF radio running"):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, NEW_HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "mercury", {}, 1))
+        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "mercury", {}, 1))
     with pytest.raises(smoke.Failure, match="radio 3, and --hf-port names radio 2"):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, NEW_HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "fm", "kiss", 2)}}, modem=running),
+        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "fm", "kiss", 2)}}, modem=running),
                                          "mercury", {}, 1))
 
 
@@ -380,10 +374,9 @@ def test_the_link_preview_names_the_systems_the_site_names() -> None:
 
 
 def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_and_name_an_objects_radios() -> None:
-    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio through the registry, not through the names `ctl.tnc`, `ctl.beacon`, `ctl.hf` that the round's last
-    wave deletes; an object of the day is made on the radios `object_set` names (R3 V7). The HF shots give their HF radio through the page: no `db set` of an HF key (refused on a copy of the day)."""
+    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio through the registry, by id (the controller names no radio of its own); an object of the day is made on the radios `object_set` names (R3 V7). The HF shots give their HF radio through the page: no `db set` of an HF key (refused on a copy of the day)."""
     for name in ("demoscene.py", "screenshots.py"):
         source = (ROOT / "scripts" / name).read_text(encoding="utf-8")
-        assert not re.search(r"\bctl\.(tnc|hf|mercury|beacon|hf_beacon)\b", source), name
+        assert not re.search(r"\bctl\.(tnc|hf|mercury|beacon|hf_" r"beacon)\b", source), name
     assert "radios=(DEMO_RADIO,)" in (ROOT / "scripts" / "demoscene.py").read_text(encoding="utf-8")
     assert not re.search(r'neoaprs_db_set\([^)]*"(hf|mercury)/', (ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"))

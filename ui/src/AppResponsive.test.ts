@@ -5,7 +5,7 @@ import { nextTick } from "vue";
 import App from "@/App.vue";
 import { FakeMap, FakeMarker, resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
-import { NOW, ago, configValues, hello, station, status, tncState } from "@/test/fixtures";
+import { NOW, ago, configValues, fmRow, hello, radiosValue, station, status } from "@/test/fixtures";
 
 const CALLS = ["OH2ZWA", "OH2ZWB", "OH2ZWC", "OH2ZWD", "OH2ZWE", "OH2ZWF"];
 const stations = {
@@ -33,7 +33,7 @@ async function open(width: number, height: number, call = "OH2GBA") {
   const socket = FakeSocket.last();
   socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
-  socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
+  socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow()) });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "station/call": call }) });
   socket.say(status());
   await flushPromises();
@@ -468,14 +468,19 @@ describe("the header marks and no footer under the panel", () => {
   it("has the Radio mark on a phone, which opens the Settings tab with the radio group flashed", async () => {
     const { wrapper, socket } = await open(390, 844);
     await wrapper.find("#tab-stations").trigger("click");
-    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "silent", problem: "", describe: "silent", silent_since: ago(600) }) });
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 1,
+      value: radiosValue(fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(600) } } })),
+    });
     await flushPromises();
     const mark = wrapper.find(".appheader .pill-radio");
     expect(mark.text()).toBe("Radio: silent");
     expect(mark.attributes("title")).toMatch(/^nothing heard since \d\d:\d\d \(10 min\)\. Settings → Radio$/);
     await mark.trigger("click");
     expect(panelOn(wrapper)).toEqual(["pane-settings"]);
-    await vi.waitFor(() => expect(document.getElementById("set-tnc-profile")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
+    await vi.waitFor(() => expect(document.getElementById("set-radio-1-enabled")?.closest("fieldset")?.classList.contains("attend")).toBe(true));
   });
 });
 

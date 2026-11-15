@@ -13,7 +13,7 @@ from .clock import Clock, utcnow
 from .config import Config
 from .dummyline import DUMMY_PATH
 from .radiodriver import RunOverrides
-from .radiospec import FM_ID, RadioSpec
+from .radiospec import FM_ID, RadioId, RadioSpec, enabled, transmits
 from .radiotypes import kind_field
 from .serialprobe import search_pattern
 from .source import Source
@@ -47,7 +47,7 @@ def _own(spec: RadioSpec, key: str, default: Any = "") -> Any:
 def line_settings(spec: RadioSpec, station: Config, run: RunOverrides) -> TncSettings:
     """What the radio's Tnc is started with. A port given for this run (radio 1's) is the only one tried; otherwise the radio's port, else the one the search found last time (and a port that cannot be
     opened is followed by the search). The search listens to the ports of the run's pattern when the process was given one, else of NEOAPRS_SERIAL_PATTERN when that is set, else of serial/pattern. A TCP type
-    connects to the radio's TCP server (or to the `tcp://` address in its port) and never searches. The Dummy radio opens nothing, and no port is chosen for it."""
+    connects to the radio's TCP server (or to the `tcp://` address in its port), opens nothing while that server has no address, and never searches. The Dummy radio opens nothing, and no port is chosen for it."""
     pattern = run.pattern or search_pattern(station.serial_pattern)
     profile = profile_of(spec)
     baud = _own(spec, "baud", None) or profile.baud or 9600
@@ -58,8 +58,17 @@ def line_settings(spec: RadioSpec, station: Config, run: RunOverrides) -> TncSet
         return TncSettings(DUMMY_PATH, baud, profile, False, station.serial_skip_paths, pattern)
     port = _own(spec, "port")
     if profile.transport == "tcp":
-        return TncSettings(port if names_tcp(port) else tcp_url(_own(spec, "tcp_host"), _own(spec, "tcp_port", 0)), baud, profile, False, station.serial_skip_paths, pattern)
-    return TncSettings(port or (station.serial_last_port if first else ""), baud, profile, True, station.serial_skip_paths, pattern)
+        host = _own(spec, "tcp_host")                           # (empty on a LoRa board on the network until its address is typed: then it opens nothing and waits)
+        return TncSettings(port if names_tcp(port) else tcp_url(host, _own(spec, "tcp_port", 0)) if host else "", baud, profile, False, station.serial_skip_paths, pattern)
+    named = port or (station.serial_last_port if first else "")
+    return TncSettings(named, baud, profile, profile.search, station.serial_skip_paths if named or not profile.search else (*station.serial_skip_paths, *listening_ports(station, spec.id)), pattern)      # (a LoRa board is never searched for)
+
+
+def listening_ports(station: Config, but: RadioId | None = None) -> tuple[str, ...]:
+    """The ports the enabled radios that only listen are set to (but the one named), which no search and no Find my radio open, so that neither a carriage return nor the KISS entries reach a TNC that is
+    written nothing (one that is open is held and left out anyway; these are left out before it is). Of the radios' settings only one that searches with no port of its own carries them; every line reads
+    them again when its search starts (RadioRegistry._listens_for: the fallback search of a radio whose own port cannot be opened), so that a change of them restarts no radio that has its port."""
+    return tuple(port for s in enabled(station.radios) if s.id != but and not transmits(s) and (port := _own(s, "port")))
 
 
 def tnc_settings(config: Config, port_override: str = "", pattern_override: str = "") -> TncSettings:
@@ -71,7 +80,7 @@ def tnc_settings(config: Config, port_override: str = "", pattern_override: str 
 
 def radio_words(settings: TncSettings) -> str:
     """A radio's settings for the log: what it is and where it is reached (a port, a device path, an address: nothing secret)."""
-    where = settings.port or f"the first port that matches {settings.pattern} and talks KISS"
+    where = settings.port or (f"the first port that matches {settings.pattern} and {'prints heard packets' if settings.profile.framing == 'text' else 'talks KISS'}" if settings.profile.search and settings.profile.transport == "serial" else "no port chosen yet")
     return f"{settings.profile.name},{where}{'' if settings.profile.transport != 'serial' else f' at {settings.baud} baud'}"
 
 
@@ -102,7 +111,8 @@ class TncDriver:
         self._line.set_check(run.check_sec)
 
     def restart_key(self, spec: RadioSpec, station: Config, run: RunOverrides) -> tuple[object, ...]:
-        """Its line's settings: a change of the port, the speed, the type, the search's pattern or the ports to skip restarts it, and nothing of another radio's."""
+        """Its line's settings: a change of the port, the speed, the type, the search's pattern or the ports to skip restarts it; of another radio's, only the port of one that only listens, and only
+        while this one searches with no port of its own (`listening_ports`)."""
         return (line_settings(spec, station, run),)
 
     def words(self, spec: RadioSpec, station: Config, run: RunOverrides) -> str:

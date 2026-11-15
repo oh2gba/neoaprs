@@ -13,7 +13,6 @@ import type { StationPrefs } from "@/composables/useStationPrefs";
 import type { Aging } from "@/lib/aging";
 import type { Home } from "@/lib/mapview";
 import type { RadioId } from "@/lib/radios";
-import type { RadioKind } from "@/lib/radiosides";
 import type { Connection } from "@/lib/hub";
 import type { ScopeMemory } from "@/lib/scopememory";
 import type {
@@ -39,7 +38,6 @@ import type {
   StationTrafficMessage,
   StationRow,
   StatusMessage,
-  TncState,
   UpdateResultMessage,
   UpdateState,
   WeatherSeriesMessage,
@@ -52,18 +50,11 @@ export interface DaemonContext {
   send: (command: Command) => boolean;
   config: Read<ConfigValues | null>;
   status: Read<StatusMessage | null>;
-  tnc: Read<TncState | null>;
-  /** the HF radio (the Mercury modem), the same shape as `tnc`; its state is `stopped` while HF is off, null until the daemon has told */
-  hf: Read<TncState | null>;
-  /** every radio of the station by its id as text, removed ones too (the topic `radios`; composables/useRadios.ts reads it); null until the daemon has told it, and from a daemon of the wire of before, which never does */
+  /** every radio of the station by its id as text, removed ones too (the topic `radios`; composables/useRadios.ts reads it); null until the daemon has told it */
   radios: Read<ReadonlyMap<string, RadioRow> | null>;
   /** the answer to this page's latest `radio_add`: the id of the radio it made, whose row comes with the next patch of `radios` (composables/useRadios.ts `added` waits for it); null before */
   radioAdded: Read<RadioAddedMessage | null>;
-  /** whether the radios are named on the page: more than one radio is on (plan section 6) */
-  radiosNamed: Read<boolean>;
-  /** what the page keeps of the HF radio's waterfall of before, radio 2's (the rows of the last two minutes, the stations heard), which the panes draw from and listen to */
-  scopeRows: ScopeMemory;
-  /** what the page keeps of a radio's waterfall, each radio's apart (radio 2's is `scopeRows`) */
+  /** what the page keeps of a radio's waterfall (the rows of the last two minutes, the stations heard), each radio's apart, which the panes draw from and listen to */
   scopeOf: (radio: RadioId) => ScopeMemory;
   /** who looks at the scope (the box in Settings, the monitor card over the map), counted in one place: the rows are asked for only while someone does */
   scope: ScopeLooks;
@@ -112,9 +103,7 @@ export interface DaemonContext {
   positionHistory: Read<PositionHistoryMessage | null>;
   /** a radio link is up (either one: what a message to every radio, the beacon, asks) */
   connected: Read<boolean>;
-  /** the link of one radio is up: what a message asks that goes over the radio it takes (lib/radiosides.ts `radioFor`) */
-  connectedOn: (radio: RadioKind) => boolean;
-  /** transmitting is switched off (station/transmit false): RX only */
+  /** transmitting is switched off (station/transmit false), or no radio that is on can send: RX only */
   receiveOnly: Read<boolean>;
   /** the clock the ages are held against */
   now: Read<number>;

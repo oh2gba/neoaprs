@@ -7,14 +7,12 @@ export function newestFirst(rows: Iterable<PacketRow>): PacketRow[] {
   return [...rows].sort((a, b) => b.id - a.id);
 }
 
-/** The rows that have the text (any case) in their line, summary, source, destination, kind, route or channel (RF, iGate, Internet); all for an empty text. */
-export function filterPackets(rows: readonly PacketRow[], filter: string, named = false): PacketRow[] {
+/** The rows that have the text (any case) in their line, summary, source, destination, kind, route or channel (RF, iGate, Internet; the radio's own word is its tag's, components/PacketsLog.vue); all for an empty text. */
+export function filterPackets(rows: readonly PacketRow[], filter: string): PacketRow[] {
   const needle = filter.trim().toLowerCase();
   if (needle === "") return [...rows];
   return rows.filter((r) =>
-    `${r.tnc2} ${r.summary} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route} ${packetLabel(r.via, r.radio, named)}`
-      .toLowerCase()
-      .includes(needle),
+    `${r.tnc2} ${r.summary} ${r.source} ${r.destination} ${r.kind} ${r.direction} ${r.route} ${packetLabel(r.via)}`.toLowerCase().includes(needle),
   );
 }
 

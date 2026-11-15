@@ -8,6 +8,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "header.project_title": "NeoAPRS-projektin sivu",
   "pill.rx": "Vain RX",
   "pill.rx_title": "Mitään ei lähetetä. Asetukset → Radio → Vain vastaanotto",
+  "pill.rx_title_radios": "Nothing is sent. Settings → Radio",
   "pill.beacon_off": "Majakka pois",
   "pill.beacon_off_title": "Ei automaattista majakkaa eikä tilaviestiä. Oma asema -välilehti",
   "pill.internet": "Internet",

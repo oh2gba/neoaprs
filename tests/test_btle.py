@@ -18,7 +18,7 @@ from neoaprs.source import Backoff, Source
 from neoaprs.tnc import Tnc
 from neoaprs.tncprofile import KISS
 from tests.support.env import until
-from tests.support.fakeble import ADDRESS, KISS_SERVICE, MOBILINKD, MOBILINKD_NOTIFY, MOBILINKD_WRITE, NUS_NOTIFY, UART_SERVICE, FakeBle, FakeBleakError
+from tests.support.fakeble import ADDRESS, KISS_SERVICE, MOBILINKD, MOBILINKD_NOTIFY, MOBILINKD_WRITE, NUS, NUS_NOTIFY, NUS_WRITE, UART_SERVICE, FakeBle, FakeBleakError
 
 URL = f"ble://{ADDRESS}"
 
@@ -136,6 +136,17 @@ def test_a_profile_that_is_named_is_the_only_one_tried(monkeypatch: pytest.Monke
         opened(f"{URL}/nus")
     assert ble.disconnects == 1 and ble.notifying is None, "(nothing is left connected)"
     assert ble_threads() == []
+
+
+def test_a_profile_whose_named_characteristics_cannot_do_their_part_is_used_by_what_they_can_do(monkeypatch: pytest.MonkeyPatch) -> None:
+    ble = FakeBle(monkeypatch, {NUS: [(NUS_WRITE, ["read", "notify"]), (NUS_NOTIFY, ["write", "write-without-response"])]})       # (a CA2RXU LoRa Tracker: the Nordic UART's two the other way round)
+    ser = opened(URL + "/nus")
+    try:
+        assert ble.notifying == NUS_WRITE, "it listens to the one that notifies"
+        ser.write(b"x")
+        assert ble.writes == [(b"x", False)], "and writes the one that takes a write"
+    finally:
+        ser.close()
 
 
 def test_a_device_with_no_kiss_service_lists_what_it_has(monkeypatch: pytest.MonkeyPatch) -> None:

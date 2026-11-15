@@ -60,7 +60,7 @@ from neoaprs.services.beacon import BeaconError
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
 from neoaprs.services.common import ConfigSource, Paths, Radio, our_frame
 from neoaprs.services.pace import SPACING_SEC
-from neoaprs.services.radioset import AirRadio, RadioPick
+from neoaprs.services.radioset import AirRadio, RadioPick, answerable
 from neoaprs.station import Station
 from neoaprs.units import MILE_KM
 
@@ -265,7 +265,7 @@ class Queries:
 
     def _directed(self, packet: Packet, query: str, argument: str | None = None) -> None:
         asker, key = packet.sender, query if argument is None else f"{query} {argument}"
-        if self._answers.refused():
+        if self._answers.refused() or not answerable(as_pick(self._given, self._config), packet):
             return
         if self._answers.lately(asker, key, packet.heard_at):
             log.debug("the %s query of %s was answered a moment ago", key, asker)
@@ -330,7 +330,7 @@ class Queries:
     def _general(self, packet: Packet, text: str, kind: str) -> None:
         """?APRS? (our position and status) or ?IGATE? (our capabilities, only while the iGate gates) after a random wait when we are inside its footprint (if it has one), and no second one of the kind
         before GENERAL_EVERY_SEC has passed."""
-        if self._answers.refused():
+        if self._answers.refused() or not answerable(as_pick(self._given, self._config), packet):
             return
         if kind == IGATE_QUERY and (why := self._no_igate()):
             log.debug("the general query %s of %s is not answered: %s", IGATE_QUERY, packet.sender, why)

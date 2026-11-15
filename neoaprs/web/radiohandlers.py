@@ -1,6 +1,6 @@
 """The handlers of the commands that name a radio (neoaprs/web/radiowire.py): add, remove and change a radio, Tune, the keying test and the scope of its modem, the radio of a station's messages, and the station's
 suggested frequencies. Registered with the dispatcher as the handlers of neoaprs/web/handlers.py are, by being imported there; `named_radio` and `sending_radio` are the refusals every command that names a radio
-gives (`radio.unknown`, `radio.off`, `radio.not_connected`, `radio.none`), for the handlers of the other areas too. A refusal that names a radio by the daemon's English name carries its id too (`radio`), by which a page
+gives (`radio.unknown`, `radio.off`, `radio.receive_only`, `radio.not_connected`, `radio.none`), for the handlers of the other areas too. A refusal that names a radio by the daemon's English name carries its id too (`radio`), by which a page
 says that radio in its own words.
 
 A handler asks the controller (`add_radio`, `change_radio`, `remove_radio`), which stores the change before it is put in force; what the pages are told of it comes from the signals (neoaprs/web/topics.py). A refusal
@@ -13,12 +13,12 @@ from typing import Any
 
 from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.coded import CodedError
+from neoaprs.config import can_transmit
 from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import KIND_WORDS, RadioError, RadioId, RadioSpec, live, log_name
 from neoaprs.radiotype import RadioTypeError
 
 from .dispatch import Ctx, UserError, command
-from .hfhandlers import may_transmit
 from .radiowire import RadioAdd, RadioChange, RadioKeyTest, RadioRemove, RadioScope, RadioTune, StationRadio
 from .radioview import removed_name
 from .tncwire import Frequencies
@@ -68,15 +68,20 @@ def named_radio(ctx: Ctx, name: str, id: RadioId) -> LiveRadio[Any]:
 
 
 def sending_radio(ctx: Ctx, name: str, id: RadioId | None) -> RadioId | None:
-    """The radio a command that sends names, checked: `radio.unknown` for none, `radio.off` (with its name) for one that is switched off, `radio.not_connected` (with its name) for one that does not take
-    frames now; with no radio named, `radio.none` while the station has no main radio (no radio is enabled). The id, or None for the main radio."""
+    """The radio a command that sends names, checked: `radio.unknown` for none, `radio.off` (with its name) for one that is switched off, `radio.receive_only` (with its name) for one of a type that only
+    receives (`Can.transmit` false), `radio.not_connected` (with its name) for one that does not take frames now; with no radio named, `transmit.off` while every enabled radio is one that only receives,
+    and `radio.none` while the station has no main radio (no radio is enabled). The id, or None for the main radio."""
     if id is None:
+        if ctx.ctl.config.listens_only:
+            raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
         if ctx.ctl.radios.main is None:
             raise UserError(f"{name}: there is no radio: add one, or turn one on", "radio.none")
         return None
     radio = named_radio(ctx, name, id)
     if not radio.spec.enabled:
         raise UserError(f"{name}: the {radio.name} radio is off: turn it on first", "radio.off", params={"name": radio.name, "radio": id})
+    if not radio.rtype.can.transmit:
+        raise UserError(f"{name}: the {radio.name} radio only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": id})
     if not radio.usable:
         raise UserError(f"{name}: the {radio.name} radio is not connected", "radio.not_connected", params={"name": radio.name, "radio": id})
     return id
@@ -127,6 +132,15 @@ async def radio_change(ctx: Ctx, cmd: RadioChange) -> None:
         _stored(cmd.cmd, await ctx.ctl.change_radio(cmd.radio, **columns))
 
 
+def may_transmit(ctx: Ctx, name: str) -> None:
+    """The transmit interlock as every other transmission has it: receive only, and a call that may be sent under (a tone with no identification is a transmission too)."""
+    config = ctx.ctl.config
+    if not config.station_transmit or config.listens_only:
+        raise UserError(f"{name}: RX only: nothing is sent", "transmit.off")
+    if reason := can_transmit(config):
+        raise UserError(f"{name}: {reason}")
+
+
 def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:
     return UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name, "radio": radio.id})
 
@@ -140,7 +154,7 @@ def _modem(ctx: Ctx, name: str, id: RadioId) -> tuple[LiveRadio[Any], Any]:
 
 
 async def _on_the_modem(name: str, radio: LiveRadio[Any], begin: Callable[[], Awaitable[None]]) -> None:
-    """The modem's tone or test begun, its refusals passed on with their codes; a modem that is not running (`hf.not_running`, which names the HF radio of before) is `radio.no_modem` with this radio's name."""
+    """The modem's tone or test begun, its refusals passed on with their codes; a modem that is not running (the modem's own `hf.not_running`) is `radio.no_modem` with this radio's name."""
     try:
         await begin()
     except CodedError as e:
@@ -151,7 +165,7 @@ async def _on_the_modem(name: str, radio: LiveRadio[Any], begin: Callable[[], Aw
 
 @command(RadioTune)
 async def radio_tune(ctx: Ctx, cmd: RadioTune) -> None:
-    """The tune tone on or off on the radio's modem, with the refusals of `hf_tune`."""
+    """The tune tone on or off on the radio's modem: refused while RX only is ticked, while the modem is not running and while a frame is on the air or the channel is busy."""
     radio, modem = _modem(ctx, cmd.cmd, cmd.radio)
     if not cmd.on:
         await modem.tune_stop()
@@ -169,29 +183,29 @@ async def radio_key_test(ctx: Ctx, cmd: RadioKeyTest) -> None:
 
 @command(RadioScope)
 async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
-    """This page wants the rows of the radio's waterfall, or no more of them: radio 2's in today's frames (the feed `hf_scope` shares) unless it asks for frames that name the radio, any other radio's in frames that
-    name it. A radio that is none, or whose type has no scope, is refused when it is asked for, never when it is stopped."""
+    """This page wants the rows of the radio's waterfall, in frames that name the radio, or no more of them. A radio that is none, or whose type has no scope, is refused when it is asked for, never when it is
+    stopped."""
     if ctx.scopes is None:
         return
     if not cmd.on:
-        ctx.scopes.stop(ctx.conn, cmd.radio, cmd.named)
+        ctx.scopes.stop(ctx.conn, cmd.radio)
         return
     radio = named_radio(ctx, cmd.cmd, cmd.radio)
     modem = radio.driver.modem
     if modem is None or not radio.rtype.can.scope:
         raise UserError(f"{cmd.cmd}: the {radio.name} radio has no scope", "radio.no_scope", params={"name": radio.name, "radio": radio.id})
-    ctx.scopes.feed(radio.id, modem, cmd.named).ask(ctx.conn, True)
+    ctx.scopes.feed(radio.id, modem).ask(ctx.conn, True)
 
 
 @command(StationRadio)
 async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
-    """The radio of the station's messages: a radio that is not removed, or none (the daemon's choice). The call is kept in its normal form, as a message names it (a text that is no call is refused with its code)."""
+    """The radio of the station's messages: a radio that is not removed and can send, or none (the daemon's choice). The call is kept in its normal form, as a message names it (a text that is no call is refused with its code)."""
     try:
         call = normal_name(cmd.call)
     except CallsignError as e:
         raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
-    if cmd.radio is not None:
-        named_radio(ctx, cmd.cmd, cmd.radio)
+    if cmd.radio is not None and not (radio := named_radio(ctx, cmd.cmd, cmd.radio)).rtype.can.transmit:      # (a radio that only receives is no radio for messages: the page offers it not)
+        raise UserError(f"{cmd.cmd}: the {radio.name} radio only receives: nothing can be sent on it", "radio.receive_only", params={"name": radio.name, "radio": radio.id})
     if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:            # (a radio the store cannot choose: none is always taken)
         raise no_radio(cmd.cmd, cmd.radio, ctx.ctl.config.radios)
     station = ctx.ctl.stationbook.get(call)

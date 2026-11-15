@@ -40,7 +40,7 @@ async def test_a_mobile_station_beacons_its_first_fix_as_a_compressed_position_a
     gpsd.send(tpv(60.43, 24.145, speed=15.0, track=270.0, alt=31.4))
     [frame] = await said(e)
     assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=//w5#TW?M>eM[/A=000103mobile".replace("mobile", "NeoAPRS") and frame.is_ui
-    assert e.ctl.beacon.last_reason == "start"
+    assert e.beacon.last_reason == "start"
     row = me(e)
     assert (row.lat, row.lon, row.course_deg, row.speed_kmh, row.altitude_m, row.is_me) == (60.43, 24.145, 270, pytest.approx(54.0), 31.4, True)
     assert e.ctl.stationbook.me_position == (60.43, 24.145)
@@ -95,8 +95,8 @@ async def test_with_no_fix_nothing_is_sent_and_the_row_stays_at_home(tmp_path: P
     e = await started(tmp_path, gpsd)
     gpsd.send(tpv(None, None, mode=1))
     await idle_for(0.3)
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is None
-    assert not e.ctl.beacon.send_now() and "no beacon" in e.ctl.beacon.problem
+    assert e.beacon.last_sent is None and e.beacon.next_due is None
+    assert not e.beacon.send_now() and "no beacon" in e.beacon.problem
     assert e.ctl.gps.state == "no_fix" and (me(e).lat, me(e).lon) == (60.17, 24.94)
     assert await e.packets() == []
     await e.stop()
@@ -110,12 +110,12 @@ async def test_a_fix_that_grows_stale_is_not_beaconed_and_the_home_position_is_n
     e.now.advance(121)                                                               # type: ignore[attr-defined]
     await until(lambda: e.ctl.gps.state == "stale")
     await idle_for(0.2)
-    assert e.ctl.beacon.next_due is None
-    assert not e.ctl.beacon.send_now() and "GPS fix is 121 s old" in e.ctl.beacon.problem
+    assert e.beacon.next_due is None
+    assert not e.beacon.send_now() and "GPS fix is 121 s old" in e.beacon.problem
     assert len([p for p in await e.packets() if p.direction == "out"]) == 1
     assert (me(e).lat, me(e).lon) == (60.43, 24.145), "the row stays where we were last seen, not at home"
     gpsd.send(tpv(60.5, 24.2, speed=15.0, track=270.0))
-    await until(lambda: e.ctl.beacon.last_reason == "time")           # (the fix is back: the beacon that was long due goes, the position of now)
+    await until(lambda: e.beacon.last_reason == "time")           # (the fix is back: the beacon that was long due goes, the position of now)
     out = [p.decoded for p in await e.packets() if p.direction == "out"]
     assert sorted(round(d.lat, 3) for d in out if isinstance(d, Position)) == [60.43, 60.5]
     await e.stop()
@@ -143,7 +143,7 @@ async def test_the_settings_of_a_station_that_stays_leave_the_home_position_and_
     await said(e)
     assert await e.ctl.save_config(replace(e.ctl.config, gps_source="off"))
     assert (me(e).lat, me(e).lon, me(e).course_deg) == (60.17, 24.94, None)
-    assert e.ctl.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
+    assert e.beacon.frame().info == b"=6010.20N/02456.40E>NeoAPRS"
     await e.stop()
 
 

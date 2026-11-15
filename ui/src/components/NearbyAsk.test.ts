@@ -4,7 +4,7 @@ import NearbyAsk from "@/components/NearbyAsk.vue";
 import { clockText } from "@/lib/format";
 import { fakeDaemon, ofRadios, tell, withDaemon } from "@/test/context";
 import { cssRule } from "@/test/css";
-import { NOW, ago, configValues, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
+import { ago, configValues, NOW, radioRow, radiosTopic, status, toastOf } from "@/test/fixtures";
 import type { GeneralAsked, GeneralState, RadioRow } from "@/protocol/protocol";
 
 function make(given: Parameters<typeof fakeDaemon>[0] = {}) {
@@ -182,7 +182,7 @@ describe("Ask around in the Nearby tab", () => {
 
   it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.ask.path", "not a path!");
-    const { wrapper, daemon } = make({ config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }) });
+    const { wrapper, daemon } = make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) });
     expect(fold(wrapper).exists()).toBe(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
@@ -193,7 +193,7 @@ describe("Ask around in the Nearby tab", () => {
 });
 
 describe("the radio of Ask around (plan rule 3.6)", () => {
-  /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+  /** A station of these radios as the daemon tells them: the topic `radios`. */
   function on(given: Parameters<typeof fakeDaemon>[0], ...rows: RadioRow[]) {
     return make({ ...ofRadios(...rows), ...given });
   }

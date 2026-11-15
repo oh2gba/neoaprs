@@ -27,7 +27,7 @@ import { texts, type Message } from "@/i18n/message";
 import { setLocale } from "@/i18n";
 import type { HttpsState, PortsMessage } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon, type FakeDaemon } from "@/test/context";
-import { configValues, mapFile, mapState, radiosTopic, status, tncState, portRow } from "@/test/fixtures";
+import { configValues, mapFile, mapState, radioRow, radiosTopic, status, portRow } from "@/test/fixtures";
 
 /** The words that come from the daemon or the user, or are the same in every language: they are what the page shows besides the catalogue's words. */
 const ATTRIBUTES = ["title", "aria-label", "placeholder", "label"];
@@ -96,7 +96,7 @@ function daemon(extra: Record<string, string> = {}, more: Parameters<typeof fake
     config,
     ports,
     map: mapState({ detail: mapFile(), state: "downloading", step: "area", percent: 49, downloaded: 340_000_000 }),
-    tnc: tncState({ state: "waiting", path: "", searching: ["/dev/ttyUSB0"], problem: "no radio found" }),
+    radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting", problem: { code: "radio.searching", params: {} } })),
     install: { kind: "deb", appimage: "", service: true, arch: "amd64" },
     status: status({ beacon_last_sent: new Date(Date.now() - 60_000).toISOString(), station_status: "QRV", rig_state: "on" }),
     ...more,
@@ -124,7 +124,7 @@ describe("the settings area in the pseudo-locale", () => {
     mounted.push(wrapper);
     setLocale("en-XA");
     await flushPromises();
-    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(13); // (the nine groups, the two boxes of Notifications and the two radios of the Radio group)
+    expect(wrapper.findAll("legend").map((l) => l.text())).toHaveLength(12); // (the nine groups, the two boxes of Notifications and the radio's box of the Radio group)
     expect(wrapper.findAll("legend").every((l) => l.text().startsWith("[!! "))).toBe(true);
     expect(wrapper.find("#set-web-key").exists()).toBe(true);
     expect(wrapper.find(".radiostatus").exists()).toBe(true);
@@ -152,7 +152,7 @@ describe("the settings area in the pseudo-locale", () => {
     context.guide.show();
     expect(untranslated(draw(SetupGuide, context))).toEqual([]);
     for (const step of [SetupCall, SetupPosition, SetupSymbol, SetupRadio]) expect(untranslated(draw(step, context)), step.__name).toEqual([]);
-    context.settings.change({ "tnc/profile": "kiss-tcp", "hf/enabled": "true" }); // (the Radio step is live: its radios are changed as in the Settings tab)
+    context.radios.value = radiosTopic(radioRow(1, "kiss-tcp"), radioRow(2, "mercury")); // (the Radio step is live: its radios follow the daemon's rows)
     expect(untranslated(draw(SetupRadio, context))).toEqual([]);
     expect(untranslated(draw(SetupRadio, daemon({}, { radios: radiosTopic() })))).toEqual([]); // (a station with no radio: the box of the one being added)
     context.guide.edit("lat", "x");
@@ -202,7 +202,14 @@ describe("the settings area in the pseudo-locale", () => {
     expect(untranslated(draw(ConfirmRow, undefined, { message: "x" }))).toEqual([]);
     expect(untranslated(draw(SymbolPicker, undefined, { table: "/", code: "-" }))).toEqual([]);
     expect(untranslated(draw(SymbolField, undefined, { id: "s", symbol: "S#" }))).toEqual([]);
-    expect(untranslated(draw(RadioStatus, undefined, { tnc: context.tnc.value, now: Date.now() }))).toEqual([]);
+    expect(
+      untranslated(
+        draw(RadioStatus, undefined, {
+          row: radioRow(1, "kenwood-tnc2", { state: "waiting", problem: { code: "radio.searching", params: {} } }),
+          now: Date.now(),
+        }),
+      ),
+    ).toEqual([]);
     expect(untranslated(draw(MapFetchButton, undefined, { map: mapState({ detail: mapFile() }), stale: false, send: () => true }))).toEqual([]);
     expect(untranslated(draw(MapFetchNotes, undefined, { map: mapState({ detail: mapFile() }) }))).toEqual([]);
     expect(untranslated(draw(BrowserAlerts, context, { alerts: context.alerts, https }))).toEqual([]);

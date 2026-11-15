@@ -8,8 +8,7 @@ have all of it. Run with the Python that has neoaprs installed (/opt/neoaprs/bin
                                                                       in its hello, and a clean stop (exit code 0, `NeoAPRS ended`, a database that passes its integrity check)
 
 Only what the page's WebSocket has told since the first release of the two radios is used: the topics `stations`, `messages` and `config`, the commands `set_config` and `send_message`, and the `hello` of a connection;
-and for the radios, the wire the hello names (scripts/smoke.py, `give_radio` and `radio_of`): the topic `radios` and the radio commands of a daemon of the round of the radios, the topics `tnc` and `hf` and the flat keys
-(`hf/enabled`, `hf/profile`) of one before it, so that either may be the old release and the new build is checked on its own.
+and for the radios (scripts/smoke.py, `give_radio` and `radio_of`) the topic `radios` and the radio commands.
 Nothing is sent to a radio (the Dummy radio makes its traffic up, and the daemon is started with NEOAPRS_NO_DEVICES) and nothing leaves the loopback. Exit code 0: all is well; 1: the first thing that was not."""
 import argparse
 import asyncio
@@ -90,13 +89,11 @@ def has_message(seen: Seen) -> bool:
 
 
 def has_settings(seen: Seen) -> bool:
-    """The station's settings and its HF radio, on the wire the hello names: the radio's type and its tick in the topic `radios`, or the flat keys of `config` before it."""
+    """The station's settings and its HF radio: the radio's type and its tick in the topic `radios`."""
     config = (seen.topics.get("config") or {}).get("values") or {}
     if not all(config.get(key) == value for key, value in SETTINGS.items()):
         return False
-    if smoke.wire_of(seen.hello) == smoke.RADIOS:
-        return any(radio.get("type") == HF_TYPE and radio.get("enabled") for radio in smoke.live_radios(seen.topics, "hf"))
-    return config.get(smoke.OLD_KEYS["hf"]["enabled"]) == "true" and config.get(smoke.OLD_KEYS["hf"]["type"]) == HF_TYPE
+    return any(radio.get("type") == HF_TYPE and radio.get("enabled") for radio in smoke.live_radios(seen.topics, "hf"))
 
 
 def stations_of(seen: Seen) -> list[str]:

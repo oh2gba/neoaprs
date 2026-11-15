@@ -11,6 +11,7 @@ import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
+import type { PageRadio } from "@/lib/radios";
 import { flatKeyOf, isRadioKey, radioFieldOf, typeText } from "@/lib/settingsradio";
 import { keyingChoices } from "@/lib/mercury";
 import {
@@ -169,6 +170,13 @@ const SPECS: Record<string, FieldSpec> = {
     tip: ["settings.hf_enabled.tip1", "settings.hf_enabled.tip2"],
     picture: "tworadios",
   },
+  "lora/enabled": {
+    name: "settings.group.lora_radio",
+    label: "settings.enable.label",
+    kind: "bool",
+    tipLabel: "settings.lora_enabled.tip_label",
+    tip: ["settings.lora_enabled.tip1", "settings.fm_enabled.tip2"],
+  },
   "tnc/profile": { ...RADIO_TYPE, choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "hf/profile": { ...RADIO_TYPE, choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })) },
   "serial/port": {
@@ -187,6 +195,8 @@ const SPECS: Record<string, FieldSpec> = {
   },
   "tcp/host": { label: "settings.tcp_host.label", tip: ["settings.tcp_host.tip1"] },
   "tcp/port": { label: "settings.tcp_port.label", title: "settings.tcp_port.title", tip: ["settings.tcp_port.tip1"] },
+  "lora/host": { label: "settings.tcp_host.label", empty: plain(""), tip: ["settings.board_host.tip1"] },
+  "lora/port": { label: "settings.tcp_port.label", tip: ["settings.board_port.tip1"] },
   "mercury/sound_card": {
     label: "settings.sound_card.label",
     tipLabel: "settings.sound_card.tip_label",
@@ -357,12 +367,7 @@ interface Group {
 
 const GROUPS: { id: string; title: MessageId; prefixes: string[]; also?: string[]; except?: string[] }[] = [
   { id: "station", title: "settings.group.station", prefixes: ["station/", "gps/"], except: ["station/status", "station/comment", "station/transmit"] },
-  {
-    id: "serial",
-    title: "settings.group.tnc",
-    prefixes: ["tnc/", "serial/", "tcp/", "mercury/"],
-    also: ["station/transmit", "fm/enabled", "hf/enabled", "hf/profile"],
-  },
+  { id: "serial", title: "settings.group.tnc", prefixes: ["serial/"], also: ["station/transmit"] }, // (RX only; the radios' own fields are their boxes')
   { id: "igate", title: "settings.group.igate", prefixes: ["igate/"] },
   { id: "web", title: "settings.group.web", prefixes: ["web/"] },
   { id: "notifications", title: "settings.group.notifications", prefixes: [], also: ALERT },
@@ -415,16 +420,17 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
   const known = new Set(groups.flatMap((g) => g.keys));
   groups.push({ id: "other", title: t("settings.group.other"), keys: sorted.filter((k) => !known.has(k)) });
   const shown = scope === "beacon" ? SCOPE_GROUPS.beacon : [...SCOPE_GROUPS.settings, "other"];
-  return shown.flatMap((id) => groups.filter((g) => g.id === id && g.keys.length > 0));
+  // the Digipeater group's fields are its radios' (radio/<id>/digipeat, kept out of the groups above): SettingsForm draws it while a radio may repeat
+  return shown.flatMap((id) => groups.filter((g) => g.id === id && (g.keys.length > 0 || g.id === "digi")));
 }
 
 /** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). `radios`: the page's, by which a radio the refusal names is said in the page's words. */
 export const reasonOf = (error: Failure, radios?: RadioNames): string => errorReason(error, radios);
 
 /** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own; a radio's own setting (`radio/3/port`) says what the same field of the
- * radios of before says (`serial/port`), in the words every radio's port has; a key this page does not know is its own label. */
-export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}): FieldInfo {
-  const flat = flatKeyOf(radioFieldOf(key)?.field ?? "");
+ * radios of before says (`serial/port`), in the words every radio's port has, or its kind's own where they differ (`kind`: a LoRa board's address); a key this page does not know is its own label. */
+export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}, kind?: PageRadio["kind"]): FieldInfo {
+  const flat = flatKeyOf(radioFieldOf(key)?.field ?? "", kind);
   return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
 }
 

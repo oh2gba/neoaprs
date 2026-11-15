@@ -43,7 +43,7 @@ from neoaprs.ownobject import OwnObject, info_of
 from neoaprs.packet import RF_GATED, Message, Packet
 from neoaprs.services.answers import ANSWER_FRAMES_MAX, Answers, AnswerBudget, as_pick
 from neoaprs.services.common import ConfigSource, Paths, Radio, our_frame
-from neoaprs.services.radioset import RadioPick
+from neoaprs.services.radioset import RadioPick, answerable
 from neoaprs.services.pace import SPACING_SEC
 from neoaprs.station import Station
 
@@ -124,7 +124,7 @@ class Qru:
         if not packet.on_air or packet.via == RF_GATED or request is None or not any(o.alive and o.qru_group for o in self._objects.records()):
             return False
         asker, key = packet.sender, f"QRU {request.word} {request.km or ''}".strip()
-        if self._answers.refused():
+        if self._answers.refused() or not answerable(as_pick(self._given, self._config), packet):
             return True
         if self._answers.lately(asker, key, packet.heard_at):
             log.debug("the request %r of %s to QRU was answered a moment ago", key, asker)

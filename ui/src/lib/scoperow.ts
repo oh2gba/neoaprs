@@ -1,8 +1,7 @@
-// A row of the HF radio's waterfall as the daemon sends it: a binary frame of the page's socket (PROTOCOL.md, Binary frames; neoaprs/mercuryscope.py makes it), and the frame of the rows the daemon kept, which a page is sent when it
-// begins to look, with the daemon's clock and each row with its age. The bins are bytes on the modem's own scale, which is the scale lib/waterfallfloor.ts reads: this turns them into the modem's dB. A frame of a radio's
-// scope names its radio (`RADIO_KIND`: the kind, the radio's id, then a frame of the two kinds above, whole); a frame that names none is radio 2's, the HF radio of before (only `hf_scope` gets one).
+// A row of a radio's waterfall as the daemon sends it: a binary frame of the page's socket (PROTOCOL.md, Binary frames; neoaprs/mercuryscope.py makes it), and the frame of the rows the daemon kept, which a page is sent when it
+// begins to look, with the daemon's clock and each row with its age. The bins are bytes on the modem's own scale, which is the scale lib/waterfallfloor.ts reads: this turns them into the modem's dB. Each comes in a frame
+// that names its radio (`RADIO_KIND`: the kind, the radio's id, then a frame of the two kinds above, whole).
 import type { RadioId } from "@/lib/radios";
-import { HF_ID } from "@/lib/radiosides";
 import { LIMITS } from "@/protocol/lists";
 
 const { rowBins, rowOffsetDb, rowStepDb } = LIMITS.scope;
@@ -78,13 +77,12 @@ export function radioFrame(data: ArrayBuffer): { radio: RadioId; frame: ArrayBuf
   return { radio: view.getUint32(1, true), frame: data.slice(RADIO_HEADER_BYTES) };
 }
 
-/** What a binary frame holds and whose scope it is, or null for a frame of a kind this page does not know: more may come, and it is let go. */
+/** What a binary frame holds and whose scope it is, or null for a frame of a kind this page does not know (one that names no radio too): more may come, and it is let go. */
 export function parseScopeFrame(data: ArrayBuffer): ScopeFrame | null {
   const named = radioFrame(data);
-  const radio = named?.radio ?? HF_ID;
-  const inner = named?.frame ?? data;
-  const row = parseScopeRow(inner);
-  if (row !== null) return { row, radio };
-  const history = parseScopeHistory(inner);
-  return history === null ? null : { history, radio };
+  if (named === null) return null;
+  const row = parseScopeRow(named.frame);
+  if (row !== null) return { row, radio: named.radio };
+  const history = parseScopeHistory(named.frame);
+  return history === null ? null : { history, radio: named.radio };
 }

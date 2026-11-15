@@ -413,15 +413,6 @@ fieldset.composebox > legend {
   margin: 0;
   overflow-wrap: anywhere;
 }
-.radiostatus .problem {
-  margin: 6px 0;
-}
-.tncports {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
 
 /* the line next to Check now: the version, and the outcome of the check in the colour of its meaning */
 .updateline {

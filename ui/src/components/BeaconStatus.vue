@@ -17,10 +17,12 @@ const props = withDefaults(
     now: number;
     /** the radios the beacon goes out on while several radios are on; none while one is */
     radios?: readonly BeaconRadio[];
+    /** nothing is sent: RX only, or no radio that is on can send (the page's `receiveOnly`) */
+    receiveOnly?: boolean;
   }>(),
-  { radios: () => [] },
+  { radios: () => [], receiveOnly: false },
 );
-const block = computed(() => beaconBlock(props.status, props.gps, props.values, props.now, props.radios));
+const block = computed(() => beaconBlock(props.status, props.gps, props.values, props.now, props.radios, props.receiveOnly));
 </script>
 
 <template>

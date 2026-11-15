@@ -184,7 +184,7 @@ async def test_the_page_makes_changes_and_kills_an_object_and_posts_and_deletes_
     page = await e.ws()
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    values = {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 40, "path": None, "qru_group": "", "on_request": False}
+    values = {"cmd": "object_set", "name": "LEADER", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 40, "path": None, "qru_group": "", "on_request": False, "radios": [1]}
     await page.send(values)
     await page.until(lambda: "LEADER" in page.topics["own_objects"] and "LEADER" in page.topics["stations"])
     row = OwnObjectRow.model_validate(page.topics["own_objects"]["LEADER"])
@@ -225,7 +225,7 @@ async def test_the_page_gives_an_object_a_qru_group_and_the_flag_and_is_told_a_g
     await page.expect("hello")
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     values = {"cmd": "object_set", "name": "PUB", "kind": "object", "lat": 60.17, "lon": 24.94, "symbol_table": "/", "symbol_code": "r", "comment": "Pub", "course_deg": None, "speed_kmh": None, "path": None,
-              "qru_group": "FOOD", "on_request": True}
+              "qru_group": "FOOD", "on_request": True, "radios": [1]}
     await page.send(values)
     await page.until(lambda: "PUB" in page.topics["own_objects"])
     row = OwnObjectRow.model_validate(page.topics["own_objects"]["PUB"])

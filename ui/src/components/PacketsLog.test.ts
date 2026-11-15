@@ -5,7 +5,7 @@ import { PACKETS_TABLE } from "@/lib/layout";
 import { cssRule } from "@/test/css";
 import type { RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, packet, radioRow, radiosTopic } from "@/test/fixtures";
+import { packet, radioRow, radiosTopic } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const packets = new Map([
@@ -79,11 +79,13 @@ describe("PacketsLog", () => {
   });
 
   it("marks a packet heard on the HF radio with a tag of its own, apart from the FM radio's, the words RF and HF staying", () => {
+    const today = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
     const wrapper = mount(PacketsLog, {
+      global: withDaemon(fakeDaemon({ radios: today })),
       props: {
         packets: new Map([
-          ["1", packet(1, { radio: "fm" })],
-          ["2", packet(2, { radio: "hf" })],
+          ["1", packet(1, { radio_id: 1 })],
+          ["2", packet(2, { radio_id: 2 })],
         ]),
       },
     });
@@ -263,16 +265,15 @@ describe("PacketsLog with several radios", () => {
     radioRow(6, "dummy", { name: "Bench", number: 4 }),
   ];
   const packets = new Map([
-    ["1", packet(1, { radio: "fm" })],
-    ["2", packet(2, { radio: "hf" })],
-    ["3", packet(3, { radio: "", radio_id: 3 })],
-    ["4", packet(4, { radio: "", radio_id: 4, via: "dummy" })],
-    ["5", packet(5, { radio: "", radio_id: 5 })],
-    ["6", packet(6, { radio: "", radio_id: 3, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
-    ["7", packet(7, { radio: "", radio_id: null, via: "is", route: "" })],
+    ["1", packet(1, { radio_id: 1 })],
+    ["2", packet(2, { radio_id: 2 })],
+    ["3", packet(3, { radio_id: 3 })],
+    ["4", packet(4, { radio_id: 4, via: "dummy" })],
+    ["5", packet(5, { radio_id: 5 })],
+    ["6", packet(6, { radio_id: 3, via: "rf-gated", gate: "OH7JHF-1", source: "OH7JHF-1" })],
+    ["7", packet(7, { radio_id: null, via: "is", route: "" })],
   ]);
-  const log = (rows = SIX, hf = "true") =>
-    mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows), config: configValues({ "hf/enabled": hf }) })) });
+  const log = (rows = SIX) => mount(PacketsLog, { props: { packets }, global: withDaemon(fakeDaemon({ radios: radiosTopic(...rows) })) });
 
   it("names in Via the radio each packet came on, in the tone of its kind, dimmed for a removed one; the iGate's says in its title which radio heard it", () => {
     const wrapper = log();
@@ -314,7 +315,7 @@ describe("PacketsLog with several radios", () => {
   });
 
   it("keeps the words of today for a station with one radio", () => {
-    const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }], "false");
+    const wrapper = log([SIX[0], { ...SIX[1], enabled: false, state: "stopped" }]);
     expect(wrapper.findAll("td.via").map((cell) => cell.text())).toEqual(["Internet", "iGate", "RF", "Dummy", "RF", "HF", "RF"]); // (radios 3 to 6 are not of this station: their packets keep their channel)
   });
 });

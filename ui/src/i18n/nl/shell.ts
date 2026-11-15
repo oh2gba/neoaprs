@@ -8,6 +8,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "header.project_title": "De projectpagina van NeoAPRS",
   "pill.rx": "Alleen RX",
   "pill.rx_title": "Er wordt niets verzonden. Instellingen → Radio → Alleen RX",
+  "pill.rx_title_radios": "Nothing is sent. Settings → Radio",
   "pill.beacon_off": "Baken uit",
   "pill.beacon_off_title": "Geen automatisch baken of status. Tabblad Mijn station",
   "pill.internet": "Internet",

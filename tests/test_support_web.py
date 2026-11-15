@@ -68,11 +68,13 @@ async def test_a_page_of_this_computer_gets_the_bundle_as_a_download(tmp_path: P
 async def test_the_state_of_the_running_parts_is_in_the_bundle(tmp_path: Path) -> None:
     e = await served(tmp_path)
     state = json.loads((await bundle(e))[2]["state.json"])
-    assert state["tnc"]["state"] == "connected" and state["tnc"]["path"] == e.link and "lines" in state["tnc"]
+    line = state["radios"][0]["tnc"]
+    assert state["radios"][0]["id"] == 1 and line["state"] == "connected" and line["path"] == e.link and "lines" in line
     assert state["gps"]["state"] == "off" and state["beacon"]["interval_min"] == 0 and state["beacon"]["transmit_blocked"] is None
     assert state["daemon"]["pages_open"] == 0 and state["daemon"]["threads"] >= 1 and state["daemon"]["tasks"] >= 1 and state["daemon"]["uptime_sec"] >= 0
     assert state["web"]["port"] == e.port and state["web"]["address"] == "127.0.0.1"
-    assert set(state) >= {"made_at", "daemon", "web", "tnc", "gps", "beacon", "rig", "map", "update", "ports"} and isinstance(state["ports"], list)
+    assert set(state) >= {"made_at", "daemon", "web", "radios", "gps", "beacon", "rig", "map", "update", "ports"} and isinstance(state["ports"], list)
+    assert not {"tnc", "hf"} & set(state), "every radio is in `radios`, radios 1 and 2 too"
     assert state["daemon"]["database"]["reads"] >= 0 and state["daemon"]["database"]["state"] == "open"
 
 

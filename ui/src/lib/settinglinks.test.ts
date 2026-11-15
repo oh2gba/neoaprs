@@ -49,9 +49,8 @@ describe("pairProblems", () => {
 });
 
 describe("settinglinks", () => {
-  it("lets the position and the TCP address go together", () => {
+  it("lets the position go together", () => {
     expect(TOGETHER["station/lat"]).toEqual(["station/lat", "station/lon"]);
-    expect(TOGETHER["tcp/port"]).toEqual(["tcp/host", "tcp/port"]);
     expect(TOGETHER["station/comment"]).toBeUndefined();
   });
 
@@ -62,12 +61,10 @@ describe("settinglinks", () => {
     expect(refusedAtField(null)).toBe(false);
   });
 
-  it("links the rigctld to the radio as the status, and the port to the radio type", () => {
+  it("links the rigctld to the radio as the status", () => {
     expect(linkedValues("status/source", "rig", {})).toEqual({ "status/rigctld": "127.0.0.1:4532" });
     expect(linkedValues("status/source", "rig", { "status/rigctld": "10.0.0.1:4532" })).toEqual({});
     expect(linkedValues("status/source", "text", {})).toEqual({});
-    expect(linkedValues("tnc/profile", "kiss-tcp", { "serial/port": "COM3" })).toEqual({ "serial/port": "" });
-    expect(linkedValues("tnc/profile", "kiss", { "serial/port": "COM3" })).toEqual({});
   });
 
   it("puts a refusal under the key that was changed, or the one that explains it", () => {
@@ -106,11 +103,11 @@ describe("settinglinks", () => {
 });
 
 describe("the fields a radio's type sends together", () => {
-  it("are a radio's host and TCP port, by its own keys; the others alone, and the pairs of before as they were", () => {
+  it("are a radio's host and TCP port, by its own keys; the others alone, and the station's pairs as they are", () => {
     expect(togetherOf("radio/5/tcp_host")).toEqual(["radio/5/tcp_host", "radio/5/tcp_port"]);
     expect(togetherOf("radio/5/tcp_port")).toEqual(["radio/5/tcp_host", "radio/5/tcp_port"]);
     expect(togetherOf("radio/3/port")).toEqual(["radio/3/port"]);
-    expect(togetherOf("tcp/host")).toBe(TOGETHER["tcp/host"]);
+    expect(togetherOf("station/lat")).toBe(TOGETHER["station/lat"]);
     expect(togetherOf("station/call")).toEqual(["station/call"]);
   });
 

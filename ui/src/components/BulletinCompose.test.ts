@@ -151,7 +151,7 @@ describe("BulletinCompose", () => {
 });
 
 describe("Post and the main radio, which a bulletin goes on", () => {
-  /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+  /** A station of these radios as the daemon tells them: the topic `radios`. */
   function on(given: Given, ...rows: RadioRow[]) {
     const daemon = fakeDaemon({ ...ofRadios(...rows), ...given });
     const wrapper = mount(BulletinCompose, { props: { ownBulletins: new Map<string, OwnBulletinRow>() }, global: withDaemon(daemon) });

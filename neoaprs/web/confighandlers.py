@@ -53,12 +53,31 @@ def no_radio(key: str, id: RadioId, specs: Sequence[RadioSpec]) -> SettingError:
 
 
 def radio_of_key(key: str | None) -> RadioId | None:
-    """The radio a key of the settings is of: `radio/<id>/<key>`, or a key of the form of before of radio 1 or 2 (`tnc/enabled`); None for a key of no radio."""
+    """The radio a key of the settings is of (`radio/<id>/<key>`); None for a key of no radio."""
     found = None if key is None else radio_key_of(key)
-    if found is not None:
-        return found[0]
-    setting = None if key is None else BY_KEY.get(key)
-    return None if setting is None or setting.attr not in FLAT_HOMES else FLAT_HOMES[setting.attr][0]
+    return None if found is None else found[0]
+
+
+def flat_refusal(key: str, config: Config) -> SettingError | None:
+    """`setting.unknown` for a key that names a radio's setting without the radio (`serial/port`, `hf/enabled`), in one sentence that names where it is now: a radio's own key, `radio/<id>/<key>`, with the id of
+    the main radio of that kind where the station has one (else of its first radio of the kind, else `<id>`), and for its Enable and type the command `radio_change`; None for any other key."""
+    setting = BY_KEY.get(key)
+    if setting is None or setting.attr not in FLAT_HOMES:
+        return None
+    id, field = FLAT_HOMES[setting.attr]
+    if field in ("type", "enabled"):
+        return SettingError(key, "setting.unknown", {}, f"{key}: no such setting: it is radio_change's {field} now")
+    kind = FLAT_KINDS[id]
+    ofkind = [spec for spec in config.live_radios if spec.kind == kind]
+    main = next((spec for spec in ofkind if spec.id == config.main_radio), ofkind[0] if ofkind else None)
+    return SettingError(key, "setting.unknown", {}, f"{key}: no such setting: it is radio/{'<id>' if main is None else main.id}/{field} now")
+
+
+def refuse_flat(keys: Iterable[str], config: Config) -> None:
+    """The refusal of the first key that names a radio's setting without the radio (flat_refusal)."""
+    for key in keys:
+        if (error := flat_refusal(key, config)) is not None:
+            raise error
 
 
 def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
@@ -86,25 +105,6 @@ def with_radio_values(base: Config, values: Mapping[str, str]) -> Config:
     return replace(base, radios=radios)
 
 
-def refuse_removed_flat(base: Config, flat: Mapping[str, str]) -> None:
-    """`radio.unknown` (the key) for a key of the form of before (`serial/port`, `hf/enabled`, ...) whose radio, 1 or 2, is removed or of another kind, when it would change what the key shows: the view says
-    that radio's defaults, and a form that sends back every key it was given (the page of before) still saves. A value that is no value is left to Config.checked, which names what is wrong with it."""
-    for key, text in flat.items():
-        setting = BY_KEY.get(key)
-        if setting is None or setting.attr not in FLAT_HOMES:
-            continue
-        id = FLAT_HOMES[setting.attr][0]
-        spec = base.radio(id)
-        if spec is None or (not spec.removed and spec.kind == FLAT_KINDS[id]):
-            continue
-        try:
-            value = Config.parse(key, text)
-        except ValueError:
-            continue
-        if value != getattr(base, setting.attr):
-            raise no_radio(key, id, base.radios)
-
-
 def _holder(spec: RadioSpec, kind: ResourceKind, value: str, after: Config, claims: Claims, moved: set[RadioId]) -> tuple[str, RadioId] | None:
     """Who else holds the device once the save is in force, by name and id (`GPS` and 0 for the GPS receiver): another radio that is on and names it in its settings, else whoever holds it in the station's table now
     (a radio this save changes is judged by its new settings alone, so that two radios can swap their devices in one save); None for nobody."""
@@ -115,9 +115,9 @@ def _holder(spec: RadioSpec, kind: ResourceKind, value: str, after: Config, clai
     return None if held is None else (holder_name(held.holder, after.radios), holder_id(held.holder, after.radios))
 
 
-def refuse_held(before: Config, after: Config, claims: Claims, flat: Mapping[str, str] | None = None) -> None:
+def refuse_held(before: Config, after: Config, claims: Claims) -> None:
     """A SettingError (`radio.resource_held`, with the kind of device and the holder's name) when a save names for a radio a device another radio or the GPS receiver holds, or another radio that is on is set
-    to (a port, a sound card, a keying line); a device a radio named before the save is not looked at again. The key is the one of the save: a key of the form of before (`flat`, `serial/port`) where it set it."""
+    to (a port, a sound card, a keying line); a device a radio named before the save is not looked at again. The key is the radio's own (`radio/<id>/<key>`)."""
     moved = {s.id for s in after.radios if (was := before.radio(s.id)) is None or (was.type, was.enabled, was.removed, dict(was.settings)) != (s.type, s.enabled, s.removed, dict(s.settings))}
     for spec in after.live_radios:
         was = before.radio(spec.id)
@@ -126,7 +126,7 @@ def refuse_held(before: Config, after: Config, claims: Claims, flat: Mapping[str
             if (field, value) in had or (found := _holder(spec, kind, value, after, claims, moved)) is None:
                 continue
             holder, held_by = found
-            key = next((k for k in flat or {} if k in BY_KEY and FLAT_HOMES.get(BY_KEY[k].attr) == (spec.id, field)), f"radio/{spec.id}/{field}")
+            key = f"radio/{spec.id}/{field}"
             raise SettingError(key, "radio.resource_held", {"resource": kind, "holder": holder, "held_by": held_by}, f"{key}: that device is in use by {holder}: choose another")
 
 
@@ -151,11 +151,11 @@ async def set_config(ctx: Ctx, cmd: SetConfig) -> None:
     def checked(base: Config) -> Config:
         nonlocal before, after
         before = base
-        refuse_removed_flat(base, flat)
+        refuse_flat(flat, base)
         after = with_radio_values(Config.checked(base, flat), own)
         if "station/main_radio" in flat:
             _main_radio(base, after)
-        refuse_held(base, after, ctx.ctl.radios.claims, flat)
+        refuse_held(base, after, ctx.ctl.radios.claims)
         refuse_from_afar(ctx.conn, base.changed(after))
         return after
 

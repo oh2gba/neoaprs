@@ -130,7 +130,7 @@ async def test_a_radios_own_settings_are_checked_stored_and_restart_that_radio_a
 
 async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_its_rows_and_stops_it_for_good(tmp_path: Path) -> None:
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     await until(lambda: e.hf.usable)
     e.feed(on_air("OH2GAX-2", b"!6010.00N/02456.00E>a station"))
@@ -140,18 +140,18 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
     await e.ctl.prefbook.set_path("OH2GAX-2", "WIDE2-1", radio_id=HF_ID)
     await e.ctl.prefbook.set_path("OH2GAX-2", "WIDE1-1", radio_id=FM_ID)
     e.ctl.ownobjects.set("SKED", "object", 60.2, 24.9, "/", "E", radio="both")
-    assert e.ctl.hf_beacon.send_now()
+    assert e.beacon_2.send_now()
 
     async def hf_sent_kept() -> bool:
         return await e.ctl.store.setting(memory_key_of(HF_ID)) is not None
     await until_async(hf_sent_kept)
-    hf_beacon, hf = e.ctl.hf_beacon, e.ctl.radios.get(HF_ID)
+    beacon_2, hf = e.beacon_2, e.ctl.radios.get(HF_ID)
     assert await e.ctl.remove_radio(HF_ID)
     assert e.ctl.ownobjects.get("SKED").radios == (FM_ID,), "and out of the object in memory"       # type: ignore[union-attr]
     assert e.ctl.radios.get(HF_ID) is None and e.ctl.config.radio(HF_ID).removed and not e.ctl.config.hf_enabled      # type: ignore[union-attr]
     assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2GBA")) == (None, FM_ID) and e.ctl.stationbook.get("OH2GAX-2").message_radio == ""     # type: ignore[union-attr]
     assert e.ctl.prefbook.path_on("OH2GAX-2", HF_ID) is None and e.ctl.prefbook.path_on("OH2GAX-2", FM_ID) == ("WIDE1-1",)
-    await until(lambda: hf is not None and hf.state is Source.State.STOPPED and not hf_beacon.running)
+    await until(lambda: hf is not None and hf.state is Source.State.STOPPED and not beacon_2.running)
     assert all(claim.holder != HF_ID for claim in e.ctl.radios.claims.all()), "what it held is let go"
     with pytest.raises(RadioError, match="removed"):
         await e.ctl.change_radio(HF_ID, name="Back")
@@ -179,7 +179,7 @@ async def test_remove_takes_the_radio_out_of_the_sets_the_choices_the_paths_and_
 
 async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_stops_it_and_its_beacon_for_good(tmp_path: Path) -> None:
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     hf = e.ctl.radios.get(HF_ID)
     assert hf is not None
@@ -202,7 +202,7 @@ async def test_a_daemon_stopped_while_a_removed_radio_is_still_being_stopped_sto
 async def test_a_radio_wanted_again_while_its_line_is_being_stopped_keeps_its_beacon_and_its_claims(tmp_path: Path) -> None:
     """Nothing of the program takes a removed radio back today; the registry's `sync` does take back one it dropped, and the stop that was under way then leaves the radio as `sync` has it."""
     e = Env(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                                 # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     hf, before = e.ctl.radios.get(HF_ID), e.ctl.config
     assert hf is not None

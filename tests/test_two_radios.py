@@ -53,7 +53,7 @@ def frames_of(radio: FakeRadio | None) -> list[ax25.Frame]:
 async def test_a_beacon_goes_out_on_both_radios_and_each_neighbour_hears_the_station_on_its_own(tmp_path: Path) -> None:
     w = await two_radios(tmp_path)
     a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]
-    assert a.ctl.beacon.send_now() and a.ctl.hf_beacon.send_now()
+    assert a.beacon.send_now() and a.beacon_2.send_now()
     await w.until(lambda: heard_on(b, "OH2A") == (1, 0) and heard_on(c, "OH2A") == (0, 1))
     assert lines_on(a) == [a.tnc, a.hf] and lines_on(b) == [b.tnc] and lines_on(c) == [c.hf]
     assert [radio.id for radio in a.ctl.radios.all()] == [radio.id for radio in c.ctl.radios.all()] == [FM_ID, HF_ID], "a radio that is off has its place in the registry all the same"
@@ -64,15 +64,15 @@ async def test_each_beacon_runs_while_its_radio_is_on_and_not_otherwise(tmp_path
     """A beacon of a radio that is off would only say, at every due time, that the radio is not there (OH2GAX's log, HF alone: 31 times)."""
     w = await two_radios(tmp_path)
     a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]
-    assert a.ctl.beacon.running and a.ctl.hf_beacon.running
-    assert b.ctl.beacon.running and not b.ctl.hf_beacon.running
-    assert not c.ctl.beacon.running and c.ctl.hf_beacon.running
+    assert a.beacon.running and a.beacon_2.running
+    assert b.beacon.running and b.ctl.radios.get(HF_ID) is None
+    assert not c.beacon.running and c.beacon_2.running
 
 
 async def test_a_message_goes_out_on_the_radio_the_station_was_heard_on_and_the_ack_comes_back_the_same_way(tmp_path: Path) -> None:
     w = await two_radios(tmp_path)
     a, b, c = w["OH2A"], w["OH2B"], w["OH2C"]
-    assert b.ctl.beacon.send_now() and c.ctl.hf_beacon.send_now()
+    assert b.beacon.send_now() and c.beacon_2.send_now()
     await w.until(lambda: heard_on(a, "OH2B") == (1, 0) and heard_on(a, "OH2C") == (0, 1))
     assert line_to(a, "OH2B") is a.tnc and line_to(a, "OH2C") is a.hf and line_to(a, "OH2Z") is a.tnc, "a station never heard goes on the main radio"
     await a.ctl.messaging.send("OH2B", "on FM, near")
@@ -92,7 +92,7 @@ async def test_a_station_heard_on_both_radios_is_messaged_on_fm_and_a_message_to
     await w.add("OH2D", 60.20, 24.90, fm=True, hf=True)
     await w.start()
     a, d = w["OH2A"], w["OH2D"]
-    assert d.ctl.beacon.send_now() and d.ctl.hf_beacon.send_now()
+    assert d.beacon.send_now() and d.beacon_2.send_now()
     await w.until(lambda: heard_on(a, "OH2D") == (1, 1))
     assert line_to(a, "OH2D") is a.tnc, "heard on both: FM, which is near and costs no HF airtime"
     await d.ctl.messaging.send("OH2A", "over both, answered on FM")
@@ -114,7 +114,7 @@ async def test_with_the_hf_radio_off_every_choice_falls_to_the_fm_radio_and_the_
             assert hf is not None and not hf.spec.enabled and hf.line is e.hf, "the HF radio is there, off, and is never chosen"
         else:
             assert hf is None and [r.id for r in radios.all()] == [FM_ID], "no HF radio at all"
-        assert e.hf.state is Source.State.STOPPED and e.ctl.mercury.state == "stopped" and e.ctl.hf_beacon.last_sent is None
+        assert e.hf.state is Source.State.STOPPED and (hf is None or (hf.driver.modem is not None and hf.driver.modem.state == "stopped" and hf.beacon.last_sent is None))
         assert main.rules == e.tnc.rules and main.max_frame is None and main.usable == e.tnc.usable and (main.kind, main.name) == ("fm", "FM")
         await e.ctl.save_config(DEFAULTS)         # (the defaults: still one radio)
         await until(lambda: e.hf.state is Source.State.STOPPED)
@@ -128,7 +128,7 @@ async def test_with_the_fm_radio_away_a_message_to_a_station_heard_on_hf_goes_ov
     """The FM radio silent at night (here: its line gone) must hold nothing that goes over HF: the retry ticker gates every message on its own radio and flushes the acks whose radio takes frames."""
     w = await two_radios(tmp_path)
     a, c = w["OH2A"], w["OH2C"]
-    assert c.ctl.hf_beacon.send_now()
+    assert c.beacon_2.send_now()
     await w.until(lambda: heard_on(a, "OH2C") == (0, 1))
     a.unplug()
     await w.until(lambda: not a.tnc.usable and a.tnc.state is not Source.State.CONNECTED)
@@ -138,7 +138,7 @@ async def test_with_the_fm_radio_away_a_message_to_a_station_heard_on_hf_goes_ov
     assert a.ctl.messaging.get(record.id).attempts == 1 and not frames_of(a.radio), "attempted at once over HF, nothing waited for the FM radio"       # type: ignore[union-attr]
     assert a.hf_radio is not None
     a.hf_radio.say_control("PTT ON")                                       # (a's modem says it keyed: a's HF radio is held until PTT OFF, and a's FM radio is still away; the air's own BUSY lines do not touch PTT)
-    await w.until(lambda: a.ctl.mercury.keyed)
+    await w.until(lambda: a.mercury.keyed)
     incoming = await c.ctl.messaging.send("OH2A", "to a while it is held")
     await w.until(lambda: any(r.direction == "in" and r.text == "to a while it is held" for r in a.ctl.messaging.records()), 15.0)
     await w.until(lambda: len(a.ctl.messaging.acks.waiting) == 1)
@@ -155,7 +155,7 @@ async def test_an_ack_to_a_station_heard_on_both_radios_for_a_message_that_came_
     await w.add("OH2D", 60.20, 24.90, fm=True, hf=True)
     await w.start()
     a, d = w["OH2A"], w["OH2D"]
-    assert d.ctl.beacon.send_now() and d.ctl.hf_beacon.send_now()
+    assert d.beacon.send_now() and d.beacon_2.send_now()
     await w.until(lambda: heard_on(a, "OH2D") == (1, 1))
     assert line_to(a, "OH2D") is a.tnc
     assert d.hf_radio is not None

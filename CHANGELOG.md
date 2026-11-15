@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+- **New:** a LoRa APRS board is a radio: an iGate on your network, or a board on USB or Bluetooth.
+- **New:** packets heard by a LoRa APRS board show their signal strength and signal-to-noise ratio where the board says them.
+- **New:** radios on Bluetooth LE work from the downloads.
 - **New:** `neoaprs db radios` lists the radios, `neoaprs db set radio/1/port ...` sets one of their settings, and `neoaprs doctor` names each radio.
 - **New:** the page speaks Nederlands.
+- **New:** Yaesu FTM radios and TNCs not in KISS can be listened to: an RX only radio type shows and gates what they hear.
 - **New:** a right-click on the monitor card sets how fast its waterfall scrolls.
 - **New:** a heard message, packet and station show the signal the radio measured (SNR), and a station's card graphs it.
 - **Changed:** the HF modem is Mercury 1.9.24.

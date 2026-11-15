@@ -371,22 +371,23 @@ async def test_every_radios_packets_go_through_the_one_signal_and_a_change_of_a_
     assert (book["OH2AAA"].heard_fm, book["OH2AAA"].heard_hf, book["OH2BBB"].heard_fm, book["OH2BBB"].heard_hf) == (1, 0, 0, 1), "(and the parts took both, each with its radio)"
     e.tnc.changed.emit()
     e.hf._set_state(Source.State.WAITING)
-    e.ctl.mercury.changed.emit()
+    e.mercury.changed.emit()
     assert changed == [FM_ID, HF_ID, HF_ID, HF_ID], "a line's counters; a line's state, which the line tells as its state and as a change, as the page's topics take it; the modem's state"
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None
     e.ctl.radios.wire(radio)
-    assert len(e.hf.packet._handlers) == 1 and len(e.ctl.mercury.changed._handlers) == 1 and len(e.ctl.hf_beacon.sent._handlers) == 1, "a radio that is wired again (another driver on the same line) is connected once"
-    e.ctl.beacon.sent.emit(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-"))        # (the iGate takes every radio's beacon: nothing to assert but that it is connected)
-    assert e.ctl.beacon.sent._handlers == e.ctl.hf_beacon.sent._handlers == [e.ctl.igate.beacon_sent]
+    assert len(e.hf.packet._handlers) == 1 and len(e.mercury.changed._handlers) == 1 and len(e.beacon_2.sent._handlers) == 1, "a radio that is wired again (another driver on the same line) is connected once"
+    e.beacon.sent.emit(ax25.Frame(ax25.Address("APRS"), ax25.Address.parse("OH2GBA"), (), info=b"!6010.00N/02456.00E-"))        # (the iGate takes every radio's beacon: nothing to assert but that it is connected)
+    assert e.beacon.sent._handlers == e.beacon_2.sent._handlers == [e.ctl.igate.beacon_sent]
 
 
 async def test_a_save_of_the_transmit_gain_reaches_the_modem_of_a_radio_that_is_off(tmp_path: Path) -> None:
-    e = Env(tmp_path, radio=False)
+    e = Env(tmp_path, radio=False, settings={"hf/enabled": "false", "hf/profile": "mercury"})
     await e.start(connected=False)
-    assert not e.ctl.config.hf_enabled and e.ctl.mercury.tx_gain_db != -3
-    assert await e.ctl.save_config(replace(e.ctl.config, mercury_tx_gain_db=-3))
-    assert e.ctl.mercury.tx_gain_db == -3, "the radio is off, so nothing restarts: the save itself sets the gain in the modem"
+    config = e.ctl.config
+    assert not e.ctl.radios.get(HF_ID).spec.enabled and e.mercury.tx_gain_db != -3                 # type: ignore[union-attr]
+    assert await e.ctl.save_config(replace(config, radios=tuple(replace(s, settings={**s.settings, "tx_gain_db": "-3"}) if s.id == HF_ID else s for s in config.radios)))
+    assert e.mercury.tx_gain_db == -3, "the radio is off, so nothing restarts: the save itself sets the gain in the modem"
     await e.stop()
 
 
@@ -399,11 +400,11 @@ async def test_a_modem_on_other_ports_repoints_its_radios_line_only_while_the_ra
         repointed.append(id)
 
     e.ctl.radios.repoint = repoint                                                  # type: ignore[method-assign]
-    e.ctl.mercury.ports_changed.emit()
+    e.mercury.ports_changed.emit()
     await idle_for(0.1)
     assert repointed == [] and "hf-tnc" not in {t.get_name() for t in e.ctl.tasks}, "the line of a radio that is off is not started"
     e.ctl.config = replace(e.ctl.config, hf_enabled=True)                           # (the radio on, without a save that would start it)
-    e.ctl.mercury.ports_changed.emit()
+    e.mercury.ports_changed.emit()
     await until(lambda: repointed == [HF_ID])
     await e.stop()
 

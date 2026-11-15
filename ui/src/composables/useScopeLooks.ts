@@ -1,16 +1,15 @@
 // Who is looking at a radio's scope, counted in one place: the box of a radio in Settings (composables/useHfScope.ts) and the monitor card over the map (components/MonitorCard.vue) each say `look` while they show the picture, and of
 // which radio, and the page asks the daemon for that radio's rows (`radio_scope`) while at least one does, this page is in front, the radio has a scope now (it is on, its type has one and its modem the interface that makes
 // the rows) and the socket is open; asked again when the socket was open anew, since the daemon forgets a page that left. Nobody looking, no rows. Each radio looked at is asked for at once, in frames that name their
-// radio (`named`), so that the page keeps each radio's rows apart (composables/useScopeRows.ts). Here too is the radio the monitor card shows: the one chosen in the map's menu, remembered by this browser, else the one it showed, else the first that has a scope. The card leaves its radio only when that radio can have no scope (it is
+// radio, so that the page keeps each radio's rows apart (composables/useScopeRows.ts). Here too is the radio the monitor card shows: the one chosen in the map's menu, remembered by this browser, else the one it showed, else the first that has a scope. The card leaves its radio only when that radio can have no scope (it is
 // off, removed, or of a type without one): while its modem is without the interface for a moment (started again), the card stays on it.
 import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
 import { usePersistedNumber } from "@/composables/usePersisted";
 import type { Connection } from "@/lib/hub";
 import type { RadioId } from "@/lib/radios";
-import { HF_ID } from "@/lib/radiosides";
-import type { Command, RadioRow, TncState } from "@/protocol/protocol";
+import type { Command, RadioRow } from "@/protocol/protocol";
 
-/** The parts the page gives besides those of before: the topic `radios` (without it, or before it is told, the HF radio of before has the scope the topic `hf` says). */
+/** The parts the page gives: the topic `radios` (no radio has a scope before it is told). */
 export interface ScopeParts {
   radios?: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>>;
 }
@@ -45,7 +44,6 @@ const canHave = (topic: ReadonlyMap<string, RadioRow>, radio: RadioId): boolean 
 
 export function useScopeLooks(
   send: (command: Command) => boolean,
-  hf: Readonly<Ref<TncState | null>>,
   connection: Readonly<Ref<Connection>>,
   visible: Readonly<Ref<boolean>>,
   parts: ScopeParts = {},
@@ -54,9 +52,7 @@ export function useScopeLooks(
     const topic = parts.radios?.value ?? null;
     const ids =
       topic === null
-        ? hf.value?.modem?.scope === true
-          ? [HF_ID]
-          : []
+        ? []
         : [...topic.values()]
             .filter(withScope)
             .sort((a, b) => a.position - b.position || a.id - b.id)
@@ -78,8 +74,8 @@ export function useScopeLooks(
   watch(
     asked,
     (now, was = []) => {
-      if (connection.value === "open") for (const radio of was.filter((id) => !now.includes(id))) send({ cmd: "radio_scope", radio, on: false, named: true });
-      for (const radio of now.filter((id) => !was.includes(id))) send({ cmd: "radio_scope", radio, on: true, named: true });
+      if (connection.value === "open") for (const radio of was.filter((id) => !now.includes(id))) send({ cmd: "radio_scope", radio, on: false });
+      for (const radio of now.filter((id) => !was.includes(id))) send({ cmd: "radio_scope", radio, on: true });
     },
     { flush: "sync" },
   );

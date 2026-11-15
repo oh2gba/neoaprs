@@ -1,4 +1,4 @@
-"""The pages that have the HF radio's scope open (`hf_scope`, neoaprs/web/tncwire.py): each is sent the rows of the waterfall the modem part makes (neoaprs/mercuryscoping.py) while it asks. A row is a binary frame (neoaprs/mercuryscope.py
+"""The pages that have a radio's scope open (`radio_scope`, neoaprs/web/radiowire.py): each is sent the rows of the waterfall the modem part makes (neoaprs/mercuryscoping.py) while it asks. A row is a binary frame (neoaprs/mercuryscope.py
 `row_frame`); a page whose socket holds more than the hub's `BEHIND` of what it has not read is sent no row, which it would only add to the wait. A page that leaves is forgotten.
 
 The hand-over is decided here and nowhere else: a page that begins to look is sent the rows the modem part keeps (`history_frame`, the last two minutes, each with its age), and from then on every row with a higher number than the
@@ -9,16 +9,15 @@ as soon as it has read, before any row), and a page that looks again after that 
 A page that looks again on the same socket (it was on another tab) holds what it was sent before: while the modem part still keeps the newest row it was sent and the one before it, it is sent the rows from those two on (by
 which it finds where they go on) instead of all of them again. Every history carries the daemon's clock, by which the page places the times the daemon writes.
 
-A radio's scope asked for by radio (`radio_scope`) is a feed of that radio's modem (`RadioScopes`): radio 2's modem of the process (the HF radio of before) in today's frames, the feed `hf_scope` shares, unless the page asks for frames
-that name the radio (`named`); every other radio's in frames that name it (`RADIO_KIND`: the kind, the radio's id, then today's frame whole). A feed is made when a page first asks for that radio, and follows that modem's
-rows from then on."""
+Each radio's scope is a feed of that radio's modem (`RadioScopes`), in frames that name the radio (`RADIO_KIND`: the kind, the radio's id, then the frame of neoaprs/mercuryscope.py whole). A feed is made when a
+page first asks for that radio, and follows that modem's rows from then on."""
 import struct
 import time
 from collections.abc import Callable
 
 from neoaprs.mercurymodem import Mercury
 from neoaprs.mercuryscope import KeptRow, history_frame, row_frame, scope_clock
-from neoaprs.radiospec import HF_ID, RadioId
+from neoaprs.radiospec import RadioId
 
 from .hub import BEHIND
 from .session import Connection
@@ -28,12 +27,12 @@ RADIO_HEADER = struct.Struct("<BI")      # the kind, and the radio's id as a lit
 
 
 def radio_header(radio: RadioId) -> bytes:
-    """What a frame of the radio's scope begins with, before today's frame."""
+    """What a frame of the radio's scope begins with, before the frame of neoaprs/mercuryscope.py."""
     return RADIO_HEADER.pack(RADIO_KIND, radio)
 
 
 def parse_radio_frame(frame: bytes) -> tuple[RadioId, bytes] | None:
-    """The radio's id and today's frame inside a frame that names its radio, or None for a frame of another kind (for the tests; the page has its own)."""
+    """The radio's id and the frame of neoaprs/mercuryscope.py inside a frame that names its radio, or None for a frame of another kind (for the tests; the page has its own)."""
     if len(frame) <= RADIO_HEADER.size or frame[0] != RADIO_KIND:
         return None
     return RADIO_HEADER.unpack_from(frame)[1], frame[RADIO_HEADER.size:]
@@ -42,7 +41,7 @@ def parse_radio_frame(frame: bytes) -> tuple[RadioId, bytes] | None:
 class ScopeFeed:
     def __init__(self, modem: Mercury, header: bytes = b"") -> None:
         self._modem = modem
-        self._header = header                            # what each frame begins with: nothing for today's frames, `radio_header` for frames that name their radio
+        self._header = header                            # what each frame begins with: `radio_header` of the radio the feed is of
         self._pages: dict[Connection, int] = {}          # each page that looks, and the number of the newest row it was sent or passed over
         self._sent: dict[Connection, int] = {}           # each page that was sent a row, and the number of the newest it was sent (it holds it), while it is on its socket
         self._stale: set[Connection] = set()             # the pages that look and were behind when the rows kept were forgotten: they are told before their next row
@@ -50,10 +49,6 @@ class ScopeFeed:
     @property
     def pages(self) -> int:
         return len(self._pages)
-
-    def follows(self, modem: object) -> bool:
-        """Whether this feed's rows are of that modem (`radio_scope` names a radio: the rows a page is sent are those of radio 2's modem, which the binary frames do not name)."""
-        return modem is self._modem
 
     def ask(self, conn: Connection, on: bool) -> None:
         """This page wants the rows (or no more of them). A page that has left meanwhile is not taken (its command ran after it closed: the command is a task, and the close came in the same read)."""
@@ -116,18 +111,15 @@ class ScopeFeed:
 
 
 class RadioScopes:
-    """The feeds of the radios' scopes asked for by radio (`radio_scope`): `hf`, radio 2's modem of the process in today's frames, and one feed in frames that name the radio for each other radio a page asked for (and for
-    radio 2 asked for so), each connected to its modem's rows while it is kept: `wire` connects a feed to its modem's signals, or lets go of them (neoaprs/web/topics.py, which connects)."""
+    """The feeds of the radios' scopes (`radio_scope`): one for each radio a page asked for, in frames that name the radio, each connected to its modem's rows while it is kept: `wire` connects a feed to its modem's
+    signals, or lets go of them (neoaprs/web/topics.py, which connects)."""
 
-    def __init__(self, hf: ScopeFeed, wire: Callable[[ScopeFeed, Mercury, bool], None]) -> None:
-        self.hf = hf
+    def __init__(self, wire: Callable[[ScopeFeed, Mercury, bool], None]) -> None:
         self._wire = wire
         self._feeds: dict[RadioId, tuple[ScopeFeed, Mercury]] = {}
 
-    def feed(self, radio: RadioId, modem: Mercury, named: bool) -> ScopeFeed:
-        """The feed of the radio's modem: today's for the modem `hf` follows, unless the frames are to name it; else the radio's own, made now (again when the radio's modem is another one)."""
-        if not named and self.hf.follows(modem):
-            return self.hf
+    def feed(self, radio: RadioId, modem: Mercury) -> ScopeFeed:
+        """The feed of the radio's modem, made now (again when the radio's modem is another one)."""
         held = self._feeds.get(radio)
         if held is None or held[1] is not modem:
             self._drop(radio)
@@ -136,20 +128,18 @@ class RadioScopes:
             held = self._feeds[radio] = (feed, modem)
         return held[0]
 
-    def stop(self, conn: Connection, radio: RadioId, named: bool) -> None:
-        """This page wants no more of the radio's rows, in the frames it asked for (today's for radio 2 unless `named`); a radio that is none any more stops all the same."""
-        if not named and radio == HF_ID:                                 # (radio 2 has the modem of the process, which `hf` follows)
-            self.hf.ask(conn, False)
-        elif (held := self._feeds.get(radio)) is not None:
+    def stop(self, conn: Connection, radio: RadioId) -> None:
+        """This page wants no more of the radio's rows; a radio that is none any more stops all the same."""
+        if (held := self._feeds.get(radio)) is not None:
             held[0].ask(conn, False)
 
     def forget(self, conn: Connection) -> None:
-        """The page left: every feed forgets it (`hf` is forgotten by its owner, as before)."""
+        """The page left: every feed forgets it."""
         for feed, _ in self._feeds.values():
             feed.forget(conn)
 
     def pages(self, radio: RadioId) -> int:
-        """How many pages look at the radio's rows in frames that name it."""
+        """How many pages look at the radio's rows."""
         held = self._feeds.get(radio)
         return 0 if held is None else held[0].pages
 

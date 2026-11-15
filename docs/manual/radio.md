@@ -11,7 +11,7 @@ The radio's port is the setting `serial/port`. In the Settings tab, in the Radio
 | a serial port | `/dev/ttyUSB0`, `/dev/brainbox_3`, `COM3` or a macOS `/dev/cu.*` port |
 | `socket://host:port` | KISS over TCP (`tcp://host:port` is accepted too), such as a bridge made with `ser2net`. Direwolf serves KISS on `socket://127.0.0.1:8001`, the sound-card modems of UZ7HO and QtSoundModem on 8100. It works with every TNC type |
 | `bt://AA:BB:CC:DD:EE:FF` | Linux only: a Bluetooth radio or TNC paired with the computer. `bt://AA:BB:CC:DD:EE:FF/2` names the RFCOMM channel. No `rfcomm bind` and no root |
-| `ble://AA:BB:CC:DD:EE:FF` | a Bluetooth LE KISS TNC (the Mobilinkd TNC4 in LE mode, the LoRa APRS tracker, the PicoAPRS V4 in its LE mode and the like). `ble://AA:BB:CC:DD:EE:FF/nus` names the profile (`mobilinkd` or `nus`) or a GATT service by its UUID. Needs the Bluetooth LE extra: `pip install 'neoaprs[ble]'` or `uv tool install 'neoaprs[ble]'`. On macOS the address is the UUID the system gives the device |
+| `ble://AA:BB:CC:DD:EE:FF` | a Bluetooth LE KISS TNC (the Mobilinkd TNC4 in LE mode, the LoRa APRS tracker, the PicoAPRS V4 in its LE mode and the like). `ble://AA:BB:CC:DD:EE:FF/nus` names the profile (`mobilinkd` or `nus`) or a GATT service by its UUID. The downloads have Bluetooth LE; an install with pip or uv needs its extra: `pip install 'neoaprs[ble]'` or `uv tool install 'neoaprs[ble]'`. On macOS the address is the UUID the system gives the device |
 
 The Port choice offers *find automatically* (empty), the ports the system lists, on Linux the paired Bluetooth devices that have a serial port (by name), and *Other...* for a path or a `socket://` or `ble://` address typed (a Bluetooth LE device is not listed: it is typed). **Refresh** asks again. Beside an automatic port it says `found: PORT` when NeoAPRS has found the radio before. On Windows and macOS pick the port from the list.
 
@@ -119,6 +119,25 @@ The **Radio type** *Dummy HF radio (no radio, made-up distant stations)* of the 
 - The status line says **Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air**, in the muted pill, and the Stations tab tags the stations HF and Dummy.
 - Every call is made up on the prefix Q, as the FM Dummy's are, so none of them is anybody's, however much its letters say where it is meant to be.
 
+## A LoRa APRS board
+
+A LoRa APRS board (an ESP32 board with a LoRa chip, running the CA2RXU iGate or Tracker, DL9SAU's tracker or esp32_loraprs) is a radio of the kind **LoRa**. Add it with **Add radio** and choose its type:
+
+| type | for | its settings |
+|---|---|---|
+| *LoRa APRS board on the network* (the default) | the CA2RXU iGate on WiFi: its TNC server, set to KISS | the board's address, which you type (until then nothing is opened), and port 8001 |
+| *LoRa APRS board on USB or Bluetooth* | the CA2RXU Tracker's TNC image, the CA2RXU iGate's TNC on USB, DL9SAU's tracker, esp32_loraprs | the port: a serial port, `bt://` or `ble://` |
+| *LoRa APRS iGate's log on USB* | the CA2RXU iGate on USB as it comes, its TNC off: it says every packet it hears, with its signal | the port. This radio only receives: nothing is sent on it, and every control that would send on it is refused or leaves it out |
+
+- **Set the board to KISS.** A board left in TNC2 text is heard and sends nothing; its status says "the board sends text lines: set it to KISS". A CA2RXU Tracker on classic Bluetooth is turned to KISS by NeoAPRS itself.
+- **On the CA2RXU iGate:** *LoRa Tx* on, or what you send goes nowhere; a callsign of its own, or *Accept own frames*; the *APRS bridge* off.
+- **The frequency and the LoRa settings** (433.775 MHz, SF12, 125 kHz in Europe) are set on the board, not here.
+- **What goes out:** our frames by WIDE1-1 when the radio's path is empty; the beacon at most every 30 minutes, with a random pause of up to 5 minutes; a frame over 250 bytes, 252 bytes of text or 256 bytes of KISS (its escapes counted) has its comment shortened, or is not sent. NeoAPRS repeats nothing on LoRa: the network's iGates do.
+- **The signal** of each packet shows where the board says it: the CA2RXU iGate on the network, DL9SAU's tracker, esp32_loraprs and the iGate's log. The CA2RXU Tracker says none.
+- A board on USB is never searched for: choose its port.
+
+[`docs/RADIOS.md`](../RADIOS.md) has each firmware's settings.
+
 ## The TNC type
 
 The setting `tnc/profile` says what kind of TNC the radio is. It decides what, if anything, is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached. A fresh install is `kiss`, which is sent nothing but KISS frames. A device that needs nothing is sent nothing.
@@ -130,7 +149,9 @@ The setting `tnc/profile` says what kind of TNC the radio is. It decides what, i
 | `kenwood-tnc2` | Kenwood TH-D7, TM-D700, TS-2000; TAPR TNC-2 and the MFJ-1270B/1274/1278 and PacComm clones | `\rKISS ON\rRESTART\r` (3 s) | `C0 FF C0` | yes |
 | `kenwood-d710` | Kenwood TM-D710A/E/G/GA/GE, TH-D72A/E | `TC 1` (1 s), `TN 2,0` (3 s), `HBAUD 1200` (1 s), `KISS ON` (1 s), `RESTART` (1 s), each ended by a carriage return | `C0 FF C0` | yes, and the check enters again with the whole sequence |
 | `kantronics` | Kantronics KPC-3+, KPC-3, KAM | `\rINTFACE KISS\rRESET\r` (3 s) | `C0 FF C0` | yes |
+| `tnc-text` | receive only: a Yaesu FTM-100, -300, -400 or -500 with its data port on Output PACKET, a TAPR TNC-2, Kantronics or PK-232 left in its own monitor mode | nothing, ever | nothing | no |
 
+- **RX only** (`tnc-text`): nothing at all is written to the line, not even a carriage return, and no frame is sent on the radio: it is never the main radio, a message's, the beacon's or an object's. The text the device prints of each packet it hears is read in every form a TNC-2, a Kantronics, a PK-232 and a Yaesu print, and a line of 7 bits with parity is recognised by itself. While it is the only radio on, nothing is sent and the header says RX only. What to set at the device once is in [`docs/RADIOS.md`](../RADIOS.md#rx-only-yaesu-ftm-tnc-text).
 - **A TNC that is not asked** (`kiss`, `kiss-tcp`): nothing is written to it but KISS frames. There is no entry, no keep-alive check and no silent state. The open line is all NeoAPRS can know of the radio.
 - A TNC in command mode that sends text is told in the radio status; it is not answered. The Kenwood TH-D74 and TH-D75 have no command mode at all and cannot be asked: put them in KISS at the radio.
 - **The wait after the last step** is the settle time. What the TNC says meanwhile is thrown away and no frame is sent.

@@ -7,7 +7,7 @@ import { MESSAGES_WIDE } from "@/lib/layout";
 import { conversations } from "@/lib/messages";
 import type { StationPref } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { attemptRow, configValues, incoming, message, radioRow, radiosTopic, station, table } from "@/test/fixtures";
+import { attemptRow, configValues, heardBy, incoming, message, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const rows = [
@@ -623,16 +623,16 @@ describe("MessagesPane, with more than one radio", () => {
     radioRow(6, "mercury", { name: "80 m", number: 3, state: "waiting" }),
   );
   const heard = [
-    message(1, { to_call: "OH2RDG", state: "acked", attempts: 1, attempts_detail: [attemptRow({ acked: true, radio: "", radio_id: 3 })] }),
+    message(1, { to_call: "OH2RDG", state: "acked", attempts: 1, attempts_detail: [attemptRow({ acked: true, radio_id: 3 })] }),
     incoming(2, "OH2RDG", { text: "Moi!", radio_id: 3, route: "via OH2RCH-2" }),
     incoming(3, "OH2DX", { text: "73", radio_id: 6, route: "direct" }),
   ];
   async function many(selected: string, at: number) {
     width.set(at);
     daemon = fakeDaemon({
-      config: configValues({ "fm/enabled": "true", "hf/enabled": "true" }),
+      config: configValues(),
       radios: six,
-      stations: table(station("OH2RDG", { radio_now: 3 }), station("OH2DX", { radio_now: 6, heard_fm: 0, heard_hf: 4 })),
+      stations: table(station("OH2RDG", { radio_now: 3 }), station("OH2DX", { radio_now: 6, heard: heardBy([2, 4, null]) })),
       fallbackPath: "WIDE1-1,WIDE2-1",
     });
     const props = {

@@ -22,7 +22,6 @@ import type {
   StationKey,
   StationPref,
   StationRow,
-  TncState,
   ReleaseNotesMessage,
   UpdateResultMessage,
   WeatherSeriesMessage,
@@ -38,7 +37,6 @@ import {
   hello,
   mapFile,
   mapState,
-  hfState,
   message,
   ownBulletin,
   ownObject,
@@ -46,7 +44,6 @@ import {
   radioRow,
   radioSearch,
   station,
-  tncState,
 } from "@/test/fixtures";
 
 function memory() {
@@ -72,8 +69,6 @@ function memory() {
     keys: new Map<string, StationKey>(),
     ownObjects: new Map<string, OwnObjectRow>(),
     ownBulletins: new Map<string, OwnBulletinRow>(),
-    tnc: null as TncState | null,
-    hf: null as TncState | null,
     config: null as unknown,
     map: null as unknown,
     update: null as unknown,
@@ -115,8 +110,6 @@ function memory() {
     replaceStationKeys: (rows) => (seen.keys = new Map(Object.entries(rows))),
     replaceOwnObjects: (rows) => (seen.ownObjects = new Map(Object.entries(rows))),
     replaceOwnBulletins: (rows) => (seen.ownBulletins = new Map(Object.entries(rows))),
-    replaceTnc: (v) => (seen.tnc = v),
-    replaceHf: (v) => (seen.hf = v),
     replaceConfig: (v) => (seen.config = v),
     replaceMap: (v) => (seen.map = v),
     replaceUpdate: (v) => (seen.update = v),
@@ -177,8 +170,6 @@ describe("Hub", () => {
     const { seen, socket } = opened();
     socket.say(state("stations", 0, { A: station("A") }));
     socket.say(state("packets", 0, { "1": packet(1) }));
-    socket.say(state("tnc", 0, tncState()));
-    socket.say(state("hf", 0, hfState({ state: "stopped" })));
     socket.say(state("config", 0, configValues()));
     socket.say(state("map", 0, mapState({ state: "ready", detail: mapFile() })));
     socket.say(state("messages", 0, { "4": message(4) }));
@@ -186,9 +177,6 @@ describe("Hub", () => {
     expect([...seen.messages.keys()]).toEqual(["4"]);
     expect([...seen.stations.keys()]).toEqual(["A"]);
     expect([...seen.packets.keys()]).toEqual(["1"]);
-    expect(seen.tnc?.state).toBe("connected");
-    expect(seen.hf?.state).toBe("stopped");
-    expect(seen.hf?.rules.kind).toBe("hf");
     expect(seen.config).toEqual(configValues());
     expect(seen.map).toEqual(mapState({ state: "ready", detail: mapFile() }));
     expect(seen.statuses).toBe(1);
@@ -239,9 +227,9 @@ describe("Hub", () => {
     );
     expect([...seen.stations.keys()]).toEqual(["A"]);
     expect(seen.stations.get("A")?.packets).toBe(9);
-    socket.say(state("tnc", 0, tncState()));
-    socket.say(patch("tnc", 1, [{ op: "replace", value: tncState({ state: "waiting" }) }]));
-    expect(seen.tnc?.state).toBe("waiting");
+    socket.say(state("map", 0, mapState()));
+    socket.say(patch("map", 1, [{ op: "replace", value: mapState({ state: "downloading" }) }]));
+    expect(seen.map).toEqual(mapState({ state: "downloading" }));
     socket.say(patch("stations", 6, [{ op: "replace", value: { Z: station("Z") } }]));
     expect([...seen.stations.keys()]).toEqual(["Z"]);
   });
@@ -276,7 +264,6 @@ describe("Hub", () => {
     expect([...seen.radios.keys()]).toEqual(["1", "2"]);
     socket.say(patch("radios", 3, [{ op: "replace", value: { "1": radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }) } }]));
     expect([...seen.radios.values()].map((row) => [row.id, row.removed])).toEqual([[1, true]]);
-    expect(seen.tnc).toBeNull();
   });
 
   it("hands the answer to weather_series to the store as it is", () => {
@@ -330,21 +317,30 @@ describe("Hub", () => {
     expect(seen.stationAlerts).toEqual([fired, fired]);
   });
 
-  it("asks the socket for binary frames as buffers and hands the rows of the waterfall and the rows kept in them to the store, the frames of another kind or size it lets go", () => {
+  it("asks the socket for binary frames as buffers and hands the rows of the waterfall and the rows kept in them to the store, the frames of another kind or size and those that name no radio it lets go", () => {
     const { seen, socket } = opened();
     expect(socket.binaryType).toBe("arraybuffer");
+    /** A frame of radio 2's scope, as the daemon sends it: the kind, the radio's id (little-endian), then the frame whole. */
+    const named = (inner: Uint8Array): Uint8Array => {
+      const out = new Uint8Array(5 + inner.length);
+      out[0] = 3;
+      new DataView(out.buffer).setUint32(1, 2, true);
+      out.set(inner, 5);
+      return out;
+    };
     const frame = new Uint8Array(3 + 307);
     frame.set([1, 1, 256 - 41, 0, 2, 255], 0);
-    socket.sayBytes(frame);
-    socket.sayBytes(Uint8Array.of(9, 0, 0));
-    socket.sayBytes(frame.subarray(0, 300));
+    socket.sayBytes(named(frame));
+    socket.sayBytes(frame); // (a frame that names no radio)
+    socket.sayBytes(named(Uint8Array.of(9, 0, 0)));
+    socket.sayBytes(named(frame.subarray(0, 300)));
     const kept = new Uint8Array(9 + 313);
     kept[0] = 2;
     new DataView(kept.buffer).setFloat64(1, 1_794_000_000_000, true);
     kept.set([0, 256 - 50, 120, 0, 0, 0], 9);
-    socket.sayBytes(kept);
-    socket.sayBytes(kept.subarray(0, 9));
-    socket.sayBytes(kept.subarray(0, 300));
+    socket.sayBytes(named(kept));
+    socket.sayBytes(named(kept.subarray(0, 9)));
+    socket.sayBytes(named(kept.subarray(0, 300)));
     expect(seen.histories.map(({ rows, clock }) => [clock, rows.map(({ row, age }) => [age, row.level])])).toEqual([
       [1_794_000_000_000, [[120, -50]]],
       [1_794_000_000_000, []],
@@ -386,7 +382,6 @@ describe("Hub", () => {
     expect(seen.ownObjects.get("LEADER")).toMatchObject({ sent: 3, state: "killing" });
     socket.say(patch("own_objects", 2, [{ op: "replace", value: { MARK: ownObject("MARK") } }]));
     expect([...seen.ownObjects.keys()]).toEqual(["MARK"]);
-    expect(seen.tnc).toBeNull();
     expect(seen.config).toBeNull();
   });
 
@@ -450,8 +445,8 @@ describe("Hub", () => {
   it("asks for a topic whose state it never had", () => {
     const { socket } = opened();
     socket.say({ type: "hello", protocol: PROTOCOL, version: "0.1", topics: [] });
-    socket.say(patch("tnc", 1, [{ op: "replace", value: tncState() }]));
-    expect(socket.sent).toEqual([{ cmd: "subscribe", topics: ["tnc"] }]);
+    socket.say(patch("map", 1, [{ op: "replace", value: mapState() }]));
+    expect(socket.sent).toEqual([{ cmd: "subscribe", topics: ["map"] }]);
   });
 
   it("hands an error to the store and ignores what it does not understand", () => {

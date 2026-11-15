@@ -341,6 +341,23 @@ def test_the_flat_keys_of_a_removed_radio_show_the_defaults_and_say_the_station_
     assert db("get", "mercury/keying", data=fm) == 0 and "this station has no HF radio; the default is shown" in capsys.readouterr().err, "and a station that never had one is told so too"
 
 
+def test_a_flat_key_of_a_removed_radio_names_the_radio_of_its_kind_the_station_has_now(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Radio 1 removed and an FM radio 3 on: `serial/port` is radio 3's `radio/3/port` now, which the refusal and the note say; never that the station has no FM radio."""
+    connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
+    third = insert_radio(connection, "fm", "kiss", "Base", True, 3)
+    remove_radio(connection, 1, "2026-11-14T10:00:00.000000Z")
+    connection.close()
+    capsys.readouterr()
+    assert db("set", "serial/port", "/dev/ttyUSB2", data=stored) == 2
+    err = capsys.readouterr().err
+    assert f"serial/port is a setting of radio 1, which this station has not; this station's FM radio is radio {third} (Base): it is radio/{third}/port now" in err and "has none" not in err, err
+    assert db("set", "fm/enabled", "false", data=stored) == 2 and f"it is radio {third}'s Enable (Settings tab, Radio) now" in capsys.readouterr().err
+    assert db("get", "serial/port", data=stored) == 0
+    err = capsys.readouterr().err
+    assert f"serial/port: radio 1 was removed; the default is shown; this station's FM radio is radio {third} (Base): it is radio/{third}/port now" in err and "has no FM radio" not in err, err
+    assert rows_of(stored, f"SELECT count(*) FROM radio_setting WHERE radio_id = {third}") == [(0,)], "nothing was stored"
+
+
 def test_a_radios_own_setting_stored_as_a_text_that_is_no_value_is_said_stored_with_its_default_in_force(stored: Path, capsys: pytest.CaptureFixture[str]) -> None:
     connection = sqlite3.connect(stored / DB_NAME, isolation_level=None)
     connection.execute("INSERT INTO radio_setting (radio_id, key, value) VALUES (1, 'baud', 'fast')")

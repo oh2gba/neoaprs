@@ -1,0 +1,27 @@
+{
+  "note": "A Yaesu FTM with Output PACKET: the header with the radio's stamp and <UI>, line feeds, then the information; the NMEA line (its checksum made up) gives no frame.",
+  "source": "the first pair is ygate's comment (ygate.py); the rest made up",
+  "real": false,
+  "frames": [
+    {
+      "source": "AA6I",
+      "destination": "APOTU0",
+      "path": [
+        "K6IXA-3*",
+        "VACA*",
+        "WIDE2*"
+      ],
+      "info": "/022047z3632.30N/11935.16Wk136/055/A=000300ENROUTE"
+    },
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2*",
+        "WIDE2-1"
+      ],
+      "info": "=6010.12N/02457.34E[/A=000052"
+    }
+  ],
+  "rejected": 0
+}

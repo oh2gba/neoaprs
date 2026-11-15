@@ -38,6 +38,8 @@ class SettingError(CodedError):
         self.key = key
 
 RECEIVE_ONLY = "receive only: transmitting is switched off"      # why can_transmit refuses while station/transmit is false (a refusal to the page has the code "transmit.off" and says "RX only: nothing is sent")
+LISTENS_ONLY = "receive only: no radio that is on can send"       # why it refuses while every enabled radio is one that only listens (to the page the same "transmit.off")
+RX_ONLY_REASONS = (RECEIVE_ONLY, LISTENS_ONLY)
 MAX_COMMENT = 43                     # what the comment of a position packet may be, with no data extension (spec 1517)
 MAX_COMMENT_PHG = 36                 # with the 7-byte PHG data extension (spec 1546)
 MIN_BEACON_INTERVAL_MIN = SETTING_MIN_MIN      # the shortest time between two beacons (the net cycle of a 2-hop path is 20 minutes, routine operation 30): the page offers 30 and 60 minutes and 3 hours; a stored lower value is raised to this, with a line in the log
@@ -389,7 +391,7 @@ DEFAULTS = Config()
 
 def can_transmit(config: Config) -> str | None:
     """The transmit interlock, the one place that decides it: None when this station may transmit, else the reason it may not. Nothing at all is transmitted while there is one: no beacon, status,
-    message, ack or answer to a query. Receive only (`station/transmit` false) is the first reason."""
-    if not config.station_transmit:
-        return RECEIVE_ONLY
+    message, ack or answer to a query. Receive only is the first reason: `station/transmit` false, or every enabled radio one that cannot send (`listens_only`)."""
+    if not config.station_transmit or config.listens_only:
+        return RECEIVE_ONLY if not config.station_transmit else LISTENS_ONLY
     return call_problem(config.station_call) or None

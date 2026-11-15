@@ -17,7 +17,7 @@ export interface RadioNames {
 }
 
 /** The word of each kind, as lib/radios.ts names a radio by it (its `KIND_WORDS`, which this file cannot import: lib/radios.ts imports this one). errortext.test.ts holds the two together. */
-const KIND_WORDS: Record<PageRadio["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.rf" };
+const KIND_WORDS: Record<PageRadio["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.lora" };
 
 /** The refusals whose `name` is the daemon's English name of the radio `radio`. (`radio.name_taken`'s `name` is the name typed, and its `radio` is the other radio: it is not one of them.) */
 const NAMES_A_RADIO: ReadonlySet<string> = new Set([
@@ -28,14 +28,17 @@ const NAMES_A_RADIO: ReadonlySet<string> = new Set([
   "radio.no_setting",
   "radio.not_connected",
   "radio.off",
+  "radio.receive_only",
   "radio.type_kind",
   "radio.unknown",
 ]);
 
+/** The port radio 1's search found last: told with the settings, and no setting of the operator's. */
+const LAST_PORT = "serial/last_port";
 /** What some sentences list and the daemon does not send in `params`, from the lists the daemon has given the page. */
 const LISTS: Params = {
   profiles: TNC_PROFILES.map((p) => p.key).join(", "),
-  settings: CONFIG_KEYS.join(", "),
+  settings: CONFIG_KEYS.filter((key) => key !== LAST_PORT).join(", "),
   forbidden: [...LIMITS.message.forbidden].join(" "),
   name_forbidden: [...LIMITS.object.nameForbidden].join(" "),
 };

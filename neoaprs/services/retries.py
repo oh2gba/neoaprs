@@ -98,7 +98,7 @@ class Retries:
     def tick(self) -> None:
         now = self._clock()
         shut = can_transmit(self._config()) is not None                       # (the interlock: receive only, no call)
-        radios = as_pick(self._given, self._config).enabled()
+        radios = as_pick(self._given, self._config).senders()
         for radio in radios:
             self._watch(radio, now, shut)
         if shut or not any(radio.usable for radio in radios):

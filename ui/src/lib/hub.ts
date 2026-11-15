@@ -92,8 +92,6 @@ export interface Store {
   replaceStationKeys(rows: Record<string, StationKey>): void;
   replaceOwnObjects(rows: Record<string, OwnObjectRow>): void;
   replaceOwnBulletins(rows: Record<string, OwnBulletinRow>): void;
-  replaceTnc(value: TopicValues["tnc"]): void;
-  replaceHf(value: TopicValues["hf"]): void;
   replaceConfig(value: TopicValues["config"]): void;
   replaceMap(value: TopicValues["map"]): void;
   replaceUpdate(value: TopicValues["update"]): void;
@@ -133,8 +131,6 @@ const REPLACERS: Record<TopicName, keyof Store> = {
   station_keys: "replaceStationKeys",
   own_objects: "replaceOwnObjects",
   own_bulletins: "replaceOwnBulletins",
-  tnc: "replaceTnc",
-  hf: "replaceHf",
   config: "replaceConfig",
   map: "replaceMap",
   update: "replaceUpdate",

@@ -8,7 +8,7 @@ import { setLocale } from "@/i18n";
 import { texts, type Message } from "@/i18n/message";
 import { TAB_IDS } from "@/lib/layout";
 import { open, tabButton, useAppHarness } from "@/test/app";
-import { configValues, status, tncState } from "@/test/fixtures";
+import { configValues, fmRow, hfRow, radiosValue, status } from "@/test/fixtures";
 
 useAppHarness();
 
@@ -52,11 +52,14 @@ describe("the page in the pseudo-locale", () => {
       setLocale("en-XA");
       localStorage.setItem("NeoAPRS.tab", tab);
       const { wrapper, socket } = await open();
-      socket.say({ type: "state", topic: "tnc", rev: 5, value: tncState({ state: "waiting", problem: "no radio found", describe: "waiting" }) });
+      const fm = fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } });
+      const hf = hfRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "HF", radio: 2 } } });
+      const off = fmRow({ enabled: false, state: "stopped" });
+      socket.say({ type: "state", topic: "radios", rev: 5, value: tab === "skeds" ? radiosValue(off, hf) : radiosValue(fm) }); // (the HF tests tab is there while an HF radio is on; one radio on, one Radio mark)
       socket.say({ type: "state", topic: "config", rev: 5, value: configValues({ "station/call": "" }) });
       socket.say(status({ update: { version: "9.9.9", message: "", url: "https://example.org/" } }));
       await flushPromises();
-      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1); // (no HF radio, no HF tests tab; a remembered one keeps its place until the daemon tells its radios)
+      expect(wrapper.findAll("[role='tab']").length).toBe(tab === "skeds" ? TAB_IDS.length : TAB_IDS.length - 1); // (no HF radio, no HF tests tab)
       expect(wrapper.findAll("[role='tab']").every((b) => b.text().startsWith("[!!"))).toBe(true);
       expect(wrapper.find(".appheader button.nocall").text()).toMatch(/^\[!! /);
       for (const mark of ["daemon", "radio"]) {

@@ -5,14 +5,12 @@ import { describe, expect, it } from "vitest";
 import { heardDirect, heardDirectRecently } from "@/lib/routes";
 import { directAt, listStations } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
-import { NOW, ago, station } from "@/test/fixtures";
+import { NOW, ago, heardBy, station } from "@/test/fixtures";
 
 /** Heard on the HF radio alone: every HF frame is direct, and HF carries no path. */
 const hfDirect = station("OH2HF", {
   heard_rf: 2,
-  heard_fm: 0,
-  heard_hf: 2,
-  last_hf_at: ago(120),
+  heard: heardBy([2, 2, ago(120)]),
   last_direct_at: null,
   last_direct_any_at: ago(120),
   heard_direct: 0,

@@ -128,14 +128,14 @@ jobs:
       - name: The version
         id: version
         run: echo "version=$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' neoaprs/__init__.py)" >> "$GITHUB_OUTPUT"
-      - name: Build environment, from the wheel and the locked dependencies with the extra app (pywebview, pystray, Pillow) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
+      - name: Build environment, from the wheel and the locked dependencies with the extras app (pywebview, pystray, Pillow) and ble (bleak, for a radio on Bluetooth LE) and PyInstaller of the group `pyinstaller`, every file by the hash the lock holds
         # PyInstaller from its source with the bootloader compiled here (the runner's MSVC), not the bootloader of the wheel, which every program packed with it shares, malware included: Windows
         # Defender's guess took NeoAPRS for a trojan (4 Nov 2026)
         env:
           PYINSTALLER_COMPILE_BOOTLOADER: "1"
         run: |
           uv build --wheel --out-dir dist-wheel
-          uv export --frozen --no-dev --no-emit-project --extra app --group pyinstaller -o build-requirements.txt
+          uv export --frozen --no-dev --no-emit-project --extra app --extra ble --group pyinstaller -o build-requirements.txt
           uv venv build-venv
           uv pip install --python build-venv/Scripts/python.exe --require-hashes --no-binary pyinstaller -r build-requirements.txt
           uv pip install --python build-venv/Scripts/python.exe --no-deps dist-wheel/*.whl

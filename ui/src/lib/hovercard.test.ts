@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hoverRows } from "@/lib/hovercard";
 import { pageRadios } from "@/lib/radios";
 import type { RadioRow, StationRow } from "@/protocol/protocol";
-import { NOW, ago, radioRow, radiosTopic, station, weather } from "@/test/fixtures";
+import { ago, heardBy, NOW, radioRow, radiosTopic, station, weather } from "@/test/fixtures";
 
 describe("hoverRows", () => {
   it("has when it was heard, how far and which way, and the route", () => {
@@ -64,11 +64,9 @@ describe("hoverRows with several radios", () => {
   });
 
   it("says FM and HF with their times for the two radios of the owner, and the words of today for the one radio", () => {
-    const both = station("OH2FMHF", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_fm_at: ago(180), last_hf_at: ago(60) });
+    const both = station("OH2FMHF", { heard_rf: 5, heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]) });
     const two = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
     expect(heardOn(both, two)).toBe("FM 3 min ago · HF 1 min ago");
-    expect(heardOn(both, { value: true })).toBe("FM 3 min ago · HF 1 min ago"); // (a caller that says only that the radios are named: the two radios of before)
-    expect(heardOn(both, false)).toBe("RF · HF");
     expect(heardOn(station("OH2RF"), two)).toBe("FM 1 min ago");
   });
 });

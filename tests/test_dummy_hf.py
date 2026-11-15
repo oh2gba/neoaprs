@@ -154,36 +154,36 @@ async def test_the_daemon_with_the_dummy_hf_radio_has_distant_stations_heard_on_
     would be heard, and hear, for real) and the Dummy HF radio runs without the sound: the made-up stations are heard all the same."""
     caplog.set_level(logging.INFO, logger="neoaprs.mercury")
     e = Env(tmp_path, radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30"})
-    e.ctl.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
+    e.mercury._finder = fakemercury.program                                 # (the program that stands in for Mercury: it keeps what its KISS port is given)
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     assert e.hf.is_dummy and e.hf.rules.kind == "hf" and not hf_is_mercury(e.ctl.config)
     radio = e.ctl.radios.get(HF_ID)
     assert radio is not None and radio.rtype.dummy and radio.rtype.driver == "mercury" and driver_key(radio.spec) == radio.driver_key == "mercury" and isinstance(radio.driver, MercuryDriver), "the modem's driver runs it: the program is its speaker"
-    assert radio.line is e.hf and radio.driver.modem is e.ctl.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
+    assert radio.line is e.hf and radio.driver.modem is e.mercury and e.ctl.radios.enabled() == [radio] and e.ctl.radios.main is radio and (radio.name, radio.max_frame) == ("HF", 123)
     speaking = hasattr(os, "mkfifo")
     if speaking:
-        assert e.ctl.mercury.speaker and e.ctl.mercury.state in ("starting", "running") and e.ctl.mercury.keying.kind == "vox" and e.ctl.mercury.sound_card == ""
+        assert e.mercury.speaker and e.mercury.state in ("starting", "running") and e.mercury.keying.kind == "vox" and e.mercury.sound_card == ""
         started = next(line for line in caplog.text.splitlines() if "Mercury started" in line)
-        assert (e.ctl.mercury.home / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
-        await until_started(lambda: e.ctl.mercury.speaker_line.open)
+        assert (e.mercury.home / "mercury-capture.fifo").exists() and "-x fifo" in started and "-P none" in started and "-m 1" in started, "Mercury runs on the fifo backend, paced by the daemon, where there are named pipes"
+        await until_started(lambda: e.mercury.speaker_line.open)
     else:
-        assert e.ctl.mercury.state == "stopped" and e.ctl.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
+        assert e.mercury.state == "stopped" and e.mercury.starts == 0 and "no named pipes" in caplog.text, "on Windows the speaker is not started, and the log says why"
     deadline = asyncio.get_running_loop().time() + 20.0                          # (real seconds: a slow runner needs more than 40 steps of 20 ms to play the made-up day; Windows CI heard 3 stations in that)
     while asyncio.get_running_loop().time() < deadline:
         e.now.advance(5)                                                         # type: ignore[attr-defined]
         await asyncio.sleep(0.05)
         heard = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]        # (the made-up stations; our own is in the book too, and counted it the wait ended one station early)
-        if len(heard) >= 4 and (not speaking or e.ctl.mercury.speaker_line.played >= 1):
+        if len(heard) >= 4 and (not speaking or e.mercury.speaker_line.played >= 1):
             break
     stations = [s for s in e.ctl.stationbook.stations() if s.call.startswith("Q")]
     assert len(stations) >= 4 and all(s.heard_hf > 0 and s.heard_fm == 0 for s in stations)
     if speaking:
-        assert e.ctl.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
-        await until_started(lambda: (e.ctl.mercury.home / fakemercury.BROADCAST_FILE).exists() and (e.ctl.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0)
+        assert e.mercury.speaker_line.played >= 1, "the beacon went to the speaker"
+        await until_started(lambda: (e.mercury.home / fakemercury.BROADCAST_FILE).exists() and (e.mercury.home / fakemercury.BROADCAST_FILE).stat().st_size > 0)
     assert e.ctl.config.serial_last_port == ""
     await e.stop()
-    assert e.ctl.mercury.state == "stopped"
+    assert e.mercury.state == "stopped"
 
 
 async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_nothing_of_it_reaches_the_air(tmp_path: Path, fast: None) -> None:
@@ -191,12 +191,12 @@ async def test_in_the_hf_world_a_dummy_station_hears_the_made_up_stations_and_no
     a = await w.add("OH2A")
     b = await w.add("OH2B", lat=61.5, lon=23.8)
     d = Env(tmp_path / "OH2D", radio=False, settings={"station/call": "OH2D", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30", "messages/alert": "false"})
-    d.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
+    d.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     await w.start()
     await d.start()
     await until_started(lambda: d.hf.state is Source.State.CONNECTED)
-    assert d.ctl.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy HF radio runs all the same"
-    assert d.ctl.hf_beacon.send_now("request")
+    assert d.mercury.state == "waiting" and d.hf.usable, "no Mercury: nothing to hear, the Dummy HF radio runs all the same"
+    assert d.beacon_2.send_now("request")
     for _ in range(30):
         d.now.advance(5)                                                         # type: ignore[attr-defined]
         await asyncio.sleep(0.02)
@@ -328,7 +328,7 @@ def test_the_speakers_audio_plays_again_after_a_stop_and_never_runs_two_clocks(t
 
 async def test_our_position_is_withheld_from_the_internet_while_any_radio_that_is_on_is_a_dummy_and_not_for_one_that_is_off(tmp_path: Path, fast: None) -> None:
     dummy = Env(tmp_path / "dummy", radio=False, settings={"fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf"})
-    dummy.ctl.mercury._finder = lambda: None
+    dummy.mercury._finder = lambda: None
     await dummy.start()
     assert dummy.ctl.igate.made_up(), "the Dummy HF radio, with the FM radio off"
     await dummy.stop()
@@ -346,7 +346,7 @@ async def test_a_dummy_hf_radio_that_stops_being_one_cancels_what_was_being_sent
     """John, 3 Nov 2026: message 490 to Q1KUO kept being retried on the real HF radio and held the channel. Nothing made up stays once a real radio is on: the radio got another type, or was switched off."""
     caplog.set_level(logging.INFO, logger="neoaprs")
     e = Env(tmp_path, radio=False, settings={"station/call": ME, "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
-    e.ctl.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
+    e.mercury._finder = lambda: None                                         # (no program at all: the speaker is a nice-to-have, and the dummy works without it)
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     for _ in range(400):

@@ -9,7 +9,6 @@ import { dateTimeText, agoWords, untilText } from "@/lib/format";
 import { beaconOff } from "@/lib/beaconoff";
 import { gpsProblem, gpsStateText, gpsStatus, isMoving, mobileBeaconText } from "@/lib/gpsstatus";
 import type { PageRadio, RadioId } from "@/lib/radios";
-import { FM_ID } from "@/lib/radiosides";
 import type { ConfigValues, GpsState, RadioBeaconState, StatusMessage } from "@/protocol/protocol";
 
 /** A radio the beacon goes out on, as its line behind the arrow says it: its name, its own beacon timer (the row of the topic `radios`) and whether it does SmartBeaconing (a moving station's beacon there follows the GPS, not an interval). */
@@ -47,7 +46,7 @@ function pick(times: readonly (string | null)[], later: boolean): string | null 
   return found.reduce((best, time) => (Date.parse(time) > Date.parse(best) === later ? time : best));
 }
 
-/** The beacons the daemon told. While several radios are on, the radios' own (`radios`, each its row's timer); else the status's: the FM radio's (`beacon_*`) and the HF radio's (`hf_beacon_*`, null while HF is off). The row's line is the latest beacon on any radio and the next due on any radio. */
+/** The beacons the daemon told. While several radios are on, the radios' own (`radios`, each its row's timer); else the status's (`beacon_*`: the latest on any radio and the next due on any). The row's line is the latest beacon on any radio and the next due on any radio. */
 function times(status: StatusMessage, radios: readonly BeaconRadio[]): { last: string | null; next: string | null } {
   if (radios.length > 0)
     return {
@@ -61,8 +60,8 @@ function times(status: StatusMessage, radios: readonly BeaconRadio[]): { last: s
       ),
     };
   return {
-    last: pick([status.beacon_last_sent, status.hf_beacon_last_sent], true),
-    next: pick([status.beacon_next_due, status.hf_beacon_next_due], false),
+    last: pick([status.beacon_last_sent], true),
+    next: pick([status.beacon_next_due], false),
   };
 }
 
@@ -133,16 +132,17 @@ function fixedBlock(status: StatusMessage | null, radios: readonly BeaconRadio[]
 }
 
 /** The block for the status the daemon last told (`status`), the GPS topic (`gps`), the settings in force (`values`), the time now and, while several radios are on, the radios the beacon goes out on (`radios`, none
- * while one is). A station moves when the daemon says its beacon follows the GPS, before it has told when the settings say so. */
+ * while one is); `receiveOnly`: nothing is sent (RX only, or no radio that is on can send: the page's `receiveOnly`). A station moves when the daemon says its beacon follows the GPS, before it has told when the settings say so. */
 export function beaconBlock(
   status: StatusMessage | null,
   gps: GpsState | null,
   values: Readonly<Record<string, string>>,
   nowMs: number,
   radios: readonly BeaconRadio[] = [],
+  receiveOnly = false,
 ): BeaconBlock {
   const moving = gps === null ? isMoving(values) : gps.mobile;
-  const rxOnly = values["station/transmit"] === "false";
+  const rxOnly = receiveOnly || values["station/transmit"] === "false";
   const quiet = rxOnly ? t("beacon.line.rx_only") : beaconOff(values) ? t("beacon.line.off") : "";
   if (moving) return movingBlock(gps, values, nowMs, quiet, radios);
   if (quiet) {
@@ -210,16 +210,13 @@ export interface PathRow {
   name: string | null;
 }
 
-/** The setting of a radio's path: radio 1, the FM radio of before, has it as `beacon/path` while the settings of before are there (until W3 takes them out); every other radio its own `radio/<id>/path`. */
-export const pathKey = (radio: Pick<PageRadio, "id" | "kind">): string =>
-  radio.id === FM_ID && radio.kind === "fm" ? "beacon/path" : radioKey(radio.id, "path");
+/** The setting of a radio's path: its own `radio/<id>/path`. */
+export const pathKey = (radio: Pick<PageRadio, "id">): string => radioKey(radio.id, "path");
 
-/** The Path rows: one for each radio that is on and may carry a path, named while several radios are on. Null when the one row is the station's `beacon/path` of a station with one radio, as it was. */
-export function pathRows(enabled: readonly PageRadio[]): PathRow[] | null {
+/** The Path rows: one for each radio that is on and may carry a path, named while several radios are on (one radio's row is "Path", as it was). */
+export function pathRows(enabled: readonly PageRadio[]): PathRow[] {
   const carrying = enabled.filter((radio) => radio.carriesPath);
   const several = enabled.length > 1;
-  const [only] = carrying;
-  if (!several && carrying.length === 1 && only !== undefined && pathKey(only) === "beacon/path") return null;
   return carrying.map((radio) => ({ key: pathKey(radio), radio: radio.id, name: several ? radio.name : null }));
 }
 

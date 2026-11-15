@@ -120,15 +120,15 @@ def test_a_station_whose_position_takes_no_messages_can_be_written_to_and_is_mar
 
 
 async def test_the_page_chooses_the_radio_of_a_station_and_its_row_says_it(tmp_path: Path) -> None:
-    e, page = await with_page(tmp_path, settings={"hf/enabled": "false"})              # (a station whose HF radio was set up: the page offers the choice only while both radios are on)
+    e, page = await with_page(tmp_path, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     e.feed(on_air("OH2GAX-2", b"=6015.42N/02447.93E-Otso"))
     await page.until(lambda: "OH2GAX-2" in page.topics["stations"])
-    assert page.topics["stations"]["OH2GAX-2"]["message_radio"] == ""
-    await page.send({"cmd": "message_radio", "call": "OH2GAX-2", "radio": "hf"})
-    await page.until(lambda: page.topics["stations"]["OH2GAX-2"]["message_radio"] == "hf")
-    await page.send({"cmd": "message_radio", "call": "OH2NOBODY", "radio": "hf"})
+    assert page.topics["stations"]["OH2GAX-2"]["radio_choice"] is None
+    await page.send({"cmd": "station_radio", "call": "OH2GAX-2", "radio": 2})
+    await page.until(lambda: page.topics["stations"]["OH2GAX-2"]["radio_choice"] == 2)
+    await page.send({"cmd": "station_radio", "call": "OH2GAX-2", "radio": 9})
     error = await page.expect("error")
-    assert error["code"] == "station.unknown"
+    assert error["code"] == "radio.unknown"
 
 
 def test_a_station_the_book_lets_go_takes_its_radio_along_and_a_restart_does_not_bring_it_back() -> None:

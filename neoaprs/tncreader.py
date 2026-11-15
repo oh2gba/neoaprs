@@ -1,11 +1,13 @@
 """What the Tnc makes of the bytes of one open line: the mode they show (a KISS stream, or the text of a TNC in command mode, tncmode.py), the entry into KISS when the TNC is in command mode, the settle time
 after it in which what the TNC says is thrown away, the repeats of the entry for a TNC that goes on typing (`EntryAgain`, tncwatchdog.py), and the KISS frames that are handed on. It holds the state of the reading
-that belongs to one open (`reset` starts it over); the `Tnc` (tnc.py) holds the line, the states and the words, and the keep-alive (tncwatchdog.py) asks for its `look_*` actions."""
+that belongs to one open (`reset` starts it over); the `Tnc` (tnc.py) holds the line, the states and the words, and the keep-alive (tncwatchdog.py) asks for its `look_*` actions. A LoRa board's line (a
+profile whose `board` is true) is read by its own reader (`board`, loraboard.py), which knows no command mode."""
 import asyncio
 import logging
-from typing import Protocol
+from typing import Any, Coroutine, Protocol
 
 from . import kiss
+from .loraboard import LoraBoard
 from .source import Source
 from .tncentry import KissEntry
 from .tncmode import Mode, ModeDetector, TextAfterKiss
@@ -24,22 +26,34 @@ class Line(Protocol):
     confirmed: bool
     watchdog: Watchdog
     problem: str
+    path: str
     _port: TncPort | None
     _entry: KissEntry
 
+    @property
+    def label(self) -> str: ...
     def _hear(self, then: str = "") -> None: ...
     def _note(self, text: str) -> None: ...
+    def _saw(self, text: str) -> None: ...
+    def _add_line(self, text: str) -> None: ...
+    def _reject(self) -> None: ...
     def _set_problem(self, text: str) -> None: ...
     def _handle(self, kiss_frame: kiss.KissFrame) -> None: ...
+    def _write(self, port: TncPort, data: bytes) -> bool: ...
+    def _spawn(self, coro: Coroutine[Any, Any, None]) -> "asyncio.Task[None]": ...
 
 
 class Reader:
     def __init__(self, tnc: Line) -> None:
         self._tnc = tnc
+        self.board: LoraBoard | None = None
         self.reset()
 
     def reset(self) -> None:
         """What belongs to one open of the line."""
+        if self.board is not None:
+            self.board.close()
+        self.board = LoraBoard(self._tnc) if self._tnc.profile.board else None      # (a LoRa board's line: its own reader)
         self.detector = ModeDetector()
         self.decoder = kiss.KissDecoder()
         self.dropped_seen = 0
@@ -56,6 +70,10 @@ class Reader:
         self.again.reset()
         self.detector.rearm()
 
+    def board_quiet(self) -> str:
+        """Why a LoRa board's line takes no frame now (it only receives, it sends text lines); "" when it takes one, and for any other line."""
+        return self.board.quiet() if self.board is not None else ""
+
     def command_mode_unanswered(self) -> bool:
         """Text from a TNC that the profile says may be in command mode, and no KISS frame since: nothing is sent to it."""
         return self._tnc.profile.detect_command_mode and self.told_text and not self.kiss_seen
@@ -68,6 +86,11 @@ class Reader:
         typed = self.typed.feed(chunk)                                   # (text since the latest FEND: after KISS frames, the radio was restarted)
         tnc.confirmed = True
         tnc.watchdog.heard()
+        if self.board is not None:
+            tnc._hear()
+            self.board.read(chunk)
+            self.kiss_seen = self.board.kiss_seen and not self.board.text_since_kiss
+            return
         mode = self._heard(port, chunk, loop_now)
         if loop_now < self.settle_until:
             return

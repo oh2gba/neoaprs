@@ -1,0 +1,16 @@
+{
+  "note": "The frame of tests/fixtures/ax25/mic_e.bin printed as its TNC2 text in Latin-1: its information holds 0x7F, 0x1C and 0x9F, and they pass. It is no decodable Mic-E (by KISS too it reads as 'bad symbol'): MICE_TH_D7 in tests/test_tnc2text.py is the position read at 8 and at 7 bits.",
+  "source": "generated from tests/fixtures/ax25/mic_e.bin",
+  "real": false,
+  "frames": [
+    {
+      "source": "OH2GBA-9",
+      "destination": "T7SYRS",
+      "path": [
+        "WIDE1-1*"
+      ],
+      "info": "`c5\u007f\u001c\u009f>/]\"4}Mic-E status"
+    }
+  ],
+  "rejected": 0
+}

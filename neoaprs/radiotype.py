@@ -30,6 +30,7 @@ class Limits:
     beacon_jitter_sec: int            # the longest random pause after a timed beacon (HF 300); 0: none
     retry_jitter_sec: int             # the longest pause before a retry of a message (HF 20); 0: none
     max_text: int | None = None       # the longest TNC2 text of a frame carried whole, where the air carries text (LoRa 252: its packet is a header of 3 bytes and the text); None: the air carries AX.25
+    max_kiss: int | None = None       # the longest KISS frame of ours its line takes, both FENDs, the command byte and the escapes counted (LoRa 256: a board's input of 255 bytes); None: no limit of its own
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class Can:
     scope: bool
     tx_gain: bool
     frequencies: bool                 # the suggested dials are shown in its box
+    transmit: bool = True             # it can send: False for a radio that only listens (the receive-only types: a TNC's text, a LoRa iGate's log), which no rule picks to send on and whose line is never written to
 
 
 @dataclass(frozen=True)

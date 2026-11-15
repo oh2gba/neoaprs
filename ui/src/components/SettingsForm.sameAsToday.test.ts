@@ -1,5 +1,6 @@
-// The two radios change the Radio group and nothing else (and the header's marks stay the same) for a station that has the FM radio alone: with `hf/enabled` false the groups of the Settings tab other than Radio, and the My station tab, draw the ids and the fields that the page drew before the HF radio
-// existed. The expectations below were taken from that page (the commit before the two radios: 43025c0) and are not to be edited to make a change pass.
+// The two radios change the Radio group and nothing else (and the header's marks stay the same) for a station that has the FM radio alone: with radio 1 alone the groups of the Settings tab other than Radio, and the My station tab, draw the ids and the fields that the page drew before the HF radio
+// existed. The expectations below were taken from that page (the commit before the two radios: 43025c0) and are not to be edited to make a change pass; what the radios' own settings changed is said where it is (the ids of radio 1's digipeater
+// and path are its own, `set-radio-1-digipeat` and `set-radio-1-path`; the header says the state of the radio's row in the page's words).
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import AppHeader from "@/components/AppHeader.vue";
@@ -7,7 +8,11 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import { headerPills, type Link } from "@/lib/pills";
 import type { Scope } from "@/lib/settings";
 import { fakeDaemon, withDaemon, type Given } from "@/test/context";
-import { NOW, configValues, hfState, igateState, tncState } from "@/test/fixtures";
+import { pageRadios } from "@/lib/radios";
+import type { RadioRow } from "@/protocol/protocol";
+import { NOW, configValues, fmRow, hfRow, igateState, radioRow, radiosTopic } from "@/test/fixtures";
+
+const pageRadiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
 
 afterEach(() => localStorage.clear());
 
@@ -20,7 +25,8 @@ interface Box {
 /** What each group other than Radio draws: its legends, the ids inside it (the generated ones, `v-N`, and the group body's own, left out) and how many fields. */
 function drawn(extra: Record<string, string>, scope: Scope, more: Given = {}): Record<string, Box> {
   localStorage.setItem("NeoAPRS.alert.mode", "both");
-  const daemon = fakeDaemon({ config: configValues({ "fm/enabled": "true", "hf/enabled": "false", ...extra }), ...more });
+  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  const daemon = fakeDaemon({ config: configValues(own(false), own(true)), ...more });
   const wrapper = mount(SettingsForm, { props: { scope }, global: withDaemon(daemon) });
   const out: Record<string, Box> = {};
   for (const group of wrapper.findAll("form > fieldset")) {
@@ -53,7 +59,7 @@ const NOTIFICATIONS = box(
 const only = (title: string, ids: string[]): Box => box(ids, ids.length, [title]);
 const SETTINGS_TAB = {
   "Internet stations": only("Internet stations", ["set-igate-enabled"]),
-  Digipeater: only("Digipeater", ["set-digi-enabled"]),
+  Digipeater: only("Digipeater", ["set-radio-1-digipeat"]),
   "Web page": only("Web page", ["set-web-network"]),
   Notifications: NOTIFICATIONS,
   Map: only("Map", ["set-map-radius_km"]),
@@ -69,35 +75,34 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
   });
 
   it("draw them so with the Digipeater, the iGate and the network on, and the radio's states told", () => {
-    const busy = { "digi/enabled": "true", "igate/enabled": "true", "web/network": "true", "web/key": "abc", "web/https": "true", "map/radius_km": "50" };
-    expect(drawn(busy, "settings", { tnc: tncState(), igate: igateState() })).toEqual({
+    const busy = { "radio/1/digipeat": "true", "igate/enabled": "true", "web/network": "true", "web/key": "abc", "web/https": "true", "map/radius_km": "50" };
+    expect(drawn(busy, "settings", { igate: igateState() })).toEqual({
       ...SETTINGS_TAB,
       "Web page": box(["set-web-network", "set-web-key", "set-web-https"], 3, ["Web page"]),
     });
   });
 
-  it("draw the My station tab as before, with and without the radio's state", () => {
+  it("draw the My station tab as before", () => {
     const fixed = {
       Station: box(STATION, 4, ["Station"]),
-      Beacon: box(["set-beacon-interval_min", "set-station-comment", "set-beacon-power_w", "set-beacon-path"], 4, ["Beacon"]),
+      Beacon: box(["set-beacon-interval_min", "set-station-comment", "set-beacon-power_w", "set-radio-1-path"], 4, ["Beacon"]),
       Status: box(["set-status-source"], 1, ["Status"]),
     };
     expect(drawn({}, "beacon")).toEqual(fixed);
-    expect(drawn({}, "beacon", { tnc: tncState() })).toEqual(fixed);
   });
 
   it("draw the My station tab of a moving station as before", () => {
-    expect(drawn({ "gps/source": "serial", "beacon/power_w": "5", "status/source": "rigctld" }, "beacon", { tnc: tncState() })).toEqual({
+    expect(drawn({ "gps/source": "serial", "beacon/power_w": "5", "status/source": "rigctld" }, "beacon")).toEqual({
       Station: box(["set-station-call", "set-station-call-ssid", "set-gps-source", "set-gps-device", "set-gps-baud", "set-station-symbol-change"], 5, [
         "Station",
       ]),
-      Beacon: box(["set-beacon-interval_min", "set-beacon-travel", "set-station-comment", "set-beacon-path"], 4, ["Beacon"]),
+      Beacon: box(["set-beacon-interval_min", "set-beacon-travel", "set-station-comment", "set-radio-1-path"], 4, ["Beacon"]),
       Status: box(["set-status-source"], 1, ["Status"]),
     });
   });
 
   it("draw the My station tab of a fixed station with a power as before: the antenna and the path", () => {
-    expect(drawn({ "beacon/power_w": "5", "beacon/interval_min": "0" }, "beacon", { tnc: tncState() })).toEqual({
+    expect(drawn({ "beacon/power_w": "5", "beacon/interval_min": "0" }, "beacon")).toEqual({
       Station: box(STATION, 4, ["Station"]),
       Beacon: box(
         [
@@ -107,7 +112,7 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
           "set-beacon-antenna_height_m",
           "set-beacon-antenna_gain_db",
           "set-beacon-antenna_direction",
-          "set-beacon-path",
+          "set-radio-1-path",
         ],
         7,
         ["Beacon"],
@@ -121,7 +126,7 @@ describe("the Settings tab and the My station tab with the FM radio alone", () =
 describe("the header with the FM radio alone", () => {
   const marks = (link: Link, values: Record<string, string> = {}) => {
     const wrapper = mount(AppHeader, {
-      props: { call: "OH2GBA", unread: 0, pills: headerPills({ "fm/enabled": "true", "hf/enabled": "false", ...values }, null, null, null, link) },
+      props: { call: "OH2GBA", unread: 0, pills: headerPills(values, null, null, null, link) },
     });
     return wrapper.findAll(".headpills .tag").map((m) => [
       m.element.tagName,
@@ -133,7 +138,7 @@ describe("the header with the FM radio alone", () => {
         .join(" "),
     ]);
   };
-  const open = { connection: "open", tnc: tncState(), hf: null, now: NOW, inApp: false } as const;
+  const open: Link = { connection: "open", radios: pageRadiosOf(fmRow()), now: NOW, inApp: false };
 
   it("is the Server mark and the one Radio mark, mint while connected, whether the HF radio's topic is there or not", () => {
     const today = [
@@ -141,22 +146,21 @@ describe("the header with the FM radio alone", () => {
       ["BUTTON", "Radio", "Radio connected. Settings → Radio", "tag-ok pill-radio"],
     ];
     expect(marks(open)).toEqual(today);
-    expect(marks({ ...open, hf: hfState({ state: "stopped" }) })).toEqual(today);
+    expect(marks({ ...open, radios: pageRadiosOf(fmRow(), hfRow({ enabled: false, state: "stopped" })) })).toEqual(today);
   });
 
-  it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching, entering KISS", () => {
-    const radio = (tnc: Parameters<typeof tncState>[0] | null, extra: Partial<Link> = {}) =>
-      marks({ ...open, tnc: tnc === null ? null : tncState(tnc), ...extra })[1];
+  it("is the Radio mark on the warn plate with the state in words, as it was: waiting, silent, not connected, searching", () => {
+    const radio = (row: Parameters<typeof fmRow>[0] | null) => marks({ ...open, radios: row === null ? [] : pageRadiosOf(fmRow(row)) })[1];
     expect(radio(null)).toEqual(["BUTTON", "Radio: waiting…", "No word from the TNC yet. Settings → Radio", "tag-warn pill-radio"]);
-    expect(radio({ state: "waiting", problem: "no radio found" })).toEqual([
+    // (the daemon's English reason of before is the log's: the title says the state in the page's words; "entering KISS" is no state of a radio's row)
+    expect(radio({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM" } } })).toEqual([
       "BUTTON",
       "Radio: not connected",
-      "no radio found. Settings → Radio",
+      "Not connected. Settings → Radio",
       "tag-warn pill-radio",
     ]);
-    expect(radio({ state: "connecting", problem: "", describe: "listening on /dev/ttyUSB0 for the radio" })?.[1]).toBe("Radio: searching…");
-    expect(radio({ state: "connecting", problem: "", describe: "/dev/ttyUSB0 at 9600, entering KISS" })?.[1]).toBe("Radio: entering KISS…");
-    expect(radio({ dummy: true })).toEqual([
+    expect(radio({ state: "connecting", problem: { code: "radio.searching", params: {} } })?.[1]).toBe("Radio: searching…");
+    expect(marks({ ...open, radios: pageRadiosOf(radioRow(1, "dummy")) })[1]).toEqual([
       "BUTTON",
       "Radio",
       "Dummy radio: made-up traffic, nothing goes on the air. Settings → Radio",

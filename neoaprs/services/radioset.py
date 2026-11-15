@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any, Protocol
 
-from neoaprs import TOCALL, ax25
+from neoaprs import TOCALL, ax25, kiss
 from neoaprs.callsign import CallsignError
 from neoaprs.config import Config
 from neoaprs.message import path_choice
@@ -68,6 +68,9 @@ class AirRadio(Protocol):
 class RadioPick(Protocol):
     def get(self, id: RadioId) -> AirRadio | None: ...
     def enabled(self) -> Sequence[AirRadio]: ...
+    def senders(self) -> Sequence[AirRadio]:
+        """The enabled radios that can send, by position: a receive-only radio is never one."""
+        ...
     @property
     def main(self) -> AirRadio | None: ...
     def for_station(self, call: str) -> AirRadio | None: ...
@@ -108,11 +111,13 @@ def fixed_prefix(info: bytes) -> int:
     return min(len(info), end)
 
 
-def fit_frame(frame: ax25.Frame, max_frame: int | None, max_text: int | None = None) -> ax25.Frame:
-    """The frame, with its information field cut from the end so that the radio carries it whole (`max_frame` bytes of AX.25, and `max_text` bytes of TNC2 text where its air carries text), as it is when it
-    fits or there is no limit. The report itself (`fixed_prefix`) is never cut: ValueError when the frame would still be too long without any of its comment."""
+def fit_frame(frame: ax25.Frame, max_frame: int | None, max_text: int | None = None, max_kiss: int | None = None) -> ax25.Frame:
+    """The frame, with its information field cut from the end so that the radio carries it whole (`max_frame` bytes of AX.25, `max_text` bytes of TNC2 text where its air carries text, and `max_kiss` bytes
+    of KISS where its line counts the escapes), as it is when it fits or there is no limit. The report itself (`fixed_prefix`) is never cut: ValueError when the frame would still be too long without any of
+    its comment. (A byte cut from the information shortens the KISS frame by one or two: cutting what is over is enough.)"""
     overs = [(len(ax25.encode(frame)) - max_frame, max_frame, "")] if max_frame is not None else []
     overs += [(len(text_of(frame)) - max_text, max_text, " of text")] if max_text is not None else []
+    overs += [(len(kiss.encode(ax25.encode(frame))) - max_kiss, max_kiss, " in KISS")] if max_kiss is not None else []
     over, limit, what = max(overs, default=(0, 0, ""))
     if over <= 0:
         return frame
@@ -140,9 +145,31 @@ def fit(radio: AirRadio, config: Config, info: bytes, path: tuple[str, ...] | No
         raise SendError(f"the information field is {len(info)} bytes, more than the {ax25.MAX_INFO} AX.25 allows")
     try:
         frame = our_frame(config, path_on(radio, config, path), info)
-        fitted = fit_frame(frame, radio.max_frame, radio.limits.max_text)
+        fitted = fit_frame(frame, radio.max_frame, radio.limits.max_text, radio.limits.max_kiss)
     except FRAME_ERRORS as e:
         raise SendError(str(e)) from None
     if fitted is not frame:
         log.warning("%s: a frame of ours is %d bytes more than the radio carries (%d): its comment is cut: %s", radio.name, len(ax25.encode(frame)) - len(ax25.encode(fitted)), radio.max_frame, fitted.tnc2())
     return fitted
+
+
+def sends(pick: RadioPick, radio: AirRadio) -> bool:
+    """Whether the radio is one of those that can send now (`senders`: enabled, of a type that can transmit)."""
+    return any(r.id == radio.id for r in pick.senders())
+
+
+def ack_radio(pick: RadioPick, packet: Packet, call: str) -> AirRadio | None:
+    """The radio an ack to a message (`packet`, from `call`) goes back on: the one it came on (`for_packet`) while that one can send; else the radio a message to the station goes on (`for_station`, which
+    only picks radios that send), so that a station heard on a receive-only radio alone is acked all the same and stops sending the message again; None while no radio can send."""
+    came = pick.for_packet(packet)
+    return came if came is None or sends(pick, came) else pick.for_station(call)
+
+
+def answerable(pick: RadioPick, packet: Packet) -> bool:
+    """Whether a question heard in the packet (on the air) is to be taken: not when the radio it came on sends nothing, so that this copy is neither answered nor noted, and the copy a radio that sends hears
+    is the one taken."""
+    came = pick.for_packet(packet)
+    if came is None or sends(pick, came):
+        return True
+    log.debug("a query of %s is not answered: heard on %s, a radio that sends nothing", packet.sender, came.name)
+    return False

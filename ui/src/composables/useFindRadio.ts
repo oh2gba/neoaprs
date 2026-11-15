@@ -2,14 +2,13 @@
 // code (nothing answered, no port to try). The page shows it in one toast (FindRadioToast) while it runs, with Cancel. A radio that was found goes into the settings like any other change (the Undo toast follows it), or is said in a
 // notice when the settings have it already, also from the setup guide's Radio step, which is live as the Settings tab is (plan section 6). The search ends for the page when the socket closes: the daemon ends it when its page has gone.
 // The search is for one radio: the one whose box the button is in (`start` with its id, or with the click of a button inside the box, whose element says the radio: `data-radio`, and its name where several radios are named,
-// `data-radio-name`, and its type, `data-radio-type`), else radio 1, the FM radio of before, as the command without a radio means. One search runs at a time, so every box's button waits while one does; the toast names the radio where several are named, and
-// what is found goes into that radio's own settings (`radio/<id>/port`, its type by `radio_change`), radio 1's into the settings of before.
+// `data-radio-name`, and its type, `data-radio-type`), else radio 1, as the command without a radio means. One search runs at a time, so every box's button waits while one does; the toast names the radio where several are named, and
+// what is found goes into that radio's own settings (`radio/<id>/port`, its type by `radio_change`).
 import { computed, ref, shallowRef, watch, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import type { Settings } from "@/composables/useSettings";
 import { t } from "@/i18n";
 import type { Connection } from "@/lib/hub";
-import { FM_ID } from "@/lib/radiosides";
 import type { RadioId } from "@/lib/radios";
 import type { Command, ConfigValues, RadioSearchMessage } from "@/protocol/protocol";
 
@@ -20,6 +19,8 @@ interface Target {
   type: string;
 }
 const NONE: Target = { id: null, name: "", type: "" };
+/** The radio a search that names none is for (the command without a radio): radio 1. */
+const FIRST: RadioId = 1;
 
 /** The radio of the box a press came from: the id the caller gives, else the one its element says (the box's `data-radio`, with `data-radio-name`); none for a press outside a radio's box. */
 function targetOf(given: RadioId | Event | undefined): Target {
@@ -29,17 +30,10 @@ function targetOf(given: RadioId | Event | undefined): Target {
   return Number.isInteger(id) && id > 0 ? { id, name: box?.dataset["radioName"] ?? "", type: box?.dataset["radioType"] ?? "" } : NONE;
 }
 
-/** What a found radio makes of the settings of a radio other than radio 1: its own port and, for a port that has a speed, its own speed. */
+/** What a found radio makes of the radio's settings: its own port and, for a port that has a speed, its own speed. */
 function foundOwn(found: RadioSearchMessage, id: RadioId): Record<string, string> {
   const values: Record<string, string> = { [`radio/${id}/port`]: found.port };
   if (found.baud !== null) values[`radio/${id}/baud`] = String(found.baud);
-  return values;
-}
-
-/** What a found radio makes of the settings: the port, the type of TNC and, for a port that has a speed, the speed. */
-export function foundSettings(found: RadioSearchMessage): Record<string, string> {
-  const values: Record<string, string> = { "tnc/profile": found.profile, "serial/port": found.port };
-  if (found.baud !== null) values["serial/baud"] = String(found.baud);
   return values;
 }
 
@@ -76,9 +70,8 @@ export function useFindRadio(
   }
 
   function found(message: RadioSearchMessage): void {
-    const id = target.value.id;
-    if (id === null || id === FM_ID) return put(foundSettings(message), message.port);
-    const type = message.radio_type || message.profile; // (a radio other than radio 1: its type, when the TNC found is of another, then its own port and speed)
+    const id = target.value.id ?? FIRST;
+    const type = message.radio_type; // (its type, when the TNC found is of another, then its own port and speed)
     if (type !== "" && type !== target.value.type) send({ cmd: "radio_change", radio: id, type });
     put(foundOwn(message, id), message.port);
   }
@@ -114,12 +107,12 @@ export function useFindRadio(
     step.value = null;
     target.value = targetOf(radio);
     const id = target.value.id;
-    running.value = send(id === null || id === FM_ID ? { cmd: "find_radio" } : { cmd: "find_radio", radio: id });
+    running.value = send(id === null ? { cmd: "find_radio" } : { cmd: "find_radio", radio: id });
   }
 
   function cancel(): void {
     const id = target.value.id;
-    if (running.value) send(id === null || id === FM_ID ? { cmd: "find_radio_cancel" } : { cmd: "find_radio_cancel", radio: id });
+    if (running.value) send(id === null ? { cmd: "find_radio_cancel" } : { cmd: "find_radio_cancel", radio: id });
   }
 
   return { running, text, start, cancel };

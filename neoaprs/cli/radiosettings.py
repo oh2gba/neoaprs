@@ -12,7 +12,7 @@ from neoaprs.config import BY_KEY, DEFAULTS, LAST_PORT, SETTINGS, Config
 from neoaprs.configradios import FLAT_HOMES, FLAT_KINDS, radio_key_of
 from neoaprs.dberror import Connection, Row
 from neoaprs.migrations import schema_version
-from neoaprs.radiospec import RadioId, RadioSpec
+from neoaprs.radiospec import KIND_WORDS, RadioId, RadioSpec, log_name
 from neoaprs.radiosql import radio_rows, radio_settings
 from neoaprs.radiotype import RadioType, RadioTypeError, stored_text
 from neoaprs.radiotypes import kind_fields
@@ -56,6 +56,16 @@ def flat_home(key: str, radios: Iterable[RadioSpec]) -> tuple[RadioId, str, Radi
         return None
     id, own = FLAT_HOMES[setting.attr]
     return id, own, next((s for s in specs if s.id == id and s.kind == FLAT_KINDS[id] and not s.removed), None)
+
+
+def now_on(id: RadioId, own: str, specs: Sequence[RadioSpec]) -> str:
+    """Where the flat key of radio `id`, which the station has not (`flat_home`), is now: the own key (`radio/3/port`), the Enable or the type of the station's first radio of that kind by position that is not
+    removed, as the end of a sentence; "" for a station with no radio of the kind."""
+    other = next((s for s in sorted(specs, key=lambda s: s.position) if s.id != id and s.kind == FLAT_KINDS[id] and not s.removed), None)
+    if other is None:
+        return ""
+    where = f"radio {other.id}'s {'Enable' if own == 'enabled' else 'type'} (Settings tab, Radio)" if own in ("type", "enabled") else f"radio/{other.id}/{own}"
+    return f"; this station's {KIND_WORDS[FLAT_KINDS[id]]} radio is radio {other.id} ({log_name(other, specs)}): it is {where} now"
 
 
 def stored_text_of(key: str, rows: Mapping[str, str], radios: Sequence[RadioSpec], own_rows: Mapping[tuple[RadioId, str], str]) -> str | None:
@@ -119,7 +129,7 @@ def reached(spec: RadioSpec) -> list[tuple[str, str]]:
         speed = spec.value("baud") or profile_baud(rtype) or 9600
         return [("Port", spec.value("port") or "(found by searching)"), ("Speed", f"{speed} baud")]
     if rtype.transport == "tcp":
-        return [("Port", f"{spec.value('tcp_host')}:{spec.value('tcp_port')}")]
+        return [("Port", f"{spec.value('tcp_host')}:{spec.value('tcp_port')}" if spec.value("tcp_host") else "(no address chosen)")]
     if rtype.transport == "modem":
         return [("Sound card", spec.value("sound_card") or "(the daemon's choice)"), ("Keying", spec.value("keying") or "(the daemon's choice)")]
     return [("Traffic", "made up: nothing goes on the air")]

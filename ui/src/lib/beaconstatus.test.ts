@@ -221,7 +221,7 @@ describe("beaconBlock with several radios", () => {
     const fm = beaconBlock(timed(), gpsOff(), {}, NOW);
     expect([fm.radios, fm.line]).toEqual([[], "Last beacon 4 min ago · next in 56 min (every 60 min)"]);
     const hf = beaconBlock(
-      status({ beacon_interval_min: 30, hf_beacon_last_sent: ago(120), hf_beacon_next_due: later(29 * 60) }),
+      status({ beacon_interval_min: 30, beacon_last_sent: ago(120), beacon_next_due: later(29 * 60) }),
       gpsOff(),
       { "fm/enabled": "false", "hf/enabled": "true" },
       NOW,
@@ -294,18 +294,17 @@ describe("the radios of the Beacon group", () => {
     expect(sendOnTicks(radios, () => false, null).some((tick) => tick.on || tick.last)).toBe(false);
   });
 
-  it("have a Path row for each radio that is on and may carry a path, named while several are on; one radio's is the one row of before", () => {
-    expect(pathRows([fm(1)])).toBeNull();
+  it("have a Path row for each radio that is on and may carry a path, named while several are on", () => {
+    expect(pathRows([fm(1)])).toEqual([{ key: "radio/1/path", radio: 1, name: null }]);
     expect(pathRows([hf(2)])).toEqual([]);
-    expect(pathRows([fm(1), hf(2)])).toEqual([{ key: "beacon/path", radio: 1, name: "FM" }]);
+    expect(pathRows([fm(1), hf(2)])).toEqual([{ key: "radio/1/path", radio: 1, name: "FM" }]);
     expect(pathRows([fm(1), hf(2), fm(3, { number: 2 })])).toEqual([
-      { key: "beacon/path", radio: 1, name: "FM" },
+      { key: "radio/1/path", radio: 1, name: "FM" },
       { key: "radio/3/path", radio: 3, name: "FM 2" },
     ]);
     expect(pathRows([fm(3)])).toEqual([{ key: "radio/3/path", radio: 3, name: null }]);
     expect(pathRows([pageRadio(radioRow(1, "mercury")), fm(4)])).toEqual([{ key: "radio/4/path", radio: 4, name: "FM 4" }]);
-    expect(pathKey({ id: 1, kind: "fm" })).toBe("beacon/path");
-    expect(pathKey({ id: 1, kind: "hf" })).toBe("radio/1/path");
+    expect(pathKey({ id: 1 })).toBe("radio/1/path");
   });
 
   it("read a radio's own setting in the settings' values once they hold it, else in radio_values", () => {

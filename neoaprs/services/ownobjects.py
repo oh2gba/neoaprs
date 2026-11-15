@@ -195,7 +195,7 @@ class OwnObjects(Repeater[str]):
         radios = self._sender.radios_for(obj.radios)
         if obj.alive or not (went := self._went.get(obj.name, set()) - {radio.id for radio in radios}):
             return radios
-        return radios + [radio for radio in self._sender.radios.enabled() if radio.id in went]
+        return radios + [radio for radio in self._sender.radios.senders() if radio.id in went]
 
     # ---- incoming
     def on_packet(self, packet: Packet) -> None:

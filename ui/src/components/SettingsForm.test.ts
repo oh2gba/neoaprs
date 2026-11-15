@@ -3,14 +3,20 @@ import { afterEach, describe, expect, it } from "vitest";
 import SettingsForm from "@/components/SettingsForm.vue";
 import type { Scope } from "@/lib/settings";
 import { CONFIG_KEYS } from "@/protocol/lists";
-import type { PortsMessage } from "@/protocol/protocol";
+import type { PortsMessage, RadioRow } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapFile, mapState, status, toastOf, portRow } from "@/test/fixtures";
+import { configValues, mapFile, mapState, radioRow, radiosTopic, status, toastOf, portRow } from "@/test/fixtures";
+
+/** The settings of the fixtures with `extra` over them, a radio's own keys (`radio/1/port`) among the radios' values. */
+function cfg(extra: Record<string, string> = {}) {
+  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  return configValues(own(false), own(true));
+}
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
-  const daemon = fakeDaemon({ config: configValues(extra), ...more });
+  const daemon = fakeDaemon({ config: cfg(extra), ...more });
   const wrapper = mount(SettingsForm, { props: { scope }, global: withDaemon(daemon) });
   return { wrapper, send: daemon.send, daemon };
 }
@@ -40,8 +46,7 @@ describe("SettingsForm", () => {
     const { wrapper } = make();
     expect(wrapper.findAll("fieldset legend").map((l) => l.text())).toEqual([
       "Radio",
-      "FM radio", // (the two radios' boxes are in the Radio group)
-      "HF radio",
+      "FM radio", // (the radio's box is in the Radio group)
       "Internet stations",
       "Digipeater",
       "Web page",
@@ -66,13 +71,6 @@ describe("SettingsForm", () => {
     ]);
     const beacons = ["beacon/", "station/", "status/", "gps/", "hf/"]; // (the My station tab's)
     const elsewhere = [
-      "tcp/host", // (only for a TNC reached over TCP)
-      "tcp/port",
-      "mercury/sound_card", // (only while the HF radio is ticked)
-      "mercury/keying",
-      "mercury/tx_gain_db", // (the Transmit level row of the HF radio's box, with its Tune)
-      "fm/enabled", // (the tickboxes of the two radios are counted below)
-      "hf/enabled",
       "web/key",
       "web/https",
       "serial/last_port",
@@ -89,16 +87,17 @@ describe("SettingsForm", () => {
     ];
     expect(wrapper.findAll(".field")).toHaveLength(
       CONFIG_KEYS.filter((k) => !beacons.some((prefix) => k.startsWith(prefix)) && !elsewhere.includes(k)).length +
-        2 + // (the Enable tickboxes of the FM radio and the HF radio, the settings fm/enabled and hf/enabled: two fields of the Radio group, one in each box)
+        1 + // (the radio's Enable, the first row of its box)
+        3 + // (the radio's own fields behind its status: its type, its port and its speed)
+        1 + // (the radio's digipeater in the Digipeater group, radio/1/digipeat)
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
         1 + // (Language)
-        1 + // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list")
-        2, // (the Name of each of the two boxes: plan section 6, "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed")
+        1, // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list"; one radio has no Name and no main radio)
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
-    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false); // (one radio on, the HF radio off: no main radio; plan section 6 decision 4)
+    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false); // (one radio: no main radio; plan section 6 decision 4)
   });
 
   it("has no field for what is fixed or left to the shell: the log time, the daily update check, the page's port and host names", () => {
@@ -433,33 +432,33 @@ describe("SettingsForm", () => {
       const advanced = folds(wrapper)[1];
       expect(advanced?.findAll(".field > label").map((l) => l.text())).toEqual(["Path"]);
       expect(advanced?.find(".info-toggle").exists()).toBe(true);
-      expect(advanced?.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
-      expect(advanced?.findAll("#set-beacon-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-2)", "Direct only (no digipeaters)", "Custom…"]);
-      expect(advanced?.find("#set-beacon-path-typed").exists()).toBe(false);
+      expect(advanced?.find<HTMLSelectElement>("#set-radio-1-path").element.value).toBe("recommended");
+      expect(advanced?.findAll("#set-radio-1-path option").map((o) => o.text())).toEqual(["Recommended (WIDE2-2)", "Direct only (no digipeaters)", "Custom…"]);
+      expect(advanced?.find("#set-radio-1-path-typed").exists()).toBe(false);
     });
 
     it("names the recommended path of the symbol in the Path choice, and follows a change of the symbol", async () => {
       const { wrapper, daemon } = make({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": ">" }, "beacon");
-      const options = () => wrapper.findAll("#set-beacon-path option").map((o) => o.text());
+      const options = () => wrapper.findAll("#set-radio-1-path option").map((o) => o.text());
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
-      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }) });
+      await tell(daemon, { config: cfg({ "beacon/power_w": "5", "station/symbol_table": "/", "station/symbol_code": "-" }) });
       expect(options()[0]).toBe("Recommended (WIDE2-2)");
-      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }) });
+      await tell(daemon, { config: cfg({ "beacon/power_w": "5", "station/symbol_table": "E", "station/symbol_code": "s" }) });
       expect(options()[0]).toBe("Recommended (WIDE1-1,WIDE2-1)");
-      expect(wrapper.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("recommended");
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-1-path").element.value).toBe("recommended");
     });
 
     it("works the fields in the folds like the others: a typed one when it is left, a choice at once", async () => {
       const { wrapper, send, daemon } = make({ "beacon/power_w": "5" }, "beacon");
-      await wrapper.find("#set-beacon-path").setValue("custom");
+      await wrapper.find("#set-radio-1-path").setValue("custom");
       expect(send).not.toHaveBeenCalled();
-      await wrapper.find("#set-beacon-path-typed").setValue("WIDE2-2");
+      await wrapper.find("#set-radio-1-path-typed").setValue("WIDE2-2");
       expect(send).not.toHaveBeenCalled();
-      await wrapper.find("#set-beacon-path-typed").trigger("blur");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+      await wrapper.find("#set-radio-1-path-typed").trigger("blur");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/path": "WIDE2-2" } });
       await wrapper.find("#set-beacon-antenna_direction").setValue("N");
       expect(send).toHaveBeenCalledTimes(1); // (waits for the answer to the first)
-      await tell(daemon, { config: configValues({ "beacon/power_w": "5", "beacon/path": "WIDE2-2" }) });
+      await tell(daemon, { config: cfg({ "beacon/power_w": "5", "radio/1/path": "WIDE2-2" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/antenna_direction": "N" } });
     });
 
@@ -479,7 +478,7 @@ describe("SettingsForm", () => {
   });
 
   it("shows the default as the placeholder of a field that is empty", () => {
-    const config = configValues();
+    const config = cfg();
     config.defaults["map/radius_km"] = "45";
     const wrapper = mount(SettingsForm, { global: withDaemon(fakeDaemon({ config })) });
     expect(wrapper.find<HTMLInputElement>("#set-map-radius_km").attributes("placeholder")).toBe("45");
@@ -502,13 +501,13 @@ describe("SettingsForm", () => {
   it("puts a unit after the field where one applies", () => {
     const { wrapper } = make();
     const unit = (id: string) => wrapper.find(`#${id}`).element.closest(".field")?.querySelector(".unit")?.textContent;
-    expect(unit("set-serial-baud")).toBe("baud");
+    expect(unit("set-radio-1-baud")).toBe("baud");
     expect(unit("set-map-radius_km")).toBe("km");
   });
 
   it("shows what an empty value means as the placeholder, else the default", () => {
     const { wrapper } = make();
-    expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
+    expect(wrapper.find("#set-radio-1-baud").attributes("placeholder")).toBe("9600");
     const beacon = make({ "status/source": "text" }, "beacon").wrapper;
     expect(beacon.find("#set-beacon-power_w").attributes("placeholder")).toBe("none");
     expect(beacon.find("#set-station-status").attributes("placeholder")).toBe("145.500MHz QRV");
@@ -534,7 +533,7 @@ describe("SettingsForm", () => {
 
   it("offers a choice for the TNC, and the port the daemon found is no field", () => {
     const { wrapper } = make();
-    expect(wrapper.find("#set-tnc-profile").element.tagName).toBe("SELECT");
+    expect(wrapper.find("#set-radio-1-type").element.tagName).toBe("SELECT");
     expect(wrapper.find("#set-serial-last_port").exists()).toBe(false);
   });
 
@@ -543,79 +542,69 @@ describe("SettingsForm", () => {
       wrapper
         .findAll("fieldset.subbox")
         .find((f) => f.find("legend").text() === "FM radio")
-        ?.findAll("[id^='set-']")
+        ?.findAll("[id^='set-radio-1-']")
         .map((e) => e.attributes("id"))
-        .filter((id) => id !== "set-fm-enabled" && !id?.startsWith("set-radio-1-")); // (the FM radio's fields: its tickbox is the first row of its box, its Name and Remove the second, outside the fold)
+        .filter((id) => id !== "set-radio-1-enabled" && id !== "set-radio-1-find"); // (the radio's fields: its tickbox is the first row of its box)
+    /** The form with radio 1 of this type. */
+    const typed = (type: string, extra: Record<string, string> = {}) => make(extra, "settings", { radios: radiosTopic(radioRow(1, type)) });
 
-    it("is a select of the profiles by their names, the daemon's value chosen", () => {
+    it("is a select of the profiles by their names, the radio's type chosen", () => {
       const { wrapper } = make();
-      const select = wrapper.find<HTMLSelectElement>("#set-tnc-profile");
-      expect(wrapper.find("label[for=set-tnc-profile]").text()).toBe("Radio type");
+      const select = wrapper.find<HTMLSelectElement>("#set-radio-1-type");
+      expect(wrapper.find("label[for=set-radio-1-type]").text()).toBe("Radio type");
       expect(select.findAll("option").map((o) => o.text())).toEqual([
         "Kenwood TH-D7 / TM-D700 / TS-2000, TNC-2",
         "Kenwood TM-D710 / TH-D72",
         "Kantronics KPC-3+",
         "KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…)",
         "KISS over TCP (Direwolf, soundmodem)",
+        "RX only: Yaesu FTM, TNC text (no KISS)",
         "Dummy (no radio, made-up traffic)",
       ]);
       expect(select.element.value).toBe("kenwood-tnc2");
     });
 
-    it("shows the port and the speed of a serial TNC", async () => {
-      const { wrapper } = make();
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
-      await wrapper.find("#set-tnc-profile").setValue("kiss");
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
+    it("asks the daemon for the type chosen (radio_change), and shows the port and the speed of a serial TNC", async () => {
+      const { wrapper, send } = make();
+      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
+      await wrapper.find("#set-radio-1-type").setValue("kiss");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 1, type: "kiss" });
+      expect(fieldIds(typed("kiss").wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
     });
 
-    it("shows the host and the port of the TCP server for KISS over TCP, and no serial port", async () => {
-      const { wrapper } = make({ "serial/port": "/dev/ttyUSB0" });
-      await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-tcp-host", "set-tcp-port"]);
-      expect(wrapper.find("#set-tcp-port").attributes("placeholder")).toBe("8001");
+    it("shows the host and the port of the TCP server for KISS over TCP, and no serial port", () => {
+      const { wrapper } = typed("kiss-tcp", { "radio/1/port": "/dev/ttyUSB0" });
+      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-tcp_host", "set-radio-1-tcp_port"]);
+      expect(wrapper.find("#set-radio-1-tcp_port").attributes("placeholder")).toBe("8001");
     });
 
-    it("is a radio type like the others in the Settings tab, and a user who has the Dummy radio chooses a real one here: no port and no speed for it, and the ones that were set come back with a serial type", async () => {
-      const { wrapper, send } = make({ "serial/port": "COM5", "serial/baud": "57600" });
-      await wrapper.find("#set-tnc-profile").setValue("dummy");
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile"]);
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "dummy" } }); // (the port stays in the settings)
-      await wrapper.find("#set-tnc-profile").setValue("kiss");
-      expect(fieldIds(wrapper)).toEqual(["set-tnc-profile", "set-serial-port", "set-serial-baud"]);
+    it("has no port and no speed for the Dummy radio, and the ones that were set come back with a serial type", async () => {
+      const { wrapper, daemon } = typed("dummy", { "radio/1/port": "COM5", "radio/1/baud": "57600" });
+      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type"]);
+      await tell(daemon, { radios: radiosTopic(radioRow(1, "kiss")) });
+      expect(fieldIds(wrapper)).toEqual(["set-radio-1-type", "set-radio-1-port", "set-radio-1-baud"]);
+      expect(wrapper.find<HTMLInputElement>("#set-radio-1-baud").element.value).toBe("57600");
     });
 
-    it("clears a serial device when a TCP profile is chosen, so that the daemon does not refuse the save, and keeps an address", async () => {
-      const { wrapper, send } = make({ "serial/port": "/dev/ttyUSB0" });
-      await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "kiss-tcp", "serial/port": "" } });
-      const kept = make({ "serial/port": "tcp://10.0.0.5:8100" });
-      await kept.wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      expect(kept.send).toHaveBeenCalledWith({ cmd: "set_config", values: { "tnc/profile": "kiss-tcp" } });
+    it("shows the speed of the profile as the placeholder of an empty speed", () => {
+      expect(typed("kenwood-tnc2", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder")).toBe("9600");
+      expect(typed("kantronics", { "radio/1/baud": "" }).wrapper.find("#set-radio-1-baud").attributes("placeholder")).toBe("9600");
     });
 
-    it("shows the speed of the profile as the placeholder of an empty speed", async () => {
-      const { wrapper } = make({ "serial/baud": "" });
-      expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
-      await wrapper.find("#set-tnc-profile").setValue("kantronics");
-      expect(wrapper.find("#set-serial-baud").attributes("placeholder")).toBe("9600");
-    });
-
-    it("shows the refusal of the daemon under the profile", async () => {
+    it("shows the refusal of the daemon under the type", async () => {
       const { wrapper, daemon } = make();
-      await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
-      await tell(daemon, {
-        lastError: toastOf("set_config: tnc/profile: KISS over TCP connects over TCP (tcp/host and tcp/port), not to the serial port COM3"),
-      });
-      expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("not to the serial port COM3");
+      await wrapper.find("#set-radio-1-type").setValue("kiss-tcp");
+      await tell(daemon, { lastError: toastOf("radio_change: the FM radio cannot be KISS over TCP while it names the serial port COM3") });
+      expect(wrapper.find("#set-radio-1-type").element.closest(".field")?.querySelector(".field-error")?.textContent).toContain("COM3");
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-1-type").element.value).toBe("kenwood-tnc2"); // (a refused choice shows as it was)
     });
   });
 
   describe("the TNC port", () => {
-    const OWNER = { "serial/port": "/dev/brainbox_3", "serial/pattern": "/dev/brainbox_*", "serial/last_port": "/dev/brainbox_3", "serial/baud": "9600" };
+    const OWNER = { "radio/1/port": "/dev/brainbox_3", "serial/pattern": "/dev/brainbox_*", "serial/last_port": "/dev/brainbox_3", "radio/1/baud": "9600" };
     const withPorts = (extra: Record<string, string> = {}, ports: PortsMessage | null = portList()) => make(extra, "settings", { ports });
     type Wrapper = ReturnType<typeof make>["wrapper"];
-    const select = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("#set-serial-port");
+    const select = (wrapper: Wrapper) => wrapper.find<HTMLSelectElement>("#set-radio-1-port");
     const options = (wrapper: Wrapper) =>
       select(wrapper)
         .findAll("option")
@@ -634,14 +623,14 @@ describe("SettingsForm", () => {
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
-      expect(wrapper.find("label[for=set-serial-port]").text()).toBe("Port");
+      expect(wrapper.find("label[for=set-radio-1-port]").text()).toBe("Port");
       expect(select(wrapper).element.tagName).toBe("SELECT");
       expect(options(wrapper)).toEqual(["find automatically", "/dev/ttyUSB0 - FT232R USB UART", "/dev/ttyS0", "/dev/brainbox_3", "Other..."]);
       expect(select(wrapper).element.value).toBe("");
     });
 
     it("tells the port found last beside an automatic port, as a note and not a field", () => {
-      const { wrapper } = withPorts({ "serial/port": "", "serial/last_port": "/dev/brainbox_3" });
+      const { wrapper } = withPorts({ "radio/1/port": "", "serial/last_port": "/dev/brainbox_3" });
       expect(found(wrapper).text()).toBe("found: /dev/brainbox_3");
       expect(wrapper.find("#set-serial-last_port").exists()).toBe(false);
       expect(wrapper.findAll("input[readonly]")).toHaveLength(0);
@@ -649,7 +638,7 @@ describe("SettingsForm", () => {
     });
 
     it("says nothing of it before the radio was found, or while a port is named", () => {
-      expect(found(withPorts({ "serial/port": "", "serial/last_port": "" }).wrapper).exists()).toBe(false);
+      expect(found(withPorts({ "radio/1/port": "", "serial/last_port": "" }).wrapper).exists()).toBe(false);
       expect(found(withPorts(OWNER).wrapper).exists()).toBe(false);
     });
 
@@ -675,11 +664,10 @@ describe("SettingsForm", () => {
       expect(options(wrapper)[0]).toBe("not set");
     });
 
-    it("shows no search and no port for KISS over TCP", async () => {
-      const { wrapper } = withPorts(OWNER);
-      await wrapper.find("#set-tnc-profile").setValue("kiss-tcp");
+    it("shows no search and no port for KISS over TCP", () => {
+      const { wrapper } = make(OWNER, "settings", { ports: portList(), radios: radiosTopic(radioRow(1, "kiss-tcp")) });
       expect(labels(wrapper)).toEqual(["Radio type", "TCP host", "TCP port"]);
-      expect(wrapper.find("#set-serial-port").exists()).toBe(false);
+      expect(wrapper.find("#set-radio-1-port").exists()).toBe(false);
       expect(headings(wrapper)).toHaveLength(0);
       expect(wrapper.find(".port-found").exists()).toBe(false);
     });
@@ -687,36 +675,36 @@ describe("SettingsForm", () => {
     it("saves only the port when find automatically is chosen: the port is cleared and nothing else", async () => {
       const { wrapper, send } = withPorts(OWNER);
       await select(wrapper).setValue("");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "" } });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/port": "" } });
     });
 
     it("saves only the port that was picked from the list", async () => {
-      const { wrapper, send } = withPorts({ "serial/port": "" });
+      const { wrapper, send } = withPorts({ "radio/1/port": "" });
       await select(wrapper).setValue("/dev/ttyUSB0");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } });
     });
 
     it("types a path or an address after Other, and saves it", async () => {
-      const { wrapper, send } = withPorts({ "serial/port": "" });
-      expect(wrapper.find("#set-serial-port-typed").exists()).toBe(false);
+      const { wrapper, send } = withPorts({ "radio/1/port": "" });
+      expect(wrapper.find("#set-radio-1-port-typed").exists()).toBe(false);
       await select(wrapper).setValue("\u0000other");
-      expect(wrapper.find("#set-serial-port-typed").attributes("placeholder")).toBe("/dev/ttyUSB0");
-      await wrapper.find("#set-serial-port-typed").setValue("socket://10.0.0.5:8100");
+      expect(wrapper.find("#set-radio-1-port-typed").attributes("placeholder")).toBe("/dev/ttyUSB0");
+      await wrapper.find("#set-radio-1-port-typed").setValue("socket://10.0.0.5:8100");
       expect(send).not.toHaveBeenCalled(); // (not while it is typed)
-      await wrapper.find("#set-serial-port-typed").trigger("blur");
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "socket://10.0.0.5:8100" } });
+      await wrapper.find("#set-radio-1-port-typed").trigger("blur");
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/port": "socket://10.0.0.5:8100" } });
     });
 
     it("sends a typed path on Enter, and Esc puts the port in force back", async () => {
-      const { wrapper, send } = withPorts({ "serial/port": "" });
+      const { wrapper, send } = withPorts({ "radio/1/port": "" });
       await select(wrapper).setValue("\u0000other");
-      await wrapper.find("#set-serial-port-typed").setValue("/dev/ttyACM1");
-      await wrapper.find("#set-serial-port-typed").trigger("keydown", { key: "Enter" });
-      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "serial/port": "/dev/ttyACM1" } });
-      const other = withPorts({ "serial/port": "" });
+      await wrapper.find("#set-radio-1-port-typed").setValue("/dev/ttyACM1");
+      await wrapper.find("#set-radio-1-port-typed").trigger("keydown", { key: "Enter" });
+      expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyACM1" } });
+      const other = withPorts({ "radio/1/port": "" });
       await select(other.wrapper).setValue("\u0000other");
-      await other.wrapper.find("#set-serial-port-typed").setValue("/dev/nope");
-      await other.wrapper.find("#set-serial-port-typed").trigger("keydown", { key: "Escape" });
+      await other.wrapper.find("#set-radio-1-port-typed").setValue("/dev/nope");
+      await other.wrapper.find("#set-radio-1-port-typed").trigger("keydown", { key: "Escape" });
       expect(select(other.wrapper).element.value).toBe("");
       expect(other.send).not.toHaveBeenCalled();
     });
@@ -728,19 +716,19 @@ describe("SettingsForm", () => {
     });
 
     it("never sends the port found, whatever else is changed, and sends the changes one at a time", async () => {
-      const { wrapper, send, daemon } = withPorts({ "serial/port": "" });
-      await wrapper.find("#set-serial-baud").setValue("19200");
-      await wrapper.find("#set-serial-baud").trigger("blur");
+      const { wrapper, send, daemon } = withPorts({ "radio/1/port": "" });
+      await wrapper.find("#set-radio-1-baud").setValue("19200");
+      await wrapper.find("#set-radio-1-baud").trigger("blur");
       await wrapper.find("#set-map-radius_km").setValue("200");
       await wrapper.find("#set-map-radius_km").trigger("blur");
-      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "serial/baud": "19200" } }]]);
-      await tell(daemon, { config: configValues({ "serial/port": "", "serial/baud": "19200" }) });
+      expect(send.mock.calls.filter(([c]) => c.cmd === "set_config")).toEqual([[{ cmd: "set_config", values: { "radio/1/baud": "19200" } }]]);
+      await tell(daemon, { config: cfg({ "radio/1/port": "", "radio/1/baud": "19200" }) });
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "map/radius_km": "200" } });
     });
 
     it("follows the daemon when it finds the radio on another port", async () => {
-      const { wrapper, daemon } = withPorts({ "serial/port": "", "serial/last_port": "/dev/ttyUSB0" });
-      await tell(daemon, { config: configValues({ "serial/port": "", "serial/last_port": "/dev/ttyACM0" }) });
+      const { wrapper, daemon } = withPorts({ "radio/1/port": "", "serial/last_port": "/dev/ttyUSB0" });
+      await tell(daemon, { config: cfg({ "radio/1/port": "", "serial/last_port": "/dev/ttyACM0" }) });
       expect(found(wrapper).text()).toBe("found: /dev/ttyACM0");
     });
 
@@ -757,8 +745,8 @@ describe("SettingsForm", () => {
     it("puts the unit and the (i) on the speed and the port", () => {
       const { wrapper } = withPorts();
       const field = (id: string) => wrapper.find(`#${id}`).element.closest(".field");
-      expect(field("set-serial-baud")?.querySelector(".unit")?.textContent).toBe("baud");
-      expect(field("set-serial-port")?.querySelector(".info-toggle")).not.toBeNull();
+      expect(field("set-radio-1-baud")?.querySelector(".unit")?.textContent).toBe("baud");
+      expect(field("set-radio-1-port")?.querySelector(".info-toggle")).not.toBeNull();
     });
   });
 
@@ -770,13 +758,13 @@ describe("SettingsForm", () => {
 
     it("are sent when the field is left, and not while they are typed", async () => {
       const { wrapper, send } = make({}, "beacon");
-      await type(wrapper, "set-beacon-path", "custom");
-      await type(wrapper, "set-beacon-path-typed", "WIDE2-2");
+      await type(wrapper, "set-radio-1-path", "custom");
+      await type(wrapper, "set-radio-1-path-typed", "WIDE2-2");
       await type(wrapper, "set-station-comment", "Hello");
       expect(send).not.toHaveBeenCalled();
-      await wrapper.find("#set-beacon-path-typed").trigger("blur");
+      await wrapper.find("#set-radio-1-path-typed").trigger("blur");
       expect(send).toHaveBeenCalledTimes(1);
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/1/path": "WIDE2-2" } });
     });
 
     it("are sent on Enter, and not again when the field is left after", async () => {
@@ -835,12 +823,12 @@ describe("SettingsForm", () => {
     });
 
     it("send the TCP host and the TCP port in one set_config, so that the TNC restarts once", async () => {
-      const { wrapper, send } = make({ "tnc/profile": "kiss-tcp" });
-      await wrapper.find("#set-tcp-host").setValue("10.0.0.5");
-      await wrapper.find("#set-tcp-host").trigger("blur", { relatedTarget: wrapper.find("#set-tcp-port").element });
-      await wrapper.find("#set-tcp-port").setValue("8100");
-      await wrapper.find("#set-tcp-port").trigger("keydown", { key: "Enter" });
-      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "tcp/host": "10.0.0.5", "tcp/port": "8100" } }]]);
+      const { wrapper, send } = make({}, "settings", { radios: radiosTopic(radioRow(1, "kiss-tcp")) });
+      await wrapper.find("#set-radio-1-tcp_host").setValue("10.0.0.5");
+      await wrapper.find("#set-radio-1-tcp_host").trigger("blur", { relatedTarget: wrapper.find("#set-radio-1-tcp_port").element });
+      await wrapper.find("#set-radio-1-tcp_port").setValue("8100");
+      await wrapper.find("#set-radio-1-tcp_port").trigger("keydown", { key: "Enter" });
+      expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "radio/1/tcp_host": "10.0.0.5", "radio/1/tcp_port": "8100" } }]]);
     });
 
     it("send a place picked on the map as latitude and longitude together", async () => {
@@ -859,8 +847,8 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-beacon-antenna_direction").setValue("N");
       expect(send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "beacon/antenna_direction": "N" } });
       const settings = make();
-      await settings.wrapper.find("#set-digi-enabled").setValue(true);
-      expect(settings.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "digi/enabled": "true" } });
+      await settings.wrapper.find("#set-radio-1-digipeat").setValue(true);
+      expect(settings.send).toHaveBeenLastCalledWith({ cmd: "set_config", values: { "radio/1/digipeat": "true" } });
     });
   });
 
@@ -884,7 +872,7 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-station-comment").setValue("Hello");
       await wrapper.find("#set-station-comment").trigger("blur");
       expect(wrapper.find("[role='status'][aria-live]").text()).toBe("");
-      await tell(daemon, { config: configValues({ "station/comment": "Hello" }) });
+      await tell(daemon, { config: cfg({ "station/comment": "Hello" }) });
       expect(wrapper.find("[role='status'][aria-live]").text()).toBe("Saved");
       expect(wrapper.find(".field-state").exists()).toBe(false);
       expect(wrapper.text()).not.toContain("Saved ✓");
@@ -894,20 +882,20 @@ describe("SettingsForm", () => {
     });
 
     it("shows a refused choice as it was, with the reason under it", async () => {
-      const { wrapper, daemon } = make();
-      await wrapper.find("#set-tnc-profile").setValue("kiss");
-      await tell(daemon, { lastError: toastOf("set_config: tnc/profile: KISS TNC is too much") });
-      expect(wrapper.find<HTMLSelectElement>("#set-tnc-profile").element.value).toBe("kenwood-tnc2");
-      expect(wrapper.find("#set-tnc-profile").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("KISS TNC is too much");
+      const { wrapper, daemon } = make({}, "beacon");
+      await wrapper.find("#set-gps-source").setValue("gpsd");
+      await tell(daemon, { lastError: toastOf("set_config: gps/source: gpsd is too much") });
+      expect(wrapper.find<HTMLSelectElement>("#set-gps-source").element.value).toBe("off");
+      expect(wrapper.find("#set-gps-source").element.closest(".field")?.querySelector(".field-error")?.textContent).toBe("gpsd is too much");
     });
 
     it("leaves a field that is being edited alone when the daemon tells other settings, and follows it in a field that is not", async () => {
       const { wrapper, daemon } = make({}, "beacon");
       await wrapper.find("#set-station-comment").setValue("mine");
-      await tell(daemon, { config: configValues({ "station/comment": "theirs", "beacon/path": "WIDE2-2" }) });
+      await tell(daemon, { config: cfg({ "station/comment": "theirs", "radio/1/path": "WIDE2-2" }) });
       expect(wrapper.find<HTMLInputElement>("#set-station-comment").element.value).toBe("mine");
-      expect(wrapper.find<HTMLSelectElement>("#set-beacon-path").element.value).toBe("custom");
-      expect(wrapper.find<HTMLInputElement>("#set-beacon-path-typed").element.value).toBe("WIDE2-2");
+      expect(wrapper.find<HTMLSelectElement>("#set-radio-1-path").element.value).toBe("custom");
+      expect(wrapper.find<HTMLInputElement>("#set-radio-1-path-typed").element.value).toBe("WIDE2-2");
     });
   });
 
@@ -1027,8 +1015,8 @@ describe("SettingsForm", () => {
     it("is one switch, off by default, with an (i) that says what it does", async () => {
       const { wrapper } = make();
       expect(group(wrapper)?.findAll(".field")).toHaveLength(1);
-      const switch_ = wrapper.find<HTMLInputElement>("#set-digi-enabled");
-      expect(wrapper.find("label[for='set-digi-enabled']").text()).toBe("Enable");
+      const switch_ = wrapper.find<HTMLInputElement>("#set-radio-1-digipeat");
+      expect(wrapper.find("label[for='set-radio-1-digipeat']").text()).toBe("Enable");
       expect(switch_.attributes("type")).toBe("checkbox");
       expect(switch_.element.checked).toBe(false);
       expect(group(wrapper)?.find(".info-text").exists()).toBe(false);
@@ -1038,8 +1026,8 @@ describe("SettingsForm", () => {
 
     it("saves digi/enabled when it is switched on", async () => {
       const { wrapper, send } = make();
-      await wrapper.find("#set-digi-enabled").setValue(true);
-      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "digi/enabled": "true" } });
+      await wrapper.find("#set-radio-1-digipeat").setValue(true);
+      expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "radio/1/digipeat": "true" } });
     });
   });
 
@@ -1131,9 +1119,7 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([
-        "RemoveReally remove?", // (the Remove of each radio's Name, and Add radio's Add: plan section 6)
-        "Refresh",
-        "RemoveReally remove?",
+        "Refresh", // (the radio's port; one radio has no Name and no Remove, and Add radio has its Add: plan section 6)
         "Add",
         "Test",
         "Test sound",
@@ -1265,7 +1251,7 @@ describe("SettingsForm", () => {
       await wrapper.find("#set-map-radius_km").trigger("blur");
       expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "map/radius_km": "60" } });
       expect(buttons().every((b) => b.attributes("disabled") !== undefined && b.attributes("title") === "Saving…")).toBe(true);
-      await tell(daemon, { config: configValues({ "map/radius_km": "60" }) });
+      await tell(daemon, { config: cfg({ "map/radius_km": "60" }) });
       expect(buttons().every((b) => b.attributes("disabled") === undefined)).toBe(true);
     });
   });
@@ -1339,7 +1325,7 @@ describe("SettingsForm: the Location of our station (My station tab)", () => {
     const { wrapper, send, daemon } = make({}, "beacon");
     await wrapper.setProps({ picked: { lat: 60.429449, lon: 24.1452399, n: 1 } });
     expect(send.mock.calls).toEqual([[{ cmd: "set_config", values: { "station/lat": "60.42945", "station/lon": "24.14524" } }]]);
-    await tell(daemon, { config: configValues({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
+    await tell(daemon, { config: cfg({ "station/lat": "60.42945", "station/lon": "24.14524" }) });
     expect(place(wrapper).text()).toContain("60.42945 N, 24.14524 E");
   });
 
@@ -1412,7 +1398,7 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
   ];
   const off = (extra: Record<string, string> = {}) =>
     make(
-      { "beacon/interval_min": "0", "beacon/power_w": "5", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "beacon/path": "WIDE2-2", ...extra },
+      { "beacon/interval_min": "0", "beacon/power_w": "5", "status/source": "rig", "status/rigctld": "127.0.0.1:4532", "radio/1/path": "WIDE2-2", ...extra },
       "beacon",
     );
   const control = (wrapper: ReturnType<typeof make>["wrapper"], id: string) => wrapper.find<HTMLInputElement | HTMLSelectElement>(`#${id}`);
@@ -1422,7 +1408,7 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
     expect(control(wrapper, "set-status-interval_min").element.disabled).toBe(true);
     expect(control(wrapper, "set-status-interval_min").element.closest(".field")?.classList.contains("disabled")).toBe(true);
     expect(control(wrapper, "set-status-interval_min").element.value).toBe("30");
-    for (const id of ["set-station-comment", "set-beacon-power_w", "set-beacon-path", "set-station-status", "set-status-source"]) {
+    for (const id of ["set-station-comment", "set-beacon-power_w", "set-radio-1-path", "set-station-status", "set-status-source"]) {
       expect(control(wrapper, id).exists(), id).toBe(true);
       expect(control(wrapper, id).element.disabled, id).toBe(false);
     }
@@ -1439,7 +1425,7 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
   it("greys Travelling for a moving station and leaves the comment and the path, and shows no antenna", () => {
     const { wrapper } = off({ "gps/source": "gpsd" });
     expect(control(wrapper, "set-beacon-travel").element.disabled).toBe(true);
-    for (const id of ["set-station-comment", "set-beacon-path", "set-status-source"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
+    for (const id of ["set-station-comment", "set-radio-1-path", "set-status-source"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
     expect(control(wrapper, "set-beacon-power_w").exists()).toBe(false);
     expect(control(wrapper, "set-beacon-travel").element.value).toBe("car");
   });
@@ -1452,11 +1438,11 @@ describe("SettingsForm: the beacon Off (My station tab)", () => {
         "beacon/power_w": "5",
         "status/source": "text",
         "station/status": "QRV",
-        "beacon/path": "WIDE2-2",
+        "radio/1/path": "WIDE2-2",
       },
       "beacon",
     );
-    for (const id of ["set-station-comment", "set-beacon-power_w", "set-beacon-path", "set-station-status", "set-status-source", "set-status-interval_min"])
+    for (const id of ["set-station-comment", "set-beacon-power_w", "set-radio-1-path", "set-station-status", "set-status-source", "set-status-interval_min"])
       expect(control(wrapper, id).element.disabled, id).toBe(true);
     for (const id of ["set-station-call", "set-beacon-interval_min"]) expect(control(wrapper, id).element.disabled, id).toBe(false);
   });
@@ -1571,31 +1557,37 @@ describe("the group Encrypted messages", () => {
 });
 
 describe("the radios that are on", () => {
-  const FM_OFF = { "fm/enabled": "false", "hf/enabled": "true" };
-  const BOTH = { "hf/enabled": "true" };
+  const FM = (extra: Partial<RadioRow> = {}) => radioRow(1, "kenwood-tnc2", extra);
+  const HF = radioRow(2, "mercury");
+  const FM_OFF = { radios: radiosTopic(FM({ enabled: false, state: "stopped" }), HF) };
+  const BOTH = { radios: radiosTopic(FM(), HF) };
   const legends = (w: ReturnType<typeof make>["wrapper"]) => w.findAll("fieldset legend").map((l) => l.text());
   const ids = (w: ReturnType<typeof make>["wrapper"], list: string[]) => list.filter((id) => w.find(id).exists());
-  const FM_ONLY_FIELDS = ["#set-beacon-path", "#set-beacon-travel"];
+  const FM_ONLY_FIELDS = ["#set-radio-1-path", "#set-beacon-travel"];
 
   it("takes the Digipeater group off the Settings tab while the FM radio is off, and changes nothing else there", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
-    expect(legends(make(FM_OFF, "settings").wrapper)).toEqual(fm.filter((l) => l !== "Digipeater"));
+    expect(legends(make({}, "settings", FM_OFF).wrapper)).toEqual(
+      fm.filter((l) => l !== "Digipeater").flatMap((l) => (l === "FM radio" ? [l, "HF radio"] : [l])),
+    );
     // plan section 6: "one Digipeater Enable ... for each radio that may repeat ..., each row with the radio's name when there are several": with both radios on, the one Enable is in the FM radio's box
-    expect(legends(make(BOTH, "settings").wrapper)).toEqual(fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : [l])));
+    expect(legends(make({}, "settings", BOTH).wrapper)).toEqual(
+      fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : l === "FM radio" ? [l, "HF radio"] : [l])),
+    );
   });
 
   it("has no empty hover title on the legend of the Digipeater group's radio box", () => {
-    const legend = make(BOTH, "settings")
+    const legend = make({}, "settings", BOTH)
       .wrapper.findAll("fieldset legend")
-      .find((l) => l.text() === "FM radio" && l.element.closest("fieldset")?.querySelector("#set-digi-enabled"));
+      .find((l) => l.text() === "FM radio" && l.element.closest("fieldset")?.querySelector("#set-radio-1-digipeat"));
     expect(legend?.exists()).toBe(true);
     expect(legend?.attributes("title")).toBeUndefined();
   });
 
   it("has the one Beacon choice for both radios, with today's four choices and no second interval, whatever radios are on", () => {
-    for (const extra of [{}, BOTH, FM_OFF]) {
-      const { wrapper } = make({ ...extra, "beacon/interval_min": "30" }, "beacon");
+    for (const more of [{}, BOTH, FM_OFF]) {
+      const { wrapper } = make({ "beacon/interval_min": "30" }, "beacon", more);
       const select = wrapper.find<HTMLSelectElement>("#set-beacon-interval_min");
       expect([...select.element.options].map((o) => o.text)).toEqual(["Off", "Every 30 min", "Every 60 min", "Every 3 hours"]);
       expect(wrapper.find("label[for=set-beacon-interval_min]").text()).toBe("Beacon");
@@ -1604,10 +1596,10 @@ describe("the radios that are on", () => {
   });
 
   it("leaves out the path fold and Travelling while the FM radio is off, and keeps the Position choice, the GPS and the comment", () => {
-    const { wrapper } = make({ ...FM_OFF, "gps/source": "gpsd" }, "beacon");
+    const { wrapper } = make({ "gps/source": "gpsd" }, "beacon", FM_OFF);
     for (const id of FM_ONLY_FIELDS) expect(wrapper.find(id).exists(), id).toBe(false);
     for (const id of ["#set-gps-source", "#set-gps-host", "#set-station-comment", "#set-beacon-interval_min"]) expect(wrapper.find(id).exists(), id).toBe(true);
     expect(wrapper.text()).not.toContain("Advanced");
-    expect(ids(make({ ...BOTH, "gps/source": "gpsd" }, "beacon").wrapper, FM_ONLY_FIELDS)).toEqual(FM_ONLY_FIELDS);
+    expect(ids(make({ "gps/source": "gpsd" }, "beacon", BOTH).wrapper, FM_ONLY_FIELDS)).toEqual(FM_ONLY_FIELDS);
   });
 });

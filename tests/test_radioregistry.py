@@ -337,19 +337,19 @@ async def test_the_choices_of_the_row_are_put_on_the_stations_of_the_book_and_a_
     assert waited == ["written"], "the stop waits for a choice being written, where there is something to wait for"
 
 
-# ---- the daemon: radios 1 and 2 are the registry's, under the names the page and the tests reach them by
+# ---- the daemon: radios 1 and 2 are the registry's, each with the driver of its type
 
-async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_the_old_names_are_theirs(tmp_path: Path) -> None:
+async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_the_lines_the_test_hands_in(tmp_path: Path) -> None:
     e = Env(tmp_path, radio=False, settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     ctl = e.ctl
-    ctl.mercury._finder = lambda: None                                           # (no program: the speaker is a nice-to-have, and the dummy works without it)
+    e.mercury._finder = lambda: None                                           # (no program: the speaker is a nice-to-have, and the dummy works without it)
     assert isinstance(ctl.radios, RadioRegistry) and [r.id for r in ctl.radios.all()] == [FM_ID, HF_ID], "made with the process, from the defaults"
     fm, hf = ctl.radios.all()
-    assert isinstance(fm, LiveRadio) and (ctl.tnc, ctl.beacon) == (fm.line, fm.beacon) and (ctl.hf, ctl.mercury, ctl.hf_beacon) == (hf.line, hf.driver.modem, hf.beacon)
+    assert isinstance(fm, LiveRadio) and (e.tnc, e.beacon) == (fm.line, fm.beacon) and (e.hf, e.mercury, e.beacon_2) == (hf.line, hf.driver.modem, hf.beacon)
     assert e.tnc is fm.line and e.hf is hf.line, "the lines the tests hand in and hold"
-    assert isinstance(fm.driver, TncDriver) and isinstance(hf.driver, MercuryDriver) and fm.driver.modem is None and hf.line.modem is ctl.mercury
-    assert fm.driver.search_lock is ctl.radios.search_lock and (ctl.mercury.claims, ctl.mercury.holder, ctl.mercury.folder) == (ctl.radios.claims, HF_ID, ctl.data_dir / "radios" / "2"), "the registry's lock and table"
-    assert ctl.mercury.claims is ctl.radios.claims
+    assert isinstance(fm.driver, TncDriver) and isinstance(hf.driver, MercuryDriver) and fm.driver.modem is None and hf.line.modem is e.mercury
+    assert fm.driver.search_lock is ctl.radios.search_lock and (e.mercury.claims, e.mercury.holder, e.mercury.folder) == (ctl.radios.claims, HF_ID, ctl.data_dir / "radios" / "2"), "the registry's lock and table"
+    assert e.mercury.claims is ctl.radios.claims
     assert fm.line.claims is ctl.radios.claims and fm.line.search_lock is ctl.radios.search_lock and hf.line.claims is None, "radio 1's line has the station's table and its one search at a time; the modem's line, a socket, claims nothing"
     finder = ctl.radiofinder
     assert (finder.claims, finder.search_lock, finder._hold, finder._release) == (ctl.radios.claims, ctl.radios.search_lock, ctl.hold_radio, ctl.release_radio), "Find my radio lets go of the radio it searches for alone and passes over what the others and the GPS receiver hold"
@@ -364,9 +364,9 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     assert ctl.run.pattern == "", "what the process gave for the run is read each time"
     ctl.pattern_override = str(e.ports / "probe_*")
     await e.start()
-    assert ctl.radios.all() == [fm, hf] and ctl.radios.enabled() == [fm, hf] and hf.rtype.dummy and (ctl.tnc, ctl.hf, ctl.mercury) == (fm.line, hf.line, hf.driver.modem), "the same radios, with the settings that were read"
+    assert ctl.radios.all() == [fm, hf] and ctl.radios.enabled() == [fm, hf] and hf.rtype.dummy and (e.tnc, e.hf, e.mercury) == (fm.line, hf.line, hf.driver.modem), "the same radios, with the settings that were read"
     assert fm.beacon.running and hf.beacon.running and hf.line.is_dummy and ctl.igate.made_up()
-    assert ctl._hf_settings(ctl.config) == ctl.radios.restart_key(HF_ID, ctl.config) and ctl._hf_settings(ctl.config)[-1] is True
+    assert ctl.radios.restart_key(HF_ID, ctl.config)[-1] is True
     await until(lambda: hf.state is Source.State.CONNECTED)
     await ctl.hold_radio(FM_ID)
     assert fm.state is Source.State.STOPPED and hf.state is Source.State.CONNECTED and "tnc" not in {t.get_name() for t in ctl.tasks}, "one radio lets go of its line (a search), no other"
@@ -390,7 +390,7 @@ async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_sta
     and its modem keep running, and the FM radio takes its line again after it, with its beacon."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     fm, hf = e.ctl.radios.all()
     await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
@@ -409,7 +409,7 @@ async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_
     """The finder made as the composition root makes it (the controller's hold_radio and release_radio, the registry's table and lock), asked for radio 1: the station's one search at a time."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None
+    e.mercury._finder = lambda: None
     await e.start()
     fm, hf = e.ctl.radios.all()
     await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
@@ -448,7 +448,7 @@ async def test_a_third_radio_in_the_daemon_is_started_heard_by_the_parts_and_sto
     assert await e.ctl.remove_radio(3)
     assert e.ctl.radios.get(3) is None and e.ctl.radios.why == {3: "it is removed"}
     await until(lambda: third.state is Source.State.STOPPED and not third.beacon.running)
-    assert e.tnc.state is Source.State.CONNECTED and e.tnc._generation == fm_line and e.ctl.beacon.running, "radio 1 was not touched"
+    assert e.tnc.state is Source.State.CONNECTED and e.tnc._generation == fm_line and e.beacon.running, "radio 1 was not touched"
     await e.stop()
 
 

@@ -115,7 +115,7 @@ async def test_a_page_is_told_the_command_the_key_and_the_code_of_every_refusal(
         {"cmd": "set_config", "values": {"tnc/check_sec": "5"}},
         {"cmd": "send_message", "to": "OH2RDG", "text": "x" * 68},
         {"cmd": "send_message", "to": "OH2GBA", "text": "hello"},
-        {"cmd": "object_set", "name": "A_B", "kind": "object", "lat": 60.0, "lon": 24.0, "symbol_table": "/", "symbol_code": ">", "comment": "", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "", "on_request": False},
+        {"cmd": "object_set", "name": "A_B", "kind": "object", "lat": 60.0, "lon": 24.0, "symbol_table": "/", "symbol_code": ">", "comment": "", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "", "on_request": False, "radios": [1]},
         {"cmd": "bulletin_post", "slot": "NWS-WARN", "text": "x"},
         {"cmd": "bulletin_unpost", "slot": "BLN3HAMS"},
         {"cmd": "forget_station", "call": "NOBODY"},

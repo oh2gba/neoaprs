@@ -241,9 +241,10 @@ class Page:
 
 
 def connected(page: Page) -> bool:
-    """The FM radio (the fake TNC of the settings) connected and a packet kept: the radio read as smoke.radio_state reads it, from the topic `radios` of a daemon of the round of the radios on and from `tnc`
-    of one before it (the old version A is one of those for a long while yet, B may be either)."""
-    return radio_state(page.topics, "fm") == "connected" and int(page.status.get("packets") or 0) > 0
+    """The FM radio (the fake TNC of the settings) connected and a packet kept: the radio read as smoke.radio_state reads it, from the topic `radios` of a daemon of the round of the radios on, else from the
+    topic `tnc` of a release before it (the old version A is one of those for a long while yet, and tells no other; smoke.py reads `radios` alone, this is the one reader of that release's wire that stays)."""
+    state = radio_state(page.topics, "fm") or (page.topics.get("tnc") or {}).get("state")
+    return state == "connected" and int(page.status.get("packets") or 0) > 0
 
 
 PORT_KEYS = ("serial/port", "radio/1/port")          # the FM radio's port as the settings name it: the flat key of every version before the round of the radios (kept there as radio 1's), its own key after it

@@ -96,14 +96,14 @@ function named(radio: number, inner: ArrayBuffer): ArrayBuffer {
 }
 
 describe("a frame of one radio's scope", () => {
-  it("names its radio before a row or the rows kept, whole; a frame that names none is radio 2's, the HF radio of before", () => {
+  it("names its radio before a row or the rows kept, whole; a frame that names none is let go", () => {
     expect(radioFrame(named(7, frame(0, -41)))?.radio).toBe(7);
     expect(parseScopeFrame(named(7, frame(1, -41)))).toMatchObject({ radio: 7, row: { level: -41, tx: true } });
     expect(parseScopeFrame(named(300, history([{ flags: 0, level: -30, age: 7, bin: 0 }])))).toMatchObject({
       radio: 300,
       history: { clock: CLOCK, rows: [{ age: 7, row: { level: -30 } }] },
     });
-    expect(parseScopeFrame(frame(0, -41))).toMatchObject({ radio: 2 });
+    expect(parseScopeFrame(frame(0, -41))).toBeNull();
     expect(radioFrame(frame(0, -41))).toBeNull();
     expect(radioFrame(Uint8Array.of(RADIO_KIND, 1, 0, 0, 0).buffer)).toBeNull(); // (a radio with no frame in it)
     expect(parseScopeFrame(named(3, Uint8Array.of(9).buffer))).toBeNull(); // (a frame of a kind this page does not know, inside)
@@ -112,13 +112,13 @@ describe("a frame of one radio's scope", () => {
 
 describe("a binary frame", () => {
   it("is a row, the rows kept, or nothing this page knows: a kind it does not know is let go, as a page of the version before lets the rows kept go", () => {
-    expect(parseScopeFrame(frame(1, -41))).toMatchObject({ row: { level: -41, tx: true } });
-    expect(parseScopeFrame(history([{ flags: 0, level: -30, age: 7, bin: 0 }]))).toMatchObject({
+    expect(parseScopeFrame(named(2, frame(1, -41)))).toMatchObject({ row: { level: -41, tx: true } });
+    expect(parseScopeFrame(named(2, history([{ flags: 0, level: -30, age: 7, bin: 0 }])))).toMatchObject({
       history: { clock: CLOCK, rows: [{ age: 7, row: { level: -30 } }] },
     });
     const other = new Uint8Array(frame(0, 0));
     other[0] = 9;
-    expect(parseScopeFrame(other.buffer)).toBeNull();
+    expect(parseScopeFrame(named(2, other.buffer))).toBeNull();
     expect(parseScopeFrame(Uint8Array.of(9).buffer)).toBeNull();
     expect(parseScopeRow(history([{ flags: 0, level: -30, age: 7, bin: 0 }]))).toBeNull(); // (the parser of a row alone, which is all a page of the version before has: it takes the rows kept for no row)
   });

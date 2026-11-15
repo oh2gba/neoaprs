@@ -90,25 +90,25 @@ describe("the radio of an attempt on the you chip", () => {
 
   it("names the radio it went on where radios are named, FM as HF, with the hover that says it: none is the unmarked default", () => {
     for (const [radio, name] of [
-      ["fm", "FM"],
-      ["hf", "HF"],
-      ["", "Mobile"],
+      [1, "FM"],
+      [2, "HF"],
+      [null, "Mobile"],
     ] as const) {
-      const [you] = chainOf(row, attempt([], { radio }), true, new Set(), false, name);
+      const [you] = chainOf(row, attempt([], { radio_id: radio }), true, new Set(), false, name);
       expect([you?.text, you?.mark], name).toEqual(["you", name]);
       expect(you?.title).toMatch(new RegExp(`^sent \\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d on radio ${name}$`));
     }
   });
 
   it("names none where radios are not named, an HF attempt with HF alone too", () => {
-    for (const radio of ["fm", "hf", ""] as const) {
-      const [you] = chainOf(row, attempt([], { radio }), true, new Set(), false, null);
-      expect([you?.mark, you?.title], radio).toEqual(["", expect.stringMatching(sentAt)]);
+    for (const radio of [1, 2, null] as const) {
+      const [you] = chainOf(row, attempt([], { radio_id: radio }), true, new Set(), false, null);
+      expect([you?.mark, you?.title], String(radio)).toEqual(["", expect.stringMatching(sentAt)]);
     }
   });
 
   it("names it in the mail's chain as in a message's", () => {
-    expect(chainOf(row, attempt([], { radio: "fm" }), true, new Set(), true, "Shack")[0]?.mark).toBe("Shack");
+    expect(chainOf(row, attempt([], { radio_id: 1 }), true, new Set(), true, "Shack")[0]?.mark).toBe("Shack");
   });
 });
 

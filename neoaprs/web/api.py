@@ -44,7 +44,7 @@ class Api:
         self.hub = StateHub()
         self.topics = Topics(controller, self.hub, self._packet_sent, reach, secure, tell=self.out.broadcast)
         self.page_errors = PageErrors(controller.clock)  # what the pages report about themselves (neoaprs/web/pageerrors.py)
-        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scope=self.topics.scope, scopes=self.topics.scopes)
+        self.dispatcher = Dispatcher(controller, self.hub, self.status, page_errors=self.page_errors, scopes=self.topics.scopes)
         self.started_at = controller.clock()
         self.meter = ProcessMeter()
         self.tasks = TaskSet(log, "web")
@@ -62,12 +62,13 @@ class Api:
 
     # ---- what the daemon is
     async def status(self) -> dict[str, Any]:
-        c, beacon, rig = self.ctl.config, self.ctl.beacon, self.ctl.rigstatus
+        c, rig = self.ctl.config, self.ctl.rigstatus
+        sent = [at for radio in self.ctl.radios.all() if (at := radio.beacon.last_sent) is not None]
+        due = [at for radio in self.ctl.radios.beaconing() if (at := radio.beacon.next_due) is not None]
         cpu_percent, rss_mb = self.meter.sample()
         return {"type": "status", "version": VERSION, "started_at": iso(self.started_at), "packets": await self.ctl.packetlog.count(), "stations": len(self.ctl.stationbook),
                 "call": c.station_call, "lat": c.station_lat, "lon": c.station_lon,
-                "beacon_interval_min": station_interval(c.beacon_interval_min, c.radios, c.main_radio), "beacon_last_sent": iso(beacon.last_sent), "beacon_next_due": iso(beacon.next_due),
-                "hf_beacon_last_sent": iso(self.ctl.hf_beacon.last_sent), "hf_beacon_next_due": iso(self.ctl.hf_beacon.next_due),
+                "beacon_interval_min": station_interval(c.beacon_interval_min, c.radios, c.main_radio), "beacon_last_sent": iso(max(sent, default=None)), "beacon_next_due": iso(min(due, default=None)),
                 "main_radio": c.main_radio, "email_radio": None if (email := self.ctl.radios.email()) is None else email.id,
                 "station_status": rig.last_text, "station_status_last_sent": iso(rig.last_sent_at), "rig_state": rig.rig_state,
                 "update": None if (latest := self.ctl.updatecheck.latest) is None else {"version": latest.version, "url": latest.url, "message": latest.message},          # (the dial goes to the HF box, not here)
@@ -105,7 +106,6 @@ class Api:
         if conn is not None:
             self.hub.detach(conn)
             self.page_errors.forget(conn)
-            self.topics.scope.forget(conn)
             self.topics.scopes.forget(conn)
         self.out.close(client)
 

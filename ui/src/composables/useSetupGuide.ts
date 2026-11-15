@@ -8,9 +8,15 @@ import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
 import type { Toast } from "@/composables/useDaemon";
 import { LAST_STEP, RADIO_STEP } from "@/lib/setup";
-import type { Command, ConfigValues } from "@/protocol/protocol";
+import { portsAsks } from "@/lib/radios";
+import type { Command, ConfigValues, RadioRow } from "@/protocol/protocol";
 
-export function useSetupGuide(config: Ref<ConfigValues | null>, lastError: Ref<Toast | null>, send: (command: Command) => boolean) {
+export function useSetupGuide(
+  config: Ref<ConfigValues | null>,
+  lastError: Ref<Toast | null>,
+  send: (command: Command) => boolean,
+  radios: Readonly<Ref<ReadonlyMap<string, RadioRow> | null>> | null = null, // (the ports are asked for by the radios that have sound cards)
+) {
   const open = ref(false);
   const step = ref(0);
   const peeking = ref(false); // only the head shows, so that the map can be clicked on a narrow page
@@ -57,7 +63,9 @@ export function useSetupGuide(config: Ref<ConfigValues | null>, lastError: Ref<T
     else step.value += 1;
   }
 
-  watch(onRadio, (shown) => shown && send({ cmd: "list_ports" }));
+  watch(onRadio, (shown) => {
+    if (shown) for (const ask of portsAsks(radios?.value?.values() ?? [])) send(ask);
+  });
 
   return reactive({
     open,

@@ -13,18 +13,20 @@ import ObjectsQru from "@/components/ObjectsQru.vue";
 import StationPanel from "@/components/StationPanel.vue";
 import { useStationPrefs } from "@/composables/useStationPrefs";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon, type Given } from "@/test/context";
-import { configValues, qruState, radioRow, radiosTopic, station } from "@/test/fixtures";
+import { configValues, heardBy, qruState, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
 
-const FM = { "fm/enabled": "true", "hf/enabled": "false" };
-const BOTH = { "fm/enabled": "true", "hf/enabled": "true" };
-const FM_OFF = { "fm/enabled": "false", "hf/enabled": "true" };
+const off = { enabled: false, state: "stopped" } as const;
+/** The radios on: the FM radio (radio 1) alone, both it and the HF radio (radio 2), the HF radio alone. */
+const FM: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off)) };
+const BOTH: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) };
+const FM_OFF: Given = { radios: radiosTopic(radioRow(1, "kenwood-tnc2", off), radioRow(2, "mercury")) };
 
-const fmHeard = station("OH2FM", { heard_fm: 3, heard_hf: 0 });
-const bothHeard = station("OH2BOTH", { heard_fm: 3, heard_hf: 2 });
-const hfHeard = station("OH2HF", { heard_fm: 0, heard_hf: 3, heard_rf: 3 });
+const fmHeard = station("OH2FM", { heard: heardBy([1, 3]) });
+const bothHeard = station("OH2BOTH", { heard: heardBy([1, 3], [2, 2, null]) });
+const hfHeard = station("OH2HF", { heard: heardBy([2, 3, null]), heard_rf: 3 });
 /** Six radios on, radio 3 a second FM radio with a path of its own. */
 const SIX = radiosTopic(
   radioRow(1, "kenwood-tnc2", { name: "Shack" }),
@@ -38,8 +40,8 @@ const SIX = radiosTopic(
 const stations = (...rows: ReturnType<typeof station>[]) => new Map(rows.map((row) => [row.call, row]));
 
 let daemon: FakeDaemon;
-function conversation(values: Record<string, string>, call: string, rows = stations(fmHeard, bothHeard, hfHeard), given: Given = {}) {
-  daemon = fakeDaemon({ config: configValues(values), stations: shallowRef(rows), fallbackPath: "WIDE1-1,WIDE2-1", ...given });
+function conversation(radios: Given, call: string, rows = stations(fmHeard, bothHeard, hfHeard), given: Given = {}) {
+  daemon = fakeDaemon({ ...radios, stations: shallowRef(rows), fallbackPath: "WIDE1-1,WIDE2-1", ...given });
   return mount(ConversationView, { props: { selected: call, narrow: false, thread: [] }, global: withDaemon(daemon), attachTo: document.body });
 }
 const hasRoute = (wrapper: VueWrapper) => wrapper.findAll("button").some((b) => b.text() === "Route");
@@ -50,8 +52,8 @@ async function opened(wrapper: VueWrapper) {
 const sent = (cmd: string) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === cmd);
 const options = (box: ReturnType<VueWrapper["find"]>) => box.findAll(".route-radio option").map((o) => o.text());
 
-function panel(values: Record<string, string>, row: ReturnType<typeof station>, given: Given = {}) {
-  daemon = fakeDaemon({ config: configValues(values), fallbackPath: "WIDE1-1,WIDE2-1", ...given });
+function panel(radios: Given, row: ReturnType<typeof station>, given: Given = {}) {
+  daemon = fakeDaemon({ ...radios, fallbackPath: "WIDE1-1,WIDE2-1", ...given });
   return mount(StationPanel, { props: { row, armed: false }, global: withDaemon(daemon), attachTo: document.body });
 }
 const hasPrefs = (wrapper: VueWrapper) => wrapper.findAll("legend").some((l) => l.text() === "Route");
@@ -63,11 +65,15 @@ const hasAdvanced = (wrapper: ReturnType<typeof askPath>) => wrapper.findAll("de
 
 describe("Route in a conversation", () => {
   it("is there for a station heard on FM, or on both radios, or never heard, while the FM radio is on", () => {
-    for (const values of [FM, BOTH]) {
-      expect(
-        [hasRoute(conversation(values, "OH2FM")), hasRoute(conversation(values, "OH2BOTH")), hasRoute(conversation(values, "OH2NEW"))],
-        JSON.stringify(values),
-      ).toEqual([true, true, true]);
+    for (const [name, values] of [
+      ["FM", FM],
+      ["both", BOTH],
+    ] as const) {
+      expect([hasRoute(conversation(values, "OH2FM")), hasRoute(conversation(values, "OH2BOTH")), hasRoute(conversation(values, "OH2NEW"))], name).toEqual([
+        true,
+        true,
+        true,
+      ]);
     }
   });
 
@@ -109,9 +115,9 @@ describe("Route in a conversation", () => {
   it("follows the radios as they are ticked", async () => {
     const wrapper = conversation(FM, "OH2FM", stations(fmHeard));
     expect(hasRoute(wrapper)).toBe(true);
-    await tell(daemon, { config: configValues(FM_OFF) });
+    await tell(daemon, FM_OFF);
     expect(hasRoute(wrapper)).toBe(false);
-    await tell(daemon, { config: configValues(BOTH) });
+    await tell(daemon, BOTH);
     expect(hasRoute(wrapper)).toBe(true);
   });
 
@@ -158,7 +164,7 @@ describe("Route in a conversation", () => {
       ["Radio", "Path", "RF only"],
     ]);
     const before = box.findAll(".prefs > *").map((row) => row.classes()[0]);
-    await tell(daemon, { stations: stations(fmHeard, station("OH2NEW", { heard_fm: 1, heard_hf: 0, radio_now: 1 })) });
+    await tell(daemon, { stations: stations(fmHeard, station("OH2NEW", { heard: heardBy([1, 1]), radio_now: 1 })) });
     const now = wrapper.find(".route-box");
     expect([now.find<HTMLSelectElement>(".route-radio select").element.disabled, now.find(".route-radio").classes()]).toEqual([
       false,
@@ -186,7 +192,7 @@ describe("Route in a conversation", () => {
   });
 
   it("sets and clears the path of the radio in force: radio 1's as before, another's with the radio named, its own path setting as the automatic one", async () => {
-    const values = { ...configValues(BOTH), radio_values: { ...configValues(BOTH).radio_values, "radio/3/path": "WIDE2-2" } };
+    const values = configValues({}, { "radio/3/path": "WIDE2-2" });
     const mobile = station("OH2MOB", { radio_now: 3, paths: { "3": "OH2RCH-3" } });
     const wrapper = conversation(BOTH, "OH2MOB", stations(mobile), { radios: SIX, config: values });
     const box = await opened(wrapper);
@@ -261,8 +267,10 @@ describe("the queries of the station panel", () => {
     expect(queries.map((item) => query(fm, item).element.disabled)).toEqual([false, false, false, false]);
   });
 
-  it("say the words of before while the one radio is not connected", () => {
-    const wrapper = panel(FM, fmHeard, { connected: false });
+  it("say that the TNC is not connected while the one radio is not", () => {
+    const wrapper = panel({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { state: "waiting" }), radioRow(2, "mercury", off)) }, fmHeard, {
+      connected: false,
+    });
     expect([query(wrapper, "ask_position").element.disabled, query(wrapper, "ask_position").attributes("title")]).toEqual([true, "The TNC is not connected"]);
   });
 
@@ -287,13 +295,13 @@ describe("the queries of the station panel", () => {
 describe("the path of Ask around and of Local info", () => {
   it("is there while the FM radio is on, with HF on or off", () => {
     for (const values of [FM, BOTH]) {
-      expect(hasAdvanced(askPath({ config: configValues(values) })), "ask around").toBe(true);
-      expect(hasAdvanced(qruPath({ config: configValues(values) })), "local info").toBe(true);
+      expect(hasAdvanced(askPath(values)), "ask around").toBe(true);
+      expect(hasAdvanced(qruPath(values)), "local info").toBe(true);
     }
   });
 
   it("is not there while the FM radio is off", () => {
-    expect(hasAdvanced(askPath({ config: configValues(FM_OFF) }))).toBe(false);
-    expect(hasAdvanced(qruPath({ config: configValues(FM_OFF) }))).toBe(false);
+    expect(hasAdvanced(askPath(FM_OFF))).toBe(false);
+    expect(hasAdvanced(qruPath(FM_OFF))).toBe(false);
   });
 });

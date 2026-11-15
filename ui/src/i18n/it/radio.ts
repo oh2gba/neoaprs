@@ -29,4 +29,9 @@ export const radio: Readonly<Record<keyof typeof en, Message>> = {
   "radio.type.dummy": "Dummy (no radio, made-up traffic)",
   "radio.type.mercury": "Mercury HF modem (sound card, SSB radio)",
   "radio.type.dummy_hf": "Dummy HF radio (no radio, made-up distant stations)",
+  "radio.type.tnc_text": "RX only: Yaesu FTM, TNC text (no KISS)",
+  "radio.type.dummy_lora": "Dummy LoRa radio (no radio, made-up stations)",
+  "radio.type.lora_tcp": "LoRa APRS board on the network",
+  "radio.type.lora_serial": "LoRa APRS board on USB or Bluetooth",
+  "radio.type.lora_console": "LoRa APRS iGate’s log on USB (receive only)",
 };

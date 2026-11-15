@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import SidePanel from "@/components/SidePanel.vue";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues } from "@/test/fixtures";
+import { radioRow, radiosTopic } from "@/test/fixtures";
 
 /** A station with the HF radio on, which has all ten tabs (without one it has no HF tests: SidePanelMore.test.ts). */
-const global = () => withDaemon(fakeDaemon({ config: configValues({ "hf/enabled": "true" }) }));
+const global = () => withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) })); // (the HF radio on: every tab)
 
 const slots = {
   stations: "<p>stations pane</p>",

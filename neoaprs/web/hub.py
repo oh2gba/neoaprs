@@ -3,7 +3,7 @@
 A page follows every topic from the start and is sent each as it is (`state`); after that it is sent what changed (`patch`). A change is told on the hub's tick: what changed in a topic between
 two ticks is one patch, with at most one op for a key, so a burst of 200 packets is one message. A topic is *keyed* (the stations by call, the packets by id: a change names the key and the item is
 looked up when the patch is made, so an item that changed ten times is sent once, and one that is gone meanwhile is a `del`) or *whole* (the TNC, the settings: a change is a `replace` of the whole
-value). A topic can ask for a gap between two patches (`interval`): the TNC changes with every line it sees and is told at most four times a second.
+value). A topic can ask for a gap between two patches (`interval`): a radio's row changes with every line its TNC sees and is told at most four times a second.
 
 Back-pressure: the hub keeps nothing for a page. A page whose socket already holds more than `BEHIND` bytes (an eighth of what the socket is cut off at, `MAX_WRITE_BUFFER`) is not sent the patch;
 the topic is marked stale for it and it is sent the whole `state` of the topic when its socket has been read down. A slow phone costs the daemon nothing, and a page that never reads is cut off by

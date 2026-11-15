@@ -29,7 +29,7 @@ const props = defineProps<{ objects: ReadonlyMap<string, OwnObjectRow>; form: Ow
 const emit = defineEmits<{ select: [name: string, multi?: boolean] }>();
 const { fallbackPath, now } = useDaemonContext();
 /** The radio tags of a row are there while several radios are on: the radios it goes out on now (its own that are on, else the main radio). */
-const { several, enabled, main, byId } = useRadios();
+const { severalSenders: several, senders: enabled, main, byId } = useRadios();
 /** How many radios a row names before "+n". */
 const NAMED = 2;
 /** The tags of each row's radios, by the object's name: the first two by name, then "+n" whose hover names the rest; none with one radio on. */

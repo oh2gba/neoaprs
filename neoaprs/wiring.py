@@ -99,6 +99,7 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
         line.state_changed.connect(lambda state: parts.radio_changed.emit(id))
         line.changed.connect(lambda: parts.radio_changed.emit(id))
     if modem is not None and first_time(modem):
+        modem.frequencies = parts.suggested_frequencies
         modem.ports_changed.connect(lambda: parts.repoint(id))                           # (a modem started again on other ports, the old pair taken meanwhile: the radio's line follows it)
         modem.changed.connect(lambda: parts.radio_changed.emit(id))
         parts.config_changed.connect(lambda config: modem.set_tx_gain(radio.spec.value("tx_gain_db")))       # (the transmit gain is set live in the modem, and the tune tone follows it)
@@ -107,12 +108,15 @@ def wire_radio(parts: Services, radio: Radio, wired: list[object]) -> None:
 
 
 def _show_frequencies(parts: Services) -> None:
-    """The frequencies the HF box suggests, on the modem it reads them from: the project's list, else the dial the version page names, else the built-in ones; the page's radio topic is told again."""
+    """The frequencies the HF boxes suggest, the station's and on every modem the page reads them from: the project's list, else the dial the version page names, else the built-in ones; the page's radio
+    topic is told again."""
     built_in = [Frequency(band, dial) for band, dial in SUGGESTED]
-    now = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
-    parts.mercury.frequencies = now
+    parts.suggested_frequencies = suggested(parts.frequencies.listed, parts.updatecheck.hf_dial, built_in, f"{DIAL_BAND} m")
     parts.skeds.changed.emit()                              # (the Skeds tab offers the same dials)
-    parts.mercury.changed.emit()
+    for radio in parts.radios.all():
+        if radio.driver.modem is not None:
+            radio.driver.modem.frequencies = parts.suggested_frequencies
+            radio.driver.modem.changed.emit()
 
 
 def _log_packet(packet: Packet) -> None:

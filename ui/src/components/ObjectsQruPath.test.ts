@@ -87,7 +87,7 @@ describe("the path of a request for local info", () => {
 
   it("does not hold Ask for a stored path that is wrong while the FM radio is off and the fold is not there, and sends no path", async () => {
     localStorage.setItem("NeoAPRS.qru.path", "not a path!");
-    const { wrapper, daemon } = make({ config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }) });
+    const { wrapper, daemon } = make({ radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) });
     expect(fold(wrapper).exists()).toBe(false);
     expect(ask(wrapper).attributes("disabled")).toBeUndefined();
     await ask(wrapper).trigger("click");
@@ -97,7 +97,7 @@ describe("the path of a request for local info", () => {
 });
 
 describe("the radio of a request for local info (plan rule 3.6)", () => {
-  /** A station of these radios as the daemon tells them once the settings of before are gone (lib/radiosides.ts takes the Enable of radios 1 and 2 from those while they are there). */
+  /** A station of these radios as the daemon tells them: the topic `radios`. */
   function on(given: Parameters<typeof fakeDaemon>[0], ...rows: RadioRow[]) {
     return make({ ...ofRadios(...rows), ...given });
   }

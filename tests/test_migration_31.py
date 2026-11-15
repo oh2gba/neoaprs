@@ -339,7 +339,7 @@ async def test_a_daemon_started_on_an_old_database_keeps_the_choices_the_last_se
     await e.start()
     assert (e.ctl.config.beacon_path, e.ctl.config.digi_enabled, e.ctl.config.tnc_profile) == ("WIDE2-1", True, "kenwood-tnc2"), "the radios' own settings are in force"
     assert (e.ctl.radios.choice("OH2GAX-2"), e.ctl.radios.choice("OH2RDG")) == (2, 1), "the operator's choices are restored"
-    assert e.ctl.beacon.running and e.ctl.beacon.next_due == fm_sent + timedelta(minutes=30), "the FM beacon keeps its time: no beacon at the start"
+    assert e.beacon.running and e.beacon.next_due == fm_sent + timedelta(minutes=30), "the FM beacon keeps its time: no beacon at the start"
     assert await e.ctl.store.setting(memory_key_of(HF_ID)) == stamp(hf_sent), "the HF beacon's row is where its beacon reads it"
     assert e.ctl.radios.choose("OH6XYZ", 1)
     await e.ctl.radios.flush()

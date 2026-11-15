@@ -47,10 +47,12 @@ def stored_rows(settings: Mapping[str, Any]) -> tuple[dict[str, str], list[str]]
 
 
 def heard(state: Mapping[str, Any] | None) -> dict[str, int]:
-    """How many packets each of today's two radios handed on, as a bundle's `state.json` tells (`tnc` the FM radio's line, `hf.tnc` the HF radio's); nothing without one."""
+    """How many packets radios 1 and 2 handed on, by the word a database at version 30 keeps a packet's radio in, as a bundle's `state.json` tells: each radio's line in `radios`, or in a bundle of a version
+    of one FM and one HF radio, `tnc` the FM radio's line and `hf.tnc` the HF radio's; nothing without one."""
     if state is None:
         return {}
-    lines = {"fm": state.get("tnc"), "hf": (state.get("hf") or {}).get("tnc")}
+    radios = {entry.get("id"): entry.get("tnc") for entry in state.get("radios") or [] if isinstance(entry, dict)}
+    lines = {"fm": radios.get(1), "hf": radios.get(2)} if radios else {"fm": state.get("tnc"), "hf": (state.get("hf") or {}).get("tnc")}
     return {radio: int(((line or {}).get("stats") or {}).get("packets") or 0) for radio, line in lines.items()}
 
 

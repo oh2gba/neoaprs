@@ -336,14 +336,14 @@ def test_a_message_that_does_not_fit_the_protocol_is_found_when_the_check_is_on(
     try:
         conn.send({"type": "pong", "now": "yesterday"})
         conn.send({"type": "pong", "now": "2026-10-21T12:00:00Z", "extra": 1})
-        conn.send({"type": "state", "topic": "tnc", "rev": 0, "value": {"state": "connected"}})
+        conn.send({"type": "state", "topic": "gps", "rev": 0, "value": {"state": "fix"}})
         conn.send({"type": "state", "topic": "weather", "rev": 0, "value": {}})
         conn.send({"type": "patch", "topic": "stations", "rev": 1, "ops": [{"op": "set", "key": "OH2X", "value": {"call": "OH2X"}}]})
         found = list(outbound.VIOLATIONS)
     finally:
         outbound.VIOLATIONS.clear()
     assert len(found) == 5 and all(line.split(":")[0] in ("pong", "state", "patch") for line in found)
-    assert "now" in found[0] and "extra" in found[1] and "the value of tnc" in found[2] and "problem: Field required" in found[2] and "weather" in found[3]
+    assert "now" in found[0] and "extra" in found[1] and "the value of gps" in found[2] and "problem: Field required" in found[2] and "weather" in found[3]
     assert "the item OH2X of stations" in found[4] and "kind: Field required" in found[4]
     assert len(socket.frames) == 6, "a message that does not fit is sent all the same (the check is for the tests)"
 

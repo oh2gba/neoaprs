@@ -46,7 +46,7 @@ const { over, named, offline, shown, paths, fallback, choices, choice, auto, fix
 );
 /** The tags the radio's tag keeps the room of: its own first, then every other radio that is on, all in one place and the others hidden (`.twowords`), so that the call and Route stay where they are whichever radio it names. */
 const radios = useRadios();
-const room = computed(() => (over.value === null ? [] : [over.value, ...radios.enabled.value.filter((radio) => radio.id !== over.value?.id)]));
+const room = computed(() => (over.value === null ? [] : [over.value, ...radios.senders.value.filter((radio) => radio.id !== over.value?.id)]));
 /** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
 const mayNot = computed(() => row.value?.may_not_message === true);
 const { rfOnly } = prefs;

@@ -1,2 +1,3 @@
-/* What macOS shows when NeoAPRS first opens the sound card of the HF radio (Info.plist, NSMicrophoneUsageDescription), in the language of the Mac. One file for each language of the page. */
+/* What macOS shows when NeoAPRS first opens the sound card of the HF radio (Info.plist, NSMicrophoneUsageDescription) and first reaches a radio over Bluetooth (NSBluetoothAlwaysUsageDescription), in the language of the Mac. One file for each language of the page. */
 "NSMicrophoneUsageDescription" = "O NeoAPRS ouve o rádio HF pela placa de som, que o macOS conta como um microfone.";
+"NSBluetoothAlwaysUsageDescription" = "O NeoAPRS alcança um rádio ou uma placa LoRa que se comunica por Bluetooth.";

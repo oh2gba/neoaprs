@@ -13,11 +13,10 @@ import {
   packetLabel,
   packetTag,
   radioTone,
-  radiosOfBefore,
 } from "@/lib/channels";
 import { pageRadios } from "@/lib/radios";
 import type { RadioRow, StationRow } from "@/protocol/protocol";
-import { NOW, ago, packet, radioRow, radiosTopic, station } from "@/test/fixtures";
+import { NOW, ago, heardBy, packet, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
 const FM = radioRow(1, "kenwood-tnc2");
@@ -148,24 +147,23 @@ describe("the channel of a packet of the log", () => {
     expect((["rf", "rf-gated", "is"] as const).map((via) => packetChannel(via))).toEqual(["rf", "gated", "is"]);
     expect((["rf", "rf-gated", "is"] as const).map((via) => packetLabel(via))).toEqual(["RF", "iGate", "Internet"]);
     expect((["rf", "rf-gated", "is"] as const).map((via) => packetTag(packet(1, { via }), ONE).label)).toEqual(["RF", "iGate", "Internet"]);
-    expect(packetTag(packet(1, { via: "is", radio: "", radio_id: null }), ONE).title).toBe("Received over the internet (APRS-IS), not on the radio");
+    expect(packetTag(packet(1, { via: "is", radio_id: null }), ONE).title).toBe("Received over the internet (APRS-IS), not on the radio");
   });
 });
 
 describe("a station heard on the HF radio", () => {
-  const hfOnly = station("HFONLY", { heard_rf: 2, heard_fm: 0, heard_hf: 2, last_rf_at: ago(60), last_fm_at: null, last_hf_at: ago(60) });
-  const hfAndFm = station("HFFM", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_rf_at: ago(60), last_fm_at: ago(180), last_hf_at: ago(60) });
-  const hfAndNet = station("HFNET", { heard_rf: 2, heard_fm: 0, heard_hf: 2, heard_is: 1, last_hf_at: ago(60), last_is_at: ago(40) });
+  const hfOnly = station("HFONLY", { heard_rf: 2, last_rf_at: ago(60), heard: heardBy([2, 2, ago(60)]) });
+  const hfAndFm = station("HFFM", { heard_rf: 5, last_rf_at: ago(60), heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]) });
+  const hfAndNet = station("HFNET", { heard_rf: 2, heard_is: 1, last_rf_at: ago(60), last_is_at: ago(40), heard: heardBy([2, 2, ago(60)]) });
 
   it("has the HF tag, with the RF one only when it was heard on the FM radio too, and every station without HF as before", () => {
-    expect([hfOnly, hfAndFm, hfAndNet].map(channelsOf)).toEqual([["hf"], ["rf", "hf"], ["hf", "is"]]);
+    expect([hfOnly, hfAndFm, hfAndNet].map(channelsOf)).toEqual([["rf"], ["rf"], ["rf", "is"]]); // (which radio heard it is `heard`)
     expect([hfOnly, hfAndFm, hfAndNet].map((row) => labels(row))).toEqual(["HF", "RF · HF", "HF · Internet"]);
     expect([rf, gated, net, both, all].map(channelsOf)).toEqual([["rf"], ["gated"], ["is"], ["rf", "is"], ["rf", "gated", "is"]]);
   });
 
   it("keeps the FM tag of a station heard on both radios when HF is chosen for its messages (plan section 9: it was lost)", () => {
-    const chosen = { ...hfAndFm, message_radio: "hf" as const, radio_choice: 2, radio_now: 2 };
-    expect(channelsOf(chosen)).toEqual(["rf", "hf"]);
+    const chosen = { ...hfAndFm, radio_choice: 2, radio_now: 2 };
     expect(labels(chosen)).toBe("RF · HF");
     expect(labels(chosen, TWO)).toBe("FM · HF");
   });
@@ -183,14 +181,14 @@ describe("a station heard on the HF radio", () => {
     expect(heardWords(hfAndFm, TWO, NOW)).toBe("FM 3 min ago · HF 1 min ago");
     expect(
       [
-        packet(1, { via: "rf", radio: "fm" }),
-        packet(2, { via: "rf", radio: "hf" }),
-        packet(3, { via: "is", radio: "", radio_id: null }),
-        packet(4, { via: "rf-gated", radio: "fm" }),
+        packet(1, { via: "rf", radio_id: 1 }),
+        packet(2, { via: "rf", radio_id: 2 }),
+        packet(3, { via: "is", radio_id: null }),
+        packet(4, { via: "rf-gated", radio_id: 1 }),
       ].map((row) => packetTag(row, TWO).label),
     ).toEqual(["FM", "HF", "Internet", "iGate"]);
-    expect(packetTag(packet(1, { via: "rf", radio: "fm" }), ONE).label).toBe("RF");
-    expect(packetTag(packet(1, { via: "rf", radio: "fm" }), TWO).title).toBe("Heard on radio FM");
+    expect(packetTag(packet(1, { via: "rf", radio_id: 1 }), ONE).label).toBe("RF");
+    expect(packetTag(packet(1, { via: "rf", radio_id: 1 }), TWO).title).toBe("Heard on radio FM");
   });
 
   it("has the HF tag in a tone of its own, the FM radio's neutral, and its own title", () => {
@@ -199,7 +197,7 @@ describe("a station heard on the HF radio", () => {
       ["HF", "hf"],
     ]);
     expect((["rf", "rf-gated", "is", "dummy"] as const).map((via) => packetTag(packet(1, { via }), ONE).tone)).toEqual(["neutral", "neutral", "info", "dummy"]);
-    expect([packetTag(packet(1, { radio: "fm" }), TWO).tone, packetTag(packet(1, { radio: "hf" }), TWO).tone]).toEqual(["neutral", "hf"]);
+    expect([packetTag(packet(1, { radio_id: 1 }), TWO).tone, packetTag(packet(1, { radio_id: 2 }), TWO).tone]).toEqual(["neutral", "hf"]);
     expect(titles(hfOnly, HF_ALONE)).toBe("Heard on the HF radio");
     expect(titles(hfAndFm, HF_ALONE)).toBe("Heard on radio FM; Heard on the HF radio"); // (the FM radio is off: what it heard keeps its name)
   });
@@ -212,16 +210,13 @@ describe("a station heard on the HF radio", () => {
   it("is on the air, as any station heard on a radio is, and a packet of the log says HF when it came on the HF radio", () => {
     expect([hfOnly, hfAndNet].map(onAir)).toEqual([true, true]);
     expect([hfOnly, hfAndNet].map(internetOnly)).toEqual([false, false]);
-    expect(packetChannel("rf", "hf")).toBe("hf");
-    expect(packetLabel("rf", "hf")).toBe("HF");
-    expect(packetLabel("rf", "fm")).toBe("RF");
+    expect(packetChannel("rf")).toBe("rf");
     expect(packetLabel("rf")).toBe("RF");
-    expect(packetLabel("rf", "fm", true)).toBe("FM");
-    expect(packetLabel("is", "")).toBe("Internet");
-    expect(packetTag(packet(1, { radio: "hf" }), HF_ALONE)).toEqual({ key: "radio-2", label: "HF", title: "Heard on the HF radio", tone: "hf" });
-    expect(packetCameBy(packet(1, { radio: "hf" }), HF_ALONE)).toBe("heard on the HF radio");
-    expect(packetCameBy(packet(1, { radio: "hf" }), TWO)).toBe("heard on radio HF");
-    expect(packetCameBy(packet(1, { radio: "fm" }), ONE)).toBe("Heard on the radio");
+    expect(packetLabel("is")).toBe("Internet");
+    expect(packetTag(packet(1, { radio_id: 2 }), HF_ALONE)).toEqual({ key: "radio-2", label: "HF", title: "Heard on the HF radio", tone: "hf" });
+    expect(packetCameBy(packet(1, { radio_id: 2 }), HF_ALONE)).toBe("heard on the HF radio");
+    expect(packetCameBy(packet(1, { radio_id: 2 }), TWO)).toBe("heard on radio HF");
+    expect(packetCameBy(packet(1, { radio_id: 1 }), ONE)).toBe("Heard on the radio");
   });
 });
 
@@ -276,19 +271,17 @@ describe("a station with six radios", () => {
   });
 
   it("names a packet's radio and says which radio heard an iGate's packet", () => {
-    expect(packetTag(packet(1, { radio: "", radio_id: 4, via: "dummy" }), SIX)).toEqual({
+    expect(packetTag(packet(1, { radio_id: 4, via: "dummy" }), SIX)).toEqual({
       key: "radio-4",
       label: "20 m",
       title: "Heard on radio 20 m",
       tone: "dummy",
     });
-    expect(packetTag(packet(2, { radio: "", radio_id: 3, via: "rf-gated" }), SIX).title).toBe(
+    expect(packetTag(packet(2, { radio_id: 3, via: "rf-gated" }), SIX).title).toBe(
       "Heard on the radio from an iGate, which took it from the internet; Heard on radio Shack",
     );
-    expect(packetTag(packet(2, { radio: "", radio_id: 3, via: "rf-gated" }), ONE).title).toBe(
-      "Heard on the radio from an iGate, which took it from the internet",
-    );
-    expect(packetCameBy(packet(1, { radio: "", radio_id: 3 }), SIX)).toBe("heard on radio Shack");
+    expect(packetTag(packet(2, { radio_id: 3, via: "rf-gated" }), ONE).title).toBe("Heard on the radio from an iGate, which took it from the internet");
+    expect(packetCameBy(packet(1, { radio_id: 3 }), SIX)).toBe("heard on radio Shack");
   });
 });
 
@@ -302,7 +295,7 @@ describe("a radio that is off or removed", () => {
       ["RF", "neutral", "Heard on the radio"],
       ["Shack", "removed", "Heard on radio Shack"],
     ]);
-    expect(packetTag(packet(1, { radio: "", radio_id: 3 }), ONE_AND_REMOVED)).toEqual({
+    expect(packetTag(packet(1, { radio_id: 3 }), ONE_AND_REMOVED)).toEqual({
       key: "radio-3",
       label: "Shack",
       title: "Heard on radio Shack",
@@ -311,10 +304,8 @@ describe("a radio that is off or removed", () => {
   });
 
   it("is named while it is off: an HF radio switched off keeps its word HF, and its title names it (plan section 6: a row that came by a radio that is now off always carries its name)", () => {
-    expect(
-      heardTags(station("OH2HFOFF", { heard_rf: 2, heard_fm: 0, heard_hf: 2, last_hf_at: ago(60) }), ONE, NOW).map((tag) => [tag.label, tag.tone]),
-    ).toEqual([["HF", "hf"]]);
-    const hfAndFm = station("HFFM", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_rf_at: ago(60), last_fm_at: ago(180), last_hf_at: ago(60) });
+    expect(heardTags(station("OH2HFOFF", { heard_rf: 2, heard: heardBy([2, 2]) }), ONE, NOW).map((tag) => [tag.label, tag.tone])).toEqual([["HF", "hf"]]);
+    const hfAndFm = station("HFFM", { heard_rf: 5, last_rf_at: ago(60), heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]) });
     expect(titles(hfAndFm, ONE)).toBe("Heard on the radio; Heard on radio HF");
   });
 });
@@ -331,13 +322,5 @@ describe("the tone of a radio's tag", () => {
       tone({ removed: true }, "mercury"),
       tone({ removed: true }, "dummy"),
     ]).toEqual(["neutral", "hf", "lora", "dummy", "dummy", "removed", "removed"]);
-  });
-
-  it("is that of the two radios of before for a caller that says only whether the radios are named", () => {
-    expect(radiosOfBefore(false).map((radio) => [radio.id, radio.enabled])).toEqual([
-      [1, true],
-      [2, false],
-    ]);
-    expect(radiosOfBefore(true).map((radio) => radio.enabled)).toEqual([true, true]);
   });
 });

@@ -24,7 +24,6 @@ class AttemptRow(_Model):
     hops: list[HopRow] = Field(description="the digipeaters of the path the attempt went by, in order; empty for a direct path")
     internet: str | None = Field(description="the call of the iGate that put a copy of the message back on the air as a third-party packet, when one was heard for this attempt; null otherwise")
     acked: bool = Field(description="the acknowledgement was heard after this attempt and before the next one: the attempt the ack answers")
-    radio: Literal["", "fm", "hf"] = Field(description="the radio the attempt went out on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for an attempt kept before there were two radios and for one on any other radio (`radio_id` says which)")
     radio_id: int | None = Field(description="the radio the attempt went out on, its id (a row of the topic `radios`); null for an attempt kept before the radio was")
 
 
@@ -39,7 +38,6 @@ class MessageRow(_Model):
     to_call: str = Field(description="the addressee: our call for a message sent to us, the other station for one of ours, whoever it is for when overheard")
     text: str
     msg_id: str | None = Field(description="the message id the acknowledgement quotes (1 to 5 letters or digits); null for a message that came in without one")
-    radio: Literal["", "fm", "hf"] = Field(description="the radio a message that came in came on: `fm` radio 1 (the FM radio of before), `hf` radio 2 (the HF radio of before); empty for a message of ours (its attempts say), for one kept before there were two radios and for one of any other radio (`radio_id` says which)")
     radio_id: int | None = Field(description="the radio a message that came in came on, its id; null for a message of ours (its attempts say) and for one from the internet or kept before the radio was")
     radio_now: int | None = Field(description="for a message of ours on its way (`sending`, `queued`), the radio its next attempt goes on: the one its first attempt went on, which it keeps until it ends unless Route changes or that radio is switched off, else the station's radio now (plan rule 3.2); "
                                               "null for every other message and while there is no radio it may go on. The page shows Route, the path and the radio's state of this radio")
@@ -67,15 +65,6 @@ class SendMessage(_Command):
     to: Call
     text: MessageText
     locked: bool = Field(default=False, description="true encrypts the message with the key shared with the station (its `seal` is `open`): the text may be UTF-8, at most 34 bytes. Refused while the daemon was started without `--encryption` (`lock.off`), while the station has not announced its key (`lock.no_key`), and when the text is over 34 bytes (`lock.too_long`)")
-
-
-class SetMessageRadio(_Command):
-    """Chooses the radio messages to a station go out on: `fm` radio 1, `hf` radio 2, or empty to leave it to the daemon again (plan rule 3.2: the radio that heard the station lately, a local one before HF); `station_radio`
-    names any radio by its id. It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`message_radio`, `radio_choice`). Answered by the station's row, or by an
-    `error` for a station that is not known (`station.unknown`)."""
-    cmd: Literal["message_radio"]
-    call: Call
-    radio: Literal["", "fm", "hf"]
 
 
 class SendKey(_Command):

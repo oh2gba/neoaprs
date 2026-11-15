@@ -53,7 +53,7 @@ class Sender:
     def ready(self, kind: str, radio: AirRadio | None = None) -> bool:
         """May a frame of this kind (a word for the log: "object", "bulletin") go out now, on `radio`, or, when none is named, on some enabled radio (the one a frame goes to is asked again by `send`)?
         Not while the pause after our latest frame is running on every radio asked about."""
-        radios = [radio] if radio is not None else list(self.radios.enabled())
+        radios = [radio] if radio is not None else list(self.radios.senders())
         if radios and all(self.too_soon(r) for r in radios):
             return False
         if refusal := self._interlock.refused(kind):
@@ -71,8 +71,8 @@ class Sender:
         return True
 
     def radios_for(self, ids: Iterable[RadioId]) -> list[AirRadio]:
-        """The radios of these ids (an object's `radios`) that are enabled, in that order; the main radio when none of them is (one radio on: everything goes on it, whatever was chosen); none while there is none."""
-        on = {radio.id: radio for radio in self.radios.enabled()}
+        """The radios of these ids (an object's `radios`) that are enabled and can send, in that order; the main radio when none of them is (one radio on: everything goes on it, whatever was chosen); none while there is none."""
+        on = {radio.id: radio for radio in self.radios.senders()}
         found = [on[i] for i in ids if i in on]
         main = self.radios.main
         return found or ([main] if main is not None else [])

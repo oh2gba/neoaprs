@@ -15,7 +15,8 @@ Why each number is what it is:
 - LoRa (a LoRa APRS board; the Dummy LoRa radio is the first type of the kind, aprs-reference/lora-plan.md section 3.2): paths, as the LoRa networks use WIDE1-1 and their iGates repeat it, and
   no digipeating by us (a second repeat of each frame would hold the one shared channel twice as long); SmartBeaconing, whose fastest rate (60 s) is the trackers' own; a frame of ours takes 2 to 4 s
   on the air at SF12, close to Mercury's 3.8 s, on one channel that every station shares, so the beacon's floor, its random pause and the pause before a retry are HF's (the floor of 30 minutes
-  is John's to confirm: the firmwares beacon every 15); frames up to 250 bytes, which the boards in use take over KISS whole (their buffer of 255 bytes counts the KISS bytes around the frame),
+  is John's to confirm: the firmwares beacon every 15); frames up to 250 bytes, which the boards in use take over KISS whole (their buffer of 255 bytes counts the KISS bytes around the frame, so a frame whose escapes would not fit is
+  shortened or refused too: LORA_MAX_KISS),
   and 252 bytes of text on the air, where a packet is the text after a header of 3 bytes in a buffer of 255 (tnc2line.MAX_TEXT)."""
 from dataclasses import dataclass
 
@@ -30,7 +31,8 @@ HF_RETRY_JITTER_SEC = 20              # the longest pause added before each retr
 LORA_BEACON_MIN_MIN = 30              # a LoRa frame of ours is as long on the air as an HF one, on one shared channel: HF's floor (the docstring above)
 LORA_BEACON_JITTER_SEC = 300          # HF's pause, measured for a frame of 3.8 s; not measured on LoRa
 LORA_RETRY_JITTER_SEC = 20            # as on HF: the retries of two stations that collided collide again
-LORA_MAX_FRAME = 250                  # the boards clear their KISS input past 255 bytes, which count the FENDs, the command byte and the escapes
+LORA_MAX_FRAME = 250                  # the boards clear their KISS input past 255 bytes, which count the FENDs, the command byte and the escapes: 250 leaves room for three escapes
+LORA_MAX_KISS = 256                   # the whole KISS frame a board takes: the CA2RXU iGate clears its input when it passes 255 bytes before the closing FEND (tnc_utils.cpp handleInputDataKISS)
 
 
 @dataclass(frozen=True)
@@ -43,13 +45,14 @@ class RadioRules:
     beacon_jitter_sec: int         # the longest random pause added to each timed beacon; 0: none
     max_frame: int | None          # the longest AX.25 frame the radio carries whole; None: AX.25's limit alone
     retry_jitter_sec: int = 0      # the longest pause added before each retry of a message (message.retry_pause); 0: none
+    max_kiss: int | None = None    # the longest KISS frame of ours its line takes, both FENDs, the command byte and the escapes counted (a LoRa board 256); None: no limit of its own
 
 
 FM = RadioRules("fm", True, True, True, FM_BEACON_MIN_MIN, 0, None)
 HF = RadioRules("hf", False, False, False, HF_BEACON_MIN_MIN, HF_BEACON_JITTER_SEC, HF_MAX_FRAME, HF_RETRY_JITTER_SEC)
-LORA = RadioRules("lora", True, False, True, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_MAX_FRAME, LORA_RETRY_JITTER_SEC)
+LORA = RadioRules("lora", True, False, True, LORA_BEACON_MIN_MIN, LORA_BEACON_JITTER_SEC, LORA_MAX_FRAME, LORA_RETRY_JITTER_SEC, LORA_MAX_KISS)
 
 
 def rules_of(t: RadioType) -> RadioRules:
     """The rules of a type of radio (neoaprs/radiotypes/), as the services read them until RadioRules goes: a view of the type's limits and of what it is allowed."""
-    return RadioRules(t.kind, t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon, t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.max_frame, t.limits.retry_jitter_sec)
+    return RadioRules(t.kind, t.allowed.paths, t.allowed.digipeat, t.allowed.smart_beacon, t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.max_frame, t.limits.retry_jitter_sec, t.limits.max_kiss)

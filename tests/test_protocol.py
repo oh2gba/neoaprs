@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from neoaprs.aprsmessage import MAX_TEXT
-from neoaprs.config import KEYS
+from neoaprs.web.views import CONFIG_KEYS
 from neoaprs.packetcodec import KINDS
 from neoaprs.web import dispatch, handlers  # noqa: F401  (importing the handlers registers them)
 from neoaprs.web.hubwire import PROTOCOL
@@ -20,7 +20,7 @@ from neoaprs.web.prefwire import StationPref
 from neoaprs.web.packetwire import PacketRow
 from neoaprs.web.protocol import COMMAND_NAMES, COMMAND_TYPES, COMMANDS, MESSAGE_NAMES, MESSAGE_TYPES, MESSAGES, TOPIC_ITEMS, TOPIC_NAMES, TOPIC_VALUES
 from neoaprs.web.stationwire import StationRow
-from neoaprs.web.tncwire import TncState
+from neoaprs.web.tncwire import ModemState, RadioRow
 
 ROOT = Path(__file__).resolve().parent.parent
 HINT = "run .venv/bin/python scripts/gen-protocol.py and commit the result"
@@ -69,7 +69,7 @@ def test_the_schema_and_the_types_carry_every_command_and_message() -> None:
 def test_the_lists_of_the_page_are_the_daemons_own() -> None:
     lists = generator().LISTS.read_text(encoding="utf-8")
     assert f"export const PROTOCOL = {PROTOCOL};" in lists
-    for key in KEYS:
+    for key in CONFIG_KEYS:
         assert json.dumps(key) in lists
     assert "export const LIMITS = {" in lists and "textMax: %d" % MAX_TEXT in lists
     topics = lists.split("export const TOPIC_NAMES = ", 1)[1].split(" as const;", 1)[0]
@@ -109,27 +109,24 @@ WEATHER_FIELDS: dict[str, Any] = {"wind_dir": 107, "wind_kmh": 1.6, "gust_kmh": 
                                   "luminosity": None, "snow_mm": None}
 STATION: dict[str, Any] = {
     "call": "OH2RDK-7", "kind": "station", "reported_by": "", "symbol_table": "T", "symbol_code": "&", "symbol_name": "unknown", "lat": 60.165, "lon": 24.9467, "altitude_m": None, "course_deg": None,
-    "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "heard_rf": 1, "heard_rf_gated": 1, "heard_is": 2, "heard_dummy": 1, "last_dummy_at": NOW, "heard_fm": 1, "heard_hf": 0, "last_fm_at": NOW, "last_hf_at": None, "heard": {"1": {"count": 1, "last_at": NOW}, "3": {"count": 2, "last_at": None}}, "last_path_radio": 1, "last_direct_any_at": NOW, "snr": None, "rssi": None, "signal_at": None, "last_rf_at": NOW, "last_rf_gated_at": NOW, "last_is_at": NOW, "position_via": "is", "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
+    "speed_kmh": None, "first_heard": NOW, "last_heard": NOW, "last_position_at": NOW, "last_status": "", "last_comment": "432.500 MHz", "packets": 1, "heard_rf": 1, "heard_rf_gated": 1, "heard_is": 2, "heard_dummy": 1, "last_dummy_at": NOW, "heard": {"1": {"count": 1, "last_at": NOW}, "3": {"count": 2, "last_at": None}}, "last_path_radio": 1, "last_direct_any_at": NOW, "snr": None, "rssi": None, "signal_at": None, "last_rf_at": NOW, "last_rf_gated_at": NOW, "last_is_at": NOW, "position_via": "is", "packets_hour": 1, "device": "Kenwood TH-D74", "last_path": ["OH2RCH-2*", "TRACE2-1"],
     "last_route": "via OH2RCH-2", "heard_direct": 2, "last_direct_at": NOW, "gated": 4, "igate": True, "heard_via": [["OH2RCH-2", 30], ["OH2RCH-3", 4]], "best_route": "via OH2RCH-2", "suggested_path": "OH2RCH-2", "heard_path": "OH2RCH-2", "internet_reach": {"kind": "igate", "igate": "OH2GW-10", "hops": ["OH2RCH-2"]},
     "route_marks": [{"kind": "rf", "hops": ["OH2RCH-2"], "gate": "", "at": NOW, "lat": 60.165, "lon": 24.9467}],
-    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "can_message": True, "may_not_message": False, "message_radio": "", "radio_choice": None, "radio_now": 1, "paths": {"3": "OH2RCH-2"}, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "frequency": FREQUENCY, "storm": STORM, "sign": None, "track": [[NOW, 60.165, 24.9467]]}
+    "distance_km": 1.5, "bearing_deg": 90.0, "is_me": False, "can_message": True, "may_not_message": False, "radio_choice": None, "radio_now": 1, "paths": {"3": "OH2RCH-2"}, "own": False, "weather": WEATHER_FIELDS, "weather_at": NOW, "telemetry": TELEMETRY, "telemetry_at": NOW, "locator": LOCATOR, "extensions": EXTENSIONS, "frequency": FREQUENCY, "storm": STORM, "sign": None, "track": [[NOW, 60.165, 24.9467]]}
 BULLETIN_ROW: dict[str, Any] = {"sender": "OH2XYZ", "slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "first_heard": NOW, "last_heard": "2026-10-21T13:00:00Z", "times_heard": 3}
 OWN_OBJECT_ROW: dict[str, Any] = {"name": "LEADER", "kind": "object", "lat": 60.165, "lon": 24.9467, "symbol_table": "/", "symbol_code": ">", "comment": "Rescue 1", "course_deg": 88, "speed_kmh": 66.7,
-                                  "path": None, "qru_group": "", "on_request": False, "radio": "fm", "radios": [1], "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
+                                  "path": None, "qru_group": "", "on_request": False, "radios": [1], "state": "live", "created_at": NOW, "updated_at": NOW, "sent": 2, "last_sent_at": NOW, "next_at": "2026-10-21T12:03:00Z"}
 OWN_BULLETIN_ROW: dict[str, Any] = {"slot": "BLN3HAMS", "group": "HAMS", "kind": "group", "text": "Net tonight at 20:00", "posted_at": NOW, "sent": 1, "last_sent_at": NOW, "next_at": "2026-10-21T12:02:00Z"}
 MESSAGE_ROW: dict[str, Any] = {"id": 3, "at": NOW, "direction": "out", "from_call": "OH2GBA", "to_call": "OH2RDG", "text": "hello", "msg_id": "12", "state": "sending", "attempts": 1,
-                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio": "", "radio_id": None, "radio_now": 1, "failure": None, "snr": None, "rssi": None,
+                               "attempts_max": 6, "last_attempt_at": NOW, "acked_at": None, "route": "", "seal": "", "radio_id": None, "radio_now": 1, "failure": None, "snr": None, "rssi": None,
                                "attempts_detail": [{"sent_at": NOW, "hops": [{"call": "OH2RCH-2", "heard": True, "heard_at": NOW, "by_internet": False}, {"call": "OH2RDG", "heard": False, "heard_at": None, "by_internet": False}],
-                                                    "internet": None, "acked": False, "radio": "fm", "radio_id": 1}]}
-PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio": "fm", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
+                                                    "internet": None, "acked": False, "radio_id": 1}]}
+PACKET: dict[str, Any] = {"id": 7, "heard_at": NOW, "direction": "in", "source": "OH2RDK-7", "sender": "OH2RDK-7", "destination": "APRX29", "path": ["OH2RCH-2*"], "route": "via OH2RCH-2", "via": "rf", "radio_id": 1, "snr": None, "rssi": None, "gate": "", "kind": "position", "summary": "position 60.1650 24.9467 T&",
                           "tnc2": "OH2RDK-7>APRX29,OH2RCH-2*:!6009.90NT02456.80E&432.500 MHz", "decoded": {"type": "position", **POSITION}}
-TNC: dict[str, Any] = {"state": "connected", "problem": "", "last_error": "", "path": "/dev/brainbox_3", "baud": 9600, "dummy": False, "modem": None, "rules": {"kind": "fm", "paths": True, "digipeat": True, "smart_beacon": True, "beacon_min_min": 20}, "readings": [], "describe": "/dev/brainbox_3 at 9600, KISS, 4 packets", "searching": [], "silent_since": None,
-                       "stats": {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0},
-                       "last_watchdog_action": "check", "last_watchdog_at": NOW, "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}]}
 STATS: dict[str, Any] = {"opens": 1, "bytes_in": 400, "bytes_out": 18, "frames_in": 4, "packets": 4, "rejected": 0, "last_packet": NOW, "keepalive_checks": 2, "watchdog_probes": 0, "port_reopens": 1, "digipeated": 0, "digipeated_at": None, "digipeat_held": 0}
 RADIO: dict[str, Any] = {"id": 1, "kind": "fm", "type": "kiss", "name": "Mobile", "number": 1, "enabled": True, "position": 1, "removed": False, "dummy": False, "state": "connected", "problem": None, "stats": STATS,
                          "lines": [{"at": NOW, "text": "NeoAPRS: opened /dev/brainbox_3"}], "limits": {"max_frame": None, "beacon_min_min": 20}, "allowed": {"paths": True, "digipeat": True, "smart_beacon": True, "gateway_heard": True, "shared_channel": True},
-                         "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False}, "choices": {"beacon": True, "path": "", "digipeat": False},
+                         "can": {"find": True, "terminal": True, "tune": False, "key_test": False, "scope": False, "tx_gain": False, "frequencies": False, "transmit": True}, "choices": {"beacon": True, "path": "", "digipeat": False},
                          "beacon": {"last_sent": NOW, "next_due": "2026-10-21T12:30:00Z", "interval_min": 30, "problem": None}, "modem": None, "holds": [{"resource": "serial", "value": "/dev/ttyUSB0"}]}
 REMOVED_RADIO: dict[str, Any] = {**RADIO, "id": 2, "kind": "hf", "type": "mercury", "name": "", "number": 1, "enabled": False, "position": 2, "removed": True, "state": "stopped", "lines": [], "holds": [],
                                  "choices": {"beacon": True, "path": None, "digipeat": None}, "beacon": {"last_sent": None, "next_due": None, "interval_min": 0, "problem": {"code": "transmit.off", "params": {}}}}
@@ -141,12 +138,12 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "index-DefyaO5x.js", "install": {"kind": "appimage", "appimage": "/home/u/NeoAPRS-0.1.0-x86_64.AppImage", "service": False, "arch": ""}, "local": True, "topics": []},
               {"type": "hello", "protocol": PROTOCOL, "version": "0.1.0", "page": "", "install": {"kind": "deb", "appimage": "", "service": True, "arch": "arm64"}, "local": False, "topics": []}],
     "status": [{"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 12, "stations": 5, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "hf_beacon_last_sent": None, "hf_beacon_next_due": None, "main_radio": 1, "email_radio": 1,
+                "beacon_interval_min": 30, "beacon_last_sent": NOW, "beacon_next_due": "2026-10-21T12:30:00Z", "main_radio": 1, "email_radio": 1,
                 "station_status": "QRV 14.074 MHz USB", "station_status_last_sent": NOW, "rig_state": "on",
                 "cpu_percent": 0.3, "rss_mb": 42.4, "uptime_sec": 10800,
                 "update": {"version": "0.2.0", "url": "https://oh2gba.github.io/neoaprs/", "message": "Fixes the map download"}, "message_key": "A1B2 C3D4 E5F6 0718"},
                {"type": "status", "version": "0.1.0", "started_at": NOW, "packets": 0, "stations": 1, "call": "OH2GBA", "lat": 60.17, "lon": 24.94,
-                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None, "hf_beacon_last_sent": None, "hf_beacon_next_due": None, "main_radio": None, "email_radio": None,
+                "beacon_interval_min": 0, "beacon_last_sent": None, "beacon_next_due": None, "main_radio": None, "email_radio": None,
                 "station_status": "", "station_status_last_sent": None, "rig_state": "unused",
                 "cpu_percent": 0.0, "rss_mb": 31.0, "uptime_sec": 0, "update": None, "message_key": ""}],
     "pong": [{"type": "pong", "now": NOW}],
@@ -180,7 +177,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "error": [{"type": "error", "cmd": "set_config", "key": "station/lat", "code": "setting.range", "params": {"value": 95.0, "min": -90.0, "max": 90.0}, "text": "set_config: station/lat: 95 is not between -90 and 90"},
               {"type": "error", "cmd": "", "key": None, "code": "not_json", "params": {}, "text": "That is not JSON (Expecting value)"}],
     "state": [{"type": "state", "topic": "stations", "rev": 0, "value": {"OH2RDK-7": STATION}}, {"type": "state", "topic": "packets", "rev": 3, "value": {"7": PACKET}},
-              {"type": "state", "topic": "tnc", "rev": 1, "value": TNC}, {"type": "state", "topic": "radios", "rev": 1, "value": {"1": RADIO, "2": REMOVED_RADIO}}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
+              {"type": "state", "topic": "radios", "rev": 1, "value": {"1": RADIO, "2": REMOVED_RADIO}}, {"type": "state", "topic": "config", "rev": 0, "value": CONFIG},
               {"type": "state", "topic": "update", "rev": 4, "value": {"supported": True, "state": "downloading", "version": "0.7.0", "percent": 42, "downloaded": 63_000_000, "total": 150_000_000, "problem": "", "detail": ""}},
               {"type": "state", "topic": "messages", "rev": 2, "value": {"3": MESSAGE_ROW}}, {"type": "state", "topic": "bulletins", "rev": 1, "value": {"OH2XYZ/BLN3HAMS": BULLETIN_ROW}},
               {"type": "state", "topic": "own_objects", "rev": 1, "value": {"LEADER": OWN_OBJECT_ROW}}, {"type": "state", "topic": "own_bulletins", "rev": 1, "value": {"BLN3HAMS": OWN_BULLETIN_ROW}},
@@ -190,7 +187,7 @@ MESSAGE_EXAMPLES: dict[str, list[dict[str, Any]]] = {
               {"type": "state", "topic": "station_keys", "rev": 1, "value": {"OH2RDG": {"fingerprint": "A1B2 C3D4 E5F6 0718", "heard_at": NOW}}}],
     "patch": [{"type": "patch", "topic": "stations", "rev": 4, "ops": [{"op": "set", "key": "OH2RDK-7", "value": STATION}, {"op": "del", "key": "OH2RDG"}]},
               {"type": "patch", "topic": "packets", "rev": 5, "ops": [{"op": "set", "key": "8", "value": PACKET}, {"op": "del", "key": "1"}]},
-              {"type": "patch", "topic": "tnc", "rev": 2, "ops": [{"op": "replace", "value": TNC}]}, {"type": "patch", "topic": "radios", "rev": 2, "ops": [{"op": "set", "key": "1", "value": {**RADIO, "state": "waiting", "problem": {"code": "radio.resource_held", "params": {"resource": "serial", "holder": "HF 2"}}}}]}, {"type": "patch", "topic": "config", "rev": 1, "ops": [{"op": "replace", "value": CONFIG}]},
+              {"type": "patch", "topic": "radios", "rev": 2, "ops": [{"op": "set", "key": "1", "value": {**RADIO, "state": "waiting", "problem": {"code": "radio.resource_held", "params": {"resource": "serial", "holder": "HF 2"}}}}]}, {"type": "patch", "topic": "config", "rev": 1, "ops": [{"op": "replace", "value": CONFIG}]},
               {"type": "patch", "topic": "messages", "rev": 3, "ops": [{"op": "set", "key": "3", "value": {**MESSAGE_ROW, "state": "acked", "acked_at": NOW}}, {"op": "del", "key": "1"}]},
               {"type": "patch", "topic": "bulletins", "rev": 2, "ops": [{"op": "set", "key": "OH2XYZ/BLN3HAMS", "value": {**BULLETIN_ROW, "times_heard": 4}}, {"op": "del", "key": "OH2ABC/BLN1"}]},
               {"type": "patch", "topic": "own_objects", "rev": 2, "ops": [{"op": "set", "key": "LEADER", "value": {**OWN_OBJECT_ROW, "state": "killing", "sent": 0}}, {"op": "del", "key": "MARK"}]},
@@ -218,9 +215,9 @@ DECODED = [
 ]
 
 COMMAND_EXAMPLES: dict[str, dict[str, Any]] = {
-    "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "tnc"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
-    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports", "radio": 2}, "find_radio": {"cmd": "find_radio", "radio": 3}, "find_radio_cancel": {"cmd": "find_radio_cancel", "radio": 3}, "hf_tune": {"cmd": "hf_tune", "on": True}, "hf_key_test": {"cmd": "hf_key_test"}, "hf_frequencies": {"cmd": "hf_frequencies"}, "hf_scope": {"cmd": "hf_scope", "on": True}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
-    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "message_radio": {"cmd": "message_radio", "call": "OH2GAX-2", "radio": "hf"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False, "radio": 2}, "general_query": {"cmd": "general_query", "kind": "aprs", "path": "WIDE1-1,WIDE2-1", "rf_only": True, "radio": 1}, "message_retry": {"cmd": "message_retry", "id": 3},
+    "ping": {"cmd": "ping"}, "status": {"cmd": "status"}, "subscribe": {"cmd": "subscribe", "topics": ["packets", "radios"]}, "unsubscribe": {"cmd": "unsubscribe", "topics": ["packets"]},
+    "forget_station": {"cmd": "forget_station", "call": "OH2RDG"}, "forget_all_stations": {"cmd": "forget_all_stations"}, "list_ports": {"cmd": "list_ports", "radio": 2}, "find_radio": {"cmd": "find_radio", "radio": 3}, "find_radio_cancel": {"cmd": "find_radio_cancel", "radio": 3}, "set_config": {"cmd": "set_config", "values": {"station/lat": "61.5"}},
+    "beacon_now": {"cmd": "beacon_now"}, "status_now": {"cmd": "status_now"}, "send_message": {"cmd": "send_message", "to": "OH2RDG", "text": "hello"}, "query": {"cmd": "query", "call": "OH2RDG", "kind": "status"}, "qru_ask": {"cmd": "qru_ask", "text": "RP70 150", "path": "OH2RDK-7,OH2RCH-2", "rf_only": False, "radio": 2}, "general_query": {"cmd": "general_query", "kind": "aprs", "path": "WIDE1-1,WIDE2-1", "rf_only": True, "radio": 1}, "message_retry": {"cmd": "message_retry", "id": 3},
     "message_cancel": {"cmd": "message_cancel", "id": 3}, "message_delete": {"cmd": "message_delete", "id": 3}, "conversation_delete": {"cmd": "conversation_delete", "call": "OH2RDG"},
     "overheard_delete": {"cmd": "overheard_delete", "from_call": "OH2AAA", "to_call": "OH2BBB"},
     "set_station_path": {"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,WIDE2-1", "radio": 3},
@@ -301,9 +298,9 @@ def test_the_models_are_strict() -> None:
     with pytest.raises(ValidationError):
         StationRow.model_validate_json(json.dumps({**STATION, "track": [[NOW, 60.1]]}))
     with pytest.raises(ValidationError):
-        TncState.model_validate_json(json.dumps({**TNC, "state": "asleep"}))
+        RadioRow.model_validate_json(json.dumps({**RADIO, "state": "asleep"}))
     with pytest.raises(ValidationError):
-        TncState.model_validate_json(json.dumps({**TNC, "lines": [{"at": NOW, "text": "x"}] * 101}))
+        RadioRow.model_validate_json(json.dumps({**RADIO, "lines": [{"at": NOW, "text": "x"}] * 101}))
     assert StationRow.model_validate_json(json.dumps({**STATION, "lat": None, "lon": None})).lat is None
 
 
@@ -342,7 +339,7 @@ def test_the_firewall_of_windows_is_no_part_of_the_protocol_any_more() -> None:
     with pytest.raises(ValidationError):
         COMMANDS.validate_python({"cmd": "hf_allow_firewall"})
     assert "hf_allow_firewall" not in COMMAND_NAMES
-    reasons = TncState.model_json_schema()["$defs"]["ModemState"]["properties"]
+    reasons = ModemState.model_json_schema()["properties"]
     assert set(reasons["reason"]["enum"]) == {"", "not_installed", "stopped", "network", "no_port", "not_started", "sound_card"}
     assert "lets_in" not in reasons and "allowing" not in reasons
 

@@ -103,6 +103,9 @@ class StubPick:
     def enabled(self) -> list[LineAir]:
         return [radio for radio in self.radios if radio.id in self.on]
 
+    def senders(self) -> list[LineAir]:
+        return self.enabled()
+
     @property
     def main(self) -> LineAir | None:
         return next(iter(self.enabled()), None)

@@ -16,7 +16,7 @@ import { useSettingsForm } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { attend } from "@/lib/attention";
 import { radioStepKeys } from "@/lib/setup";
-import { BOX_IDS, flatOf, inputId, placedId, radioElementId } from "@/lib/settingsradio";
+import { BOX_IDS, placedId, radioElementId } from "@/lib/settingsradio";
 
 const PLACE = "setup";
 provide(BOX_IDS, PLACE);
@@ -36,8 +36,7 @@ watch(
   (radio) => {
     if (radio === null || !adding.value) return;
     adding.value = false;
-    const flat = flatOf(radio, settings.values.value);
-    void attend(placedId(PLACE, flat === null ? radioElementId(radio, "type") : inputId(flat.type)));
+    void attend(placedId(PLACE, radioElementId(radio, "type")));
   },
 );
 watch(lastError, (toast) => {

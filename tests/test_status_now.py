@@ -132,7 +132,7 @@ async def test_the_command_sends_the_status_and_the_page_is_told_the_text(tmp_pa
     await page.until(lambda: any(r["tnc2"].endswith("QRV 145.500") and r["direction"] == "out" for r in page.topics["packets"].values()))
     await page.until(lambda: page.of("status")[-1]["station_status"] == "QRV 145.500")
     assert page.of("error") == []
-    assert e.ctl.rigstatus.frames is e.ctl.beacon.frames, "the report is made by the station's one maker of frames, the beacons'"
+    assert e.ctl.rigstatus.frames is e.beacon.frames, "the report is made by the station's one maker of frames, the beacons'"
     await e.stop()
 
 

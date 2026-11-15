@@ -1,5 +1,5 @@
 """The rows of the topics as the daemon makes them (neoaprs/web/views.py): a world with a row of every kind (stations of every kind including our own, objects, items, weather and
-telemetry stations; packets of every decoded kind; messages in every state with their attempts; bulletins; our objects and bulletins; station preferences; the TNC; the settings) is held
+telemetry stations; packets of every decoded kind; messages in every state with their attempts; bulletins; our objects and bulletins; station preferences; the settings) is held
 to a golden file, and every row is held to its model.
 
 The golden file tests/fixtures/wire/rows.json is the JSON the page is told (keys sorted: the order of the keys of a row is the model's). A change of the wire is made on purpose: change the
@@ -22,14 +22,13 @@ from neoaprs.web.packetwire import PacketRow
 from neoaprs.web.prefwire import StationPref
 from neoaprs.web.qruwire import QruState
 from neoaprs.web.stationwire import StationRow, WeatherValues
-from neoaprs.web.tncwire import TncState
 from neoaprs.web.wirebase import _Model
 from tests.support import wireworld
 from tests.support.files import FIXTURES
 
 GOLDEN = FIXTURES / "wire" / "rows.json"
 MODELS = {
-    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "station_keys": StationKey, "tnc": TncState, "gps": GpsState, "igate": IgateState, "qru": QruState,
+    "stations": StationRow, "packets": PacketRow, "messages": MessageRow, "bulletins": BulletinRow, "own_objects": OwnObjectRow, "own_bulletins": OwnBulletinRow, "station_prefs": StationPref, "station_keys": StationKey, "gps": GpsState, "igate": IgateState, "qru": QruState,
 }
 
 

@@ -22,7 +22,7 @@ from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
 from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.tnc import Tnc
-from neoaprs.tncprofile import DUMMY, DUMMY_HF
+from neoaprs.tncprofile import DUMMY_HF
 from tests.support.clock import FixedClock
 
 T0 = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
@@ -153,23 +153,10 @@ def tnc() -> Tnc:
     return tnc
 
 
-def tnc_dummy() -> Tnc:
-    found = Tnc(profile=DUMMY, clock=FixedClock(T0))
-    found.path = DUMMY_PATH
-    return found
-
-
 def tnc_dummy_hf() -> Tnc:
     """The Dummy HF radio, whose type gives the SNR of each frame."""
     found = Tnc(profile=DUMMY_HF, clock=FixedClock(T0))
     found.path = DUMMY_PATH
-    return found
-
-
-def tnc_searching() -> Tnc:
-    found = tnc()
-    found._search.listening = ["/dev/ttyUSB0", "/dev/ttyUSB1"]
-    found.last_error = "no answer"
     return found
 
 
@@ -298,7 +285,6 @@ def rows(views: Any) -> dict[str, Any]:
         "own_bulletins": {b.slot: views.own_bulletin_row(b, at) for b, at in own_bulletins()},
         "station_prefs": [views.pref_row(p) for p in prefs()],
         "station_keys": [views.key_row(fingerprint, at) for fingerprint, at in keys()],
-        "tnc": [views.tnc_state(Tnc(clock=FixedClock(T0))), views.tnc_state(tnc()), views.tnc_state(tnc_searching()), views.tnc_state(tnc_dummy()), views.tnc_state(tnc_dummy_hf())],
         "gps": gps_rows(views),
         "igate": igate_rows(views),
         "qru": qru_rows(views),

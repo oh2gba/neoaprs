@@ -43,6 +43,8 @@ afterEach(() => {
 });
 
 type Wrapper = Awaited<ReturnType<typeof make>>;
+/** The radios of a station with the HF radio on beside the FM radio. */
+const WITH_HF = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
 const slots = { messages: "<p>messages pane</p>", stations: "<p>stations pane</p>" };
 /** The panel of a station with the HF radio on, which has all ten tabs (without one, "the HF tests tab" below). */
 async function make(room: number, extra: Record<string, unknown> = {}, size: SizeClass = "tablet") {
@@ -51,7 +53,7 @@ async function make(room: number, extra: Record<string, unknown> = {}, size: Siz
     props: { tab: "messages" as TabId, collapsed: false, width: 500, size, view: "panel", ...extra },
     slots,
     attachTo: document.body,
-    global: withDaemon(fakeDaemon({ config: configValues({ "hf/enabled": "true" }) })),
+    global: withDaemon(fakeDaemon({ radios: WITH_HF() })),
   });
   await nextTick();
   return wrapper;
@@ -336,7 +338,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     return wrapper;
   }
   const fmAlone = () => fakeDaemon();
-  const withHf = () => fakeDaemon({ config: configValues({ "hf/enabled": "true" }) });
+  const withHf = () => fakeDaemon({ radios: WITH_HF() });
   const NINE = TAB_IDS.filter((id) => id !== "skeds");
 
   it("is not there for a station without an HF radio: one tab less, in the row and under More", async () => {
@@ -355,15 +357,18 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect(row(await within(third, 1000))).toEqual([...TAB_IDS]);
   });
 
-  it("is offered by the settings until the daemon has told its radios, so that the row of a station without HF does not lose a tab when they come", async () => {
+  it("is not offered until the daemon has told its radios, so that the row of a station without HF does not lose a tab when they come", async () => {
     const early = fakeDaemon({ radios: null, config: null });
     const wrapper = await within(early, 1000);
     expect(row(wrapper)).toEqual(NINE);
     await tell(early, { config: configValues() });
     await tell(early, { radios: radiosTopic(radioRow(1, "kenwood-tnc2")) });
     expect(row(wrapper)).toEqual(NINE);
-    expect(row(await within(fakeDaemon({ radios: null, config: configValues({ "hf/enabled": "true" }) }), 1000))).toEqual([...TAB_IDS]);
-    expect(row(await within(fakeDaemon({ radios: null }), 1000))).toEqual(NINE); // (a daemon of the wire of before, the HF radio off)
+    const hf = fakeDaemon({ radios: null });
+    const later = await within(hf, 1000);
+    expect(row(later)).toEqual(NINE);
+    await tell(hf, { radios: WITH_HF() });
+    expect(row(later)).toEqual([...TAB_IDS]);
   });
 
   it("keeps a remembered HF tests tab in its place until the daemon has told its radios, and gives way then if no HF radio is on", async () => {
@@ -374,7 +379,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     expect(wrapper.emitted("update:tab")).toEqual([["messages"]]);
     const hf = fakeDaemon({ radios: null, config: null });
     const kept = await within(hf, 1000, { tab: "skeds" });
-    await tell(hf, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), config: configValues({ "hf/enabled": "true" }) });
+    await tell(hf, { radios: WITH_HF(), config: configValues() });
     expect([row(kept), kept.emitted("update:tab")]).toEqual([[...TAB_IDS], undefined]);
   });
 
@@ -392,7 +397,7 @@ describe("the HF tests tab, only while a radio of the kind HF is on", () => {
     const daemon = withHf();
     const open = await within(daemon, 1000, { tab: "skeds" });
     expect(open.emitted("update:tab")).toBeUndefined();
-    await tell(daemon, { config: configValues({ "hf/enabled": "false" }) });
+    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) });
     expect(open.emitted("update:tab")).toEqual([["messages"]]);
     expect(row(open)).not.toContain("skeds");
   });

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import PathBuilder from "@/components/PathBuilder.vue";
 import type { StationRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, configValues, radioRow, radiosTopic, station } from "@/test/fixtures";
+import { ago, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const quiet = (call: string, extra: Partial<StationRow> = {}): StationRow =>
   station(call, { heard_via: [], last_route: "", best_route: "", route_marks: [], suggested_path: null, ...extra });
@@ -247,7 +247,6 @@ describe("the path builder", () => {
     );
     const both = fakeDaemon({
       stations: rows,
-      config: configValues({ "hf/enabled": "true" }),
       radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")),
     });
     const wrapper = mount(PathBuilder, { props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" }, global: withDaemon(both), attachTo: document.body });
@@ -257,7 +256,9 @@ describe("the path builder", () => {
     document.body.innerHTML = "";
     const alone = mount(PathBuilder, {
       props: { value: "DIRECT", usual: "WIDE1-1,WIDE2-1" },
-      global: withDaemon(fakeDaemon({ stations: rows })),
+      global: withDaemon(
+        fakeDaemon({ stations: rows, radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) }),
+      ),
       attachTo: document.body,
     });
     await open(alone);

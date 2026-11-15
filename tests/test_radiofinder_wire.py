@@ -19,7 +19,7 @@ async def started(tmp_path: Path, ports: list[str], timing: Timing = QUICK) -> E
     async def listed() -> list[str]:
         return ports
 
-    e.ctl.radiofinder = RadioFinder(listed, e.ctl.hold_tnc, e.ctl.release_tnc, timing)
+    e.ctl.radiofinder = RadioFinder(listed, e.ctl.hold_radio, e.ctl.release_radio, timing, claims=e.ctl.radios.claims, search_lock=e.ctl.radios.search_lock)
     return e
 
 

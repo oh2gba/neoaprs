@@ -42,8 +42,8 @@ describe("App: the My station tab", () => {
     const { wrapper, socket } = await open();
     await tabButton(wrapper, "My station")?.trigger("click");
     await wrapper.find("#pane-beacon #set-station-comment").setValue("hello");
-    await wrapper.find("#pane-beacon #set-beacon-path").setValue("custom");
-    await wrapper.find("#pane-beacon #set-beacon-path-typed").setValue("WIDE2-2");
+    await wrapper.find("#pane-beacon #set-radio-1-path").setValue("custom");
+    await wrapper.find("#pane-beacon #set-radio-1-path-typed").setValue("WIDE2-2");
     expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config")).toEqual([]);
     await wrapper.find("#pane-beacon #set-station-comment").trigger("blur");
     expect(socket.sent).toContainEqual({ cmd: "set_config", values: { "station/comment": "hello" } });

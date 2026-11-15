@@ -28,11 +28,11 @@ class SoundCardRow(_Model):
 
 
 class ListPorts(_Command):
-    """Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it; while the radio type is Mercury, also the sound cards Mercury lists. Answered with `ports` to the page that asked.
-    A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a port of the machine: it is typed. With `radio`, the sound cards are listed while that radio's type is Mercury, and the proposals leave out what the
-    other radios and the GPS receiver hold; each row says who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`)."""
+    """Asks for the serial ports of the machine the daemon runs on, and the Bluetooth devices paired with it. Answered with `ports` to the page that asked. A KISS TCP port (`socket://127.0.0.1:8001`, Direwolf) is not a
+    port of the machine: it is typed. With `radio`, also the sound cards Mercury lists while that radio's type is Mercury, and the proposals leave out what the other radios and the GPS receiver hold; each row says
+    who holds it (`held_by`). An `error` for a `radio` that is none (`radio.unknown`)."""
     cmd: Literal["list_ports"]
-    radio: int | None = Field(default=None, ge=1, description="the radio the list is for (its id); left out: the radios of before, the sound cards while radio 2 is the Mercury modem")
+    radio: int | None = Field(default=None, ge=1, description="the radio the list is for (its id): the sound cards and the proposals are its own; left out: the ports alone, with no sound card and no proposal")
 
 
 class PortsMsg(_Message):
@@ -41,8 +41,8 @@ class PortsMsg(_Message):
     ports: list[PortRow] = Field(description="the ports, in natural order (`COM2` before `COM10`), then the paired Bluetooth devices")
     search: bool = Field(description="whether the daemon looks for the radio among the ports by itself (Linux, the ports that match `serial/pattern`); where it is false (Windows, macOS) the radio is the port in `serial/port`, so the operator picks it from this list")
     find: bool = Field(description="whether Find my radio (`find_radio`) can be asked for: on Linux, Windows and macOS")
-    sound_cards: list[SoundCardRow] = Field(description="the sound cards the Mercury HF modem lists, while the radio type is Mercury and the program is installed; empty otherwise")
-    keying: str = Field(description="the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as `mercury/keying` while that is empty; empty when no sound card is listed")
+    sound_cards: list[SoundCardRow] = Field(description="the sound cards the Mercury HF modem lists, for a `radio` named whose type is Mercury while the program is installed; empty otherwise")
+    keying: str = Field(description="the keying the daemon proposes with the card it proposes (`vox`, `cm108`, `rts:PORT` or `dtr:PORT`): the page preselects it and stores it as the radio's `keying` while that is empty; empty when no sound card is listed")
 
 
 class FindRadio(_Command):

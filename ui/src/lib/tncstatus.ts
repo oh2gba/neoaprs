@@ -1,18 +1,13 @@
-// What the radio group of the Settings tab says about the radio link in plain words: one status line instead of the daemon's counters, the ports a search listens to (`searching`, while the daemon looks for the radio), and the daemon's log lines
-// (each with the time it was written, in UTC) in the viewer's time.
+// What the radio group of the Settings tab says about a radio's link in plain words, from its row of the topic `radios`: one status line instead of the daemon's counters, and the daemon's log lines (each with the
+// time it was written, in UTC) in the viewer's time. What a row does not carry (the port a search listens on, the daemon's English problem) is not said: its coded problem is (lib/radios.ts `problemText`).
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import type { RadioNames } from "@/i18n/errortext";
 import { ageText, bytesText, clockText, silentText } from "@/lib/format";
 import { problemText } from "@/lib/radios";
-import type { ModemState, RadioRow, TncLine, TncState, TncStats } from "@/protocol/protocol";
+import type { ModemState, RadioRow, TncLine, TncStats } from "@/protocol/protocol";
 
-/** The ports the daemon listens to while it looks for the radio; null when it is not searching. */
-export function searchedPorts(tnc: TncState): string[] | null {
-  return tnc.path === "" && tnc.searching.length > 0 ? tnc.searching : null;
-}
-
-const STATES: Record<TncState["state"], MessageId> = {
+const STATES: Record<RadioRow["state"], MessageId> = {
   stopped: "settings.tnc.state.stopped",
   connecting: "settings.tnc.state.connecting",
   connected: "settings.tnc.state.connected",
@@ -21,18 +16,10 @@ const STATES: Record<TncState["state"], MessageId> = {
 };
 
 /** The word on the pill for the state of the link. */
-const stateText = (state: TncState["state"]): string => t(STATES[state]);
-
-/** The HF radio: the rules of HF are the daemon's word for it (the Dummy HF radio too, which has no modem). */
-const isHf = (tnc: TncState): boolean => tnc.rules.kind === "hf";
-
-/** The pill of the radio: the state of the link, and for the Dummy radio, once its line is open, "Dummy" in the muted pill (it is nothing to be glad or sorry about). */
-const dummyShown = (tnc: TncState): boolean => tnc.dummy && tnc.state === "connected";
-export const pillText = (tnc: TncState): string => (dummyShown(tnc) ? t("settings.tnc.dummy_pill") : stateText(tnc.state));
-export const pillClass = (tnc: TncState): string => (dummyShown(tnc) ? "tnc-dummy" : `tnc-${tnc.state}`);
+const stateText = (state: RadioRow["state"]): string => t(STATES[state]);
 
 /** "Last packet 2 min ago", "No packet yet". */
-function lastPacketText(tnc: Pick<TncState, "stats">, nowMs: number): string {
+function lastPacketText(tnc: Pick<RadioRow, "stats">, nowMs: number): string {
   const last = tnc.stats.last_packet;
   return last === null ? t("settings.tnc.no_packet") : t("settings.tnc.last_packet", { span: ageText(last, nowMs) });
 }
@@ -47,7 +34,7 @@ function modemWord(modem: ModemState): string {
 }
 
 /** The HF radio's line while the modem runs: what the operator can act on and nothing of the plumbing: "DATAC3 · Listening · SNR 3 dB · Last packet 2 min ago" (the SNR once a frame was decoded). The socket the daemon reaches the modem on is the log's. */
-function modemLine(tnc: Pick<TncState, "stats">, modem: ModemState, nowMs: number): string {
+function modemLine(tnc: Pick<RadioRow, "stats">, modem: ModemState, nowMs: number): string {
   const parts = [modem.mode, modemWord(modem)];
   if (modem.snr !== null) parts.push(t("settings.tnc.snr", { db: Math.round(modem.snr) }));
   parts.push(lastPacketText(tnc, nowMs));
@@ -65,30 +52,8 @@ const MODEM_WAITING: Record<ModemState["reason"], MessageId> = {
   sound_card: "settings.tnc.hf.sound_card",
 };
 
-/** The HF radio's line while its line is not open: the modem's reason when the program is not running, "Connecting…" while the program starts or runs and the line is between two attempts, else "Not connected". Never the daemon's English problem. */
-function hfDownText(tnc: TncState): string {
-  if (tnc.modem?.state === "waiting") {
-    return t(MODEM_WAITING[tnc.modem.reason]);
-  }
-  return t(tnc.state === "waiting" ? "settings.tnc.connecting" : "settings.tnc.not_connected");
-}
-
-/** The one line: "Last packet 2 min ago" when connected (the pill says connected and the Port field below names the port), "Searching for the radio…", "Not connected: no KISS frames on the port", "nothing heard since 02:43 (5 h)"; for the Dummy radio that its traffic is made up and nothing goes on the air;
- * for the Mercury HF modem its mode, what it does (listening, transmitting, the channel busy, tuning, keyed), the SNR and the last packet. The HF radio never shows the address its modem is reached on, nor the daemon's English problem: while it connects the line says so and no more, and when the program does not run it says why in the page's words. */
-export function tncStatus(tnc: TncState, nowMs: number): string {
-  if (dummyShown(tnc)) return t(isHf(tnc) ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
-  if (tnc.state === "silent") return silentText(tnc.silent_since, nowMs);
-  if (searchedPorts(tnc) !== null) return t("settings.tnc.searching");
-  if (tnc.state === "connected" && tnc.modem) return modemLine(tnc, tnc.modem, nowMs);
-  if (tnc.state === "connected") return lastPacketText(tnc, nowMs);
-  if (tnc.state === "connecting") return tnc.path === "" || isHf(tnc) ? t("settings.tnc.connecting") : t("settings.tnc.connecting_to", { path: tnc.path });
-  if (isHf(tnc)) return hfDownText(tnc);
-  const why = tnc.problem || tnc.last_error;
-  return why === "" ? t("settings.tnc.not_connected") : t("settings.tnc.not_connected_why", { why });
-}
-
 /** What the line's hover title adds: how much has come in and gone out. */
-export function tncCounts(tnc: Pick<TncState, "stats">): string {
+function tncCounts(tnc: Pick<RadioRow, "stats">): string {
   const { packets, bytes_in, bytes_out, digipeated } = tnc.stats;
   return t("settings.tnc.counts", { n: packets, bytes_in: bytesText(bytes_in), bytes_out: bytesText(bytes_out), digipeated });
 }
@@ -98,9 +63,6 @@ export function lineText(line: TncLine): string {
   return `${clockText(line.at)}  ${line.text}`;
 }
 
-// A radio that is none of the radios of before has no topic of its own (`tnc`, `hf`): its row of the topic `radios` says its line, in the same words. What a row does not carry (the port a search listens on, the
-// daemon's English problem) is not said: its coded problem is (lib/radios.ts `problemText`).
-
 /** A radio's line as its row says it, shown so only once it is open (a Dummy radio's line is open at once). */
 const dummyRow = (row: RadioRow): boolean => row.dummy && row.state === "connected";
 
@@ -108,49 +70,23 @@ const dummyRow = (row: RadioRow): boolean => row.dummy && row.state === "connect
 export const rowPillText = (row: RadioRow): string => (dummyRow(row) ? t("settings.tnc.dummy_pill") : stateText(row.state));
 export const rowPillClass = (row: RadioRow): string => (dummyRow(row) ? "tnc-dummy" : `tnc-${row.state}`);
 
-/** The one line of a radio's row, in the words of the lines of before: the Dummy's, silent since when, searching, the modem's line, the last packet, Connecting…, else why it is not connected. */
+/** The one line of a radio's row: the Dummy's, silent since when, searching, the modem's line, the last packet, Connecting…, else why it is not connected. */
 export function rowStatus(row: RadioRow, nowMs: number, radios?: RadioNames): string {
   if (dummyRow(row)) return t(row.kind === "hf" ? "settings.tnc.dummy_hf" : "settings.tnc.dummy");
   if (row.state === "silent") return silentText(row.problem?.code === "radio.silent" ? String(row.problem.params["since"] ?? "") || null : null, nowMs);
+  if (row.state === "connected" && row.problem?.code === "radio.text_lines") return problemText(row.problem, t, radios); // (a LoRa board that sends text lines: its line is open, and nothing goes until it is set to KISS)
   if (row.state === "connected") return row.modem ? modemLine(row, row.modem, nowMs) : lastPacketText(row, nowMs);
   return rowDownText(row, radios);
 }
 
-/** A radio's line while it is not connected: searching, Connecting…, the modem's reason, else what its problem says. */
+/** A radio's line while it is not connected: searching, Connecting…, the modem's reason (Connecting… while the modem runs), else what its problem says. */
 function rowDownText(row: RadioRow, radios?: RadioNames): string {
   if (row.problem?.code === "radio.searching") return t("settings.tnc.searching");
   if (row.state === "connecting") return t("settings.tnc.connecting");
   if (row.modem?.state === "waiting") return t(MODEM_WAITING[row.modem.reason]);
+  if (row.modem && row.state === "waiting") return t("settings.tnc.connecting"); // (the program starts or runs and its line is between two attempts: nothing of the line's problem)
   return row.problem === null ? t("settings.tnc.not_connected") : problemText(row.problem, t, radios);
 }
 
 /** The counters of a radio's line, as the hover title of its status. */
 export const statsCounts = (stats: TncStats): string => tncCounts({ stats });
-
-/** A radio's row as the topic `tnc` would tell it, for what reads the shape of before (the Digipeater group's counts, the terminal's lines). */
-export function tncOfRow(row: RadioRow): TncState {
-  return {
-    state: row.state,
-    problem: row.problem === null ? "" : problemText(row.problem),
-    last_error: "",
-    path: "",
-    baud: 0,
-    dummy: row.dummy,
-    modem: row.modem,
-    rules: {
-      kind: row.kind === "hf" ? "hf" : "fm",
-      paths: row.allowed.paths,
-      digipeat: row.allowed.digipeat,
-      smart_beacon: row.allowed.smart_beacon,
-      beacon_min_min: row.limits.beacon_min_min,
-    },
-    readings: [],
-    describe: "",
-    searching: [],
-    silent_since: null,
-    stats: row.stats,
-    last_watchdog_action: "",
-    last_watchdog_at: null,
-    lines: row.lines,
-  };
-}

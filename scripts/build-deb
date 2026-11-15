@@ -93,8 +93,8 @@ mv "$work/python" "$app"
 # (the interpreter has libpython built in; the shared copy of it is only for programs that embed Python)
 rm -f "$app"/bin/python3-config "$app"/bin/python3.13-config "$app"/lib/libpython3*
 
-# The locked dependencies without the extra `app`, then the wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
-(cd "$ROOT" && uv export -q --frozen --no-dev --no-emit-project -o "$work/requirements.txt")
+# The locked dependencies without the extra `app` and with `ble` (a radio on Bluetooth LE), then the wheel on top, as wheels for the target platform (the Python of the machine only runs uv)
+(cd "$ROOT" && uv export -q --frozen --no-dev --no-emit-project --extra ble -o "$work/requirements.txt")
 install_args=(--no-config --python "$host_python" --break-system-packages --python-platform "$platform" --python-version 3.13 --target "$site" --no-deps --link-mode copy --no-cache)
 uv pip install "${install_args[@]}" --only-binary :all: --require-hashes -r "$work/requirements.txt"
 uv pip install "${install_args[@]}" "$wheel"

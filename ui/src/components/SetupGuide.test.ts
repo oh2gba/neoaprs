@@ -15,12 +15,15 @@ import { typeChoices } from "@/lib/settingsradio";
 import { RADIO_TYPES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage, RadioRow, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { configValues, hfState, mapFile, mapState, toastOf, portRow, radioRow, radioSearch, radiosTopic, tncState } from "@/test/fixtures";
+import { configValues, mapFile, mapState, toastOf, portRow, radioRow, radioSearch, radiosTopic } from "@/test/fixtures";
 
 const STYLES = join(dirname(fileURLToPath(import.meta.url)), "..", "styles");
 
-const fresh = (extra: Record<string, string> = {}) =>
-  configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
+const fresh = (extra: Record<string, string> = {}, radios: Record<string, string> = {}) =>
+  configValues(
+    { "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", ...extra },
+    { "radio/1/baud": "", "radio/1/port": "", ...radios },
+  );
 const row = (device: string, description: string) => portRow(device, description);
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
@@ -31,13 +34,13 @@ const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("/dev/ttyACM0", "n/a")],
   ...extra,
 });
-/** A station whose database has radio 1 alone, the FM radio of before (a fresh installation of today: the daemon gives it today's FM radio). */
+/** A station of radio 1 alone, a serial TNC. */
 const oneRadio = () => radiosTopic(radioRow(1, "kenwood-tnc2"));
 
 interface Made {
   config?: ConfigValues;
   map?: MapState | null;
-  /** the topic `radios`; by default as the daemon tells it for the settings (radio 1 the FM radio, radio 2 the HF radio); null while the daemon has not told it */
+  /** the topic `radios`; by default radio 1 alone (test/context.ts); null while the daemon has not told it */
   radios?: Map<string, RadioRow> | null;
   ports?: PortsMessage | null;
 }
@@ -64,8 +67,6 @@ function make(opts: Made = {}) {
     send,
     settings,
     findRadio,
-    tnc: tncState(),
-    hf: hfState(),
     ...(opts.radios !== undefined ? { radios: opts.radios } : {}),
   });
   const wrapper = mount(SetupGuide, { global: withDaemon(daemon), attachTo: document.body });
@@ -82,7 +83,10 @@ function make(opts: Made = {}) {
   /** The daemon takes the last save and tells the settings again, which is its answer (the queue of the settings sends the next change after it). */
   const answer = async () => {
     const last = configs().at(-1);
-    if (last?.cmd === "set_config" && config.value) config.value = { ...config.value, values: { ...config.value.values, ...last.values } };
+    if (last?.cmd === "set_config" && config.value) {
+      const own = (radio: boolean) => Object.fromEntries(Object.entries(last.values).filter(([key]) => key.startsWith("radio/") === radio));
+      config.value = { ...config.value, values: { ...config.value.values, ...own(false) }, radio_values: { ...config.value.radio_values, ...own(true) } };
+    }
     await flushPromises();
   };
   /** Fills the call and the position and stands on the step with this index (1 is the position, 3 the radio). */
@@ -405,22 +409,22 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     const { wrapper, stand } = make({ radios: oneRadio(), ports: ports() });
     await stand(3);
     expect(legends(wrapper)).toEqual(["FM radio"]);
-    const enable = wrapper.find<HTMLInputElement>("#setup-fm-enabled");
+    const enable = wrapper.find<HTMLInputElement>("#setup-radio-1-enabled");
     expect(enable.element.checked).toBe(true);
     expect(enable.element.disabled).toBe(true);
     expect(enable.element.closest(".field")?.getAttribute("title")).toBe(ONLY);
     expect(boxOf(wrapper, "FM radio").find(".radiostatus .tncstatus").exists()).toBe(true);
-    expect(wrapper.find<HTMLSelectElement>("#setup-tnc-profile").element.value).toBe("kenwood-tnc2");
-    expect(wrapper.findAll("#setup-tnc-profile option").map((o) => o.attributes("value"))).toEqual(typeChoices("fm").map((c) => c.value));
-    expect(wrapper.findAll("#setup-serial-port option").map((o) => o.text())).toEqual([
+    expect(wrapper.find<HTMLSelectElement>("#setup-radio-1-type").element.value).toBe("kenwood-tnc2");
+    expect(wrapper.findAll("#setup-radio-1-type option").map((o) => o.attributes("value"))).toEqual(typeChoices("fm").map((c) => c.value));
+    expect(wrapper.findAll("#setup-radio-1-port option").map((o) => o.text())).toEqual([
       "find automatically",
       "/dev/ttyUSB0 - FT232R USB UART",
       "/dev/ttyACM0",
       "/dev/brainbox_3",
       "Other...",
     ]);
-    expect(wrapper.find("#setup-serial-baud").attributes("placeholder")).toBe("9600");
-    expect(wrapper.find("#setup-find-radio").text()).toBe("Find my radio");
+    expect(wrapper.find("#setup-radio-1-baud").attributes("placeholder")).toBe("9600");
+    expect(wrapper.find("#setup-radio-1-find").text()).toBe("Find my radio");
     expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal");
     expect(labels(wrapper)).toEqual(["Enable", "Radio type", "Port", "Speed", "Add radio"]);
     expect(wrapper.find("#setup-radio-1-name").exists()).toBe(false); // (named only where the station has several radios)
@@ -441,17 +445,17 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     await stand(3);
     portList.value = ports();
     await nextTick();
-    await wrapper.find("#setup-serial-port").setValue("/dev/ttyUSB0");
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } });
+    await wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } });
     await answer();
-    await enter("setup-serial-baud", "4800");
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "serial/baud": "4800" } });
+    await enter("setup-radio-1-baud", "4800");
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/baud": "4800" } });
     await answer();
     await next();
     expect(configs()).toEqual([
       PLACE,
-      { cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } },
-      { cmd: "set_config", values: { "serial/baud": "4800" } },
+      { cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } },
+      { cmd: "set_config", values: { "radio/1/baud": "4800" } },
       FINISH,
     ]);
   });
@@ -459,11 +463,11 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
   it("checks the speed as the Settings tab does, and Finish waits while it is wrong", async () => {
     const { wrapper, finish, stand, enter, configs } = make({ radios: oneRadio() });
     await stand(3);
-    await enter("setup-serial-baud", "12");
+    await enter("setup-radio-1-baud", "12");
     expect(wrapper.find(".setup-body .field-error").text()).toBe("300 to 921600");
     expect(finish().element.disabled).toBe(true);
     expect(configs()).toEqual([PLACE]);
-    await enter("setup-serial-baud", "57600");
+    await enter("setup-radio-1-baud", "57600");
     expect(wrapper.find(".setup-body .field-error").exists()).toBe(false);
     expect(finish().element.disabled).toBe(false);
   });
@@ -473,51 +477,53 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
     await stand(3);
     portList.value = ports({ search: false });
     await nextTick();
-    expect(wrapper.findAll("#setup-serial-port option")[0]?.text()).toBe("not set");
+    expect(wrapper.findAll("#setup-radio-1-port option")[0]?.text()).toBe("not set");
     expect(finish().element.disabled).toBe(true);
-    await wrapper.find("#setup-serial-port").setValue("/dev/ttyUSB0");
+    await wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");
     expect(finish().element.disabled).toBe(false);
   });
 
-  it("has the host and the port in place of the serial fields once KISS over TCP is chosen, saved as they are left, and Finish waits for a TCP port that is right", async () => {
-    const { wrapper, finish, configs, answer, stand, enter } = make({ radios: oneRadio() });
+  it("asks the daemon for the radio's new type, and has the host and the port in place of the serial fields once the radio is KISS over TCP, saved as they are left; Finish waits for a TCP port that is right", async () => {
+    const { wrapper, finish, configs, sent, stand, enter, daemon } = make({ radios: oneRadio() });
     await stand(3);
-    await wrapper.find("#setup-tnc-profile").setValue("kiss-tcp");
-    expect(configs().at(-1)).toMatchObject({ cmd: "set_config", values: { "tnc/profile": "kiss-tcp" } });
-    await answer();
-    expect(wrapper.find("#setup-serial-port").exists()).toBe(false);
-    expect(wrapper.find("#setup-serial-baud").exists()).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#setup-tcp-host").element.value).toBe("127.0.0.1");
-    expect(wrapper.find<HTMLInputElement>("#setup-tcp-port").element.value).toBe("8001");
-    await enter("setup-tcp-port", "70000");
+    await wrapper.find("#setup-radio-1-type").setValue("kiss-tcp");
+    expect(sent.at(-1)).toEqual({ cmd: "radio_change", radio: 1, type: "kiss-tcp" });
+    await tell(daemon, { radios: radiosTopic(radioRow(1, "kiss-tcp")) });
+    await flushPromises();
+    expect(wrapper.find("#setup-radio-1-port").exists()).toBe(false);
+    expect(wrapper.find("#setup-radio-1-baud").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-tcp_host").element.value).toBe("127.0.0.1");
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-tcp_port").element.value).toBe("8001");
+    await enter("setup-radio-1-tcp_port", "70000");
     expect(wrapper.find(".setup-body .field-error").text()).toBe("1 to 65535");
     expect(finish().element.disabled).toBe(true);
-    await enter("setup-tcp-port", "8002");
+    await enter("setup-radio-1-tcp_port", "8002");
     expect(finish().element.disabled).toBe(false);
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "tcp/port": "8002" } });
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/tcp_port": "8002" } });
   });
 
   it("leaves the host for the port of the same TNC without saving it, by the guide's own ids, and saves the two when the pair is left", async () => {
-    const { wrapper, configs, stand } = make({ radios: oneRadio(), config: fresh({ "tnc/profile": "kiss-tcp" }) });
+    const { wrapper, configs, stand } = make({ radios: radiosTopic(radioRow(1, "kiss-tcp")) });
     await stand(3);
     const before = configs().length;
-    await wrapper.find("#setup-tcp-host").setValue("192.168.1.5");
-    await wrapper.find("#setup-tcp-host").trigger("blur", { relatedTarget: wrapper.find("#setup-tcp-port").element });
+    await wrapper.find("#setup-radio-1-tcp_host").setValue("192.168.1.5");
+    await wrapper.find("#setup-radio-1-tcp_host").trigger("blur", { relatedTarget: wrapper.find("#setup-radio-1-tcp_port").element });
     expect(configs()).toHaveLength(before);
-    await wrapper.find("#setup-tcp-port").trigger("blur", { relatedTarget: null });
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "tcp/host": "192.168.1.5" } }); // (of the pair, what changed)
+    await wrapper.find("#setup-radio-1-tcp_port").trigger("blur", { relatedTarget: null });
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/tcp_host": "192.168.1.5" } }); // (of the pair, what changed)
   });
 
   it("has no port, no speed and no host for the Dummy radio, and Finish does not wait for a port", async () => {
-    const { wrapper, finish, portList, stand } = make({ radios: oneRadio() });
+    const { wrapper, finish, portList, stand, daemon } = make({ radios: oneRadio() });
     await stand(3);
     portList.value = ports({ search: false });
     await nextTick();
     expect(finish().element.disabled).toBe(true);
-    await wrapper.find("#setup-tnc-profile").setValue("dummy");
-    await nextTick();
-    for (const id of ["setup-serial-port", "setup-serial-baud", "setup-tcp-host", "setup-tcp-port"]) expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
-    expect(wrapper.find("#setup-find-radio").exists()).toBe(false); // (a radio with no serial line: plan section 6a, as the guide of before had it)
+    await tell(daemon, { radios: radiosTopic(radioRow(1, "dummy")) });
+    await flushPromises();
+    for (const id of ["setup-radio-1-port", "setup-radio-1-baud", "setup-radio-1-tcp_host", "setup-radio-1-tcp_port"])
+      expect(wrapper.find(`#${id}`).exists(), id).toBe(false);
+    expect(wrapper.find("#setup-radio-1-find").exists()).toBe(false); // (a radio with no serial line: plan section 6a, as the guide of before had it)
     expect(finish().element.disabled).toBe(false);
     expect(wrapper.findAll("summary").map((s) => s.text())).toContain("Terminal"); // (the terminal shows the made-up traffic)
   });
@@ -536,34 +542,34 @@ describe("SetupGuide: the radio, on a station of one radio", () => {
 
 describe("SetupGuide: the radio, Find my radio", () => {
   const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage =>
-    radioSearch({ state: "found", port: "COM5", baud: 57600, profile: "kiss", number: 0, total: 0, ...extra });
+    radioSearch({ state: "found", port: "COM5", baud: 57600, profile: "kiss", radio: 1, number: 0, total: 0, ...extra });
 
   it("asks the daemon to find the radio, and what it finds is saved at once as the Settings tab saves it: the type, the port and the speed", async () => {
     const { wrapper, sent, radioSearch, configs, stand } = make({ radios: oneRadio() });
     await stand(3);
-    await wrapper.find("#setup-find-radio").trigger("click");
-    expect(sent.filter((c) => c.cmd === "find_radio")).toEqual([{ cmd: "find_radio" }]);
-    radioSearch.value = found({ state: "trying", profile: "", number: 3, total: 21 });
+    await wrapper.find("#setup-radio-1-find").trigger("click");
+    expect(sent.filter((c) => c.cmd === "find_radio")).toEqual([{ cmd: "find_radio", radio: 1 }]);
+    radioSearch.value = found({ state: "trying", profile: "", radio_type: "", number: 3, total: 21 });
     await nextTick();
     expect(configs()).toEqual([PLACE]);
     radioSearch.value = found();
     await nextTick();
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "tnc/profile": "kiss", "serial/port": "COM5", "serial/baud": "57600" } });
-    expect(wrapper.find<HTMLSelectElement>("#setup-tnc-profile").element.value).toBe("kiss");
+    expect(sent.filter((c) => c.cmd === "radio_change")).toEqual([{ cmd: "radio_change", radio: 1, type: "kiss" }]);
+    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/port": "COM5", "radio/1/baud": "57600" } });
   });
 
   it("is in the box of a radio with a serial line only: not for KISS over TCP nor the Dummy radio, and back for a serial TNC", async () => {
-    const { wrapper, stand, answer } = make({ radios: oneRadio(), ports: ports() });
+    const { wrapper, stand, daemon } = make({ radios: oneRadio(), ports: ports() });
     await stand(3);
-    expect(wrapper.find("#setup-find-radio").exists()).toBe(true);
-    for (const [profile, there] of [
+    expect(wrapper.find("#setup-radio-1-find").exists()).toBe(true);
+    for (const [type, there] of [
       ["kiss-tcp", false],
       ["dummy", false],
       ["kiss", true],
     ] as const) {
-      await wrapper.find("#setup-tnc-profile").setValue(profile);
-      await answer();
-      expect(wrapper.find("#setup-find-radio").exists(), profile).toBe(there);
+      await tell(daemon, { radios: radiosTopic(radioRow(1, type)) });
+      await flushPromises();
+      expect(wrapper.find("#setup-radio-1-find").exists(), type).toBe(there);
     }
   });
 
@@ -572,19 +578,23 @@ describe("SetupGuide: the radio, Find my radio", () => {
     await stand(3);
     portList.value = ports({ find: false });
     await nextTick();
-    expect(wrapper.find("#setup-find-radio").exists()).toBe(false);
-    expect(wrapper.find("#setup-serial-port").exists()).toBe(true);
+    expect(wrapper.find("#setup-radio-1-find").exists()).toBe(false);
+    expect(wrapper.find("#setup-radio-1-port").exists()).toBe(true);
   });
 });
 
-describe("SetupGuide: the radio, on a station of the FM and HF radios of before", () => {
+describe("SetupGuide: the radio, on a station of an FM and an HF radio", () => {
+  /** Radio 1 a serial TNC, on; radio 2 the Mercury modem, off unless `hf` says. */
+  const two = (hf: Partial<RadioRow> = { enabled: false, state: "stopped" }, fm: Partial<RadioRow> = {}) =>
+    radiosTopic(radioRow(1, "kenwood-tnc2", fm), radioRow(2, "mercury", hf));
+
   it("has a box each with Name and Remove, the FM radio's Enable greyed while it is the only one on, and no RX only and no main radio", async () => {
-    const { wrapper, stand } = make();
+    const { wrapper, stand } = make({ radios: two() });
     await stand(3);
     expect(legends(wrapper)).toEqual(["FM radio", "HF radio"]);
     expect(labels(wrapper).filter((l) => ["RX only", "Main radio"].includes(l))).toEqual([]);
-    expect(wrapper.find<HTMLInputElement>("#setup-fm-enabled").element.disabled).toBe(true);
-    expect(wrapper.find<HTMLInputElement>("#setup-hf-enabled").element.checked).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(true);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-2-enabled").element.checked).toBe(false);
     expect(wrapper.find<HTMLInputElement>("#setup-radio-1-name").attributes("placeholder")).toBe("FM");
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-1-remove").element.disabled).toBe(true);
     expect(wrapper.find<HTMLButtonElement>("#setup-radio-2-remove").element.disabled).toBe(false);
@@ -592,48 +602,50 @@ describe("SetupGuide: the radio, on a station of the FM and HF radios of before"
       boxOf(wrapper, "HF radio")
         .findAll("select, input")
         .map((e) => e.attributes("id")),
-    ).toEqual(["setup-hf-enabled", "setup-radio-2-name"]);
+    ).toEqual(["setup-radio-2-enabled", "setup-radio-2-name"]);
   });
 
-  it("saves the HF radio ticked at once and shows its type, its sound card, its keying with Test and its frequencies, and no Tune, no level and no scope", async () => {
-    const { wrapper, configs, stand } = make({ ports: ports({ sound_cards: [], keying: "vox" }) });
+  it("asks the daemon to switch the HF radio on at once, and once it is on shows its type, its sound card, its keying with Test and its frequencies, and no Tune, no level and no scope", async () => {
+    const { wrapper, sent, stand, daemon } = make({ radios: two(), ports: ports({ sound_cards: [], keying: "vox" }) });
     await stand(3);
     const above = () => {
       const rows = [...wrapper.find(".setup-body").element.querySelectorAll(".field, legend")];
       return rows
         .slice(
           0,
-          rows.findIndex((e) => e.querySelector("#setup-hf-enabled") !== null),
+          rows.findIndex((e) => e.querySelector("#setup-radio-2-enabled") !== null),
         )
         .map((e) => e.textContent);
     };
     const before = above();
-    await wrapper.find("#setup-hf-enabled").setValue(true);
-    expect(configs().at(-1)).toEqual({ cmd: "set_config", values: { "hf/enabled": "true" } });
+    await wrapper.find("#setup-radio-2-enabled").setValue(true);
+    expect(sent.filter((c) => c.cmd === "radio_change")).toEqual([{ cmd: "radio_change", radio: 2, enabled: true }]);
+    await tell(daemon, { radios: two({}) });
     await flushPromises();
     expect(above()).toEqual(before); // (nothing above the Enable moves when it is ticked)
-    expect(wrapper.find<HTMLInputElement>("#setup-fm-enabled").element.disabled).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.disabled).toBe(false);
     const hf = boxOf(wrapper, "HF radio");
-    for (const id of ["setup-hf-profile", "setup-mercury-sound_card", "setup-mercury-keying", "setup-hf-key-test", "setup-hf-frequencies"])
+    for (const id of ["setup-radio-2-type", "setup-radio-2-sound_card", "setup-radio-2-keying", "setup-radio-2-keying-test"])
       expect(hf.find(`#${id}`).exists(), id).toBe(true);
-    expect(hf.find("#setup-hf-tune").exists()).toBe(false);
-    expect(hf.find("#setup-hf-txlevel").exists()).toBe(false);
+    expect(hf.find(".freqs").exists()).toBe(true);
+    expect(hf.find("#setup-radio-2-tune").exists()).toBe(false);
+    expect(hf.find("#setup-radio-2-txlevel").exists()).toBe(false);
     expect(hf.find(".hf-scope").exists()).toBe(false);
   });
 
   it("is right with the HF radio alone, which needs no serial port where the daemon does not search the ports", async () => {
-    const { wrapper, finish, stand } = make({ config: fresh({ "fm/enabled": "false", "hf/enabled": "true" }), ports: ports({ search: false }) });
+    const { wrapper, finish, stand } = make({ radios: two({}, { enabled: false, state: "stopped" }), ports: ports({ search: false }) });
     await stand(3);
-    expect(wrapper.find<HTMLInputElement>("#setup-fm-enabled").element.checked).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#setup-hf-enabled").element.disabled).toBe(true);
-    expect(wrapper.find("#setup-serial-port").exists()).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-1-enabled").element.checked).toBe(false);
+    expect(wrapper.find<HTMLInputElement>("#setup-radio-2-enabled").element.disabled).toBe(true);
+    expect(wrapper.find("#setup-radio-1-port").exists()).toBe(false);
     expect(finish().element.disabled).toBe(false);
   });
 
   it("lets Finish go while one radio on is right, though the other has a field that is wrong", async () => {
-    const { finish, stand, enter } = make({ config: fresh({ "hf/enabled": "true" }) });
+    const { finish, stand, enter } = make({ radios: two({}) });
     await stand(3);
-    await enter("setup-serial-baud", "12");
+    await enter("setup-radio-1-baud", "12");
     expect(finish().element.disabled).toBe(false); // (the HF radio is right: plan section 6, "one enabled radio with no field in error")
   });
 });
@@ -649,7 +661,7 @@ function sixRadios(extra: Partial<Record<number, Partial<RadioRow>>> = {}): Map<
     radioRow(6, "mercury", { name: "WWWWWWWW", number: 3, ...extra[6] }),
   );
 }
-const SIX = fresh({ "hf/enabled": "true", "mercury/sound_card": "plughw:1,0" });
+const SIX = fresh({}, { "radio/2/sound_card": "plughw:1,0" });
 const SIX_LEGENDS = ["FM radio", "HF radio", "Mobile", "20 m", "FM radio 3", "WWWWWWWW"];
 const css = (file: string) => readFileSync(join(STYLES, file), "utf8");
 
@@ -774,8 +786,8 @@ describe("SetupGuide: the radio beside the Settings tab, both on the page", () =
     await stand(3);
     const ids = [...document.querySelectorAll("[id]")].map((e) => e.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
-    expect(ids).toContain("set-fm-enabled");
-    expect(ids).toContain("setup-fm-enabled");
+    expect(ids).toContain("set-radio-1-enabled");
+    expect(ids).toContain("setup-radio-1-enabled");
   });
 
   it("leads to the box of the radio added in the guide only, and the Settings tab to the box of the radio it added only", async () => {
@@ -840,11 +852,11 @@ describe("SetupGuide: Finish", () => {
   const portThenFinish = async () => {
     const made = make({ radios: oneRadio(), ports: ports() });
     await made.stand(3);
-    await made.wrapper.find("#setup-serial-port").setValue("/dev/ttyUSB0");
+    await made.wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");
     await made.next();
-    expect(made.configs().slice(-2)).toEqual([{ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }, FINISH]);
+    expect(made.configs().slice(-2)).toEqual([{ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } }, FINISH]);
     const now = made.config.value;
-    made.config.value = now && { ...now, values: { ...now.values, "serial/port": "/dev/ttyUSB0" } };
+    made.config.value = now && { ...now, radio_values: { ...now.radio_values, "radio/1/port": "/dev/ttyUSB0" } };
     await flushPromises();
     expect(made.guide.open).toBe(true);
     expect(made.finish().text()).toBe("Saving...");

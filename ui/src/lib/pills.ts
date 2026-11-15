@@ -9,8 +9,7 @@ import { isMoving } from "@/lib/gpsstatus";
 import { silentText } from "@/lib/format";
 import type { Connection } from "@/lib/hub";
 import { enabledRadios, fieldId, problemText, type PageRadio, type RadioId } from "@/lib/radios";
-import { FM_ID, HF_ID, flatRadios } from "@/lib/radiosides";
-import type { GpsState, IgateState, MapState, TncState, UpdateInfo } from "@/protocol/protocol";
+import type { GpsState, IgateState, MapState, RadioRow, UpdateInfo } from "@/protocol/protocol";
 import type { TagTone } from "@/components/TagMark.vue";
 
 /** Where a mark leads: the Settings tab (the Radio and Internet groups) or the My station tab (the beacon and the GPS). */
@@ -30,15 +29,13 @@ export interface HeaderPill {
   focus: string;
 }
 
-/** What the page knows of the link to the daemon and to the radios: the socket, the radios (composables/useRadios.ts `all`; without them, the two radios of the settings of before), the lines of radio 1 and 2 as
- * the topics `tnc` and `hf` tell them, the time now (for how long a radio has been silent), and whether the page is the desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
+/** What the page knows of the link to the daemon and to the radios: the socket, the radios (composables/useRadios.ts `all`), the time now (for how long a radio has been silent), and whether the page is the
+ * desktop app's (lib/shell.ts), where page and daemon are one and there is no Daemon mark. */
 export interface Link {
   connection: Connection;
-  tnc: TncState | null;
-  hf: TncState | null;
   now: number;
   inApp: boolean;
-  radios?: readonly PageRadio[];
+  radios: readonly PageRadio[];
 }
 
 /** The Daemon mark: how the page's socket stands. */
@@ -51,34 +48,21 @@ function daemonPill(connection: Connection): HeaderPill {
   return { id: "daemon", ...states[connection], target: null, focus: "" };
 }
 
-/** The line of a radio as a mark says it: its state, whether it is a Dummy, since when it is silent, why it is not connected and whether it is entering KISS; null while nothing is known of it. */
+/** The line of a radio as a mark says it: its state, whether it is a Dummy, since when it is silent and why it is not connected; null while nothing is known of it. */
 interface Line {
-  state: TncState["state"];
+  state: RadioRow["state"];
   dummy: boolean;
   since: string | null;
   why: string;
-  kiss: boolean;
 }
 
 /** Why a radio is not connected, in the words of the page: its coded problem (lib/radios.ts `problemText`), searching while its line is being opened, else its state; never the daemon's line of what it does
  * (that names ports and devices: the log has it). */
-function whyOf(state: TncState["state"], radio: PageRadio | undefined, radios: readonly PageRadio[] = []): string {
+function whyOf(state: RadioRow["state"], radio: PageRadio | undefined, radios: readonly PageRadio[] = []): string {
   const problem = radio?.problem ?? null;
   if (state === "connecting" && (problem === null || problem.code === "radio.not_connected")) return t("settings.tnc.searching");
   return problem === null ? t(`settings.tnc.state.${state}`) : problemText(problem, t, { byId: (id) => radios.find((one) => one.id === id) });
 }
-
-/** The line of radio 1 or 2 as its topic of before (`tnc`, `hf`) tells it, its problem in the daemon's words where it says one; null before it is told. */
-const lineBefore = (before: TncState | null, radio: PageRadio | undefined, radios: readonly PageRadio[]): Line | null =>
-  before === null
-    ? null
-    : {
-        state: before.state,
-        dummy: before.dummy,
-        since: before.silent_since,
-        why: before.problem || whyOf(before.state, radio, radios),
-        kiss: before.describe.includes("entering KISS"),
-      };
 
 /** The line of a radio by its row of the topic `radios`. */
 function lineOfRow(radio: PageRadio, radios: readonly PageRadio[]): Line {
@@ -88,24 +72,17 @@ function lineOfRow(radio: PageRadio, radios: readonly PageRadio[]): Line {
     dummy: radio.dummy,
     since: since === "" ? null : since,
     why: whyOf(radio.state, radio, radios),
-    kiss: false,
   };
 }
 
-/** The line of a radio: radio 1 (FM) and radio 2 (HF) as their topics of before tell it, in their words; any other by its row of the topic `radios`. Unknown (waiting) while the page's socket is not open. */
+/** The line of a radio by its row of the topic `radios`; unknown (waiting) while the page's socket is not open, and for no radio. */
 function lineOf(link: Link, radio: PageRadio | undefined): Line | null {
-  if (link.connection !== "open") return null;
-  const radios = link.radios ?? [];
-  if (radio === undefined || (radio.id === FM_ID && radio.kind === "fm")) return lineBefore(link.tnc, radio, radios);
-  if (radio.id === HF_ID && radio.kind === "hf") return lineBefore(link.hf, radio, radios);
-  return lineOfRow(radio, radios);
+  return link.connection !== "open" || radio === undefined ? null : lineOfRow(radio, link.radios);
 }
 
-/** The control a radio's mark leads to, inside its box in Settings → Radio (which is flashed): the type of radio 1 and 2, as the group has them; the Enable of any other's box. */
-function radioFocus(radio: Pick<PageRadio, "id" | "kind"> | undefined): string {
-  if (radio === undefined || (radio.id === FM_ID && radio.kind === "fm")) return "set-tnc-profile";
-  if (radio.id === HF_ID && radio.kind === "hf") return "set-hf-profile";
-  return `set-${fieldId(`radio/${radio.id}/enabled`)}`;
+/** The control a radio's mark leads to, inside its box in Settings → Radio (which is flashed): its Enable; Add radio while the station has none. */
+function radioFocus(radio: Pick<PageRadio, "id"> | undefined): string {
+  return radio === undefined ? "set-radio-add" : `set-${fieldId(`radio/${radio.id}/enabled`)}`;
 }
 
 /** The title "{why}. Settings → Radio": the reason without a stop of its own (the title puts its stop after it). */
@@ -131,11 +108,7 @@ function radioPill(link: Link, line: Line | null, id: HeaderPill["id"], focus: s
   }
   if (line.state === "silent")
     return { ...base, ...word("pill.radio_silent", "pill.radio_named_silent"), tone: "warn", ...whyTitle(silentText(line.since, link.now)) };
-  if (line.state === "connecting") {
-    return line.kiss
-      ? { ...base, ...word("pill.radio_kiss", "pill.radio_named_kiss"), tone: "warn", ...whyTitle(line.why) }
-      : { ...base, ...word("pill.radio_searching", "pill.radio_named_searching"), tone: "warn", ...whyTitle(line.why) };
-  }
+  if (line.state === "connecting") return { ...base, ...word("pill.radio_searching", "pill.radio_named_searching"), tone: "warn", ...whyTitle(line.why) };
   return { ...base, ...word("pill.radio_off", "radio.not_connected"), tone: "warn", ...whyTitle(line.why) };
 }
 
@@ -160,8 +133,8 @@ function radiosPill(link: Link, on: readonly PageRadio[], first: PageRadio | und
 
 /** The radio marks: one radio on is the one Radio mark, whichever radio it is (the page names a radio only where there are several); two on are a mark each with its name, each in the state of its own radio; three and
  * more are one Radios mark (at 375 px there is room for about two marks of radios). */
-function radioPills(link: Link, values: Readonly<Record<string, string>>): HeaderPill[] {
-  const radios = link.radios ?? flatRadios(values, link.tnc, link.hf);
+function radioPills(link: Link): HeaderPill[] {
+  const radios = link.radios;
   const on = enabledRadios(radios);
   if (on.length >= 3)
     return [
@@ -187,10 +160,17 @@ const updatePill = (update: UpdateInfo): HeaderPill => ({
   focus: "set-update-now",
 });
 
-/** RX only while transmitting is off, else Beacon off while the beacon is (nothing, when neither). */
-function sendingPill(values: Readonly<Record<string, string>>): HeaderPill | null {
-  if (values["station/transmit"] === "false") {
-    return { id: "rx", text: "pill.rx", title: "pill.rx_title", tone: "warn", target: "settings", focus: "set-station-transmit" };
+/** RX only while transmitting is off, or while no radio that is on can send (`listening`: each is of a type that only listens), else Beacon off while the beacon is (nothing, when neither). */
+function sendingPill(values: Readonly<Record<string, string>>, listening: boolean): HeaderPill | null {
+  if (values["station/transmit"] === "false" || listening) {
+    return {
+      id: "rx",
+      text: "pill.rx",
+      title: listening && values["station/transmit"] !== "false" ? "pill.rx_title_radios" : "pill.rx_title",
+      tone: "warn",
+      target: "settings",
+      focus: "set-station-transmit",
+    };
   }
   if (!beaconOff(values)) return null;
   return { id: "beacon_off", text: "pill.beacon_off", title: "pill.beacon_off_title", tone: "neutral", target: "beacon", focus: "set-beacon-interval_min" };
@@ -223,7 +203,8 @@ function mapPill(map: MapState | null): HeaderPill | null {
   return map.percent === null ? { ...base, text: "pill.map_working" } : { ...base, text: "pill.map", textValues: { percent: map.percent } };
 }
 
-/** The marks for these settings (key to text) and states; the states are null until the daemon has told. `link` is how the page stands to the daemon and the radio (null: no Daemon or Radio mark). */
+/** The marks for these settings (key to text) and states; the states are null until the daemon has told. `link` is how the page stands to the daemon and the radio (null: no Daemon or Radio mark); `listening`:
+ * no radio that is on can send (lib/radios.ts `listensOnly`). */
 export function headerPills(
   values: Readonly<Record<string, string>>,
   gps: GpsState | null,
@@ -231,8 +212,16 @@ export function headerPills(
   update: UpdateInfo | null = null,
   link: Link | null = null,
   map: MapState | null = null,
+  listening = false,
 ): HeaderPill[] {
-  const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), ...radioPills(link, values)];
-  const marks = [update === null ? null : updatePill(update), ...linked, sendingPill(values), gpsPill(values, gps), internetPill(igate), mapPill(map)];
+  const linked = link === null ? [] : [...(link.inApp ? [] : [daemonPill(link.connection)]), ...radioPills(link)];
+  const marks = [
+    update === null ? null : updatePill(update),
+    ...linked,
+    sendingPill(values, listening),
+    gpsPill(values, gps),
+    internetPill(igate),
+    mapPill(map),
+  ];
   return marks.filter((mark): mark is HeaderPill => mark !== null);
 }

@@ -1,0 +1,40 @@
+{
+  "note": "An AEA PK-232 (MRPT ON): the source first, the destination last, the digipeaters between, the star on the station heard; heard direct, the two-line form (HEADERLN ON), a stamped I frame passed over, and a made-up APRS line in the same form.",
+  "source": "PK-232 manual Rev G, 4.6.11.2, MRPT, MSTAMP; the last line made up",
+  "real": false,
+  "frames": [
+    {
+      "source": "WX1AAA",
+      "destination": "WX3CCC",
+      "path": [
+        "WX2BBB"
+      ],
+      "info": "Hello Bill!"
+    },
+    {
+      "source": "WX1AAA",
+      "destination": "WX3CCC",
+      "path": [
+        "WX2BBB*"
+      ],
+      "info": "Hello Bill!"
+    },
+    {
+      "source": "WX1AAA",
+      "destination": "WX3CCC",
+      "path": [
+        "WX2BBB"
+      ],
+      "info": "Hello Bill!"
+    },
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2"
+      ],
+      "info": "=6010.12N/02457.34E["
+    }
+  ],
+  "rejected": 1
+}

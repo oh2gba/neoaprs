@@ -53,9 +53,9 @@ WebFactory = Callable[["Controller", Config], Frontend]
 
 
 class Controller(Services):
-    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, tnc: Tnc | None = None, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False,
-                 hf: Tnc | None = None, hf_port: str = "") -> None:
-        super().__init__(Path(data_directory), clock, store, tnc, port, pattern, install, auto_map, encryption, hf, hf_port)
+    def __init__(self, data_directory: str | Path, clock: Clock = utcnow, store: Store | None = None, busy_ms: int = DEFAULT_BUSY_MS, port: str = "", web: WebFactory | None = None, pattern: str = "", install: InstallInfo = PLAIN_INSTALL, check_sec: float = TNC_CHECK_SEC, auto_map: bool = False, encryption: bool = False,
+                 hf_port: str = "", lines: Mapping[RadioId, Tnc] | None = None) -> None:
+        super().__init__(Path(data_directory), clock, store, port, pattern, install, auto_map, encryption, hf_port, lines)
         self._web_factory = web
         self.check_sec = check_sec              # the keep-alive's quiet period in seconds (TNC_CHECK_SEC; the tests make it shorter, or 0 for none)
         self.busy_ms = busy_ms                  # how long the thread's connection waits for another writer: the daemon asks for a few seconds
@@ -183,10 +183,6 @@ class Controller(Services):
         if self.running:
             await self.radios.beacons_as_set()
 
-    def _hf_settings(self, config: Config) -> tuple[object, ...]:
-        """What a change of restarts radio 2 (tests/test_hf_scope_page.py asks under this name)."""
-        return self.radios.restart_key(HF_ID, config)
-
     def _leave_dummy(self, was: RadioSpec) -> None:
         """A radio that was on as a Dummy radio is one no longer (it became a real radio, or was switched off): nothing it made up under calls of its own stays once a real radio is on. The messages still being
         sent to its made-up stations are cancelled (a real radio would send them on the air for ever, to calls that are nobody's, and hold the channel), and the stations it made up are forgotten with their place
@@ -208,9 +204,6 @@ class Controller(Services):
         if self.running and found is not None and found.spec.enabled:
             self.tasks.spawn(self.radios.repoint(radio), "hf-tnc" if radio == HF_ID else f"repoint-{radio}")
 
-    async def hold_tnc(self) -> None:
-        await self._stop_radios()
-
     async def hold_radio(self, id: RadioId) -> None:
         """One radio lets go of what it holds (its line, its modem), for a search that opens the ports; its start that is still looking for its port is ended first. No other radio is touched."""
         start = self._starts.pop(id, None)
@@ -224,10 +217,6 @@ class Controller(Services):
         """The radio takes what it holds again, while the daemon runs."""
         if self.running:
             self.start_radio(id)
-
-    def release_tnc(self) -> None:
-        if self.running:
-            self.start_tnc()
 
     async def _stop_radios(self) -> None:
         tasks, self._starts = list(self._starts.values()), {}

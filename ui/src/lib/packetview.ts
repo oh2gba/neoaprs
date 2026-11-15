@@ -3,7 +3,7 @@
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { altitudeText, bearingText, dateTimeText, positionText, speedText } from "@/lib/format";
-import { packetCameBy, packetTag, radiosOfBefore } from "@/lib/channels";
+import { packetCameBy, packetTag } from "@/lib/channels";
 import { frequencyText, sentTimeText, stormText } from "@/lib/details";
 import { routeWords } from "@/lib/routes";
 import type { PageRadio } from "@/lib/radios";
@@ -110,9 +110,9 @@ function contentFacts(row: PacketRow): Fact[] {
 }
 
 /** The facts of a packet, in the order they are told: from, kind, what it says, how it travelled ("Came by": its tag and what it means, "HF - heard on the HF radio", "20 m - heard on radio 20 m"), when. `radios`
- * every radio in the order of the boxes (or, from a caller that says only whether the radios are named, the two radios of before). */
-export function packetFacts(row: PacketRow, radios: readonly PageRadio[] | boolean = false): Fact[] {
-  const known = typeof radios === "boolean" ? radiosOfBefore(radios) : radios;
+ * every radio in the order of the boxes. */
+export function packetFacts(row: PacketRow, radios: readonly PageRadio[] = []): Fact[] {
+  const known = radios;
   const facts: Fact[] = [{ label: t("packets.fact.from"), text: row.source }, { label: t("packets.fact.kind"), text: kindWords(row) }, ...contentFacts(row)];
   if (row.direction === "out") facts.push({ label: t("packets.fact.sent_via"), text: row.path.length === 0 ? t("route.direct") : row.path.join(",") });
   else {

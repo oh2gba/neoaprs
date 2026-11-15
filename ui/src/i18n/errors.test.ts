@@ -104,8 +104,10 @@ describe("a refusal on the page", () => {
 
   it("lists what the daemon does not pass: the settings, the profiles, the characters", () => {
     expect(errorReason({ cmd: "set_config", key: "tnc/check_sec", code: "setting.unknown", params: {}, text: "x" })).toMatch(
-      /^no such setting \(the settings are tnc\/profile, .*station\/call.*\)$/,
+      /^no such setting \(the settings are serial\/pattern, .*station\/call.*\)$/,
     );
+    expect(errorReason({ cmd: "set_config", key: "tnc/check_sec", code: "setting.unknown", params: {}, text: "x" })).not.toContain("serial/last_port"); // (radio 1's state, no setting)
+    expect(errorReason({ cmd: "set_config", key: "tnc/check_sec", code: "setting.unknown", params: {}, text: "x" })).not.toMatch(/tnc\/profile|serial\/port,/);
     expect(errorReason({ cmd: "set_config", key: "tnc/profile", code: "setting.not_profile", params: { value: "nope" }, text: "x" })).toMatch(
       /^'nope' is not a TNC profile \(the profiles are .+\)$/,
     );

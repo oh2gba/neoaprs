@@ -21,8 +21,11 @@ How to connect your radio or TNC to NeoAPRS, on Linux, Windows or macOS. In the 
 | An HF SSB radio with a sound card and the Mercury modem (Rhizomatica) | untested on the air, tested against the program | Mercury HF modem (sound card, SSB radio) | NeoAPRS starts Mercury itself; only stations with the same modem on the same frequency hear you ([Mercury HF modem](#mercury-hf-modem)) |
 | BTech UV-PRO, Vero VR-N76, Radioddity GA-5WB (one radio under three names) | untested, reports say it works | KISS TNC | Bluetooth (classic), users' reports only; the BLE KISS specification also lists the radio for Bluetooth LE (`ble://`), untested |
 | PicoAPRS V4 (DB1NTO) | untested, follows the manual | KISS TNC | Bluetooth (classic), USB-C or TCP; Bluetooth LE (`ble://`) is listed by the BLE KISS specification, untested |
-| LoRa APRS iGate and Tracker (CA2RXU firmware) | untested, follows the firmware's source | KISS over TCP (iGate) or KISS TNC over Bluetooth LE (Tracker) | the iGate serves KISS on TCP port 8001; the Tracker has Bluetooth LE with KISS ([LoRa APRS](#lora-aprs-ca2rxu-firmware)) |
-| Yaesu FTM-*, FT1D/2D/3D/5D | no | – | no KISS TNC for a PC. They send received APRS to the PC, never transmit from it. Use a sound-card interface and Direwolf instead |
+| LoRa APRS boards: the CA2RXU iGate and Tracker, DL9SAU's T-Beam tracker, esp32_loraprs | untested on a board, tested against each firmware's bytes | LoRa APRS board on the network, on USB or Bluetooth, or the iGate's log on USB | a radio of its own kind, LoRa ([LoRa APRS boards](#lora-aprs-boards)) |
+| Yaesu FTM-100, FTM-400, FTM-500 | yes, receive only | RX only: Yaesu FTM, TNC text (no KISS) | the data cable that comes with the radio, 9600 ([RX only](#rx-only-yaesu-ftm-tnc-text)); nothing is sent from the PC. To transmit, use a sound-card interface and Direwolf |
+| Yaesu FTM-300 | untested | RX only: Yaesu FTM, TNC text (no KISS) | as the FTM-400 |
+| Yaesu FT1D, FT2D, FT3D, FT5D | no | – | their data port output is incomplete (ygate's tests). A sound card and Direwolf work as for any radio |
+| A TNC in its own monitor mode: TAPR TNC-2 and clones, Kantronics KPC-3, AEA PK-232 | yes, receive only | RX only: Yaesu FTM, TNC text (no KISS) | RS-232; the TNC keeps its own digipeater and mailbox ([RX only](#rx-only-yaesu-ftm-tnc-text)) |
 | Icom (D-STAR radios, IC-9700, IC-705) | no | – | D-PRS is not APRS packets. A sound card and Direwolf work as for any radio |
 | Icom ID-5200A | unverified | – | has a KISS TNC (USB, Bluetooth); entry and speed not known, needs a tester |
 
@@ -104,17 +107,35 @@ DB1NTO's pocket APRS device (VHF, 0.5 or 1 W, GPS, a KISS TNC). **Status: untest
 2. Radio type: *KISS TNC…*. **Speed: 57600.**
 3. On Linux add the udev rules from the wiki, and see "Permissions on Linux".
 
-## LoRa APRS (CA2RXU firmware)
+## LoRa APRS boards
 
-The firmware of CA2RXU (Ricardo Guzman) for ESP32 LoRa boards (TTGO T-Beam, LoRa32, Heltec and others) comes in two programs: the **LoRa APRS iGate** (`richonguzman/LoRa_APRS_iGate`; iGate, digipeater, and a KISS TNC for the network) and the **LoRa APRS Tracker** (`richonguzman/LoRa_APRS_Tracker`; a tracker with a display, and a KISS TNC for a phone). **Status: untested by us;** this follows the sources of both on GitHub. LoRa APRS is not the 1200 baud AFSK of the other radios here: the frames are the same APRS text, sent by LoRa on 433.775 MHz (Europe) and heard only by LoRa APRS stations; the KISS side of the boards carries ordinary AX.25 frames.
+A LoRa APRS board is an ESP32 board with a LoRa chip (a LilyGO LoRa32 or T-Beam, a Heltec WiFi LoRa 32 and others) running a LoRa APRS firmware. It is a radio of the kind **LoRa**: add it with *Add radio* and one of three types. **Status: not yet tried on a board;** every type is tested against the bytes each firmware's source says it writes. LoRa APRS is not the 1200 baud AFSK of the other radios here: a packet is the APRS text itself after a header of three bytes, on 433.775 MHz in Europe (SF12, 125 kHz, CR 4/5), heard only by LoRa APRS stations. The firmware takes the packet apart and gives the computer KISS (AX.25 frames it made of the text) or the text itself.
 
-**The iGate: KISS over TCP.** Its web configuration page has a *TNC* group; switch on *Enable TNC server (Port 8001)* and keep *Protocol* at KISS (the default; TNC2 is the other choice and NeoAPRS does not speak it). In the file `igate_conf.json` they are `tnc.enableServer` and `tnc.kissProtocol`. The server needs the board on a network (WiFi or Ethernet) and the eco mode of the digipeater off. The firmware serves up to four clients at once on TCP port **8001** (fixed in the source, not a setting) and announces itself with mDNS as `igate-<callsign>.local` and the DNS-SD service `_kiss-tnc._tcp`. What the board hears on LoRa is sent to the clients, and a frame a client sends is transmitted on LoRa when the board's LoRa transmission is on (and, with *Enable APRS Bridge*, also uploaded to APRS-IS). *Accept own frames* decides whether a frame from the board's own callsign is taken.
+| type | the board | what is set on the board |
+|---|---|---|
+| LoRa APRS board on the network (`lora-tcp`, the default) | the CA2RXU LoRa APRS iGate on WiFi or Ethernet: its TNC server on port 8001 | *TNC*: *Enable TNC server*, *Protocol* KISS |
+| LoRa APRS board on USB or Bluetooth (`lora-serial`) | the CA2RXU Tracker's `_TNC` image over Bluetooth, the CA2RXU iGate's TNC on USB (`tnc.enableSerial`), DL9SAU's T-Beam tracker (KISS on USB and Bluetooth by default), esp32_loraprs | KISS; the port is the serial device, `bt://` or `ble://` |
+| LoRa APRS iGate's log on USB (`lora-console`) | the CA2RXU iGate on USB with its TNC off, as it comes: it writes a line for each packet it hears, with its signal | nothing: this radio only receives, and nothing is ever written to it |
 
-1. NeoAPRS: Radio type *KISS over TCP (Direwolf, soundmodem)*, TCP host: the board's address (the router's list, or `igate-<callsign>.local` where the system resolves mDNS), TCP port `8001`. Or as a port: `socket://<ip>:8001`.
-2. The port is not protected: keep it inside your LAN, and only one program should send to it.
-3. The board is a digipeater or iGate of its own: its callsign, beacons and path are set on its page, not by NeoAPRS.
+**On the CA2RXU iGate** (its page, or `igate_conf.json`):
+- *Protocol* KISS (`tnc.kissProtocol`). Left at TNC2, the board is heard and nothing is sent on it: the radio status says "the board sends text lines: set it to KISS".
+- *LoRa Tx* on (`lora.txActive`, off as it comes), or what NeoAPRS sends goes nowhere: the board says nothing back, so NeoAPRS cannot know.
+- A callsign of its own (an SSID such as `-10`), or *Accept own frames* (`tnc.acceptOwn`): the board drops a frame from its own call.
+- *APRS bridge* off (`tnc.aprsBridgeActive`): it would hand NeoAPRS the lines of APRS-IS as well, which NeoAPRS passes over, counted in the terminal.
+- The eco mode off: the TNC and the web server stop in it.
+- The TNC server has no password: keep it inside your network.
 
-**The Tracker: Bluetooth LE.** The Tracker has no TCP server. Its Bluetooth LE serves KISS to phones (the aprs.fi iOS app, APRSdroid with the NA7Q modification). On its configuration page (the file `tracker_conf.json`, group `bluetooth`) switch Bluetooth on (`active`), choose BLE (`useBLE`; the boards with only BLE have it fixed) and **KISS** (`useKISS`, true is KISS, false is TNC2 text). The device name is `deviceName` (default `LoRaTracker`). In KISS mode it advertises the BLE KISS service of "Bluetooth LE" above, and NeoAPRS reaches it as `ble://AA:BB:CC:DD:EE:FF` with the extra `ble`; in TNC2 mode it offers the Nordic UART Service with text lines, which NeoAPRS cannot use. A Tracker also has a classic Bluetooth mode on boards that have it (the changelog of the firmware says so); the port is then `bt://`, with the same KISS choice, untested here. The Tracker sends what it hears to the phone in pieces of up to 512 bytes, a frame may arrive in several, and KISS makes no difference to that.
+**The signal.** A packet from the CA2RXU iGate on the network shows its SNR and strength: after each packet NeoAPRS asks the board's own list of the packets it heard last (`/received-packets.json` on its web server; nothing else of the board is asked, never its configuration). A board without that list gives packets without the signal, with one line of the log. DL9SAU's tracker puts the signal in the path of each packet (an element such as `QA7L2`, taken off by NeoAPRS before the packet is kept); esp32_loraprs sends it in a KISS command after each frame; the iGate's log has it on each line. The CA2RXU Tracker and the iGate's KISS line on USB say none.
+
+**The CA2RXU Tracker.** Boards without GPS take its `_TNC` images (`ttgo-lora32-v21_TNC`, `heltec_wifi_lora_32_V3_TNC` and others). On classic Bluetooth (`bt://`, Linux) it starts in TNC2 text; NeoAPRS writes it one KISS frame that changes nothing on the air and turns its answers to KISS. Over Bluetooth LE (`ble://`), set *KISS* (`bluetooth.useKISS`): its KISS service is the aprs.fi one. Its other service, a Nordic UART with the two characteristics the other way round, carries TNC2 text: it is heard, and nothing at all is written to it, since the Tracker sends whatever is written there as a packet.
+
+**esp32_loraprs.** Its default air form is AX.25 without the header, which does not hear the text network the other boards use, and its text mode turns KISS off on its line. Over Bluetooth LE it asks for a passkey (`123456`): pair it with the system first. USB and TCP need a build of its own.
+
+**The digipeater.** NeoAPRS repeats nothing on LoRa: our frames go by WIDE1-1 (when the radio's own path is empty), which the network's iGates and the board's own digipeater (CA2RXU mode 1) repeat. A second repeat would hold the one shared channel twice as long.
+
+**The frequency and the modem settings** are the board's own, set on its page or in its menu: no firmware takes them from a program safely (the iGate's page replaces every setting at once and restarts the board), so NeoAPRS offers none.
+
+**On USB:** whether opening the port restarts an ESP32 board is not known; NeoAPRS holds DTR and RTS low before it opens any port. A board on USB is never searched for: choose its port. The beacon goes out on a LoRa radio at most every 30 minutes, with a random pause of up to 5 minutes, as a LoRa frame takes 2 to 4 s on the channel. A frame of more than 250 bytes, with more than 252 bytes of text, or of more than 256 bytes in KISS (the iGate clears its input past 255 bytes, its escapes counted) has its comment shortened, or is not sent.
 
 ## Direwolf (sound card)
 
@@ -189,6 +210,25 @@ NeoAPRS can send and receive its normal APRS packets over HF with the [Mercury](
 - The radio status says what Mercury does and nothing of the plumbing: the mode, listening, transmitting, channel busy, tuning or keyed, the signal-to-noise ratio of the latest frame, and the last packet. When Mercury has stopped, or this installation carries none (a wheel install), the status says so; a sound card Mercury cannot open (it runs on deaf and mute, saying `[ERR] [audio-play] error in audio->open()`) ends it with the status "the sound card could not be opened: choose another one in the Sound card field", and it is tried again after a while; the log has Mercury's own lines and the ports it was started on. Mercury's configuration is written by NeoAPRS at every start into `mercury.ini` in the folder `radios/2` of the data folder; the busy detector is switched on there.
 - Two Mercury instances on one computer over a loopback audio path carry NeoAPRS's packets between two daemons (`scripts/mercury-bench`, a developer's bench with no radio); that is how the program side was tried: a beacon crossed in 3.8 seconds, a message was acknowledged in about 10 seconds and the longest message too, a 140-byte frame given to Mercury came out as 123 bytes, and two frames keyed at the same moment were both lost. A simulated HF net (`scripts/mercury-sim`: five real Mercury instances and five daemons on one channel with noise, fading and collisions) carries every beacon to every station in 3.8 seconds, acks a message in about 10, loses both frames of two stations keyed at the same moment and carries the message between them afterwards, acks a message again when the first ack was lost and keeps it once, keeps a station whose Mercury died off the air until it is back (3 seconds after the program returns), goes on with a message after its daemon was restarted, decodes every frame down to 3 dB of signal-to-noise on a steady channel and four of five at 0 dB on a poor fading one, and gates to the APRS-IS through one of the stations; the same run passes against the installed .deb in a bare Debian 12 without a sound library. Where every number comes from and what was measured: [`docs/mercury.md`](mercury.md).
 
+## RX only: Yaesu FTM, TNC text
+
+Plug in the radio's data cable or the TNC's serial cable, pick *RX only: Yaesu FTM, TNC text (no KISS)* and see what the radio hears on the map; with Internet stations on, the station is a receive-only iGate. NeoAPRS reads the text the device prints of each packet it hears and writes nothing to it, not even a carriage return: the box has no Path, no Digipeater and no beacon tick, and while it is the only radio on, nothing is sent. The text of a TAPR TNC-2, a Kantronics, a PK-232 and a Yaesu FTM is read in every form they print (one line or two, a time stamp, `<UI>`, `cmd:`), and a TNC whose serial line is 7 bits with parity is recognised by itself.
+
+What to set once, at the device (the TNC keeps it over a power cycle):
+
+| Device | Set | Why |
+|---|---|---|
+| Yaesu FTM-100/300/400/500 | Setup → DATA → COM PORT SETTING: OUTPUT PACKET, SPEED 9600; APRS modem on | the radio prints what it hears on its data port |
+| TAPR TNC-2 and clones | `MALL OFF` | with MALL ON a connected frame between two other stations prints like a UI frame and would be gated |
+| | for letters outside ASCII: `AWLEN 8`, `PARITY 0`, `RESTART` | the factory line is 7 bits with parity |
+| Kantronics KPC-3, KPC-3+ | `INTFACE TERMINAL`, `MXMIT OFF`, `MALL OFF` | MXMIT ON prints the TNC's own beacons and digipeats as if heard |
+| AEA PK-232 | `MONITOR 1` | only unconnected frames |
+| Kenwood TM-D700, TH-D7 (packet mode) | `MALL OFF` | as for the TNC-2 |
+
+Leave the rest at its defaults: MONITOR ON, MRPT ON, MHEADER ON, MCOM OFF, MNONAX25 OFF, PID OFF, MPROTO OFF, FILTER OFF, the Kantronics' 8BITCONV ON, TRACE OFF. With MRPT OFF the path is lost. FILTER ON and MFILTER `$80` take out bytes that Mic-E positions are made of.
+
+What text cannot carry: a CR or LF inside a packet ends its line there, so the rest of that packet is lost; a 7-bit line loses the letters outside ASCII (Mic-E positions come through); a TNC's own transmissions (Kantronics MXMIT ON) count as heard.
+
 ## Kantronics KPC-3+
 
 1. Connect RS-232 (the KPC-3XE has USB).
@@ -231,7 +271,7 @@ The older way still works as a fallback, when a program of the system has to sha
 
 ### Bluetooth LE
 
-A Bluetooth LE device offers a *GATT service*, and a KISS TNC has one with two *characteristics*: NeoAPRS writes KISS bytes to one and is notified of KISS bytes on the other, as a serial line. The service the radios and TNCs of this guide use is the **BLE KISS service** of the aprs.fi apps and the Mobilinkd TNC3 and TNC4: service `00000001-ba2a-46c9-ae49-01b0961f68bb`, the TNC takes writes on `00000002-...` and notifies on `00000003-...` (the specification of KISS over BLE, hessu/aprs-specs, lists the Mobilinkd TNC3 and TNC4, the PicoAPRS V4, the RPC Electronics ESP32-APRS tracker, the CA2RXU LoRa APRS Tracker, the B.B. Link adapter for the Kenwood TH-D74/D75, the UV-PRO/VR-N76/GA-5WB and a do-it-yourself ESP32 adapter). NeoAPRS also knows the **Nordic UART Service** (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`, write `6e400002-...`, notify `6e400003-...`), which homebrew BLE-to-serial TNCs use; no device of this guide does for KISS (the LoRa APRS Tracker's Nordic UART Service carries TNC2 text lines, not KISS, and NeoAPRS cannot use it).
+A Bluetooth LE device offers a *GATT service*, and a KISS TNC has one with two *characteristics*: NeoAPRS writes KISS bytes to one and is notified of KISS bytes on the other, as a serial line. The service the radios and TNCs of this guide use is the **BLE KISS service** of the aprs.fi apps and the Mobilinkd TNC3 and TNC4: service `00000001-ba2a-46c9-ae49-01b0961f68bb`, the TNC takes writes on `00000002-...` and notifies on `00000003-...` (the specification of KISS over BLE, hessu/aprs-specs, lists the Mobilinkd TNC3 and TNC4, the PicoAPRS V4, the RPC Electronics ESP32-APRS tracker, the CA2RXU LoRa APRS Tracker, the B.B. Link adapter for the Kenwood TH-D74/D75, the UV-PRO/VR-N76/GA-5WB and a do-it-yourself ESP32 adapter). NeoAPRS also knows the **Nordic UART Service** (`6e400001-b5a3-f393-e0a9-e50e24dcca9e`, write `6e400002-...`, notify `6e400003-...`), which homebrew BLE-to-serial TNCs use; no device of this guide does for KISS (the LoRa APRS Tracker's Nordic UART Service carries TNC2 text lines, which NeoAPRS hears and sends nothing on; its two characteristics are the other way round, and NeoAPRS takes each by what it can do).
 
 1. **Install the extra.** The BLE library (bleak) is not part of the base install: `pip install 'neoaprs[ble]'`, or `uv tool install 'neoaprs[ble]'` for an install made with uv. Without it a `ble://` port does not open and says so. The deb, the AppImage and the Windows installer do not have it.
 2. **Linux** needs BlueZ running (`bluetoothd`, `systemctl status bluetooth`) and a Bluetooth adapter that does LE. NeoAPRS talks to BlueZ over the system's D-Bus as any user: BlueZ's own D-Bus policy lets every user do that, so no root and no `bluetooth` group (an old distribution's policy may differ; then add the user to the `bluetooth` group). **Windows 10/11** and **macOS** use the system's own Bluetooth LE, and macOS asks once whether the program may use Bluetooth.
@@ -290,6 +330,7 @@ Then `sudo udevadm control --reload` and plug the device in again.
 - Mobilinkd's BLE service in its own code: [iosTncConfig, UUIDKey.swift](https://github.com/mobilinkd/iosTncConfig/blob/master/Mobilinkd%20TNC%20Config/UUIDKey.swift), [BLEConfig, BluetoothService.kt](https://github.com/mobilinkd/BLEConfig/blob/master/app/src/main/java/com/mobilinkd/bleconfig/BluetoothService.kt), [tnc3-firmware](https://github.com/mobilinkd/tnc3-firmware)
 - [B.B. Link, the BLE adapter for the Kenwood TH-D74/D75](https://github.com/islandmagic/bb-link), [kiss-ble-uart-tnc](https://github.com/tomasgeci/kiss-ble-uart-tnc)
 - [LoRa APRS iGate (CA2RXU): tnc_utils.cpp, configuration.cpp, data_embed/index.html](https://github.com/richonguzman/LoRa_APRS_iGate), [LoRa APRS Tracker (CA2RXU): ble_utils.cpp, kiss_utils.cpp, configuration.cpp](https://github.com/richonguzman/LoRa_APRS_Tracker)
+- [DL9SAU's T-Beam tracker: TTGO_T-Beam_LoRa_APRS.ino](https://github.com/dl9sau/TTGO-T-Beam-LoRa-APRS), [esp32_loraprs: config.h, loraprs_service.cpp, kiss_processor.cpp](https://github.com/sh123/esp32_loraprs)
 - [benlink, a library for the vendor's own Bluetooth protocol of the UV-PRO family](https://pypi.org/project/benlink/)
 - [bleak, the Bluetooth LE library](https://github.com/hbldh/bleak), [BlueZ D-Bus policy](https://github.com/bluez/bluez/blob/master/src/bluetooth.conf)
 - [Mobilinkd TNC4 guide](https://mobilinkd.s3.amazonaws.com/TNC4/MobilinkdTNC4.pdf), [TNC3 guide](https://mobilinkd.s3.amazonaws.com/TNC3/MobilinkdTNC3.pdf)
@@ -300,3 +341,4 @@ Then `sudo udevadm control --reload` and plug the device in again.
 - [G7JJF TNC init strings](https://g7jjf.com/tncsetup.htm), [Kantronics KPC-3+ KISS](https://manualzz.com/doc/o/22vn6v/kantronics-kpc%E2%80%933-plus-user-manual-kiss-mode)
 - [Icom ID-5200A](https://www.icomjapan.com/lineup/products/ID-5200A/), [D-PRS](https://www.aprs-is.net/dprs.aspx)
 - [Yaesu receive-only gateway (ygate)](https://github.com/craigerl/ygate)
+- Yaesu FTM-400DR/DE Operating Manual, "Setting the COM port"; TNC Commands v1.1.7a (TAPR TNC-2, compiled by G1DIL); Kantronics KPC-3 Plus User's Guide v8.2; AEA PK-232 Operating Manual Rev G

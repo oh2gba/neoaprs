@@ -1,0 +1,44 @@
+{
+  "note": "A Kantronics KPC-3+: its default two-line form (HEADERLN ON), a line with MCOM ON's <UI>, a connect and an I frame that are passed over, a cmd: prefix, and the manual's own colon form (its slashed zero as 0).",
+  "source": "made up after the KPC-3 Plus manual's forms; the last line is the manual's UIDIGI example",
+  "real": false,
+  "frames": [
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2*",
+        "WIDE2-1"
+      ],
+      "info": "=6010.12N/02457.34E[/A=000052"
+    },
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2*",
+        "WIDE2-1"
+      ],
+      "info": "=6010.12N/02457.34E[/A=000052"
+    },
+    {
+      "source": "OH7ABC",
+      "destination": "APRS",
+      "path": [
+        "WIDE1-1"
+      ],
+      "info": ">listening on 144.800"
+    },
+    {
+      "source": "W0XI",
+      "destination": "GPS",
+      "path": [
+        "B*",
+        "WIDE",
+        "TRACE"
+      ],
+      "info": "5"
+    }
+  ],
+  "rejected": 2
+}

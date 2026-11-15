@@ -37,8 +37,8 @@ const onResize = (): void => {
 onMounted(() => window.addEventListener("resize", onResize));
 onBeforeUnmount(() => window.removeEventListener("resize", onResize));
 
-/** The tabs of this station: HF tests only while a radio of the kind HF is on (until the daemon has told its radios, by the settings, or by the settings of before: most stations have no HF radio, and the row is
- * drawn once as it will stay); a remembered HF tests tab keeps its place until the daemon has told them. */
+/** The tabs of this station: HF tests only while a radio of the kind HF is on (not before the daemon has told its radios: most stations have no HF radio, and the row is drawn once as it will stay); a remembered HF
+ * tests tab keeps its place until the daemon has told them. */
 const radios = useRadios();
 const hfOn = computed(() => radios.enabled.value.some((radio) => radio.kind === "hf"));
 const offered = computed(() => offeredTabs(hfOn.value || (!radios.told.value && props.tab === "skeds")));

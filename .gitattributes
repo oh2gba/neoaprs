@@ -7,3 +7,5 @@
 *.pmtiles binary
 *.sqlite binary
 *.kiss binary
+# what a TNC or a radio prints of the packets it hears, kept byte for byte with its own line ends (CR, CR LF, LF): tests/test_tnc2text.py
+tests/fixtures/text/*.txt binary

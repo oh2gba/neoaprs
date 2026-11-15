@@ -7,7 +7,6 @@ import {
   boxTitle,
   digiPlaces,
   fieldOfKey,
-  flatOf,
   inputId,
   isRadioKey,
   radioElementId,
@@ -28,25 +27,11 @@ describe("groupKeys", () => {
   it("gives the Settings tab the serial and TNC, Internet, digipeater, web, notifications and map keys, in the daemon's order", () => {
     const groups = groupKeys([...CONFIG_KEYS].reverse(), "settings");
     expect(groups.map((g) => g.id)).toEqual(["serial", "igate", "digi", "web", "notifications", "map"]);
-    expect(groups[0]?.keys).toEqual([
-      "station/transmit",
-      "fm/enabled",
-      "tnc/profile",
-      "serial/port",
-      "serial/baud",
-      "tcp/host",
-      "tcp/port",
-      "hf/enabled",
-      "hf/profile",
-      "mercury/sound_card",
-      "mercury/keying",
-      "serial/last_port",
-      "mercury/tx_gain_db",
-    ]);
+    expect(groups[0]?.keys).toEqual(["station/transmit", "serial/last_port"]); // (the radios' own fields are in their boxes)
     expect(groups[1]?.title).toBe("Internet stations");
     expect(groups[1]?.keys).toEqual(["igate/enabled"]); // (igate/server and igate/password are left to the shell)
     expect(groups[2]?.title).toBe("Digipeater");
-    expect(groups[2]?.keys).toEqual(["digi/enabled"]);
+    expect(groups[2]?.keys).toEqual([]); // (its fields are the radios' radio/<id>/digipeat: the form draws it while a radio may repeat)
     expect(groups[4]?.title).toBe("Notifications");
     expect(groups[4]?.keys).toEqual(["messages/alert", "messages/alert_command"]);
     expect(groups[5]?.keys).toEqual(["map/radius_km"]);
@@ -73,7 +58,6 @@ describe("groupKeys", () => {
       "beacon/antenna_height_m",
       "beacon/antenna_gain_db",
       "beacon/antenna_direction",
-      "beacon/path",
     ]);
     expect(BEACON_FOLDS.map((f) => [f.group, f.title, f.keys.length])).toEqual([
       ["beacon", "Antenna", 4],
@@ -125,6 +109,7 @@ describe("groupKeys", () => {
   });
   it("shows a key it does not know under Other", () => {
     expect(groupKeys(["web/network", "mystery/key"], "settings").map((g) => [g.id, g.keys])).toEqual([
+      ["digi", []],
       ["web", ["web/network"]],
       ["other", ["mystery/key"]],
     ]);
@@ -135,7 +120,7 @@ describe("groupKeys", () => {
     expect([FIELDS["messages/alert"]?.label, FIELDS["messages/alert_command"]?.label]).toEqual(["Alert", "Command"]);
   });
   it("keeps the radius of the map in a group of its own, and leaves off the page the detail and the source, which stay settings for neoaprs db set", () => {
-    expect(groupKeys(["web/network", "map/radius_km"]).map((g) => g.id)).toEqual(["web", "map"]);
+    expect(groupKeys(["web/network", "map/radius_km"]).map((g) => g.id)).toEqual(["digi", "web", "map"]);
     const keys = groupKeys(CONFIG_KEYS, "settings").flatMap((g) => g.keys);
     for (const key of ["map/maxzoom", "map/source"]) {
       expect(keys).not.toContain(key);
@@ -318,47 +303,29 @@ describe("the map's fields", () => {
   });
 });
 
-describe("shownFor in the TNC group", () => {
-  const keys = ["serial/port", "serial/baud", "serial/last_port", "tcp/host", "tcp/port", "mercury/sound_card", "mercury/keying"];
-  const shown = (profile: string) => keys.filter((k) => shownFor(k, profile, true));
-  it("shows the port and the speed for a serial TNC, and never the port found", () => {
-    expect(shown("kenwood-tnc2")).toEqual(["serial/port", "serial/baud", "mercury/sound_card", "mercury/keying"]);
-    expect(shown("kiss")).toEqual(["serial/port", "serial/baud", "mercury/sound_card", "mercury/keying"]);
-  });
-  it("shows only the host and the port for KISS over TCP", () => {
-    expect(shown("kiss-tcp")).toEqual(["tcp/host", "tcp/port", "mercury/sound_card", "mercury/keying"]);
-  });
-  it("shows the sound card and the keying whatever the FM radio's type is: they are the HF radio's, and the Dummy has no line", () => {
-    expect(shown("dummy")).toEqual(["mercury/sound_card", "mercury/keying"]);
-    expect(shown("")).toEqual(keys.filter((k) => k !== "serial/last_port"));
+describe("shownFor", () => {
+  it("shows the access key and HTTPS only while the network is let in, and never the port the search found last", () => {
+    const keys = ["web/key", "web/https", "serial/last_port", "station/call"];
+    expect(keys.filter((k) => shownFor(k, true))).toEqual(["web/key", "web/https", "station/call"]);
+    expect(keys.filter((k) => shownFor(k, false))).toEqual(["station/call"]);
   });
 });
 
 describe("shownByRadios", () => {
-  const keys = [
-    "beacon/interval_min",
-    "beacon/path",
-    "digi/enabled",
-    "gps/source",
-    "gps/host",
-    "gps/device",
-    "gps/baud",
-    "beacon/travel",
-    "station/comment",
-    "tnc/profile",
-  ];
-  const FM_ONLY = ["beacon/path", "digi/enabled", "beacon/travel"];
-  const shown = (values: Record<string, string>) => keys.filter((k) => shownByRadios(k, values));
-  it("leaves nothing out while the FM radio is on, whether the HF radio is or not, and before the daemon has said (the keys are not there)", () => {
-    expect(shown({ "fm/enabled": "true", "hf/enabled": "false" })).toEqual(keys);
-    expect(shown({ "fm/enabled": "true", "hf/enabled": "true" })).toEqual(keys);
-    expect(shown({})).toEqual(keys);
+  const keys = ["beacon/interval_min", "beacon/path", "gps/source", "gps/host", "gps/device", "gps/baud", "beacon/travel", "station/comment"];
+  const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
+  const shown = (radios: readonly ReturnType<typeof radioOf>[]) => keys.filter((k) => shownByRadios(k, radios));
+  it("leaves nothing out while a radio with SmartBeaconing is on", () => {
+    expect(shown([radioOf(1, "kiss")])).toEqual(keys);
+    expect(shown([radioOf(1, "kiss"), radioOf(2, "mercury")])).toEqual(keys);
   });
-  it("keeps the one Beacon choice and the Position's keys while the HF radio is on alone, and leaves out the path, the digipeater and Travelling, which are FM's", () => {
-    expect(shown({ "fm/enabled": "false", "hf/enabled": "true" })).toEqual(keys.filter((k) => !FM_ONLY.includes(k)));
+  it("keeps the one Beacon choice and the Position's keys while only radios without SmartBeaconing and paths are on, and leaves out Travelling and the Path", () => {
+    expect(shown([radioOf(2, "mercury"), radioOf(1, "kiss", { enabled: false })])).toEqual(keys.filter((k) => k !== "beacon/travel" && k !== "beacon/path"));
   });
-  it("shows no Beacon choice when both radios are off (the daemon refuses it; the page greys the last tickbox)", () => {
-    expect(shown({ "fm/enabled": "false", "hf/enabled": "false" })).toEqual(keys.filter((k) => !FM_ONLY.includes(k) && k !== "beacon/interval_min"));
+  it("shows no Beacon choice while no radio is on, nor before the daemon has told one", () => {
+    const none = keys.filter((k) => k !== "beacon/travel" && k !== "beacon/interval_min" && k !== "beacon/path");
+    expect(shown([radioOf(1, "kiss", { enabled: false })])).toEqual(none);
+    expect(shown([])).toEqual(none);
   });
 });
 
@@ -509,48 +476,27 @@ describe("the radios' own settings in the form", () => {
       "Dummy HF radio (no radio, made-up distant stations)",
       "nothing",
     ]);
+    for (const type of RADIO_TYPES) expect(typeText(type.key), type.key).not.toBe(type.key); // (every type the daemon lists has its name in the catalogue: no type's key on the page)
   });
 });
 
 describe("the keys of a radio's box", () => {
-  const values = { "fm/enabled": "true", "hf/enabled": "true", "hf/profile": "mercury" };
   const radioOf = (id: number, type: string, extra: Partial<RadioRow> = {}) => pageRadio(radioRow(id, type, extra));
-  const SERIAL = [
-    "station/transmit",
-    "fm/enabled",
-    "tnc/profile",
-    "serial/port",
-    "serial/baud",
-    "hf/enabled",
-    "hf/profile",
-    "mercury/sound_card",
-    "mercury/keying",
-    "mercury/tx_gain_db",
-  ];
 
-  it("are the settings of before for radio 1 of kind FM and radio 2 of kind HF while the daemon tells them, as the boxes always had", () => {
-    expect(flatOf(radioOf(1, "kiss"), values)?.enable).toBe("fm/enabled");
-    expect(flatOf(radioOf(2, "mercury"), values)?.enable).toBe("hf/enabled");
-    expect(flatOf(radioOf(1, "kiss"), {})).toBeNull(); // (a daemon that tells no flat keys)
-    expect(flatOf(radioOf(2, "kiss"), values)).toBeNull(); // (radio 2 of another kind)
-    expect(flatOf(radioOf(1, "kiss", { removed: true }), values)).toBeNull();
-    expect(boxKeys(radioOf(1, "kiss"), SERIAL, values)).toEqual(["tnc/profile", "serial/port", "serial/baud"]);
-    expect(boxKeys(radioOf(2, "mercury"), SERIAL, values)).toEqual(["hf/profile", "mercury/sound_card", "mercury/keying"]);
-    expect(boxKeys(radioOf(2, "dummy-hf"), SERIAL, { ...values, "hf/profile": "dummy-hf" })).toEqual(["hf/profile"]);
-  });
-
-  it("are a radio's own fields for every other radio, by its type: the port and speed of a serial TNC, the host and port of one over TCP, the card and keying of a modem", () => {
-    expect(boxKeys(radioOf(3, "kiss"), SERIAL, values)).toEqual(["radio/3/port", "radio/3/baud"]);
-    expect(boxKeys(radioOf(4, "kiss-tcp"), SERIAL, values)).toEqual(["radio/4/tcp_host", "radio/4/tcp_port"]);
-    expect(boxKeys(radioOf(5, "mercury"), SERIAL, values)).toEqual(["radio/5/sound_card", "radio/5/keying"]);
-    expect(boxKeys(radioOf(6, "dummy"), SERIAL, values)).toEqual([]);
+  it("are a radio's own fields, radios 1 and 2 as every other, by its type: the port and speed of a serial TNC, the host and port of one over TCP, the card and keying of a modem", () => {
+    expect(boxKeys(radioOf(1, "kiss"))).toEqual(["radio/1/port", "radio/1/baud"]);
+    expect(boxKeys(radioOf(2, "mercury"))).toEqual(["radio/2/sound_card", "radio/2/keying"]);
+    expect(boxKeys(radioOf(3, "kiss"))).toEqual(["radio/3/port", "radio/3/baud"]);
+    expect(boxKeys(radioOf(4, "kiss-tcp"))).toEqual(["radio/4/tcp_host", "radio/4/tcp_port"]);
+    expect(boxKeys(radioOf(5, "mercury"))).toEqual(["radio/5/sound_card", "radio/5/keying"]);
+    expect(boxKeys(radioOf(6, "dummy"))).toEqual([]);
     expect([
       isRadioKey("radio/3/port"),
       radioFieldOf("radio/12/tcp_port"),
       radioFieldOf("serial/port"),
       fieldOfKey("serial/port"),
       fieldOfKey("radio/3/baud"),
-    ]).toEqual([true, { id: 12, field: "tcp_port" }, null, "port", "baud"]);
+    ]).toEqual([true, { id: 12, field: "tcp_port" }, null, "serial/port", "baud"]);
     expect([inputId("radio/3/tcp_port"), inputId("serial/port"), radioElementId({ id: 3 }, "name")]).toEqual([
       "set-radio-3-tcp_port",
       "set-serial-port",
@@ -569,18 +515,16 @@ describe("the keys of a radio's box", () => {
     expect([unnamed(radioOf(3, "kiss", { name: "Mobile", number: 2 })), unnamed(radioOf(1, "kiss"))]).toEqual(["FM 2", "FM"]);
   });
 
-  it("put a Digipeater Enable for each radio that may repeat and is on, the FM radio of before by its setting as it is being changed, with a legend while several radios are on", () => {
+  it("put a Digipeater Enable for each radio that may repeat and is on, with a legend while several radios are on", () => {
     const radios = [radioOf(1, "kiss"), radioOf(2, "mercury"), radioOf(3, "kiss", { name: "Mobile" }), radioOf(4, "dummy", { enabled: false })];
-    const both = digiPlaces(radios, values, values, null);
-    expect(both.keys).toEqual(["digi/enabled", "radio/3/digipeat"]);
+    const both = digiPlaces(radios);
+    expect(both.keys).toEqual(["radio/1/digipeat", "radio/3/digipeat"]);
     expect(Object.values(both.boxes).map((b) => b.text)).toEqual(["FM radio", "Mobile"]);
-    expect(both.links["digi/enabled"]).toBeNull(); // (the FM radio's topic, not told yet)
     expect(both.links["radio/3/digipeat"]?.stats).toEqual(radios[2]?.row.stats);
-    const fmOff = { ...values, "fm/enabled": "false", "hf/enabled": "false" };
-    const one = digiPlaces(radios.slice(0, 3), fmOff, fmOff, null); // (radio 3 the only radio on)
+    const one = digiPlaces([radioOf(1, "kiss", { enabled: false }), radioOf(2, "mercury", { enabled: false }), radios[2]]); // (radio 3 the only radio on)
     expect([one.keys, one.boxes]).toEqual([["radio/3/digipeat"], {}]);
     // plan section 6: "each row with the radio's name when there are several": one radio that may repeat beside another radio that is on says its radio
-    const other = digiPlaces([...radios.slice(0, 3), radioOf(4, "dummy-hf", { kind: "hf", number: 2 })], fmOff, fmOff, null);
+    const other = digiPlaces([radioOf(1, "kiss", { enabled: false }), radios[2], radioOf(4, "dummy-hf", { kind: "hf", number: 2 })]);
     expect([other.keys, Object.values(other.boxes).map((b) => b.text)]).toEqual([["radio/3/digipeat"], ["Mobile"]]);
   });
 });

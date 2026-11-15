@@ -82,8 +82,8 @@ describe("ObjectsPane", () => {
     const FM = radioRow(1, "kenwood-tnc2");
     const HF = radioRow(2, "mercury");
     const list = [
-      ownObject("FAR", { radio: "hf", qru_group: "FOOD", created_at: ago(900) }),
-      ownObject("WIDE", { radio: "both", created_at: ago(600) }),
+      ownObject("FAR", { radios: [2], qru_group: "FOOD", created_at: ago(900) }),
+      ownObject("WIDE", { radios: [1, 2], created_at: ago(600) }),
       ownObject("NEAR", { created_at: ago(300) }),
     ];
     const tagsOf = (station: Given, rows: OwnObjectRow[] = list, given: Given = {}) => {

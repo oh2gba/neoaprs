@@ -309,14 +309,15 @@ def test_the_radio_of_a_message_is_chosen_from_the_field() -> None:
     assert message_radio(None, heard(book).heard_by, specs, FM_ID, T0) == FM_ID
 
 
-def test_the_page_is_told_of_radios_1_and_2_as_before_whatever_else_heard_the_station() -> None:
+def test_the_page_is_told_what_each_radio_heard_of_the_station_by_its_id() -> None:
     book = StationBook()
     for radio_id, minutes, path in ((FM_ID, 0, DIGI), (HF_ID, 1, ()), (LORA_ID, 2, ("OH2LGW*",))):
         book.take(packet(radio_id, minutes, path))
     row = station_row(book, heard(book))
     StationRow.model_validate_json(json.dumps(row))
-    assert (row["heard_fm"], row["heard_hf"], row["last_fm_at"], row["last_hf_at"], row["last_path"]) == (1, 1, "2026-11-14T12:00:00Z", "2026-11-14T12:01:00Z", ["OH2LGW*"])
-    assert "heard_by" not in row and "own_path" not in row, "the wire is what it was"
+    assert row["heard"] == {"1": {"count": 1, "last_at": "2026-11-14T12:00:00Z"}, "2": {"count": 1, "last_at": "2026-11-14T12:01:00Z"}, "3": {"count": 1, "last_at": "2026-11-14T12:02:00Z"}}
+    assert (row["last_path"], row["last_path_radio"]) == (["OH2LGW*"], LORA_ID)
+    assert not {"heard_fm", "heard_hf", "last_fm_at", "last_hf_at", "heard_by", "own_path"} & set(row), "no field of radios 1 and 2 by the words of before"
 
 
 async def test_the_daemon_counts_the_routes_of_an_hf_radio_that_is_not_radio_2_as_that_radios_alone(tmp_path: Path) -> None:

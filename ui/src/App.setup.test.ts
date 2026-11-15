@@ -4,6 +4,7 @@ import { flushPromises } from "@vue/test-utils";
 import { FakeMap, FakeMarker } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
 import { configValues, errorOf, hello, mapFile, mapState, radioRow, status } from "@/test/fixtures";
+import type { RadioRow } from "@/protocol/protocol";
 import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -134,7 +135,7 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 2,
-      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94", "serial/baud": "" }),
+      value: configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "60.17", "station/lon": "24.94" }, { "radio/1/baud": "" }),
     });
     await flushPromises();
     await wrapper.findAll(".setup-symbol")[1]?.trigger("click"); // the car
@@ -150,9 +151,9 @@ describe("App: the first-run guide", () => {
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
     });
     await flushPromises();
-    await wrapper.find("#setup-serial-port").setValue("/dev/ttyUSB0");
+    await wrapper.find("#setup-radio-1-port").setValue("/dev/ttyUSB0");
     expect(configs()).toHaveLength(2);
-    expect(configs()[1]).toEqual({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }); // (at once, as from the Settings tab)
+    expect(configs()[1]).toEqual({ cmd: "set_config", values: { "radio/1/port": "/dev/ttyUSB0" } }); // (at once, as from the Settings tab)
     await next();
     expect(configs()[2]).toEqual({
       cmd: "set_config",
@@ -167,13 +168,10 @@ describe("App: the first-run guide", () => {
       type: "state",
       topic: "config",
       rev: 3,
-      value: configValues({
-        "station/call": "OH2ABC-9",
-        "station/lat": "60.17",
-        "station/lon": "24.94",
-        "station/symbol_code": ">",
-        "serial/port": "/dev/ttyUSB0",
-      }),
+      value: configValues(
+        { "station/call": "OH2ABC-9", "station/lat": "60.17", "station/lon": "24.94", "station/symbol_code": ">" },
+        { "radio/1/port": "/dev/ttyUSB0" },
+      ),
     });
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
@@ -224,6 +222,73 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find(".setup .setup-mapline").exists()).toBe(false);
   });
 
+  /** A station with no radio on the Radio step: the guide's call and place given, the topic `radios` empty; `type` added from its one box, and the daemon's answer and row (`row`), with the new radio's own values. */
+  async function firstRadio(type: string, row: Partial<RadioRow>, values: Record<string, string>) {
+    const { wrapper, socket } = await fresh();
+    socket.say({ type: "state", topic: "radios", rev: 1, value: {} });
+    await wrapper.find("#setup-call").setValue("oh2abc");
+    await wrapper.find("form").trigger("submit");
+    await wrapper.find("#setup-lat").setValue("60.17");
+    await wrapper.find("#setup-lon").setValue("24.94");
+    for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
+    await wrapper.find("#setup-radio-add").setValue(type);
+    await wrapper.find("#setup-radio-add-button").trigger("click");
+    expect(socket.sent).toContainEqual({ cmd: "radio_add", type });
+    socket.say({ type: "radio_added", id: 3 });
+    socket.say({ type: "state", topic: "config", rev: 2, value: configValues({ "station/call": "", "station/lat": "60.17", "station/lon": "24.94" }, values) });
+    socket.say({ type: "state", topic: "radios", rev: 2, value: { "3": radioRow(3, type, row) } });
+    await flushPromises();
+    const box = wrapper.find(".setup .setup-body fieldset.subbox");
+    const commands = () => socket.sent.map((c) => (c as { cmd: string }).cmd);
+    return { wrapper, socket, box, commands };
+  }
+
+  it("adds a LoRa board on the network as a station's first radio: its box asks for the board's host and port alone, says Not connected with nothing of an address, and the page shows no error", async () => {
+    const { wrapper, socket, box } = await firstRadio(
+      "lora-tcp",
+      { state: "waiting", problem: { code: "radio.not_connected", params: { name: "LoRa" } } },
+      { "radio/3/tcp_host": "", "radio/3/tcp_port": "8001", "radio/3/beacon": "true", "radio/3/path": "" },
+    );
+    expect(box.find("legend").text()).toBe("LoRa radio");
+    expect(box.find<HTMLSelectElement>("#setup-radio-3-type").element.value).toBe("lora-tcp");
+    expect([box.find<HTMLInputElement>("#setup-radio-3-tcp_host").element.value, box.find<HTMLInputElement>("#setup-radio-3-tcp_port").element.value]).toEqual([
+      "",
+      "8001",
+    ]);
+    expect(["port", "baud", "find"].filter((part) => box.find(`#setup-radio-3-${part}`).exists())).toEqual([]);
+    expect(box.find(".radiostatus .tncstatus").text()).toContain("Not connected");
+    expect(box.text()).not.toMatch(/127\.0\.0\.1|8001 |socket|tcp:/);
+    expect(wrapper.find(".toast").exists()).toBe(false);
+    expect(wrapper.find(".appheader .rxonly").exists()).toBe(false); // (a board that sends: the station is no RX only one)
+    await wrapper.find(".setup #setup-radio-3-tcp_host").setValue("192.168.1.20");
+    await wrapper.find(".setup #setup-radio-3-tcp_host").trigger("keydown", { key: "Enter" });
+    expect(socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config").at(-1)).toEqual({
+      cmd: "set_config",
+      values: { "radio/3/tcp_host": "192.168.1.20" },
+    });
+  });
+
+  it("adds a text monitor as a station's first radio: the header says the station only receives, its box offers its port and speed alone, and nothing on the page would send", async () => {
+    const { wrapper, box, commands } = await firstRadio("tnc-text", {}, { "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" });
+    const mark = wrapper.find(".appheader .rxonly");
+    expect([mark.text(), mark.attributes("title")]).toEqual(["RX only", "Nothing is sent. Settings → Radio"]);
+    expect(box.find("legend").text()).toBe("FM radio");
+    expect(["port", "baud"].map((part) => box.find(`#setup-radio-3-${part}`).exists())).toEqual([true, true]);
+    expect(
+      ["find", "path", "digipeat", "tcp_host"].filter(
+        (part) => wrapper.find(`#setup-radio-3-${part}`).exists() || wrapper.find(`#set-radio-3-${part}`).exists(),
+      ),
+    ).toEqual([]);
+    expect(wrapper.find("#set-station-main_radio").exists()).toBe(false);
+    expect(wrapper.find(".toast").exists()).toBe(false);
+    await wrapper.find(".setup-close").trigger("click");
+    const beaconNow = wrapper.findAll<HTMLButtonElement>("#pane-beacon button").find((button) => button.text() === "Beacon now");
+    expect(beaconNow === undefined || beaconNow.element.disabled).toBe(true); // (My station's Beacon now: greyed, or not there)
+    expect(commands().filter((cmd) => ["beacon_now", "status_now", "send_message", "find_radio"].includes(cmd))).toEqual([]);
+  });
+
   it("has the Radio step's boxes beside the Settings tab's with no id twice on the page, and its radio stays when the guide is closed", async () => {
     const { wrapper, socket } = await fresh();
     await wrapper.find("#setup-call").setValue("oh2abc");
@@ -233,14 +298,15 @@ describe("App: the first-run guide", () => {
     for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
     await flushPromises();
     expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
-    expect(wrapper.find("#pane-settings #set-fm-enabled").exists()).toBe(true);
-    expect(wrapper.find(".setup #setup-fm-enabled").exists()).toBe(true);
+    expect(wrapper.find("#pane-settings #set-radio-1-enabled").exists()).toBe(true);
+    expect(wrapper.find(".setup #setup-radio-1-enabled").exists()).toBe(true);
     const ids = [...document.querySelectorAll("[id]")].map((e) => e.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
-    await wrapper.find(".setup #setup-tnc-profile").setValue("kiss");
+    await wrapper.find(".setup #setup-radio-1-baud").setValue("4800");
+    await wrapper.find(".setup #setup-radio-1-baud").trigger("keydown", { key: "Enter" });
     const configs = socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
-    expect(configs.at(-1)).toEqual({ cmd: "set_config", values: { "tnc/profile": "kiss" } });
+    expect(configs.at(-1)).toEqual({ cmd: "set_config", values: { "radio/1/baud": "4800" } });
     await wrapper.find(".setup-close").trigger("click");
-    expect(wrapper.find<HTMLSelectElement>("#pane-settings #set-tnc-profile").element.value).toBe("kiss"); // (the same settings: nothing waits for Finish)
+    expect(wrapper.find<HTMLInputElement>("#pane-settings #set-radio-1-baud").element.value).toBe("4800"); // (the same settings: nothing waits for Finish)
   });
 });

@@ -19,12 +19,12 @@ const info = computed<FieldInfo>(() => ({
   tipLabel: t("radio.main.tip_label"),
   tip: [t("radio.main.tip1")],
   kind: "choice",
-  choices: radios.enabled.value.map((radio) => ({ value: String(radio.id), label: radio.name })),
+  choices: radios.senders.value.map((radio) => ({ value: String(radio.id), label: radio.name })),
 }));
 /** The radio shown: the one the setting names while it is on, else the main radio in force. */
 const shown = computed(() => {
   const named = props.settings.draft[KEY] ?? "";
-  if (radios.enabled.value.some((radio) => String(radio.id) === named)) return named;
+  if (radios.senders.value.some((radio) => String(radio.id) === named)) return named;
   return radios.main.value === null ? "" : String(radios.main.value.id);
 });
 </script>

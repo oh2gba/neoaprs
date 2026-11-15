@@ -27,7 +27,9 @@ class Tnc2Error(ValueError):
     """A packet's text that is no AX.25 frame, with the reason (an address that cannot be one, no header at all)."""
 
 
-def _addresses(parts: list[bytes]) -> list[ax25.Address]:
+def addresses(parts: list[bytes]) -> list[ax25.Address]:
+    """The AX.25 addresses of the parts of a header (`OH2XYZ-9`, `WIDE2-1*`), by the rules of neoaprs/callsign.py; Tnc2Error naming the one that is none. The one grammar of the calls in TNC2 text, which the
+    monitor text of a TNC (tnc2text.py) reads too."""
     try:
         return [ax25.Address.parse(part.decode("ascii")) for part in parts]
     except (ax25.Ax25Error, UnicodeDecodeError) as error:
@@ -40,7 +42,7 @@ def frame_of(text: bytes) -> ax25.Frame:
     if head is None:
         raise Tnc2Error("not a packet: no SRC>DST:information at its start")
     source, destination, path = head.group(1), head.group(2), head.group(3)
-    [src, dst], digis = _addresses([source, destination]), _addresses([p for p in path.split(b",") if p])
+    [src, dst], digis = addresses([source, destination]), addresses([p for p in path.split(b",") if p])
     if src.repeated or dst.repeated:
         raise Tnc2Error("only a digipeater can be marked as repeated")
     last = max((i for i, d in enumerate(digis) if d.repeated), default=-1)

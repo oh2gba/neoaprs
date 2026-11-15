@@ -1,0 +1,16 @@
+{
+  "note": "mice.bin with 0x1C taken out, as a Kantronics with FILTER ON prints it: a packet all the same.",
+  "source": "generated from mice.bin",
+  "real": false,
+  "frames": [
+    {
+      "source": "OH2GBA-9",
+      "destination": "T7SYRS",
+      "path": [
+        "WIDE1-1*"
+      ],
+      "info": "`c5\u007f\u009f>/]\"4}Mic-E status"
+    }
+  ],
+  "rejected": 0
+}

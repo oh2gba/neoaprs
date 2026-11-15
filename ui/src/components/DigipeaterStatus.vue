@@ -1,15 +1,15 @@
 <script setup lang="ts">
 // The status of the Digipeater group of the Settings tab, under its tickbox and only while it is ticked: the radio's status row (StatusFold.vue) with the words of lib/digistatus.ts, and behind its arrow since when the count runs and the frames the burst limit held back.
-// One under each radio's Enable, with that radio's counts (`tnc`: the FM radio of before's topic, or another radio's row in its shape); nothing while they are not told (null). When the daemon started, the time and
+// One under each radio's Enable, with that radio's counts (`tnc`: its row); nothing while they are not told (null). When the daemon started, the time and
 // whether RX only is ticked are the page's unless they are given.
 import { computed, inject } from "vue";
 import StatusFold from "@/components/StatusFold.vue";
 import { DAEMON_KEY } from "@/composables/useDaemonContext";
 import { digiLook } from "@/lib/digistatus";
 import { rxOnlyLink } from "@/lib/settinglink";
-import type { TncState } from "@/protocol/protocol";
+import type { RadioRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ tnc: TncState | null; startedAt?: string | null; now?: number; rxOnly?: boolean }>(), {
+const props = withDefaults(defineProps<{ tnc: Pick<RadioRow, "stats"> | null; startedAt?: string | null; now?: number; rxOnly?: boolean }>(), {
   startedAt: undefined,
   now: undefined,
   rxOnly: undefined,

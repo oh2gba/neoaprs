@@ -126,7 +126,8 @@ class Inbox:
         line = line_of(packet.inner_info)
         reply = None if line is None else reply_ack_of(line)
         if is_query(message.text):
-            if message.msg_id is not None:                           # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five)
+            asked = MessageRecord(0, packet.heard_at, "in", packet.sender, message.addressee, message.text, message.msg_id, "received")
+            if message.msg_id is not None and self.heard.ack_due(asked, packet.heard_at):     # (a radio that numbers its query waits for an ack and retries without one: the ack costs one frame, the retries five; a further copy of the same transmission, by two digipeaters or on a second radio, is acked as a message's is)
                 self._host.ack(packet.sender, message.msg_id, reply, packet)
             return                                                   # (the queries answer it; it is not kept)
         if reply:

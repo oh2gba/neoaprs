@@ -5,7 +5,7 @@ import StationsTable from "@/components/StationsTable.vue";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, withDaemon } from "@/test/context";
 import type { RadioRow, StationRow } from "@/protocol/protocol";
-import { ago, configValues, radioRow, radiosTopic, station, table } from "@/test/fixtures";
+import { ago, heardBy, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 import { STATIONS_TWO_RADIOS } from "@/lib/layout";
 import { stubWidth } from "@/test/width";
 
@@ -23,12 +23,14 @@ const net = station("OH2NET", {
   can_message: false,
 });
 const both = station("OH2BOTH", { last_heard: ago(20), heard_rf: 2, heard_is: 1, last_is_at: ago(20), last_rf_at: ago(100) });
-const hfOnly = station("OH2HF", { last_heard: ago(40), heard_rf: 2, heard_fm: 0, heard_hf: 2, last_hf_at: ago(40), last_fm_at: null });
-const fmAndHf = station("OH2FMHF", { last_heard: ago(10), heard_rf: 5, heard_fm: 3, heard_hf: 2, last_hf_at: ago(10), last_fm_at: ago(200) });
+const hfOnly = station("OH2HF", { last_heard: ago(40), heard_rf: 2, heard: heardBy([2, 2, ago(40)]) });
+const fmAndHf = station("OH2FMHF", { last_heard: ago(10), heard_rf: 5, heard: heardBy([1, 3, ago(200)], [2, 2, ago(10)]) });
 const object = station("LEADER", { kind: "object", own: true, last_heard: ago(200), heard_rf: 0 });
 
+/** The station of the tests: the FM radio (radio 1) on, the HF radio (radio 2) off. */
+const TODAY = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
 const make = (...rows: ReturnType<typeof station>[]) =>
-  mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: table(...rows) })) });
+  mount(StationsTable, { props: { selected: null }, global: withDaemon(fakeDaemon({ stations: table(...rows), radios: TODAY() })) });
 const labels = (wrapper: ReturnType<typeof make>): [string, string][] =>
   wrapper.findAll("tbody tr[data-call]").map((tr): [string, string] => [
     tr.find(".callname").text(),
@@ -157,7 +159,7 @@ describe("how a station was heard, with several radios", () => {
   const withRadios = (rows: RadioRow[], ...stations: StationRow[]) =>
     mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ stations: table(...stations), radios: radiosTopic(...rows), config: configValues({ "hf/enabled": "true" }) })),
+      global: withDaemon(fakeDaemon({ stations: table(...stations), radios: radiosTopic(...rows) })),
     });
   const many = station("OH2SIX", {
     last_heard: ago(10),
@@ -181,7 +183,7 @@ describe("how a station was heard, with several radios", () => {
     ]);
     const both = mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ stations: table(rf, hfOnly, fmAndHf), config: configValues({ "hf/enabled": "true" }) })),
+      global: withDaemon(fakeDaemon({ stations: table(rf, hfOnly, fmAndHf), radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")) })),
     });
     expect(labels(both)).toEqual([
       ["OH2FMHF", "FM · HF"],
@@ -254,19 +256,15 @@ describe("how a station was heard, with several radios", () => {
   it("says a Dummy HF radio's packets Dummy where it is the one radio on, and its name dashed beside FM", () => {
     const made = station("OH2DUM", {
       heard_rf: 0,
-      heard_fm: 0,
-      heard_hf: 3,
       heard_dummy: 3,
       last_rf_at: null,
-      last_hf_at: ago(30),
       last_dummy_at: ago(30),
       heard: { "2": { count: 3, last_at: ago(30) } },
     });
     const fmOff = radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" });
-    const config = configValues({ "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf" });
     const alone = mount(StationsTable, {
       props: { selected: null },
-      global: withDaemon(fakeDaemon({ stations: table(made), radios: radiosTopic(fmOff, radioRow(2, "dummy-hf")), config })),
+      global: withDaemon(fakeDaemon({ stations: table(made), radios: radiosTopic(fmOff, radioRow(2, "dummy-hf")) })),
     }).findAll("tr[data-call='OH2DUM'] .via");
     expect(alone.map((tag) => [tag.text(), tag.classes()[1], tag.attributes("title")])).toEqual([
       ["Dummy", "tag-dummy", "Made up by the Dummy radio, which is no real radio"],

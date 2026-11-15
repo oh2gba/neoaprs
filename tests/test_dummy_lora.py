@@ -113,14 +113,14 @@ def test_a_line_longer_than_any_lora_packet_is_no_packet_and_the_rest_of_a_line_
 def test_the_dummy_lora_type_is_of_the_kind_lora_with_the_limits_and_the_choices_of_lora_and_nothing_to_find_or_tune() -> None:
     t = type_of("dummy-lora")
     assert (t.kind, t.transport, t.driver, t.profile, t.text, t.dummy) == ("lora", "dummy", "tnc", "dummy-lora", "radio.type.dummy-lora", True)
-    assert types_of("lora") == (t,) and DEFAULT_TYPE["lora"] == t.key
-    assert t.limits == Limits(250, 30, 300, 20, 252), "a frame of 250 bytes and 252 of text, the timed beacon from 30 minutes with a pause of up to 300 s, up to 20 s before a retry"
+    assert types_of("lora")[-1] == t and DEFAULT_TYPE["lora"] == "lora-tcp", "the Dummy is last of its kind; a new LoRa radio is the board on the network (tests/test_lora_types.py)"
+    assert t.limits == Limits(250, 30, 300, 20, 252, max_kiss=256), "a frame of 250 bytes, 252 of text and 256 in KISS, the timed beacon from 30 minutes with a pause of up to 300 s, up to 20 s before a retry"
     hf = type_of("mercury").limits
     assert (t.limits.beacon_min_min, t.limits.beacon_jitter_sec, t.limits.retry_jitter_sec) >= (hf.beacon_min_min, hf.beacon_jitter_sec, hf.retry_jitter_sec), \
         "its timed beacon goes no more often than an HF radio's (a moving station's SmartBeaconing, which HF has not, goes by its own rates)"
     assert t.allowed == Allowed(paths=True, digipeat=False, smart_beacon=True, gateway_heard=True, shared_channel=False), "no digipeating by us: the network's iGates repeat WIDE1-1"
     assert t.can == Can(False, False, False, False, False, False, False)
-    assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora")] == ["beacon", "path"], "no digipeater to turn on"
+    assert [f.key for f in t.fields] == [f.key for f in kind_fields("lora") if f.key in ("beacon", "path", "digipeat")] == ["beacon", "path"], "no digipeater to turn on"
     assert t.recommended_path == recommended_path("lora") == "WIDE1-1" and recommended_path("fm") == recommended_path("hf") == "", "FM and HF go by the station's symbol"
     assert rules_of(t) == LORA == DUMMY_LORA.rules and PROFILES[t.profile] is DUMMY_LORA and DUMMY_LORA.readings == ("snr", "rssi") and (DUMMY_LORA.max_frame, DUMMY_LORA.max_text) == (250, MAX_TEXT)
 
@@ -253,7 +253,7 @@ async def test_a_dummy_lora_radio_added_from_the_page_runs_hears_its_stations_be
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
     row = page.topics["radios"][str(id)]
     assert (row["kind"], row["type"], row["dummy"], row["number"], row["enabled"]) == ("lora", "dummy-lora", True, 1, True)
-    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == dict.fromkeys(row["can"], False)
+    assert row["limits"] == {"max_frame": 250, "beacon_min_min": 30} and row["can"] == {**dict.fromkeys(row["can"], False), "transmit": True}
     assert row["allowed"] == {"paths": True, "digipeat": False, "smart_beacon": True, "gateway_heard": True, "shared_channel": False} and row["choices"] == {"beacon": True, "path": "", "digipeat": None}
     world = {call_of(call, id) for call in ("Q9LRG-10", "Q9KOT", "Q9TRK-7")}             # (the bike's first beacon may come after the others are in)
     for _ in range(200):

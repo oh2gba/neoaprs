@@ -1,6 +1,6 @@
 """`state.json` of the support bundle: what the running daemon knows now, the state that a bundle made from the data folder alone cannot have (neoaprs/cli/supportmake.py). It is the values the page is told, built the same way
-(neoaprs/web/views.py): every radio with its latest lines and its beacon (`radios`, by position; `tnc`, `hf` and `beacon` are radios 1 and 2 as before, which a database made of a bundle reads:
-tests/support/bundledb.py), the GPS, the base map, the update, and beside them the serial ports with who holds them and what the process costs.
+(neoaprs/web/views.py): every radio with its line, its latest lines and its beacon (`radios`, by position), the main radio's beacon, the GPS, the base map, the update, and beside them the serial ports
+with who holds them and what the process costs.
 
 `live_state` runs on the loop, where the parts are read; the ports are listed in a thread."""
 import asyncio
@@ -14,17 +14,17 @@ from neoaprs.clock import iso
 from neoaprs.config import can_transmit
 from neoaprs.controller import Controller
 from neoaprs.mercurymodem import Mercury
-from neoaprs.radiospec import HF_ID
-from neoaprs.radios import hf_is_mercury
 from neoaprs.serialholders import held_by
 from neoaprs.serialprobe import available_ports
+from neoaprs.tnc import Tnc
 
 from .api import Api
 from .mapview import map_state
 from .processmeter import resident_mb
 from .secureside import SecureSide
 from .updatewire import UpdateState
-from .views import gps_state, tnc_state
+from .tncwire import TncStats
+from .views import LINES_MAX, NO_PLAN, gps_state, modem_state
 
 log = logging.getLogger("neoaprs.web")
 
@@ -45,10 +45,19 @@ def ports_with_holders() -> list[dict[str, Any]]:
 
 
 def beacon_state(server: LiveHost) -> dict[str, Any]:
+    """The station's beacon as the summary says it: the settings, and the main radio's beacon timer (each radio's own is in its entry of `radios`)."""
     ctl = server.controller
-    beacon, c = ctl.beacon, ctl.config
-    return {"interval_min": c.beacon_interval_min, "mobile": c.mobile, "last_sent": iso(beacon.last_sent), "last_reason": beacon.last_reason, "next_due": iso(beacon.next_due),
-            "problem": beacon.problem, "transmit_blocked": can_transmit(c)}
+    main, c = ctl.radios.main, ctl.config
+    beacon = None if main is None else main.beacon
+    return {"interval_min": c.beacon_interval_min, "mobile": c.mobile, "last_sent": None if beacon is None else iso(beacon.last_sent), "last_reason": "" if beacon is None else beacon.last_reason,
+            "next_due": None if beacon is None else iso(beacon.next_due), "problem": "" if beacon is None else beacon.problem, "transmit_blocked": can_transmit(c)}
+
+
+def line_state(tnc: Tnc) -> dict[str, Any]:
+    """A radio's line as the report says it: its state and why it is not connected, the port and speed in use, what it counted, what the watchdog did last, and its latest lines."""
+    return {"state": tnc.state.value, "problem": tnc.problem, "last_error": tnc.last_error, "path": tnc.path, "baud": tnc.baud, "dummy": tnc.is_dummy, "modem": modem_state(tnc),
+            "readings": list(tnc.profile.readings), "describe": tnc.describe(), "searching": tnc.searching, "silent_since": iso(tnc.silent_since), "stats": TncStats.row(tnc.stats),
+            "last_watchdog_action": tnc.last_watchdog_action, "last_watchdog_at": iso(tnc.last_watchdog_at), "lines": [{"at": iso(at), "text": text} for at, text in tnc.recent_lines(LINES_MAX)]}
 
 
 def daemon_state(server: LiveHost) -> dict[str, Any]:
@@ -65,8 +74,7 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
         "made_at": iso(ctl.clock()),
         "daemon": daemon_state(server),
         "web": {"address": server.address or "every interface", "port": server.bound_port(), "network": ctl.config.web_network, "https": secure},
-        "tnc": tnc_state(ctl.tnc),
-        "gps": gps_state(ctl.config, ctl.gps, ctl.beacon.mobile, ctl.beacon.next_due),
+        "gps": gps_state(ctl.config, ctl.gps, NO_PLAN if (moving := ctl.moving_beacon()) is None else moving.mobile, None if moving is None else moving.next_due),
         "beacon": beacon_state(server),
         "rig": {"state": rig.rig_state, "last_text": rig.last_text, "last_sent": iso(rig.last_sent_at)},
         "map": map_state(ctl.mapfetch.status(), ctl.aloha.radius_km),
@@ -75,7 +83,6 @@ async def live_state(server: LiveHost) -> dict[str, Any]:
     state["ports"] = await asyncio.to_thread(ports_with_holders)
     listed: dict[int, list[dict[str, Any]]] = {}
     state["radios"] = await radios_state(ctl, listed)
-    state["hf"] = await hf_state(ctl, listed, state["radios"])
     return state
 
 
@@ -98,19 +105,10 @@ async def radios_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]])
     out: list[dict[str, Any]] = []
     for radio in ctl.radios.all():
         spec, beacon = radio.spec, radio.beacon
-        entry: dict[str, Any] = {"id": radio.id, "kind": spec.kind, "type": spec.type, "name": radio.name, "enabled": spec.enabled, "tnc": tnc_state(radio.line),
+        entry: dict[str, Any] = {"id": radio.id, "kind": spec.kind, "type": spec.type, "name": radio.name, "enabled": spec.enabled, "tnc": line_state(radio.line),
                                  "beacon": {"last_sent": iso(beacon.last_sent), "last_reason": beacon.last_reason, "next_due": iso(beacon.next_due), "problem": beacon.problem}}
         modem = radio.driver.modem
         if spec.enabled and modem is not None and radio.rtype.transport == "modem":
             entry["sound_cards"] = await sound_cards(modem, listed)
         out.append(entry)
     return out
-
-
-async def hf_state(ctl: Controller, listed: dict[int, list[dict[str, Any]]] | None = None, radios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Radio 2, the HF radio, as a report said it before the radios were any number: its settings, its Tnc and, while it is the Mercury modem, every sound card Mercury lists (name, directions, id): the
-    daemon lists them only when it chooses (OH2GAX's reports of 3 Nov 2026 had ids and no names). The cards radio 2's entry of `radios` (radios_state) has are those: the program is asked once."""
-    c = ctl.config
-    told = next((r["sound_cards"] for r in radios or [] if r["id"] == HF_ID and "sound_cards" in r), None)
-    cards = told if told is not None else await sound_cards(ctl.mercury, {} if listed is None else listed) if hf_is_mercury(c) else []
-    return {"enabled": c.hf_enabled, "profile": c.hf_profile, "sound_card": c.mercury_sound_card, "keying": c.mercury_keying, "tnc": tnc_state(ctl.hf), "sound_cards": cards}

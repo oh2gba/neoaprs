@@ -20,7 +20,6 @@ import {
   qruState,
   radioRow,
   station,
-  tncState,
 } from "@/test/fixtures";
 
 const FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "tests", "fixtures", "wire", "rows.json");
@@ -50,7 +49,6 @@ describe("the makers of rows, against the daemon's own", () => {
     ["bulletins", () => bulletin("BLN1")],
     ["radios", () => radioRow(1, "kiss")],
     ["config", () => configValues()],
-    ["tnc", () => tncState()],
     ["gps", () => gpsState()],
     ["igate", () => igateState()],
     ["qru", () => qruState()],

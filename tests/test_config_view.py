@@ -1,17 +1,21 @@
-"""Today's flat keys of the radios (tnc/profile, fm/enabled, serial/*, tcp/*, beacon/path, digi/enabled of radio 1; hf/*, mercury/* of radio 2) stay on the wire until wave 4 as a view of the radios
-as they are stored (configradios.FLAT_HOMES): the `config` topic says what radios 1 and 2 say, and `set_config` of such a key changes that radio's own rows, never a row of the settings. The wire is as
-it was."""
+"""The `config` topic tells the station's settings in `values` and every radio's own in `radio_values` (`radio/<id>/<key>`); a key that set a radio's setting without naming the radio (`serial/port`,
+`hf/enabled`: the flat keys of radios 1 and 2, configradios.FLAT_HOMES) is no setting of the wire: `set_config` refuses it with `setting.unknown` and the words that name the radio's own key, and stores
+nothing."""
 import sqlite3
+from dataclasses import replace
 from pathlib import Path
 
-from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS
-from neoaprs.radiospec import FM_ID, HF_ID
+from neoaprs.configradios import FLAT_HOMES
+from neoaprs.config import BY_KEY, DEFAULTS
+from neoaprs.radiospec import FM_ID, RadioSpec
+from neoaprs.web.confighandlers import flat_refusal
 from neoaprs.store import DB_NAME
 from neoaprs.web.protocol import TOPIC_NAMES
+from neoaprs.web.views import CONFIG_KEYS
 from tests.support.env import Env
 from tests.support.wsclient import WsClient
 
-FLAT = ("tnc/profile", "fm/enabled", "serial/port", "serial/baud", "tcp/host", "tcp/port", "beacon/path", "digi/enabled", "hf/enabled", "hf/profile", "mercury/sound_card", "mercury/keying", "mercury/tx_gain_db")
+FLAT = tuple(key for key, setting in BY_KEY.items() if setting.attr in FLAT_HOMES)
 
 
 async def started(tmp_path: Path, settings: dict[str, str]) -> tuple[Env, WsClient]:
@@ -22,54 +26,50 @@ async def started(tmp_path: Path, settings: dict[str, str]) -> tuple[Env, WsClie
     return e, page
 
 
-def rows_of(path: Path) -> tuple[set[str], dict[tuple[int, str], str]]:
+def rows_of(path: Path) -> tuple[dict[str, str], dict[tuple[int, str], str]]:
     db = sqlite3.connect(path / DB_NAME)
     try:
-        return {key for (key,) in db.execute("SELECT key FROM settings")}, {(id, key): value for id, key, value in db.execute("SELECT radio_id, key, value FROM radio_setting")}
+        return dict(db.execute("SELECT key, value FROM settings")), {(id, key): value for id, key, value in db.execute("SELECT radio_id, key, value FROM radio_setting")}
     finally:
         db.close()
 
 
-async def test_the_config_topic_says_of_the_flat_keys_what_radios_1_and_2_say(tmp_path: Path) -> None:
-    e, page = await started(tmp_path, {"serial/baud": "1200", "digi/enabled": "true", "hf/enabled": "false", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"})
-    values = page.topics["config"]["values"]
-    fm, hf = e.ctl.config.radio(FM_ID), e.ctl.config.radio(HF_ID)
-    assert fm is not None and hf is not None and (fm.type, dict(fm.settings)) == ("kenwood-tnc2", {"baud": "1200", "digipeat": "true", "path": "WIDE1-1,WIDE2-1"})
-    assert {key: values[key] for key in FLAT} == {**{key: DEFAULTS.to_data()[key] for key in FLAT}, "tnc/profile": "kenwood-tnc2", "serial/baud": "1200", "beacon/path": "WIDE1-1,WIDE2-1",
-                                                  "digi/enabled": "true", "mercury/keying": "vox", "mercury/tx_gain_db": "-4"}
-    assert sorted(values) == sorted(key for key in DEFAULTS.to_data() if key not in RADIO_STATION_KEYS), "the keys of the wire, as they were (station/main_radio is told in radio_values)"
+async def test_the_config_topic_tells_the_stations_settings_and_each_radios_own_apart(tmp_path: Path) -> None:
+    e, page = await started(tmp_path, {"serial/baud": "1200", "digi/enabled": "true"})
+    config = page.topics["config"]
+    fm = e.ctl.config.radio(FM_ID)
+    assert fm is not None and (fm.type, dict(fm.settings)) == ("kenwood-tnc2", {"baud": "1200", "digipeat": "true", "path": "WIDE1-1,WIDE2-1"})
+    assert sorted(config["values"]) == sorted(CONFIG_KEYS) and not set(FLAT) & set(config["values"]) and not set(FLAT) & set(config["defaults"]), "no flat key of a radio"
+    assert (config["radio_values"]["radio/1/baud"], config["radio_values"]["radio/1/digipeat"], config["radio_values"]["radio/1/path"]) == ("1200", "true", "WIDE1-1,WIDE2-1")
     await e.stop()
 
 
-async def test_set_config_of_a_flat_key_changes_the_radios_own_rows_and_the_topic_says_it(tmp_path: Path) -> None:
-    e, page = await started(tmp_path, {"hf/enabled": "false"})
-    await page.send({"cmd": "set_config", "values": {"serial/baud": "4800", "digi/enabled": "true", "mercury/keying": "rts:/dev/ttyUSB0", "station/comment": "both"}})
-    await page.until(lambda: page.topics["config"]["values"]["mercury/keying"] == "rts:/dev/ttyUSB0")
-    values = page.topics["config"]["values"]
-    assert (values["serial/baud"], values["digi/enabled"], values["station/comment"]) == ("4800", "true", "both")
+async def test_a_flat_key_of_a_radio_is_refused_with_the_radios_own_key_and_nothing_is_stored(tmp_path: Path) -> None:
+    e, page = await started(tmp_path, {})
+    before = rows_of(tmp_path)
+    # (the station of the Env: radio 1 an FM radio and no HF radio, so the keying names no id; the Enable and the type of a radio are radio_change's)
+    for key, own in (("serial/port", "radio/1/port"), ("mercury/keying", "radio/<id>/keying"), ("hf/enabled", "radio_change's enabled"), ("tnc/profile", "radio_change's type")):
+        await page.send({"cmd": "set_config", "values": {key: "x", "station/comment": "not stored"}})
+        error = await page.expect("error")
+        assert (error["code"], error["key"], error["text"]) == ("setting.unknown", key, f"set_config: {key}: no such setting: it is {own} now"), key
+    assert rows_of(tmp_path) == before and e.ctl.config.station_comment != "not stored", "nothing of the command is stored"
+    await page.send({"cmd": "set_config", "values": {"radio/1/baud": "4800", "station/comment": "both"}})
+    await page.until(lambda: page.topics["config"]["radio_values"]["radio/1/baud"] == "4800")
     await e.stop()
     settings, own = rows_of(tmp_path)
-    assert not set(FLAT) & settings and "station/comment" in settings, "the station's row in the settings, the radios' in their own"
-    assert own == {(FM_ID, "baud"): "4800", (FM_ID, "digipeat"): "true", (FM_ID, "path"): "WIDE1-1,WIDE2-1", (HF_ID, "keying"): "rts:/dev/ttyUSB0",
-                   (HF_ID, "path"): "WIDE1-1,WIDE2-1"}, "(beacon/path is radio 2's too, as migration 31 keeps it)"
+    assert settings["station/comment"] == "both" and not set(FLAT) & set(settings) and own[(FM_ID, "baud")] == "4800", "the station's row in the settings, the radio's in its own"
 
 
-async def test_set_config_of_a_flat_key_of_the_hf_radio_where_there_is_none_writes_radio_2(tmp_path: Path) -> None:
-    e, page = await started(tmp_path, {})
-    assert e.ctl.config.radio(HF_ID) is None and page.topics["config"]["values"]["hf/profile"] == "mercury", "no radio 2: the defaults of an HF radio that is off"
-    await page.send({"cmd": "set_config", "values": {"hf/profile": "dummy-hf"}})
-    await page.until(lambda: page.topics["config"]["values"]["hf/profile"] == "dummy-hf")
-    hf = e.ctl.config.radio(HF_ID)
-    assert hf is not None and (hf.kind, hf.type, hf.enabled) == ("hf", "dummy-hf", False) and page.topics["config"]["values"]["hf/enabled"] == "false"
-    assert [(s.id, s.type) for s in await e.ctl.store.radios()] == [(FM_ID, "kenwood-tnc2"), (HF_ID, "dummy-hf")]
-    await e.stop()
+def test_the_refusal_of_a_flat_key_names_the_main_radio_of_its_kind_and_no_radio_the_station_has_not() -> None:
+    def said(key: str, *radios: RadioSpec, main: int | None = None) -> str:
+        error = flat_refusal(key, replace(DEFAULTS, radios=radios, main_choice=main))
+        assert error is not None and error.code == "setting.unknown"
+        return str(error)
 
-
-async def test_set_config_that_would_leave_no_radio_on_is_refused_and_nothing_is_stored(tmp_path: Path) -> None:
-    e, page = await started(tmp_path, {"hf/enabled": "false"})
-    before = await e.ctl.store.radios()
-    await page.send({"cmd": "set_config", "values": {"fm/enabled": "false"}})
-    error = await page.expect("error")
-    assert error["code"] == "radio.last_enabled" and error["key"] == "fm/enabled", "the refusal names the key that was set"
-    assert await e.ctl.store.radios() == before and e.ctl.config.fm_enabled
-    await e.stop()
+    fm3, fm5, hf4 = RadioSpec(3, "fm", "kiss", "", True, 1), RadioSpec(5, "fm", "kiss", "", True, 2), RadioSpec(4, "hf", "mercury", "", True, 3)
+    assert said("serial/port") == "serial/port: no such setting: it is radio/<id>/port now", "a station with no FM radio: no id to name"
+    assert said("serial/port", fm3, fm5, hf4) == "serial/port: no such setting: it is radio/3/port now", "the first FM radio, the station having no radio 1"
+    assert said("serial/port", fm3, fm5, hf4, main=5) == "serial/port: no such setting: it is radio/5/port now", "the main radio where it is of the kind"
+    assert said("mercury/keying", fm3, hf4) == "mercury/keying: no such setting: it is radio/4/keying now"
+    assert said("hf/enabled", fm3) == "hf/enabled: no such setting: it is radio_change's enabled now"
+    assert flat_refusal("station/call", DEFAULTS) is None and flat_refusal("radio/1/port", DEFAULTS) is None

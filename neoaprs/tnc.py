@@ -44,9 +44,9 @@ from .source import CHECKING, Backoff, Source, minutes_between, unusable_because
 from .tncentry import KissEntry
 from .tncfollow import AdapterFollow
 from .tnclines import TimedSource
-from .tncmode import Mode, ModeDetector, looks_valid, packet_of, read_frame
+from .tncmode import Mode, ModeDetector, packet_of, read_frame
 from .tncport import TncPort
-from .tncreader import Reader
+from .tnctextreader import RX_ONLY, accepts, printable as _printable, reader_for
 from .tnc2line import text_of
 from .tncsearch import PortSearch, held_elsewhere, hold_port, release_port
 from .tncprofile import KENWOOD_TNC2, KISS_EXIT as KISS_EXIT, Profile
@@ -82,10 +82,6 @@ async def open_port(tnc: "Tnc", path: str) -> TncPort | DummyPort:
     return port
 
 
-def _printable(text: str) -> str:
-    return "".join(c if c.isprintable() else "?" for c in text)
-
-
 def _describe(tnc: "Tnc") -> str:
     """The Tnc in a few words, for the radio's status line."""
     if tnc.is_dummy:
@@ -98,18 +94,20 @@ def _describe(tnc: "Tnc") -> str:
         return f"{modem.describe()}, {tnc.stats.packets} packets"                 # (never the socket the modem is reached on: the page shows this line, the log has the ports)
     if tnc._port is None:
         return f"{tnc.path or tnc.port or 'no port'}{_speed(tnc.path or tnc.port, tnc.baud)}, {tnc.state.value}"
-    mode = "KISS" if tnc._reader.kiss_seen else ("entering KISS" if tnc._reader.entered else "listening")
+    mode = "KISS" if tnc._reader.kiss_seen else "text" if tnc.profile.framing == "text" else ("entering KISS" if tnc._reader.entered else "listening")
     return f"{tnc.path}{_speed(tnc.path, tnc.baud)}, {mode}, {tnc.stats.packets} packets"
 
 
 def _why_unusable(tnc: "Tnc") -> str:
-    """Why nothing is sent now, as a clause: a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), the modem's hold (it is transmitting, the channel is busy), else what the state says."""
+    """Why nothing is sent now, as a clause: a line that only reads text (RX only), a fresh line not yet confirmed, a TNC that types text (it is in command mode, KISS ON is sent again), the modem's hold (it is transmitting, the channel is busy), else what the state says."""
+    if tnc.profile.framing == "text":
+        return RX_ONLY
     if tnc.state is Source.State.CONNECTED and not tnc.confirmed:
         return CHECKING
     if tnc.state is Source.State.CONNECTED and tnc._reader.command_mode_unanswered():
         return COMMAND_MODE
-    if tnc.state is Source.State.CONNECTED and (held := tnc._held()):
-        return held
+    if tnc.state is Source.State.CONNECTED and (quiet := tnc._reader.board_quiet() or tnc._held()):     # (a LoRa board that takes nothing now, else the modem's hold)
+        return quiet
     return unusable_because(tnc.state)
 
 
@@ -122,8 +120,8 @@ class Tnc(TimedSource):
         super().__init__("tnc", clock)
         self.stats = TncStats()
         self.port, self.baud, self.profile, self.pattern = port, baud, profile, pattern or serialprobe.search_pattern()
-        self.probe_seconds = probe_seconds                                                                 # the whole wait of the search, 0 = no limit
-        self.probe_nudge_sec, self.skip, self.claims, self.search_lock = probe_nudge_sec, skip, claims, search_lock     # how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip); the station's table of resources and its one search at a time (claims.py, RadioRegistry.search_lock; set by the radio's driver): the search leaves out what others hold, the port found or opened is held for `radio_id`
+        self.probe_seconds, self.probe_nudge_sec, self.skip, self.claims, self.search_lock = probe_seconds, probe_nudge_sec, skip, claims, search_lock     # the whole wait of the search (0 = no limit); how long the search listens before it sends a carriage return to the ports; the device paths it never opens (the operator's serial/skip); the station's table of resources and its one search at a time (claims.py, RadioRegistry.search_lock; set by the radio's driver): the search leaves out what others hold, the port found or opened is held for `radio_id`
+        self.listening: Callable[[], tuple[str, ...]] = lambda: ()       # the ports the radios that only listen are set to (tncdriver.listening_ports, set by the radio registry), read when a search starts: never opened by it, held or not
         self.where: Callable[[], tuple[float, float] | None] = lambda: None   # the station's position (latitude, longitude), for the Dummy radio's traffic to be made round it (set by app.py)
         self.interlock: Interlock | None = None                          # the transmit interlock (neoaprs/interlock.py, set by app.py): while it refuses, no frame is sent; none when not given
         self.modem: Modem | None = None                                  # the modem program behind the line of a `modem` profile (the Mercury HF modem, set by app.py): its hold, its words and its problem count while the profile is a modem's
@@ -141,11 +139,12 @@ class Tnc(TimedSource):
         self.watchdog = Watchdog(self, check_sec, check_pause_sec, reply_sec, answer_sec, probe_sec)    # check_sec 0: no checks
         self.last_watchdog_action = ""                                   # "check", "probe" or "reopen"; empty until the watchdog has done anything
         self.last_watchdog_at: datetime | None = None
-        self._reader = Reader(self)                                      # what the bytes of the open line say: the mode, the entry into KISS, the frames (tncreader.py)
+        self._reader = reader_for(self)                                  # what the bytes of the open line say: the mode, the entry into KISS, the frames (tncreader.py); for a profile that reads text, the lines (tnctextreader.py)
         self._open_reset()
 
     def _open_reset(self) -> None:
         """What belongs to one open of the line."""
+        self._reader = reader_for(self, self._reader)                    # (the profile may have changed while the line was stopped)
         self._reader.reset()
         self.confirmed = not (self.profile.can_probe and self.profile.detect_command_mode and self.watchdog.sec > 0)     # a byte came on this open, or nothing is asked (the checks off, a profile that cannot be asked): until then a TNC that can be asked is not `usable`
 
@@ -195,7 +194,9 @@ class Tnc(TimedSource):
 
     async def _find_line(self, reopen: str, named: bool, generation: int) -> tuple[TncPort | DummyPort, str, bytes] | None:
         """The line, open, with its path and what the search heard on it; None when `stop` came meanwhile. Raises SerialError."""
-        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: looks_valid(heard, self.profile.detect_command_mode), self.profile.can_probe, self.probe_nudge_sec, self.skip, lambda: generation == self._generation, self.port, claims=self.claims, holder=self.radio_id, lock=self.search_lock)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well; what other radios hold is not)
+        if not named and not self.profile.search:
+            raise SerialError("no address is chosen: type the board's address in the settings" if self.profile.transport == "tcp" else "no port is chosen: choose the radio's port in the settings")    # (a LoRa board is not looked for: an open may restart one)
+        path, heard = (reopen or self.port, b"") if named else await self._search.find(self.pattern, self.baud, self.probe_seconds, lambda heard: accepts(self.profile, heard), self.profile.can_probe, self.probe_nudge_sec, (*self.skip, *self.listening()), lambda: generation == self._generation, self.port, claims=self.claims, holder=self.radio_id, lock=self.search_lock)     # (`heard`: what the search heard from the port it chose; the named port is listened to as well; what other radios hold is not)
         if generation != self._generation:
             return None
         if named and not self.is_dummy and (held := held_elsewhere(self.claims, self.radio_id, path) or (not nodevices.on() and await asyncio.to_thread(held_by, path))):       # (another radio's port is never opened; under the no-devices switch the port is not there, whoever holds it: nobody is asked)
@@ -283,9 +284,10 @@ class Tnc(TimedSource):
         if isinstance(read, str):
             self._saw(f"rejected, {read}: {kiss_frame.payload[:40].hex()}")
             return self._reject()
-        packet, frame = read
-        self.stats.packets += 1
-        self.stats.last_packet = packet.heard_at
+        self._take(*read)
+
+    def _take(self, packet: Packet, frame: ax25.Frame) -> None:
+        self.stats.packets, self.stats.last_packet = self.stats.packets + 1, packet.heard_at
         self._saw(_printable(f"{frame.tnc2()}  ->  {packet.summary}"))
         if self.rules.kind == "hf":
             log.info("%s", frame_words("in", len(packet.raw), packet.source, packet.snr))
@@ -294,7 +296,7 @@ class Tnc(TimedSource):
     def _reading(self) -> Reading:
         """The signal the radio measured of the frame that has just come (neoaprs/reading.py): the Dummy radio's line makes one up, a modem said it on its control line; only the kinds the radio type gives."""
         port = self._port
-        source = port if isinstance(port, DummyPort) else self._modem()
+        source = port if isinstance(port, DummyPort) else self._modem() or self._reader.board        # (a LoRa board's reader holds what its board said of the frame)
         return NO_READING if source is None else source.take_reading().only(self.profile.readings)
 
     # ---- the keep-alive (tncwatchdog.py decides when; these are the actions)
@@ -313,7 +315,7 @@ class Tnc(TimedSource):
 
     @property
     def usable(self) -> bool:
-        return self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until and not self._held()
+        return not self.profile.writes_nothing and self.state is Source.State.CONNECTED and self.confirmed and not self._reader.looking and not self._reader.command_mode_unanswered() and asyncio.get_running_loop().time() >= self._reader.settle_until and not self._held() and not self._reader.board_quiet()
 
     describe, why_unusable = _describe, _why_unusable
     _looking, _entered = property(lambda self: self._reader.looking), property(lambda self: self._reader.entered)      # (what a test looks at)
@@ -348,6 +350,8 @@ class Tnc(TimedSource):
 
     # ---- writing
     def _write(self, port: TncPort, data: bytes) -> bool:
+        if self.profile.writes_nothing:                                  # (a line that reads text, or a board's log, is never written to, whoever asks: the entry, the keep-alive, the nudge, a frame)
+            return False
         try:
             port.write(data)
         except SerialError as e:

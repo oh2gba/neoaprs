@@ -2,107 +2,41 @@ import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
-import {
-  lineText,
-  pillClass,
-  pillText,
-  rowPillClass,
-  rowPillText,
-  rowStatus,
-  searchedPorts,
-  statsCounts,
-  tncCounts,
-  tncOfRow,
-  tncStatus,
-} from "@/lib/tncstatus";
+import { lineText, rowPillClass, rowPillText, rowStatus, statsCounts } from "@/lib/tncstatus";
 import type { ModemState, RadioProblem, RadioRow } from "@/protocol/protocol";
-import { NOW, ago, hfState, radioRow, tncState } from "@/test/fixtures";
+import { NOW, ago, fmRow, hfRow, lineStats, radioRow } from "@/test/fixtures";
 
-const searching = () =>
-  tncState({
-    state: "waiting",
-    path: "",
-    describe: "listening on /dev/ttyUSB0, /dev/serial/by-id/usb-X-if00 for the radio",
-    searching: ["/dev/ttyUSB0", "/dev/serial/by-id/usb-X-if00"],
-    stats: { ...tncState().stats, packets: 0 },
-  });
+// A radio's line as its row of the topic `radios` says it, in plain words: the same words for every radio.
+describe("the line of a radio's row", () => {
+  const row = (type: string, extra: Partial<RadioRow> = {}) => radioRow(3, type, extra);
 
-describe("tncStatus", () => {
-  it("says what it is connected to and when the last packet came", () => {
-    const tnc = tncState({ path: "/dev/ttyUSB0", stats: { ...tncState().stats, packets: 412, last_packet: ago(120) } });
-    expect(tncStatus(tnc, NOW)).toBe("Last packet 2 min ago");
-  });
-
-  it("says so when no packet has been heard", () => {
-    expect(tncStatus(tncState({ stats: { ...tncState().stats, packets: 0, last_packet: null } }), NOW)).toBe("No packet yet");
-  });
-
-  it("says it is searching for the radio instead of listing the ports", () => {
-    expect(tncStatus(searching(), NOW)).toBe("Searching for the radio…");
+  it("says the last packet while connected, no packet yet before the first, and searching instead of listing the ports", () => {
+    expect(rowStatus(fmRow({ stats: lineStats({ packets: 412, last_packet: ago(120) }) }), NOW)).toBe("Last packet 2 min ago");
+    expect(rowStatus(fmRow({ stats: lineStats({ packets: 0, last_packet: null }) }), NOW)).toBe("No packet yet");
+    expect(rowStatus(fmRow({ state: "waiting", problem: { code: "radio.searching", params: {} } }), NOW)).toBe("Searching for the radio…");
   });
 
   it("says since when a silent radio has said nothing", () => {
-    expect(tncStatus(tncState({ state: "silent", silent_since: ago(7 * 60) }), NOW)).toMatch(/^nothing heard since \d\d:\d\d \(7 min\)$/);
-  });
-
-  it("says why it is not connected: the problem, else the last error, else nothing more", () => {
-    expect(tncStatus(tncState({ state: "waiting", problem: "no KISS frames", last_error: "busy" }), NOW)).toBe("Not connected: no KISS frames");
-    expect(tncStatus(tncState({ state: "waiting", last_error: "busy" }), NOW)).toBe("Not connected: busy");
-    expect(tncStatus(tncState({ state: "stopped" }), NOW)).toBe("Not connected");
-  });
-
-  it("says that the Mercury HF modem transmits, or that the channel is busy, while it does; else the last packet as for any radio", () => {
-    const modem = {
-      state: "running" as const,
-      problem: "",
-      reason: "" as const,
-      mode: "DATAC3",
-      keyed: false,
-      busy: false,
-      test: "" as const,
-      snr: null,
-      frames_keyed: 0,
-      max_frame: 123,
-      frequencies: [
-        { band: "40 m", dial: "7.0541 MHz USB" },
-        { band: "20 m", dial: "14.1070 MHz USB" },
-      ],
-      sound_card: "",
-      keying: "vox",
-      scope: false,
-      tx_gain_db: 0,
-      tx_peak_dbfs: null,
-    };
-    expect(tncStatus(tncState({ modem: { ...modem, keyed: true } }), NOW)).toBe("DATAC3 · Transmitting… · Last packet 30 s ago");
-    expect(tncStatus(tncState({ modem: { ...modem, busy: true } }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
-    expect(tncStatus(tncState({ modem }), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
-    expect(tncStatus(tncState({ modem: { ...modem, keyed: true }, state: "waiting", problem: "the Mercury program is not installed" }), NOW)).toBe(
-      "Not connected: the Mercury program is not installed",
+    expect(rowStatus(fmRow({ state: "silent", problem: { code: "radio.silent", params: { since: ago(7 * 60) } } }), NOW)).toMatch(
+      /^nothing heard since \d\d:\d\d \(7 min\)$/,
     );
   });
 
-  it("says what it is connecting to", () => {
-    expect(tncStatus(tncState({ state: "connecting" }), NOW)).toBe("Connecting to /dev/brainbox_3…");
-    expect(tncStatus(tncState({ state: "connecting", path: "" }), NOW)).toBe("Connecting…");
-  });
-});
-
-describe("tncCounts", () => {
-  it("says how much came in and went out, for the hover title of the line", () => {
-    expect(tncCounts(tncState())).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
-    expect(tncCounts(tncState({ stats: { ...tncState().stats, packets: 1 } }))).toContain("1 packet heard");
-  });
-});
-
-describe("searchedPorts", () => {
-  it("lists the ports the daemon listens to while it searches", () => {
-    expect(searchedPorts(searching())).toEqual(["/dev/ttyUSB0", "/dev/serial/by-id/usb-X-if00"]);
+  it("says, while not connected, what its problem says in the page's words, never the daemon's English", () => {
+    const down = (code: RadioProblem["code"], params: Record<string, string> = {}, state: RadioRow["state"] = "waiting") =>
+      rowStatus(row("kiss", { state, problem: { code, params } }), NOW);
+    expect(down("radio.not_connected", { name: "Mobile" })).toBe("Not connected");
+    expect(down("radio.searching", {}, "connecting")).toBe("Searching for the radio…");
+    expect(down("radio.not_connected", {}, "connecting")).toBe("Connecting…");
+    expect(down("radio.silent", { since: ago(600) }, "silent")).toMatch(/^nothing heard since /);
+    expect(down("modem.sound_card")).toBe("Sound card could not be opened: choose another");
+    expect(rowStatus(row("kiss", { state: "waiting", problem: null }), NOW)).toBe("Not connected");
+    expect(rowStatus(fmRow({ state: "stopped", problem: null }), NOW)).toBe("Not connected");
   });
 
-  it("is null when a port is open or the line says something else", () => {
-    expect(searchedPorts(tncState())).toBeNull();
-    expect(searchedPorts(tncState({ path: "", describe: "socket://127.0.0.1:8001, waiting" }))).toBeNull();
-    expect(searchedPorts(tncState({ searching: ["/dev/ttyUSB0"] }))).toBeNull();
+  it("has the row's counts as its hover title", () => {
+    expect(statsCounts(lineStats())).toBe("11 packets heard, 2.0 kB in, 0 B out, 0 digipeated");
+    expect(statsCounts(lineStats({ packets: 1 }))).toContain("1 packet heard");
   });
 });
 
@@ -122,47 +56,56 @@ describe("the Dummy radio", () => {
   afterEach(() => setLocale("en"));
 
   it("is a muted pill and a line that says nothing goes on the air, while its line is open", () => {
-    const dummy = tncState({ dummy: true, path: "the dummy radio" });
-    expect([pillText(dummy), pillClass(dummy), tncStatus(dummy, NOW)]).toEqual(["Dummy", "tnc-dummy", "Dummy radio: made-up traffic, nothing goes on the air"]);
-    const waiting = tncState({ dummy: true, state: "waiting", path: "", problem: "x" });
-    expect([pillText(waiting), pillClass(waiting)]).toEqual(["waiting", "tnc-waiting"]);
-    expect([pillText(tncState()), pillClass(tncState())]).toEqual(["connected", "tnc-connected"]);
+    const dummy = radioRow(1, "dummy");
+    expect([rowPillText(dummy), rowPillClass(dummy), rowStatus(dummy, NOW)]).toEqual([
+      "Dummy",
+      "tnc-dummy",
+      "Dummy radio: made-up traffic, nothing goes on the air",
+    ]);
+    const waiting = radioRow(1, "dummy", { state: "waiting" });
+    expect([rowPillText(waiting), rowPillClass(waiting)]).toEqual(["waiting", "tnc-waiting"]);
+    expect([rowPillText(fmRow()), rowPillClass(fmRow())]).toEqual(["connected", "tnc-connected"]);
   });
 
   it("says so in every language of the page, in that language", () => {
-    const dummy = tncState({ dummy: true });
-    const english = tncStatus(dummy, NOW);
+    const dummy = radioRow(1, "dummy");
+    const english = rowStatus(dummy, NOW);
     for (const locale of LOCALES) {
       setLocale(locale.code);
-      const line = tncStatus(dummy, NOW);
+      const line = rowStatus(dummy, NOW);
       expect(line, locale.code).not.toBe("");
-      expect(pillText(dummy), locale.code).not.toBe("");
+      expect(rowPillText(dummy), locale.code).not.toBe("");
       if (locale.code !== "en") expect(line, locale.code).not.toBe(english);
     }
+  });
+
+  it("says of the Dummy HF radio what it is, in the muted pill", () => {
+    const dummy = radioRow(2, "dummy-hf");
+    expect([rowPillText(dummy), rowPillClass(dummy)]).toEqual(["Dummy", "tnc-dummy"]);
+    expect(rowStatus(dummy, NOW)).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
   });
 });
 
 describe("the HF radio's line", () => {
-  const modem = { ...hfState().modem! };
-  const hf = (extra: Partial<typeof modem> = {}, more: Parameters<typeof hfState>[0] = {}) => hfState({ modem: { ...modem, ...extra }, ...more });
+  const hf = (modem: Partial<ModemState> = {}, extra: Partial<RadioRow> = {}) => hfRow({ stats: lineStats(), ...extra }, modem);
 
   it("says the mode, what the modem does, the SNR once a frame was decoded, and the last packet, with nothing of the socket", () => {
-    expect(tncStatus(hf(), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
-    expect(tncStatus(hf({ snr: 3.4 }), NOW)).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
-    expect(tncStatus(hf({ keyed: true, snr: -2.5 }), NOW)).toBe("DATAC3 · Transmitting… · SNR -2 dB · Last packet 30 s ago");
-    expect(tncStatus(hf({ busy: true }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
-    expect(tncStatus(hf({ test: "tune", keyed: true }), NOW)).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
-    expect(tncStatus(hf({ test: "key", keyed: true }), NOW)).toBe("DATAC3 · Keyed · Last packet 30 s ago");
-    expect(tncStatus(hf({}, { stats: { ...hfState().stats, last_packet: null } }), NOW)).toBe("DATAC3 · Listening · No packet yet");
+    expect(rowStatus(hf(), NOW)).toBe("DATAC3 · Listening · Last packet 30 s ago");
+    expect(rowStatus(hf({ snr: 3.4 }), NOW)).toBe("DATAC3 · Listening · SNR 3 dB · Last packet 30 s ago");
+    expect(rowStatus(hf({ keyed: true, snr: -2.5 }), NOW)).toBe("DATAC3 · Transmitting… · SNR -2 dB · Last packet 30 s ago");
+    expect(rowStatus(hf({ busy: true }), NOW)).toBe("DATAC3 · Channel busy, waiting · Last packet 30 s ago");
+    expect(rowStatus(hf({ test: "tune", keyed: true }), NOW)).toBe("DATAC3 · Tuning… · Last packet 30 s ago");
+    expect(rowStatus(hf({ test: "key", keyed: true }), NOW)).toBe("DATAC3 · Keyed · Last packet 30 s ago");
+    expect(rowStatus(hf({}, { stats: lineStats({ last_packet: null }) }), NOW)).toBe("DATAC3 · Listening · No packet yet");
   });
 
   it("never shows the address the modem is reached on: Connecting… while the line opens", () => {
-    expect(tncStatus(hf({}, { state: "connecting", path: "socket://127.0.0.1:8100" }), NOW)).toBe("Connecting…");
+    expect(rowStatus(hf({}, { state: "connecting" }), NOW)).toBe("Connecting…");
   });
 
   it("says why the program does not run in the page's words by the daemon's code, never in the daemon's English", () => {
     const down = (reason: ModemState["reason"], problem = "Mercury stopped (exit 1); the log says why") =>
-      tncStatus(hf({ state: "waiting", problem, reason }, { state: "waiting", problem }), NOW);
+      rowStatus(hf({ state: "waiting", problem, reason }, { state: "waiting" }), NOW);
     expect(down("not_installed", "the Mercury program is not in this installation of NeoAPRS (...)")).toBe("This installation carries no Mercury");
     expect(down("stopped")).toBe("Not running");
     expect(down("network")).toBe("Not run: Mercury would be open to the network");
@@ -175,75 +118,21 @@ describe("the HF radio's line", () => {
   });
 
   it("says Connecting… while the program starts or runs and the line is between two attempts, and never the problem of the line", () => {
-    expect(tncStatus(hf({ state: "starting" }, { state: "waiting", problem: "no KISS frames" }), NOW)).toBe("Connecting…");
-    expect(tncStatus(hf({ state: "running" }, { state: "waiting", last_error: "refused" }), NOW)).toBe("Connecting…");
-    expect(tncStatus(hf({ state: "stopped" }, { state: "stopped", problem: "x" }), NOW)).toBe("Not connected");
+    expect(rowStatus(hf({ state: "starting" }, { state: "waiting", problem: { code: "radio.not_connected", params: {} } }), NOW)).toBe("Connecting…");
+    expect(rowStatus(hf({ state: "running" }, { state: "waiting" }), NOW)).toBe("Connecting…");
+    expect(rowStatus(hf({ state: "stopped" }, { state: "stopped" }), NOW)).toBe("Not connected");
   });
 
   it("says the reason in every language of the page, in that language", () => {
-    const english = tncStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
+    const english = rowStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
     try {
       for (const locale of LOCALES) {
         setLocale(locale.code);
-        const line = tncStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
+        const line = rowStatus(hf({ state: "waiting", reason: "no_port" }, { state: "waiting" }), NOW);
         if (locale.code !== "en") expect(line, locale.code).not.toBe(english);
       }
     } finally {
       setLocale("en");
     }
-  });
-
-  it("says of the Dummy HF radio what it is, in the muted pill", () => {
-    const dummy = hfState({ dummy: true, modem: null });
-    expect(pillText(dummy)).toBe("Dummy");
-    expect(pillClass(dummy)).toBe("tnc-dummy");
-    expect(tncStatus(dummy, NOW)).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
-  });
-});
-
-// A radio other than those of before has no topic of its own: its row of the topic `radios` says its line, in the same words.
-describe("the line of a radio's row", () => {
-  const row = (type: string, extra: Partial<RadioRow> = {}) => radioRow(3, type, extra);
-
-  it("says the last packet while connected, the modem's line for a modem, and the Dummy's words", () => {
-    expect(rowStatus(row("kiss", { stats: { ...tncState().stats, last_packet: ago(120) } }), NOW)).toBe("Last packet 2 min ago");
-    expect(rowStatus(row("mercury"), NOW)).toMatch(/^DATAC3 · Listening · /);
-    expect(rowStatus(row("dummy"), NOW)).toBe(tncStatus(tncState({ dummy: true }), NOW));
-    expect([rowPillText(row("dummy")), rowPillClass(row("dummy")), rowPillText(row("kiss")), rowPillClass(row("kiss"))]).toEqual([
-      "Dummy",
-      "tnc-dummy",
-      "connected",
-      "tnc-connected",
-    ]);
-  });
-
-  it("says, while not connected, what its problem says in the page's words, never the daemon's English", () => {
-    const down = (code: RadioProblem["code"], params: Record<string, string> = {}, state: RadioRow["state"] = "waiting") =>
-      rowStatus(row("kiss", { state, problem: { code, params } }), NOW);
-    expect(down("radio.not_connected", { name: "Mobile" })).toBe("Not connected");
-    expect(down("radio.searching", {}, "connecting")).toBe("Searching for the radio…");
-    expect(down("radio.not_connected", {}, "connecting")).toBe("Connecting…");
-    expect(down("radio.silent", { since: ago(600) }, "silent")).toMatch(/^nothing heard since /);
-    expect(down("modem.sound_card")).toBe("Sound card could not be opened: choose another");
-    expect(rowStatus(row("kiss", { state: "waiting", problem: null }), NOW)).toBe("Not connected");
-    const modem = hfState().modem;
-    expect(rowStatus(row("mercury", { state: "waiting", problem: null, modem: modem && { ...modem, state: "waiting", reason: "not_installed" } }), NOW)).toBe(
-      tncStatus(hfState({ state: "waiting", modem: modem && { ...modem, state: "waiting", reason: "not_installed" } }), NOW),
-    );
-  });
-
-  it("has the row's counts as its hover title, and is told in the shape of before for what reads that (its counts, its lines)", () => {
-    const told = row("kiss", { lines: [{ at: "2026-10-21T12:00:00Z", text: "opened /dev/ttyACM0" }] });
-    expect(statsCounts(told.stats)).toBe(tncCounts(tncState({ stats: told.stats })));
-    const shaped = tncOfRow({ ...told, state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mobile" } } });
-    expect([shaped.state, shaped.problem, shaped.path, shaped.searching, shaped.lines, shaped.stats]).toEqual([
-      "waiting",
-      "Not connected",
-      "",
-      [],
-      told.lines,
-      told.stats,
-    ]);
-    expect(tncOfRow(row("mercury")).rules.kind).toBe("hf");
   });
 });

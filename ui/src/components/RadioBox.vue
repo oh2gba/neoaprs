@@ -1,17 +1,16 @@
 <script setup lang="ts">
 // The box of one radio in the Radio group of the Settings tab (and of the setup guide's Radio step): a box with the radio's legend (while it is named, the name typed; else the box's word of its kind: "FM radio", "HF radio 2") that folds by its arrow, kept in
-// this browser by the radio (`settings.fold.fm`, `settings.fold.hf` for the radios of before, `settings.fold.radio-3` for the others). In it, in this order:
+// this browser by the radio (`settings.fold.radio-3`). In it, in this order:
 // - Enable, its tickbox, with the (i) of its kind; greyed while it is the only radio on (`only`), since a station keeps one radio on; a tick on its way is told to the group (`pending`), so that the others' follow at once;
 // - while the station has several radios (`named`; a station of one radio has the box it always had), Name and Remove, outside the status, so that a radio that is off can be renamed and removed: the Name's placeholder is what the radio is called without one
 //   ("HF 2"), a name is sent when the field is left or Enter is pressed (`radio_change`; one that another radio is called by is refused here in the daemon's words), and Remove asks twice (`radio_remove`), and is off for the only radio on;
 // - while the radio is on, its status line (RadioStatus) and behind its arrow the Radio type (the types of its kind), the type's fields (SettingsRadioFields) and what the type can do: the suggested frequencies, Find my radio,
 //   and with `tools` (the Settings tab; the guide leaves them out) Tune, the transmit level and the scope.
-// The radios of before (radio 1 the FM radio, radio 2 the HF radio) are worked by the settings of before (`fm/enabled`, `tnc/profile`, `serial/port`, `hf/profile`, `mercury/keying`) and told by their topics (`tnc`, `hf`), as the
-// group always worked them, while the daemon tells those settings; every other radio by its own settings (`radio/3/port`), `radio_change` for its Enable, type and name, and its row of the topic `radios`. The daemon's
+// A radio is worked by its own settings (`radio/3/port`), `radio_change` for its Enable, type and name, and told by its row of the topic `radios`. The daemon's
 // refusal of a change of the radio stands under the field it is about (its coded text), in the box that asked last (the refusal names no radio), and what was chosen stays shown until the radio's row says it or the
 // daemon refuses it. The fold opens by itself while the radio is on and not connected, for a complaint about one of its fields, and for a refusal; the page leads to a box by lib/attention.ts (the radio just added). The
 // box says which radio it is to what is pressed inside it (`data-radio`, the name while several radios are on, the type): Find my radio searches for that radio. Its ids and its fold are the place's (lib/settingsradio.ts BOX_IDS: the setup
-// guide's Radio step shows the same boxes while the Settings tab's are on the page too); the Enable of a radio of before gets its id as an attribute, which SettingsSwitch's field takes over its own.
+// guide's Radio step shows the same boxes while the Settings tab's are on the page too).
 import { computed, ref, watch } from "vue";
 import FindRadioRow from "@/components/FindRadioRow.vue";
 import HfFrequencies from "@/components/HfFrequencies.vue";
@@ -22,7 +21,6 @@ import RadioStatus from "@/components/RadioStatus.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsRadioFields from "@/components/SettingsRadioFields.vue";
-import SettingsSwitch from "@/components/SettingsSwitch.vue";
 import TwoWords from "@/components/TwoWords.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
@@ -31,19 +29,15 @@ import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { useSure } from "@/composables/useSure";
 import { t } from "@/i18n";
 import { errorReason } from "@/i18n/errortext";
-import { hfIsMercury } from "@/lib/mercury";
-import { FM_ID, fmOn, hfOn } from "@/lib/radiosides";
 import { typeOf, type PageRadio } from "@/lib/radios";
 import { FIELDS, type FieldInfo } from "@/lib/settings";
-import { askedOn, boxIds, boxKeys, boxTitle, flatOf, inputId, radioElementId, typeChoices, unnamed, type Asked } from "@/lib/settingsradio";
+import { askedOn, boxIds, boxKeys, boxTitle, radioElementId, typeChoices, unnamed, type Asked } from "@/lib/settingsradio";
 import { LIMITS } from "@/protocol/lists";
 import type { RadioChangeCommand } from "@/protocol/protocol";
 
 const props = withDefaults(
   defineProps<{
     radio: PageRadio;
-    /** the keys of the group the form shows (the settings of before that the radios of before are worked by) */
-    keys: readonly string[];
     settings: Settings;
     form: SettingsFormState;
     defaults: Record<string, string>;
@@ -56,33 +50,23 @@ const props = withDefaults(
   }>(),
   { named: false, only: false, tools: true },
 );
-/** `pending`: the tick of a radio other than those of before on its way to the daemon (null once it is told back or refused). */
+/** `pending`: the tick of the radio on its way to the daemon (null once it is told back or refused). */
 const emit = defineEmits<{ pending: [enabled: boolean | null] }>();
 const context = useDaemonContext();
-const { send, tnc, hf, now, lastError } = context;
+const { send, now, lastError } = context;
 const radios = useRadios();
 /** The ids of the place the box is in (the Settings tab's, or the setup guide's: lib/settingsradio.ts BOX_IDS). */
 const ids = boxIds();
 
-const HF_GAIN_KEY = "mercury/tx_gain_db";
-const flat = computed(() => flatOf(props.radio, props.settings.values.value));
-const draft = computed(() => props.settings.draft);
-/** What the operator changed and the daemon has not told back yet: the tick, the type, the name (a radio of before has its settings for the first two). Each is shown until the radio's row says it or it is refused. */
+/** What the operator changed and the daemon has not told back yet: the tick, the type, the name. Each is shown until the radio's row says it or it is refused. */
 const pending = ref<{ enabled?: boolean; type?: PageRadio["type"]; name?: string }>({});
-const enabled = computed(() => {
-  const own = flat.value;
-  if (own === null) return pending.value.enabled ?? props.radio.enabled;
-  return own.id === FM_ID ? fmOn(draft.value) : hfOn(draft.value);
-});
+const enabled = computed(() => pending.value.enabled ?? props.radio.enabled);
 const type = computed(() => pending.value.type ?? props.radio.type);
-/** The topic of before that tells the radio's line (radio 1's `tnc`, radio 2's `hf`); null for any other radio, whose row tells it. */
-const topic = computed(() => (flat.value === null ? null : flat.value.id === FM_ID ? tnc.value : hf.value));
-const connected = computed(() => (flat.value === null ? props.radio.row.state === "connected" : topic.value === null || topic.value.state === "connected"));
-const fields = computed(() => boxKeys({ ...props.radio, type: type.value }, props.keys, draft.value));
-const mercury = computed(() => (flat.value === null ? type.value === "mercury" : hfIsMercury(draft.value)));
+const connected = computed(() => props.radio.row.state === "connected");
+const fields = computed(() => boxKeys({ ...props.radio, type: type.value }));
 const can = computed(() => props.radio.row.can);
-/** Find my radio is in the box of a radio with a serial line (plan section 6a): the FM radio of before by the type the form holds, any other radio by its row. */
-const findable = computed(() => (flat.value === null ? can.value.find : typeOf({ type: draft.value["tnc/profile"] ?? "" })?.can.find === true));
+/** Find my radio is in the box of a radio with a serial line (plan section 6a). */
+const findable = computed(() => can.value.find);
 
 /** The change of a radio the page asked last (one for the page), and the daemon's refusal of it under its field. */
 type Part = Asked["part"];
@@ -121,19 +105,17 @@ watch(
 );
 const refused = (part: Part): string => (refusal.value?.part === part ? refusal.value.text : "");
 
-/** The Enable of a radio that is none of before: the words and the (i) of its kind's Enable. */
+/** The Enable of the radio: the words and the (i) of its kind's Enable; of a type that only listens, an (i) that says so in place of what its kind sends. */
 const enableInfo = computed<FieldInfo>(() => {
-  const kind = FIELDS[props.radio.kind === "hf" ? "hf/enabled" : props.radio.kind === "fm" ? "fm/enabled" : ""] ?? {
-    label: t("settings.enable.label"),
-    kind: "bool",
-  };
+  const own = FIELDS[`${props.radio.kind}/enabled`] ?? { label: t("settings.enable.label"), kind: "bool" };
+  const kind = typeOf(props.radio)?.can.transmit === false ? { ...own, tip: [t("settings.rx_enabled.tip1"), t("settings.fm_enabled.tip2")] } : own;
   return props.only ? { ...kind, title: t("settings.enable.only_radio_title") } : kind;
 });
 function tick(text: string): void {
   change("enabled", { enabled: text === "true" });
 }
 
-/** The Radio type of a radio that is none of before: the types of its kind, with the (i) of the one list. */
+/** The Radio type of the radio: the types of its kind, with the (i) of the one list. */
 const typeInfo = computed<FieldInfo>(() => ({
   ...(FIELDS[props.radio.kind === "hf" ? "hf/profile" : "tnc/profile"] ?? { label: t("settings.profile.label") }),
   kind: "choice",
@@ -169,7 +151,7 @@ const taken = (typed: string): boolean =>
  * refuses its English labels itself: `radio.name_label`). */
 const labelLike = (typed: string): boolean => {
   const folded = typed.toLowerCase().replace(/ \d+$/, "");
-  return (["channel.fm", "channel.hf", "channel.rf"] as const).some((id) => t(id).toLowerCase() === folded);
+  return (["channel.fm", "channel.hf", "channel.lora"] as const).some((id) => t(id).toLowerCase() === folded);
 };
 function rename(): void {
   const typed = name.value.trim();
@@ -197,8 +179,7 @@ const remove = (): void => sure.press("remove", () => send({ cmd: "radio_remove"
 
 /** The box opens by itself: the radio is on and not connected, the daemon complains about one of its fields or asks about one, or a change of it was refused. */
 const look = computed(() => {
-  const own = flat.value === null ? [] : [flat.value.enable, ...(flat.value.id === FM_ID ? [] : [HF_GAIN_KEY])];
-  const mine = [...own, ...fields.value];
+  const mine = fields.value;
   return (
     (enabled.value && !connected.value) ||
     mine.some((key) => (props.settings.errors[key] ?? "") !== "" || props.form.question.value?.key === key) ||
@@ -206,9 +187,9 @@ const look = computed(() => {
     nameProblem.value !== ""
   );
 });
-const foldId = computed(() => ids(flat.value === null ? `radio-${props.radio.id}` : props.radio.kind));
-const gainKey = computed(() => (flat.value === null ? `radio/${props.radio.id}/tx_gain_db` : HF_GAIN_KEY));
-const hasGain = computed(() => (flat.value === null ? can.value.tx_gain && gainKey.value in props.settings.values.value : props.keys.includes(HF_GAIN_KEY)));
+const foldId = computed(() => ids(`radio-${props.radio.id}`));
+const gainKey = computed(() => `radio/${props.radio.id}/tx_gain_db`);
+const hasGain = computed(() => can.value.tx_gain && gainKey.value in props.settings.values.value);
 </script>
 
 <template>
@@ -220,17 +201,7 @@ const hasGain = computed(() => (flat.value === null ? can.value.tx_gain && gainK
     :data-radio-name="radios.several.value ? radio.name : undefined"
     :data-radio-type="type"
   >
-    <SettingsSwitch
-      v-if="flat && keys.includes(flat.enable)"
-      :id="ids(inputId(flat.enable))"
-      :name="flat.enable"
-      :settings="settings"
-      :form="form"
-      :defaults="defaults"
-      :only="only"
-    />
     <SettingsField
-      v-else-if="!flat"
       :id="ids(radioElementId(radio, 'enabled'))"
       :info="enableInfo"
       :model-value="String(enabled)"
@@ -271,9 +242,8 @@ const hasGain = computed(() => (flat.value === null ? can.value.tx_gain && gainK
         </button>
       </template>
     </SettingsField>
-    <RadioStatus v-if="enabled" :tnc="topic" :row="flat ? null : radio.row" :now="now" :open="!connected">
+    <RadioStatus v-if="enabled" :row="radio.row" :now="now" :open="!connected">
       <SettingsField
-        v-if="!flat"
         :id="ids(radioElementId(radio, 'type'))"
         :info="typeInfo"
         :model-value="type"
@@ -284,23 +254,12 @@ const hasGain = computed(() => (flat.value === null ? can.value.tx_gain && gainK
         @choose="choose"
       />
       <SettingsRadioFields :keys="fields" :settings="settings" :form="form" :defaults="defaults" :radio="radio" />
-      <template v-if="flat">
-        <HfFrequencies v-if="radio.kind === 'hf' && mercury && hf?.modem" />
-        <FindRadioRow v-if="radio.kind === 'fm' && findable" :id="ids('find-radio')" />
-        <template v-else-if="radio.kind === 'hf' && mercury && tools">
-          <HfTuneRow :id="ids('hf-tune')" />
-          <HfLevelRow v-if="hasGain" :id="ids('hf-txlevel')" :settings="settings" :form="form" />
-          <HfScope />
-        </template>
-      </template>
-      <template v-else>
-        <HfFrequencies v-if="can.frequencies && radio.row.modem" :radio="radio" />
-        <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
-        <template v-if="tools">
-          <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
-          <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
-          <HfScope :radio="radio.id" />
-        </template>
+      <HfFrequencies v-if="can.frequencies && radio.row.modem" :radio="radio" />
+      <FindRadioRow v-if="findable" :id="ids(radioElementId(radio, 'find'))" />
+      <template v-if="tools">
+        <HfTuneRow v-if="can.tune" :id="ids(radioElementId(radio, 'tune'))" :radio="radio" />
+        <HfLevelRow v-if="hasGain" :id="ids(radioElementId(radio, 'txlevel'))" :settings="settings" :form="form" :radio="radio" :setting-key="gainKey" />
+        <HfScope v-if="can.scope" :radio="radio.id" />
       </template>
     </RadioStatus>
   </SettingsBox>

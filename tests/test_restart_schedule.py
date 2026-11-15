@@ -232,24 +232,24 @@ async def test_a_daemon_started_again_inside_the_interval_plans_its_beacon_from_
     first = Env(tmp_path)
     await first.start()
     assert await first.ctl.save_config(replace(first.ctl.config, beacon_interval_min=60))
-    assert first.ctl.beacon.send_now()
+    assert first.beacon.send_now()
     sent = first.now()
     await first.stop()
     clock = FixedClock(sent + timedelta(minutes=10))
     second = Env(tmp_path, clock=clock)
     await second.start()
-    assert second.ctl.beacon.next_due == sent + timedelta(minutes=60)
+    assert second.beacon.next_due == sent + timedelta(minutes=60)
     await second.stop()
 
 
 async def test_each_radios_beacon_keeps_its_last_send_in_its_own_row_and_is_planned_from_it_after_a_restart(tmp_path: Path) -> None:
     settings = {"hf/enabled": "true", "hf/profile": "dummy-hf", "beacon/interval_min": "60"}
     first = Env(tmp_path, settings=settings)
-    first.ctl.mercury._finder = lambda: None                          # (no program: the Dummy HF radio works without its speaker)
+    first.mercury._finder = lambda: None                          # (no program: the Dummy HF radio works without its speaker)
     await first.start()
     await until(lambda: first.tnc.usable and first.hf.usable)
     fm, hf = first.ctl.radios.all()
-    assert (fm.beacon, hf.beacon) == (first.ctl.beacon, first.ctl.hf_beacon), "the beacon of radio 1 and of radio 2"
+    assert (fm.beacon, hf.beacon) == (first.beacon, first.beacon_2), "the beacon of radio 1 and of radio 2"
     assert fm.beacon.send_now()
     fm_sent = first.now()
     first.now.advance(120)                                            # type: ignore[attr-defined]
@@ -257,10 +257,10 @@ async def test_each_radios_beacon_keeps_its_last_send_in_its_own_row_and_is_plan
     hf_sent = first.now()
     await first.stop()
     second = Env(tmp_path, clock=FixedClock(hf_sent + timedelta(minutes=10)), settings=settings)
-    second.ctl.mercury._finder = lambda: None
-    second.ctl.hf_beacon.jitter = lambda most: 0.0                    # (the random pause of an HF beacon)
+    second.mercury._finder = lambda: None
+    second.beacon_2.jitter = lambda most: 0.0                    # (the random pause of an HF beacon)
     await second.start()
     assert (await second.ctl.store.setting(memory_key_of(FM_ID)), await second.ctl.store.setting(memory_key_of(HF_ID))) == (iso(fm_sent), iso(hf_sent)) and memory_key_of(HF_ID) == "radio/2/beacon_last_sent_at"
     assert (await second.ctl.store.setting(BEACON_ROW), await second.ctl.store.setting(HF_BEACON_ROW)) == (None, None), "nothing under the rows of before"
-    assert second.ctl.beacon.next_due == fm_sent + timedelta(minutes=60) and second.ctl.hf_beacon.next_due == hf_sent + timedelta(minutes=60), "each from its own last send"
+    assert second.beacon.next_due == fm_sent + timedelta(minutes=60) and second.beacon_2.next_due == hf_sent + timedelta(minutes=60), "each from its own last send"
     await second.stop()

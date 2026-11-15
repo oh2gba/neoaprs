@@ -16,7 +16,7 @@ import {
   typeOf,
 } from "@/lib/radios";
 import type { RadioProblem } from "@/protocol/protocol";
-import { configValues, message, radioRow, radiosTopic as topic, station, status } from "@/test/fixtures";
+import { configValues, heardBy, message, radioRow, radiosTopic as topic, station, status } from "@/test/fixtures";
 
 const ids = (radios: { id: number }[]) => radios.map((radio) => radio.id);
 
@@ -50,7 +50,8 @@ describe("the radios of the topic", () => {
   });
 
   it("each have their own settings of `radio_values`, by the key of the field", () => {
-    const config = configValues({ "serial/port": "/dev/ttyUSB0", "mercury/sound_card": "plughw:1,0" });
+    const radio2 = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
+    const config = configValues({}, { "radio/1/port": "/dev/ttyUSB0", ...radio2 });
     const [fm, hf] = pageRadios(topic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")), config);
     expect(fm?.settings).toMatchObject({ port: "/dev/ttyUSB0", baud: "9600", beacon: "true" });
     expect(hf?.settings).toEqual({ beacon: "true", sound_card: "plughw:1,0", keying: "vox", tx_gain_db: "0" });
@@ -223,7 +224,7 @@ describe("whether a radio is named", () => {
 });
 
 describe("the radio a message to a station goes on", () => {
-  const row = station("OH2RDG", { heard_fm: 3, heard_hf: 2, radio_now: 1 });
+  const row = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_now: 1 });
 
   it("is the station's radio now, any radio by its id", () => {
     expect([sendingRadio(row), sendingRadio({ ...row, radio_now: 3 }), sendingRadio({ ...row, radio_now: null })]).toEqual([1, 3, null]);
@@ -236,7 +237,7 @@ describe("the radio a message to a station goes on", () => {
   });
 
   it("is the operator's choice while it is in force, also over a message on its way, which takes it from its next attempt", () => {
-    const chosen = station("OH2RDG", { heard_fm: 3, heard_hf: 2, radio_choice: 1, radio_now: 1 });
+    const chosen = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_choice: 1, radio_now: 1 });
     expect(sendingRadio(chosen, [message(8, { state: "sending", radio_now: 2 })])).toBe(1);
     expect(sendingRadio({ ...chosen, radio_choice: 3, radio_now: 3 }, [message(8, { state: "queued", radio_now: 1 })])).toBe(3);
   });
@@ -254,8 +255,8 @@ describe("the radio a message to a station goes on", () => {
 describe("the radio of a message", () => {
   it("is the one its next attempt goes on while it is on its way, else the one it came or went on", () => {
     expect([
-      messageRadio(message(1, { state: "sending", radio: "fm", radio_now: 3 })),
-      messageRadio(message(2, { state: "acked", radio: "hf" })),
+      messageRadio(message(1, { state: "sending", radio_id: 1, radio_now: 3 })),
+      messageRadio(message(2, { state: "acked", radio_id: 2 })),
       messageRadio(message(3, { state: "acked" })),
       messageRadio({ radio_id: 4, radio_now: null }),
     ]).toEqual([3, 2, null, 4]);

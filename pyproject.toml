@@ -169,6 +169,7 @@ extend-include = [
     "scripts/release",
     "scripts/security-check",
     "scripts/security-tools",
+    "scripts/sim-radios",
     "scripts/site-check",
     "packaging/windows/neoaprs.spec",
 ]

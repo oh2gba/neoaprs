@@ -1,9 +1,9 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import MessageChain from "@/components/MessageChain.vue";
-import type { AttemptRow, HopRow, MessageRow } from "@/protocol/protocol";
+import type { AttemptRow, HopRow, MessageRow, RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { attemptRow, configValues, incoming, message, radioRow, radiosTopic } from "@/test/fixtures";
+import { attemptRow, incoming, message, radioRow, radiosTopic } from "@/test/fixtures";
 
 const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({ call, heard: false, heard_at: null, by_internet: false, ...extra });
 const attempt = (at: string, hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => attemptRow({ sent_at: at, hops, ...extra });
@@ -82,16 +82,20 @@ describe("MessageChain", () => {
   });
 
   it("names the radio of the attempt on the you chip where radios are named, FM as HF, and none with one radio on", () => {
-    const sent = (radio: "fm" | "hf", values: Record<string, string>) =>
+    const off = { enabled: false, state: "stopped" } as const;
+    const both = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury"));
+    const fmAlone = radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", off));
+    const hfAlone = radiosTopic(radioRow(1, "kenwood-tnc2", off), radioRow(2, "mercury"));
+    const sent = (radio: number, radios: ReadonlyMap<string, RadioRow>) =>
       mount(MessageChain, {
-        props: { row: message(1, { to_call: "OH2CUB-7", attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio })] }) },
-        global: withDaemon(fakeDaemon({ config: configValues(values) })),
+        props: { row: message(1, { to_call: "OH2CUB-7", attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio_id: radio })] }) },
+        global: withDaemon(fakeDaemon({ radios })),
       })
         .find(".chips li")
         .text();
-    expect([sent("fm", { "hf/enabled": "true" }), sent("hf", { "hf/enabled": "true" })]).toEqual(["youFM", "youHF"]);
-    expect([sent("fm", {}), sent("hf", { "fm/enabled": "false", "hf/enabled": "true" })]).toEqual(["you", "you"]);
-    expect(sent("hf", {})).toBe("youHF");
+    expect([sent(1, both), sent(2, both)]).toEqual(["youFM", "youHF"]);
+    expect([sent(1, fmAlone), sent(2, hfAlone)]).toEqual(["you", "you"]);
+    expect(sent(2, fmAlone)).toBe("youHF"); // (a radio that is not on is always named)
   });
 
   it("names a third radio, and one removed since, by its name", () => {
@@ -102,8 +106,8 @@ describe("MessageChain", () => {
     );
     const on = (id: number) =>
       mount(MessageChain, {
-        props: { row: message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio: "", radio_id: id })] }) },
-        global: withDaemon(fakeDaemon({ config: configValues({}), radios })),
+        props: { row: message(1, { attempts_detail: [attempt("2026-10-22T12:00:00Z", [], { radio_id: id })] }) },
+        global: withDaemon(fakeDaemon({ radios })),
       }).find(".chips li");
     expect([on(3).text(), on(4).text(), on(1).text()]).toEqual(["youMobile", "youOld", "youFM"]);
   });

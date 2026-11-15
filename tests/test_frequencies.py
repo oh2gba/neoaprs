@@ -1,6 +1,6 @@
 """The frequencies the project suggests for the HF radio (neoaprs/services/frequencies.py, neoaprs/versions.py): the file `site/frequencies.json` and how it is understood (every entry checked, at most four), the service that asks for it a minute after
 the start and when a page shows the HF box and not more often than every fifteen minutes (and never with the update check off), the last good list kept across a restart, a file that is bad or a server that is not there leaving it as it was, the fall-back
-to the version page's dial and then to the built-in two, and the page's `frequencies` (and `hf_frequencies`, its name of before) and the list in the topics `hf`, `radios` and `skeds`."""
+to the version page's dial and then to the built-in two, and the page's `frequencies` and the list in the topics `radios` (each Mercury radio's modem) and `skeds`."""
 import json
 import logging
 from pathlib import Path
@@ -203,7 +203,7 @@ async def test_the_last_good_list_is_kept_and_told_at_the_next_start_before_the_
 
 # ---- the box
 
-async def test_the_hf_topic_has_the_list_and_a_page_that_shows_the_box_asks_for_it(tmp_path: Path) -> None:
+async def test_the_modem_of_the_hf_radio_has_the_list_and_a_page_that_shows_the_box_asks_for_it(tmp_path: Path) -> None:
     air = Air(frame_sec=0.2)
     station = air.station()
     e = Env(tmp_path, radio=station, web=True)
@@ -212,22 +212,22 @@ async def test_the_hf_topic_has_the_list_and_a_page_that_shows_the_box_asks_for_
     e.ctl.frequencies._fetch = server
     e.ctl.frequencies._environ = {}
     page = await e.ws()
-    await page.send({"cmd": "subscribe", "topics": ["hf"]})
-    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
-    assert page.topics["hf"]["modem"]["frequencies"] == [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}], "the built-in three until something better is known"
-    assert "dial" not in page.topics["hf"]["modem"]
+    modem = lambda: page.topics.get("radios", {}).get("2", {}).get("modem") or {}        # noqa: E731
+    await page.until(lambda: modem().get("state") == "running")
+    assert modem()["frequencies"] == [{"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}, {"band": "6 m", "dial": "50.6200 MHz USB"}], "the built-in three until something better is known"
+    assert "dial" not in modem()
     server.answers = [json.dumps({"frequencies": [{"band": "30 m", "dial": "10.1462 MHz USB"}]}).encode()]
-    await page.send({"cmd": "hf_frequencies"})
-    await page.until(lambda: page.topics["hf"]["modem"]["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}])
+    await page.send({"cmd": "frequencies"})
+    await page.until(lambda: modem()["frequencies"] == [{"band": "30 m", "dial": "10.1462 MHz USB"}])
     assert len(server.asked) == 1
-    await page.send({"cmd": "hf_frequencies"})
+    await page.send({"cmd": "frequencies"})
     await page.quiet(0.3)
     assert len(server.asked) == 1, "the second asking is within the fifteen minutes"
     await e.stop()
     await air.aclose()
 
 
-async def test_four_frequencies_go_through_the_topics_hf_radios_and_skeds_as_the_wire_says_one_to_four(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_four_frequencies_go_through_the_topics_radios_and_skeds_as_the_wire_says_one_to_four(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """versions.MAX_FREQUENCIES is four (the box keeps room for four lines): the wire's lists take four, and every message that leaves is checked against the models (NEOAPRS_VALIDATE_OUT=1)."""
     monkeypatch.setenv("NEOAPRS_VALIDATE_OUT", "1")
     four = [{"band": "80 m", "dial": "3.5975 MHz USB"}, {"band": "40 m", "dial": "7.0541 MHz USB"}, {"band": "30 m", "dial": "10.1462 MHz USB"}, {"band": "20 m", "dial": "14.1070 MHz USB"}]
@@ -240,9 +240,9 @@ async def test_four_frequencies_go_through_the_topics_hf_radios_and_skeds_as_the
     e.ctl.frequencies._fetch = server
     e.ctl.frequencies._environ = {}
     page = await e.ws()
-    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running")
+    await page.until(lambda: (page.topics.get("radios", {}).get("2", {}).get("modem") or {}).get("state") == "running")
     await page.send({"cmd": "frequencies"})
-    await page.until(lambda: page.topics["hf"]["modem"]["frequencies"] == four and page.topics["radios"]["2"]["modem"]["frequencies"] == four)
+    await page.until(lambda: page.topics["radios"]["2"]["modem"]["frequencies"] == four)
     await page.until(lambda: [{"band": f["band"], "dial": f["dial"]} for f in page.topics["skeds"]["frequencies"]] == four)
     assert len(server.asked) == 1 and not page.of("error")
     await e.stop()
@@ -257,12 +257,12 @@ async def test_the_version_pages_dial_is_what_the_box_suggests_when_the_project_
     await e.start()
     e.ctl.updatecheck.hf_dial = "7.0443 MHz USB"
     e.ctl.updatecheck.dial_changed.emit("7.0443 MHz USB")
-    assert e.ctl.mercury.frequencies == [Frequency("40 m", "7.0443 MHz USB")]
+    assert e.mercury.frequencies == [Frequency("40 m", "7.0443 MHz USB")]
     e.ctl.frequencies.listed = TWO
     e.ctl.frequencies.changed.emit()
-    assert e.ctl.mercury.frequencies == TWO, "the project's list wins"
+    assert e.mercury.frequencies == TWO, "the project's list wins"
     e.ctl.frequencies.listed = []
     e.ctl.frequencies.changed.emit()
-    assert e.ctl.mercury.frequencies == [Frequency("40 m", "7.0443 MHz USB")]
+    assert e.mercury.frequencies == [Frequency("40 m", "7.0443 MHz USB")]
     await e.stop()
     await air.aclose()

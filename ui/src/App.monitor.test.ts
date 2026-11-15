@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeMap } from "@/test/fakemap";
 import { open, useAppHarness } from "@/test/app";
-import { hfState } from "@/test/fixtures";
+import { fmRow, hfRow, radiosValue } from "@/test/fixtures";
 
 const harness = useAppHarness();
 
@@ -37,8 +37,7 @@ async function rightClick(): Promise<void> {
 }
 
 const scoped = (socket: Awaited<ReturnType<typeof open>>["socket"]) => {
-  const state = hfState();
-  socket.say({ type: "state", topic: "hf", rev: 0, value: { ...state, modem: { ...state.modem!, scope: true } } });
+  socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow({}, { scope: true })) });
 };
 const statsCard = () => document.querySelector<HTMLElement>(".statscard");
 const menuItem = (name: string) => document.querySelector<HTMLElement>(`.mapmenu [role='menuitem'][data-item='${name}']`);
@@ -53,20 +52,19 @@ describe("App: the monitor card", () => {
     await rightClick();
     expect(item()).toBeNull();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-    const state = hfState();
-    socket.say({ type: "state", topic: "hf", rev: 0, value: { ...state, modem: { ...state.modem!, scope: true } } });
+    socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow({}, { scope: true })) });
     await flushPromises();
     await rightClick();
     expect(item()).not.toBeNull();
     item()?.click();
     await flushPromises();
     expect(card()).not.toBeNull();
-    expect(socket.sent).toContainEqual({ cmd: "radio_scope", radio: 2, on: true, named: true });
+    expect(socket.sent).toContainEqual({ cmd: "radio_scope", radio: 2, on: true });
     expect(localStorage.getItem("NeoAPRS.monitor")).toBe("open");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     await flushPromises();
     expect(card()).toBeNull();
-    expect(socket.sent.at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false, named: true });
+    expect(socket.sent.at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
     expect(localStorage.getItem("NeoAPRS.monitor")).toBe("closed");
     wrapper.unmount();
   });
@@ -75,8 +73,7 @@ describe("App: the monitor card", () => {
     localStorage.setItem("NeoAPRS.monitor", "open");
     const { socket } = await open();
     expect(card()).toBeNull();
-    const state = hfState();
-    socket.say({ type: "state", topic: "hf", rev: 0, value: { ...state, modem: { ...state.modem!, scope: true } } });
+    socket.say({ type: "state", topic: "radios", rev: 1, value: radiosValue(fmRow(), hfRow({}, { scope: true })) });
     await flushPromises();
     expect(card()).not.toBeNull();
     card()?.querySelector<HTMLElement>(".card-close")?.click();

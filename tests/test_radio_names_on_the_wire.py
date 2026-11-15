@@ -63,9 +63,9 @@ async def test_a_name_in_the_form_of_a_radio_with_no_name_of_its_own_is_refused_
     await e.stop()
 
 
-async def test_the_last_radio_that_is_on_switched_off_by_its_key_is_named_by_its_id(tmp_path: Path) -> None:
+async def test_the_last_radio_that_is_on_switched_off_is_named_by_its_id(tmp_path: Path) -> None:
     e, page = await started(tmp_path)
-    error = await refused(page, {"cmd": "set_config", "values": {"fm/enabled": "false"}})
-    assert (error["key"], error["code"], error["params"]) == ("fm/enabled", "radio.last_enabled", {"radio": FM_ID})
-    assert error["text"] == "set_config: fm/enabled: at least one radio stays on: turn another radio on first", "R1's words, as before"
+    error = await refused(page, {"cmd": "radio_change", "radio": FM_ID, "enabled": False})
+    assert (error["code"], error["params"]["radio"]) == ("radio.last_enabled", FM_ID)
+    assert "turn another radio on first" in error["text"], "R1's words"
     await e.stop()

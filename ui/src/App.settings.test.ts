@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import { type FakeSocket } from "@/test/fakesocket";
 import { openedAt } from "@/test/fakealert";
-import { configValues, errorOf, hello, mapState, status, tncState } from "@/test/fixtures";
+import { configValues, errorOf, fmRow, hello, mapState, radiosValue, status } from "@/test/fixtures";
 import { open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -24,9 +24,9 @@ describe("App: the Settings tab", () => {
     const { wrapper, socket } = await open();
     socket.say({
       type: "state",
-      topic: "tnc",
+      topic: "radios",
       rev: 1,
-      value: tncState({ state: "connecting", problem: "", describe: "listening on /dev/brainbox_1", searching: ["/dev/brainbox_1"] }),
+      value: radiosValue(fmRow({ state: "connecting", problem: { code: "radio.searching", params: {} } })),
     });
     await flushPromises();
     await tabButton(wrapper, "Stations")?.trigger("click");
@@ -61,26 +61,29 @@ describe("App: the Settings tab", () => {
   describe("settings that apply as they are changed", () => {
     const sets = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
     const toast = (wrapper: VueWrapper) => wrapper.find(".toast");
-    const told = (socket: FakeSocket, changes: Record<string, string>) =>
-      socket.say({ type: "state", topic: "config", rev: 1, value: configValues({ ...changes }) });
+    /** The daemon tells the settings again with these changes, a radio's own (`radio/1/digipeat`) among the radios' values. */
+    const told = (socket: FakeSocket, changes: Record<string, string>) => {
+      const own = (radio: boolean) => Object.fromEntries(Object.entries(changes).filter(([key]) => key.startsWith("radio/") === radio));
+      socket.say({ type: "state", topic: "config", rev: 1, value: configValues(own(false), own(true)) });
+    };
 
     it("has one queue for the Settings tab and the My station tab: the second change waits for the answer to the first", async () => {
       const { wrapper, socket } = await open();
-      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
-      await wrapper.find("#pane-beacon #set-beacon-path").setValue("custom");
-      await wrapper.find("#pane-beacon #set-beacon-path-typed").setValue("WIDE2-2");
-      await wrapper.find("#pane-beacon #set-beacon-path-typed").trigger("blur");
-      expect(sets(socket)).toEqual([{ cmd: "set_config", values: { "digi/enabled": "true" } }]);
-      told(socket, { "digi/enabled": "true" });
+      await wrapper.find("#pane-settings #set-radio-1-digipeat").setValue(true);
+      await wrapper.find("#pane-beacon #set-radio-1-path").setValue("custom");
+      await wrapper.find("#pane-beacon #set-radio-1-path-typed").setValue("WIDE2-2");
+      await wrapper.find("#pane-beacon #set-radio-1-path-typed").trigger("blur");
+      expect(sets(socket)).toEqual([{ cmd: "set_config", values: { "radio/1/digipeat": "true" } }]);
+      told(socket, { "radio/1/digipeat": "true" });
       await flushPromises();
       expect(sets(socket)).toHaveLength(2);
-      expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "beacon/path": "WIDE2-2" } });
+      expect(sets(socket)[1]).toEqual({ cmd: "set_config", values: { "radio/1/path": "WIDE2-2" } });
     });
 
     it("shows no toast when a change is saved, and none for the refusal of one: the refusal is under its field", async () => {
       const { wrapper, socket } = await open();
-      await wrapper.find("#pane-settings #set-digi-enabled").setValue(true);
-      told(socket, { "digi/enabled": "true" });
+      await wrapper.find("#pane-settings #set-radio-1-digipeat").setValue(true);
+      told(socket, { "radio/1/digipeat": "true" });
       await flushPromises();
       expect(toast(wrapper).exists()).toBe(false);
       expect(wrapper.find(".undo-button").exists()).toBe(false);

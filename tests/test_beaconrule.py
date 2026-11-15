@@ -168,8 +168,8 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
     air = Air(frame_sec=0.2)
     await air.start()
     e = Env(tmp_path, hf=air.station(), settings={"beacon/interval_min": "20"})
-    hf = e.ctl.hf_beacon
-    hf.tick_sec = e.ctl.beacon.tick_sec = 0.02
+    hf = e.beacon_2
+    hf.tick_sec = e.beacon.tick_sec = 0.02
     await e.start()
 
     def send_on(text: str) -> Config:
@@ -179,10 +179,10 @@ async def test_a_save_that_unticks_the_hf_radios_send_on_stops_its_beacon_and_on
     try:
         await until(lambda: e.hf.usable and hf.running)
         started = hf._started
-        assert (hf.interval_min, hf.next_due) == (30, started + timedelta(seconds=hf.first_delay_sec)) and e.ctl.beacon.interval_min == 20     # type: ignore[operator]
+        assert (hf.interval_min, hf.next_due) == (30, started + timedelta(seconds=hf.first_delay_sec)) and e.beacon.interval_min == 20     # type: ignore[operator]
         assert await e.ctl.save_config(send_on("false"))
         assert e.ctl.config.radio(HF_ID).settings["beacon"] == "false" and (hf.goes_out, hf.interval_min, hf.next_due) == (False, 0, None), "the save stops its timer"     # type: ignore[union-attr]
-        assert e.ctl.beacon.interval_min == 20 and e.ctl.beacon.next_due is not None, "the FM radio's goes on"
+        assert e.beacon.interval_min == 20 and e.beacon.next_due is not None, "the FM radio's goes on"
         e.now.advance(60)                                                       # type: ignore[attr-defined]
         await idle_for(0.15)
         assert hf.last_sent is None, "nothing on the HF radio"
@@ -208,8 +208,8 @@ async def test_beacon_now_of_the_page_goes_on_the_radios_the_registry_says_the_b
             sent.append(self.name)
             return self.goes
 
-    fm, hf, third = Stub("fm"), Stub("hf"), Stub("third")
-    ctl = SimpleNamespace(config=replace(DEFAULTS, hf_enabled=True), beacon=fm, hf_beacon=hf, radios=SimpleNamespace(beaconing=lambda: [SimpleNamespace(beacon=fm), SimpleNamespace(beacon=third)]))
+    fm, third = Stub("fm"), Stub("third")
+    ctl = SimpleNamespace(config=replace(DEFAULTS, hf_enabled=True), radios=SimpleNamespace(beaconing=lambda: [SimpleNamespace(beacon=fm), SimpleNamespace(beacon=third)]))
     await beacon_now(SimpleNamespace(ctl=ctl), BeaconNow(cmd="beacon_now"))       # type: ignore[arg-type]
     assert sent == ["fm", "third"]
     quiet = Stub("third", goes=False)

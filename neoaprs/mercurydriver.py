@@ -79,11 +79,11 @@ def hf_words(config: Config, port_override: str) -> str:
 
 
 class MercuryDriver:
-    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None) -> None:
+    def __init__(self, spec: RadioSpec, claims: Claims, folder: Path, clock: Clock = utcnow, line: Tnc | None = None, *, modem: Mercury | None = None, data_dir: Path | None = None) -> None:
         self.id = spec.id
         self.claims = claims
-        self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)                                              # (a line and a modem made elsewhere: the process's own for radio 2, a test's)
-        self._modem = modem if modem is not None else Mercury(folder, clock, claims=claims, holder=spec.id, folder=folder)       # (its files in the radio's own folder)
+        self._line = line if line is not None else Tnc(clock=clock, profile=MERCURY)                                              # (a line and a modem made elsewhere: a test's)
+        self._modem = modem if modem is not None else Mercury(data_dir or folder, clock, claims=claims, holder=spec.id, folder=folder)       # (its files in the radio's own folder; what an older NeoAPRS left in the data folder is radio 2's)
         self._line.radio_id = spec.id
         self._line.modem = self._modem                 # (the line asks it why no frame is to go now; the Dummy HF radio's line plays its frames through it)
         self._spec, self._station, self._run = spec, DEFAULTS, RunOverrides()       # what `configure` gave last: `start` starts the modem with it

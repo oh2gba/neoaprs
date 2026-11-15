@@ -80,7 +80,7 @@ async def test_a_message_keeps_the_reading_of_its_packet_and_ours_the_acks(tmp_p
 async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the_stations_our_message_its_answer_and_the_series(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dummyline, "TICK_SEC", 0.01)
     e = Env(tmp_path, radio=False, web=True, settings={"station/call": "OH2GBA", "fm/enabled": "false", "hf/enabled": "true", "hf/profile": "dummy-hf", "station/lat": "60.17", "station/lon": "24.94", "messages/alert": "false"})
-    e.ctl.mercury._finder = lambda: None                                         # (no speaker: the Dummy HF radio works without it)
+    e.mercury._finder = lambda: None                                         # (no speaker: the Dummy HF radio works without it)
     await e.start()
     await until_started(lambda: e.hf.state is Source.State.CONNECTED)
     page = await e.ws()
@@ -106,7 +106,7 @@ async def test_the_daemon_on_the_dummy_hf_radio_tells_the_snr_of_the_packets_the
     assert answered and answered[0].snr is not None and answered[0].radio == "hf", "the answer has the SNR of the packet that carried it"
     await e.settled()
     await page.until(lambda: any(row["snr"] is not None for row in page.topics["packets"].values()) and page.topics["messages"].get(str(record.id), {}).get("snr") == mine.snr)
-    assert page.topics["stations"]["Q3TKU"]["snr"] is not None and page.topics["hf"]["readings"] == ["snr"] and page.topics["tnc"]["readings"] == []
+    assert page.topics["stations"]["Q3TKU"]["snr"] is not None and list(e.hf.profile.readings) == ["snr"] and list(e.tnc.profile.readings) == []
     await page.send({"cmd": "signal_series", "call": "Q3TKU", "hours": 24})
     answer = SignalSeriesMsg.model_validate_json(json.dumps(await page.expect("signal_series")))
     assert answer.call == "Q3TKU" and answer.points and all(snr is not None and rssi is None for _, snr, rssi in answer.points)

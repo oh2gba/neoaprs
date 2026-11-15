@@ -1,0 +1,36 @@
+{
+  "note": "tnc2-oneline.txt as a TNC-2 at AWLEN 7, PARITY 3 (even) sends it: each byte's bit 7 is its even parity. The same frames.",
+  "source": "generated from tnc2-oneline.txt",
+  "real": false,
+  "frames": [
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2*",
+        "WIDE2-1"
+      ],
+      "info": "=6010.12N/02457.34E[/A=000052"
+    },
+    {
+      "source": "OH7ABC",
+      "destination": "APRS",
+      "path": [
+        "WIDE1-1"
+      ],
+      "info": ">listening on 144.800"
+    },
+    {
+      "source": "OH3DEF-10",
+      "destination": "APNU19",
+      "path": [
+        "OH3RCF-1*",
+        "OH3RCG-2*"
+      ],
+      "info": ";LEDIT    *141030z6122.50N/02349.80Ex"
+    }
+  ],
+  "rejected": 0,
+  "seven_bit": true,
+  "parity": "even"
+}

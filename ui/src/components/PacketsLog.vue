@@ -9,7 +9,6 @@ import { t } from "@/i18n";
 import PacketLines from "@/components/PacketLines.vue";
 import TabHelp from "@/components/TabHelp.vue";
 import { useRadios } from "@/composables/useRadios";
-import { useRadiosNamed } from "@/composables/useRadiosOn";
 import { packetTag } from "@/lib/channels";
 import { filterPackets, newestFirst } from "@/lib/packets";
 import type { PacketRow } from "@/protocol/protocol";
@@ -22,13 +21,12 @@ const width = useElementWidth(root);
 const stacked = computed(() => width.value > 0 && width.value < PACKETS_TABLE);
 const filter = ref("");
 
-const named = useRadiosNamed();
 const radios = useRadios();
 /** The packets that have the text, by lib/packets.ts, or in the word of their Via (the radio's name). */
 const rows = computed(() => {
   const all = newestFirst(props.packets.values());
   const needle = filter.value.trim().toLowerCase();
-  const found = new Set(filterPackets(all, filter.value, named.value));
+  const found = new Set(filterPackets(all, filter.value));
   return needle === "" ? all : all.filter((row) => found.has(row) || packetTag(row, radios.all.value).label.toLowerCase().includes(needle));
 });
 </script>

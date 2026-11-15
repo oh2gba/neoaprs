@@ -7,7 +7,6 @@
 import { t } from "@/i18n";
 import { agoWords } from "@/lib/format";
 import { enabledRadios, isNamed, type PageRadio, type RadioId } from "@/lib/radios";
-import { flatRadios } from "@/lib/radiosides";
 import type { PacketRow, StationRow } from "@/protocol/protocol";
 
 /** The tones of the tags of how a station or a packet was heard (components/TagMark.vue's): the internet sky, a Dummy dashed, the HF radio's inverse pill, LoRa's sage, a removed radio dimmed, the rest neutral. */
@@ -16,17 +15,15 @@ type HeardTone = "neutral" | "info" | "hf" | "lora" | "dummy" | "removed";
 /** The ways a station can have been heard, in the order they are told. */
 export type Channel = "rf" | "hf" | "gated" | "is" | "dummy";
 
-type Heard = Pick<StationRow, "heard_rf" | "heard_fm" | "heard_hf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own"> &
-  Partial<Pick<StationRow, "heard">>;
-type Times = Pick<StationRow, "last_rf_at" | "last_fm_at" | "last_hf_at" | "last_rf_gated_at" | "last_is_at" | "last_dummy_at">;
+type Heard = Pick<StationRow, "heard_rf" | "heard_rf_gated" | "heard_is" | "heard_dummy" | "is_me" | "own"> & Partial<Pick<StationRow, "heard">>;
+type Times = Pick<StationRow, "last_rf_at" | "last_rf_gated_at" | "last_is_at" | "last_dummy_at">;
 
-/** The channels a station was heard by, in the order RF, HF, iGate, Internet, Dummy (RF is a radio of the air that is not the HF radio: a station heard on HF alone has HF only; a station heard on both keeps
- * both, whatever radio its messages take); none for a station nothing was heard of (our own station, our objects: they are not heard). */
+/** The channels a station was heard by, in the order RF (a radio of the air), iGate, Internet, Dummy; none for a station nothing was heard of (our own station, our objects: they are not heard). Which radio heard
+ * it is `heard` (heardParts). */
 export function channelsOf(row: Heard): Channel[] {
   const found: Channel[] = [];
   if (row.is_me || row.own) return found;
-  if (row.heard_rf > 0 && !(row.heard_hf > 0 && row.heard_fm === 0)) found.push("rf");
-  if (row.heard_hf > 0) found.push("hf");
+  if (row.heard_rf > 0) found.push("rf");
   if (row.heard_rf_gated > 0) found.push("gated");
   if (row.heard_is > 0) found.push("is");
   if (row.heard_dummy > 0) found.push("dummy");
@@ -47,8 +44,8 @@ export function anyInternet(rows: Iterable<Heard>): boolean {
   return false;
 }
 
-/** The word of a channel: the FM radio is "FM" where the radios of before are named (the HF radio is on), "RF" otherwise. */
-const name = (channel: Channel, named: boolean): string => t(channel === "rf" && named ? "channel.fm" : `channel.${channel}`);
+/** The word of a channel. */
+const name = (channel: Channel): string => t(`channel.${channel}`);
 /** What a channel means, for its hover title. */
 const meaning = (channel: Channel): string => t(`channel.title.${channel}`);
 
@@ -72,9 +69,6 @@ export function radioTone(radio: Pick<PageRadio, "kind" | "dummy" | "removed">):
   return radio.kind === "hf" ? "hf" : radio.kind === "lora" ? "lora" : "neutral";
 }
 
-/** The radios of before (radio 1 the FM radio, radio 2 the HF radio, both on while `named`): for a caller that says only whether the radios are named. */
-export const radiosOfBefore = (named: boolean): PageRadio[] => flatRadios(named ? { "hf/enabled": "true" } : {});
-
 /** One way a station was heard, a radio or a channel, as a tag says it: its word, what it means, its tone, when it was last heard that way, and whether it is a radio's name. */
 export interface HeardPart {
   key: string;
@@ -95,13 +89,13 @@ export interface HeardPart {
 /** The word a radio's packets of the air always had where it is the one radio on: Dummy for a Dummy radio's, HF for an HF radio's, else RF. */
 const wordOf = (radio: Pick<PageRadio, "dummy" | "kind">): Channel => (radio.dummy ? "dummy" : radio.kind === "hf" ? "hf" : "rf");
 
-/** The one radio that is on, unnamed: the word it always had (RF, HF, Dummy) and its time as it always had (RF the latest packet heard on the radio, the FM radio's beside HF). */
+/** The one radio that is on, unnamed: the word it always had (RF, HF, Dummy) and when that radio last heard the station (a Dummy's: its made-up packets). */
 function unnamedPart(radio: PageRadio, at: string | null, row?: Heard & Times): HeardPart {
   const channel = wordOf(radio);
-  const when = row === undefined ? at : channel === "dummy" ? row.last_dummy_at : channel === "rf" && row.heard_hf === 0 ? row.last_rf_at : at;
+  const when = row !== undefined && channel === "dummy" ? row.last_dummy_at : at;
   return {
     key: `radio-${radio.id}`,
-    label: name(channel, false),
+    label: name(channel),
     title: meaning(channel),
     tone: toneOf(channel),
     at: when,
@@ -132,10 +126,10 @@ function radioPart(id: RadioId, at: string | null, radios: readonly PageRadio[],
   };
 }
 
-/** A channel's tag (iGate, Internet, Dummy, and every channel against a daemon that does not count by radio). */
+/** A channel's tag (iGate, Internet, Dummy, and the air where no radio says it). */
 const channelPart = (channel: Channel, at: string | null): HeardPart => ({
   key: channel,
-  label: name(channel, false),
+  label: name(channel),
   title: meaning(channel),
   tone: toneOf(channel),
   at,
@@ -145,15 +139,9 @@ const channelPart = (channel: Channel, at: string | null): HeardPart => ({
   dummy: channel === "dummy",
 });
 
-/** The channels of before, each with its time: against a daemon that does not count by radio. */
-function partsOfBefore(row: Heard & Times): HeardPart[] {
-  const at: Record<Channel, string | null> = {
-    rf: row.heard_hf > 0 ? row.last_fm_at : row.last_rf_at,
-    hf: row.last_hf_at,
-    gated: row.last_rf_gated_at,
-    is: row.last_is_at,
-    dummy: row.last_dummy_at,
-  };
+/** The channels, each with its time: for a station heard on the air whose radios the row does not say. */
+function channelParts(row: Heard & Times): HeardPart[] {
+  const at: Record<Channel, string | null> = { rf: row.last_rf_at, hf: null, gated: row.last_rf_gated_at, is: row.last_is_at, dummy: row.last_dummy_at };
   return channelsOf(row).map((channel) => channelPart(channel, at[channel]));
 }
 
@@ -170,7 +158,7 @@ export function heardParts(row: Heard & Times, radios: readonly PageRadio[]): He
     .filter(([, heard]) => heard.count > 0)
     .map(([id, heard]) => ({ id: Number(id), at: heard.last_at }))
     .sort((a, b) => place(a.id) - place(b.id));
-  if (row.heard === undefined || (ids.length === 0 && onAirCount > 0)) return partsOfBefore(row);
+  if (ids.length === 0 && onAirCount > 0) return channelParts(row);
   const byRadio = onAirCount === 0 ? [] : ids.map(({ id, at }) => radioPart(id, at, radios, row));
   return [
     ...byRadio,
@@ -226,38 +214,37 @@ export function heardTimes(row: Heard & Times, radios: readonly PageRadio[], now
  * station known from the internet alone says what that means; else the words joined, "RF · Internet". */
 export function heardWords(row: Heard & Times, radios: readonly PageRadio[], nowMs: number): string | null {
   const parts = heardParts(row, radios);
-  if (parts.every((part) => part.radio && !part.named && part.label === name("rf", false))) return null;
+  if (parts.every((part) => part.radio && !part.named && part.label === name("rf"))) return null;
   if (enabledRadios(radios).length > 1) return heardTimes(row, radios, nowMs);
   if (internetOnly(row)) return titled(parts.map((part) => part.title));
   return joined(parts.map((part) => part.label));
 }
 
-/** The channel of a packet of the log by the words of before: a packet heard on the radio (`rf`) is HF when it came on the HF radio (`radio`), else RF. */
-export function packetChannel(via: PacketRow["via"], radio: PacketRow["radio"] = ""): Channel {
-  return via === "rf-gated" ? "gated" : via === "is" ? "is" : via === "dummy" ? "dummy" : radio === "hf" ? "hf" : "rf";
+/** The channel of a packet of the log: the air (`rf`, which radio its tag says), iGate, Internet, Dummy. */
+export function packetChannel(via: PacketRow["via"]): Channel {
+  return via === "rf-gated" ? "gated" : via === "is" ? "is" : via === "dummy" ? "dummy" : "rf";
 }
 
-/** The label of a packet's channel by the words of before: "RF", "HF", "iGate", "Internet", "Dummy" (the Packets filter matches it). */
-export const packetLabel = (via: PacketRow["via"], radio: PacketRow["radio"] = "", named = false): string => name(packetChannel(via, radio), named);
+/** The label of a packet's channel: "RF", "iGate", "Internet", "Dummy" (the Packets filter matches it; the radio's own word is its tag's). */
+export const packetLabel = (via: PacketRow["via"]): string => name(packetChannel(via));
 
-type Packet = Pick<PacketRow, "via" | "radio"> & Partial<Pick<PacketRow, "radio_id">>;
+type Packet = Pick<PacketRow, "via"> & Partial<Pick<PacketRow, "radio_id">>;
 
 /** The tag of a packet of the log (the Packets tab's Via, a station's traffic): a packet of the air is its radio's, by name where the radio is named, else the word it always had (RF, HF, Dummy); an iGate's says in
  * its title which radio heard it, where that is named; Internet is Internet. */
 export function packetTag(packet: Packet, radios: readonly PageRadio[]): HeardTag {
   const id = packet.radio_id ?? null;
-  const channel = packetChannel(packet.via, packet.radio);
+  const channel = packetChannel(packet.via);
   const radio = id === null ? undefined : radios.find((one) => one.id === id);
-  if (channel === "is" || radio === undefined || id === null)
-    return { key: channel, label: name(channel, false), title: meaning(channel), tone: toneOf(channel) };
+  if (channel === "is" || radio === undefined || id === null) return { key: channel, label: name(channel), title: meaning(channel), tone: toneOf(channel) };
   const named = isNamed(radios, id);
   if (channel === "gated") {
     const title = named ? titled([meaning("gated"), t("radio.heard_on", { name: radio.name })]) : meaning("gated");
-    return { key: "gated", label: name("gated", false), title, tone: toneOf("gated") };
+    return { key: "gated", label: name("gated"), title, tone: toneOf("gated") };
   }
   if (!named) {
     const word = channel === "dummy" ? "dummy" : wordOf(radio); // (the one radio that is on: the word it always had)
-    return { key: `radio-${id}`, label: name(word, false), title: meaning(word), tone: toneOf(word) };
+    return { key: `radio-${id}`, label: name(word), title: meaning(word), tone: toneOf(word) };
   }
   const { label, title, tone } = radioPart(id, null, radios);
   return { key: `radio-${id}`, label, title, tone };

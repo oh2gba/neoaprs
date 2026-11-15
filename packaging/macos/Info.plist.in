@@ -29,6 +29,8 @@
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
     <string>@MIN_OS@</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>NeoAPRS reaches a radio or a LoRa board that talks over Bluetooth.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

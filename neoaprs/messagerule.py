@@ -1,9 +1,9 @@
 """The radio a message of ours to a station goes out on (plan rule 3.2), as one function of the operator's choice for the station, what each radio heard of it and the radios there are.
 
-With one enabled radio, that one, whatever is stored. Else the operator's choice while it names an enabled radio. Else the radio the station was heard on most recently within
+Only the radios that are enabled and can send count (`radiospec.senders`: a receive-only radio is never picked). With one of them, that one, whatever is stored. Else the operator's choice while it names an enabled radio. Else the radio the station was heard on most recently within
 policy.MESSAGE_RADIO_RECENT_HOURS, a radio of a local kind (radiotype.LOCAL_KINDS: fm, lora) before any other when one heard it in that time (a station heard on FM an hour ago and on HF a minute ago is near:
-its message goes by FM, and HF airtime is everyone's). Else the radio it was heard on last at all. A station no enabled radio heard goes on the main radio. Only the enabled radios count: what a radio that is
-off or removed heard is no reason to send on it. Of radios heard at the same time a local kind comes first, then the order of the radios (their position).
+its message goes by FM, and HF airtime is everyone's). Else the radio it was heard on last at all. A station no enabled radio heard goes on the main radio. Only the enabled radios that send count: what a
+radio that is off or removed heard is no reason to send on it. Of radios heard at the same time a local kind comes first, then the order of the radios (their position).
 
 The rule is asked at a message's first attempt; the message keeps that radio until it ends unless the operator chooses another for the station or that radio goes (services/messageradio.py), or the radio
 only stood in for the station's own (`stood_in`). No I/O."""
@@ -11,15 +11,15 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 
 from .policy import MESSAGE_RADIO_RECENT_HOURS
-from .radiospec import NOT_HEARD, RadioHeard, RadioId, RadioSpec, enabled
+from .radiospec import NOT_HEARD, RadioHeard, RadioId, RadioSpec, senders
 from .radiotype import LOCAL_KINDS
 
 RECENT = timedelta(hours=MESSAGE_RADIO_RECENT_HOURS)
 
 
 def message_radio(choice: RadioId | None, heard: Mapping[RadioId, RadioHeard], specs: Iterable[RadioSpec], main: RadioId | None, now: datetime) -> RadioId | None:
-    """The id of the radio the message goes out on; None when no radio is enabled (`main` is then None too)."""
-    on = enabled(specs)
+    """The id of the radio the message goes out on; None when no radio that can send is enabled (`main` is then None too)."""
+    on = senders(specs)
     if len(on) == 1:
         return on[0].id
     if choice is not None and any(spec.id == choice for spec in on):

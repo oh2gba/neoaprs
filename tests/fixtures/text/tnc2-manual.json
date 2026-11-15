@@ -1,0 +1,23 @@
+{
+  "note": "The two monitor lines of the TNC-2 help (MRPT), the information as it came, its first space too.",
+  "source": "TNC Commands v1.1.7a (G1DIL), MRPT",
+  "real": false,
+  "frames": [
+    {
+      "source": "WB9FLW",
+      "destination": "AD7I",
+      "path": [
+        "K9NG*",
+        "N2WX-7"
+      ],
+      "info": "Hi Paul."
+    },
+    {
+      "source": "KV7D",
+      "destination": "N2WX",
+      "path": [],
+      "info": " Go ahead and transfer the file."
+    }
+  ],
+  "rejected": 0
+}

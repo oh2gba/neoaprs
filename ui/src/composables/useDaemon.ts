@@ -20,7 +20,6 @@ import type {
   StationAlertMessage,
   StationRow,
   StatusMessage,
-  TncState,
   UpdateState,
 } from "@/protocol/protocol";
 import { useAnswers } from "@/composables/useAnswers";
@@ -52,15 +51,13 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
-/** The topics that are held as one value each: those told whole (the FM radio, the HF radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around)),
+/** The topics that are held as one value each: those told whole (the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around)),
  * and the radios (useRadioTopic). */
 function useWholeTopics() {
   const radios = useRadioTopic();
   const refs = {
     radios: radios.radios,
     radioAdded: radios.radioAdded,
-    tnc: shallowRef<TncState | null>(null),
-    hf: shallowRef<TncState | null>(null),
     config: shallowRef<ConfigValues | null>(null),
     map: shallowRef<MapState | null>(null),
     selfUpdate: shallowRef<UpdateState | null>(null),
@@ -72,8 +69,6 @@ function useWholeTopics() {
   };
   const handlers: Pick<
     Store,
-    | "replaceTnc"
-    | "replaceHf"
     | "replaceConfig"
     | "replaceMap"
     | "replaceUpdate"
@@ -87,8 +82,6 @@ function useWholeTopics() {
     | "delRadio"
     | "radioAdded"
   > = {
-    replaceTnc: (value) => (refs.tnc.value = value),
-    replaceHf: (value) => (refs.hf.value = value),
     replaceConfig: (value) => (refs.config.value = value),
     replaceMap: (value) => (refs.map.value = value),
     replaceUpdate: (value) => (refs.selfUpdate.value = value),
@@ -147,7 +140,7 @@ export function useDaemon(url: () => string = socketUrl) {
   const station = useStationTables();
   const answers = useAnswers();
   const whole = useWholeTopics();
-  const scope = useScopeRows(packets, whole.refs.hf);
+  const scope = useScopeRows(packets);
   const status = shallowRef<StatusMessage | null>(null);
   const connection = ref<Connection>("connecting");
   const lastError = shallowRef<Toast | null>(null);
@@ -209,7 +202,6 @@ export function useDaemon(url: () => string = socketUrl) {
     ownObjects: own.ownObjects,
     ownBulletins: own.ownBulletins,
     ...whole.refs,
-    scopeRows: scope.memory,
     scopeOf: scope.of,
     status,
     connection,

@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import StationCard from "@/components/StationCard.vue";
 import type { RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { NOW, ago, configValues, radioRow, radiosTopic, station } from "@/test/fixtures";
+import { ago, heardBy, NOW, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const fieldsOf = (wrapper: ReturnType<typeof mount>) =>
   Object.fromEntries(wrapper.findAll("dt").map((dt) => [dt.text(), dt.element.nextElementSibling?.textContent?.trim()]));
+/** The station of the tests: the FM radio (radio 1) on, the HF radio (radio 2) off. */
+const TODAY = () => radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
 const card = (row: ReturnType<typeof station>, stations: ReadonlyMap<string, ReturnType<typeof station>> = new Map()) =>
-  mount(StationCard, { props: { row, now: NOW, stations } });
+  mount(StationCard, { props: { row, now: NOW, stations }, global: withDaemon(fakeDaemon({ radios: TODAY() })) });
 
 const both = station("OH2BOTH", { heard_rf: 3, heard_is: 2, last_rf_at: ago(180), last_is_at: ago(40), last_heard: ago(40), position_via: "is" });
 const net = station("OH2NET", {
@@ -31,15 +33,12 @@ describe("the card of a station heard on the HF radio", () => {
   it("says when each radio last heard it: RF for the FM radio, HF for the HF radio", () => {
     const both = station("OH2FMHF", {
       heard_rf: 5,
-      heard_fm: 3,
-      heard_hf: 2,
+      heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]),
       last_rf_at: ago(60),
-      last_fm_at: ago(180),
-      last_hf_at: ago(60),
       last_heard: ago(60),
     });
     expect(fieldsOf(card(both))["Last heard"]).toBe("RF 3 min ago · HF 1 min ago");
-    const hf = station("OH2HF", { heard_rf: 2, heard_fm: 0, heard_hf: 2, last_rf_at: ago(60), last_fm_at: null, last_hf_at: ago(60), last_heard: ago(60) });
+    const hf = station("OH2HF", { heard_rf: 2, heard: heardBy([2, 2, ago(60)]), last_rf_at: ago(60), last_heard: ago(60) });
     expect(fieldsOf(card(hf))["Last heard"]).toBe("HF 1 min ago");
   });
 });
@@ -137,7 +136,7 @@ describe("the card of a station, with several radios", () => {
   const withRadios = (row: ReturnType<typeof station>, ...radios: RadioRow[]) =>
     mount(StationCard, {
       props: { row, now: NOW },
-      global: withDaemon(fakeDaemon({ radios: radiosTopic(...radios), config: configValues({ "hf/enabled": "true" }) })),
+      global: withDaemon(fakeDaemon({ radios: radiosTopic(...radios) })),
     });
 
   it("lists every radio that heard it with its time, by the order of the boxes, the typed names with a colon", () => {
@@ -164,7 +163,7 @@ describe("the card of a station, with several radios", () => {
   });
 
   it("says FM and HF for the owner's two radios", () => {
-    const both = station("OH2FMHF", { heard_rf: 5, heard_fm: 3, heard_hf: 2, last_fm_at: ago(180), last_hf_at: ago(60), last_heard: ago(60) });
+    const both = station("OH2FMHF", { heard_rf: 5, heard: heardBy([1, 3, ago(180)], [2, 2, ago(60)]), last_heard: ago(60) });
     expect(fieldsOf(withRadios(both, radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")))["Last heard"]).toBe("FM 3 min ago · HF 1 min ago");
   });
 });

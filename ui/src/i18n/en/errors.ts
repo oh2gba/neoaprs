@@ -43,6 +43,7 @@ export const errors = {
   "error.radio.none": "there is no radio: add one, or turn one on",
   "error.radio.not_connected": "the {name} radio is not connected",
   "error.radio.off": "the {name} radio is off: turn it on first",
+  "error.radio.receive_only": "the {name} radio only receives: nothing can be sent on it",
   "error.radio.resource_held": "that device is in use by {holder}: choose another",
   "error.radio.type_kind": "the {name} radio takes only a type of its own kind ({kind})",
   "error.radio.unknown": {

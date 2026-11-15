@@ -71,7 +71,6 @@ const emit = defineEmits<{
 const [page, radios] = [useDaemonContext(), useRadios()]; // (the radios: the hover card names each radio by its name where radios are named)
 /** Changes when the map files on the daemon are other ones (their dates); null until the daemon has told. */
 const mapFiles = computed(() => filesKey(page.map.value));
-
 const root = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const card = useClearOfCard(root, host);
@@ -132,9 +131,8 @@ function addLayers(): void {
 }
 
 /** The stations that are drawn: with a position and not past their timeout (a station whose card is open is drawn, with its track, whatever its timeout). */
-function drawn(): StationRow[] {
-  return [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
-}
+const drawn = (): StationRow[] =>
+  [...page.stations.value.values()].filter((row) => hasPosition(row) && (isOpen(row.call) || !timedOut(page.aging.value, row, page.now.value)));
 
 function drawTracks(): void {
   if (map) setTrackData(map, drawn(), openCalls(), page.now.value, page.aging.value);

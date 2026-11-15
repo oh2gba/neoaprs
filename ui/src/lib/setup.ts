@@ -9,7 +9,7 @@ import { lazyText } from "@/lib/lazytext";
 import type { Choice } from "@/lib/settingchoices";
 import type { PageRadio } from "@/lib/radios";
 import { groupKeys, shownByValues } from "@/lib/settings";
-import { boxKeys, fieldOfKey, flatOf, onInForm, shownByRadios, shownFor } from "@/lib/settingsradio";
+import { boxKeys, fieldOfKey, shownFor } from "@/lib/settingsradio";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
@@ -152,11 +152,10 @@ export function portChoices(ports: PortsMessage | null): Choice[] {
   return [first, ...rows];
 }
 
-/** The keys of the Radio group of the Settings tab as the form shows them (the radios of before are worked by them: their Enables, the FM radio's type and the port and speed or the host and port of that type, the HF radio's type, sound card
- * and keying), for the boxes of the Radio step. */
+/** The keys of the Radio group of the Settings tab as the form shows them, for the boxes of the Radio step. */
 export function radioStepKeys(values: Readonly<Record<string, string>>, draft: Readonly<Record<string, string>>): string[] {
   const group = groupKeys(Object.keys(values), "settings").find((g) => g.id === "serial");
-  return (group?.keys ?? []).filter((key) => shownFor(key, draft["tnc/profile"]) && shownByRadios(key, draft) && shownByValues(key, draft));
+  return (group?.keys ?? []).filter((key) => shownFor(key) && shownByValues(key, draft));
 }
 
 /** What the Radio step's radios are read from: the settings as the form holds them (their values, what is being changed, what is wrong with a field) and whether the daemon looks for a serial radio among the ports itself (`search`,
@@ -170,10 +169,8 @@ export interface RadioStep {
 
 /** Whether the Radio step has what Finish needs (plan section 6: "Next needs one enabled radio with no field in error"): a radio that is on (as the form holds it) none of whose fields has a complaint, the page's or the
  * daemon's. A serial port left empty where the daemon does not look for the radio itself is a field that is not right yet: nothing would find the radio (the step of before waited for it too). */
-export function radioReady(radios: readonly PageRadio[], keys: readonly string[], step: RadioStep): boolean {
-  const right = (radio: PageRadio): boolean => {
-    const own = [flatOf(radio, step.values)?.enable ?? "", ...boxKeys(radio, keys, step.draft)].filter((key) => key !== "");
-    return own.every((key) => (step.errors[key] ?? "") === "" && !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""));
-  };
-  return radios.some((radio) => !radio.removed && onInForm(radio, step.values, step.draft) && right(radio));
+export function radioReady(radios: readonly PageRadio[], step: RadioStep): boolean {
+  const right = (radio: PageRadio): boolean =>
+    boxKeys(radio).every((key) => (step.errors[key] ?? "") === "" && !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""));
+  return radios.some((radio) => !radio.removed && radio.enabled && right(radio));
 }

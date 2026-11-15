@@ -22,7 +22,6 @@ import {
   portRow,
   radioRow,
   station,
-  tncState,
 } from "@/test/fixtures";
 
 function setUp() {
@@ -75,7 +74,7 @@ describe("useDaemon", () => {
     socket.say(hello());
     socket.say({ type: "state", topic: "stations", rev: 0, value: { A: station("A") } });
     socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1) } });
-    socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
+    socket.say({ type: "state", topic: "radios", rev: 0, value: { "1": radioRow(1, "kenwood-tnc2") } });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     socket.say({ type: "state", topic: "gps", rev: 0, value: gpsState({ mobile: true }) });
     socket.say({ type: "state", topic: "igate", rev: 0, value: igateState() });
@@ -91,7 +90,7 @@ describe("useDaemon", () => {
     expect(daemon.install.value).toEqual({ kind: "pip", appimage: "", service: false, arch: "" });
     expect([...daemon.stations.keys()]).toEqual(["A"]);
     expect(daemon.packets.get("1")?.id).toBe(1);
-    expect(daemon.tnc.value?.state).toBe("connected");
+    expect(daemon.radios.value?.get("1")?.state).toBe("connected");
     expect(daemon.config.value?.values["station/call"]).toBe("OH2GBA");
     expect(daemon.gps.value).toEqual(gpsState({ mobile: true }));
     expect(daemon.igate.value).toEqual(igateState());
@@ -129,7 +128,6 @@ describe("useDaemon", () => {
       ],
     });
     expect([...(daemon.radios.value?.keys() ?? [])]).toEqual(["2", "3"]);
-    expect(daemon.tnc.value).toBeNull();
   });
 
   it("knows from the hello whether the page is on the computer the daemon runs on, and is not until it has been told", () => {

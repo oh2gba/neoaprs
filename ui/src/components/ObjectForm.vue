@@ -32,7 +32,7 @@ const draft = props.form.draft; // (the form's own state, kept as one object for
 const problems = computed(() => draftProblems(draft));
 const rxOnly = useReceiveOnly();
 /** Send on is there while several radios are on: the one place the choice means anything (a form mounted without the page's context, a test, has one radio). */
-const { several, enabled, main, allowsPath, byId } = useRadios();
+const { severalSenders: several, senders: enabled, main, allowsPath, byId } = useRadios();
 const on = computed(() => enabled.value.map((radio) => radio.id));
 /** The radios the object goes out on now: its own that are on, else the main radio. */
 const sendOn = computed(() => inForce(draft.radios, on.value, main.value?.id ?? null));

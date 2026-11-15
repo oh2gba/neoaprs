@@ -94,7 +94,7 @@ def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> A
 def _choice(pick: RadioPick, call: str) -> RadioId | None:
     """The operator's radio for the station in force: the one chosen while it is enabled; None for no choice, or one that names a radio that is off or gone."""
     chosen = pick.choice(call) if isinstance(pick, Chooses) else None
-    return chosen if chosen is not None and any(r.id == chosen for r in pick.enabled()) else None
+    return chosen if chosen is not None and any(r.id == chosen for r in pick.senders()) else None
 
 
 def _keep(pick: RadioPick, to: str, radio: RadioId, choice: RadioId | None, at: datetime) -> Kept:
@@ -136,7 +136,7 @@ class MessageRadios:
         kept = self._keeps(pick, record, choice)
         if kept is not None:
             self._kept[record.id] = kept
-            radio = next((r for r in pick.enabled() if r.id == kept.radio), None)
+            radio = next((r for r in pick.senders() if r.id == kept.radio), None)
             why = _leaves(pick, record.to_call, kept, radio is not None, choice)
             if radio is not None and why is None:
                 return radio
@@ -149,7 +149,7 @@ class MessageRadios:
         pick = as_pick(self._given, self._config)
         choice = _choice(pick, record.to_call)
         kept = self._keeps(pick, record, choice)
-        radio = None if kept is None else next((r for r in pick.enabled() if r.id == kept.radio), None)
+        radio = None if kept is None else next((r for r in pick.senders() if r.id == kept.radio), None)
         if kept is not None and radio is not None and _leaves(pick, record.to_call, kept, True, choice) is None:
             return radio
         return self.station(record.to_call)

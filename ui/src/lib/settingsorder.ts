@@ -2,21 +2,8 @@
 // Status group, the Beacon group and the Station group. `rank` is where a key stands in an order, after every listed one when it is not there.
 import { ANTENNA } from "@/lib/beaconoff";
 
-/** The order of the Radio group on the page: the RX only tickbox, then the FM radio (its tickbox, the type of TNC, the port and its speed, or the host and port of a TCP one) and the HF radio (its tickbox, the sound card and the keying of the Mercury modem). */
-const TNC_ORDER = [
-  "station/transmit",
-  "fm/enabled",
-  "tnc/profile",
-  "serial/port",
-  "serial/baud",
-  "tcp/host",
-  "tcp/port",
-  "hf/enabled",
-  "hf/profile",
-  "mercury/sound_card",
-  "mercury/keying",
-  "serial/last_port",
-];
+/** The order of the Radio group's own rows: the RX only tickbox (the radios' boxes follow it: components/SettingsRadio.vue), and the port radio 1's search found last (no field). */
+const TNC_ORDER = ["station/transmit", "serial/last_port"];
 
 /** The Status group: the choice first, then Every (as the Beacon group has the interval with its choice), then what the chosen source needs. */
 const STATUS_ORDER = ["status/source", "status/interval_min", "station/status", "status/rigctld", "status/template"];

@@ -95,16 +95,19 @@ def import_bleak() -> Any:
     return bleak
 
 
+_WRITES, _NOTIFIES = {"write", "write-without-response"}, {"notify", "indicate"}
+
+
 def _find(services: Any, profile: Profile) -> tuple[Any, Any] | None:
-    """The characteristic to write and the one to listen to of the profile's service, or None when the device has no such service or it lacks them."""
+    """The characteristic to write and the one to listen to of the profile's service, or None when the device has no such service or it lacks them. The named ones are taken where they can do their part;
+    otherwise the first that can be written and the first that notifies (a CA2RXU LoRa Tracker has the Nordic UART's two the other way round: it notifies on 6E400002 and is written on 6E400003)."""
     service = next((s for s in services if s.uuid == profile.service), None)
     if service is None:
         return None
-    if profile.write and profile.notify:
-        pair = (service.get_characteristic(profile.write), service.get_characteristic(profile.notify))
-    else:
-        pair = (next((c for c in service.characteristics if {"write", "write-without-response"} & set(c.properties)), None),
-                next((c for c in service.characteristics if {"notify", "indicate"} & set(c.properties)), None))
+    named = (service.get_characteristic(profile.write), service.get_characteristic(profile.notify)) if profile.write and profile.notify else (None, None)
+    if named[0] is not None and named[1] is not None and _WRITES & set(named[0].properties) and _NOTIFIES & set(named[1].properties):
+        return named
+    pair = (next((c for c in service.characteristics if _WRITES & set(c.properties)), None), next((c for c in service.characteristics if _NOTIFIES & set(c.properties)), None))
     return None if pair[0] is None or pair[1] is None else pair
 
 

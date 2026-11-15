@@ -7,7 +7,7 @@ import { resetFakes } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
 import { stubWidth } from "@/test/width";
 import { openedAt } from "@/test/fakealert";
-import { ago, configValues, hello, incoming, message, NOW, packet, station, status, tncState } from "@/test/fixtures";
+import { ago, configValues, hello, incoming, message, NOW, packet, radiosOf, station, status } from "@/test/fixtures";
 
 export const stations = {
   OH2GBA: station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94, symbol_table: "", symbol_code: "", distance_km: null, bearing_deg: null }),
@@ -27,7 +27,7 @@ export function mountApp() {
   return mount(App, { attachTo: document.body });
 }
 
-/** The page mounted, and the daemon's first words told over the fake socket: the four stations, two packets, the radio, the settings, three messages, a path for one station and the status. */
+/** The page mounted, and the daemon's first words told over the fake socket: the four stations, two packets, radio 1, the settings, three messages, a path for one station and the status. */
 export async function open() {
   const wrapper = mountApp();
   await flushPromises();
@@ -35,7 +35,7 @@ export async function open() {
   socket.say(hello());
   socket.say({ type: "state", topic: "stations", rev: 0, value: stations });
   socket.say({ type: "state", topic: "packets", rev: 0, value: { "1": packet(1), "2": packet(2, { summary: "second" }) } });
-  socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
+  socket.say({ type: "state", topic: "radios", rev: 0, value: Object.fromEntries(radiosOf()) });
   socket.say({ type: "state", topic: "config", rev: 0, value: configValues() }); // (the clock stands at the fixtures' time, so nothing times out)
   socket.say({ type: "state", topic: "messages", rev: 0, value: messages });
   socket.say({ type: "state", topic: "station_prefs", rev: 0, value: { OH2RDG: { path: "OH2RCH-2", rf_only: false, alert: null } } });

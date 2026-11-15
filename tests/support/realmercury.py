@@ -188,13 +188,10 @@ class Page:
                 self.on_error(self.name, message)
 
     def radio(self, kind: str) -> dict[str, Any]:
-        """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by position while that is told (the wire from the round of the radios on), else the old topic of the kind
-        (`tnc` for fm, `hf`); {} while neither is."""
-        rows = self.topics.get("radios")
-        if rows is not None:
-            live = sorted((r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")), key=lambda r: (r.get("position", 0), r.get("id", 0)))
-            return live[0] if live else {}
-        return self.topics.get("tnc" if kind == "fm" else kind) or {}
+        """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by position; {} while there is none or the topic is not told."""
+        rows = self.topics.get("radios") or {}
+        live = sorted((r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")), key=lambda r: (r.get("position", 0), r.get("id", 0)))
+        return live[0] if live else {}
 
     def modem(self) -> dict[str, Any]:
         return self.radio("hf").get("modem") or {}
@@ -208,7 +205,7 @@ class Page:
         return self.radio("hf").get("state") == "connected" and self.modem().get("state") == "running"
 
     def fm_connected(self) -> bool:
-        """The FM radio (the first of the topic `radios`, or the TNC of the topic `tnc` before it) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
+        """The FM radio (the first of the kind of the topic `radios`) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
         return self.radio("fm").get("state") == "connected"
 
     def stations(self) -> dict[str, Any]:

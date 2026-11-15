@@ -128,7 +128,7 @@ describe("turning the network access off", () => {
     openedAt("192.168.1.20");
     const { wrapper, send } = make();
     await wrapper.find("#set-web-network").setValue(true);
-    await wrapper.find("#set-digi-enabled").setValue(true);
+    await wrapper.find("#set-radio-1-digipeat").setValue(true);
     expect(wrapper.find(".confirm-row").exists()).toBe(false);
     expect(send).toHaveBeenCalledWith({ cmd: "set_config", values: { "web/network": "true" } }); // (the next waits for its answer)
   });

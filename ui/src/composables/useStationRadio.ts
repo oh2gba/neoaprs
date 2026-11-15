@@ -1,6 +1,6 @@
 // The radio the messages to a station go on, as the Messages, Email and Stations tabs show it, and Route, where it is chosen (plan sections 6 and 6a). The radio is the daemon's (lib/radios.ts `sendingRadio`: the operator's
 // choice in force, a message of ours on its way, the station's radio now; the main radio for a call the book does not hold and for a row that names none). It is named only where more than one radio is on, and always while it
-// is not on. A control that sends over it is off while its link is down, with that as its reason. Route holds, in this order: the radio (the radios that are on and "Automatic"), where more than one is on (greyed on "Automatic" for a call
+// is not on. A control that sends over it is off while its link is down, with that as its reason. Route holds, in this order: the radio (the radios that are on and send, and "Automatic"), where more than one sends (greyed on "Automatic" for a call
 // the book does not hold: the daemon keeps a choice by call, but only the station's row says it back; the row is there so that nothing moves when the station is heard); then the station's own path on the radio in force and RF only, while a radio that is on may carry a path, greyed with the value kept
 // while the radio in force carries none. A path belongs to the radio it was set on: radio 1's is the topic `station_prefs`, as before, and another radio's the station row's `paths`, set and cleared with the radio named.
 import { computed } from "vue";
@@ -42,7 +42,7 @@ export function useStationRadio(call: () => string, row: () => StationRow | null
     const values = config.value?.values ?? {};
     return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
   });
-  const choices = computed<readonly PageRadio[]>(() => (radios.several.value ? radios.enabled.value : []));
+  const choices = computed<readonly PageRadio[]>(() => (radios.severalSenders.value ? radios.senders.value : [])); // (a radio that only listens is no radio for messages)
   const pathShown = computed(() => radios.allowsPath.value);
   const radioOf = (): RadioId | undefined => (onPrefs.value ? undefined : over.value?.id);
   return {
@@ -50,7 +50,7 @@ export function useStationRadio(call: () => string, row: () => StationRow | null
     named,
     /** why a control that sends over the radio is off; undefined while its link is up */
     offline: computed(() => radioBlockedReason(over.value, named.value)),
-    /** the radios Route's first row offers; none where one radio is on */
+    /** the radios Route's first row offers: those that send, where more than one does */
     choices,
     /** the radio cannot be chosen yet: a call the book does not hold (the daemon keeps a choice by call, but only the station's row says it back); Route's row is there all the same, greyed */
     fixed: computed(() => row() === null),

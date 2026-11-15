@@ -1,13 +1,14 @@
 """The radios on the wire: the row of the topic `radios` (neoaprs/web/tncwire.py `RadioRow`) made from a radio of the settings, what the registry runs of it and the station's table of resources; and the
 devices a radio's settings name, as that table holds them (for the row's problem and for the refusal of a save that names a device another holds, neoaprs/web/confighandlers.py). Split from
-neoaprs/web/views.py, whose `modem_state` it shares with the topic `hf`."""
+neoaprs/web/views.py, whose `modem_state` it shares."""
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Protocol
 
 from neoaprs.claims import PORT_KINDS, Claims
 from neoaprs.clock import iso
-from neoaprs.config import RECEIVE_ONLY
+from neoaprs.config import RX_ONLY_REASONS
+from neoaprs.loraboard import TEXT_LINES
 from neoaprs.radiospec import RadioSpec, log_name, number_in_kind
 from neoaprs.radiotype import RadioId, RadioType, RadioTypeError, ResourceKind
 from neoaprs.radiotypes import kind_field
@@ -64,7 +65,7 @@ def _choices(spec: RadioSpec) -> dict[str, Any]:
 def _beacon(spec: RadioSpec, beacon: RadioBeacon | None) -> dict[str, Any]:
     if beacon is None:
         return {"last_sent": None, "next_due": None, "interval_min": 0, "problem": None}
-    problem = None if not beacon.problem else _problem("transmit.off") if beacon.problem == RECEIVE_ONLY else _problem("beacon.not_sent", reason=beacon.problem)
+    problem = None if not beacon.problem else _problem("transmit.off") if beacon.problem in RX_ONLY_REASONS else _problem("beacon.not_sent", reason=beacon.problem)
     return {"last_sent": iso(beacon.last_sent), "next_due": iso(beacon.next_due), "interval_min": beacon.interval_min if spec.enabled else 0, "problem": problem}
 
 
@@ -74,10 +75,12 @@ def _problem(what: str, **params: str | int) -> dict[str, Any]:
 
 
 def radio_problem(spec: RadioSpec, specs: Sequence[RadioSpec], line: Tnc | None, claims: Claims) -> dict[str, Any] | None:
-    """Why an enabled radio is not connected, as a code (RadioProblem): a device it is set to use that another holds, its modem's reason, a silent line, a search, else not connected; None while it is connected,
-    off or removed."""
-    if line is None or spec.removed or not spec.enabled or line.state is Source.State.CONNECTED:
+    """Why an enabled radio is not connected, as a code (RadioProblem): a device it is set to use that another holds, its modem's reason, a silent line, a search, else not connected; for one that is connected
+    only a LoRa board that sends text lines, which takes nothing until it is set to KISS (`radio.text_lines`); None while it is connected otherwise, off or removed."""
+    if line is None or spec.removed or not spec.enabled:
         return None
+    if line.state is Source.State.CONNECTED:
+        return _problem("radio.text_lines") if line.why_unusable() == TEXT_LINES else None
     if (held := _held_elsewhere(spec, specs, spec.rtype, claims)) is not None:
         return held
     modem = modem_state(line)

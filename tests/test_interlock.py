@@ -72,10 +72,10 @@ async def test_a_fresh_install_transmits_nothing_whatever_it_is_asked_or_due(tmp
     assert e.ctl.config.station_call == "" and e.ctl.stationbook.me is None
     e.now.advance(3600)                                                     # type: ignore[attr-defined]
     await quiet(e)                                                          # the beacon is due, the status is due
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.problem == SET_FIRST and e.ctl.rigstatus.last_text == ""
+    assert e.beacon.last_sent is None and e.beacon.problem == SET_FIRST and e.ctl.rigstatus.last_text == ""
     with pytest.raises(MessagingError, match=SET_FIRST):
         await e.ctl.messaging.send("OH2RDG", "Hello")
-    assert not e.ctl.beacon.send_now("request")
+    assert not e.beacon.send_now("request")
     frame = ax25.Frame(ax25.Address.parse("APZNEO"), ax25.Address.parse("OH2GBA"), (), info=b">sneaky")
     assert not e.tnc.send_frame(frame), "the Tnc itself refuses, whoever built the frame"
     await quiet(e)
@@ -107,11 +107,11 @@ async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_
     e = await started(tmp_path, beacon_interval_min=10, station_lat=60.17, station_lon=24.94)
     e.now.advance(3600)                                                     # type: ignore[attr-defined]
     await quiet(e)
-    assert e.ctl.beacon.last_sent is None
+    assert e.beacon.last_sent is None
     assert await e.ctl.save_config(replace(e.ctl.config, station_call="OH2GBA"))
     me = e.ctl.stationbook.me
     assert me is not None and me.call == "OH2GBA" and (me.lat, me.lon) == (60.17, 24.94)
-    await until(lambda: e.ctl.beacon.last_sent is not None)
+    await until(lambda: e.beacon.last_sent is not None)
     [beacon] = await said(e)
     assert beacon.tnc2() == "OH2GBA>APZNEO,WIDE2-2:=6010.20N/02456.40E-NeoAPRS"
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "Moi!", "12"), path="OH2RCH-2*"))
@@ -126,7 +126,7 @@ async def test_with_a_call_set_the_same_things_go_out_and_a_waiting_beacon_goes_
 async def test_no_position_means_no_beacon_and_no_own_station_but_messages_go(tmp_path: Path) -> None:
     e = await started(tmp_path, station_call="OH2GBA", beacon_interval_min=1440)           # (the beacon is on: the defaults are a beacon that is off)
     assert e.ctl.stationbook.me is None
-    assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem.endswith("set your position first")
+    assert not e.beacon.send_now("request") and e.beacon.problem.endswith("set your position first")
     await quiet(e)
     await e.ctl.messaging.send("OH2RDG", "Hello")
     assert [f.tnc2() for f in await said(e)] == ["OH2GBA>APZNEO,WIDE2-2::OH2RDG   :Hello{01}"]

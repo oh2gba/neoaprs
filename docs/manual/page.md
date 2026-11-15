@@ -193,7 +193,7 @@ A click on a marker opens a card over the map. It is above the markers, clear of
 - the symbol's picture and name, and a small QRZ link beside the call (the base call's page on qrz.com, the SSID off, in a new tab; for a station, yours included, not for an object or an item);
 - a check mark beside the call when the station was heard direct;
 - when the station was last heard ("6 min ago", the full time on hover);
-- the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a KISS TNC none), the full time on hover; a station with no such reading has no row;
+- the signal of the latest packet heard direct from it that a radio measured, with when ("SNR −3 dB, 5 min ago"; the Mercury modem gives the SNR, a LoRa board the SNR and the strength where its firmware says them, a KISS TNC none), the full time on hover; a station with no such reading has no row;
 - its position, how far and in which direction it is from you;
 - its speed and course (only a station that moves has them) and the altitude;
 - the PHG or the range it gave, one line each: the power, height, gain and the range worked out from them, with the antenna drawn as a small arrow after the figures (the direction it favours, north up) or a small circle when it is omni, the compass point and the degrees as its hover title; a DF report or an area the same way. The last given stays until the station gives another;

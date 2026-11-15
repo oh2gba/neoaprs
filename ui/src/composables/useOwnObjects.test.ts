@@ -71,7 +71,7 @@ describe("useOwnObjects", () => {
   it("sends nothing for a new object that has no place, however complete the rest is", () => {
     const { view, sent } = setUp();
     view.draft.name = "NOPLACE";
-    view.save();
+    view.save(1);
     expect(sent).toEqual([]);
   });
 
@@ -153,7 +153,7 @@ describe("useOwnObjects", () => {
     view.place(60.17, 24.94);
     view.draft.comment = "Rescue 1";
     view.draft.speed = "40";
-    view.save();
+    view.save(1);
     expect(sent).toEqual([
       {
         cmd: "object_set",
@@ -169,7 +169,7 @@ describe("useOwnObjects", () => {
         path: null,
         qru_group: "",
         on_request: false,
-        radio: "fm",
+        radios: [1],
       },
     ]);
     expect(view.dirty).toBe(true);
@@ -185,12 +185,12 @@ describe("useOwnObjects", () => {
     view.draft.name = "LEADER";
     view.place(60.17, 24.94);
     view.draft.comment = "Rescue 1";
-    view.save();
+    view.save(1);
     await nextTick();
     expect(view.dirty).toBe(true);
     expect(view.draft).toMatchObject({ name: "LEADER", comment: "Rescue 1" });
     view.draft.comment = "Rescue 2";
-    view.save();
+    view.save(1);
     expect(sent).toHaveLength(2);
     table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94, comment: "Rescue 1" }));
     await nextTick();
@@ -203,7 +203,7 @@ describe("useOwnObjects", () => {
   it("clears the form at once when the object is there as the form has it, with nothing to send", () => {
     const { view, sent } = setUp([ownObject("LEADER", { comment: "Rescue 1" })]);
     view.edit("LEADER");
-    view.save();
+    view.save(1);
     expect(sent).toEqual([]);
     expect(view.editing).toBeNull();
     expect(view.dirty).toBe(false);
@@ -213,7 +213,7 @@ describe("useOwnObjects", () => {
     const { view, sent, table } = setUp([ownObject("LEADER", { comment: "Rescue 1" })]);
     view.edit("LEADER");
     view.draft.comment = "Moved";
-    view.save();
+    view.save(1);
     expect(sent).toHaveLength(1);
     table.set("LEADER", ownObject("LEADER", { comment: "Rescue 1", sent: 5 }));
     await nextTick();
@@ -227,7 +227,7 @@ describe("useOwnObjects", () => {
     const { view, table } = setUp();
     view.draft.name = "ONE";
     view.place(60.17, 24.94);
-    view.save();
+    view.save(1);
     view.cancel();
     view.draft.name = "TWO";
     table.set("ONE", ownObject("ONE", { lat: 60.17, lon: 24.94 }));
@@ -237,12 +237,12 @@ describe("useOwnObjects", () => {
 
   it("sends nothing for a draft that is not ready, and keeps what was typed when the command could not be sent", async () => {
     const { view, sent } = setUp();
-    view.save();
+    view.save(1);
     expect(sent).toEqual([]);
     const down = setUp([], false);
     down.view.draft.name = "LEADER";
     down.view.place(60.17, 24.94);
-    down.view.save();
+    down.view.save(1);
     expect(down.sent).toHaveLength(1);
     expect(down.view.dirty).toBe(true);
     down.table.set("LEADER", ownObject("LEADER", { lat: 60.17, lon: 24.94 }));

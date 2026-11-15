@@ -55,8 +55,6 @@ describe("useDaemonContext", () => {
           radioAdded: daemon.radioAdded,
           config: daemon.config,
           status: daemon.status,
-          tnc: daemon.tnc,
-          hf: daemon.hf,
         }); // (the parts of the daemon the radios are read from, as the page spreads them in: composables/useAppShell.ts)
         return () => h(Pane);
       },
@@ -64,9 +62,9 @@ describe("useDaemonContext", () => {
     mount(Page);
     const socket = FakeSocket.last();
     socket.say(hello());
-    socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "hf/enabled": "true" }) });
+    socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await nextTick();
-    expect([ids, main]).toEqual([[1, 2], 1]);
+    expect([ids, main]).toEqual([[], undefined]);
     socket.say({
       type: "state",
       topic: "radios",

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { effectScope, nextTick, shallowRef } from "vue";
 import type { Toast } from "@/composables/useDaemon";
-import { foundSettings, useFindRadio } from "@/composables/useFindRadio";
+import { useFindRadio } from "@/composables/useFindRadio";
 import type { Connection } from "@/lib/hub";
 import type { RadioSearchMessage } from "@/protocol/protocol";
 import { configValues, radioSearch, toastOf } from "@/test/fixtures";
@@ -16,25 +16,13 @@ function setUp(saved: Record<string, string> = {}) {
   const send = vi.fn(() => true);
   const change = vi.fn();
   const say = vi.fn();
-  const values = { "tnc/profile": "kiss", "serial/port": "", "serial/baud": "9600", ...saved };
+  const values: Record<string, string> = { "radio/1/port": "", "radio/1/baud": "9600", ...saved };
   const config = shallowRef(configValues());
   const scope = effectScope();
-  const find = scope.run(() =>
-    useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key as keyof typeof values] ?? "" }, config, say),
-  );
+  const find = scope.run(() => useFindRadio(message, error, connection, send, { change, expected: (key: string) => values[key] ?? "" }, config, say));
   if (!find) throw new Error("no scope");
   return { find, message, error, connection, send, change, say };
 }
-
-describe("foundSettings", () => {
-  it("is the profile, the port and, for a port that has a speed, the speed", () => {
-    expect(foundSettings(found({ baud: 57600 }))).toEqual({ "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB0", "serial/baud": "57600" });
-    expect(foundSettings(found({ baud: null, port: "bt://AA:BB:CC:DD:EE:FF", profile: "kiss" }))).toEqual({
-      "tnc/profile": "kiss",
-      "serial/port": "bt://AA:BB:CC:DD:EE:FF",
-    });
-  });
-});
 
 describe("useFindRadio", () => {
   it("asks the daemon and says what it asked", () => {
@@ -65,21 +53,21 @@ describe("useFindRadio", () => {
     message.value = found({ baud: 57600 });
     await nextTick();
     expect(find.running.value).toBe(false);
-    expect(change).toHaveBeenCalledWith({ "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB0", "serial/baud": "57600" });
+    expect(change).toHaveBeenCalledWith({ "radio/1/port": "/dev/ttyUSB0", "radio/1/baud": "57600" });
     expect(say).not.toHaveBeenCalled();
   });
 
   it("changes only what differs, and says so when the settings have the radio already", async () => {
-    const { find, message, change, say } = setUp({ "tnc/profile": "kenwood-tnc2" });
+    const { find, message, change, say } = setUp();
     find.start();
     message.value = found();
     await nextTick();
-    expect(change).toHaveBeenCalledWith({ "serial/port": "/dev/ttyUSB0" });
+    expect(change).toHaveBeenCalledWith({ "radio/1/port": "/dev/ttyUSB0" });
     expect(say).not.toHaveBeenCalled();
   });
 
   it("says that nothing changed when the settings have the radio already", async () => {
-    const { find, message, change, say } = setUp({ "tnc/profile": "kenwood-tnc2", "serial/port": "/dev/ttyUSB0", "serial/baud": "9600" });
+    const { find, message, change, say } = setUp({ "radio/1/port": "/dev/ttyUSB0", "radio/1/baud": "9600" });
     find.start();
     message.value = found();
     await nextTick();
@@ -148,7 +136,7 @@ describe("useFindRadio for one radio of several", () => {
     expect(find.running.value).toBe(false);
   });
 
-  it("takes the radio of the box a press came from, with its name where the box gives one, and radio 1 as the command of before", () => {
+  it("takes the radio of the box a press came from, with its name where the box gives one, radio 1 by its id too", () => {
     const { find, send } = setUp();
     const box = document.createElement("fieldset");
     box.dataset["radio"] = "4";
@@ -165,7 +153,7 @@ describe("useFindRadio for one radio of several", () => {
     const press = one.appendChild(document.createElement("button"));
     press.addEventListener("click", (event) => other.find.start(event));
     press.click();
-    expect(other.send).toHaveBeenLastCalledWith({ cmd: "find_radio" });
+    expect(other.send).toHaveBeenLastCalledWith({ cmd: "find_radio", radio: 1 });
     expect(send).toHaveBeenCalledTimes(1);
   });
 
@@ -181,6 +169,6 @@ describe("useFindRadio for one radio of several", () => {
     await nextTick();
     expect(send).toHaveBeenLastCalledWith({ cmd: "radio_change", radio: 3, type: "kenwood-tnc2" });
     expect(change).toHaveBeenCalledWith({ "radio/3/port": "/dev/ttyUSB0", "radio/3/baud": "9600" });
-    expect(change.mock.calls.flatMap((call: unknown[]) => Object.keys(call[0] as Record<string, string>))).not.toContain("tnc/profile");
+    expect(change.mock.calls.flatMap((call: unknown[]) => Object.keys(call[0] as Record<string, string>))).not.toContain("radio/3/type");
   });
 });

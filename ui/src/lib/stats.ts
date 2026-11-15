@@ -6,14 +6,14 @@
 import { formatNumber, t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { timedOut, type Aging } from "@/lib/aging";
-import { internetOnly, onAir, packetTag, radiosOfBefore } from "@/lib/channels";
+import { internetOnly, onAir, packetTag } from "@/lib/channels";
 import { HOUR_MS, ageText, bytesText, distanceText } from "@/lib/format";
 import { digipeaters, gateRows, repeatedCounts } from "@/lib/nearby";
 import { hasPosition } from "@/lib/stations";
 import { isWeatherStation } from "@/lib/weather";
 import type { Point } from "@/lib/chart";
 import { enabledRadios, type PageRadio } from "@/lib/radios";
-import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncState, TncStats } from "@/protocol/protocol";
+import type { IgateState, MapState, PacketHistoryMessage, PacketRow, StationRow, StatusMessage, TncStats } from "@/protocol/protocol";
 
 interface StatLine {
   label: MessageId;
@@ -31,12 +31,8 @@ export interface StatsInput {
   stations: ReadonlyMap<string, StationRow>;
   packets: ReadonlyMap<string, PacketRow>;
   status: StatusMessage | null;
-  /** the FM radio's state; null while the FM radio is off (read only without `radios`) */
-  tnc?: TncState | null;
-  /** the HF radio's state; null while the HF radio is off (read only without `radios`) */
-  hf?: TncState | null;
-  /** every radio, in the order of their boxes (composables/useRadios.ts `all`): the packets are counted by radio, and the counters of those that are on added up; without them, the two radios of before by `tnc` and `hf` */
-  radios?: readonly PageRadio[];
+  /** every radio, in the order of their boxes (composables/useRadios.ts `all`): the packets are counted by radio, and the counters of those that are on added up */
+  radios: readonly PageRadio[];
   igate: IgateState | null;
   /** the map's state: the ALOHA circle's radius is in it */
   map: MapState | null;
@@ -169,11 +165,8 @@ function radioLines(status: StatusMessage | null, counted: readonly TncStats[], 
 /** The sections of the card, each with its lines; a section with no line is left out. */
 export function mapStats(input: StatsInput): StatSection[] {
   const rows = [...input.stations.values()];
-  const radios = input.radios ?? radiosOfBefore(input.hf != null);
-  const counted =
-    input.radios === undefined
-      ? [input.tnc ?? null, input.hf ?? null].flatMap((radio) => (radio === null ? [] : [radio.stats]))
-      : enabledRadios(input.radios).map((radio) => radio.row.stats);
+  const radios = input.radios;
+  const counted = enabledRadios(radios).map((radio) => radio.row.stats);
   const sections: StatSection[] = [
     { title: "stats.section.stations", lines: stationLines(rows, input.aging, input.now) },
     { title: "stats.section.reach", lines: reachLines(rows, input.map) },

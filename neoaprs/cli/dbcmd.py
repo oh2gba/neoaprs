@@ -44,7 +44,7 @@ from neoaprs.versions import NOT_COUNTED
 from neoaprs.store import DB_NAME, Store
 
 from .output import say
-from .radiosettings import FLAT_KEY_OF, flat_home, flat_view, in_force, own_fields, own_key, radio_tables, stored_own, stored_text_of, value_text
+from .radiosettings import FLAT_KEY_OF, flat_home, flat_view, now_on, in_force, own_fields, own_key, radio_tables, stored_own, stored_text_of, value_text
 
 PROG = "neoaprs db"
 READ_WAIT_MS = 3000
@@ -141,8 +141,10 @@ def stored_note(key: str, text: str | None, check: Callable[[str], object]) -> s
     return ""
 
 
-def no_radio_note(key: str, id: int, specs: tuple[RadioSpec, ...]) -> str:
+def no_radio_note(key: str, id: int, own: str, specs: tuple[RadioSpec, ...]) -> str:
     removed = any(s.id == id and s.removed for s in specs)
+    if there := now_on(id, own, specs):
+        return f"{key}: radio {id}{' was removed' if removed else ' is none'}; the default is shown{there}"
     return f"{key}: this station has no {KIND_WORDS[FLAT_KINDS[id]]} radio{f' (radio {id} was removed)' if removed else ''}; the default is shown"
 
 
@@ -152,7 +154,7 @@ def show_one(rows: dict[str, str], radios: Radios, only: str) -> int:
     if only in BY_KEY:
         print(flat_view(rows, specs)[only])
         home = flat_home(only, specs)
-        note = no_radio_note(only, home[0], specs) if home is not None and home[2] is None else stored_note(only, stored_text_of(only, rows, specs, radios.own), lambda t: Config.check(only, t))
+        note = no_radio_note(only, home[0], home[1], specs) if home is not None and home[2] is None else stored_note(only, stored_text_of(only, rows, specs, radios.own), lambda t: Config.check(only, t))
         if note:
             say(f"{PROG}: {note}")
         return 0
@@ -227,8 +229,9 @@ async def store_setting(store: Store, key: str, value: str, text: str) -> int:
     rows, radios = await store.settings(), (await stored_radios(store)).specs
     home = flat_home(key, radios)
     if home is not None and home[2] is None:
-        id, _, _ = home
-        say(f"{PROG}: {key} is a setting of the {KIND_WORDS[FLAT_KINDS[id]]} radio, and this station has none: add it on the page (Settings tab, Radio), then set it here")
+        id, own, _ = home
+        there = now_on(id, own, radios)
+        say(f"{PROG}: {key} is a setting of radio {id}, which this station has not{there}" if there else f"{PROG}: {key} is a setting of the {KIND_WORDS[FLAT_KINDS[id]]} radio, and this station has none: add it on the page (Settings tab, Radio), then set it here")
         return 2
     try:
         if key != NOT_COUNTED:

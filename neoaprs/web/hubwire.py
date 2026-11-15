@@ -74,7 +74,7 @@ class StateMsg(_Message):
 
 class PatchMsg(_Message):
     """What changed in a topic: apply the ops in order; the copy is then at `rev`. An op says what the item is, not what to add, so an op that is applied twice ends where it should. Changes are told
-    on a tick of 100 ms (the topic `tnc` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key."""
+    on a tick of 100 ms (a radio's row in `radios` at most four times a second): what changed between two ticks is one patch for a topic, with at most one op for each key."""
     type: Literal["patch"]
     topic: TopicName
     rev: Revision

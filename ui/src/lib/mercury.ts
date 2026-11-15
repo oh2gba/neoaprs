@@ -1,15 +1,11 @@
 // The two settings of the Mercury HF modem as the Radio group shows them: the sound card as a choice among what the daemon found (`sound_cards` of the ports message), and the keying
-// as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how the setting `mercury/keying` is written.
+// as one choice built from the ports the daemon lists: the radio keys itself (VOX), a CM108 sound chip, or the RTS or DTR line of each serial port (`rts:/dev/ttyUSB0`), which is how a radio's `keying` is written.
 import { t } from "@/i18n";
 import type { Choice } from "@/lib/settingchoices";
-import { HF_PROFILES, LIMITS } from "@/protocol/lists";
+import { LIMITS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const LINES = ["rts", "dtr"] as const;
-
-/** Whether the HF radio is the Mercury modem in these settings (`hf/profile`; Mercury unless they say the Dummy HF radio): the sound card, the keying, Tune and the keying test are the modem's. */
-export const hfIsMercury = (values: Readonly<Record<string, string>>): boolean =>
-  HF_PROFILES.find((p) => p.key === (values["hf/profile"] ?? ""))?.transport !== "dummy";
 
 /** The sound cards as the choice of the Sound card field: the system's name for each, with the id as the hover title; a name that two cards share has its id after it. There is no choice of leaving it to the daemon: the daemon's proposal
  * (`soundCardPick`) is preselected and stored. */

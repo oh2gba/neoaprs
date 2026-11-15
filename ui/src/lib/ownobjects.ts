@@ -183,13 +183,12 @@ export function ticked(own: readonly RadioId[], on: readonly RadioId[], main: Ra
   return next.sort((a, b) => a - b);
 }
 
-/** Whether the object goes out on the radios the command asked for: its ids, or the word of before where the command has no ids. */
+/** Whether the object goes out on the radios the command asked for. */
 function sameRadios(row: OwnObjectRow, command: ObjectCommand): boolean {
-  const ids = command.radios ?? null;
-  return ids === null ? row.radio === (command.radio ?? "fm") : row.radios.length === ids.length && row.radios.every((id, i) => id === ids[i]);
+  return row.radios.length === command.radios.length && row.radios.every((id, i) => id === command.radios[i]);
 }
 
-/** The command that makes or changes the object; null while the draft is not ready. A new object, which has no radios of its own, goes on the main radio (`main`); without one known, on the daemon's default. */
+/** The command that makes or changes the object; null while the draft is not ready, and while there is no radio for it. A new object, which has no radios of its own, goes on the main radio (`main`). */
 export function objectCommand(draft: ObjectDraft, main: RadioId | null = null): ObjectCommand | null {
   const lat = parseNumber(draft.lat);
   const lon = parseNumber(draft.lon);
@@ -197,6 +196,7 @@ export function objectCommand(draft: ObjectDraft, main: RadioId | null = null): 
   const setting = parsePathSetting(draft.path);
   const speed = parseNumber(draft.speed);
   const radios = draft.radios.length > 0 ? [...draft.radios].sort((a, b) => a - b) : main === null ? null : [main];
+  if (radios === null) return null;
   return {
     cmd: "object_set",
     name: draft.name,
@@ -211,7 +211,7 @@ export function objectCommand(draft: ObjectDraft, main: RadioId | null = null): 
     path: setting === null || setting.kind === "auto" ? null : setting.kind === "direct" ? DIRECT : setting.calls.join(","),
     qru_group: draft.qru.trim().toUpperCase(),
     on_request: draft.onRequest,
-    ...(radios === null ? { radio: "fm" as const } : { radios }), // (no radio known: the daemon's own default, radio 1)
+    radios,
   };
 }
 
@@ -251,7 +251,7 @@ export function moveCommand(row: OwnObjectRow, lat: number, lon: number): Object
     path: row.path,
     qru_group: row.qru_group,
     on_request: row.on_request,
-    ...(row.radios.length > 0 ? { radios: [...row.radios] } : { radio: row.radio }),
+    radios: [...row.radios],
   };
 }
 

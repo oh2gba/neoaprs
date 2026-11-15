@@ -5,7 +5,6 @@ import type { RadioNames } from "@/i18n/errortext";
 import { isLoopbackHost } from "@/lib/pagealert";
 import { reasonOf } from "@/lib/settings";
 import { radioFieldOf } from "@/lib/settingsradio";
-import { portForProfile } from "@/lib/tncprofile";
 import { RADIO_TYPES } from "@/protocol/lists";
 import type { ErrorMessage } from "@/protocol/protocol";
 
@@ -16,8 +15,6 @@ const RIGCTLD_DEFAULT = "127.0.0.1:4532";
 export const TOGETHER: Record<string, readonly string[]> = {
   "station/lat": ["station/lat", "station/lon"],
   "station/lon": ["station/lat", "station/lon"],
-  "tcp/host": ["tcp/host", "tcp/port"],
-  "tcp/port": ["tcp/host", "tcp/port"],
 };
 
 /** Every field of every type of radio: its key and the set it is sent with (empty for none). */
@@ -40,14 +37,8 @@ export function togetherOf(key: string): readonly string[] {
 export const refusedAtField = (error: { cmd: string } | null): boolean =>
   error !== null && ["set_config", "qru_ask", "general_query", "radio_change"].includes(error.cmd);
 
-/** The values that must be sent with the change of `key` to `text` so that the change is valid at once: a serial device does not go with a TCP radio type (the port is cleared), and the radio as the source of the status needs a
- * rigctld (the usual one is filled in). `draft` is what the fields hold. */
+/** The values that must be sent with the change of `key` to `text` so that the change is valid at once: the radio as the source of the status needs a rigctld (the usual one is filled in). `draft` is what the fields hold. */
 export function linkedValues(key: string, text: string, draft: Readonly<Record<string, string>>): Record<string, string> {
-  if (key === "tnc/profile") {
-    const port = draft["serial/port"] ?? "";
-    const kept = portForProfile(text, port);
-    return kept === port ? {} : { "serial/port": kept };
-  }
   if (key === "status/source" && text === "rig" && (draft["status/rigctld"] ?? "").trim() === "") return { "status/rigctld": RIGCTLD_DEFAULT };
   return {};
 }

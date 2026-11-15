@@ -12,7 +12,7 @@ from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_sub
 from PyInstaller.utils.win32.versioninfo import FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo, VarStruct, VSVersionInfo
 
 # The commands are imported by name when they are used (neoaprs/cli/__init__.py, servicecmd.backend_for), and pyserial loads its URL handlers by name: PyInstaller cannot see either.
-hidden = collect_submodules("neoaprs") + ["serial.urlhandler.protocol_socket", "serial.urlhandler.protocol_loop", "serial.tools.list_ports_windows"]
+hidden = collect_submodules("neoaprs") + collect_submodules("bleak", filter=lambda name: not any(other in name for other in ("bluezdbus", "corebluetooth", "p4android"))) + collect_submodules("winrt") + ["serial.urlhandler.protocol_socket", "serial.urlhandler.protocol_loop", "serial.tools.list_ports_windows"]      # (bleak is imported where a ble:// port opens, and its Windows backend imports the WinRT modules by name)
 # The app's toolkits: the shell of Windows is imported by name (neoaprs/desktop/cmd.py, shell.choose), pystray picks its backend by name, and pywebview drives WebView2 through pythonnet (clr_loader brings the
 # runtime it loads). pywebview's own PyInstaller hook adds its scripts and its DLLs.
 hidden += ["webview", "webview.platforms.winforms", "webview.platforms.edgechromium", "pystray", "pystray._win32", "PIL.Image"]

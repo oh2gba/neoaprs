@@ -2,9 +2,11 @@ import { mount } from "@vue/test-utils";
 import { shown } from "@/test/shown";
 import { describe, expect, it, vi } from "vitest";
 import EmailCompose from "@/components/EmailCompose.vue";
+import { fakeDaemon, withDaemon } from "@/test/context";
 
+/** The form in the page's context: radio 1 alone, which internet gateways hear (email goes on it). */
 function box(extra: Record<string, unknown> = {}) {
-  return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra }, attachTo: document.body });
+  return mount(EmailCompose, { props: { connected: true, addresses: [], ...extra }, attachTo: document.body, global: withDaemon(fakeDaemon()) });
 }
 const send = (wrapper: ReturnType<typeof box>) => wrapper.find<HTMLButtonElement>("button[type='submit']");
 const picks = (wrapper: ReturnType<typeof box>) => wrapper.findAll(".suggestion-pick").map((b) => b.text());

@@ -37,7 +37,7 @@ class SkedsState(_Model):
         description="`ok`: the board was read (or has not been tried yet), and a sked may be posted. `offline`: the project's server could not be reached or its answer was not a board; `rows` are the last board known, and posting is off. `off`: the check is off "
                     "(`NEOAPRS_UPDATE_CHECK=0`): nothing is read or posted, `rows` is empty. `closed`: the board is closed to new skeds (by the project, or for this call); `rows` are shown without the form")
     fetched_at: Iso | None = Field(description="when the board was last read from the server (or when the one kept from the last run was); null before the first")
-    frequencies: list[SkedFrequency] = Field(max_length=MAX_FREQUENCIES, description="the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of the topic `hf` (the tab does not depend on a radio's state)")
+    frequencies: list[SkedFrequency] = Field(max_length=MAX_FREQUENCIES, description="the dials the project suggests for the HF radio, one to four, the same as `modem.frequencies` of a Mercury radio's row (the tab does not depend on a radio's state)")
     rows: list[SkedRow] = Field(max_length=100, description="the skeds to come by the daemon's clock, the nearest start first; empty when there are none")
 
 

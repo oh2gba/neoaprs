@@ -99,11 +99,6 @@ class StationRow(_Model):
     last_rf_gated_at: Iso | None = Field(description="when a third-party packet of the station was last heard on the radio (`rf-gated`); null when none was")
     last_is_at: Iso | None = Field(description="when a packet of the station was last received from the internet (`is`); null when none was")
     last_dummy_at: Iso | None = Field(description="when a packet of the station was last made up by the Dummy radio (`dummy`); null when none was")
-    heard_fm: int = Field(ge=0, description="how many of the packets of the air (`rf`, `rf-gated` and `dummy` alike) came on radio 1 (the FM radio of before), and how many on radio 2 (the HF radio of before): `heard` has every radio's, "
-                                            "and `radio_now` the radio a message to the station goes out on")
-    heard_hf: int = Field(ge=0, description="how many came on radio 2")
-    last_fm_at: Iso | None = Field(description="when a packet of the station last came on radio 1; null when none did")
-    last_hf_at: Iso | None = Field(description="when a packet of the station last came on radio 2; null when none did")
     heard: dict[str, HeardOn] = Field(description="what each radio heard of the station, by the radio's id as text: how many packets of the air came on it and when the latest did; a radio that heard nothing of it has no entry")
     snr: float | None = Field(description="the signal-to-noise ratio of the latest packet heard direct from the station whose radio measured one, dB (the Mercury modem and the Dummy HF radio do; a digipeater's copy and a third-party packet are another station's signal); null when none was")
     rssi: float | None = Field(description="the received strength of that packet, dBm; null when its radio gave none (Mercury gives none)")
@@ -147,8 +142,6 @@ class StationRow(_Model):
                                           "internet (`heard_is` > 0 and nothing on the radio: a message goes out by radio only); true for every other station, also one whose position says it takes none (`may_not_message`)")
     may_not_message: bool = Field(description="the station's latest position says it takes no messages (it began with `!` or `/`, or was a Mic-E one whose comment begins with the type code `'`) and it never "
                                               "sent a message or an ack: the conversation says a message may not be read there")
-    message_radio: Literal["", "fm", "hf"] = Field(description="the radio the operator chose for messages to the station, as the word of before: `fm` radio 1, `hf` radio 2; empty for the daemon's choice and for a choice "
-                                                   "of another radio (`radio_choice` says which; `radio_now` is the radio a message goes on)")
     radio_choice: int | None = Field(description="the radio the operator chose for messages to the station (`station_radio`), its id, while that radio is enabled; null for the daemon's choice (plan rule 3.2), and while the radio chosen is off")
     radio_now: int | None = Field(description="the radio a message to the station goes out on now, its id: the choice while it is in force, else the radio that heard the station most recently within six hours, a local one (FM, LoRa) before HF, "
                                               "else the radio that heard it last, else the main radio; the email radio for the email gateway. Null for a station that takes no message and while there is no radio. A message on its way keeps its own "

@@ -40,8 +40,9 @@ import { useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
+import { portsAsks } from "@/lib/radios";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
-import { digiPlaces, inputId, shownByRadios, shownFor } from "@/lib/settingsradio";
+import { boxedKey, digiPlaces, inputId, shownByRadios, shownFor } from "@/lib/settingsradio";
 import { useRadios } from "@/composables/useRadios";
 import { statusSource } from "@/lib/status";
 import { statusFrequencyHint } from "@/lib/statusfrequency";
@@ -50,7 +51,7 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, keys, local } = useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, keys, local } = useDaemonContext();
 const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
@@ -76,23 +77,15 @@ function frequencyHint(text: string): string {
   return form === null ? "" : t("settings.station_status.hint", { freq: form });
 }
 /** A field the My station tab greys out while the beacon is Off (shown, with its value, and not changeable). */
-const greyed = (key: string): boolean => props.scope === "beacon" && disabledByValues(key, draft);
+const greyed = (key: string): boolean =>
+  props.scope === "beacon" && disabledByValues(key, draft, radios.enabled.value.length > 0 && radios.senders.value.length === 0); // (no radio on can send: as RX only)
 /** The network is let in and the daemon has made a key (what is in force, not the switch as it is being changed). */
 const network = computed(() => config.value?.values["web/network"] === "true" && (config.value.values[KEY_KEY] ?? "") !== "");
 const urls = computed(() => config.value?.urls ?? []);
 /** Our call in force (the iGate logs in as it, and the page where a passcode is requested is told it); the iGate group asks for it first. */
 const call = computed(() => (config.value?.values["station/call"] ?? "").trim());
 // the answers of the buttons (Test, New key) are said in the toast, so that nothing moves; the answer of Check now is in its row
-watch(
-  () => alertTest.result.value,
-  (result) => result && say(result.text),
-);
-watch(
-  () => newKey.result.value,
-  (result) => result && say(result.text),
-);
-/** The TNC profile as it is being edited: which fields are shown follows it. */
-const profile = computed(() => draft["tnc/profile"]);
+for (const answer of [alertTest.result, newKey.result]) watch(answer, (result) => result && say(result.text));
 /** The keys the Beacon group keeps behind closed headings (the antenna, the path): they are not in the group's own list. */
 const folded = new Set(props.scope === "beacon" ? BEACON_FOLDS.flatMap((fold) => fold.keys) : []);
 const shown = (keys: readonly string[], inGroup = true) =>
@@ -102,13 +95,15 @@ const shown = (keys: readonly string[], inGroup = true) =>
       !(key === "station/lon" && props.scope === "beacon") &&
       !(inGroup && folded.has(key)) &&
       (key !== ALERT_KEY || local.value) &&
-      shownFor(key, profile.value, network.value) &&
-      shownByRadios(key, draft, radios.enabled.value) &&
+      shownFor(key, network.value) &&
+      shownByRadios(key, radios.all.value) &&
       shownByValues(key, draft),
   );
 const radios = useRadios();
+/** The GPS receiver's Refresh asks for the ports by the radios that have sound cards, so that their boxes keep their cards. */
+const askPorts = () => portsAsks(radios.all.value.map((radio) => radio.row)).forEach((ask) => send(ask));
 /** The Digipeater group: an Enable for each radio that may repeat and is on, in a box with the radio's legend where there are several, with its own counts. */
-const digi = computed(() => digiPlaces(radios.all.value, settings.values.value, draft, tnc.value));
+const digi = computed(() => digiPlaces(radios.all.value));
 /** The groups with something to show: the Digipeater group only while a radio that may repeat is on. */
 const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || digi.value.keys.length > 0));
 /** The keys of a group's own fields that are shown (the Digipeater group's are its radios'). */
@@ -134,6 +129,13 @@ watch(
 const folds = props.scope === "settings";
 /** A group has something the person must see, so it opens by itself: a complaint of the daemon about one of its fields, or the question it asks about one. */
 const needsLook = (groupKeys: readonly string[]): boolean => groupKeys.some((key) => (errors[key] ?? "") !== "" || question.value?.key === key);
+/** The fields that open a group: the Digipeater group's are its radios', the Radio group's its own and those of its boxes. */
+const lookKeys = (group: { id: string; keys: readonly string[] }): readonly string[] =>
+  group.id === "digi"
+    ? digi.value.keys
+    : group.id === "serial"
+      ? [...group.keys, ...[...Object.keys(errors), question.value?.key ?? ""].filter(boxedKey)]
+      : group.keys;
 const fallback = (key: string) => defaults.value[key] ?? "";
 /** The keys of a group in boxes: a key with a heading of its own (the daemon's alert) starts a box with its legend that runs to the end of the group; the keys before it are in no box. */
 function boxesOf(keys: readonly string[]) {
@@ -161,14 +163,7 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <SettingsGroup
-      v-for="group in drawn"
-      :id="group.id"
-      :key="group.id"
-      :title="group.title"
-      :fold="folds"
-      :show="needsLook(group.id === 'digi' ? digi.keys : group.keys)"
-    >
+    <SettingsGroup v-for="group in drawn" :id="group.id" :key="group.id" :title="group.title" :fold="folds" :show="needsLook(lookKeys(group))">
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
@@ -217,7 +212,7 @@ function typed(key: string, text: string): void {
             @choose="form.choose({ [key]: $event })"
             @commit="form.finish(key, $event)"
             @cancel="settings.cancel(key)"
-            @refresh="send({ cmd: 'list_ports' })"
+            @refresh="askPorts"
           />
           <SettingsField
             v-else

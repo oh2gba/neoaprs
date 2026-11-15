@@ -1,19 +1,19 @@
 """The composition root: the parts of the program, made in one place. The data directory, the clock, the settings (`config`), the Store, the radios (the registry, `radios`, with each radio's driver, line and beacon), the station book, the GPS and its service, the beacon, the status, the message alert, messaging, the message board,
 the objects and the bulletins of our own and their sender, the queries, the QRU server, the digipeater, the receive-only iGate and its connection to APRS-IS, the base map, Find my radio, the update check and Update now (the services are made here and nowhere else), the station preferences, the packet log, the message log, the bulletin log, the log of our own objects and bulletins, the weather log and the task set. The parts are made here and connected in neoaprs/wiring.py; the start and the stop are neoaprs/controller.py.
 
-The radios are made from the settings (`Config.radios`): from the defaults here, so that the parts made here have radios 1 and 2 to be given, and again by the controller once the stored radios are read.
-Until the round's last wave, `tnc`, `hf`, `mercury`, `beacon` and `hf_beacon` name radio 1's line and beacon and radio 2's line, modem and beacon (the page and the tests reach them so); where the database
-has no radio 2 (HF was never set up) they are a line, a modem and a beacon that stay stopped, and become radio 2's again when the settings name it. Every service that
-sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
+The radios are made from the settings (`Config.radios`): from the defaults here, and again by the controller once the stored radios are read. Each radio's driver makes its line and its modem (a test may
+hand in a line of its own for a radio, by its id: `lines`). Every service that sends or answers takes the registry itself, and our frames are made by one maker (`beacon_frames`).
 """
 import asyncio
 import logging
 import platform
 import sys
 from pathlib import Path
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Protocol
 
-from . import VERSION, stopfile
+from . import VERSION, ax25, stopfile
 from .aprsis import AprsIs
 from .bulletinlog import BulletinLog
 from .claims import Claims
@@ -22,8 +22,6 @@ from .config import DEFAULTS, MESSAGE_RADIOS, Config
 from .db import Db
 from .gpsfeed import GpsFeed
 from .interlock import Interlock
-from .mercuryclaims import radio_folder
-from .mercurymodem import Mercury
 from .messagelog import MessageLog
 from .ownlog import OwnLog
 from .packet import IS, Packet
@@ -31,12 +29,12 @@ from .packetlog import PacketLog
 from .policy import TNC_CHECK_SEC
 from .radiodriver import RadioDriver, RunOverrides
 from .radioregistry import LiveRadio, RadioRegistry, make_driver
-from .radiospec import FM_ID, HF_ID, RadioId, RadioSpec
+from .radiospec import RadioId, RadioSpec
 from .route import Deliveries
 from .serialprobe import search_pattern
 from .services.alerts import Alerts
 from .services.aloha import Aloha
-from .services.beacon import Beacon
+from .services.beacon import Beacon, BeaconError
 from .services.beaconframe import BeaconFrames
 from .services.memory import Remembered
 from .services.bulletins import Bulletins
@@ -56,6 +54,7 @@ from .services.qru import Qru
 from .services.qruask import QruAsk
 from .services.queries import Queries
 from .services.radiofinder import RadioFinder, candidates
+from .services.radioset import AirRadio
 from .services.rigstatus import RigStatus
 from .services.selfinstall import installer_for, release_key, release_source
 from .services.selfupdate import SelfUpdate
@@ -69,9 +68,10 @@ from .stationbook import StationBook, carries_path
 from .store import Store
 from .tasks import TaskSet
 from .tnc import Tnc
-from .tncprofile import MERCURY
+from .tncdriver import listening_ports
 from .updatefetch import fetch as fetch_update
-from .versions import PLAIN_INSTALL, InstallInfo, platform_name
+from .mercury import SUGGESTED
+from .versions import PLAIN_INSTALL, Frequency, InstallInfo, platform_name
 from .weatherlog import WeatherLog
 
 log = logging.getLogger("neoaprs.controller")
@@ -86,11 +86,20 @@ class Frontend(Protocol):
     def settings_changed(self, config: Config) -> None: ...
 
 
+@dataclass(frozen=True)
+class PositionFrames:
+    """Our position packet for the radio an answer goes on, as the queries ask for it (services/queries.py `Frames`)."""
+    made: Callable[[AirRadio | None], ax25.Frame]
+
+    def frame(self, radio: AirRadio | None = None) -> ax25.Frame:
+        return self.made(radio)
+
+
 class Services:
     check_sec: float = TNC_CHECK_SEC         # the keep-alive's quiet period in seconds (the controller is given the run's: the tests make it shorter, or 0 for none)
 
-    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, tnc: Tnc | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False,
-                 hf: Tnc | None = None, hf_port: str = "") -> None:
+    def __init__(self, data_dir: Path, clock: Clock = utcnow, store: Store | None = None, port: str = "", pattern: str = "", install: InstallInfo = PLAIN_INSTALL, auto_map: bool = False, encryption: bool = False,
+                 hf_port: str = "", lines: Mapping[RadioId, Tnc] | None = None) -> None:
         self.data_dir = data_dir
         self.encryption = encryption                                    # the daemon was started with --encryption: encrypted messages may be sent (services/keyring.py)
         self.clock = clock
@@ -100,10 +109,9 @@ class Services:
         self.hf_port_override = hf_port                                 # the HF radio's for this run only (--hf-port): a Mercury that something else runs (the benches), instead of the one the daemon starts
         self.pattern_override = pattern                                 # the globs the search listens to for this run only, instead of serial/pattern (the tests: a folder of their own)
         self.store = store if store is not None else Store(clock)       # the one database: everything is kept in it
-        self.tnc = tnc if tnc is not None else Tnc(clock=clock)         # radio 1's line (the FM radio, a KISS TNC): made with the process, so that the tests may hand theirs in; its driver gives it the settings when it is started
-        self.hf = hf if hf is not None else Tnc(clock=clock, profile=MERCURY)      # radio 2's line (the HF radio): the Tnc that reaches the Mercury modem's KISS port, with the HF rules of its profile
+        self.lines = dict(lines or {})                                  # a line a test hands in for the radio of that id (its driver gives it the settings when it is started); every other radio's driver makes its own
         claims = Claims()                                               # the station's one table of resources (the registry's): what each radio and the GPS receiver hold
-        self.mercury = Mercury(data_dir, clock, claims=claims, holder=HF_ID, folder=radio_folder(data_dir, HF_ID))       # radio 2's modem, the Mercury HF modem: the program its driver starts with the line while the radio is on, its control port, and the hold while it transmits or the channel is busy
+        self.suggested_frequencies = [Frequency(band, dial) for band, dial in SUGGESTED]      # the dials the project suggests, the station's (neoaprs/wiring.py puts the project's list here and on every modem)
         interlock = Interlock(lambda: self.config)                     # the transmit interlock: nothing goes out under no call, or one that is not a call (config.can_transmit)
         self.stationbook = StationBook(clock, carries_path=lambda radio: carries_path(self.config.radios, radio))      # who was heard, where, and on which radio; the routes of the radios that may carry a path are the station's as a whole
         self.radio_packet: Signal[[Packet]] = Signal("radio.packet")    # every packet of every radio, in and out, stamped with its radio: what the parts take (neoaprs/wiring.py connects each radio's line to it)
@@ -133,9 +141,8 @@ class Services:
         return RunOverrides(self.port_override, self.pattern_override, self.hf_port_override, self.check_sec)
 
     def _make_driver(self, spec: RadioSpec, interlock: Interlock) -> RadioDriver:
-        """The driver of a radio's type. Radios 1 and 2 get the lines and the modem made with the process, whatever their type becomes (the page's topics and the tests hold them); any other radio's driver makes its own."""
-        driver = make_driver(spec, self.radios.claims, self.clock, self.data_dir, {FM_ID: self.tnc, HF_ID: self.hf}.get(spec.id), self.mercury if spec.id == HF_ID else None,
-                             search_lock=self.radios.search_lock)
+        """The driver of a radio's type, with the line a test handed in for the radio, else its own."""
+        driver = make_driver(spec, self.radios.claims, self.clock, self.data_dir, self.lines.get(spec.id), search_lock=self.radios.search_lock)
         driver.line.where = lambda: self.config.station_position       # the Dummy radio's traffic is made round it
         driver.line.interlock = interlock
         return driver
@@ -146,19 +153,23 @@ class Services:
         (services/beacon.py memory_key_of: `radio/<id>/beacon_last_sent_at`), and its frames are the station's one maker's."""
         return Beacon(radio, lambda: self.config, self.clock, memory=self.store, frames=self.beacon_frames)
 
-    def _radio(self, id: RadioId) -> Radio:
-        """Radio 1 or 2, which the settings always have until the radios are stored."""
-        radio = self.radios.get(id)
-        assert radio is not None, f"radio {id} is in the settings"
-        return radio
+    def moving_beacon(self) -> Beacon | None:
+        """The beacon a moving station's SmartBeaconing is read from (the page's GPS topic, the support report): that of the first radio the beacon goes out on whose type has SmartBeaconing; None while there is none."""
+        return next((radio.beacon for radio in self.radios.beaconing() if radio.allowed.smart_beacon), None)
+
+    def position_frame(self, radio: AirRadio | None = None) -> ax25.Frame:
+        """Our position packet for the radio an answer goes on (the main radio when the question names none): the station's one maker's. BeaconError when there is no radio, or the settings make no frame."""
+        radio = radio or self.radios.main
+        if radio is None:
+            raise BeaconError("there is no radio that is on")
+        return self.beacon_frames.position(radio)
 
     def _make_radio_parts(self, clock: Clock) -> None:
         """The radios with their beacons, and what the beacons need: the GPS and the status report."""
         self.gps_feed = GpsFeed(clock)                                  # the GPS receiver: a gpsd to ask or a serial port to read; configured and started by the gps service
         self.gps = Gps(self.gps_feed, lambda: self.config, clock)       # the latest GPS fix and how fresh it is, for the moving station's beacon and the page; started by the controller before the beacon
         self.beacon_frames = BeaconFrames(lambda: self.config, self.gps, clock)      # the one maker of our frames: the position, the status report and the position field for any radio (services/beaconframe.py); each radio's beacon, the status report, the queries and the iGate take theirs from it
-        self.radios.sync(self.config)                                   # (radios 1 and 2 of the defaults: the controller syncs again once the settings are read)
-        self.beacon, self.hf_beacon = self._radio(FM_ID).beacon, self._radio(HF_ID).beacon       # radio 1's beacon and radio 2's
+        self.radios.sync(self.config)                                   # (the radios of the defaults: the controller syncs again once the settings are read)
         self.rigstatus = RigStatus(self.radios, lambda: self.config, self.beacon_frames, clock, memory=self.store)  # our status report, from the radio or the static text, at most every status/interval_min, on the main radio; started by the controller after the beacon
         self.alerts = Alerts(lambda: self.config, clock)                # the command run for a message to us; nothing to start
 
@@ -184,7 +195,7 @@ class Services:
         self.qruask = QruAsk(self.radios, lambda: self.config, self.prefbook.path_for, clock)       # asking QRU for local info, and the servers that answered; the Tnc's packets go to it (neoaprs/wiring.py)
         self.generalask = GeneralAsk(self.radios, lambda: self.config, self.stationbook, clock)       # asking around (?APRS?, ?IGATE?, ?WX?) at the operator's request, and the stations heard after it; the Tnc's packets go to it (neoaprs/wiring.py)
         self.messaging = Messaging(self.radios, lambda: self.config, self.messagelog, self.prefbook.path_for, clock, board=self.bulletins.heard, alert=self.alerts.alert, qru=self.qru.heard, qru_answer=self.qruask.answers, keyring=self.keyring)       # messages with acks and retries, by each station's path; started by the controller after the beacon
-        self.queries = Queries(self.radios, lambda: self.config, self.beacon, self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
+        self.queries = Queries(self.radios, lambda: self.config, PositionFrames(self.position_frame), self.rigstatus.status_frame, self.stationbook, self.prefbook.path_for, clock, objects=self.ownobjects,
                                messages=self.messaging, heard=self.packetlog, igate=self.igate, budget=answer_budget)       # the answers to ?APRSP, ?APRSS, ?APRSD, ?APRST, ?PING?, ?APRSO, ?APRSM, ?APRSH, ?APRS? and (while the iGate gates) ?IGATE?, by the asker's path
 
     def _make_map_and_update(self, data_dir: Path, install: InstallInfo, auto_map: bool, clock: Clock) -> None:
@@ -196,7 +207,7 @@ class Services:
         self.install = install                                           # how this copy was installed, for the page (the steps of an update)
         self.updatecheck = UpdateCheck(lambda: self.config, VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), fetch_update, memory=self.store, developer=install.kind == "source")   # once a day: which version is the latest (update/check); started by the controller
         self.frequencies = Frequencies(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), memory=self.store)       # the frequencies the project suggests: a small file asked a minute after the start and when a page shows the HF radio's box; started by the controller
-        self.skeds = Skeds(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), lambda: self.config, lambda: self.mercury.frequencies, memory=self.store)       # the sked board: when people will be on the air, read from the project's server a minute after the start, every six hours and when a page shows the Skeds tab; started by the controller
+        self.skeds = Skeds(VERSION, platform_name(sys.platform, platform.machine(), install.kind == "appimage"), lambda: self.config, lambda: self.suggested_frequencies, memory=self.store)       # the sked board: when people will be on the air, read from the project's server a minute after the start, every six hours and when a page shows the Skeds tab; started by the controller
         self.selfupdate = SelfUpdate(install, installer_for(install, data_dir, self.restart_into, encryption=self.encryption), self._announced, release_source(), end=self._end_for_restart, key=release_key)      # Update now: on the page's request only; nothing to start
         self.reexec: list[str] | None = None                            # the command line that is to run in the place of this process when it has ended (Update now of an AppImage)
 
@@ -218,16 +229,9 @@ class Services:
         return None if found is None else found.deliveries
 
     async def _radio_ports(self) -> list[str]:
-        """The ports Find my radio tries: those of the search for the radio, as the search has them now."""
+        """The ports Find my radio tries: those of the search for the radio, as the search has them now, but the ports the radios that only listen are set to."""
         pattern = self.pattern_override or search_pattern(self.config.serial_pattern)
-        return await asyncio.to_thread(candidates, pattern, self.config.serial_skip_paths)
-
-    async def hold_tnc(self) -> None:
-        """The FM radio lets go of its line, for a search that opens the ports."""
-        await self.tnc.stop()
-
-    def release_tnc(self) -> None:
-        """The radio takes its line again (the controller does)."""
+        return await asyncio.to_thread(candidates, pattern, (*self.config.serial_skip_paths, *listening_ports(self.config)))
 
     async def hold_radio(self, id: RadioId) -> None:
         """One radio lets go of what it holds, for a search that opens the ports (the controller also ends its start)."""

@@ -12,8 +12,10 @@ afterEach(() => {
 });
 
 const KEY = "station/transmit";
+/** The settings told again with these, a radio's own (`radio/1/digipeat`) among the radios' values. */
 const say = async (socket: FakeSocket, rev: number, values: Record<string, string>) => {
-  socket.say({ type: "state", topic: "config", rev, value: configValues(values) });
+  const own = (radio: boolean) => Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith("radio/") === radio));
+  socket.say({ type: "state", topic: "config", rev, value: configValues(own(false), own(true)) });
   await flushPromises();
 };
 const flashed = (control: string) => document.getElementById(control)?.closest("fieldset")?.classList.contains("attend");
@@ -49,7 +51,7 @@ describe("the Daemon mark", () => {
 describe("a text that says RX only", () => {
   it("is a link in the Digipeater and Beacon rows, which opens Settings → Radio and flashes the RX only tickbox", async () => {
     const { wrapper, socket } = await open();
-    await say(socket, 1, { [KEY]: "false", "digi/enabled": "true", "beacon/interval_min": "30", "status/source": "text" });
+    await say(socket, 1, { [KEY]: "false", "radio/1/digipeat": "true", "beacon/interval_min": "30", "status/source": "text" });
     await tabButton(wrapper, "Settings")?.trigger("click");
     const digi = wrapper.findAll("#pane-settings fieldset").find((f) => f.find("legend").text() === "Digipeater");
     const line = digi?.find(".tncstatus button.linkbutton");

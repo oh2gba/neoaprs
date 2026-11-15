@@ -40,7 +40,7 @@ from neoaprs.ax25 import MAX_PATH  # noqa: E402
 from neoaprs.route import DIRECT_ONLY, FIXED_PATH, RF_ONLY, WIDE_PATH, is_alias, is_marker  # noqa: E402
 from neoaprs.callsign import AMATEUR_BASE_MIN, BASE_MAX, MAX_SSID, PLACEHOLDER_CALLS, CallsignError, call_problem, normal_name, parse_call  # noqa: E402
 from neoaprs.pref import ALERT_KM_MAX, ALERT_KM_MIN  # noqa: E402
-from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, KEYS, RADIO_STATION_KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
+from neoaprs.config import ANTENNA_DIRECTIONS, DEFAULT_STATION_HOURS, DEFAULTS, RADIO_STATION_KEYS, LATITUDE, LONGITUDE, MAX_COMMENT, MAX_COMMENT_PHG, MIN_BEACON_INTERVAL_MIN, MIN_STATUS_INTERVAL_MIN, RANGES, STATION_HOURS, SYMBOL_TABLES, Config  # noqa: E402
 from neoaprs.configstatus import MAX_STATUS  # noqa: E402
 from neoaprs.message import EMAIL_GATEWAY, check_text, normal_path  # noqa: E402
 from neoaprs.qrutext import ASK_EVERY_SEC, ASK_GAP_SEC, ASK_KM_MAX  # noqa: E402
@@ -57,6 +57,7 @@ from neoaprs.symbols import IGATE_OVERLAYS, MOBILE_CODES, SYMBOL_NAMES  # noqa: 
 from neoaprs.tncprofile import HF_PROFILES, PROFILES  # noqa: E402
 from neoaprs.versions import compare_versions  # noqa: E402
 from neoaprs.web.hubwire import PROTOCOL  # noqa: E402
+from neoaprs.web.views import CONFIG_KEYS  # noqa: E402
 from neoaprs.web.replaywire import GLIDE_MAX_MIN, SPAN_DAYS  # noqa: E402
 from neoaprs.web.wirebase import HISTORY_MAX_HOURS  # noqa: E402
 
@@ -68,7 +69,7 @@ ERRORS = ROOT / "ui" / "src" / "protocol" / "errors.json"
 SYMBOLS = ROOT / "ui" / "src" / "i18n" / "en" / "symbols.ts"
 DOC = ROOT / "PROTOCOL.md"
 # The order of the first objects of the Objects section of PROTOCOL.md; every other model of the schema follows them, sorted by name.
-OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncState TncStats ConfigValues SetOp DelOp ReplaceOp".split()
+OBJECT_ORDER = "StationRow PacketRow MessageRow DecodedPosition DecodedMessage DecodedObject DecodedItem DecodedStatus DecodedTelemetry DecodedOther DecodedUndecoded DecodedWeather PositionFields TncStats ConfigValues SetOp DelOp ReplaceOp".split()
 
 
 class Protocol(BaseModel):
@@ -213,13 +214,13 @@ def _profiles() -> str:
 
 def _radio_type(t: RadioType) -> dict[str, Any]:
     fields = [{"key": f.key, "kind": f.kind, "range": None if f.range is None else list(f.range), "choices": list(f.choices), "default": f.default, "together": f.together, "text": f.text} for f in t.fields]
-    return {"key": t.key, "kind": t.kind, "text": t.text, "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "fields": fields}
+    return {"key": t.key, "kind": t.kind, "transport": t.transport, "text": t.text.replace("-", "_"), "can": vars(t.can), "allowed": vars(t.allowed), "limits": {"max_frame": t.limits.max_frame, "beacon_min_min": t.limits.beacon_min_min}, "fields": fields}
 
 
 def _radio_types() -> str:
     """The types of radio the page adds and changes a radio to, by kind and in the order it lists them (neoaprs/radiotypes), each with what it can do, what it may do, its limits and its own settings."""
     rows = [_radio_type(t) for kind in KINDS for t in types_of(kind)]
-    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, its catalogue id (`text`), what its box offers (`can`), what we decided it may do (`allowed`), "
+    return ("/** The types of radio, by kind in the order the page lists them, the Dummy last (neoaprs/radiotypes): the `key` a radio's `type` is, how it is reached (`transport`), its catalogue id (`text`: the key's '-' as '_'), what its box offers (`can`), what we decided it may do (`allowed`), "
             "its limits, and its own settings (`fields`, each `radio/<id>/<key>` of `config.radio_values`: its kind, its range or choices, its default as text, the fields sent together, its catalogue id). */\n"
             f"export const RADIO_TYPES = {_literal(rows)} as const;\n")
 
@@ -308,7 +309,7 @@ def lists_text() -> str:
         _number("PROTOCOL", PROTOCOL, "The version of the messages (PROTOCOL of neoaprs/web/hubwire.py): a `hello` of another number means the page is out of date."),
         _array("TOPIC_NAMES", protocol.TOPIC_NAMES, "The topics of the hub, in the order the daemon tells them (TopicValues of neoaprs/web/protocol.py)."),
         _array("MESSAGE_TYPES", sorted(protocol.MESSAGE_NAMES), "Every message the daemon sends (the `type` of the Message union)."),
-        _array("CONFIG_KEYS", tuple(key for key in KEYS if key not in RADIO_STATION_KEYS), "The keys of the settings, in the order of the settings form (SETTINGS of neoaprs/config.py): the keys of `config.values`."),
+        _array("CONFIG_KEYS", CONFIG_KEYS, "The keys of the settings, in the order of the settings form (CONFIG_KEYS of neoaprs/web/views.py): the keys of `config.values`."),
         _array("RADIO_STATION_KEYS", RADIO_STATION_KEYS, "The station's settings of the radios (RADIO_STATION_KEYS of neoaprs/config.py), which `config.radio_values` carries beside the radios' own `radio/<id>/<key>`."),
         _profiles(),
         _radio_types(),
@@ -328,9 +329,9 @@ def binary_text() -> str:
     m = mercuryscope
     return f"""## Binary frames
 
-A page that has asked for the scope (`hf_scope`) is sent **binary frames**: one row of the HF radio's waterfall, at the modem's own resolution, for every {m.ROW_SPECTRA} spectra
+A page that has asked for a radio's scope (`radio_scope`) is sent **binary frames**: one row of that radio's waterfall, at the modem's own resolution, for every {m.ROW_SPECTRA} spectra
 the modem makes (up to ten a second; about {m.ROW_HEADER.size + m.ROW_BINS} bytes each). The socket's binary type on the page is `arraybuffer`. No other page is sent them, and a page whose socket holds a share of what it has not read is skipped.
-A frame is exactly {m.ROW_HEADER.size + m.ROW_BINS} bytes:
+Every frame names its radio (*Frames that name their radio*, below) and carries one of the two kinds that follow. A row is exactly {m.ROW_HEADER.size + m.ROW_BINS} bytes:
 
 | offset | size | field | meaning |
 |---:|---:|---|---|
@@ -346,7 +347,7 @@ A row is wholly of reception or wholly of our own transmission. A row carries no
 
 The daemon makes the rows all the time and keeps those of the last {m.HISTORY_SEC} s (at most {m.HISTORY_ROWS}). A page that asks for the scope is sent them first, in **one frame of the rows kept**, and then every row made after the newest of them, none twice and none
 left out. A page that is behind when it asks is sent no rows kept, only the rows that follow once it has read. When the rows kept would lie (the modem stopped, ended or started anew, its control line or the link to its interface made
-anew, the HF radio's type, sound card or keying changed), they are forgotten and every page that has the scope open is sent the frame with no row, which says to forget them too (a page that is behind, as soon as it has read).
+anew, the radio's type, sound card or keying changed), they are forgotten and every page that has the scope open is sent the frame with no row, which says to forget them too (a page that is behind, as soon as it has read).
 A page that asks again on the same socket is sent the rows from the one before the newest it was sent on, while they are kept, and finds by those two where they go on from what it holds. The frame is the kind and the daemon's
 clock, then each row, oldest first, {m.HISTORY_ROW.size + m.ROW_BINS} bytes each (a full one is about {(m.HISTORY_HEADER.size + m.HISTORY_ROWS * (m.HISTORY_ROW.size + m.ROW_BINS)) // 1000} KB):
 
@@ -361,9 +362,8 @@ clock, then each row, oldest first, {m.HISTORY_ROW.size + m.ROW_BINS} bytes each
 
 A page that does not know this kind lets it go, as it does any other, and has the rows from then on.
 
-**Frames that name their radio.** The scope of a radio asked for by radio (`radio_scope`) comes in frames of a third kind, which say whose rows they carry: every radio's but radio 2's always, and radio 2's (the HF radio
-of before) when the page asks with `named`; without it radio 2's come in the two kinds above, which name no radio. A page may look at several radios at once, each with its own rows kept and its own hand-over as above.
-Such a frame is the kind and the radio's id, then a frame of one of the two kinds above, whole (a row, or the rows kept, with its own kind byte):
+**Frames that name their radio.** Each frame of a radio's scope says whose rows it carries: a page may look at several radios at once, each with its own rows kept and its own hand-over as above. Such a frame is
+the kind and the radio's id, then a frame of one of the two kinds above, whole (a row, or the rows kept, with its own kind byte):
 
 | offset | size | field | meaning |
 |---:|---:|---|---|
@@ -430,8 +430,8 @@ holds more than 4 MiB it has not read is sent no patches and is sent the topic w
 ## Following the state of the daemon
 
 The state of the daemon that a page shows and that changes is held in named *topics* (`neoaprs/web/hub.py`; what changes each is in the table of `neoaprs/web/topics.py`). The value of each topic is in *Topics*
-below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`tnc`, `hf`, `config`, `map`, `update`, `gps`, `igate`, `qru`, `skeds`, `general`), which changes by `replace`, and a **table of items** by
-key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
+below; its type is the one in `TopicValues` of `neoaprs/web/protocol.py`. There are two kinds: a topic of **one whole value** (`config`, `map`, `update`, `gps`, `igate`, `qru`, `skeds`, `general`), which changes by `replace`, and a **table of items** by
+key (`stations`, `station_prefs` and `station_keys` by call, `packets` and `messages` by id as text, `radios` by id as text, `bulletins` by `sender/slot`, `own_objects` by name, `own_bulletins` by slot), which changes by `set` and `del` of one item.
 
 ### `subscribe` and `unsubscribe`
 
@@ -447,8 +447,8 @@ sent when it was too slow to be sent patches and has read down its socket.
 
 `patch` is what changed: `rev`, the revision the copy is at when the ops are applied in order, and the ops: `replace` (the whole value), `set` (the item at `key` is `value`) and `del` (the item
 is gone). An op says what the item *is*, not what to add, so an op that is applied twice ends where it should. A change of the daemon is told on the hub's **tick** of 100 ms: what changed between
-two ticks is one patch for a topic, with at most one op for each key, so a burst of 200 packets is one message. The topic `tnc` changes with every line the TNC sees and is told at most four times a
-second. A page that sees a revision other than the one before plus one has missed something and asks again with `subscribe`.
+two ticks is one patch for a topic, with at most one op for each key, so a burst of 200 packets is one message. A radio's row in `radios` changes with every line its TNC sees and is told at most four times
+a second. A page that sees a revision other than the one before plus one has missed something and asks again with `subscribe`.
 
 Revisions count up in each topic and start again at 0 when the daemon starts. The packets of a topic `packets` are numbered by the daemon in the order they come in this run (`id`); the 200 the
 daemon starts with are the latest the database holds. The messages of a topic `messages` are numbered by the database (`id`) and kept across runs; the daemon holds all of them

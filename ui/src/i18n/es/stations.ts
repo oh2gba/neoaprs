@@ -198,6 +198,7 @@ export const stations: Readonly<Record<keyof typeof en, Message>> = {
   "channel.rf": "RF",
   "channel.fm": "FM",
   "channel.hf": "HF",
+  "channel.lora": "LoRa",
   "channel.gated": "iGate",
   "channel.is": "Internet",
   "channel.dummy": "Dummy",

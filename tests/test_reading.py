@@ -14,7 +14,7 @@ from neoaprs.dummyline import DUMMY_PATH
 from neoaprs.dummyscene import Scene
 from neoaprs.mercury import ControlEvent
 from neoaprs.packet import Packet
-from neoaprs.reading import NO_READING, PAIR_SEC, Pending, Reading
+from neoaprs.reading import NO_READING, PAIR_SEC, Following, Pending, Reading
 from neoaprs.station import Station
 from neoaprs.stationbook import StationBook
 from neoaprs.stationnotes import note_heard
@@ -30,6 +30,21 @@ from tests.test_tnc import Rigs, kiss_of, stops_rigs, ui_frame
 @pytest.fixture
 def rig() -> Rigs:
     return Rigs()
+
+
+def test_frames_held_for_a_reading_said_after_them_go_on_in_their_order_with_it_or_without_it_once_their_wait_is_over() -> None:
+    held: Following[str] = Following(0.5)
+    assert held.due(0.0) == [] and not held.waiting(), "with no source of readings, nothing is held and nothing waits"
+    held.hold("a", "a", 10.0)
+    held.hold("b", "b", 10.1)
+    assert held.report(Reading(snr=1.0), 10.15) == [], "a report goes to the latest frame, and the first still waits: nothing goes before it"
+    assert held.due(10.49) == [] and held.due(10.5) == [("a", NO_READING), ("b", Reading(snr=1.0))], "the first goes on without one when its wait is over, and the second with its own after it"
+    held.hold("c", "c", 20.0)
+    held.hold("d", "d", 20.1)
+    assert held.report(Reading(rssi=-90.0), 20.2, key="c") == [("c", Reading(rssi=-90.0))] and held.keys() == ["d"], "a report by key: that frame, which is first, goes at once"
+    assert held.release() == [("d", NO_READING)] and not held.waiting(), "the source is gone: every frame goes on as it is"
+    held.hold("e", "e", 30.0)
+    assert held.report(Reading(snr=2.0), 30.1, key="nobody") == [] and held.due(30.6) == [("e", NO_READING)], "a report of a frame that is not held changes nothing"
 
 
 def test_a_reading_said_before_its_frame_is_taken_by_that_frame_once_and_only_within_the_pair_time() -> None:

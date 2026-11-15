@@ -169,6 +169,9 @@ class OldRadios:
     def enabled(self) -> Sequence[AirRadio]:
         return [air for radio in (self._old.on if isinstance(self._old, RadioSet) else [self._old]) if (air := self._air(radio)) is not None]
 
+    def senders(self) -> Sequence[AirRadio]:
+        return self.enabled()                              # (the old shapes know no radio that cannot send)
+
     @property
     def main(self) -> AirRadio | None:
         return self._air(self._old)
@@ -195,7 +198,7 @@ def as_pick(radios: RadioPick | Radio, config: ConfigSource) -> RadioPick:
 
 def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId | None = None) -> AirRadio:
     """The radio a request of the operator's to no station in particular goes on (asking around, asking QRU: plan rule 3.6): the one named, else the main radio. MessagingError while there is none, the one
-    named is not on, or it does not take frames now (why not)."""
+    named is not on or only receives (`radio.receive_only`), or it does not take frames now (why not)."""
     pick = as_pick(radios, config)
     if radio is None:
         chosen = pick.main
@@ -206,6 +209,8 @@ def asked_radio(radios: RadioPick | Radio, config: ConfigSource, radio: RadioId 
         if found is None:
             named = pick.get(radio)
             raise MessagingError("there is no such radio" if named is None else f"the radio {named.name} is off" if named.name else "that radio is off")
+        if not any(r.id == radio for r in pick.senders()):
+            raise MessagingError(f"the {found.name} radio only receives: nothing can be sent on it", "radio.receive_only", name=found.name, radio=radio)      # (the page offers it for no request)
         chosen = found
     if not chosen.usable:
         raise MessagingError(chosen.why_unusable())
@@ -222,7 +227,7 @@ RX_ONLY = "RX only: nothing is sent"                                # what a ref
 
 def transmit_refusal(config: Config, error: type[CodedError] = CodedError) -> CodedError | None:
     """Why nothing may be sent now, as an error of the class given (not raised): receive only (the code `transmit.off`), or the interlock's reason (no call); None when we may send."""
-    if not config.station_transmit:
+    if not config.station_transmit or config.listens_only:
         return error(RX_ONLY, "transmit.off")
     if reason := can_transmit(config):
         return error(reason)

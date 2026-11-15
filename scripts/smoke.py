@@ -7,7 +7,7 @@ Windows) and must end with exit code 0, a log whose last line is `NeoAPRS ended`
   scripts/smoke.py                                  the daemon of this interpreter: python -m neoaprs
   scripts/smoke.py --command VENV/bin/neoaprs        the installed command (VENV\\Scripts\\neoaprs.exe on Windows), as CI runs it against the wheel
 Run it with the Python that has neoaprs installed (it uses Tornado's WebSocket client). The other scripts that talk to a daemon's page take its socket and its readers from here (`PageSocket`, `radio_of`,
-`heard_on`, `give_radio`): each reads the radios on the wire the daemon's hello names, the topic `radios` from the round of the radios on and `tnc`/`hf` before it, so that a daemon of either kind is checked. Exit code 0: all is well; 1: the first thing that was not, said on stderr with the end of the daemon's log.
+`heard_on`, `give_radio`): each reads the radios by the topic `radios` and works them by the radio commands. Exit code 0: all is well; 1: the first thing that was not, said on stderr with the end of the daemon's log.
 """
 import argparse
 import asyncio
@@ -33,10 +33,7 @@ FIXTURE = ROOT / "tests" / "fixtures" / "kiss" / "thd7-2026-10-21.bin"
 LOG = "neoaprs.log"
 DATABASE = "neoaprs.sqlite"
 WINDOWS = sys.platform == "win32"
-RADIOS = "radios"                                                                       # the topic of every radio, keyed by its id (from the round of the radios on)
-OLD_TOPICS = {"fm": "tnc", "hf": "hf"}                                                  # the topic of a kind's one radio before it
-OLD_KEYS = {"fm": {"enabled": "fm/enabled", "type": "tnc/profile", "port": "serial/port", "baud": "serial/baud", "tcp_host": "tcp/host", "tcp_port": "tcp/port"},
-            "hf": {"enabled": "hf/enabled", "type": "hf/profile", "sound_card": "mercury/sound_card", "keying": "mercury/keying", "tx_gain_db": "mercury/tx_gain_db"}}     # a radio's own keys as the flat settings had them
+RADIOS = "radios"                                                                       # the topic of every radio, keyed by its id
 
 
 class Failure(Exception):
@@ -170,11 +167,11 @@ def check_the_world_map(base: str) -> None:
 
 
 async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
-    """Opens /ws as the page does and waits until the FM radio (the fake TNC of --port) is `connected` and a packet is there; returns the state and the number of packets. The radio is read on the wire the
-    hello names (wire_of): the topic `radios`, or `tnc` before it."""
+    """Opens /ws as the page does and waits until the FM radio (the fake TNC of --port) is `connected` and a packet is there; returns the state and the number of packets. The radio is read in the topic
+    `radios`, which the hello must name."""
     page = await PageSocket.open(base)
     try:
-        wire = page.wire                                                                # (a hello that names no radio topic is a Failure here, before the wait)
+        wire = page.wire                                                                # (a hello that names no topic `radios` is a Failure here, before the wait)
         await page.until(f"the FM radio connected and a packet (the topic {wire})", lambda p: radio_state(p.topics, "fm") == "connected" and bool(p.topics.get("packets")), seconds)
         return "connected", len(page.topics["packets"])
     finally:
@@ -182,27 +179,22 @@ async def watch_the_socket(base: str, seconds: float) -> tuple[str, int]:
 
 
 def wire_of(hello: dict[str, Any]) -> str:
-    """Which wire the daemon speaks, from the topics its `hello` lists: `radios` from the round of the radios on (the topic `radios`, the commands that name a radio, the rows' `heard` by radio), `tnc` before
-    it (the topics `tnc` and `hf`, the flat radio keys). A daemon that lists neither is a Failure, never a guess."""
+    """The topic of the radios, `radios`, which the daemon's `hello` must list (the commands that name a radio, the rows' `heard` by radio go with it). A daemon that does not list it is a Failure, never a guess."""
     topics = hello.get("topics") or []
     if RADIOS in topics:
         return RADIOS
-    if OLD_TOPICS["fm"] in topics:
-        return OLD_TOPICS["fm"]
-    raise Failure(f"the daemon tells of no radio: its hello lists neither the topic {RADIOS} nor {OLD_TOPICS['fm']} ({', '.join(topics) or 'no topic'})")
+    raise Failure(f"the daemon tells of no radio: its hello does not list the topic {RADIOS} ({', '.join(topics) or 'no topic'})")
 
 
 def live_radios(topics: dict[str, Any], kind: str) -> list[dict[str, Any]]:
-    """The radios of a kind that are not removed, by position, as the topic `radios` tells them; [] while it is not told (or on the wire before it)."""
+    """The radios of a kind that are not removed, by position, as the topic `radios` tells them; [] while it is not told."""
     rows = (topics.get(RADIOS) or {}).values()
     return sorted((row for row in rows if row.get("kind") == kind and not row.get("removed")), key=lambda row: (row.get("position", 0), row.get("id", 0)))
 
 
 def radio_of(topics: dict[str, Any], kind: str) -> dict[str, Any] | None:
-    """The radio of a kind as the page holds it: the first enabled one of the topic `radios` while that is told, else the topic of the kind on the wire before it (`tnc` for fm, `hf`); None while neither is."""
-    if RADIOS in topics:
-        return next((row for row in live_radios(topics, kind) if row.get("enabled")), None)
-    return topics.get(OLD_TOPICS.get(kind, kind))
+    """The radio of a kind as the page holds it: the first enabled one of the topic `radios`; None while there is none or the topic is not told."""
+    return next((row for row in live_radios(topics, kind) if row.get("enabled")), None)
 
 
 def radio_state(topics: dict[str, Any], kind: str) -> str | None:
@@ -218,17 +210,13 @@ def modem_state(topics: dict[str, Any], kind: str, id: int | None = None) -> str
 
 
 def heard_on(topics: dict[str, Any], row: dict[str, Any], kind: str) -> int:
-    """How many packets of a station's row came on the radios of a kind: its `heard` by radio id, counted for the radios of that kind of the topic `radios`, where the row has it; else its old count (`heard_fm`,
-    `heard_hf`). A row with `heard` read before the topic `radios` has come counts 0 (the hello lists the stations first: a radio not yet told is one whose kind is not yet known), as does a radio the row names
-    that `radios` does not yet tell. A row with neither field is a Failure: the wire changed under the script."""
-    if "heard" in row and RADIOS in topics:
-        kinds = {str(radio.get("id")): radio.get("kind") for radio in (topics.get(RADIOS) or {}).values()}
-        return sum(int((heard or {}).get("count") or 0) for id, heard in (row.get("heard") or {}).items() if kinds.get(str(id)) == kind)
-    if f"heard_{kind}" in row:
-        return int(row[f"heard_{kind}"] or 0)
-    if "heard" in row:
-        return 0
-    raise Failure(f"the row of {row.get('call')} says nothing of what the {kind} radios heard: neither heard (by radio) nor heard_{kind}")
+    """How many packets of a station's row came on the radios of a kind: its `heard` by radio id, counted for the radios of that kind of the topic `radios`. A row read before the topic `radios` has come counts 0
+    (the hello lists the stations first: a radio not yet told is one whose kind is not yet known), as does a radio the row names that `radios` does not yet tell. A row without `heard` is a Failure: the wire
+    changed under the script."""
+    if "heard" not in row:
+        raise Failure(f"the row of {row.get('call')} says nothing of what the {kind} radios heard: it has no heard (by radio)")
+    kinds = {str(radio.get("id")): radio.get("kind") for radio in (topics.get(RADIOS) or {}).values()}
+    return sum(int((heard or {}).get("count") or 0) for id, heard in (row.get("heard") or {}).items() if kinds.get(str(id)) == kind)
 
 
 class PageSocket:
@@ -306,15 +294,10 @@ class PageSocket:
         self.connection.close()
 
 
-async def give_radio(page: PageSocket, kind: str, radio_type: str, values: dict[str, str], seconds: float) -> int | None:
-    """Makes the first radio of a kind one of `radio_type`, enabled, with its own `values` (by the radio's keys: `keying`, `sound_card` ...), the way the page does it on the wire the daemon speaks: from the round of the
-    radios on the radio commands (`radio_add` when the station has no radio of the kind, `radio_change`) and `radio/<id>/<key>` in `set_config`; before it the flat keys (`hf/enabled`, `hf/profile`, `mercury/*`).
-    Waits until the daemon tells it so; a refusal is a Failure. The radio's id on the wire of the radios, None before it (where the flat keys are radio 2's, the HF radio's, and radio 1's)."""
-    await page.until("the settings and the radios told", lambda p: "config" in p.topics and (p.wire != RADIOS or RADIOS in p.topics), seconds)
-    if page.wire != RADIOS:
-        old = OLD_KEYS[kind]
-        await page.set_config({old["enabled"]: "true", old["type"]: radio_type, **{old[key]: value for key, value in values.items()}}, seconds)
-        return None
+async def give_radio(page: PageSocket, kind: str, radio_type: str, values: dict[str, str], seconds: float) -> int:
+    """Makes the first radio of a kind one of `radio_type`, enabled, with its own `values` (by the radio's keys: `keying`, `sound_card` ...), the way the page does it: the radio commands (`radio_add` when the
+    station has no radio of the kind, `radio_change`) and `radio/<id>/<key>` in `set_config`. Waits until the daemon tells it so; a refusal is a Failure. The radio's id."""
+    await page.until(f"the settings and the radios told (the topic {page.wire})", lambda p: "config" in p.topics and RADIOS in p.topics, seconds)      # (a hello without it is a Failure, before the wait)
     radio = next(iter(live_radios(page.topics, kind)), None)
     if radio is None:
         since = await page.send({"cmd": "radio_add", "type": radio_type})

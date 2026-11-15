@@ -30,7 +30,7 @@ async def test_the_hf_radio_starts_while_the_fm_radio_is_still_looking_for_its_p
     e.tnc.start = looking                                                           # type: ignore[method-assign]
     await w.air.start()
     await e.start(connected=False)
-    await until(lambda: e.hf.usable and e.ctl.mercury.running)
+    await until(lambda: e.hf.usable and e.mercury.running)
     assert e.tnc.state is Source.State.CONNECTING
 
 
@@ -38,29 +38,29 @@ async def test_one_radio_is_restarted_alone_with_its_modem_and_all_of_them_toget
     w, e = await two_radios(tmp_path)
     await w.air.start()
     await e.start()
-    await until(lambda: e.tnc.usable and e.hf.usable and e.ctl.mercury.running, 15.0)
+    await until(lambda: e.tnc.usable and e.hf.usable and e.mercury.running, 15.0)
     seen: dict[int, list[Source.State]] = {FM_ID: [], HF_ID: []}
     e.tnc.state_changed.connect(seen[FM_ID].append)
     e.hf.state_changed.connect(seen[HF_ID].append)
     modem_starts: list[bool] = []
-    start = e.ctl.mercury.start
+    start = e.mercury.start
 
     async def counted(*args: object, **kwargs: object) -> None:
         modem_starts.append(True)
         await start(*args, **kwargs)                                                # type: ignore[arg-type]
 
-    e.ctl.mercury.start = counted                                                   # type: ignore[method-assign]
+    e.mercury.start = counted                                                   # type: ignore[method-assign]
     e.ctl.start_radio(FM_ID)
     await until(lambda: Source.State.STOPPED in seen[FM_ID] and e.tnc.usable, 15.0)
     assert seen[HF_ID] == [] and modem_starts == [], "radio 1 alone: the HF radio kept its line and its modem"
     seen[FM_ID].clear()
     e.ctl.start_radio(HF_ID)
-    await until(lambda: Source.State.STOPPED in seen[HF_ID] and e.hf.usable and e.ctl.mercury.running, 15.0)
+    await until(lambda: Source.State.STOPPED in seen[HF_ID] and e.hf.usable and e.mercury.running, 15.0)
     assert seen[FM_ID] == [] and modem_starts == [True], "radio 2 alone, its modem first"
     seen[HF_ID].clear()
     e.ctl.start_tnc()
     await until(lambda: Source.State.STOPPED in seen[FM_ID] and Source.State.STOPPED in seen[HF_ID] and e.tnc.usable and e.hf.usable, 15.0)
-    assert modem_starts == [True, True] and e.ctl.beacon.running and e.ctl.hf_beacon.running
+    assert modem_starts == [True, True] and e.beacon.running and e.beacon_2.running
 
 
 async def test_a_start_that_is_still_looking_for_the_port_is_ended_by_the_next_start_of_that_radio_and_no_other(tmp_path: Path) -> None:
@@ -94,7 +94,7 @@ async def test_the_radios_start_all_the_same_when_the_modem_cannot_be_started(tm
     async def refuses(*args: object, **kwargs: object) -> None:
         raise OSError("no such program")
 
-    e.ctl.mercury.start = refuses                                                   # type: ignore[method-assign]
+    e.mercury.start = refuses                                                   # type: ignore[method-assign]
     await w.air.start()
     with caplog.at_level(logging.ERROR, logger="neoaprs.controller"):
         await e.start(connected=False)

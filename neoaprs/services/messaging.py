@@ -58,7 +58,7 @@ from neoaprs.services.inbox import Inbox, shared_with
 from neoaprs.services.messageradio import MessageRadios, info, last_run, named
 from neoaprs.services.keyring import Keyring
 from neoaprs.services.pace import SPACING_SEC, Pace
-from neoaprs.services.radioset import AirRadio, RadioPick, path_on
+from neoaprs.services.radioset import AirRadio, RadioPick, ack_radio, path_on
 from neoaprs.services.retries import Retries
 from neoaprs.signal import Signal
 from neoaprs.source import Source
@@ -388,4 +388,4 @@ class Messaging:
     def ack(self, to: str, msg_id: str, reply_ack: str | None = None, packet: Packet | None = None) -> None:
         """Acknowledges message `msg_id` of the station `to`: `ackMM`, or the number as it came for a message with a reply-ack number, `ackMM}` for `{MM}` (`reply_ack` "") and `ackMM}AA` for `{MM}AA`; on the radio the
         message (`packet`) came on."""
-        self.acks.send(to, msg_id, reply_ack, None if packet is None else as_pick(self._given, self._config).for_packet(packet))
+        self.acks.send(to, msg_id, reply_ack, None if packet is None else ack_radio(as_pick(self._given, self._config), packet, to))

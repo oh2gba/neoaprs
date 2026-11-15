@@ -8,6 +8,7 @@ export const shell: Record<keyof typeof source, Message> = {
   "header.project_title": "NeoAPRSプロジェクトのページ",
   "pill.rx": "RX only",
   "pill.rx_title": "何も送信しません。設定 → 無線機 → RX only",
+  "pill.rx_title_radios": "Nothing is sent. Settings → Radio",
   "pill.beacon_off": "ビーコン停止",
   "pill.beacon_off_title": "自動のビーコンとステータスは送りません。自局タブ",
   "pill.internet": "Internet",

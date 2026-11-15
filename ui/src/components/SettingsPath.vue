@@ -2,8 +2,8 @@
 // The beacon's path as one choice: Recommended (the empty setting; the path of the station's symbol, WIDE1-1,WIDE2-1 for a moving station and WIDE2-2 for a fixed one: the `recommended` the form works out), Direct only (no digipeaters) and Custom, which shows a field for the calls. Recommended and Direct only apply at once (`choose`);
 // the custom calls apply on Enter or when the field is left (`commit`), and Esc (`cancel`) puts the path in force back. A path that is neither of the first two (WIDE2-2) shows as Custom with its calls in the field. An empty custom
 // field is the recommended path again. The path builder's button (PathBuilder) beside the choice builds a path from the one in force, held to the setting's rule; Use applies it at once, as a choice does (DIRECT is Direct only).
-// With the radios: a Path row for each radio that is on and may carry a path (lib/beaconstatus.ts `pathRows`), each named while several radios are on ("FM: path") and each the radio's own setting (`radio/<id>/path`; radio 1's
-// is `beacon/path` while the settings of before are there), worked on the page's settings as the form works its fields. A station with one radio has the one row of the props, as it had; so has a page with no context.
+// With the radios: a Path row for each radio that is on and may carry a path (lib/beaconstatus.ts `pathRows`), each named while several radios are on ("FM: path") and each the radio's own setting (`radio/<id>/path`),
+// worked on the page's settings as the form works its fields. A page with no context has the one row of the props.
 import { computed, inject, ref, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import SettingsField from "@/components/SettingsField.vue";
@@ -39,7 +39,7 @@ const inForce = (key: string): string => radioValueOf(page?.config.value ?? null
 const valueOf = (key: string): string => settings?.draft[key] ?? inForce(key);
 const changedOf = (key: string): boolean => settings !== undefined && valueOf(key) !== (key in settings.values.value ? settings.expected(key) : inForce(key));
 const infoOf = (name: string | null): FieldInfo => (name === null ? props.info : { ...props.info, label: t("settings.path.on_radio", { name }) });
-const idOf = (key: string): string => (key === "beacon/path" ? props.id : `set-${fieldId(key)}`);
+const idOf = (key: string): string => `set-${fieldId(key)}`;
 // a radio's path that the settings do not hold yet follows the daemon, as their own keys do
 watch(
   () => Object.fromEntries((rows.value ?? []).map((one) => [one.key, inForce(one.key)])),
@@ -49,7 +49,7 @@ watch(
 function commitRow(key: string): void {
   if (settings === undefined) return;
   const problem = problemOf("beacon/path", settings.draft[key] ?? "");
-  if (key !== "beacon/path" && problem !== "") settings.errors[key] = problem;
+  if (problem !== "") settings.errors[key] = problem;
   else settings.commit([key]);
 }
 function cancelRow(key: string): void {

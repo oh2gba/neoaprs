@@ -11,7 +11,7 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Scope } from "@/lib/settings";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, ownObject } from "@/test/fixtures";
+import { configValues, ownObject, radioRow, radiosTopic } from "@/test/fixtures";
 
 /** The fields that have no (i) on purpose, by the text of their label, with why. */
 const ALLOWED_OBJECTS: Record<string, string> = {
@@ -46,8 +46,12 @@ function objectsForm(rows = [ownObject("LEADER")]) {
   return mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" } });
 }
 
+/** The tab with these settings; a radio's own (`radio/1/tcp_host`) makes radio 1 a TNC over TCP, whose box shows those fields. */
 function settingsTab(scope: Scope, extra: Record<string, string>) {
-  return mount(SettingsForm, { props: { scope }, global: withDaemon(fakeDaemon({ config: configValues(extra) })) });
+  const own = (radio: boolean) => Object.fromEntries(Object.entries(extra).filter(([key]) => key.startsWith("radio/") === radio));
+  const tcp = Object.keys(own(true)).length > 0;
+  const radios = radiosTopic(radioRow(1, tcp ? "kiss-tcp" : "kenwood-tnc2"));
+  return mount(SettingsForm, { props: { scope }, global: withDaemon(fakeDaemon({ config: configValues(own(false), own(true)), radios })) });
 }
 
 describe("every field has an (i)", () => {
@@ -74,7 +78,7 @@ describe("every field has an (i)", () => {
     const scenes: [Scope, Record<string, string>][] = [
       ["settings", {}],
       ["settings", { "igate/enabled": "true", "messages/alert": "true" }],
-      ["settings", { "tnc/profile": "network", "tcp/host": "192.168.1.5", "tcp/port": "8001" }],
+      ["settings", { "radio/1/tcp_host": "192.168.1.5", "radio/1/tcp_port": "8001" }],
       ["beacon", { "gps/source": "serial", "gps/baud": "9600" }],
       ["beacon", { "gps/source": "gpsd" }],
     ];

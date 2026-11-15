@@ -274,41 +274,41 @@ async def test_beacon_now_and_send_message_are_refused_over_the_socket_while_the
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) >= 7)
     e.tnc.went_silent()
-    await page.until(lambda: page.topics["tnc"]["state"] == "silent")
-    assert page.topics["tnc"]["silent_since"] is not None and page.topics["tnc"]["describe"].startswith("silent since ")
+    await page.until(lambda: page.topics["radios"]["1"]["state"] == "silent")
+    assert page.topics["radios"]["1"]["problem"]["code"] == "radio.silent" and page.topics["radios"]["1"]["problem"]["params"]["since"] and e.tnc.describe().startswith("silent since ")
     await page.send({"cmd": "beacon_now"})
     assert (await page.expect("error"))["text"] == "beacon_now: nothing was sent: the radio is silent"
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello Pekka"})
     assert (await page.expect("error"))["text"] == "send_message: the radio is silent"
-    assert page.topics["messages"] == {} and e.ctl.beacon.last_sent is None
+    assert page.topics["messages"] == {} and e.beacon.last_sent is None
     e.feed(kiss_of(ui_frame()))
-    await page.until(lambda: page.topics["tnc"]["state"] == "connected" and page.topics["tnc"]["silent_since"] is None)
+    await page.until(lambda: page.topics["radios"]["1"]["state"] == "connected" and page.topics["radios"]["1"]["problem"] is None)
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello Pekka"})
     await page.until(lambda: page.topics["messages"].get("1", {}).get("attempts") == 1)
 
 
 async def test_a_beacon_due_during_the_outage_is_written_only_after_the_settle_as_a_kiss_frame_when_the_radio_comes_back(tmp_path: Path) -> None:
     e = Env(tmp_path, check_pause_sec=0.02, reply_sec=0.6, answer_sec=0.6, probe_sec=0.3)       # (the radio answers the probe within its reply time, before the probe's own KISS ON)
-    e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
+    e.beacon.tick_sec, e.beacon.retry_sec = 0.02, 0.05
     await e.start()
     e.tnc.set_check(0.1)                                             # (the settings of an Env have the checks off)
     await until(lambda: e.tnc.state is Source.State.SILENT)
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=1))
     e.now.advance(30 + 60)                                           # type: ignore[attr-defined]  # the first beacon, and an interval, passed in the night
     await idle_for(0.2)
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due < e.now()
+    assert e.beacon.last_sent is None and e.beacon.next_due is not None and e.beacon.next_due < e.now()
     assert await hear_until(e.radio, KISS_EXIT + NUDGE_BYTE, 3.0)   # a probe
     e.tnc.set_check(0)                                               # (a 0.1 s check would reset the quiet radio again at once)
     await e.radio.said(0, 0)                                         # (what earlier probes said is not looked at)
     e.radio.feed(b"\r\ncmd:")                                      # the radio is switched on and answers the probe
     assert await hear_until(e.radio, ENTER_KISS, 1.0)
     entered = asyncio.get_running_loop().time()
-    assert e.tnc.usable is False and e.ctl.beacon.last_sent is None
-    wanted = kiss_of(e.ctl.beacon.frame())
+    assert e.tnc.usable is False and e.beacon.last_sent is None
+    wanted = kiss_of(e.beacon.frame())
     assert await hear_until(e.radio, wanted, 3.0) == wanted, "nothing but the frame follows KISS ON"
     assert asyncio.get_running_loop().time() - entered >= 0.08, "the settle time (0.15 s) was waited out"
-    await until(lambda: e.ctl.beacon.last_sent is not None)
-    assert e.tnc.state is Source.State.CONNECTED and e.ctl.beacon.last_reason == "interval" and e.ctl.beacon.next_due == e.now() + timedelta(minutes=1)
+    await until(lambda: e.beacon.last_sent is not None)
+    assert e.tnc.state is Source.State.CONNECTED and e.beacon.last_reason == "interval" and e.beacon.next_due == e.now() + timedelta(minutes=1)
     await e.stop()
 
 
@@ -418,7 +418,7 @@ async def test_switching_the_checks_off_while_a_fresh_line_waits_makes_it_usable
 def tnc2_daemon(tmp_path: Path, **timings: float) -> Env:
     """A daemon on a fake radio with the Kenwood TNC-2 profile, the keep-alive on and a beacon that is due at the start."""
     e = Env(tmp_path, settings={"beacon/interval_min": "1"}, check_sec=60.0, check_pause_sec=0.02, probe_sec=30.0, **timings)
-    e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec, e.ctl.beacon.first_delay_sec = 0.02, 0.05, 0.0
+    e.beacon.tick_sec, e.beacon.retry_sec, e.beacon.first_delay_sec = 0.02, 0.05, 0.0
     return e
 
 
@@ -427,15 +427,15 @@ async def test_a_beacon_due_at_the_open_goes_out_only_after_the_radio_has_answer
     await e.start()
     assert await hear_until(e.radio, CHECK, 1.0) == CHECK
     await idle_for(0.2)                                                  # (many ticks of the beacon's timer)
-    assert e.ctl.beacon.last_sent is None and e.tnc.usable is False and e.tnc.state is Source.State.CONNECTED
+    assert e.beacon.last_sent is None and e.tnc.usable is False and e.tnc.state is Source.State.CONNECTED
     assert await e.heard(1, 0.1) == b""
     e.feed(b"\r\ncmd:")                                                       # the radio is there
     assert await hear_until(e.radio, ENTER_KISS, 1.0) == ENTER_KISS
-    assert e.ctl.beacon.last_sent is None, "settling"
-    wanted = kiss_of(e.ctl.beacon.frame())
+    assert e.beacon.last_sent is None, "settling"
+    wanted = kiss_of(e.beacon.frame())
     assert await hear_until(e.radio, wanted, 3.0) == wanted, "nothing but the frame follows KISS ON"
-    await until(lambda: e.ctl.beacon.last_sent is not None)
-    assert e.ctl.beacon.last_reason == "interval"
+    await until(lambda: e.beacon.last_sent is not None)
+    assert e.beacon.last_reason == "interval"
     await e.stop()
 
 
@@ -444,7 +444,7 @@ async def test_a_beacon_due_at_the_open_is_not_sent_nor_remembered_when_the_radi
     await e.start()
     await until(lambda: e.tnc.state is Source.State.SILENT, 2.0)
     await idle_for(0.3)
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is not None and e.ctl.beacon.next_due <= e.now()
+    assert e.beacon.last_sent is None and e.beacon.next_due is not None and e.beacon.next_due <= e.now()
     assert await e.heard(len(CHECK + ENTER_KISS), 0.5) == CHECK + ENTER_KISS, "the check, and no frame"
     assert await e.heard(1, 0.2) == b"" and await e.packets() == []
     await e.stop()

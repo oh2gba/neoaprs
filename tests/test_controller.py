@@ -17,6 +17,7 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.controller import Controller
 from neoaprs.message import MessageRecord
 from neoaprs.packet import Message, Packet
+from neoaprs.radiospec import FM_ID, HF_ID
 from neoaprs.tnc import Tnc
 from neoaprs.dberror import StoreError
 from neoaprs.migrations import SCHEMA_VERSION
@@ -134,11 +135,11 @@ async def test_the_stop_ends_the_radio_the_tasks_and_the_database(tmp_path: Path
     e = Env(tmp_path)
     await e.start()
     assert e.tnc.state is Source.State.CONNECTED and {t.get_name() for t in e.ctl.tasks} >= {"prune", "backup-sweep", "station-flush"}
-    assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.ctl.beacon.running and not e.ctl.hf_beacon.running
+    assert all(radio.beacon.running == radio.spec.enabled for radio in e.ctl.radios.all()) and e.beacon.running and e.ctl.radios.get(HF_ID) is None
     await e.stop()
     assert e.tnc.state is Source.State.STOPPED and len(e.ctl.tasks) == 0 and e.ctl.db is not None and not e.ctl.db.is_open and not e.ctl.packetlog.is_open()
     assert [(radio.state, radio.beacon.running) for radio in e.ctl.radios.all()] == [(Source.State.STOPPED, False)], "every radio of the registry, and its beacon (no HF radio was set up)"
-    assert e.hf.state is Source.State.STOPPED and not e.ctl.hf_beacon.running, "and the HF radio's line and beacon, which stayed stopped"
+    assert e.hf.state is Source.State.STOPPED, "and the HF radio's line the test handed in, which stayed stopped"
 
 
 async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file_of_a_copy_a_kill_ended_does_not_stay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -168,7 +169,7 @@ async def test_the_backup_folder_is_swept_again_after_the_start_so_that_the_file
 async def test_every_radio_has_the_settings_that_were_read_before_any_part_is_started_and_is_started_after_them(tmp_path: Path) -> None:
     """What the parts ask of a radio, such as whether it is a Dummy radio (the iGate, at its start), is true before they start; the radios themselves are started last, each in its own task."""
     e = Env(tmp_path, radio=False, settings={"tnc/profile": "dummy", "serial/baud": "1200", "hf/enabled": "true", "hf/profile": "dummy-hf"})
-    e.ctl.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
     seen: list[tuple[object, ...]] = []
     start = e.ctl.bulletins.start
 
@@ -222,7 +223,7 @@ class Eager(Tnc):
 async def test_the_radio_is_started_after_the_parts_that_take_its_packets_so_that_the_ack_it_hears_first_settles_our_message(tmp_path: Path) -> None:
     clock = FixedClock()
     ack = Packet(clock(), "in", b"", "OH2RDG", "APRS", (), b":OH2GBA   :ack01", Message("OH2GBA", "", None, "01"))
-    ctl = Controller(tmp_path, clock, tnc=Eager(clock, ack), check_sec=0)
+    ctl = Controller(tmp_path, clock, lines={FM_ID: Eager(clock, ack)}, check_sec=0)
     await ctl.open_database()
     await ctl.store.put_setting("station/call", "OH2GBA")
     kept = await ctl.messagelog.insert(MessageRecord(0, clock(), "out", "OH2GBA", "OH2RDG", "Hello", "01", "sending", 1, clock()))

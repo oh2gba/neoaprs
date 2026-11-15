@@ -25,14 +25,14 @@ async def test_the_fm_radios_kiss_over_tcp_address_is_not_taken_for_a_mercury_so
     direwolf = FakeRadio()                                                  # the FM radio: a KISS server, as a Direwolf is
     await direwolf.start()
     e = Env(tmp_path, radio=False, settings={"tnc/profile": "kiss-tcp", "serial/port": direwolf.url, "hf/enabled": "true"})
-    e.ctl.mercury._finder = fakemercury.program
-    e.ctl.mercury.backoff = Backoff([0.1, 0.1])
-    e.ctl.mercury._control_backoff = Backoff([0.05, 0.05])
+    e.mercury._finder = fakemercury.program
+    e.mercury.backoff = Backoff([0.1, 0.1])
+    e.mercury._control_backoff = Backoff([0.05, 0.05])
     e.hf.backoff = Backoff([0.05, 0.1])                                   # (the HF Tnc may knock before the program listens: its retry is to come within the test's budget, not after the daemon's 5 s)
     try:
         await e.start()
-        await until(lambda: e.ctl.mercury.running and e.hf.usable and e.tnc.usable, 15.0)
-        mercury = e.ctl.mercury
+        await until(lambda: e.mercury.running and e.hf.usable and e.tnc.usable, 15.0)
+        mercury = e.mercury
         assert mercury.attached == "" and mercury.starts == 1, "a Mercury of ours was started, none was attached to"
         assert e.tnc.port == direwolf.url, "the FM radio is the Direwolf"
         assert e.hf.port != direwolf.url and mercury.broadcast_port != direwolf.port

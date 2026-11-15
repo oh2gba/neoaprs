@@ -141,6 +141,9 @@ class StubRegistry:
     def enabled(self) -> list[StubTnc]:
         return [radio for radio in (self.fm, self.hf) if radio.id in self.on]
 
+    def senders(self) -> list[StubTnc]:
+        return self.enabled()                    # (both stubs can send)
+
     @property
     def main(self) -> StubTnc | None:
         return next(iter(self.enabled()), None)

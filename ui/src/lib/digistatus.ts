@@ -1,8 +1,8 @@
 // What the Digipeater group of the Settings tab says in plain words (components/DigipeaterStatus.vue), in the words and colours of the radio's status row (components/StatusFold.vue): "on" with how many packets it repeated and when the last went ("12 packets repeated · last 3 min ago",
-// "None repeated yet"), or "off" in the warn colour while RX only is ticked, and behind the arrow since when it counts and, if the burst limit held frames back, how many. The count is the daemon's, since it started (the topic `tnc`).
+// "None repeated yet"), or "off" in the warn colour while RX only is ticked, and behind the arrow since when it counts and, if the burst limit held frames back, how many. The count is the daemon's, since it started (the radio's row).
 import { t } from "@/i18n";
 import { ageText, dateTimeText } from "@/lib/format";
-import type { TncState } from "@/protocol/protocol";
+import type { RadioRow } from "@/protocol/protocol";
 
 export interface DigiLook {
   state: string;
@@ -15,7 +15,7 @@ export interface DigiLook {
 }
 
 /** The look for the counters of the TNC, when the daemon started (`startedAt`, ISO), the time now and whether RX only is ticked (nothing is repeated). */
-export function digiLook(tnc: TncState, startedAt: string | null, nowMs: number, rxOnly: boolean): DigiLook {
+export function digiLook(tnc: Pick<RadioRow, "stats">, startedAt: string | null, nowMs: number, rxOnly: boolean): DigiLook {
   const { digipeated, digipeated_at, digipeat_held } = tnc.stats;
   const behind = {
     since: startedAt === null ? "" : t("settings.digi.fold.since", { when: dateTimeText(startedAt) }),

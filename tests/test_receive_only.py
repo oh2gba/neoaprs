@@ -68,10 +68,10 @@ async def test_nothing_reaches_the_radio_while_it_is_off_and_what_waited_goes_wh
     e.feed(on_air("OH2XYZ", BUSY, path="WIDE1-1,WIDE2-1"))                  # (the digipeater is on)
     await until(lambda: e.tnc.stats.packets == 4)
     await quiet(e, 0.8)
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.problem == OFF and e.tnc.stats.digipeated == 0
+    assert e.beacon.last_sent is None and e.beacon.problem == OFF and e.tnc.stats.digipeated == 0
     record = e.ctl.messaging.get(sent.id)
     assert record is not None and record.state == "sending" and record.attempts == 1, "the message waits, with its attempts"
-    assert not e.ctl.beacon.send_now("request") and await e.ctl.rigstatus.send_now() == OFF
+    assert not e.beacon.send_now("request") and await e.ctl.rigstatus.send_now() == OFF
     assert len([p for p in await e.packets() if p.direction == "out"]) == out_before, "no frame was even made"
     await switch(e, True)
     await until(lambda: (r := e.ctl.messaging.get(sent.id)) is not None and r.attempts == 2)
@@ -151,7 +151,7 @@ async def test_the_switch_is_kept_in_the_database_and_holds_after_a_restart(tmp_
     second = Env(tmp_path)
     await second.start()
     assert second.ctl.config.station_transmit is False and can_transmit(second.ctl.config) == OFF
-    assert not second.ctl.beacon.send_now("request")
+    assert not second.beacon.send_now("request")
     await switch(second, True)
     await second.stop()
     third = Env(tmp_path)

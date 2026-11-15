@@ -26,7 +26,7 @@ from .mercurymodem import Mercury
 from .packet import Packet, radio_word
 from .radiodriver import RadioDriver, RunOverrides
 from .radiorules import RadioRules, rules_of
-from .radiospec import RadioId, RadioSpec, live, log_name
+from .radiospec import RadioId, RadioSpec, live, log_name, transmits
 from .radiotype import Allowed, Kind, Limits, RadioType, RadioTypeError
 from .signal import Signal
 from .source import Source
@@ -34,14 +34,14 @@ from .station import Station
 from .stationbook import StationBook
 from .stationchoices import StationChoices as StationChoices      # (the operator's radio by station; neoaprs/radios.py takes it from here)
 from .tnc import Tnc
-from .tncdriver import TncDriver
+from .tncdriver import TncDriver, listening_ports
 from .tncwatchdog import TncStats
 
 log = logging.getLogger("neoaprs.controller")        # what the start and the restart of a radio say is the controller's, as it was
 
-DRIVERS: dict[str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]] = {      # the driver of a type, by RadioType.driver (the last: one radio searches at a time)
-    "tnc": lambda spec, claims, clock, folder, line, modem, lock: TncDriver(spec, claims, clock, line, search_lock=lock),
-    "mercury": lambda spec, claims, clock, folder, line, modem, lock: MercuryDriver(spec, claims, folder, clock, line, modem=modem),
+DRIVERS: dict[str, Callable[[RadioSpec, Claims, Clock, Path, Tnc | None, Mercury | None, asyncio.Lock], RadioDriver]] = {      # the driver of a type, by RadioType.driver (the data folder; the last: one radio searches at a time)
+    "tnc": lambda spec, claims, clock, data_dir, line, modem, lock: TncDriver(spec, claims, clock, line, search_lock=lock),
+    "mercury": lambda spec, claims, clock, data_dir, line, modem, lock: MercuryDriver(spec, claims, radio_folder(data_dir, spec.id), clock, line, modem=modem, data_dir=data_dir),
 }
 _SHOWN = {"skip": "ports to skip", "pattern": "search pattern", "fallback_probe": "search when the port fails"}       # a field of a line's settings as the log names it, where its own name does not say it
 
@@ -52,11 +52,11 @@ def driver_key(spec: RadioSpec) -> str:
 
 
 def make_driver(spec: RadioSpec, claims: Claims, clock: Clock, data_dir: Path, line: Tnc | None = None, modem: Mercury | None = None, *, search_lock: asyncio.Lock | None = None) -> RadioDriver:
-    """The driver of the radio's type, with the radio's own folder (`radios/<id>` in the data folder); `line` and `modem` are ones made elsewhere (the process's own for radios 1 and 2, a test's); `search_lock` the registry's."""
+    """The driver of the radio's type, with the radio's own folder (`radios/<id>` in the data folder); `line` and `modem` are ones made elsewhere (a test's); `search_lock` the registry's."""
     key = driver_key(spec)
     if key not in DRIVERS:
         raise RadioTypeError(f"the type {spec.type!r} names the driver {key!r}, which is none (the drivers are {', '.join(DRIVERS)})")
-    return DRIVERS[key](spec, claims, clock, radio_folder(data_dir, spec.id), line, modem, search_lock or asyncio.Lock())
+    return DRIVERS[key](spec, claims, clock, data_dir, line, modem, search_lock or asyncio.Lock())
 
 
 def _shown(value: object) -> str:
@@ -206,6 +206,10 @@ class RadioRegistry(StationChoices, Generic[B]):
         """The radios that are enabled, by position."""
         return [radio for radio in self.all() if radio.spec.enabled]
 
+    def senders(self) -> list[LiveRadio[B]]:
+        """The radios that are enabled and can send (radiospec.senders), by position: what a service sends on; a receive-only radio is never among them."""
+        return [radio for radio in self.enabled() if transmits(radio.spec)]
+
     def _of(self, id: RadioId | None) -> LiveRadio[B] | None:
         return None if id is None else self._radios.get(id)
 
@@ -231,7 +235,8 @@ class RadioRegistry(StationChoices, Generic[B]):
         return self._book.get(call)
 
     def for_packet(self, packet: Packet) -> LiveRadio[B] | None:
-        """The radio to answer a packet on: the one it came on, while it is enabled; else the main radio. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault."""
+        """The radio to answer a packet on: the one it came on, while it is enabled; else the main radio. A packet from the internet is answered by nothing (`Packet.on_air` is false), and asking is a fault.
+        A receive-only radio it came on is given all the same: it takes no frame (`usable` is false, and why says RX only), so a query heard on it alone is not answered; an ack goes by `radioset.ack_radio`."""
         if not packet.on_air:
             raise ValueError("a packet from the internet is answered on no radio")
         came = self._of(packet.radio_id)
@@ -273,8 +278,14 @@ class RadioRegistry(StationChoices, Generic[B]):
     def _made(self, spec: RadioSpec) -> LiveRadio[B]:
         radio: LiveRadio[B] = LiveRadio(spec, self._make_driver(spec), lambda: self._config().radios)
         radio.beacon = self._make_beacon(radio)
+        self._listens_for(radio)
         self.wire(radio)
         return radio
+
+    def _listens_for(self, radio: LiveRadio[B]) -> None:
+        """Its line's search leaves out the ports the other radios that only listen are set to, as the settings in force have them when the search starts: a radio with a port of its own searches too when
+        that port cannot be opened (its fallback), and no change of them restarts it."""
+        radio.line.listening = lambda: listening_ports(self._config(), radio.id)
 
     def _change(self, radio: LiveRadio[B], old: RadioSpec, before: Config, new: RadioSpec, after: Config, run: RunOverrides) -> str | None:
         """Why the radio is to be restarted for the new settings, in words; None when nothing of it changed."""
@@ -309,6 +320,7 @@ class RadioRegistry(StationChoices, Generic[B]):
         spec, config, run = radio.spec, self._config(), self._run()
         if driver_key(spec) != radio.driver_key:                 # (a type of another driver: the new driver is made around the settings, the old one is stopped)
             radio.driver, radio.driver_key = self._make_driver(spec), driver_key(spec)
+            self._listens_for(radio)
             self.wire(radio)
         radio.driver.configure(spec, config, run)
         if spec.enabled:

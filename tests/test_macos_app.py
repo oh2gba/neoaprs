@@ -348,7 +348,7 @@ def test_the_build_lays_the_bundle_out_as_the_launcher_and_the_one_rule_expect()
     assert 'ln -s /Applications "$stage/Applications"' in script and "-format UDZO" in script
 
 
-def test_the_info_plist_names_the_launcher_the_icon_the_identifier_and_the_microphone_in_every_language() -> None:
+def test_the_info_plist_names_the_launcher_the_icon_the_identifier_the_microphone_and_bluetooth_in_every_language() -> None:
     text = (PACKAGING / "Info.plist.in").read_text(encoding="utf-8").replace("@VERSION@", "0.16.0-rc1").replace("@BUILD@", "0.16.0").replace("@MIN_OS@", "14.0")
     plist = plistlib.loads(text.encode("utf-8"))
     assert plist["CFBundleExecutable"] == "NeoAPRS" and plist["CFBundleIconFile"] == "NeoAPRS.icns" and plist["CFBundleIdentifier"] == "eu.oh2gba.neoaprs" and plist["CFBundlePackageType"] == "APPL"
@@ -358,14 +358,16 @@ def test_the_info_plist_names_the_launcher_the_icon_the_identifier_and_the_micro
     assert plist["CFBundleIdentifier"] == LABEL, "the launchd agent and the bundle are the same thing to the system"
     folders = sorted(p.name for p in (PACKAGING / "lproj").iterdir())
     assert folders == sorted(f"{code}.lproj" for code in LANGUAGES) and LANGUAGES and len(LANGUAGES) == 9
-    english = ""
+    english = english_bluetooth = ""
     for folder in folders:
         strings = (PACKAGING / "lproj" / folder / "InfoPlist.strings").read_text(encoding="utf-8")
         found = re.search(r'^"NSMicrophoneUsageDescription" = "(.+)";$', strings, re.M)
+        bluetooth = re.search(r'^"NSBluetoothAlwaysUsageDescription" = "(.+)";$', strings, re.M)
         assert found and found.group(1).strip() and "NeoAPRS" in found.group(1), folder
+        assert bluetooth and "NeoAPRS" in bluetooth.group(1) and "Bluetooth" in bluetooth.group(1), f"{folder}: Bluetooth LE ships in the download, and macOS asks the user first"
         if folder == "en.lproj":
-            english = found.group(1)
-    assert english == plist["NSMicrophoneUsageDescription"], "the plist's own sentence is the English one"
+            english, english_bluetooth = found.group(1), bluetooth.group(1)
+    assert english == plist["NSMicrophoneUsageDescription"] and english_bluetooth == plist["NSBluetoothAlwaysUsageDescription"], "the plist's own sentences are the English ones"
 
 
 def test_the_smoke_test_opens_the_image_checks_the_signature_and_runs_the_bundled_mercury_unless_told_that_there_is_none() -> None:

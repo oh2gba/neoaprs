@@ -34,8 +34,8 @@ async def test_with_the_beacon_off_no_beacon_and_no_status_go_but_a_message_an_a
         frames += [f.tnc2() for f in await said(e, 1, 0.5)]
     frames += [f.tnc2() for f in await said(e, 99, 0.5)]
     assert all(any(w(f) for f in frames) for w in wanted), frames          # (the message, its ack, the answer to ?APRSP with our position, the object, the digipeated copy)
-    assert e.ctl.beacon.last_sent is None and e.ctl.rigstatus.last_sent_at is None, "the timers did not send, however much time went by"
-    assert e.ctl.beacon.interval_min == e.ctl.hf_beacon.interval_min == 0 and e.ctl.beacon.next_due is None, "Off is the interval in force on every radio (neoaprs/beaconrule.py)"
+    assert e.beacon.last_sent is None and e.ctl.rigstatus.last_sent_at is None, "the timers did not send, however much time went by"
+    assert all(radio.beacon.interval_min == 0 for radio in e.ctl.radios.all()) and e.beacon.next_due is None, "Off is the interval in force on every radio (neoaprs/beaconrule.py)"
     assert not any(":>" in f for f in frames), "no status report"
     record = e.ctl.messaging.get(sent.id)
     assert record is not None and record.attempts >= 1
@@ -67,7 +67,7 @@ async def test_the_beacon_and_the_status_that_were_held_back_go_when_the_beacon_
     await idle_for(0.3)
     assert await e.heard(1, 0.3) == b""
     assert await e.ctl.save_config(replace(e.ctl.config, beacon_interval_min=30))
-    assert e.ctl.beacon.interval_min == 30, "on: the interval in force on the radio"
+    assert e.beacon.interval_min == 30, "on: the interval in force on the radio"
     frames: list[str] = []
     deadline = asyncio.get_running_loop().time() + 10.0
     while not (any(f.startswith(BEACON) for f in frames) and any(":>" in f and "QRV" in f for f in frames)) and asyncio.get_running_loop().time() < deadline:
@@ -80,6 +80,6 @@ async def test_a_moving_station_with_the_interval_at_zero_sends_nothing_by_itsel
     e = await started(tmp_path, **{"gps/source": "gpsd", "gps/host": "127.0.0.1:1"})
     e.now.advance(3 * 3600)                                                 # type: ignore[attr-defined]
     await idle_for(0.3)
-    assert e.ctl.beacon.last_sent is None and e.ctl.beacon.next_due is None
-    assert not e.ctl.beacon.send_now("request") and e.ctl.beacon.problem != "the beacon is off", "Beacon now is asked for: it fails for the missing fix, not for the beacon being off"
+    assert e.beacon.last_sent is None and e.beacon.next_due is None
+    assert not e.beacon.send_now("request") and e.beacon.problem != "the beacon is off", "Beacon now is asked for: it fails for the missing fix, not for the beacon being off"
     await e.stop()

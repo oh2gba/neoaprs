@@ -120,6 +120,9 @@ class RegistryShape:
     def enabled(self) -> list[LiveShape]:
         return [r for r in self.radios if r.spec.enabled and not r.spec.removed]
 
+    def senders(self) -> list[LiveShape]:
+        return [r for r in self.enabled() if r.spec.rtype.can.transmit]
+
     @property
     def main(self) -> LiveShape | None:
         on = self.enabled()

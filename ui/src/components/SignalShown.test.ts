@@ -10,28 +10,31 @@ import StationCards from "@/components/StationCards.vue";
 import StationTraffic from "@/components/StationTraffic.vue";
 import type { SignalSeriesMessage, StationRow } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { NOW, ago, incoming, message, packet, station } from "@/test/fixtures";
+import { NOW, ago, incoming, message, packet, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 afterEach(() => document.body.replaceChildren());
 
 const MINUS = "\u2212";
 
 describe("the signal under a message that came in", () => {
+  /** The page of the FM radio (radio 1) on and the HF radio (radio 2) off, whose word HF a message that came by it carries. */
+  const today = () =>
+    withDaemon(fakeDaemon({ radios: radiosTopic(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" })) }));
   const line = (extra: Parameters<typeof incoming>[2]) =>
-    mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", extra)], peer: "OH2HF" } }).find(".bubble-route");
+    mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", extra)], peer: "OH2HF" }, global: today() }).find(".bubble-route");
 
   it("ends the line that says how it came: HF direct, SNR -3 dB", () => {
-    expect(line({ radio: "hf", route: "direct", snr: -3 }).text()).toBe(`HF direct \u00b7 SNR ${MINUS}3 dB`);
-    expect(line({ radio: "fm", route: "via OH2RCH-2", snr: 4, rssi: -95 }).text()).toBe(`via OH2RCH-2 \u00b7 SNR 4 dB, RSSI ${MINUS}95 dBm`);
+    expect(line({ radio_id: 2, route: "direct", snr: -3 }).text()).toBe(`HF direct \u00b7 SNR ${MINUS}3 dB`);
+    expect(line({ radio_id: 1, route: "via OH2RCH-2", snr: 4, rssi: -95 }).text()).toBe(`via OH2RCH-2 \u00b7 SNR 4 dB, RSSI ${MINUS}95 dBm`);
   });
 
   it("is the whole line when there is no route to say", () => {
-    expect(line({ radio: "", route: "", snr: -3 }).text()).toBe(`SNR ${MINUS}3 dB`);
+    expect(line({ radio_id: null, route: "", snr: -3 }).text()).toBe(`SNR ${MINUS}3 dB`);
   });
 
   it("is not there for a message with no reading, and the line is as it was", () => {
-    expect(line({ radio: "hf", route: "direct", snr: null }).text()).toBe("HF direct");
-    const none = mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", { radio: "", route: "", snr: null })], peer: "OH2HF" } });
+    expect(line({ radio_id: 2, route: "direct", snr: null }).text()).toBe("HF direct");
+    const none = mount(ConversationThread, { props: { thread: [incoming(2, "OH2HF", { radio_id: null, route: "", snr: null })], peer: "OH2HF" } });
     expect(none.find(".bubble-route").exists()).toBe(false);
   });
 

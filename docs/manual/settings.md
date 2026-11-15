@@ -37,7 +37,7 @@ The table below is made from the program, so it lists every setting there is, wi
 | `status/rigctld` | empty | My station tab, Status | `host:port` of a Hamlib rigctld (its default is `127.0.0.1:4532`) whose frequency and mode make the status. Ignored for `text` and `off` |
 | `status/interval_min` | `30` | My station tab, Status | a status report goes out at most this often, whatever made it (15 to 1440). The page offers 30 min, 60 min and 2 hours. A stored value below 15 is raised to 15, with a line in the log |
 | `status/template` | `QRV {freq} {mode}` | My station tab, Status | the text of a status made from the radio. `{freq}` is `14.074 MHz` (megahertz with three decimals), `{mode}` is the mode as rigctld names it (`USB`, `LSB`, `CW`, `FM` ...). No other field in braces, printable ASCII without `\|` and `~`, and at most 55 characters with the widest values (`1296.000 MHz`, `PKTUSB`) |
-| `tnc/profile` | `kiss` | Settings tab, TNC (Radio type) | what kind of TNC the radio is: `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`. It decides what is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached ([radio.md](radio.md#the-tnc-type)). A TCP type is refused, with the reason, while `serial/port` names a serial device |
+| `tnc/profile` | `kiss` | Settings tab, TNC (Radio type) | what kind of TNC the radio is: `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `tnc-text`, `dummy`. It decides what is written to the TNC to put it in KISS, whether the TNC is asked if it is there, and how it is reached ([radio.md](radio.md#the-tnc-type)). A TCP type is refused, with the reason, while `serial/port` names a serial device |
 | `serial/port` | empty | Settings tab, TNC (Port) | the radio's port: a serial port such as `/dev/ttyUSB0` or `COM3`, `socket://host:port` (KISS over TCP, with every type), `bt://AA:BB:CC:DD:EE:FF` (Linux, a paired Bluetooth device) or `ble://AA:BB:CC:DD:EE:FF` (a Bluetooth LE KISS TNC, with the extra `ble` installed). Empty means: open `serial/last_port` if there is one, else on Linux listen to the ports of `serial/pattern` for the radio ([radio.md](radio.md#the-port)) |
 | `serial/baud` | empty | Settings tab, TNC (Speed) | the speed of the serial line, 8N1 (300 to 921600). Empty is the type's own, 9600 for every serial type. A TCP or Bluetooth port has none |
 | `tcp/host` | `127.0.0.1` | Settings tab, TNC | where the `kiss-tcp` type connects when `serial/port` is empty. The serial types ignore it |
@@ -87,19 +87,23 @@ Radio 1 is the FM radio and radio 2 the HF radio of the keys above (`tnc/profile
 | `kantronics` | fm | Kantronics KPC-3+ | `port`, `baud`, `beacon`, `path`, `digipeat` |
 | `kiss` | fm | KISS TNC (Mobilinkd, NinoTNC, TNC-Pi, TH-D74/D75…) | `port`, `baud`, `beacon`, `path`, `digipeat` |
 | `kiss-tcp` | fm | KISS over TCP (Direwolf, soundmodem) | `port`, `tcp_host`, `tcp_port`, `beacon`, `path`, `digipeat` |
+| `tnc-text` | fm | RX only: Yaesu FTM, TNC text (no KISS) | `port`, `baud` |
 | `dummy` | fm | Dummy (no radio, made-up traffic) | `beacon`, `path`, `digipeat` |
 | `dummy-hf` | hf | Dummy HF radio (no radio, made-up distant stations) | `beacon` |
 | `mercury` | hf | Mercury HF modem (sound card, SSB radio) | `sound_card`, `keying`, `tx_gain_db`, `beacon` |
+| `lora-tcp` | lora | LoRa APRS board on the network (KISS over TCP) | `tcp_host`, `tcp_port`, `beacon`, `path` |
+| `lora-serial` | lora | LoRa APRS board on USB or Bluetooth (KISS) | `port`, `baud`, `beacon`, `path` |
+| `lora-console` | lora | LoRa APRS iGate's log on USB (receive only) | `port`, `baud` |
 | `dummy-lora` | lora | Dummy LoRa radio (no radio, made-up stations) | `beacon`, `path` |
 
 | key | default | types | where | what it is |
 | --- | --- | --- | --- | --- |
-| `radio/<id>/port` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp` | Settings tab, TNC (Port) | the radio's port, as `serial/port` says it for radio 1: a serial port, `socket://host:port`, `bt://` or `ble://`; empty: the port the search finds |
-| `radio/<id>/baud` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss` | Settings tab, TNC (Speed) | the speed of its serial line, as `serial/baud` (300 to 921600); empty: the type's own |
-| `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp` | Settings tab, TNC | where a `kiss-tcp` radio connects while its port is empty, as `tcp/host` |
-| `radio/<id>/tcp_port` | `8001` | `kiss-tcp` | Settings tab, TNC | the KISS port there (1 to 65535), as `tcp/port` |
-| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
-| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it |
+| `radio/<id>/port` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `tnc-text`, `lora-serial`, `lora-console` | Settings tab, TNC (Port) | the radio's port, as `serial/port` says it for radio 1: a serial port, `socket://host:port`, `bt://` or `ble://`; empty: the port the search finds |
+| `radio/<id>/baud` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `tnc-text`, `lora-serial`, `lora-console` | Settings tab, TNC (Speed) | the speed of its serial line, as `serial/baud` (300 to 921600); empty: the type's own |
+| `radio/<id>/tcp_host` | `127.0.0.1` | `kiss-tcp`, `lora-tcp` | Settings tab, TNC | where a `kiss-tcp` radio connects while its port is empty, as `tcp/host`; a `lora-tcp` radio's is empty until the board's address is typed, and nothing is opened meanwhile |
+| `radio/<id>/tcp_port` | `8001` | `kiss-tcp`, `lora-tcp` | Settings tab, TNC | the KISS port there (1 to 65535), as `tcp/port` |
+| `radio/<id>/beacon` | `true` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `dummy-hf`, `mercury`, `lora-tcp`, `lora-serial`, `dummy-lora` | `neoaprs db set` only | `true`: the station's beacon goes out on this radio. Every radio that is on sends it in this version, whatever this says |
+| `radio/<id>/path` | empty | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy`, `lora-tcp`, `lora-serial`, `dummy-lora` | My station tab, Beacon, Advanced | the digipeaters of the beacon on this radio, as `beacon/path` says them for radio 1; only a type that may carry a path has it |
 | `radio/<id>/digipeat` | `false` | `kenwood-tnc2`, `kenwood-d710`, `kantronics`, `kiss`, `kiss-tcp`, `dummy` | Settings tab, Digipeater | `true`: this radio repeats what asks for it, as `digi/enabled` says it for radio 1 |
 | `radio/<id>/sound_card` | empty | `mercury` | Settings tab, Radio (HF radio, Sound card) | the Mercury modem's sound card, as `mercury/sound_card` says it for radio 2 |
 | `radio/<id>/keying` | empty | `mercury` | Settings tab, Radio (HF radio, Keying) | how the Mercury modem keys the transmitter, as `mercury/keying` says it for radio 2 |

@@ -2,7 +2,7 @@
 // temperature of a weather station, how the packets reach us) and goes when the pointer leaves. One element serves every marker. A touch screen has no pointer to rest on a marker, so only a mouse
 // shows it, and a tap opens the full card as ever.
 import { t } from "@/i18n";
-import { heardWords, radiosOfBefore } from "@/lib/channels";
+import { heardWords } from "@/lib/channels";
 import { agoWords, bearingText, distanceText } from "@/lib/format";
 import { routeWords } from "@/lib/routes";
 import { symbolLabel } from "@/lib/stations";
@@ -20,17 +20,16 @@ export interface HoverRow {
   text: string;
 }
 
-/** The radios the card names (composables/useRadios.ts `Radios`: every radio in the order of the boxes), or, from a caller that says only whether the radios are named, the two radios of before. */
-export type HoverRadios = Readonly<{ all: Readonly<{ value: readonly PageRadio[] }> }> | Readonly<{ value: boolean }>;
+/** The radios the card names (composables/useRadios.ts `Radios`: every radio in the order of the boxes). */
+export type HoverRadios = Readonly<{ all: Readonly<{ value: readonly PageRadio[] }> }>;
 
-const radiosOf = (radios: HoverRadios | boolean): readonly PageRadio[] =>
-  typeof radios === "boolean" ? radiosOfBefore(radios) : "all" in radios ? radios.all.value : radiosOfBefore(radios.value);
+const NO_RADIOS: HoverRadios = { all: { value: [] } };
 
 /** The rows the card has for a station: only those that have something to say. "Heard on" says every radio that heard it with its time where radios are named, iGate and Internet; nothing for a station heard on the one
  * radio alone. */
-export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios | boolean = false): HoverRow[] {
+export function hoverRows(row: StationRow, nowMs: number, radios: HoverRadios = NO_RADIOS): HoverRow[] {
   const rows: HoverRow[] = [{ label: t("station.hover.heard"), text: agoWords(row.last_heard, nowMs) }];
-  const heard = heardWords(row, radiosOf(radios), nowMs);
+  const heard = heardWords(row, radios.all.value, nowMs);
   if (heard !== null) rows.push({ label: t("station.hover.via"), text: heard });
   if (row.last_status !== "") rows.push({ label: t("station.field.status"), text: row.last_status });
   if (row.last_comment !== "") rows.push({ label: t("station.field.comment"), text: row.last_comment });
@@ -64,7 +63,7 @@ export class HoverCard {
     private readonly container: HTMLElement,
     private readonly lookup: (call: string) => StationRow | undefined,
     private readonly now: () => number,
-    private readonly radios: HoverRadios = { value: false }, // (the page's radios: `useRadios()`; or whether the radios are named, the page's `radiosNamed`)
+    private readonly radios: HoverRadios = NO_RADIOS, // (the page's radios: `useRadios()`)
   ) {
     this.card.setAttribute("role", "tooltip");
     this.card.hidden = true;

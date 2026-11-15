@@ -76,7 +76,7 @@ class World:
         e.ctl.messaging.tick_sec = TICK_SEC
         e.ctl.messaging.pace.spacing_sec = 0.0
         e.ctl.ownobjects.tick_sec, e.ctl.sender.spacing_sec = TICK_SEC, 0.0           # (our objects go at the test's pace too)
-        for beacon in (e.ctl.beacon, e.ctl.hf_beacon):
+        for beacon in (e.beacon, e.beacon_2):
             beacon.tick_sec, beacon.retry_sec = TICK_SEC, 0.05
         self.stations[call] = e
         return e
@@ -87,7 +87,7 @@ class World:
             await e.start()
         for e in self.stations.values():
             if e.hf_radio is not None:
-                await until(lambda e=e: e.hf.usable and e.ctl.mercury.running)        # type: ignore[misc]
+                await until(lambda e=e: e.hf.usable and e.mercury.running)        # type: ignore[misc]
             if e.radio is not None:
                 await until(lambda e=e: e.tnc.usable)        # type: ignore[misc]
 

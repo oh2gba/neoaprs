@@ -536,16 +536,16 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
                        "igate/enabled": "true", "igate/server": "rotate.aprs2.net:14580", "igate/password": "12345", "gps/source": "serial", "gps/device": port["gps"],
                        "status/source": "rig", "status/rigctld": f"{ELSEWHERE}:4532", "messages/alert": "true"})
     looked_for: list[str] = []
-    e.ctl.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()       # type: ignore[func-returns-value]   # a Mercury that is there and would start
+    e.mercury._finder = lambda: looked_for.append("Mercury") or fake_mercury()       # type: ignore[func-returns-value]   # a Mercury that is there and would start
     e.ctl.rigstatus.poll_sec = 0.02
     await e.start()
 
     # every part waits as it does for a device that is not there
     await until(lambda: e.tnc.state is Source.State.WAITING and e.tnc.stats.opens == 0 and "trying again" in lines_of(e.tnc) and "no port" in lines_of(e.tnc))
     assert f"{port['radio']}: No such file or directory" in lines_of(e.tnc)
-    await until(lambda: e.ctl.mercury.state == "waiting" and e.hf.state is Source.State.WAITING)
-    assert e.ctl.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the HF radio has no port to try"
-    mercury_ports = {e.ctl.mercury.broadcast_port, e.ctl.mercury.control_port}                # where a Mercury of ours would have been: on the operator's computer his own modem may listen there
+    await until(lambda: e.mercury.state == "waiting" and e.hf.state is Source.State.WAITING)
+    assert e.mercury.reason == "not_installed" and looked_for == [] and e.hf.port == "" and e.hf.stats.opens == 0, "no Mercury was started, so the HF radio has no port to try"
+    mercury_ports = {e.mercury.broadcast_port, e.mercury.control_port}                # where a Mercury of ours would have been: on the operator's computer his own modem may listen there
     await until(lambda: e.ctl.aprsis.state is Source.State.WAITING)
     assert (e.ctl.igate.state, e.ctl.igate.problem) == ("connecting", f"rotate.aprs2.net:14580: {REFUSED}")
     await until(lambda: e.ctl.gps_feed.state is Source.State.WAITING)
@@ -556,7 +556,8 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     # the page is served and says the same; what it asks for lists nothing and reaches a server of this computer only
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    assert page.topics["tnc"]["state"] == "waiting" and page.topics["hf"]["state"] == "waiting" and page.topics["hf"]["modem"]["reason"] == "not_installed"
+    radios = page.topics["radios"]
+    assert radios["1"]["state"] == "waiting" and radios["2"]["state"] == "waiting" and radios["2"]["modem"]["reason"] == "not_installed"
     assert page.topics["igate"]["state"] == "connecting" and page.topics["igate"]["problem"].endswith(REFUSED)
     await page.send({"cmd": "list_ports"})
     listed = await page.expect("ports")
@@ -579,7 +580,8 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR], "nothing of this is an error"
 
     # the same daemon on the Dummy radios: made-up stations arrive and reach the page
-    await page.send({"cmd": "set_config", "values": {"tnc/profile": "dummy", "hf/profile": "dummy-hf"}})
+    await page.send({"cmd": "radio_change", "radio": 1, "type": "dummy"})
+    await page.send({"cmd": "radio_change", "radio": 2, "type": "dummy-hf"})
     await until(lambda: e.tnc.is_dummy and e.tnc.state is Source.State.CONNECTED and e.hf.is_dummy and e.hf.state is Source.State.CONNECTED)
     for _ in range(200):
         e.now.advance(10)                                                               # type: ignore[attr-defined]
@@ -587,7 +589,7 @@ async def test_a_daemon_whose_settings_name_real_devices_comes_up_and_opens_none
         if sum(call.startswith("Q") for call in page.topics["stations"]) > 8:
             break
     assert {"Q1ABC", "Q4CAR-9", "Q2DIG-2"} <= set(page.topics["stations"])
-    await page.until(lambda: page.topics["tnc"]["dummy"] and page.topics["tnc"]["state"] == "connected" and page.topics["hf"]["dummy"] and page.topics["hf"]["state"] == "connected")
+    await page.until(lambda: all(page.topics["radios"][id]["dummy"] and page.topics["radios"][id]["state"] == "connected" for id in ("1", "2")))
     assert page.of("error") == []
 
     # and through all of it no device was opened, no program started and nothing left this computer

@@ -1,0 +1,23 @@
+{
+  "note": "A TNC-2 with HEADERLN ON: the header on a line of its own, the information on the next.",
+  "source": "made up",
+  "real": false,
+  "frames": [
+    {
+      "source": "OH2XYZ-9",
+      "destination": "APDR16",
+      "path": [
+        "OH2RCH-2*",
+        "WIDE2-1"
+      ],
+      "info": "=6010.12N/02457.34E[/A=000052"
+    },
+    {
+      "source": "OH7ABC",
+      "destination": "APRS",
+      "path": [],
+      "info": ">listening on 144.800"
+    }
+  ],
+  "rejected": 0
+}

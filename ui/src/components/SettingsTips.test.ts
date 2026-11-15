@@ -24,9 +24,9 @@ describe("the (i) of the Settings tab", () => {
     ["set-web-network", "About network access", /phone, a tablet or a laptop on your network.*access key and the addresses/s],
     ["set-web-key", "About the access key", /type it once on each.*New key logs every other device out/s],
     ["set-web-url-0", "About the addresses", /same network.*\.local/s],
-    ["set-tnc-profile", "Which radio type to pick", /How NeoAPRS talks to your radio.*KISS TNC.*KISS over TCP.*Mercury.*Dummy/s], // (the one (i) of the one list, plan section 6; no file of the documents on the page)
-    ["set-serial-port", "About the port", /Automatic looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s],
-    ["set-serial-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
+    ["set-radio-1-type", "Which radio type to pick", /How NeoAPRS talks to your radio.*KISS TNC.*KISS over TCP.*Mercury.*Dummy/s], // (the one (i) of the one list, plan section 6; no file of the documents on the page)
+    ["set-radio-1-port", "About the port", /Automatic looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s],
+    ["set-radio-1-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],
     ["set-update-now", "About the update check", /Once a day NeoAPRS asks/],
   ];

@@ -17,7 +17,7 @@ async def started(tmp_path: Path, beacon_on: bool = False, **changes: object) ->
     """A daemon with messaging and the status; `beacon_on`: the beacon is on (a status goes out only then; the defaults are a beacon that is off) and its timer stopped, as these tests are about the status and the queries."""
     e = await quick_start(tmp_path, messaging=True, rigstatus=True)
     if beacon_on:
-        await e.ctl.beacon.stop()
+        await e.beacon.stop()
         changes = {"beacon_interval_min": 1440, **changes}
     if changes:
         assert await e.ctl.save_config(replace(e.ctl.config, **changes))    # type: ignore[arg-type]
@@ -36,7 +36,7 @@ async def test_aprsp_gives_the_beacons_position_frame_on_the_line(tmp_path: Path
     e.feed(on_air("OH2RDG", message_info("OH2GBA", "?APRSP"), path="OH2RCH-2*"))
     await heard(e, 1)
     [frame] = await said(e)
-    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and frame == e.ctl.beacon.frame()
+    assert frame.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:=6010.20N/02456.40E-NeoAPRS" and frame == e.beacon.frame()
     sent = [p for p in await e.packets() if p.direction == "out"]
     assert [p.kind for p in sent] == ["position"], "it is in the packet log as a packet we sent"
     await e.stop()
@@ -161,7 +161,7 @@ async def test_the_beacon_is_not_followed_by_the_status_report(tmp_path: Path) -
     await until(lambda: e.ctl.rigstatus.last_text == "On the road")          # (said() blocks the loop: the status is on the line before it is read)
     [status] = await said(e)
     assert status.tnc2() == "OH2GBA>APZNEO,WIDE1-1,WIDE2-1:>211200zOn the road"
-    assert e.ctl.beacon.send_now()
+    assert e.beacon.send_now()
     [beacon] = await said(e)
     assert beacon.info.startswith(b"=6010.20N")
     assert await said(e, 1, 0.3) == [], "no status after the beacon"

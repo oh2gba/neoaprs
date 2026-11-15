@@ -17,7 +17,7 @@ from neoaprs.mercuryhelper import list_sound_cards
 from neoaprs.updatefetch import multipart, post_form
 from neoaprs.versions import SUPPORT_URL
 from neoaprs.web import access as web_access
-from neoaprs.web import supportsend, supportstate
+from neoaprs.web import supportsend
 from neoaprs.web.supportsend import MAX_NOTE, answer_of, support_url
 from tests.support.env import Env, until
 from tests.support.fakesupportserver import FakeSupportServer, parse_form, support_server
@@ -238,12 +238,11 @@ async def test_a_device_that_has_not_logged_in_sends_nothing_and_a_script_of_ano
 
 @pytest.mark.expects_errors
 async def test_the_logs_are_sent_when_the_sound_cards_cannot_be_listed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    e, fake = await served(tmp_path, monkeypatch)
-    monkeypatch.setattr(supportstate, "hf_is_mercury", lambda c: True)
+    e, fake = await served(tmp_path, monkeypatch, settings={"hf/enabled": "true", "hf/profile": "mercury"})
 
     def undecodable() -> list[object]:
         raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
-    monkeypatch.setattr(e.ctl.mercury, "sound_cards", undecodable)
+    monkeypatch.setattr(e.mercury, "sound_cards", undecodable)
     code, answer = await send(e)
     assert code == 200 and answer["ok"] and fake.requests, "a nice-to-have of the report does not sink it"
 

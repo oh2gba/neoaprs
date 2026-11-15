@@ -1,15 +1,25 @@
 // The radios of the station for a pane (lib/radios.ts): every radio, those that are on, whether there are several, the main and the email radio, whether a radio is named, the radio a station or a message goes
-// on, and the radio this page has just added. Read from the page's context (the topic `radios`, the settings, the status, the lines of before); a pane mounted without the page's context (a test of its own) is as a
-// station with the FM radio alone. The radios are made once for each page and shared by every pane that asks, and a radio stays the same object while nothing of its own changes, so that a stats-only patch of
+// on, and the radio this page has just added. Read from the page's context (the topic `radios`, the settings, the status); a pane mounted without the page's context (a test of its own) has no radio. The radios are made once for each page and shared by every pane that asks, and a radio stays the same object while nothing of its own changes, so that a stats-only patch of
 // the topic draws again only what shows the counts.
 import { computed, effectScope, inject, ref, watch, type ComputedRef, type Ref } from "vue";
 import { DAEMON_KEY, type DaemonContext } from "@/composables/useDaemonContext";
-import { emailRadio, enabledRadios, isNamed, mainRadio, messageRadio, pageRadios, sameRadio, sendingRadio, type PageRadio, type RadioId } from "@/lib/radios";
-import { pageRows } from "@/lib/radiosides";
-import type { MessageRow, StationRow } from "@/protocol/protocol";
+import {
+  emailRadio,
+  enabledRadios,
+  isNamed,
+  mainRadio,
+  messageRadio,
+  pageRadios,
+  sameRadio,
+  senders,
+  sendingRadio,
+  type PageRadio,
+  type RadioId,
+} from "@/lib/radios";
+import type { MessageRow, RadioRow, StationRow } from "@/protocol/protocol";
 
 export interface Radios {
-  /** the daemon has told the topic `radios` (until then, and from a daemon of the wire of before, the radios are those of the settings of before) */
+  /** the daemon has told the topic `radios` (until then there is no radio) */
   told: ComputedRef<boolean>;
   /** every radio, removed ones too, in the order of their boxes */
   all: ComputedRef<PageRadio[]>;
@@ -17,6 +27,10 @@ export interface Radios {
   enabled: ComputedRef<PageRadio[]>;
   /** more than one radio is on: only then is a radio chosen */
   several: ComputedRef<boolean>;
+  /** the radios that are on and can send: the ones a choice of the radio to send on offers (a radio that only listens is in none) */
+  senders: ComputedRef<PageRadio[]>;
+  /** more than one radio can send: only then is a radio to send on chosen */
+  severalSenders: ComputedRef<boolean>;
   /** the main radio; null while no radio is on */
   main: ComputedRef<PageRadio | null>;
   /** the email radio, which the internet gateways hear; null while there is none */
@@ -40,7 +54,7 @@ export interface Radios {
   choose: () => RadioChoice;
 }
 
-/** The radio chosen beside a button: `picked` the operator's (null: the main radio), `radio` the one it goes on (the one picked while it is on, else the main radio), `choices` the radios on, the main radio first. A
+/** The radio chosen beside a button: `picked` the operator's (null: the main radio), `radio` the one it goes on (the one picked while it is on, else the main radio), `choices` the radios on that can send, the main radio first. A
  * choice that goes off is forgotten, and does not come back by itself when that radio is on again. */
 interface RadioChoice {
   picked: Ref<RadioId | null>;
@@ -48,9 +62,11 @@ interface RadioChoice {
   choices: ComputedRef<PageRadio[]>;
 }
 
+const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
+
 /** The radios of one page, made in a scope of their own so that they outlive the pane that asked first. */
 function make(context: DaemonContext | null): Radios {
-  const rows = computed(() => pageRows(context?.radios.value ?? null, context?.config.value ?? null, context?.tnc.value ?? null, context?.hf.value ?? null));
+  const rows = computed(() => context?.radios.value ?? NO_RADIOS);
   const live = (id: RadioId) => rows.value.get(String(id));
   const all = computed<PageRadio[]>((old) => {
     const made = pageRadios(rows.value, context?.config.value ?? null, live).map((radio) => {
@@ -60,6 +76,7 @@ function make(context: DaemonContext | null): Radios {
     return old !== undefined && old.length === made.length && made.every((radio, i) => radio === old[i]) ? old : made;
   });
   const enabled = computed(() => enabledRadios(all.value));
+  const sending = computed(() => senders(all.value));
   const main = computed(() => mainRadio(all.value, context?.status.value ?? null));
   const ids = new Map<RadioId, ComputedRef<PageRadio | undefined>>();
   const scope = effectScope(true);
@@ -77,6 +94,8 @@ function make(context: DaemonContext | null): Radios {
     all,
     enabled,
     several: computed(() => enabled.value.length > 1),
+    senders: sending,
+    severalSenders: computed(() => sending.value.length > 1),
     main,
     email: computed(() => emailRadio(all.value, context?.status.value ?? null)),
     allowsPath: computed(() => enabled.value.some((radio) => radio.carriesPath)),
@@ -96,13 +115,13 @@ function make(context: DaemonContext | null): Radios {
     },
     choose: () => {
       const picked = ref<RadioId | null>(null);
-      watch(enabled, (on) => {
+      watch(sending, (on) => {
         if (picked.value !== null && !on.some((r) => r.id === picked.value)) picked.value = null;
       }); // (in the scope of the pane that asked: it ends with the pane)
       return {
         picked,
-        radio: computed(() => (picked.value !== null && enabled.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null))),
-        choices: computed(() => [...enabled.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id))),
+        radio: computed(() => (picked.value !== null && sending.value.some((r) => r.id === picked.value) ? picked.value : (main.value?.id ?? null))),
+        choices: computed(() => [...sending.value].sort((a, b) => Number(b.id === main.value?.id) - Number(a.id === main.value?.id))),
       };
     },
   };

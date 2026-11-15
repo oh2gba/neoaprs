@@ -37,19 +37,18 @@ import { useWhatsNew } from "@/composables/useWhatsNew";
 import { agingOf, type Aging } from "@/lib/aging";
 import { pathCalls } from "@/lib/calls";
 import { headerPills } from "@/lib/pills";
-import { enabledRadios, pageRadios } from "@/lib/radios";
-import { pageRows, type RadioKind } from "@/lib/radiosides";
+import { enabledRadios, listensOnly, mainRadio, pageRadios, portsAsks } from "@/lib/radios";
 import { inApp } from "@/lib/shell";
 import { recommendedPath } from "@/lib/symbols";
-import type { ConfigValues, TncState } from "@/protocol/protocol";
+import type { ConfigValues, RadioRow } from "@/protocol/protocol";
 
-/** Whether the link of a radio (the topic `tnc`, or `hf`) is up. */
-const linked = (radio: TncState | null): boolean => radio?.state === "connected";
+const NO_RADIOS: ReadonlyMap<string, RadioRow> = new Map();
 
 /** The radios as the shell reads them (the panes read them through composables/useRadios.ts, which the shell itself cannot ask: it is the one that provides the page's context). */
 function useShellRadios(daemon: ReturnType<typeof useDaemon>) {
-  const all = computed(() => pageRadios(pageRows(daemon.radios.value, daemon.config.value, daemon.tnc.value, daemon.hf.value), daemon.config.value));
-  return { all, enabled: computed(() => enabledRadios(all.value)) };
+  const all = computed(() => pageRadios(daemon.radios.value ?? NO_RADIOS, daemon.config.value));
+  const enabled = computed(() => enabledRadios(all.value));
+  return { all, enabled, main: computed(() => mainRadio(all.value, daemon.status.value)) };
 }
 
 /** The guide opens once, when the daemon says it has no call (the page's first word of a fresh install): not again when the settings are told again, nor when the call is set. */
@@ -69,15 +68,14 @@ function openGuideOnce(config: Readonly<Ref<ConfigValues | null>>, guide: SetupG
 
 /** What the panes read of the daemon's state besides the topics themselves: who and where we are, the stations heard, how they age, the settings and the stations' own choices. */
 function useDerived(daemon: ReturnType<typeof useDaemon>) {
-  const { config, status, tnc, lastError, send } = daemon;
-  const shellRadios = useShellRadios(daemon);
-  const settings = useSettings(config, lastError, send, { byId: (id: number) => shellRadios.all.value.find((radio) => radio.id === id) }); // (a refusal of Save names its radio as the page does)
+  const { config, status, lastError, send } = daemon;
+  const radios = useShellRadios(daemon);
+  const settings = useSettings(config, lastError, send, { byId: (id: number) => radios.all.value.find((radio) => radio.id === id) }); // (a refusal of Save names its radio as the page does)
   const prefs = useStationPrefs(daemon.stationPrefs, send);
   const keys = useStationKeys(daemon.stationKeys, status, send);
   const heard = useHeardIndex(daemon.stations, config);
   const now = useNow();
   const app = inApp();
-  const radios = useShellRadios(daemon);
   return {
     ...heard,
     settings,
@@ -86,27 +84,26 @@ function useDerived(daemon: ReturnType<typeof useDaemon>) {
     now,
     dark: useDark(),
     aging: computed<Aging>(() => agingOf(config.value?.values)),
-    receiveOnly: computed(() => config.value?.values["station/transmit"] === "false"),
-    radiosNamed: computed(() => radios.enabled.value.length > 1), // (several radios on: plan section 6's rule)
+    receiveOnly: computed(() => config.value?.values["station/transmit"] === "false" || listensOnly(daemon.radios.value)),
     pills: computed(() =>
       headerPills(
         config.value?.values ?? {},
         daemon.gps.value,
         daemon.igate.value,
         daemon.status.value?.update ?? null,
-        { connection: daemon.connection.value, tnc: tnc.value, hf: daemon.hf.value, now: now.value, inApp: app, radios: radios.all.value },
+        { connection: daemon.connection.value, now: now.value, inApp: app, radios: radios.all.value },
         daemon.map.value,
+        listensOnly(daemon.radios.value),
       ),
     ),
     call: computed<string | null>(() => config.value?.values["station/call"] ?? status.value?.call ?? null),
     home: useHome(config, status),
     fallbackPath: computed(() => {
       const values = config.value?.values ?? {};
-      const text = values["beacon/path"] ?? "";
+      const text = radios.main.value?.row.choices.path ?? "";
       return (pathCalls(text, recommendedPath(values["station/symbol_table"] ?? "", values["station/symbol_code"] ?? "")) ?? [text]).join(",");
     }),
     connected: computed(() => radios.enabled.value.some((radio) => radio.connected)), // (any radio that is on)
-    connectedOn: (radio: RadioKind) => linked(radio === "fm" ? tnc.value : daemon.hf.value),
   };
 }
 
@@ -182,10 +179,10 @@ export function useAppShell() {
   const { config, connection, lastError, send } = daemon;
   // the ports the system lists, for the Settings tab and the setup guide: asked each time the daemon is connected (not before: a command then is refused with a toast)
   watch(connection, (state) => {
-    if (state === "open") send({ cmd: "list_ports" });
+    if (state === "open") for (const ask of portsAsks(daemon.radios.value?.values() ?? [])) send(ask);
   });
   const derived = useDerived(daemon);
-  const guide = useSetupGuide(config, lastError, send);
+  const guide = useSetupGuide(config, lastError, send, daemon.radios);
   openGuideOnce(config, guide);
   const panel = usePanel();
   const tabs = useTabs(daemon, panel);
@@ -215,7 +212,7 @@ export function useAppShell() {
     },
     blocked: escBlocked,
   });
-  const scope = useScopeLooks(send, daemon.hf, connection, pageVisible(), { radios: daemon.radios });
+  const scope = useScopeLooks(send, connection, pageVisible(), { radios: daemon.radios });
   const mapwrap = ref<HTMLElement | null>(null); // (the map's box, bound by App.vue)
   const mapWidth = useElementWidth(mapwrap);
   const { statsOpen, monitorOpen, monitorShown, replayOpen, closeOverlays } = useMapOverlays(scope.available, layout.phone, mapWidth);

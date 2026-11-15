@@ -30,7 +30,7 @@ from .historywire import PacketHistory, PacketHistoryMsg, SignalSeries, SignalSe
 from .hostwire import AskStatus, CheckUpdate, Error, Hello, Ping, Pong, ReleaseNotes, ReleaseNotesMsg, Status, UpdateResultMsg
 from .hubwire import PatchMsg, StateMsg, Subscribe, Unsubscribe
 from .mapwire import MapCancel, MapEstimate, MapFetch, MapState, MapWanted
-from .messagewire import AlertResultMsg, AlertTest, SetMessageRadio, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
+from .messagewire import AlertResultMsg, AlertTest, ConversationDelete, ForgetStationKey, MessageCancel, MessageDelete, MessageRetry, MessageRow, NewMessageKey, OverheardDelete, QueryStation, SendKey, SendMessage, StationKey
 from .ownwire import BulletinPost, BulletinUnpost, ObjectKill, ObjectSet, OwnBulletinRow, OwnObjectRow
 from .packetwire import PacketRow, StationTraffic, StationTrafficMsg
 from .portwire import FindRadio, FindRadioCancel, ListPorts, PortsMsg, RadioSearchMsg
@@ -41,14 +41,14 @@ from .prefwire import ClearStationPath, SetStationAlert, SetStationPath, SetStat
 from .skedwire import SkedDelete, SkedPost, SkedsState, SkedsWanted
 from .stationwire import ForgetAllStations, ForgetStation, StationRow, StationTrack, StationTrackMsg
 from .supportwire import PageError
-from .tncwire import Frequencies, HfFrequencies, HfKeyTest, HfScope, HfTune, RadioRow, TncState
+from .tncwire import Frequencies, RadioRow
 from .updatewire import UpdateCancel, UpdateNow, UpdateState
 from .weatherwire import WeatherSeries, WeatherSeriesMsg
 from .wirebase import _Command, _Message, _Model
 
 
 # ---- Client to server
-AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, HfTune, HfKeyTest, HfFrequencies, HfScope, SetConfig, BeaconNow, StatusNow, SendMessage, SetMessageRadio, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, SignalSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, SkedsWanted, SkedPost, SkedDelete, PageError,
+AnyCommand = Union[Ping, AskStatus, CheckUpdate, ReleaseNotes, Subscribe, Unsubscribe, ForgetStation, ForgetAllStations, ListPorts, FindRadio, FindRadioCancel, SetConfig, BeaconNow, StatusNow, SendMessage, SendKey, ForgetStationKey, NewMessageKey, QueryStation, AskQru, GeneralQuery, MessageRetry, MessageCancel, MessageDelete, ConversationDelete, OverheardDelete, SetStationPath, ClearStationPath, SetStationRfOnly, SetStationAlert, WeatherSeries, PacketHistory, PositionHistory, SpeedSeries, SignalSeries, StationTraffic, AlertTest, BulletinDelete, ObjectSet, ObjectKill, BulletinPost, BulletinUnpost, MapEstimate, MapFetch, MapWanted, MapCancel, UpdateNow, UpdateCancel, SkedsWanted, SkedPost, SkedDelete, PageError,
                    RadioAdd, RadioRemove, RadioChange, RadioTune, RadioKeyTest, RadioScope, StationRadio, Frequencies, StationTrack]
 Command = Annotated[AnyCommand, Field(discriminator="cmd")]
 """Every command the page may send."""
@@ -65,8 +65,6 @@ class TopicValues(_Model):
     packets: dict[str, PacketRow] = Field(description="the latest 200 packets by id (as text): a packet is a `set`, and the one that falls out of the 200 a `del`; the highest id is the newest")
     radios: dict[str, RadioRow] = Field(description="every radio of the station by id (as text), removed ones too (marked): what it is, how it is set, its line, its beacon and its modem. A radio added is a `set`; a change of its state, counters, lines, beacon or "
                                                     "modem a `set` of its row, at most four times a second; a change of the settings or of the devices held tells it whole. No radio leaves it")
-    tnc: TncState = Field(description="radio 1, the FM radio of before (the KISS TNC); told whole as it changes, at most four times a second. `radios` has every radio")
-    hf: TncState = Field(description="radio 2, the HF radio of before (the Mercury modem, with `modem` inside), in the same shape; `stopped` while hf/enabled is off; told whole as it changes, at most four times a second. `radios` has every radio")
     config: ConfigValues = Field(description="the settings; told again after every save, though nothing differs: the settings form waits for it")
     station_prefs: dict[str, StationPref] = Field(description="what the operator set for each station that has anything set, by call: its own path (null where none is set), whether it is RF only and its alert. "
                                                    "`set_station_path`, `clear_station_path`, `set_station_rf_only` and `set_station_alert` each give a `set` of the entry, or a `del` when nothing is left in it")

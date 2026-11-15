@@ -28,7 +28,7 @@ import type { Command } from "@/protocol/protocol";
 
 const { qru, receiveOnly, send, config, lastError, now, panel, prefs, fallbackPath } = useDaemonContext();
 const radios = useRadios();
-const { told, several, enabled, allowsPath, byId, named, choose } = radios;
+const { told, severalSenders: several, enabled, allowsPath, byId, named, choose } = radios;
 /** The radio chosen beside Ask (`picked`, null: the main radio), the one it goes on, and the radios to choose from, the main radio first (useRadios `choose`). */
 const { picked, radio, choices } = choose();
 

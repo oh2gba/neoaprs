@@ -5,7 +5,7 @@ import { t } from "@/i18n";
 import { headerPills } from "@/lib/pills";
 import { cssRule, mediaRule } from "@/test/css";
 import { pageRadios } from "@/lib/radios";
-import { NOW, gpsState, hfState, igateState, radioRow, radiosTopic, tncState } from "@/test/fixtures";
+import { NOW, gpsState, igateState, radioRow, radiosTopic } from "@/test/fixtures";
 
 const header = (props: Partial<InstanceType<typeof AppHeader>["$props"]> = {}) => mount(AppHeader, { props: { call: "OH2GBA", unread: 0, ...props } });
 
@@ -82,7 +82,7 @@ describe("AppHeader", () => {
   });
 
   it("shows the Daemon mark as a mark that says and does not open, and the Radio mark as a button that opens Settings → Radio with its group flashed", async () => {
-    const link = { connection: "closed", tnc: null, hf: null, now: 0, inApp: false } as const;
+    const link = { connection: "closed", now: 0, inApp: false, radios: [] } as const;
     const wrapper = header({ pills: headerPills({}, null, null, null, link) });
     const [daemon, radio] = wrapper.findAll(".headpills .tag");
     expect([daemon?.element.tagName, daemon?.text(), daemon?.classes().includes("tag-bad"), daemon?.attributes("role")]).toEqual([
@@ -95,7 +95,7 @@ describe("AppHeader", () => {
     await daemon?.trigger("click");
     expect(wrapper.emitted("open")).toBeUndefined();
     await radio?.trigger("click");
-    expect(wrapper.emitted("open")).toEqual([["settings", "set-tnc-profile"]]);
+    expect(wrapper.emitted("open")).toEqual([["settings", "set-radio-add"]]);
   });
 
   it("has RX only in warn while transmitting is off, and the others as they are: Beacon off neutral only while transmitting is on, Internet info, GPS ok with a fix and warn without", () => {
@@ -162,8 +162,6 @@ describe("the header with any number of radios", () => {
   const marksOf = (rows = SIX) =>
     headerPills({}, null, null, null, {
       connection: "open",
-      tnc: tncState(),
-      hf: hfState(),
       now: NOW,
       inApp: true,
       radios: pageRadios(radiosTopic(...rows), null),

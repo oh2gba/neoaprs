@@ -2,7 +2,7 @@ import "@/test/mockmap";
 import { describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeSocket } from "@/test/fakesocket";
-import { configValues, hello, tncState } from "@/test/fixtures";
+import { configValues, fmRow, hello, hfRow, radiosValue } from "@/test/fixtures";
 import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -28,7 +28,7 @@ describe("App", () => {
     expect(wrapper.find(".appheader .pill-daemon").classes()).toContain("tag-warn");
     const socket = FakeSocket.last();
     socket.say(hello());
-    socket.say({ type: "state", topic: "tnc", rev: 0, value: tncState() });
+    socket.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow()) });
     socket.say({ type: "state", topic: "config", rev: 0, value: configValues() });
     await flushPromises();
     expect(wrapper.find(".appheader h1").text()).toBe("NeoAPRS");
@@ -43,14 +43,19 @@ describe("App", () => {
     const { wrapper, socket } = await open();
     const mark = () => wrapper.find(".appheader .pill-radio");
     expect([mark().text(), mark().classes().includes("tag-ok")]).toEqual(["Radio", true]);
-    socket.say({ type: "state", topic: "tnc", rev: 1, value: tncState({ state: "waiting", problem: "no radio found", describe: "waiting" }) });
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 1,
+      value: radiosValue(fmRow({ state: "waiting", problem: { code: "radio.not_connected", params: { name: "FM", radio: 1 } } })),
+    });
     await flushPromises();
     expect([mark().text(), mark().classes().includes("tag-warn"), mark().attributes("title")]).toEqual([
       "Radio: not connected",
       true,
-      "no radio found. Settings → Radio",
+      "Not connected. Settings → Radio", // (the daemon's English of the search names ports: the log has it)
     ]);
-    socket.say({ type: "state", topic: "tnc", rev: 2, value: tncState() });
+    socket.say({ type: "state", topic: "radios", rev: 2, value: radiosValue(fmRow()) });
     await flushPromises();
     expect(mark().text()).toBe("Radio");
     expect(wrapper.findAll(".appheader .headpills .tag").map((m) => m.text())).toEqual(["Server", "Radio"]);
@@ -67,6 +72,28 @@ describe("App", () => {
     vi.advanceTimersByTime(1000);
     vi.useRealTimers();
     expect(FakeSocket.all).toHaveLength(2);
+  });
+
+  it("asks for the ports by the radio that has sound cards, on the first connection and again when the socket opens anew, never the ports alone that would leave its box without its cards", async () => {
+    const wrapper = mountApp();
+    await flushPromises();
+    const first = FakeSocket.last();
+    first.say(hello());
+    first.say({ type: "state", topic: "radios", rev: 0, value: radiosValue(fmRow(), hfRow()) });
+    first.say({ type: "state", topic: "config", rev: 0, value: configValues() });
+    await flushPromises();
+    const asks = (socket: FakeSocket) => socket.sent.filter((c) => (c as { cmd: string }).cmd === "list_ports");
+    expect(asks(first).at(-1)).toEqual({ cmd: "list_ports", radio: 2 });
+    vi.useFakeTimers();
+    first.hangUp();
+    await flushPromises();
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
+    const again = FakeSocket.last();
+    again.say(hello());
+    await flushPromises();
+    expect(asks(again)).toEqual([{ cmd: "list_ports", radio: 2 }]);
+    wrapper.unmount();
   });
 
   it("remembers the tab and the folding of the panel and its width", async () => {

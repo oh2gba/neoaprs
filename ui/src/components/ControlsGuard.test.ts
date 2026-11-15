@@ -13,11 +13,11 @@ import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Scope } from "@/lib/settings";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, hfState, igateState, ownObject, radioRow, radiosTopic, station, tncState } from "@/test/fixtures";
+import { configValues, fmRow, heardBy, hfRow, igateState, ownObject, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 const ON_OFF = /^(on|off|yes|no|true|false|enabled|disabled|ein|aus|an)$/i;
 /** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF radio's type is the Mercury modem and the Dummy HF radio today; the keying is the radio by itself and a CM108 chip before the ports are listed). */
-const KINDS_OF_TWO = ["set-hf-profile", "set-mercury-keying"];
+const KINDS_OF_TWO = ["set-radio-2-type", "set-radio-2-keying"];
 
 /** The dropdowns of a mounted surface, each as the values it offers. */
 function dropdowns(root: Element): { id: string; values: string[] }[] {
@@ -25,17 +25,23 @@ function dropdowns(root: Element): { id: string; values: string[] }[] {
 }
 
 function surfaces() {
-  const scenes: [Scope, Record<string, string>][] = [
-    ["settings", { "igate/enabled": "true", "digi/enabled": "true", "web/network": "true", "messages/alert": "true" }],
-    ["settings", { "tnc/profile": "network", "tcp/host": "192.168.1.5", "tcp/port": "8001" }],
-    ["settings", { "hf/enabled": "true", "fm/enabled": "false" }],
-    ["beacon", { "gps/source": "gpsd", "beacon/interval_min": "30" }],
-    ["beacon", { "gps/source": "off", "beacon/interval_min": "0" }],
+  const FM_ALONE = radiosTopic(fmRow());
+  const scenes: [Scope, Record<string, string>, Record<string, string>, ReturnType<typeof radiosTopic>][] = [
+    ["settings", { "igate/enabled": "true", "web/network": "true", "messages/alert": "true" }, { "radio/1/digipeat": "true" }, FM_ALONE],
+    ["settings", {}, { "radio/1/tcp_host": "192.168.1.5", "radio/1/tcp_port": "8001" }, radiosTopic(radioRow(1, "kiss-tcp"))],
+    [
+      "settings",
+      {},
+      { "radio/2/keying": "vox", "radio/2/sound_card": "", "radio/2/tx_gain_db": "0" },
+      radiosTopic(fmRow({ enabled: false, state: "stopped" }), hfRow()),
+    ],
+    ["beacon", { "gps/source": "gpsd", "beacon/interval_min": "30" }, {}, FM_ALONE],
+    ["beacon", { "gps/source": "off", "beacon/interval_min": "0" }, {}, FM_ALONE],
   ];
-  const settings = scenes.map(([scope, extra]) =>
+  const settings = scenes.map(([scope, extra, own, radios]) =>
     mount(SettingsForm, {
       props: { scope },
-      global: withDaemon(fakeDaemon({ config: configValues(extra), igate: igateState(), tnc: tncState(), hf: hfState() })),
+      global: withDaemon(fakeDaemon({ config: configValues(extra, own), igate: igateState(), radios })),
     }),
   );
   const objects = mount(ObjectForm, {
@@ -93,11 +99,11 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
 });
 
 describe("the controls of a station's Route", () => {
-  const BOTH = configValues({ "fm/enabled": "true", "hf/enabled": "true" });
+  const BOTH = radiosTopic(fmRow(), hfRow());
   const six = radiosTopic(...[1, 2, 3, 4, 5, 6].map((id) => radioRow(id, id % 2 === 1 ? "kiss" : "mercury", { name: `Radio ${id}` })));
   async function routes(given: Parameters<typeof fakeDaemon>[0]) {
-    const row = station("OH2RDG", { heard_fm: 3, heard_hf: 2, radio_now: 2 });
-    const daemon = fakeDaemon({ config: BOTH, stations: shallowRef(new Map([[row.call, row]])), ...given });
+    const row = station("OH2RDG", { heard: heardBy([1, 3], [2, 2, null]), radio_now: 2 });
+    const daemon = fakeDaemon({ radios: BOTH, stations: shallowRef(new Map([[row.call, row]])), ...given });
     const panel = mount(StationPanel, { props: { row, armed: false }, global: withDaemon(daemon) });
     const talk = mount(ConversationView, { props: { selected: row.call, narrow: false, thread: [] }, global: withDaemon(daemon) });
     await talk.find(".route-button").trigger("click");

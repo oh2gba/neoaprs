@@ -1,0 +1,7 @@
+{
+  "note": "What a TNC prints that is no packet: prompts, answers, a connect, an echo, a heard list, a sign-on banner, a non-AX.25 frame in braces, a waypoint sentence, a 600-byte line, and a header whose information never comes. No frame.",
+  "source": "made up",
+  "real": false,
+  "frames": [],
+  "rejected": 1
+}

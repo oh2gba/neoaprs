@@ -18,7 +18,7 @@ function form(rows: OwnObjectRow[] = [], placed = true) {
     tab: ref("objects"),
   } as unknown as Panel);
   if (placed) view.place(60.17, 24.94);
-  const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" } });
+  const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "WIDE1-1,WIDE2-1" }, global: withDaemon(fakeDaemon()) }); // (the page's context: radio 1 alone, a serial TNC)
   const field = (label: string) => wrapper.findAll(".field:not(.location-field)").find((f) => f.find("label").text() === label);
   const input = (label: string) => field(label)?.find<HTMLInputElement>("input");
   /** The entry under the place (latitude, longitude, locator), opened by a click on the place. */
@@ -110,7 +110,7 @@ describe("ObjectForm", () => {
 
   it("says (default) in the path when the beacon has none", () => {
     const view = useOwnObjects(new Map(), () => true, { show: vi.fn(), tab: ref("objects") } as unknown as Panel);
-    const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "" } });
+    const wrapper = mount(ObjectForm, { props: { form: view, fallbackPath: "" }, global: withDaemon(fakeDaemon()) });
     expect(wrapper.find("input[placeholder='(default)']").exists()).toBe(true);
   });
 

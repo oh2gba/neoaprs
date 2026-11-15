@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from .coded import CodedError
-from .radiotype import FM_ID as FM_ID, HF_ID as HF_ID, Kind, RadioId as RadioId, RadioType
+from .radiotype import FM_ID as FM_ID, HF_ID as HF_ID, Kind, RadioId as RadioId, RadioType, RadioTypeError
 from .radiotypes import kind_field, type_of
 
 log = logging.getLogger("neoaprs.radiospec")
@@ -80,6 +80,19 @@ def enabled(specs: Iterable[RadioSpec]) -> list[RadioSpec]:
     return [s for s in live(specs) if s.enabled]
 
 
+def transmits(spec: RadioSpec) -> bool:
+    """Whether the radio can send (its type's `can.transmit`: a receive-only type cannot); False for a type that is not known, which nothing describes."""
+    try:
+        return spec.rtype.can.transmit
+    except RadioTypeError:
+        return False
+
+
+def senders(specs: Iterable[RadioSpec]) -> list[RadioSpec]:
+    """The radios that are enabled and can send, by position (then id): the only ones a rule picks to send on (the main radio, a message's, the beacon's, an object's, the email radio)."""
+    return [s for s in enabled(specs) if transmits(s)]
+
+
 def number_in_kind(spec: RadioSpec, specs: Iterable[RadioSpec]) -> int:
     """The number of the radio within its kind ("FM", "HF 2"): 1 for the first of its kind by id among the live radios; a removed one is numbered by id among all of its kind, so that it keeps its number."""
     pool = list(specs) if spec.removed_at is not None else live(specs)
@@ -95,24 +108,24 @@ def log_name(spec: RadioSpec, specs: Iterable[RadioSpec]) -> str:
 
 
 def main_radio(specs: Iterable[RadioSpec], chosen: RadioId | None) -> RadioId | None:
-    """The main radio (plan §2): the one chosen while it is enabled, else the first enabled by position, else None (no radio)."""
-    on = enabled(specs)
+    """The main radio (plan §2): the one chosen while it is enabled and can send, else the first such by position, else None (no radio, or none that can send)."""
+    on = senders(specs)
     if chosen is not None and any(s.id == chosen for s in on):
         return chosen
     return on[0].id if on else None
 
 
 def in_force_choice(choice: RadioId | None, specs: Iterable[RadioSpec]) -> RadioId | None:
-    """A station's stored radio as it is in force: with one enabled radio that one, whatever is stored; else the choice while it names an enabled radio; else None ("automatic")."""
-    on = enabled(specs)
+    """A station's stored radio as it is in force: with one radio that can send (`senders`) that one, whatever is stored; else the choice while it names such a radio; else None ("automatic")."""
+    on = senders(specs)
     if len(on) == 1:
         return on[0].id
     return choice if choice is not None and any(s.id == choice for s in on) else None
 
 
 def in_force_set(ids: Iterable[RadioId], specs: Iterable[RadioSpec], main: RadioId | None) -> tuple[RadioId, ...]:
-    """A stored set of radios (an object's, the beacon's) as it is in force: with one enabled radio that one; else its ticks that are enabled, by position; else the main radio; else none."""
-    on = enabled(specs)
+    """A stored set of radios (an object's, the beacon's) as it is in force: with one radio that can send (`senders`) that one; else its ticks of such radios, by position; else the main radio; else none."""
+    on = senders(specs)
     if len(on) == 1:
         return (on[0].id,)
     ticked = set(ids)

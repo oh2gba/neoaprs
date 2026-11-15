@@ -13,7 +13,8 @@ from tornado.httpclient import HTTPClientError
 
 from neoaprs import VERSION
 from neoaprs.clock import iso
-from neoaprs.config import DEFAULTS, RADIO_STATION_KEYS, STATION_KEYS
+from neoaprs.config import DEFAULTS, STATION_KEYS
+from neoaprs.web.views import CONFIG_KEYS
 from neoaprs.source import Source
 from tests.support.air import ack_info, message_info, on_air, reject_info
 from tests.support.env import Env, idle_for, ON_AIR, OPERATOR, until
@@ -47,7 +48,7 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     await e.start()
     page = await e.ws()
     hello = await page.expect("hello")
-    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "radios", "tnc", "hf", "config", "station_prefs", "messages", "station_keys", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps", "igate", "qru", "skeds", "general"]
+    assert hello["version"] == VERSION and hello["protocol"] == 1 and hello["topics"] == list(TOPIC_NAMES) == ["stations", "packets", "radios", "config", "station_prefs", "messages", "station_keys", "bulletins", "own_objects", "own_bulletins", "map", "update", "gps", "igate", "qru", "skeds", "general"]
     status = await page.expect("status")
     assert status["version"] == VERSION and status["packets"] == 0 and status["stations"] == 1 and (status["call"], status["lat"], status["lon"]) == ("OH2GBA", 60.17, 24.94)
     assert (status["beacon_interval_min"], status["beacon_last_sent"], status["beacon_next_due"]) == (0, None, None)
@@ -60,10 +61,10 @@ async def test_a_page_that_opens_is_sent_hello_the_status_and_every_topic_whole(
     stations = states["stations"]["value"]
     assert list(stations) == ["OH2GBA"] and stations["OH2GBA"]["is_me"] is True and stations["OH2GBA"]["distance_km"] is None
     assert states["packets"]["value"] == {}
-    assert states["tnc"]["value"]["state"] == "connected" and states["tnc"]["value"]["path"] == e.link
-    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key not in RADIO_STATION_KEYS}      # (station/main_radio is told in radio_values)
+    assert states["radios"]["value"]["1"]["state"] == "connected" and list(states["radios"]["value"]) == ["1"]
+    config, wire = states["config"]["value"], lambda values: {key: text for key, text in values.items() if key in CONFIG_KEYS}      # (station/main_radio is told in radio_values, and every radio's own setting)
     assert {key: config[key] for key in ("values", "defaults", "urls", "https")} == {"values": wire({**DEFAULTS.to_data(), **OPERATOR}), "defaults": wire(DEFAULTS.to_data()), "urls": [], "https": {"on": False, "port": 0, "fingerprint": "", "problem": ""}}
-    assert config["radio_values"]["station/main_radio"] == "" and "radio/1/port" in config["radio_values"] and set(config["radio_values"]) == set(config["radio_defaults"])
+    assert config["radio_values"]["station/main_radio"] == "" and config["radio_values"]["radio/1/path"] == OPERATOR["beacon/path"] and set(config["radio_values"]) == set(config["radio_defaults"])
     assert states["messages"]["value"] == {} and states["station_prefs"]["value"] == {}
     for name, message in states.items():
         TOPIC_VALUES[name].validate_json(json.dumps(message["value"]))                       # the value is of the type TopicValues says
@@ -94,31 +95,31 @@ async def test_the_capture_comes_as_four_packets_and_the_stations_they_are_from(
     assert page.revs["packets"] >= 1 and page.revs["stations"] >= 1
 
 
-async def test_the_state_of_the_tnc_follows_the_radio_and_comes_at_most_four_times_a_second(tmp_path: Path) -> None:
+async def test_the_row_of_a_radio_follows_its_line_and_comes_at_most_four_times_a_second(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True)
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
     await e.play()
-    await page.until(lambda: page.topics["tnc"]["stats"]["packets"] == 4)
-    tnc = page.topics["tnc"]
-    assert tnc["state"] == "connected" and tnc["stats"]["frames_in"] == 4 and tnc["stats"]["last_packet"] and len(tnc["lines"]) <= 100
-    assert any("OH2RDK-7" in line["text"] for line in tnc["lines"])
-    assert len(page.of("patch", "tnc")) <= 4, "the lines and the counters of one burst are told together, not one by one"
+    await page.until(lambda: page.topics["radios"]["1"]["stats"]["packets"] == 4)
+    row = page.topics["radios"]["1"]
+    assert row["state"] == "connected" and row["stats"]["frames_in"] == 4 and row["stats"]["last_packet"] and len(row["lines"]) <= 100
+    assert any("OH2RDK-7" in line["text"] for line in row["lines"])
+    assert len(page.of("patch", "radios")) <= 4, "the lines and the counters of one burst are told together, not one by one"
 
 
-async def test_the_keep_alive_counters_and_the_last_action_are_in_the_tnc_topic(tmp_path: Path) -> None:
+async def test_the_keep_alive_counters_are_in_the_radios_row_and_a_silent_radio_says_since_when(tmp_path: Path) -> None:
     e = Env(tmp_path, web=True, check_pause_sec=0.05, reply_sec=0.1, answer_sec=0.1)
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    tnc = page.topics["tnc"]
-    assert (tnc["stats"]["keepalive_checks"], tnc["stats"]["watchdog_probes"], tnc["stats"]["port_reopens"]) == (0, 0, 0) and tnc["last_watchdog_action"] == "" and tnc["last_watchdog_at"] is None
+    row = page.topics["radios"]["1"]
+    assert (row["stats"]["keepalive_checks"], row["stats"]["watchdog_probes"], row["stats"]["port_reopens"]) == (0, 0, 0) and e.tnc.last_watchdog_action == ""
     e.tnc.set_check(0.1)
-    await page.until(lambda: page.topics["tnc"]["last_watchdog_action"] == "check")
-    tnc = page.topics["tnc"]
-    assert tnc["stats"]["keepalive_checks"] == 1 and tnc["last_watchdog_at"] == iso(e.now())
-    await page.until(lambda: page.topics["tnc"]["state"] == "silent")
+    await page.until(lambda: page.topics["radios"]["1"]["stats"]["keepalive_checks"] == 1)
+    assert (e.tnc.last_watchdog_action, e.tnc.last_watchdog_at) == ("check", e.now())
+    await page.until(lambda: page.topics["radios"]["1"]["state"] == "silent")
+    assert page.topics["radios"]["1"]["problem"]["code"] == "radio.silent"
     e.tnc.set_check(0.0)
     assert page.of("error") == []
 
@@ -365,7 +366,7 @@ async def test_beacon_now_while_the_tnc_is_not_connected_is_an_error_and_sends_n
     error = (await page.expect("error"))["text"]
     assert error.startswith("beacon_now: ") and "not connected" in error
     await page.quiet(0.3)
-    assert page.topics["packets"] == {} and e.ctl.beacon.last_sent is None
+    assert page.topics["packets"] == {} and e.beacon.last_sent is None
 
 
 async def test_beacon_now_with_settings_that_make_no_frame_is_an_error(tmp_path: Path) -> None:
@@ -385,10 +386,10 @@ async def test_the_status_tells_the_interval_and_when_the_next_beacon_is_due(tmp
     await e.start()
     page = await e.ws()
     await page.until(lambda: len(page.of("state")) == len(TOPIC_NAMES))
-    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "20", "beacon/path": "wide2-2"}})
+    await page.send({"cmd": "set_config", "values": {"beacon/interval_min": "20", "radio/1/path": "wide2-2"}})
     await page.until(lambda: page.topics["config"]["values"]["beacon/interval_min"] == "20")
-    assert page.topics["config"]["values"]["beacon/path"] == "WIDE2-2"
-    assert page.topics["config"]["defaults"]["beacon/path"] == "" and "beacon/compressed" not in page.topics["config"]["values"]
+    assert page.topics["config"]["radio_values"]["radio/1/path"] == "WIDE2-2"
+    assert page.topics["config"]["radio_defaults"]["radio/1/path"] == "" and "beacon/compressed" not in page.topics["config"]["values"]
     await page.send({"cmd": "status"})
     await page.until(lambda: page.of("status")[-1]["beacon_interval_min"] == 20)
     assert page.of("status")[-1]["beacon_next_due"] is not None and page.of("status")[-1]["beacon_last_sent"] is None

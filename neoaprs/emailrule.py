@@ -5,7 +5,7 @@ the FM types yes, the HF ones no). So the email goes on the main radio when gate
 of today this is what it always was: the FM radio while it is on, else none. A radio whose type is not known is heard by no gateway. No I/O."""
 from collections.abc import Iterable
 
-from .radiospec import RadioId, RadioSpec, enabled
+from .radiospec import RadioId, RadioSpec, senders
 from .radiotype import RadioTypeError
 
 
@@ -19,7 +19,7 @@ def gateway_heard(spec: RadioSpec) -> bool:
 
 def email_radio(specs: Iterable[RadioSpec], main: RadioId | None) -> RadioId | None:
     """The id of the radio an email goes out on: the main radio while gateways hear it, else the first enabled radio by position that gateways hear; None when no enabled radio is heard by one."""
-    heard = [spec.id for spec in enabled(specs) if gateway_heard(spec)]
+    heard = [spec.id for spec in senders(specs) if gateway_heard(spec)]
     if main is not None and main in heard:
         return main
     return heard[0] if heard else None

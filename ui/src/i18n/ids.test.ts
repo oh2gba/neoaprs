@@ -17,10 +17,15 @@ function sources(dir: string): string[] {
   });
 }
 
-/** The code of the page apart from the catalogues themselves (the files of i18n/en/ and the other languages). */
+/** The code of the page apart from the catalogues themselves (the files of i18n/en/, of the other languages' folders, and the other languages). */
 const code = sources(SRC)
-  .filter((file) => !/\/i18n\/(en\/|[a-z]{2}(-[A-Z]{2})?\.ts$)/.test(file.replaceAll("\\", "/")))
+  .filter((file) => !/\/i18n\/([a-z]{2}(-[A-Z]{2})?\/|[a-z]{2}(-[A-Z]{2})?\.ts$)/.test(file.replaceAll("\\", "/")))
   .map((file) => ({ name: relative(SRC, file).replaceAll("\\", "/"), text: readFileSync(file, "utf-8") }));
+
+/** The texts of "entering KISS" that the radio round left without a reader: kept until the owner says whether that place comes back (W3 finding 5); the list goes when they do, or come back into use. */
+const KEPT_FOR_THE_OWNER = ["pill.radio_kiss", "pill.radio_named_kiss", "settings.tnc.connecting_to", "settings.tnc.not_connected_why", "settings.tnc.ports"];
+/** Read by nothing since the Status group lost its title, before the radio round; the folders of the languages hid it from this test. It goes from the nine catalogues with the translators' next pass. */
+const DEAD_BEFORE = ["beacon.status"];
 
 describe("the ids of the catalogue", () => {
   it("are all there where the code asks for them with a literal id", () => {
@@ -33,7 +38,7 @@ describe("the ids of the catalogue", () => {
     const text = code.map((c) => c.text).join("\n");
     const prefixes = [...text.matchAll(/`([a-z][\w.]*\.)\$\{/g)].map((m) => m[1] ?? "");
     const unused = IDS.filter((id) => !text.includes(`"${id}"`) && !text.includes(`'${id}'`) && !prefixes.some((p) => id.startsWith(p)));
-    expect(unused).toEqual([]);
+    expect(unused.sort()).toEqual([...KEPT_FOR_THE_OWNER, ...DEAD_BEFORE].sort());
   });
 
   it("are named area.thing.detail, in lower case", () => {

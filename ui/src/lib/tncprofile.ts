@@ -3,7 +3,7 @@
 import { TNC_PROFILES } from "@/protocol/lists";
 
 /** The profile a form shows (its draft or the daemon's value), or undefined for a key this page does not know. */
-export function profileOf(key: string | undefined) {
+function profileOf(key: string | undefined) {
   return TNC_PROFILES.find((p) => p.key === key);
 }
 
@@ -11,9 +11,4 @@ export function profileOf(key: string | undefined) {
 export function speedFallback(profileKey: string | undefined, fallback: string): string {
   const baud = profileOf(profileKey)?.baud;
   return baud ? String(baud) : fallback;
-}
-
-/** The port to keep when the profile is changed: a serial device does not go with a TCP profile (the daemon refuses it), so it is cleared; an address stays. */
-export function portForProfile(profileKey: string, port: string): string {
-  return profileOf(profileKey)?.transport === "tcp" && port !== "" && !/^(socket|tcp):\/\//i.test(port.trim()) ? "" : port;
 }

@@ -146,9 +146,9 @@ async def test_db_set_on_a_stopped_daemons_file_is_what_the_next_start_runs_with
     await again.start()
     assert (again.ctl.config.serial_baud, again.tnc.baud, again.ctl.config.beacon_path) == (1200, 1200, "WIDE2-1"), "a flat key and a radio's own key, set with the daemon stopped"
     page = await page_of(again)
-    assert (page.topics["config"]["values"]["serial/baud"], page.topics["config"]["values"]["beacon/path"]) == ("1200", "WIDE2-1")
-    await page.send({"cmd": "set_config", "values": {"serial/baud": "9600", "digi/enabled": "true"}})
-    await page.until(lambda: page.topics["config"]["values"]["serial/baud"] == "9600")
+    assert (page.topics["config"]["radio_values"]["radio/1/baud"], page.topics["config"]["radio_values"]["radio/1/path"]) == ("1200", "WIDE2-1")
+    await page.send({"cmd": "set_config", "values": {"radio/1/baud": "9600", "radio/1/digipeat": "true"}})
+    await page.until(lambda: page.topics["config"]["radio_values"]["radio/1/baud"] == "9600")
     await again.stop()
     assert [await got(capsys, data, key) for key in ("serial/baud", "radio/1/baud", "digi/enabled", "radio/1/digipeat", "beacon/path")] == ["9600", "9600", "true", "true", "WIDE2-1"]
     assert not {"serial/baud", "digi/enabled", "beacon/path"} & tables(data / DB_NAME)[2].keys(), "the page's save went to radio 1's own rows"
@@ -157,11 +157,13 @@ async def test_db_set_on_a_stopped_daemons_file_is_what_the_next_start_runs_with
 async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command_line_and_the_bundle_and_a_database_made_of_the_bundle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
     e = Env(data, web=True)
-    e.ctl.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     page = await page_of(e)
-    await page.send({"cmd": "set_config", "values": DUMMY_HF})
-    await page.until(lambda: page.topics["config"]["values"]["hf/enabled"] == "true")
+    await page.send({"cmd": "radio_add", "type": "dummy-hf"})
+    assert (await page.expect("radio_added"))["id"] == HF_ID, "an HF radio added is radio 2"
+    e.mercury._finder = lambda: None                              # (no program: the Dummy HF radio works without its speaker)
+    await page.send({"cmd": "set_config", "values": {"radio/2/keying": "vox", "radio/2/tx_gain_db": "-4"}})
+    await page.until(lambda: page.topics["config"]["radio_values"].get("radio/2/tx_gain_db") == "-4")
     calls = ("OH2GAX-2", "OH2RDG")
     for call in calls:
         e.feed(on_air(call, b"!6010.00N/02456.00E>heard"))
@@ -188,18 +190,19 @@ async def test_the_hf_radio_ticked_on_the_page_is_a_second_radio_for_the_command
 async def test_a_removed_radio_says_the_same_defaults_on_the_page_on_the_command_line_and_in_the_bundle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     data = tmp_path / "data"
     e = Env(data, web=True, settings={**DUMMY_HF, "mercury/sound_card": "plughw:1,0"})
-    e.ctl.mercury._finder = lambda: None
+    e.mercury._finder = lambda: None
     await e.start()
     assert await e.ctl.remove_radio(HF_ID)
     page = await page_of(e)
-    on_page = page.topics["config"]["values"]
+    on_page = page.topics["config"]
     await e.stop()
     code, out, _ = await db(capsys, data, "list")
     on_line = listed(out)
     _, members = await bundle(tmp_path / "out", data)
     in_bundle = json.loads(members["settings.json"])["values"]
     defaults = DEFAULTS.to_data()
-    assert code == 0 and {key: on_page[key] for key in HF_KEYS} == {key: defaults[key] for key in HF_KEYS}, "not the removed radio's type, keying and sound card"
-    assert {key: on_page[key] for key in FLAT_KEYS} == {key: on_line[key] for key in FLAT_KEYS} == {key: in_bundle[key] for key in FLAT_KEYS}, "the page, db list and the bundle agree"
+    assert code == 0 and {key: on_line[key] for key in HF_KEYS} == {key: defaults[key] for key in HF_KEYS}, "not the removed radio's type, keying and sound card"
+    assert not [key for key in on_page["radio_values"] if key.startswith("radio/2/")] and not set(FLAT_KEYS) & set(on_page["values"]), "the page is told no setting of the removed radio"
+    assert {key: on_line[key] for key in FLAT_KEYS} == {key: in_bundle[key] for key in FLAT_KEYS}, "db list and the bundle agree"
     assert [await got(capsys, data, key) for key in ("mercury/keying", "hf/profile")] == ["", "mercury"]
     assert [(r[0], r[-1]) for r in bundle_radios(members)] == [(FM_ID, False), (HF_ID, True)] and summary_titles(members) == ["Radio 1: FM"], "the removed radio told as removed, no section"

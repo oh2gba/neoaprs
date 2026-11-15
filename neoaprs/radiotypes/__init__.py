@@ -4,12 +4,12 @@ from collections.abc import Mapping
 from types import MappingProxyType
 
 from neoaprs.radiotype import Field, Kind, RadioType, RadioTypeError
-from neoaprs.radiotypes import dummy, dummylora, kisstcp, mercury, serialtnc
+from neoaprs.radiotypes import dummy, dummylora, kisstcp, lora, mercury, serialtnc, tnctext
 from neoaprs.radiotypes.common import COMMON_FIELDS as COMMON_FIELDS
 
-TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *dummy.TYPES, *mercury.TYPES, *dummylora.TYPES)
+TYPES: tuple[RadioType, ...] = (*serialtnc.TYPES, *kisstcp.TYPES, *tnctext.TYPES, *dummy.TYPES, *mercury.TYPES, *lora.TYPES, *dummylora.TYPES)
 BY_KEY: Mapping[str, RadioType] = MappingProxyType({t.key: t for t in TYPES})
-DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "dummy-lora"})      # a new radio of the kind
+DEFAULT_TYPE: Mapping[Kind, str] = MappingProxyType({"fm": "kiss", "hf": "mercury", "lora": "lora-tcp"})      # a new radio of the kind (LoRa: the iGate at home on the network, which speaks KISS as it comes and alone says the signal to a client)
 
 
 def type_of(key: str) -> RadioType:

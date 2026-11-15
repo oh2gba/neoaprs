@@ -22,7 +22,7 @@ import type { RadioId } from "@/lib/radios";
 
 const { general, receiveOnly, send, lastError, now, fallbackPath } = useDaemonContext();
 const radios = useRadios();
-const { told, several, allowsPath, byId, named, choose } = radios;
+const { told, severalSenders: several, allowsPath, byId, named, choose } = radios;
 const kind = usePersisted("ask.kind", GENERAL_KINDS[0] ?? "aprs", GENERAL_KINDS);
 /** The radio chosen beside Ask (`picked`, null: the main radio), the one it goes on, and the radios to choose from, the main radio first (useRadios `choose`). */
 const { picked, radio, choices } = choose();

@@ -27,9 +27,9 @@ const emit = defineEmits<{ pickPosition: [] }>();
 
 const { status, connected, now, config, send, settings, gps, receiveOnly } = useDaemonContext();
 const radios = useRadios();
-const several = computed(() => radios.several.value);
+const several = computed(() => radios.severalSenders.value);
 /** The radios Beacon now and the timer send on; with one radio on, that one. */
-const beaconOn = computed(() => beaconRadios(radios.enabled.value, radios.main.value));
+const beaconOn = computed(() => beaconRadios(radios.senders.value, radios.main.value));
 /** A radio Beacon now would send on is connected (with one radio on, the page's link to it says it, as before). */
 const beaconUp = computed(() => !several.value || beaconOn.value.some((radio) => radio.connected));
 /** The main radio, which Send status now goes on, is connected (the same with one radio on). */
@@ -67,7 +67,7 @@ function ticked(key: string, radio: PageRadio): boolean {
   const text = draft === "true" || draft === "false" ? draft : (radioValueOf(config.value, key) ?? String(radio.row.choices.beacon));
   return text === "true";
 }
-const ticks = computed<SendOnTick[]>(() => (several.value ? sendOnTicks(radios.enabled.value, ticked, radios.main.value) : []));
+const ticks = computed<SendOnTick[]>(() => (several.value ? sendOnTicks(radios.senders.value, ticked, radios.main.value) : []));
 /** The daemon's refusal of a tick, under the row. */
 const tickError = computed(() => ticks.value.map((tick) => settings.errors[tick.key] ?? "").find((text) => text !== "") ?? "");
 watch(
@@ -101,7 +101,7 @@ function tick(key: string, event: Event): void {
             </div>
             <p v-if="tickError" class="field-error" role="alert">{{ tickError }}</p>
           </div>
-          <BeaconStatus :status="status" :gps="gps" :values="config?.values ?? {}" :now="now" :radios="beaconLines" />
+          <BeaconStatus :status="status" :gps="gps" :values="config?.values ?? {}" :now="now" :radios="beaconLines" :receive-only="receiveOnly" />
           <SendRow
             id="beacon-now"
             :label="t('beacon.now_label')"

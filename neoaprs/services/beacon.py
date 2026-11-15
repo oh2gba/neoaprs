@@ -31,7 +31,7 @@ from neoaprs.clock import Clock, utcnow
 from neoaprs.config import BEACON_SENT, Config, radio_state_key
 from neoaprs.gpsfix import Fix
 from neoaprs.interlock import Interlock
-from neoaprs.radiospec import RadioId
+from neoaprs.radiospec import RadioId, transmits
 from neoaprs.services.beaconframe import BeaconError as BeaconError, BeaconFrames, NoFix as NoFix, air_of, phg_text as phg_text
 from neoaprs.services.common import ConfigSource, Radio
 from neoaprs.services.memory import Memory, Remembered, stamp
@@ -52,6 +52,7 @@ RETRY_SEC = 5.0
 MOBILE_GIVE_UP_SEC = 60.0                                       # a mobile beacon the radio refused ATTEMPTS times is tried again this much later, with the fix of then
 ATTEMPTS = 6                                                    # the radio refusing the frame this many times in a row skips the interval
 NOT_ON_THIS_RADIO = "the beacon does not go out on this radio (its Send on is not ticked)"
+ONLY_RECEIVES = "the radio only receives"                       # a radio of a type that sends nothing (radiospec.transmits), which has no Send on
 
 
 def memory_key_of(radio: RadioId) -> str:
@@ -126,7 +127,8 @@ class Beacon:
         if refusal := self._interlock.refused("beacon"):
             return self._failed(refusal)
         if not self.goes_out:
-            return self._failed(NOT_ON_THIS_RADIO)
+            spec = self._config().radio(self._radio.id)
+            return self._failed(ONLY_RECEIVES if spec is not None and not transmits(spec) else NOT_ON_THIS_RADIO)
         try:
             frame, fix = self._frames.position_and_fix(self._radio)
         except NoFix as e:

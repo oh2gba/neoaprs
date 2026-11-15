@@ -1,11 +1,11 @@
 // The radios of the station as the page knows them, in one place: which radios there are, which are on, which is the main radio and the email radio, whether there are several, whether a radio is named, which radio
 // a station or a message goes on, and what a radio's problem says. Plain functions of what the daemon tells in the topic `radios` (a row for each radio, a removed one kept so that what came by it keeps its name),
-// `config.radio_values` and the status; composables/useRadios.ts is the reactive side, and lib/radiosides.ts reads the same radios out of the settings of before against a daemon that tells no topic.
+// `config.radio_values` and the status; composables/useRadios.ts is the reactive side.
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { errorReason, type RadioNames } from "@/i18n/errortext";
 import { RADIO_TYPES } from "@/protocol/lists";
-import type { ConfigValues, MessageRow, RadioProblem, RadioRow, StationRow, StatusMessage } from "@/protocol/protocol";
+import type { ConfigValues, ListPortsCommand, MessageRow, RadioProblem, RadioRow, StationRow, StatusMessage } from "@/protocol/protocol";
 
 /** A radio's id: what every row and command names it by. */
 export type RadioId = number;
@@ -43,8 +43,8 @@ export interface PageRadio {
   readonly row: RadioRow;
 }
 
-/** The word of each kind. A LoRa radio has no type yet; its own word comes with its type. */
-const KIND_WORDS: Record<RadioRow["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.rf" };
+/** The word of each kind. */
+const KIND_WORDS: Record<RadioRow["kind"], MessageId> = { fm: "channel.fm", hf: "channel.hf", lora: "channel.lora" };
 
 /** What the page calls a radio: the name typed, else the word of its kind, with its number in the kind from the second on ("HF", "HF 2"). */
 export function radioLabel(row: Pick<RadioRow, "name" | "kind" | "number">, words: typeof t = t): string {
@@ -64,6 +64,7 @@ const PROBLEM_WORDS: Partial<Record<RadioProblem["code"], MessageId>> = {
   "radio.not_connected": "settings.tnc.not_connected",
   "radio.searching": "settings.tnc.searching",
   "radio.silent": "settings.tnc.state.silent",
+  "radio.text_lines": "settings.tnc.text_lines",
   "modem.not_installed": "settings.tnc.hf.not_installed",
   "modem.stopped": "settings.tnc.hf.stopped",
   "modem.network": "settings.tnc.hf.network",
@@ -142,6 +143,15 @@ export function sameRadio(a: PageRadio, b: PageRadio): boolean {
 /** The radios that are on, in the order of their boxes. */
 export const enabledRadios = (radios: readonly PageRadio[]): PageRadio[] => radios.filter((radio) => radio.enabled);
 
+/** The radios that are on and can send, in the order of their boxes: a radio of a type that only listens (`can.transmit` false) is never one, nor offered where a radio is chosen to send on. */
+export const senders = (radios: readonly PageRadio[]): PageRadio[] => enabledRadios(radios).filter((radio) => typeOf(radio)?.can.transmit !== false);
+
+/** Whether some radio is on and none of those can send (each of a type that only listens): nothing is sent, as with RX only ticked. False from a daemon of the wire of before, which tells no topic `radios`. */
+export function listensOnly(rows: ReadonlyMap<string, RadioRow> | null): boolean {
+  const on = [...(rows?.values() ?? [])].filter((row) => row.enabled && !row.removed);
+  return on.length > 0 && on.every((row) => !row.can.transmit);
+}
+
 /** Whether the radio of that id is there and on. */
 export const isOn = (radios: readonly PageRadio[], id: RadioId): boolean => radios.some((radio) => radio.id === id && radio.enabled);
 
@@ -181,3 +191,10 @@ export function sendingRadio(row: ToStation | null | undefined, thread: readonly
 
 /** The radio of a message: the one its next attempt goes on while it is on its way, else the one it came or went on (`radio_id`); null for none (an internet message, one never sent). */
 export const messageRadio = (row: Partial<Pick<MessageRow, "radio_now" | "radio_id">>): RadioId | null => row.radio_now ?? row.radio_id ?? null;
+
+/** The asks for the ports: one for each radio that is on and whose type has a sound card (the cards and the keying's proposal come only with a radio named), else the ports alone. The page keeps the latest answer, so
+ * an ask that names no radio would leave such a radio's box without its cards. */
+export function portsAsks(rows: Iterable<RadioRow>): ListPortsCommand[] {
+  const named = [...rows].filter((row) => row.enabled && !row.removed && row.can.tune).map((row): ListPortsCommand => ({ cmd: "list_ports", radio: row.id }));
+  return named.length > 0 ? named : [{ cmd: "list_ports" }];
+}

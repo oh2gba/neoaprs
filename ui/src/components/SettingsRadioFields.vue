@@ -4,8 +4,8 @@
 // keying the Test button, which keys the radio for a second so that the operator sees it go to transmit and come back (composables/useHfTests.ts); the status line says Keyed meanwhile.
 // Neither offers "find automatically": the daemon's proposal (`pick` of a sound card, `keying` of the ports message) is preselected and stored as the setting while it is empty, the card first and the keying once that is answered, so that
 // the settings name a card and a keying as soon as the HF radio is on. (An empty setting stays legal for the daemon, and a station that has one runs as before; the page never offers it.)
-// The keys are the settings of before for the radios of before (`serial/port`, `mercury/keying`), else the radio's own (`radio/3/port`, `radio/3/keying`): a field is known by the field of the radio it is (lib/settingsradio.ts `fieldOfKey`), and its id is
-// its key's (`set-serial-port`, `set-radio-3-port`). Refresh asks the daemon for the ports of the radio of the box (`radio`, while the ports message does not say which radio it is for: one box at a time).
+// The keys are the radio's own (`radio/3/port`, `radio/3/keying`): a field is known by the field of the radio it is (lib/settingsradio.ts `fieldOfKey`), and its id is its key's (`set-radio-3-port`). Refresh asks the daemon
+// for the ports of the radio of the box (`radio`, while the ports message does not say which radio it is for: one box at a time).
 import { computed, watchEffect } from "vue";
 import SettingsField from "@/components/SettingsField.vue";
 import SettingsPort from "@/components/SettingsPort.vue";
@@ -15,7 +15,7 @@ import { useHfTests } from "@/composables/useHfTests";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
-import type { PageRadio } from "@/lib/radios";
+import { typeOf, type PageRadio } from "@/lib/radios";
 import { fieldFor, type FieldInfo } from "@/lib/settings";
 import { togetherOf } from "@/lib/settinglinks";
 import { boxIds, fieldOfKey, inputId, radioFieldOf } from "@/lib/settingsradio";
@@ -32,15 +32,12 @@ const { config, send, ports } = useDaemonContext();
 /** The ids of the place the fields are in (the Settings tab's, or the setup guide's: lib/settingsradio.ts BOX_IDS). */
 const ids = boxIds();
 
-/** Whether the key is a radio's own (`radio/3/port`), not a setting of before. */
-const own = (key: string): boolean => radioFieldOf(key) !== null;
 const isCard = (key: string): boolean => fieldOfKey(key) === "sound_card";
 const isKeying = (key: string): boolean => fieldOfKey(key) === "keying";
 const isPort = (key: string): boolean => fieldOfKey(key) === "port";
-/** The type of TNC a speed's placeholder follows: the radio's own type, or the setting of before. */
-const typeFor = (key: string): string | undefined => (own(key) ? props.radio?.type : props.settings.draft["tnc/profile"]);
-const fallback = (key: string) => (fieldOfKey(key) === "baud" ? speedFallback(typeFor(key), defaultOf(key)) : defaultOf(key));
-/** The default of a key, from the form's (the settings of before) or the radios' own. */
+/** A speed's placeholder follows the radio's type of TNC. */
+const fallback = (key: string) => (fieldOfKey(key) === "baud" ? speedFallback(props.radio?.type, defaultOf(key)) : defaultOf(key));
+/** The default of a key, from the form's or the settings' own. */
 const defaultOf = (key: string): string => props.defaults[key] ?? props.settings.defaults.value[key] ?? "";
 const cardKey = computed(() => props.keys.find(isCard));
 const keyingKey = computed(() => props.keys.find(isKeying));
@@ -53,9 +50,11 @@ const keyingInfo = computed<FieldInfo>(() => ({
   kind: "choice",
   choices: keyingChoices(ports.value, valueOf(keyingKey.value ?? "")),
 }));
-const infoOf = (key: string): FieldInfo => (isCard(key) ? cardInfo.value : isKeying(key) ? keyingInfo.value : fieldFor(key));
+/** A field's words: its kind's own where they differ (a LoRa board's address). */
+const wordsOf = (key: string): FieldInfo => fieldFor(key, {}, props.radio?.kind);
+const infoOf = (key: string): FieldInfo => (isCard(key) ? cardInfo.value : isKeying(key) ? keyingInfo.value : wordsOf(key));
 /** The port the search found last, beside an automatic port: the daemon's memory of radio 1 (`serial/last_port`); another radio's is not told. */
-const found = (key: string): string => (own(key) ? "" : (config.value?.values["serial/last_port"] ?? ""));
+const found = (key: string): string => (radioFieldOf(key)?.id === 1 ? (config.value?.values["serial/last_port"] ?? "") : "");
 // An empty setting takes the proposal: the card first, the keying when nothing is out any more (the form sends one change at a time). A card stored as one of its two Windows devices becomes the whole card first.
 watchEffect(() => {
   const card = cardKey.value;
@@ -79,7 +78,7 @@ function typed(key: string, text: string): void {
   const kind = infoOf(key).kind;
   if (kind !== "bool" && kind !== "choice") props.settings.edit(key, text);
 }
-/** A typed field was finished: it is sent with the fields it is sent together with (the host and the port of a TNC over TCP, of before or a radio's own), unless focus only went to one of them, by the ids of the place. */
+/** A typed field was finished: it is sent with the fields it is sent together with (the host and the port of a TNC over TCP), unless focus only went to one of them, by the ids of the place. */
 function finish(key: string, next: EventTarget | null): void {
   const together = togetherOf(key);
   const within = next instanceof Element && together.some((other) => other !== key && next.id === ids(inputId(other)));
@@ -98,9 +97,10 @@ function refresh(key: string): void {
     <SettingsPort
       v-if="isPort(key)"
       :id="ids(inputId(key))"
-      :info="fieldFor(key)"
+      :info="wordsOf(key)"
       :model-value="settings.draft[key] ?? ''"
       :found="found(key)"
+      :unset="props.radio !== null && typeOf(props.radio)?.can.find === false"
       :ports="ports"
       :error="settings.errors[key] ?? ''"
       :changed="form.changed(key)"
@@ -128,14 +128,7 @@ function refresh(key: string): void {
         <button class="btn" type="button" @click="refresh(key)">{{ t("settings.port.refresh") }}</button>
       </template>
       <template v-else-if="isKeying(key)" #after>
-        <button
-          :id="ids(own(key) ? `${inputId(key)}-test` : 'hf-key-test')"
-          class="btn"
-          type="button"
-          :disabled="tests.testOff.value"
-          :title="tests.why.value"
-          @click="tests.keyTest"
-        >
+        <button :id="ids(`${inputId(key)}-test`)" class="btn" type="button" :disabled="tests.testOff.value" :title="tests.why.value" @click="tests.keyTest">
           {{ t("settings.keying.test") }}
         </button>
       </template>

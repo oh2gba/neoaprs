@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import SettingsForm from "@/components/SettingsForm.vue";
 import { attend } from "@/lib/attention";
-import type { TncState } from "@/protocol/protocol";
+import type { RadioRow } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, hfState, tncState, toastOf } from "@/test/fixtures";
+import { configValues, fmRow, hfRow, radiosTopic, toastOf } from "@/test/fixtures";
 
 const mounted: { unmount: () => void }[] = [];
 afterEach(() => {
@@ -17,10 +17,12 @@ afterEach(() => {
 });
 
 const KEY = (id: string) => `NeoAPRS.settings.fold.${id}`;
-const BOTH = { "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" };
+const HF_VALUES = { "radio/2/beacon": "true", "radio/2/sound_card": "plughw:1,0", "radio/2/keying": "vox", "radio/2/tx_gain_db": "0" };
+/** The topic `radios` of the FM radio (radio 1) and the HF radio (radio 2), both on unless a row says otherwise. */
+const two = (fm: Partial<RadioRow> = {}, hf: Partial<RadioRow> = {}) => radiosTopic(fmRow(fm), hfRow(hf));
 
-function make(more: Given = {}, extra: Record<string, string> = BOTH) {
-  const daemon = fakeDaemon({ config: configValues(extra), tnc: tncState(), hf: hfState(), ...more });
+function make(more: Given = {}) {
+  const daemon = fakeDaemon({ config: configValues({}, HF_VALUES), radios: two(), ...more });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, global: withDaemon(daemon), attachTo: document.body });
   mounted.push(wrapper);
   const group = wrapper.findAll("fieldset").find((f) => f.find("legend").text() === "Radio");
@@ -36,7 +38,6 @@ type Box = ReturnType<ReturnType<typeof make>["fm"]>;
 const arrow = (box: Box) => box.get("legend button.groupfold");
 const body = (box: Box) => box.get(".box-body");
 const shown = (box: Box) => (body(box).element as HTMLElement).style.display !== "none";
-const stateOf = (state: TncState["state"]) => tncState({ state });
 
 describe("the boxes of the two radios", () => {
   it("are open at first, with their names as the buttons of arrows in their legends, which say what they open", () => {
@@ -74,8 +75,8 @@ describe("the boxes of the two radios", () => {
   it("have the Enable tickbox and the rest inside what folds, which stays on the page while it is folded", async () => {
     const { fm, hf } = make();
     for (const [box, id] of [
-      [fm(), "set-fm-enabled"],
-      [hf(), "set-hf-enabled"],
+      [fm(), "set-radio-1-enabled"],
+      [hf(), "set-radio-2-enabled"],
     ] as const) {
       expect(body(box).find(`#${id}`).exists()).toBe(true);
       await arrow(box).trigger("click");
@@ -84,19 +85,19 @@ describe("the boxes of the two radios", () => {
     }
   });
 
-  it("are remembered in this browser for each box, the keys being settings.fold.fm and settings.fold.hf, and are still folded in a new page", async () => {
+  it("are remembered in this browser for each box, the keys being settings.fold.radio-1 and settings.fold.radio-2, and are still folded in a new page", async () => {
     const first = make();
     await arrow(first.fm()).trigger("click");
-    expect(localStorage.getItem(KEY("fm"))).toBe("folded");
-    expect(localStorage.getItem(KEY("hf"))).toBeNull();
+    expect(localStorage.getItem(KEY("radio-1"))).toBe("folded");
+    expect(localStorage.getItem(KEY("radio-2"))).toBeNull();
     await arrow(first.hf()).trigger("click");
-    expect(localStorage.getItem(KEY("hf"))).toBe("folded");
+    expect(localStorage.getItem(KEY("radio-2"))).toBe("folded");
     first.wrapper.unmount();
     const again = make();
     expect(shown(again.fm())).toBe(false);
     expect(shown(again.hf())).toBe(false);
     await arrow(again.hf()).trigger("click");
-    expect(localStorage.getItem(KEY("hf"))).toBe("open");
+    expect(localStorage.getItem(KEY("radio-2"))).toBe("open");
     again.wrapper.unmount();
     const third = make();
     expect(shown(third.fm())).toBe(false);
@@ -104,7 +105,7 @@ describe("the boxes of the two radios", () => {
   });
 
   it("are open when what was kept is nothing they know, and work when the browser keeps nothing", async () => {
-    localStorage.setItem(KEY("fm"), "perhaps");
+    localStorage.setItem(KEY("radio-1"), "perhaps");
     expect(shown(make().fm())).toBe(true);
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");
@@ -128,80 +129,81 @@ describe("the boxes of the two radios", () => {
 
 describe("a box that is folded opens by itself", () => {
   it("for a complaint of the daemon about one of its settings, and a person can fold it again", async () => {
-    localStorage.setItem(KEY("hf"), "folded");
-    localStorage.setItem(KEY("fm"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
+    localStorage.setItem(KEY("radio-1"), "folded");
     const { wrapper, daemon, fm, hf } = make();
     expect(shown(hf())).toBe(false);
-    await wrapper.find("#set-mercury-keying").setValue("rts:/dev/ttyUSB0");
-    await tell(daemon, { lastError: toastOf("set_config: mercury/keying: that port is not there") });
+    await wrapper.find("#set-radio-2-keying").setValue("rts:/dev/ttyUSB0");
+    await tell(daemon, { lastError: toastOf("set_config: radio/2/keying: that port is not there") });
     expect(shown(hf())).toBe(true);
     expect(shown(fm())).toBe(false);
-    expect(localStorage.getItem(KEY("hf"))).toBe("open");
+    expect(localStorage.getItem(KEY("radio-2"))).toBe("open");
     await arrow(hf()).trigger("click");
     expect(shown(hf())).toBe(false);
   });
 
   it("for a complaint about a setting of the FM radio", async () => {
-    localStorage.setItem(KEY("fm"), "folded");
-    localStorage.setItem(KEY("hf"), "folded");
+    localStorage.setItem(KEY("radio-1"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
     const { wrapper, daemon, fm, hf } = make();
-    await wrapper.find("#set-tnc-profile").setValue("kiss");
-    await tell(daemon, { lastError: toastOf("set_config: tnc/profile: KISS TNC is too much") });
+    await wrapper.find("#set-radio-1-baud").setValue("4800");
+    await wrapper.find("#set-radio-1-baud").trigger("keydown", { key: "Enter" });
+    await tell(daemon, { lastError: toastOf("set_config: radio/1/baud: 4800 is too slow for this TNC") });
     expect(shown(fm())).toBe(true);
     expect(shown(hf())).toBe(false);
   });
 
   it("when the page leads to a control inside it", async () => {
-    localStorage.setItem(KEY("fm"), "folded");
-    localStorage.setItem(KEY("hf"), "folded");
+    localStorage.setItem(KEY("radio-1"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
     const { fm, hf } = make();
-    expect(await attend("set-hf-enabled")).toBe(true);
+    expect(await attend("set-radio-2-enabled")).toBe(true);
     await nextTick();
     expect(shown(hf())).toBe(true);
     expect(shown(fm())).toBe(false);
-    expect(document.activeElement?.id).toBe("set-hf-enabled");
-    expect(await attend("set-fm-enabled")).toBe(true);
+    expect(document.activeElement?.id).toBe("set-radio-2-enabled");
+    expect(await attend("set-radio-1-enabled")).toBe(true);
     await nextTick();
     expect(shown(fm())).toBe(true);
   });
 
   it("and the group it is in opens with it, when that is folded too", async () => {
     localStorage.setItem(KEY("serial"), "folded");
-    localStorage.setItem(KEY("hf"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
     const { group, hf } = make();
     expect((group.get(".group-body").element as HTMLElement).style.display).toBe("none");
-    expect(await attend("set-hf-enabled")).toBe(true);
+    expect(await attend("set-radio-2-enabled")).toBe(true);
     await nextTick();
     expect((group.get(".group-body").element as HTMLElement).style.display).not.toBe("none");
     expect(shown(hf())).toBe(true);
   });
 
   it("when its radio is ticked and not connected, and not when it is connected, nor when it is not ticked", () => {
-    localStorage.setItem(KEY("fm"), "folded");
-    localStorage.setItem(KEY("hf"), "folded");
-    const waiting = make({ tnc: stateOf("waiting"), hf: stateOf("connected") });
+    localStorage.setItem(KEY("radio-1"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
+    const waiting = make({ radios: two({ state: "waiting" }) });
     expect(shown(waiting.fm())).toBe(true);
     expect(shown(waiting.hf())).toBe(false);
     waiting.wrapper.unmount();
-    localStorage.setItem(KEY("fm"), "folded");
-    localStorage.setItem(KEY("hf"), "folded");
-    const hfDown = make({ tnc: stateOf("connected"), hf: { ...hfState(), state: "connecting" } });
+    localStorage.setItem(KEY("radio-1"), "folded");
+    localStorage.setItem(KEY("radio-2"), "folded");
+    const hfDown = make({ radios: two({}, { state: "connecting" }) });
     expect(shown(hfDown.hf())).toBe(true);
     expect(shown(hfDown.fm())).toBe(false);
     hfDown.wrapper.unmount();
-    localStorage.setItem(KEY("hf"), "folded");
-    const off = make({ hf: stateOf("stopped") }, { "hf/enabled": "false" });
+    localStorage.setItem(KEY("radio-2"), "folded");
+    const off = make({ radios: two({}, { enabled: false, state: "stopped" }) });
     expect(shown(off.fm())).toBe(false);
     off.wrapper.unmount();
   });
 
   it("when the radio turns unconnected after the page is up, and stays open when it connects again", async () => {
-    localStorage.setItem(KEY("fm"), "folded");
+    localStorage.setItem(KEY("radio-1"), "folded");
     const { daemon, fm } = make();
     expect(shown(fm())).toBe(false);
-    await tell(daemon, { tnc: stateOf("waiting") });
+    await tell(daemon, { radios: two({ state: "waiting" }) });
     expect(shown(fm())).toBe(true);
-    await tell(daemon, { tnc: stateOf("connected") });
+    await tell(daemon, { radios: two() });
     expect(shown(fm())).toBe(true);
   });
 });

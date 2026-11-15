@@ -18,7 +18,7 @@ from .hub import StateHub
 from .pageerrors import PageErrors
 from .problems import describe_errors
 from .protocol import COMMAND_NAMES, COMMANDS, AnyCommand
-from .scopefeed import RadioScopes, ScopeFeed
+from .scopefeed import RadioScopes
 from .session import Connection
 
 log = logging.getLogger("neoaprs.web")
@@ -43,7 +43,6 @@ class Ctx:
     hub: StateHub
     status: Callable[[], Awaitable[dict[str, Any]]]          # the `status` message as it is now
     page_errors: PageErrors | None = None                    # where the errors the pages report about themselves are noted
-    scope: ScopeFeed | None = None                           # the pages that have the HF scope open
     scopes: RadioScopes | None = None                        # the scopes asked for by radio
 
 
@@ -80,13 +79,12 @@ def command[M: BaseModel](model: type[M], into: dict[str, Handler] | None = None
 class Dispatcher:
     """Looks the command up, validates it, runs it, and answers a failure."""
 
-    def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None, scope: ScopeFeed | None = None,
+    def __init__(self, ctl: Controller, hub: StateHub, status: Callable[[], Awaitable[dict[str, Any]]], registry: dict[str, Handler] | None = None, page_errors: PageErrors | None = None,
                  scopes: RadioScopes | None = None) -> None:
         self.ctl = ctl
         self.hub = hub
         self.status = status
         self.page_errors = page_errors
-        self.scope = scope
         self.scopes = scopes
         self.registry = REGISTRY if registry is None else registry
 
@@ -110,4 +108,4 @@ class Dispatcher:
             conn.error(f"{name}: {FAILED}", name, code="failed")                     # (the page says it in its language by the code; the exception is for the log, not the operator)
 
     async def _call(self, conn: Connection, name: str, cmd: AnyCommand) -> None:
-        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scope, self.scopes), cmd)
+        await self.registry[name].fn(Ctx(self.ctl, conn, self.hub, self.status, self.page_errors, self.scopes), cmd)

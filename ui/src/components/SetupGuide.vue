@@ -13,7 +13,7 @@ import { t } from "@/i18n";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useRadios } from "@/composables/useRadios";
 import { setupMapLine } from "@/lib/mapfetch";
-import { LAST_STEP, RADIO_STEP, radioReady, radioStepKeys, STEP_COUNT, stepTitle } from "@/lib/setup";
+import { LAST_STEP, RADIO_STEP, radioReady, STEP_COUNT, stepTitle } from "@/lib/setup";
 
 const { guide, map, config, settings, ports } = useDaemonContext();
 const radios = useRadios();
@@ -22,7 +22,7 @@ const radiosReady = computed(() => {
   if (config.value === null || !radios.told.value) return false;
   const values = settings.values.value;
   const step = { values, draft: settings.draft, errors: settings.errors, search: ports.value?.search ?? null };
-  return radioReady(radios.all.value, radioStepKeys(values, settings.draft), step);
+  return radioReady(radios.all.value, step);
 });
 /** Which steps have what they need: the answers', and the radios' for the Radio step. */
 const valid = computed(() => guide.valid.map((ok, i) => ok && (i !== RADIO_STEP || radiosReady.value)));

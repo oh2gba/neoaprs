@@ -16,7 +16,8 @@ test builds its world with it; `stop_all` is called when a test is over and also
     Env(tmp_path, web=True)              # the page's server too, on a free port (`e.port`): `page = await e.ws()` is a tab (tests/support/wsclient.py), `await e.fetch("/path")` an HTTP request
 
 The radios are the daemon's own (the registry, `e.ctl.radios`: neoaprs/radioregistry.py), and the names of an Env are radios 1 and 2 of it: `e.tnc` is radio 1's line (the FM radio; the Env makes it and hands
-it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settings tick `hf/enabled`), `e.radio` and `e.hf_radio` the fakes at their far ends, `e.active` the line of the one that is on.
+it to the Controller), `e.hf` radio 2's (the HF radio, stopped unless the settings tick `hf/enabled`; the Env makes it too), `e.mercury` radio 2's modem, `e.beacon` and `e.beacon_2` the two radios' beacons,
+`e.radio` and `e.hf_radio` the fakes at their far ends, `e.active` the line of the one that is on. No modem of an Env reads the computer's serial ports (`Mercury.ports`).
 
 The Tnc is the real one with quick timers; its search pattern is a folder of the test, never /dev/brainbox_*. The keep-alive (which writes to the radio when it is quiet, and at the open) is off in an Env (`check_sec` 0, the Controller's `check_sec` follows the Tnc's), so that the line is usable as soon as it is open; a test about it passes `check_sec`. The settings of an Env with an operator name the Kenwood TNC-2 profile (`tnc/profile`), the TNC the tests are about; a fresh install's (`operator=False`) have no rows, so its TNC is sent nothing. The rows are written as a data folder has them before the daemon's first start: its database has no radio yet, so the start
 writes radio 1 from them, and radio 2 when they name the HF radio (`hf/*`, `mercury/*`) or the Env is given its Mercury (`hf`), each flat row becoming the radio's own (neoaprs/radioedits.py, the stand-in).
@@ -36,10 +37,15 @@ from neoaprs.config import DEFAULTS, Config
 from neoaprs.controller import Controller
 from neoaprs.db import Db
 from neoaprs.kiss import KissDecoder
+from neoaprs.mercurymodem import Mercury
+from neoaprs.radioregistry import LiveRadio
+from neoaprs.radiospec import FM_ID, HF_ID, RadioId
+from neoaprs.services.beacon import Beacon
 from neoaprs.packet import Packet
 from neoaprs.source import Backoff, Source
 from neoaprs.station import Station
 from neoaprs.tnc import Tnc
+from neoaprs.tncprofile import MERCURY
 from tests.support.clock import FixedClock
 from tests.support.files import fixture_bytes
 from tests.support.fakemercury import FakeMercury
@@ -55,6 +61,19 @@ _stops: list[Callable[[], Awaitable[None]]] = []          # the stop of every pa
 CAPTURE = "kiss/thd7-2026-10-21.bin"
 OPERATOR = {"station/call": "OH2GBA", "station/lat": "60.17", "station/lon": "24.94", "tnc/profile": "kenwood-tnc2", "beacon/path": "WIDE1-1,WIDE2-1"}       # the station of the tests, with the TNC the tests are about: with no call set nothing is transmitted (config.can_transmit)
 ON_AIR: Config = replace(DEFAULTS, station_call="OH2GBA", station_lat=60.17, station_lon=24.94, tnc_profile="kenwood-tnc2", beacon_path="WIDE1-1,WIDE2-1")      # the same as a Config, for the tests that hold one: the defaults are a station with no call and a TNC that is sent nothing
+
+
+def _quiet(radio: LiveRadio[Any]) -> None:
+    if radio.driver.modem is not None:
+        radio.driver.modem.ports = lambda: []
+
+
+def _quieted(wire: Callable[[LiveRadio[Beacon]], None]) -> Callable[[LiveRadio[Beacon]], None]:
+    """The wiring of a radio, which first gives its modem no serial port of the computer to look at."""
+    def quiet_then_wire(radio: LiveRadio[Beacon]) -> None:
+        _quiet(radio)
+        wire(radio)
+    return quiet_then_wire
 
 
 def remember(db: Db) -> None:
@@ -128,7 +147,7 @@ async def quick_start(tmp_path: Path, *, beacon: bool = False, messaging: bool =
     pause (the messaging pace, the own sender, and the QRU server's wait before its first frame). The other options are the Env's."""
     e = Env(tmp_path, **options)
     if beacon:
-        e.ctl.beacon.tick_sec, e.ctl.beacon.retry_sec = 0.02, 0.05
+        e.beacon.tick_sec, e.beacon.retry_sec = 0.02, 0.05
     if messaging:
         e.ctl.messaging.tick_sec = 0.02
         if unpaced:
@@ -180,9 +199,12 @@ class Env:
             self.link = self.radio.url
         self.server: WebServer | None = None                 # the page's server, once the Controller made it
         self.pages: list[WsClient] = []                       # the tabs `ws()` opened: closed when the test is over
-        self.ctl = Controller(tmp_path, clock=self.now, tnc=self.tnc, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link)
-        self.hf = self.ctl.hf                                  # the HF radio's Tnc: radio 2's line (stopped unless the settings tick hf/enabled)
-        self.ctl.mercury.ports = lambda: []                   # (the Mercury modem's choice of a keying line never reads the operator's serial ports in a test)
+        self.hf = Tnc(clock=self.now, profile=MERCURY)          # the HF radio's Tnc: radio 2's line (stopped unless the settings tick hf/enabled)
+        self.ctl = Controller(tmp_path, clock=self.now, port=self.link, pattern=self.tnc.pattern, web=self._page if web else None, check_sec=check_sec, auto_map=auto_map, hf_port=self.hf_link,
+                              lines={FM_ID: self.tnc, HF_ID: self.hf})
+        self.ctl.radios.wire = _quieted(self.ctl.radios.wire)         # (a modem's choice of a keying line never reads the operator's serial ports in a test)
+        for made in self.ctl.radios.all():
+            _quiet(made)
 
     def _page(self, ctl: Controller, config: Config) -> WebServer:
         self.server = WebServer(ctl, replace(config, web_port=0))         # a free port: the tests run side by side
@@ -244,6 +266,29 @@ class Env:
         self._masters.clear()
         if self._own_ports:
             shutil.rmtree(self.ports, ignore_errors=True)
+
+    # ---- radios 1 and 2
+    def _radio(self, id: RadioId) -> LiveRadio[Beacon]:
+        radio = self.ctl.radios.get(id)
+        assert radio is not None, f"the daemon has no radio {id}"
+        return radio
+
+    @property
+    def beacon(self) -> Beacon:
+        """Radio 1's beacon."""
+        return self._radio(FM_ID).beacon
+
+    @property
+    def beacon_2(self) -> Beacon:
+        """Radio 2's beacon."""
+        return self._radio(HF_ID).beacon
+
+    @property
+    def mercury(self) -> Mercury:
+        """Radio 2's modem (a Mercury radio's or the Dummy HF radio's)."""
+        modem = self._radio(HF_ID).driver.modem
+        assert isinstance(modem, Mercury), "radio 2 has no modem"
+        return modem
 
     # ---- life
     @property

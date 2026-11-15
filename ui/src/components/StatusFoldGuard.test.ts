@@ -11,7 +11,7 @@ import ObjectsQru from "@/components/ObjectsQru.vue";
 import RadioStatus from "@/components/RadioStatus.vue";
 import StatusReportRow from "@/components/StatusReportRow.vue";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { ago, igateState, NOW, qruState, status, tncState } from "@/test/fixtures";
+import { ago, fmRow, igateState, NOW, qruState, status } from "@/test/fixtures";
 
 const SRC = resolve(__dirname, "..");
 const later = new Date(NOW + 38 * 60_000).toISOString();
@@ -36,8 +36,8 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
     full: () => mount(StatusReportRow, { props: { text: "", lastSent: null, minutes: "30", rig: "unused", beaconOff: false, rxOnly: false, now: NOW } }),
   },
   DigipeaterStatus: {
-    bare: () => mount(DigipeaterStatus, { props: { tnc: tncState(), startedAt: null, now: NOW, rxOnly: false } }),
-    full: () => mount(DigipeaterStatus, { props: { tnc: tncState(), startedAt: ago(3600), now: NOW, rxOnly: false } }),
+    bare: () => mount(DigipeaterStatus, { props: { tnc: fmRow(), startedAt: null, now: NOW, rxOnly: false } }),
+    full: () => mount(DigipeaterStatus, { props: { tnc: fmRow(), startedAt: ago(3600), now: NOW, rxOnly: false } }),
   },
   IgateStatus: {
     bare: null,
@@ -50,7 +50,7 @@ const ROWS: Record<string, { bare: (() => ReturnType<typeof mount>) | null; full
   },
   RadioStatus: {
     bare: null,
-    full: () => mount(RadioStatus, { props: { tnc: tncState(), now: NOW } }),
+    full: () => mount(RadioStatus, { props: { row: fmRow(), now: NOW } }),
   },
 };
 

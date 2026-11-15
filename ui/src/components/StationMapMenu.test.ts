@@ -7,7 +7,7 @@ import type { RadioRow } from "@/protocol/protocol";
 import { FakeMap, resetFakes } from "@/test/fakemap";
 import { mountStationMap } from "@/test/stationmap";
 import { cssRule } from "@/test/css";
-import { NOW, configValues, hfState, radioRow, radiosTopic, station, table } from "@/test/fixtures";
+import { NOW, modemState, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 import { tell, type FakeDaemon } from "@/test/context";
 
 const props = () => ({
@@ -61,13 +61,8 @@ describe("the menu of the map", () => {
 
   it("has Monitor between Statistics and Replay while the HF radio has a scope, and says so to the page when it is chosen", async () => {
     const { wrapper, daemon } = await mounted();
-    const state = hfState();
-    const modem = { ...state.modem!, scope: true };
-    await tell(daemon, {
-      hf: { ...state, modem },
-      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })),
-      config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }),
-    });
+    const modem = modemState({ scope: true });
+    await tell(daemon, { radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })) });
     rightClick(60.17345, 24.94123);
     await flushPromises();
     expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "replay"]);
@@ -137,15 +132,13 @@ describe("the menu of the map", () => {
 });
 
 /** A Mercury radio whose modem has the interface (or has not, `scope` false). */
-const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
-  radioRow(id, "mercury", { modem: { ...hfState().modem!, scope }, ...extra });
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow => radioRow(id, "mercury", { modem: modemState({ scope }), ...extra });
 
-/** The map with these radios told, the page's counting of who looks given the topic `radios` as the page makes it, and the settings of before agreeing with radios 1 and 2. */
+/** The map with these radios told, and the page's counting of who looks given the topic `radios` as the page makes it. */
 async function withRadios(...rows: RadioRow[]): Promise<{ wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]; daemon: FakeDaemon }> {
   const { wrapper, daemon } = await mounted();
-  const on = (id: number) => String(rows.some((row) => row.id === id && row.enabled));
-  await tell(daemon, { radios: radiosTopic(...rows), config: configValues({ "fm/enabled": on(1), "hf/enabled": on(2) }) });
-  daemon.scope = useScopeLooks(daemon.send, daemon.hf, daemon.connection, shallowRef(true), { radios: daemon.radios });
+  await tell(daemon, { radios: radiosTopic(...rows) });
+  daemon.scope = useScopeLooks(daemon.send, daemon.connection, shallowRef(true), { radios: daemon.radios });
   return { wrapper, daemon };
 }
 const monitors = () => items().filter((b) => b.dataset.item === "monitor");

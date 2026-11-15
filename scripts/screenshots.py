@@ -7,7 +7,7 @@
     python scripts/screenshots.py --check                                                  # no browser: every shot has its files, and every picture of site/ is declared at the size of its file
 
 Nothing touches a radio: the daemon's TNC is a KISS server on a TCP port of the loopback that this script serves (the `kiss-tcp` profile), and the fresh folder of the setup guide is given that port on the
-command line. The HF radio of the two HF shots is given through the page, as the operator gives it (scripts/smoke.py `give_radio`: the radio commands, or the flat keys of a daemon before them). The version
+command line. The HF radio of the two HF shots is given through the page, as the operator gives it (scripts/smoke.py `give_radio`: the radio commands). The version
 beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read): a run into site/shots/ or with no --only refuses to start without it, since the placeholder map would replace the site's. Needs Playwright and, to
 make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable.
 
@@ -126,8 +126,7 @@ def neoaprs_db_set(data: Path, key: str, value: str) -> None:
 
 
 async def give_hf_radio(url: str, radio_type: str, values: dict[str, str]) -> None:
-    """The HF radio of a daemon that is up, given through its page as the operator gives it (smoke.give_radio: `radio_add` or `radio_change` and its own keys from the round of the radios on, the flat keys
-    `hf/enabled`, `hf/profile` and `mercury/*` before it). `neoaprs db set` of an HF key is refused on a folder whose daemon ran without an HF radio, which every copy of the day's folder is."""
+    """The HF radio of a daemon that is up, given through its page as the operator gives it (smoke.give_radio: `radio_add` or `radio_change` and its own keys). `neoaprs db set` of an HF key is refused on a folder whose daemon ran without an HF radio, which every copy of the day's folder is."""
     page = await smoke.PageSocket.open(url)
     try:
         await hf_radio_given(page, radio_type, values, 60.0)
@@ -141,7 +140,7 @@ async def hf_radio_given(page: smoke.PageSocket, radio_type: str, values: dict[s
     id = await smoke.give_radio(page, "hf", radio_type, values, seconds)
     if radio_type != "mercury":
         return
-    if id is not None and id != HF_ID:
+    if id != HF_ID:
         raise smoke.Failure(f"the Mercury radio given is radio {id}, and --hf-port names radio {HF_ID}")
     await page.until("the Mercury modem of the HF radio running", lambda p: smoke.modem_state(p.topics, "hf", id) == "running", seconds)
 

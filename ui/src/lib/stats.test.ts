@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { historyPoints, mapStats, type StatSection } from "@/lib/stats";
 import { pageRadios } from "@/lib/radios";
 import type { RadioRow } from "@/protocol/protocol";
-import { NOW, ago, igateState, mapState, packet, radioRow, radiosTopic, station, status, table, tncState, weatherStation } from "@/test/fixtures";
+import { NOW, ago, igateState, lineStats, mapState, packet, radioRow, radiosTopic, station, status, table, weatherStation } from "@/test/fixtures";
 
 const AGING = { defaultMin: 180 };
 
@@ -79,12 +79,15 @@ const packets = () =>
     ].map((row) => [String(row.id), row] as const),
   );
 
+const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
+/** The station of the tests: the FM radio on, the HF radio off. */
+const ONE = radiosOf(radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false, state: "stopped" }));
+
 const input = (extra = {}) => ({
   stations: stations(),
   packets: packets(),
   status: status({ packets: 1234, started_at: ago(3 * 3600 + 100) }),
-  tnc: tncState(),
-  hf: null,
+  radios: ONE,
   igate: igateState({ enabled: true, gated: 42 }),
   map: mapState({ aloha_km: 37.4 }),
   aging: AGING,
@@ -134,9 +137,8 @@ describe("the statistics of the map", () => {
   });
 
   it("says what the radio did since the daemon started", () => {
-    const tnc = tncState();
-    tnc.stats = { ...tnc.stats, frames_in: 2500, rejected: 12, bytes_in: 300_000, bytes_out: 2048, digipeated: 9 };
-    expect(lines(mapStats(input({ tnc })), "stats.section.radio")).toEqual([
+    const stats = lineStats({ frames_in: 2500, rejected: 12, bytes_in: 300_000, bytes_out: 2048, digipeated: 9 });
+    expect(lines(mapStats(input({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { stats })) })), "stats.section.radio")).toEqual([
       "stats.running=3 h",
       "stats.frames=2500, 12 unreadable",
       "stats.bytes=293.0 kB · 2.0 kB",
@@ -146,22 +148,24 @@ describe("the statistics of the map", () => {
   });
 
   it("adds up the radios that are on, and counts the HF radio alone when the FM radio is off", () => {
-    const fm = tncState();
-    fm.stats = { ...fm.stats, frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 };
-    const hf = tncState();
-    hf.stats = { ...hf.stats, frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 };
-    expect(lines(mapStats(input({ tnc: fm, hf })), "stats.section.radio")).toEqual([
+    const fm = (extra = {}) =>
+      radioRow(1, "kenwood-tnc2", { stats: lineStats({ frames_in: 100, rejected: 0, bytes_in: 1024, bytes_out: 1024, digipeated: 2 }), ...extra });
+    const hf = radioRow(2, "mercury", { stats: lineStats({ frames_in: 20, rejected: 3, bytes_in: 1024, bytes_out: 0, digipeated: 1 }) });
+    expect(lines(mapStats(input({ radios: radiosOf(fm(), hf) })), "stats.section.radio")).toEqual([
       "stats.running=3 h",
       "stats.frames=120, 3 unreadable",
       "stats.bytes=2.0 kB · 1.0 kB",
       "stats.digipeated=3",
       "stats.gated=42",
     ]);
-    expect(lines(mapStats(input({ tnc: null, hf })), "stats.section.radio").slice(0, 2)).toEqual(["stats.running=3 h", "stats.frames=20, 3 unreadable"]);
+    expect(lines(mapStats(input({ radios: radiosOf(fm({ enabled: false, state: "stopped" }), hf) })), "stats.section.radio").slice(0, 2)).toEqual([
+      "stats.running=3 h",
+      "stats.frames=20, 3 unreadable",
+    ]);
   });
 
   it("leaves out a line with nothing to say, and a section with no line", () => {
-    const sections = mapStats({ stations: new Map(), packets: new Map(), status: null, tnc: null, hf: null, igate: null, map: null, aging: AGING, now: NOW });
+    const sections = mapStats({ stations: new Map(), packets: new Map(), status: null, radios: [], igate: null, map: null, aging: AGING, now: NOW });
     expect(sections.map((s) => s.title)).toEqual(["stats.section.stations", "stats.section.packets"]);
     expect(lines(sections, "stats.section.packets")).toEqual(["stats.packets_hour=0"]);
     expect(lines(sections, "stats.section.stations")).toEqual([
@@ -192,27 +196,22 @@ describe("the statistics of the map", () => {
 
   it("counts the HF radio's packets as HF, not under RF (plan section 9: they were counted under RF), also for the HF radio alone", () => {
     const heard = new Map(
-      [packet(1, { radio: "fm", heard_at: ago(60) }), packet(2, { radio: "hf", heard_at: ago(30) }), packet(3, { radio: "hf", heard_at: ago(0) })].map(
+      [packet(1, { radio_id: 1, heard_at: ago(60) }), packet(2, { radio_id: 2, heard_at: ago(30) }), packet(3, { radio_id: 2, heard_at: ago(0) })].map(
         (row) => [String(row.id), row] as const,
       ),
     );
     const byChannel = (extra: object) =>
       lines(mapStats(input({ packets: heard, ...extra })), "stats.section.packets").find((l) => l.startsWith("stats.by_channel"));
     expect(byChannel({})).toBe("stats.by_channel=1 RF · 2 HF");
-    expect(byChannel({ tnc: null, hf: tncState() })).toBe("stats.by_channel=1 FM · 2 HF");
+    expect(byChannel({ radios: radiosOf(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury")) })).toBe(
+      "stats.by_channel=1 FM · 2 HF",
+    );
   });
 });
 
 describe("the statistics of the map with several radios", () => {
-  const radiosOf = (...rows: RadioRow[]) => pageRadios(radiosTopic(...rows), null);
-  const counted = (frames: number, bad: number, digi: number): RadioRow["stats"] => ({
-    ...tncState().stats,
-    frames_in: frames,
-    rejected: bad,
-    bytes_in: 1024,
-    bytes_out: 1024,
-    digipeated: digi,
-  });
+  const counted = (frames: number, bad: number, digi: number): RadioRow["stats"] =>
+    lineStats({ frames_in: frames, rejected: bad, bytes_in: 1024, bytes_out: 1024, digipeated: digi });
   const SIX = radiosOf(
     radioRow(1, "kenwood-tnc2", { stats: counted(100, 0, 2) }),
     radioRow(2, "mercury", { stats: counted(20, 3, 0) }),
@@ -223,13 +222,13 @@ describe("the statistics of the map with several radios", () => {
   );
   const heard = new Map(
     [
-      packet(1, { radio: "fm" }),
-      packet(2, { radio: "hf" }),
-      packet(3, { radio: "", radio_id: 3 }),
-      packet(4, { radio: "", radio_id: 3 }),
-      packet(5, { radio: "", radio_id: 4, via: "dummy" }),
-      packet(6, { radio: "", radio_id: 5 }),
-      packet(7, { radio: "", radio_id: null, via: "is", route: "" }),
+      packet(1, { radio_id: 1 }),
+      packet(2, { radio_id: 2 }),
+      packet(3, { radio_id: 3 }),
+      packet(4, { radio_id: 3 }),
+      packet(5, { radio_id: 4, via: "dummy" }),
+      packet(6, { radio_id: 5 }),
+      packet(7, { radio_id: null, via: "is", route: "" }),
     ].map((row) => [String(row.id), row] as const),
   );
 

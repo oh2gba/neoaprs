@@ -23,7 +23,7 @@ async def closed(connection: Any) -> None:
 async def test_the_scripts_read_the_radios_of_the_daemon_and_give_it_the_hf_radio_by_the_radio_commands(tmp_path: Path) -> None:
     smoke = load_script("smoke.py")
     e = Env(tmp_path, web=True)
-    e.ctl.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
+    e.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
     await e.start()
     base = f"http://127.0.0.1:{e.port}/"
     page = await smoke.PageSocket.open(base)

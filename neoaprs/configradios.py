@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from .coded import CodedError
 from .packetcodec import parse_stamp
-from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio
+from .radiospec import FM_ID, HF_ID, RadioError, RadioId, RadioSpec, enabled, live, main_radio, senders
 from .radiotype import KINDS, Kind, stored_text
 from .radiotypes import DEFAULT_TYPE, kind_field, kind_fields
 
@@ -244,8 +244,13 @@ class RadioViews:
         return enabled(self.radios)
 
     @property
+    def listens_only(self) -> bool:
+        """Some radio is enabled and none of those can send (each is of a receive-only type): nothing is transmitted, as while RX only is ticked."""
+        return bool(self.enabled_radios) and not senders(self.radios)
+
+    @property
     def main_radio(self) -> RadioId | None:
-        """The main radio (radiospec.main_radio): the one chosen while it is enabled, else the first enabled by position, else none."""
+        """The main radio (radiospec.main_radio): the one chosen while it is enabled and can send, else the first such by position, else none."""
         return main_radio(self.radios, self.main_choice)
 
     @staticmethod

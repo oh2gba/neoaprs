@@ -88,7 +88,7 @@ class Finder:
     def __init__(self) -> None:
         self.cancelled = 0
 
-    async def find(self, trying: Any) -> None:
+    async def find(self, trying: Any, radio: int) -> None:
         trying(Trying("/dev/ttyUSB0", 9600, 1, 4))
         return None
 
@@ -108,7 +108,7 @@ class Page:
 @pytest.mark.parametrize("closed, cancelled", [(True, 1), (False, 0)])
 async def test_a_search_for_the_radio_is_cancelled_when_the_page_that_asked_has_left_and_not_before(closed: bool, cancelled: int) -> None:
     finder, page = Finder(), Page(closed)
-    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder), conn=page)
+    ctx = SimpleNamespace(ctl=SimpleNamespace(radiofinder=finder, radios=SimpleNamespace(get=lambda id: None)), conn=page)      # (no radio 1 in the registry: the search of before)
     await find_radio(ctx, FindRadio(cmd="find_radio"))  # type: ignore[arg-type]
     assert finder.cancelled == cancelled
     assert [m["state"] for m in page.sent] == ["trying", "cancelled"]

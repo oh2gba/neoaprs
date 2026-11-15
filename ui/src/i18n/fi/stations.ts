@@ -199,6 +199,7 @@ export const stations: Record<keyof typeof source, Message> = {
   "channel.rf": "RF",
   "channel.fm": "FM",
   "channel.hf": "HF",
+  "channel.lora": "LoRa",
   "channel.gated": "iGate",
   "channel.is": "Internet",
   "channel.dummy": "Testi",

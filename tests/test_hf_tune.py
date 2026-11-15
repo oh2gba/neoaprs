@@ -1,6 +1,6 @@
 """Tune and the keying test of the HF radio (neoaprs/mercurymodem.py, Mercury's own TUNE command on its control port, neoaprs/mercury.py): the tone keys the radio through the modem and stops by itself, a second press
-stops it early, the keying test is the quiet second, both hold our frames meanwhile, both are refused while the modem is not running or the radio is not free, and the page asks for them with `hf_tune` and
-`hf_key_test` and is refused while RX only is ticked (`transmit.off`). The modem is a radio's (`fakemercury.of_radio`), on a Mercury something else runs (`attach`): the radio holds that Mercury's pair while it is
+stops it early, the keying test is the quiet second, both hold our frames meanwhile, both are refused while the modem is not running or the radio is not free, and the page asks for them with `radio_tune` and
+`radio_key_test` and is refused while RX only is ticked (`transmit.off`). The modem is a radio's (`fakemercury.of_radio`), on a Mercury something else runs (`attach`): the radio holds that Mercury's pair while it is
 attached, and the tone goes through the keying the settings name."""
 import asyncio
 from dataclasses import replace
@@ -130,25 +130,25 @@ async def test_the_page_asks_for_tune_and_the_keying_test_and_is_refused_while_r
     e = Env(tmp_path, radio=station, web=True)
     await e.start()
     page = await e.ws()
-    await page.send({"cmd": "subscribe", "topics": ["hf"]})
-    await page.until(lambda: page.topics["hf"]["modem"]["state"] == "running", START_SEC)
-    assert page.topics["hf"]["modem"]["frequencies"][0] == {"band": "40 m", "dial": "7.0541 MHz USB"}, "the daemon owns the frequencies the page shows"
-    await page.send({"cmd": "hf_tune", "on": True})
-    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "tune" and page.topics["hf"]["modem"]["keyed"])
-    await page.send({"cmd": "hf_tune", "on": False})
-    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "")
-    await page.send({"cmd": "hf_key_test"})
-    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "key")
-    await page.until(lambda: page.topics["hf"]["modem"]["test"] == "", START_SEC)
+    modem = lambda: page.topics.get("radios", {}).get("2", {}).get("modem") or {}        # noqa: E731
+    await page.until(lambda: modem().get("state") == "running", START_SEC)
+    assert modem()["frequencies"][0] == {"band": "40 m", "dial": "7.0541 MHz USB"}, "the daemon owns the frequencies the page shows"
+    await page.send({"cmd": "radio_tune", "radio": 2, "on": True})
+    await page.until(lambda: modem()["test"] == "tune" and modem()["keyed"])
+    await page.send({"cmd": "radio_tune", "radio": 2, "on": False})
+    await page.until(lambda: modem()["test"] == "")
+    await page.send({"cmd": "radio_key_test", "radio": 2})
+    await page.until(lambda: modem()["test"] == "key")
+    await page.until(lambda: modem()["test"] == "", START_SEC)
     assert station.tuned == ["TUNE -15", "TUNE OFF", "TUNE -15", "TUNE OFF"], "(the keying here is the default, VOX: the test sends the tone)"
     await e.ctl.change_config(lambda c: replace(c, station_transmit=False))
-    for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):
+    for cmd in ({"cmd": "radio_tune", "radio": 2, "on": True}, {"cmd": "radio_key_test", "radio": 2}):
         await page.send(cmd)
         error = await page.expect("error")
         assert error["code"] == "transmit.off"
     assert station.tuned[4:] == []
     await e.ctl.change_config(lambda c: replace(c, station_transmit=True, station_call=""))
-    for cmd in ({"cmd": "hf_tune", "on": True}, {"cmd": "hf_key_test"}):
+    for cmd in ({"cmd": "radio_tune", "radio": 2, "on": True}, {"cmd": "radio_key_test", "radio": 2}):
         await page.send(cmd)
         error = await page.expect("error")
         assert error["code"] == "other" and "call" in error["text"], "no call to send under: no tone either"

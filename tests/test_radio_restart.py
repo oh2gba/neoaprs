@@ -75,7 +75,7 @@ async def test_storing_the_sound_card_and_the_keying_the_modem_chose_itself_rest
     w = await both_radios(tmp_path)
     a = w["OH2A"]
     hf_seen = watch(a.hf)
-    modem = a.ctl.mercury
+    modem = a.mercury
     assert a.ctl.config.mercury_sound_card == "" and modem.state == "running"
     modem.sound_card, modem.keying = "plughw:1,0", Keying("rts", "/dev/ttyUSB0")        # (what the program was started with, as its own choice)
     assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:1,0", mercury_keying="rts:/dev/ttyUSB0"))
@@ -90,7 +90,7 @@ async def test_clearing_a_sound_card_that_was_set_restarts_the_modem_so_that_it_
     w = await both_radios(tmp_path)
     a = w["OH2A"]
     fm_seen, hf_seen = watch(a.tnc), watch(a.hf)
-    modem = a.ctl.mercury
+    modem = a.mercury
     modem.sound_card = "plughw:1,0"                                                    # (what the program was started with, as its own choice)
     assert await a.ctl.save_config(replace(a.ctl.config, mercury_sound_card="plughw:1,0"))
     await asyncio.sleep(0.3)

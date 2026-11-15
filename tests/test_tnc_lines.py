@@ -1,4 +1,4 @@
-"""What the page is told of the TNC's log (`TncState.lines`) and of a search (`searching`): every line has the time it was written, in full, and its text without the time of day that `Tnc.lines` shows in front of
+"""What the page is told of the TNC's log (`lines` of a radio's row of the topic `radios`) and of a search (`searching`): every line has the time it was written, in full, and its text without the time of day that `Tnc.lines` shows in front of
 it; the ports of a search are a list and not a sentence. And what the Tnc makes of a frame: every packet, heard or sent, carries the id of the Tnc's radio."""
 import asyncio
 from datetime import timedelta

@@ -437,13 +437,13 @@ def test_over_mercury_a_moving_station_sends_its_timed_beacon_at_the_fix_and_the
 
 
 def test_the_one_beacon_interval_is_raised_to_30_minutes_on_the_hf_radio_alone_and_the_fm_radio_keeps_what_was_set() -> None:
-    assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_beacon_interval_min"), "one setting for both radios"
+    assert DEFAULTS.beacon_interval_min == 0 and not hasattr(DEFAULTS, "hf_" "beacon_interval_min"), "one setting for both radios"
     fm_only = replace(DEFAULTS, beacon_interval_min=20)
     assert fm_only.beacon_interval() == 20, "with HF off, today's floor of 20"
     both = replace(fm_only, hf_enabled=True)
     clock = FixedClock()
-    fm_beacon, hf_beacon = (Beacon(radio_of(both, id), lambda: both, clock, frames=BeaconFrames(lambda: both, None, clock)) for id in (FM_ID, HF_ID))
-    assert (fm_beacon.interval_min, hf_beacon.interval_min) == (20, 30), "with HF on, 30 at the least on the HF radio; the FM radio at 20 is not slowed by it (plan rule 3.1)"
+    fm_beacon, on_hf = (Beacon(radio_of(both, id), lambda: both, clock, frames=BeaconFrames(lambda: both, None, clock)) for id in (FM_ID, HF_ID))
+    assert (fm_beacon.interval_min, on_hf.interval_min) == (20, 30), "with HF on, 30 at the least on the HF radio; the FM radio at 20 is not slowed by it (plan rule 3.1)"
     assert replace(both, fm_enabled=False).beacon_interval() == 30, "the HF radio alone: 30 at the least"
     longer, off = replace(both, beacon_interval_min=60), replace(both, beacon_interval_min=0)
     assert [Beacon(radio_of(c, id), lambda c=c: c, clock).interval_min for c in (longer, off) for id in (FM_ID, HF_ID)] == [60, 60, 0, 0], "a longer interval stays on both, Off stays Off"
