@@ -215,12 +215,19 @@ async def test_an_object_goes_on_the_radios_named_and_its_row_says_them(tmp_path
 
 
 async def test_the_topic_tells_a_radio_at_most_four_times_a_second(tmp_path: Path) -> None:
+    """A second of changes, one every 25 ms of the hub's clock, which the test keeps (forty sleeps of the machine's are not a second: on Windows a sleep of 25 ms lasts two steps of its clock, 31 ms)."""
     e, page = await started(tmp_path)
+    assert e.server is not None
+    hub, now = e.server.api.hub, [0.0]
+    now[0] = hub.clock() + 1.0                                      # (whatever was waiting is due at once)
+    hub.clock = lambda: now[0]
     await page.quiet(0.4)
     before = len(page.ops("radios"))
     for _ in range(40):
         e.ctl.radio_changed.emit(FM_ID)
+        now[0] += 0.025
         await asyncio.sleep(0.025)
+    now[0] += 0.25                                                  # (the last change is due)
     await page.quiet(0.4)
     told = [op for op in page.ops("radios")[before:] if op.get("key") == "1"]
     assert 1 <= len(told) <= 6, f"a second of changes was told {len(told)} times"

@@ -330,11 +330,12 @@ def test_a_picture_declared_at_another_size_is_found_and_written_as_its_file(tmp
     png(tmp_path / "shots" / "og.png", 1200, 630)
     page = ('<meta property="og:image" content="https://neo.oh2gba.eu/shots/og.png">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="600">\n'
             '<picture><source srcset="shots/thumbs/chain-dark.png" media="(prefers-color-scheme: dark)"><img src="shots/thumbs/chain.png" width="640" height="681" alt=""></picture>\n<img src="favicon.svg" width="28" height="28">\n')
-    (tmp_path / "index.html").write_text(page, encoding="utf-8")
+    (tmp_path / "index.html").write_bytes(page.encode())                 # (with LF, as every system checks the site out: .gitattributes)
     assert shots.wrong_sizes(tmp_path) == ["index.html: shots/thumbs/chain.png is declared 640x681, the file is 640x781", "index.html: shots/thumbs/chain-dark.png is 640x790 in the box of shots/thumbs/chain.png, 640x781",
                                            "index.html: og:image:height says 600, shots/og.png is 630"]
     assert shots.fix_sizes(tmp_path) == ["index.html: shots/thumbs/chain.png 640x681 -> 640x781", "index.html: og:image:height -> 630"]
-    fixed = (tmp_path / "index.html").read_text(encoding="utf-8")
+    fixed = (tmp_path / "index.html").read_bytes().decode()
+    assert fixed == page.replace('height="681"', 'height="781"').replace('og:image:height" content="600"', 'og:image:height" content="630"'), "the sizes changed, and nothing else: not the line ends either"
     assert 'src="shots/thumbs/chain.png" width="640" height="781"' in fixed and 'og:image:height" content="630"' in fixed and 'width="28" height="28"' in fixed
     assert shots.wrong_sizes(tmp_path) == ["index.html: shots/thumbs/chain-dark.png is 640x790 in the box of shots/thumbs/chain.png, 640x781"], "the dark file's size is its own: said, never written"
     assert shots.fix_sizes(tmp_path) == [], "a page that agrees is left as it is"

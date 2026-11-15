@@ -30,7 +30,7 @@ import tempfile
 import time
 from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
@@ -872,7 +872,7 @@ def wrong_sizes(site: Path = SITE) -> list[str]:
         for picture in PICTURE.findall(html):
             tag = next(iter(IMG.findall(picture)), "")
             src = _attr(tag, "src") or ""
-            dark = f"{Path(src).with_suffix('')}-dark{Path(src).suffix}"
+            dark = f"{PurePosixPath(src).with_suffix('')}-dark{PurePosixPath(src).suffix}"          # (an address of the page: its slashes, on Windows too)
             if f'srcset="{dark}"' in picture and (size := image_size(site / src)) is not None and (dark_size := image_size(site / dark)) not in (None, size):
                 wrong.append(f"{page.name}: {dark} is {dark_size[0]}x{dark_size[1]} in the box of {src}, {size[0]}x{size[1]}")
         og = re.search(rf'<meta property="og:image" content="{re.escape(SITE_URL)}([^"]+)">', html)
@@ -909,10 +909,10 @@ def fix_sizes(site: Path = SITE) -> list[str]:
     """Writes into the pages of the site the sizes of their pictures' files (`sized`); what it changed, a line each. The dark copies' sizes are the files' own: a line of wrong_sizes, never written."""
     changed: list[str] = []
     for page in sorted(site.glob("*.html")):
-        html = page.read_text(encoding="utf-8")
+        html = page.read_text(encoding="utf-8", newline="")
         new, lines = sized(html, site)
         if new != html:
-            page.write_text(new, encoding="utf-8")
+            page.write_text(new, encoding="utf-8", newline="")          # (its line ends as they are: Windows would write CRLF into every line)
         changed += [f"{page.name}: {line}" for line in lines]
     return changed
 

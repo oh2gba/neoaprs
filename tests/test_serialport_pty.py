@@ -7,6 +7,7 @@ import os
 import select
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -242,6 +243,57 @@ def test_holders_looks_through_a_link_to_the_device(ptys: Ptys, tmp_path: Path) 
     link.symlink_to(path)
     with held_by_a_program(str(link)) as child:                      # opened through the link, found through the device and through the link
         assert holders(path) == [child.pid] == holders(str(link))
+
+
+_SAME_NUMBER = ("import os, sys, time\nkept = [os.openpty()]\n"
+                "while os.ttyname(kept[-1][1]) != sys.argv[1] and len(kept) < 300:\n    kept.append(os.openpty())\n"
+                "print(os.ttyname(kept[-1][1]), flush=True)\ntime.sleep(60)\n")
+
+
+def test_a_pseudo_terminal_of_another_devpts_by_the_same_name_is_no_holder(ptys: Ptys) -> None:
+    """A program in a /dev of its own (a sandbox, a container, a Flatpak: bubblewrap's --dev makes one) that holds its /dev/pts/N holds another terminal than ours of that name: the search must not skip ours
+    for it (the gate of 15 November 2026 found both its ports "held" while other test runs in sandboxes held terminals of the same numbers)."""
+    _, path = ptys()
+    try:
+        other = subprocess.Popen(["bwrap", "--dev-bind", "/", "/", "--dev", "/dev", sys.executable, "-c", _SAME_NUMBER, path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except FileNotFoundError:
+        pytest.skip("needs bubblewrap, to give a program a devpts of its own")
+    try:
+        assert other.stdout is not None
+        if other.stdout.readline().strip() != path:
+            pytest.skip("this system gives no program a devpts of its own (no namespaces for an unprivileged user)")
+        assert holders(path) == [] and held_by(path) == ""
+    finally:
+        other.kill()
+        other.wait()
+        if other.stdout is not None:
+            other.stdout.close()
+
+
+def node_of(device: os.stat_result, dev: int, ino: int) -> os.stat_result:
+    """What stat says of another node with the device's numbers: on the filesystem `dev`, as its inode `ino`."""
+    return os.stat_result((device.st_mode, ino, dev, device.st_nlink, device.st_uid, device.st_gid, device.st_size, 0, 0, 0), {"st_rdev": device.st_rdev})  # type: ignore[attr-defined, unused-ignore]
+
+
+def stat_saying(link: str, opened: os.stat_result, real: Callable[..., os.stat_result]) -> Callable[..., os.stat_result]:
+    """os.stat, but for the descriptor `link` of the stand-in /proc what the kernel would say of the file it has open."""
+    return lambda path, *args, **kwargs: opened if str(path) == link else real(path, *args, **kwargs)
+
+
+def test_a_descriptor_by_the_name_of_the_device_holds_it_only_when_it_is_the_device(ptys: Ptys, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """What /proc says of a descriptor, stood in for (a /proc of the test's, and the kernel's stat of the descriptor): a name is the device only in the process's own /dev. The very node holds it; another node with
+    the numbers of a character device holds it too (a container's /dev, made with the device's numbers); a pseudo-terminal by the same name and numbers on another devpts does not."""
+    _, terminal = ptys()
+    for target in (terminal, "/dev/null"):
+        fd = tmp_path / target.replace("/", "_") / "9999999" / "fd"          # (a pid above any Linux gives: never ours)
+        fd.mkdir(parents=True)
+        (fd / "3").symlink_to(target)
+        real, mine = os.stat, os.stat(target)
+        with monkeypatch.context() as patch:
+            patch.setattr("neoaprs.serialholders.PROC", str(fd.parent.parent))
+            for opened, held in ((mine, True), (node_of(mine, mine.st_dev + 1, mine.st_ino), target == "/dev/null"), (node_of(mine, mine.st_dev + 1, mine.st_ino + 1), target == "/dev/null")):
+                patch.setattr(os, "stat", stat_saying(str(fd / "3"), opened, real))
+                assert holders(target) == ([9999999] if held else []), (target, opened)
 
 
 def test_holders_of_a_path_that_is_not_there_is_an_empty_list(tmp_path: Path) -> None:

@@ -10,6 +10,8 @@ from typing import Any
 import pytest
 from pydantic import TypeAdapter
 
+from neoaprs.claims import PORT_KINDS
+from neoaprs.serialprobe import claim_value
 from neoaprs.web import views
 from neoaprs.web.bulletinwire import BulletinRow
 from neoaprs.web.gpswire import GpsState
@@ -46,11 +48,21 @@ def without_platform(rows: Any) -> Any:
     return rows
 
 
+def on_this_system(rows: Any) -> Any:
+    """The golden file as this system makes it: it is written on Linux, and a serial device a radio holds is held as the system compares port names (serialprobe.claim_value: on Windows in upper case)."""
+    for row in rows.get("radios", []):
+        for held in row["holds"]:
+            if held["resource"] in PORT_KINDS:
+                held["value"] = claim_value(held["value"]) or held["value"]
+    return rows
+
+
 def test_the_rows_are_the_rows_of_the_golden_file() -> None:
-    made, golden = as_json(), without_platform(json.loads(GOLDEN.read_text(encoding="utf-8")))
+    made, golden = as_json(), on_this_system(without_platform(json.loads(GOLDEN.read_text(encoding="utf-8"))))
     assert set(made) == set(golden)
-    for topic in golden:
-        assert made[topic] == golden[topic], topic
+    differ = [topic for topic in golden if made[topic] != golden[topic]]
+    for topic in differ:
+        assert made[topic] == golden[topic], f"{topic} (the topics that differ: {', '.join(differ)})"
 
 
 @pytest.mark.parametrize("topic", sorted(MODELS))

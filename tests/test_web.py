@@ -871,7 +871,7 @@ async def test_set_station_rf_only_changes_the_entry_keeps_the_rest_and_the_next
     await page.send({"cmd": "set_station_path", "call": "OH2RDG", "path": "OH2RCH-2,OH2RDG"})
     await page.until(lambda: page.topics["station_prefs"] == {"OH2RDG": pref("OH2RCH-2,OH2RDG", True)})
     await page.send({"cmd": "send_message", "to": "OH2RDG", "text": "Hello"})
-    await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()))
+    await page.until(lambda: any("OH2RCH-2,OH2RDG,RFONLY" in r["tnc2"] for r in page.topics["packets"].values()) and page.topics["messages"]["1"]["attempts"] == 1)     # (the two rows come in one flush, in the hub's order of the topics: the packet's first)
     row = MessageRow.model_validate_json(json.dumps(page.topics["messages"]["1"]))
     assert [h.call for h in row.attempts_detail[0].hops] == ["OH2RCH-2", "OH2RDG"], "RFONLY is no hop of the chain"
     await page.send({"cmd": "set_station_rf_only", "call": "OH2RDG", "on": False})

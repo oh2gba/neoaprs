@@ -141,7 +141,7 @@ async def test_the_search_sends_a_carriage_return_and_takes_a_tnc_that_answers_w
         assert await hear(first, 1) == b"\r" and await hear(second, 1) == b"\r"      # every candidate was nudged
         feed(second, b"cmd:")                                                          # only the second one is a TNC in command mode
         await asyncio.wait_for(starting, 3.0)
-        assert tnc.path == str(tmp_path / "port_2")
+        assert tnc.path == str(tmp_path / "port_2"), f"the first search ended without the port: {tnc.problem}"       # (a start whose first search fails returns waiting, and a later one nudged the ports)
         feed(second, b"cmd:")                                                          # the search has used up the first prompt; the opened port hears the next one
         assert await hear(second, len(ENTER_KISS)) == ENTER_KISS
     finally:

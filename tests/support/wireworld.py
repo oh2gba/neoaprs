@@ -16,6 +16,7 @@ from neoaprs.packet import Message, Packet, ThirdParty, Undecoded
 from neoaprs.pref import Pref
 from neoaprs.qrutext import Asked, Server
 from neoaprs.radiospec import RadioSpec
+from neoaprs.serialprobe import claim_value
 from neoaprs.smartbeacon import Reason, Sent
 from neoaprs.source import Source
 from neoaprs.stationbook import StationBook
@@ -268,7 +269,7 @@ RADIOS = (RadioSpec(1, "fm", "kiss", "Mobile", True, 1, settings={"port": "/dev/
 def radio_rows(views: Any) -> list[dict[str, Any]]:
     """The topic `radios`: an FM radio connected with its beacon, the Dummy HF radio with Send on unticked, a second FM radio whose port the first holds, and a removed one."""
     claims = Claims()
-    claims.hold(Claim("serial", "/dev/ttyUSB0", 1))
+    claims.hold(Claim("serial", claim_value("/dev/ttyUSB0") or "", 1))          # (as the radio's search and open hold it: the port as this system compares it, in upper case on Windows)
     waiting = Tnc(clock=FixedClock(T0))
     waiting.state = Source.State.WAITING
     at_work = {1: FakeRadio(tnc(), FakeBeacon(T0, T0 + timedelta(minutes=30), 30)), 2: FakeRadio(tnc_dummy_hf(), FakeBeacon(problem="receive only: transmitting is switched off")),

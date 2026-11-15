@@ -233,9 +233,10 @@ async def test_a_radio_the_settings_name_by_todays_flat_keys_is_changed_in_its_o
     the settings."""
     e = Env(tmp_path, radio=False, settings={"hf/enabled": "false"})
     await e.start(connected=False)
-    assert await e.ctl.save_config(replace(e.ctl.config, serial_port="/dev/ttyUSB7", tnc_profile="kiss", mercury_keying="vox", hf_profile="dummy-hf"))
+    port = str(tmp_path / "ttyUSB7")                    # (a port that is not there: radio 1 starts again on it at the save, and a real device's name would be opened)
+    assert await e.ctl.save_config(replace(e.ctl.config, serial_port=port, tnc_profile="kiss", mercury_keying="vox", hf_profile="dummy-hf"))
     settings = await e.ctl.store.settings()
     assert not {"serial/port", "tnc/profile", "mercury/keying", "hf/profile", "hf/enabled"} & settings.keys()
     radios = {s.id: (s.type, s.enabled, dict(s.settings)) for s in await e.ctl.store.radios()}
-    assert radios == {FM_ID: ("kiss", True, {"path": "WIDE1-1,WIDE2-1", "port": "/dev/ttyUSB7"}), HF_ID: ("dummy-hf", False, {"keying": "vox"})}
+    assert radios == {FM_ID: ("kiss", True, {"path": "WIDE1-1,WIDE2-1", "port": port}), HF_ID: ("dummy-hf", False, {"keying": "vox"})}
     await e.stop()
