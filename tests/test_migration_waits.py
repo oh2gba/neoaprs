@@ -203,12 +203,12 @@ def test_a_note_ahead_of_the_clock_is_not_fresh_and_a_start_with_nothing_to_migr
 # ---- a NeoAPRS that is to migrate the file while another one does
 
 # Two made-up steps after the program's own, the same in every process (exec'd: no source to hash, so the history does not hold one process's code against another's): the second tells the test that it
-# runs, by a file named after its process, and waits until the test lets it go (the file `go`). A child is named by the number the test gave it (NEOAPRS_TEST_WHO), not by its process id: on Windows the
+# runs, by a file named after its process, and waits until the test lets it go (the file `go`). A child is named by the number the test gave it (its last argument), not by its process id: on Windows the
 # python of a virtual environment is a launcher that starts the interpreter as a process of its own, so the id the test has of its child is not the one the child reads of itself.
 STEPS = r'''
 import os, time
 from pathlib import Path
-WHO = os.environ.get("NEOAPRS_TEST_WHO") or str(os.getpid())
+WHO = globals().get("WHO") or str(os.getpid())
 
 def k2_first(db):
     db.execute("CREATE TABLE k2_first (x INTEGER)")
@@ -229,7 +229,7 @@ OTHER = r'''
 import logging, os, sys
 from pathlib import Path
 from neoaprs import migrations
-path, HELD, busy = sys.argv[1], sys.argv[2], int(sys.argv[3])
+path, HELD, busy, WHO = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 ''' + STEPS + r'''
 logging.basicConfig(filename=str(Path(HELD) / f"log-{WHO}"), level=logging.INFO, format="%(message)s")
 migrations.MIGRATIONS = [*migrations.MIGRATIONS, k2_first, k2_second]
@@ -262,7 +262,7 @@ def another_neoaprs(path: Path, held: Path, busy_ms: int = 30000) -> "subprocess
     """`open_database` of `path` in a child process with the same made-up steps (a tool, `neoaprs db set`, has the tools' busy time); it ends with 0 when it opened the file, 3 when refused."""
     root = Path(__file__).resolve().parents[1]
     name = next(_names)
-    proc = subprocess.Popen([sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms)], cwd=root, env={**os.environ, "NEOAPRS_TEST_WHO": str(name)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen([sys.executable, "-c", OTHER, str(path), str(held), str(busy_ms), str(name)], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     _who[proc.pid] = name
     _watched.append((held, proc))
     return proc
