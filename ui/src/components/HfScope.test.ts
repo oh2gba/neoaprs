@@ -3,15 +3,17 @@
 // level as a bar with its zones; the gain buttons and the peak that turns orange.
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { shallowReactive, shallowRef } from "vue";
+import { computed, shallowReactive, shallowRef } from "vue";
+import HfScope from "@/components/HfScope.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
+import { useScopeLooks } from "@/composables/useScopeLooks";
 import { useScopeRows } from "@/composables/useScopeRows";
 import type { ScopeRow } from "@/lib/scoperow";
 import { readStored, writeStored } from "@/lib/storage";
 import { BINS } from "@/lib/waterfall";
-import type { PacketRow, TncState } from "@/protocol/protocol";
+import type { PacketRow, RadioRow, TncState } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { NOW, configValues, hfState, packet, tncState } from "@/test/fixtures";
+import { NOW, configValues, hfState, packet, radioRow, radiosTopic, tncState } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const HF_ON = { "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" };
@@ -27,6 +29,12 @@ const hfBox = (wrapper: ReturnType<typeof mount>) => {
   if (!box) throw new Error("no HF box");
   return box;
 };
+/** The topic `radios` as the daemon tells it beside the topic `hf`: radio 1 the FM radio, radio 2 the Mercury radio with the modem the topic `hf` says, each on as the settings say. */
+const radiosBeside = (config: Record<string, string>, state: TncState | null) =>
+  radiosTopic(
+    radioRow(1, "kenwood-tnc2", { enabled: config["fm/enabled"] !== "false" }),
+    radioRow(2, "mercury", { enabled: config["hf/enabled"] === "true", modem: state?.modem ?? null }),
+  );
 const calls: string[] = [];
 const clock = { now: NOW };
 let packets = shallowReactive(new Map<string, PacketRow>());
@@ -42,11 +50,18 @@ const say = async (...told: ScopeRow[]): Promise<void> => {
 };
 /** The time of a packet heard `ago` milliseconds before now, as the daemon writes it (whole seconds). */
 const heardNow = (ago = 0): string => new Date(clock.now - ago).toISOString().replace(/\.\d+Z$/, "Z");
-const scopeCalls = (daemon: FakeDaemon) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "hf_scope");
+const scopeCalls = (daemon: FakeDaemon) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === "radio_scope");
 
 function make(modem: Record<string, unknown> = { scope: true }, config: Record<string, string> = HF_ON) {
   hf.value = withModem(modem);
-  const daemon = fakeDaemon({ config: configValues(config), tnc: tncState(), hf, scopeRows: rows.memory, packets });
+  const daemon = fakeDaemon({
+    config: configValues(config),
+    tnc: tncState(),
+    hf,
+    radios: computed(() => radiosBeside(config, hf.value)),
+    scopeRows: rows.memory,
+    packets,
+  });
   const wrapper = mount(SettingsForm, { props: { scope: "settings" }, attachTo: document.body, global: withDaemon(daemon) });
   return { wrapper, daemon, box: hfBox(wrapper) };
 }
@@ -120,27 +135,27 @@ describe("the asking for the rows", () => {
     const fold = box.find<HTMLDetailsElement>("details.hf-scope");
     fold.element.open = true;
     await fold.trigger("toggle");
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
     fold.element.open = false;
     await fold.trigger("toggle");
     expect(scopeCalls(daemon)).toEqual([
-      { cmd: "hf_scope", on: true },
-      { cmd: "hf_scope", on: false },
+      { cmd: "radio_scope", radio: 2, on: true },
+      { cmd: "radio_scope", radio: 2, on: false },
     ]);
   });
 
   it("asks at once when the fold was left open, says no more when the page goes, and asks again when the socket is open anew", async () => {
     writeStored("settings.fold.hf-scope", "open");
     const { wrapper, daemon } = make();
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
     await tell(daemon, { connection: "closed" });
     expect(scopeCalls(daemon)).toHaveLength(1); // (a closed socket is told nothing: the toast would say it was refused)
     await tell(daemon, { connection: "open" });
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: true });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true });
     const before = scopeCalls(daemon).length;
     wrapper.unmount();
     expect(scopeCalls(daemon)).toHaveLength(before + 1);
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
   });
 
   it("does not ask while the page is hidden, and asks when it is in front again", async () => {
@@ -150,11 +165,11 @@ describe("the asking for the rows", () => {
     visibility.mockReturnValue("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
     await flushPromises();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
     visibility.mockReturnValue("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     await flushPromises();
-    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: true });
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: true });
   });
 
   it("asks when the interface comes up after the fold was opened, not before", async () => {
@@ -162,7 +177,7 @@ describe("the asking for the rows", () => {
     const { daemon } = make({ scope: false });
     expect(scopeCalls(daemon)).toEqual([]);
     await tell(daemon, { hf: withModem({ scope: true }) });
-    expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
   });
 });
 
@@ -316,12 +331,12 @@ describe("the picture and the receive level", () => {
       expect(scopeCalls(daemon)).toEqual([]);
       width.set(420);
       await flushPromises();
-      expect(scopeCalls(daemon)).toEqual([{ cmd: "hf_scope", on: true }]);
+      expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
       await say(scopeRow(), scopeRow(), scopeRow());
       expect(lines()).toBe(1);
       width.set(0);
       await flushPromises();
-      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "hf_scope", on: false });
+      expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 2, on: false });
     } finally {
       width.restore();
     }
@@ -393,5 +408,79 @@ describe("the Transmit level row", () => {
     const { box } = make({ scope: false });
     expect(level(box).exists()).toBe(true);
     expect(box.find("#set-mercury-tx_gain_db").exists()).toBe(false);
+  });
+});
+
+/** A Mercury radio whose modem has the interface (or has not, `scope` false). */
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
+  radioRow(id, "mercury", { modem: { ...hfState().modem!, scope }, ...extra });
+
+describe("the scope in each radio's box", () => {
+  /** The page's context with these radios, its counting of who looks given the topic `radios` and the page's rows, as the page makes it. */
+  function station(...radios: RadioRow[]) {
+    const daemon = fakeDaemon({ radios: radiosTopic(...radios), scopeRows: rows.memory, packets });
+    daemon.scope = useScopeLooks(daemon.send, daemon.hf, daemon.connection, shallowRef(true), { radios: daemon.radios, rows: rows.memory });
+    const box = (radio: number) => mount(HfScope, { props: { radio }, global: withDaemon(daemon), attachTo: document.body });
+    return { daemon, box };
+  }
+
+  it("is there in the box of a radio that has a scope now, and not in that of one switched off, whose modem has no interface, or of a type without one", () => {
+    const { box } = station(
+      mercury(3),
+      mercury(4, { enabled: false, state: "stopped" }),
+      mercury(5, {}, false),
+      radioRow(6, "dummy-hf"),
+      radioRow(1, "kenwood-tnc2"),
+    );
+    expect([3, 4, 5, 6, 1].map((radio) => box(radio).find("details.hf-scope").exists())).toEqual([true, false, false, false, false]);
+  });
+
+  it("asks for its own radio's rows while its fold is open, and its fold is remembered for that radio alone", async () => {
+    const { daemon, box } = station(mercury(3), mercury(5));
+    const three = box(3);
+    const five = box(5);
+    expect(scopeCalls(daemon)).toEqual([]);
+    const fold = five.find<HTMLDetailsElement>("details.hf-scope");
+    fold.element.open = true;
+    await fold.trigger("toggle");
+    await flushPromises();
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 5, on: true }]);
+    expect(readStored("settings.fold.radio-5-scope")).toBe("open");
+    expect(readStored("settings.fold.radio-3-scope")).toBeNull();
+    expect(three.find<HTMLDetailsElement>("details.hf-scope").element.open).toBe(false);
+    fold.element.open = false;
+    await fold.trigger("toggle");
+    await flushPromises();
+    expect(scopeCalls(daemon).at(-1)).toEqual({ cmd: "radio_scope", radio: 5, on: false });
+  });
+
+  it("keeps the fold of the HF radio's box of before as it was left, for the HF radio of before, under the key it had", async () => {
+    writeStored("settings.fold.hf-scope", "open");
+    const { box } = station(mercury(2), mercury(5));
+    const two = box(2);
+    expect(two.find<HTMLDetailsElement>("details.hf-scope").element.open).toBe(true);
+    expect(box(5).find<HTMLDetailsElement>("details.hf-scope").element.open).toBe(false);
+    const fold = two.find<HTMLDetailsElement>("details.hf-scope");
+    fold.element.open = false;
+    await fold.trigger("toggle");
+    expect(readStored("settings.fold.hf-scope")).toBe("folded");
+    expect(readStored("settings.fold.radio-2-scope")).toBeNull();
+  });
+
+  it("is radio 2's in a box that names no radio (the HF box of before): nothing of another radio's scope while radio 2 has none", async () => {
+    writeStored("settings.fold.hf-scope", "open");
+    for (const two of [mercury(2, {}, false), radioRow(2, "dummy-hf")]) {
+      const { daemon } = station(radioRow(1, "kenwood-tnc2"), two, mercury(3));
+      const box = mount(HfScope, { global: withDaemon(daemon), attachTo: document.body });
+      await flushPromises();
+      expect(box.find("details.hf-scope").exists()).toBe(false);
+      expect(scopeCalls(daemon)).toEqual([]);
+      box.unmount();
+    }
+    const { daemon } = station(radioRow(1, "kenwood-tnc2"), mercury(2), mercury(3));
+    const box = mount(HfScope, { global: withDaemon(daemon), attachTo: document.body });
+    await flushPromises();
+    expect(box.find<HTMLDetailsElement>("details.hf-scope").element.open).toBe(true);
+    expect(scopeCalls(daemon)).toEqual([{ cmd: "radio_scope", radio: 2, on: true }]);
   });
 });

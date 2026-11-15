@@ -22,6 +22,7 @@ import { u4 } from "@/i18n/en/u4";
 import { u5a } from "@/i18n/en/u5a";
 import { u5b } from "@/i18n/en/u5b";
 import { u5c } from "@/i18n/en/u5c";
+import { u6 } from "@/i18n/en/u6";
 import { weather } from "@/i18n/en/weather";
 import type { Message } from "@/i18n/message";
 
@@ -49,4 +50,5 @@ export const en = {
   ...u5a,
   ...u5b,
   ...u5c,
+  ...u6,
 } as const satisfies Record<string, Message>;

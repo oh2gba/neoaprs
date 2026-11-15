@@ -2,15 +2,17 @@
 // The group box to post a sked, at the bottom of the Skeds tab (ComposeBar, as everywhere; the fields are rows like those of the Objects form): the Day (the next 30 UTC days, written in the language of the page), the time from and to in
 // half hours (the label says UTC; a To that is not after From is the next day), the Frequency (one the project suggests, or Other, which brings a row to type one in the form `7.0541 MHz USB`, as the Category of an object brings its own) and
 // the Note, one line with the characters it has left. Post is on when there is a call, the board can be reached and the form is right (lib/skeds.ts); RX only does not matter, nothing here is sent by radio. A sked that has ended already
-// marks the To. The note is cleared when the daemon has the sked (the topic `skeds` tells it); a post it refused stays for the user to correct.
+// marks the To. The note is cleared when the daemon has the sked (the topic `skeds` tells it); a post it refused stays for the user to correct. The dials are the station's (the project's list, the same in every HF radio's
+// box): when the Frequency row comes on show (at most once a minute), the daemon is asked to look at the project's list again (`frequencies`), as the box does; a row that came on show before the socket was open asks when it opens.
 import { computed, reactive, ref, watch } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { useWhenShown } from "@/composables/useWhenShown";
 import { t } from "@/i18n";
 import { leftTitle } from "@/lib/compose";
 import { TIMES, NOTE_MAX, dayChoices, draftDial, draftOk, ended, mayPostAs, noteLeft, postCommand, startDraft, utcDay } from "@/lib/skeds";
 
-const { skeds, call, now, send } = useDaemonContext();
+const { skeds, call, now, send, connection } = useDaemonContext();
 const frequencies = computed(() => skeds.value?.frequencies ?? []);
 const draft = reactive(startDraft(now.value, frequencies.value));
 const days = computed(() => dayChoices(now.value));
@@ -22,6 +24,15 @@ const left = computed(() => noteLeft(draft.note));
 const over = computed(() => ended(draft, now.value));
 const typedWrong = computed(() => draft.typed && draft.dial.trim() !== "" && draftDial(draft) === null);
 const ready = computed(() => skeds.value?.state === "ok" && mayPostAs(call.value) && draftOk(draft, now.value));
+const frequencyRow = ref<HTMLElement | null>(null);
+let missed = false; // the row came on show before the socket was open: it is asked when the socket opens
+const ask = (): void => void (connection.value === "open" ? send({ cmd: "frequencies" }) : (missed = true));
+useWhenShown(frequencyRow, ask);
+watch(connection, (now) => {
+  if (now !== "open" || !missed) return;
+  missed = false;
+  ask();
+});
 
 /** The day goes on being one of the choices as the UTC day turns. */
 watch(days, (list) => {
@@ -86,7 +97,7 @@ function submit(): void {
         </select>
       </div>
     </div>
-    <div class="field">
+    <div ref="frequencyRow" class="field">
       <label for="sked-frequency">{{ t("skeds.frequency") }}</label>
       <div class="field-control">
         <select id="sked-frequency" class="input" :value="choice" @change="choose(($event.target as HTMLSelectElement).value)">

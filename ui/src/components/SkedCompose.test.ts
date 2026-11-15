@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import SkedCompose from "@/components/SkedCompose.vue";
 import type { SkedsState } from "@/protocol/protocol";
@@ -243,5 +243,61 @@ describe("SkedCompose", () => {
     await tell(daemon, { now: NOW + 13 * 3_600_000 }); // (Thursday 22 October 01:00 UTC: the list starts a day later)
     expect(select(wrapper, "sked-day").element.value).toBe("2026-10-22");
     expect(select(wrapper, "sked-day").findAll("option")[0]?.element.value).toBe("2026-10-22");
+  });
+});
+
+/** The page's observer of what comes into view, made to say so when the test does; the observer of before is put back by `restore`. */
+function observing() {
+  const original = globalThis.IntersectionObserver;
+  const observer: { callback?: (entries: { isIntersecting: boolean }[]) => void; target?: Element } = {};
+  globalThis.IntersectionObserver = class {
+    constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+      observer.callback = callback;
+    }
+    observe(target: Element) {
+      observer.target = target;
+    }
+    disconnect() {}
+  } as unknown as typeof IntersectionObserver;
+  return { observer, restore: () => void (globalThis.IntersectionObserver = original) };
+}
+
+describe("SkedCompose's dials", () => {
+  it("asks the daemon to look at the project's list of dials again when the Frequency row comes on show, as an HF radio's box does", () => {
+    const { observer, restore } = observing();
+    try {
+      form();
+      expect(sent("frequencies")).toEqual([]);
+      expect(observer.target?.querySelector("#sked-frequency")).not.toBeNull();
+      observer.callback?.([{ isIntersecting: true }]);
+      expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
+      daemon.connection.value = "connecting";
+      form();
+      observer.callback?.([{ isIntersecting: true }]);
+      expect(sent("frequencies")).toHaveLength(1); // (no toast that the socket is not open: it is asked when the socket opens)
+    } finally {
+      restore();
+    }
+  });
+
+  it("asks for the dials when the socket opens if the Frequency row came on show before it was open (a reload with the tab in front), and once", async () => {
+    const { observer, restore } = observing();
+    try {
+      daemon.connection.value = "connecting";
+      form();
+      observer.callback?.([{ isIntersecting: true }]);
+      await flushPromises();
+      expect(sent("frequencies")).toEqual([]);
+      daemon.connection.value = "open";
+      await flushPromises();
+      expect(sent("frequencies")).toEqual([{ cmd: "frequencies" }]);
+      daemon.connection.value = "connecting";
+      await flushPromises();
+      daemon.connection.value = "open";
+      await flushPromises();
+      expect(sent("frequencies")).toHaveLength(1); // (asked already: the row did not come on show again)
+    } finally {
+      restore();
+    }
   });
 });

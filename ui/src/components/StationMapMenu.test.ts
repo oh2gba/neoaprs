@@ -1,10 +1,14 @@
 import "@/test/mockmap";
 import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { shallowRef } from "vue";
+import { useScopeLooks } from "@/composables/useScopeLooks";
+import type { RadioRow } from "@/protocol/protocol";
 import { FakeMap, resetFakes } from "@/test/fakemap";
 import { mountStationMap } from "@/test/stationmap";
-import { NOW, hfState, station, table } from "@/test/fixtures";
-import { tell } from "@/test/context";
+import { cssRule } from "@/test/css";
+import { NOW, configValues, hfState, radioRow, radiosTopic, station, table } from "@/test/fixtures";
+import { tell, type FakeDaemon } from "@/test/context";
 
 const props = () => ({
   stations: table(station("OH2GBA", { is_me: true, lat: 60.17, lon: 24.94 })),
@@ -58,7 +62,12 @@ describe("the menu of the map", () => {
   it("has Monitor between Statistics and Replay while the HF radio has a scope, and says so to the page when it is chosen", async () => {
     const { wrapper, daemon } = await mounted();
     const state = hfState();
-    await tell(daemon, { hf: { ...state, modem: { ...state.modem!, scope: true } } });
+    const modem = { ...state.modem!, scope: true };
+    await tell(daemon, {
+      hf: { ...state, modem },
+      radios: radiosTopic(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), radioRow(2, "mercury", { modem })),
+      config: configValues({ "fm/enabled": "false", "hf/enabled": "true" }),
+    });
     rightClick(60.17345, 24.94123);
     await flushPromises();
     expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "replay"]);
@@ -124,5 +133,85 @@ describe("the menu of the map", () => {
     expect(menu()).not.toBeNull();
     expect(item("position")?.textContent?.trim()).toBe("Copy position 60.50000, 24.50000");
     vi.useRealTimers();
+  });
+});
+
+/** A Mercury radio whose modem has the interface (or has not, `scope` false). */
+const mercury = (id: number, extra: Partial<RadioRow> = {}, scope = true): RadioRow =>
+  radioRow(id, "mercury", { modem: { ...hfState().modem!, scope }, ...extra });
+
+/** The map with these radios told, the page's counting of who looks given the topic `radios` as the page makes it, and the settings of before agreeing with radios 1 and 2. */
+async function withRadios(...rows: RadioRow[]): Promise<{ wrapper: Awaited<ReturnType<typeof mounted>>["wrapper"]; daemon: FakeDaemon }> {
+  const { wrapper, daemon } = await mounted();
+  const on = (id: number) => String(rows.some((row) => row.id === id && row.enabled));
+  await tell(daemon, { radios: radiosTopic(...rows), config: configValues({ "fm/enabled": on(1), "hf/enabled": on(2) }) });
+  daemon.scope = useScopeLooks(daemon.send, daemon.hf, daemon.connection, shallowRef(true), { radios: daemon.radios });
+  return { wrapper, daemon };
+}
+const monitors = () => items().filter((b) => b.dataset.item === "monitor");
+
+describe("the menu's Monitor by radio", () => {
+  it("has one Monitor for each radio that has a scope now, in the order of their boxes, each named where several radios are on, and none for a radio off or without one", async () => {
+    await withRadios(
+      radioRow(1, "kenwood-tnc2"),
+      mercury(4, { name: "40 m", position: 4 }),
+      mercury(3, { name: "20 m", position: 3 }),
+      mercury(6, { name: "80 m", enabled: false, state: "stopped" }),
+      mercury(7, { name: "30 m" }, false),
+      radioRow(8, "dummy-hf", { name: "Test" }),
+    );
+    rightClick(60.17345, 24.94123);
+    await flushPromises();
+    expect(items().map((b) => b.dataset.item)).toEqual(["position", "locator", "stats", "monitor", "monitor", "replay"]);
+    expect(monitors().map((b) => [b.dataset.radio, b.textContent?.trim()])).toEqual([
+      ["3", "20 m: Monitor"],
+      ["4", "40 m: Monitor"],
+    ]);
+  });
+
+  it("names the HF radio on a station with an FM and an HF radio, and says Monitor alone with one radio on", async () => {
+    await withRadios(radioRow(1, "kenwood-tnc2"), mercury(2));
+    rightClick(60.1, 24.9);
+    await flushPromises();
+    expect(monitors().map((b) => b.textContent?.trim())).toEqual(["HF: Monitor"]);
+    document.body.replaceChildren();
+    resetFakes();
+    await withRadios(radioRow(1, "kenwood-tnc2", { enabled: false, state: "stopped" }), mercury(2));
+    rightClick(60.1, 24.9);
+    await flushPromises();
+    expect(monitors().map((b) => b.textContent?.trim())).toEqual(["Monitor"]);
+  });
+
+  it("puts the card on the radio chosen and says so to the page, and the arrow keys go through every Monitor", async () => {
+    const { wrapper, daemon } = await withRadios(mercury(2, { name: "20 m" }), mercury(5, { name: "40 m" }));
+    rightClick(60.1, 24.9);
+    await flushPromises();
+    const list = menu()!;
+    const key = (k: string) => list.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+    key("End");
+    expect(document.activeElement).toBe(item("replay"));
+    key("ArrowUp");
+    expect(document.activeElement).toBe(monitors()[1]);
+    key("ArrowUp");
+    expect(document.activeElement).toBe(monitors()[0]);
+    key("ArrowUp");
+    expect(document.activeElement).toBe(item("stats"));
+    monitors()[1]?.click();
+    await flushPromises();
+    expect(daemon.scope.monitor.value).toBe(5);
+    expect(wrapper.emitted("monitor")).toEqual([[]]);
+    expect(menu()).toBeNull();
+  });
+
+  it("lists six radios' Monitors with names of eight characters whole at 375 px: the menu is kept in the window, its items wrap rather than cut, and it scrolls rather than run off", async () => {
+    const names = ["WWWWWWWW", "MMMMMMMM", "Shack 20", "Mast 40m", "Mobile 2", "Base HF3"];
+    await withRadios(...names.map((name, i) => mercury(i + 1, { name, number: i + 1 })));
+    rightClick(60.1, 24.9, 360, 700);
+    await flushPromises();
+    expect(monitors().map((b) => b.textContent?.trim())).toEqual(names.map((name) => `${name}: Monitor`));
+    expect(cssRule(".ctxmenu")).toMatch(/max-width:\s*calc\(100vw - 16px\)/);
+    expect(cssRule(".ctxmenu")).toMatch(/max-height:\s*calc\(100vh - 16px\)/);
+    expect(cssRule(".ctxmenu")).toMatch(/overflow-y:\s*auto/);
+    expect(cssRule(".ctxmenu-item")).not.toMatch(/white-space:\s*nowrap|text-overflow|overflow:\s*hidden/);
   });
 });
