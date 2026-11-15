@@ -54,3 +54,15 @@ describe("onEarth", () => {
     expect(onEarth(0, -180.1)).toBe(false);
   });
 });
+
+describe("a radio's own setting", () => {
+  it("is checked as the same field of the radios of before: a speed, a TCP port and a host by their rules", () => {
+    expect(problemOf("radio/3/baud", "12")).toBe(problemOf("serial/baud", "12"));
+    expect(problemOf("radio/3/baud", "")).toBe("");
+    expect(problemOf("radio/5/tcp_port", "70000")).toBe(problemOf("tcp/port", "70000"));
+    expect(problemOf("radio/5/tcp_host", "a b")).toBe(problemOf("tcp/host", "a b"));
+    expect(problemOf("radio/5/tcp_host", "a b")).not.toBe("");
+    expect(problemOf("radio/6/keying", "anything")).toBe("");
+    expect([sameValue("radio/3/baud", "09600", "9600"), sameValue("radio/3/port", "a", "b")]).toEqual([true, false]);
+  });
+});

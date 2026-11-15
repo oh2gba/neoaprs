@@ -11,6 +11,7 @@ import type { PictureName } from "@/help/names";
 import { isMoving } from "@/lib/gpsstatus";
 import { lazyText } from "@/lib/lazytext";
 import { GROUP_ORDER, rank } from "@/lib/settingsorder";
+import { flatKeyOf, isRadioKey, radioFieldOf, typeText } from "@/lib/settingsradio";
 import { keyingChoices } from "@/lib/mercury";
 import {
   beaconChoices,
@@ -49,6 +50,8 @@ export interface FieldInfo {
   choices?: readonly (string | Choice)[];
   /** The words for a value that is none of the choices (a setting stored from the shell): "Every 20 min"; else the value itself. */
   other?: (value: string) => string;
+  /** The most characters a typed field takes (a radio's Name): the input stops there. */
+  maxLength?: number;
 }
 
 /** A text of the page: the id of a message, the id with its values, or a function that makes the words (for what is no message: a port, an address). */
@@ -160,7 +163,7 @@ const SPECS: Record<string, FieldSpec> = {
   "tnc/profile": {
     label: "settings.profile.label",
     kind: "choice",
-    choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: p.name })),
+    choices: () => TNC_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })),
     tipLabel: "settings.profile.tip_label",
     tip: ["settings.profile.tip1", "settings.profile.tip2"],
     picture: "dummy",
@@ -168,7 +171,7 @@ const SPECS: Record<string, FieldSpec> = {
   "hf/profile": {
     label: "settings.profile.label",
     kind: "choice",
-    choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: p.name })),
+    choices: () => HF_PROFILES.map((p) => ({ value: p.key, label: typeText(p.key) })),
     tip: ["settings.hf_profile.tip1", "settings.hf_profile.tip2"],
     picture: "dummy",
   },
@@ -403,7 +406,7 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
     const at = (CONFIG_KEYS as readonly string[]).indexOf(key);
     return at < 0 ? CONFIG_KEYS.length : at;
   };
-  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k)).sort((a, b) => order(a) - order(b));
+  const sorted = keys.filter((k) => !NOT_ON_THE_PAGE.includes(k) && !IN_ANOTHER_TAB.includes(k) && !isRadioKey(k)).sort((a, b) => order(a) - order(b));
   const groups: Group[] = GROUPS.map((g) => ({
     id: g.id,
     title: t(g.title),
@@ -422,9 +425,11 @@ export function groupKeys(keys: readonly string[], scope: Scope = "settings"): G
 /** What is wrong, without the command and the setting in front: the page's sentence for the refusal's code, else the daemon's English one, whose sentence is "<cmd>: [<key>: ]<reason>" (neoaprs/web/handlers.py; tests/test_error_codes.py holds it to that). */
 export const reasonOf: (error: Failure) => string = errorReason;
 
-/** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own. */
-export function fieldFor(key: string, values: Readonly<Record<string, string>>): FieldInfo {
-  return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? { label: key });
+/** What the field of a key says of itself for these settings: the beacon choice of a station that moves is Off or On (SmartBeaconing), else the field's own; a radio's own setting (`radio/3/port`) says what the same field of the
+ * radios of before says (`serial/port`), in the words every radio's port has; a key this page does not know is its own label. */
+export function fieldFor(key: string, values: Readonly<Record<string, string>> = {}): FieldInfo {
+  const flat = flatKeyOf(radioFieldOf(key)?.field ?? "");
+  return key === "beacon/interval_min" && isMoving(values) ? MOVING_BEACON : (FIELDS[key] ?? (flat === null ? undefined : FIELDS[flat]) ?? { label: key });
 }
 
 /** The tickbox RX only is the setting `station/transmit` the other way round: ticked is `false` (nothing is transmitted), unticked `true`. */

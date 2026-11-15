@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // The terminal of the radio, closed until it is wanted: the latest lines of what the TNC saw and did, newest last, in the viewer's time, following the end unless it was scrolled up. It is under the radio status of the Settings tab
-// and under the fields of the Radio step of the setup guide; `toggle` says whether it was opened or closed (the guide puts the radio it shows in force when it opens).
+// and under the fields of the Radio step of the setup guide (a radio of before's topic, or any radio's row: only the lines are read); `toggle` says whether it was opened or closed (the guide puts the radio it shows in force when it opens).
 import { computed, nextTick, ref, watch } from "vue";
 import DisclosureBox from "@/components/DisclosureBox.vue";
 import { t } from "@/i18n";
 import { lineText } from "@/lib/tncstatus";
 import type { TncState } from "@/protocol/protocol";
 
-const props = defineProps<{ tnc: TncState | null }>();
+const props = defineProps<{ tnc: Pick<TncState, "lines"> | null }>();
 const emit = defineEmits<{ toggle: [open: boolean] }>();
 
 const log = ref<HTMLElement | null>(null);

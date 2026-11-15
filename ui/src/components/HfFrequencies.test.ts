@@ -7,7 +7,8 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HfFrequencies from "@/components/HfFrequencies.vue";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { hfState } from "@/test/fixtures";
+import { pageRadio } from "@/lib/radios";
+import { hfState, radioRow } from "@/test/fixtures";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const asked = (send: { mock: { calls: unknown[][] } }) => send.mock.calls.map(([c]) => c).filter((c) => (c as { cmd: string }).cmd === "hf_frequencies");
@@ -109,5 +110,28 @@ describe("asking the daemon to look at the project's file", () => {
     const daemon = fakeDaemon({ hf: hfState() });
     mount(HfFrequencies, { global: withDaemon(daemon) });
     expect(asked(daemon.send)).toEqual([{ cmd: "hf_frequencies" }]);
+  });
+});
+
+// In the box of a radio other than the HF radio of before: its own modem's list, and the command of the radios (the list is the station's either way).
+describe("the suggested frequencies of another radio's box", () => {
+  it("shows that radio's modem's list under an id of its own, and asks by the command of the radios", () => {
+    const original = globalThis.IntersectionObserver;
+    globalThis.IntersectionObserver = undefined as unknown as typeof IntersectionObserver;
+    try {
+      const daemon = fakeDaemon({ hf: withModem([{ band: "40 m", dial: "7.0541 MHz USB" }]) });
+      const modem = { ...hfState().modem!, frequencies: [{ band: "30 m", dial: "10.1462 MHz USB" }] };
+      const radio = pageRadio(radioRow(6, "mercury", { modem }));
+      const wrapper = mount(HfFrequencies, { props: { radio }, global: withDaemon(daemon) });
+      expect(wrapper.find("output#hf-frequencies-6").exists()).toBe(true);
+      expect(wrapper.find("label").attributes("for")).toBe("hf-frequencies-6");
+      expect(wrapper.findAll(".freq").map((line) => line.text())).toEqual(["30 m 10.1462 MHz USB"]);
+      expect(daemon.send.mock.calls.map(([c]) => c)).toEqual([{ cmd: "frequencies" }]);
+      const before = mount(HfFrequencies, { props: { radio: pageRadio(radioRow(2, "mercury")) }, global: withDaemon(daemon) });
+      expect(before.find("output#hf-frequencies").exists()).toBe(true); // (the HF radio of before, radio 2, is its topic's)
+      expect(before.findAll(".freq").map((line) => line.text())).toEqual(["40 m 7.0541 MHz USB"]);
+    } finally {
+      globalThis.IntersectionObserver = original;
+    }
   });
 });

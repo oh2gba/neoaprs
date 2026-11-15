@@ -59,7 +59,10 @@ describe("the Radio group of the Settings tab", () => {
       expect(first.find("label").text()).toBe("Enable");
       expect(first.find("input").attributes("type")).toBe("checkbox");
       expect(first.find("input").attributes("id")).toBe(id);
-      expect(first.element.nextElementSibling).toBe(box.find("details.radiostatus").element);
+      // (with both radios on, each box has its Name and Remove between its Enable and its status: plan section 6, "In each: Enable; Name and Remove, outside the status fold")
+      const name = first.element.nextElementSibling;
+      expect(name?.querySelector("label")?.textContent).toBe("Name");
+      expect(name?.nextElementSibling).toBe(box.find("details.radiostatus").element);
     }
     expect(group.find<HTMLInputElement>("#set-fm-enabled").element.checked).toBe(true);
     expect(group.find<HTMLInputElement>("#set-hf-enabled").element.checked).toBe(true);
@@ -75,14 +78,17 @@ describe("the Radio group of the Settings tab", () => {
     }
   });
 
-  it("is, while the HF radio is not ticked, the FM radio as it was and the HF box as its Enable row alone, and the Enable of the only radio is greyed with a title that says why", () => {
+  it("is, while the HF radio is not ticked, the FM radio as it was and the HF box as its Enable row and its Name alone, and the Enable of the only radio is greyed with a title that says why", () => {
     const { group } = make();
     expect(hf(group).find("details").exists()).toBe(false);
+    // (plan section 6: "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed": the HF radio that is off has them, and its Remove works; the FM radio's, the only one on, is off)
     expect(
       hf(group)
         .findAll("select, input")
         .map((e) => e.attributes("id")),
-    ).toEqual(["set-hf-enabled"]);
+    ).toEqual(["set-hf-enabled", "set-radio-2-name"]);
+    expect(hf(group).find<HTMLButtonElement>("#set-radio-2-remove").element.disabled).toBe(false);
+    expect(fm(group).find<HTMLButtonElement>("#set-radio-1-remove").element.disabled).toBe(true);
     expect(hf(group).find<HTMLInputElement>("#set-hf-enabled").element.disabled).toBe(false);
     expect(fold(group).element.open).toBe(false);
     expect(fm(group).find<HTMLInputElement>("#set-fm-enabled").element.disabled).toBe(true);
@@ -91,14 +97,14 @@ describe("the Radio group of the Settings tab", () => {
     expect(fm(group).find("#set-fm-enabled").element.closest(".field")?.querySelector(".info-toggle")).not.toBeNull(); // (the (i) still opens)
   });
 
-  it("is, while only the HF radio is ticked, the FM box as its Enable row alone and the HF Enable greyed", () => {
+  it("is, while only the HF radio is ticked, the FM box as its Enable row and its Name alone and the HF Enable greyed", () => {
     const { group } = make({ hf: hfState() }, HF_ONLY);
     expect(fm(group).find("details").exists()).toBe(false);
     expect(
       fm(group)
         .findAll("select, input")
         .map((e) => e.attributes("id")),
-    ).toEqual(["set-fm-enabled"]);
+    ).toEqual(["set-fm-enabled", "set-radio-1-name"]); // (plan section 6: the Name of a radio that is off, outside the fold)
     expect(fm(group).find<HTMLInputElement>("#set-fm-enabled").element.disabled).toBe(false);
     expect(hf(group).find<HTMLInputElement>("#set-hf-enabled").element.disabled).toBe(true);
     expect(hf(group).find("#set-hf-enabled").element.closest(".field")?.getAttribute("title")).toBe(ONLY);
@@ -119,7 +125,7 @@ describe("the Radio group of the Settings tab", () => {
     expect(head.find(".tncstatus").text()).toBe("Last packet 30 s ago");
     expect(head.find("button").exists()).toBe(false);
     for (const id of ["#set-tnc-profile", "#set-serial-port", "#set-serial-baud", "#find-radio"]) expect(fold(group).find(id).exists(), id).toBe(true);
-    expect(outside(fm(group), fold(group).element)).toEqual(["set-fm-enabled"]);
+    expect(outside(fm(group), fold(group).element)).toEqual(["set-fm-enabled", "set-radio-1-name"]); // (its Name is outside the fold: plan section 6)
   });
 
   it("is open when the FM radio is not connected, and opens when it stops being connected", async () => {
@@ -183,6 +189,17 @@ describe("Find my radio", () => {
     await button.trigger("click");
     expect(send).toHaveBeenCalledWith({ cmd: "find_radio" });
     expect(button.element.disabled).toBe(true);
+  });
+
+  it("is in the box of a radio with a serial line only (plan section 6a): not for KISS over TCP nor the Dummy radio", () => {
+    for (const [profile, there] of [
+      ["kenwood-tnc2", true],
+      ["kiss", true],
+      ["kiss-tcp", false],
+      ["dummy", false],
+    ] as const) {
+      expect(make({}, { "tnc/profile": profile }).group.find("#find-radio").exists(), profile).toBe(there);
+    }
   });
 
   it("writes nothing beside the button or under the fields", () => {

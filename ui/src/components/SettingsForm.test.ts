@@ -92,7 +92,10 @@ describe("SettingsForm", () => {
         2 + // (the Enable tickboxes of the FM radio and the HF radio, the settings fm/enabled and hf/enabled: two fields of the Radio group, one in each box)
         3 + // (the RX only row of the Radio group, the New version row of the Update check group and the Logs row of the Help group, which are no settings)
         3 + // (the browser's own: Alert for a new message, Sound, Pop-up)
-        1, // (Language)
+        1 + // (Language)
+        1 + // (Add radio, the last row of the Radio group: plan section 6, "'Add radio' at the end asks for the type from the one list")
+        1 + // (the main radio under RX only, greyed while one radio is on: the station has two radios, so that ticking the second moves nothing; plan section 6 decision 4)
+        2, // (the Name of each of the two boxes: plan section 6, "Name and Remove, outside the status fold, so that a radio that is off can be renamed and removed")
     );
     expect(wrapper.find("#set-igate-password").exists()).toBe(false);
     expect(wrapper.find("#set-station-lat").exists()).toBe(false);
@@ -542,7 +545,7 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("[id^='set-']")
         .map((e) => e.attributes("id"))
-        .filter((id) => id !== "set-fm-enabled"); // (the FM radio's fields: its tickbox is the first row of its box)
+        .filter((id) => id !== "set-fm-enabled" && !id?.startsWith("set-radio-1-")); // (the FM radio's fields: its tickbox is the first row of its box, its Name and Remove the second, outside the fold)
 
     it("is a select of the profiles by their names, the daemon's value chosen", () => {
       const { wrapper } = make();
@@ -627,7 +630,7 @@ describe("SettingsForm", () => {
         .find((f) => f.find("legend").text() === "FM radio")
         ?.findAll("label")
         .map((l) => l.text())
-        .filter((text) => text !== "Enable");
+        .filter((text) => text !== "Enable" && text !== "Name"); // (the Name is outside the fold, the second row: plan section 6)
 
     it("is one choice: find automatically, the ports the system lists, and Other", () => {
       const { wrapper } = withPorts();
@@ -1128,7 +1131,10 @@ describe("SettingsForm", () => {
       const { wrapper } = make();
       expect(button(wrapper)?.textContent?.trim()).toBe("Test");
       expect(wrapper.findAll(".field button:not(.info-toggle)").map((b) => b.text())).toEqual([
+        "RemoveReally remove?", // (the Remove of each radio's Name, and Add radio's Add: plan section 6)
         "Refresh",
+        "RemoveReally remove?",
+        "Add",
         "Test",
         "Test sound",
         "Test pop-up",
@@ -1575,7 +1581,8 @@ describe("the radios that are on", () => {
     const fm = legends(make().wrapper);
     expect(fm).toContain("Digipeater");
     expect(legends(make(FM_OFF, "settings").wrapper)).toEqual(fm.filter((l) => l !== "Digipeater"));
-    expect(legends(make(BOTH, "settings").wrapper)).toEqual(fm);
+    // plan section 6: "one Digipeater Enable ... for each radio that may repeat ..., each row with the radio's name when there are several": with both radios on, the one Enable is in the FM radio's box
+    expect(legends(make(BOTH, "settings").wrapper)).toEqual(fm.flatMap((l) => (l === "Digipeater" ? [l, "FM radio"] : [l])));
   });
 
   it("has the one Beacon choice for both radios, with today's four choices and no second interval, whatever radios are on", () => {

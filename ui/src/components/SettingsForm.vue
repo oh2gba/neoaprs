@@ -4,7 +4,7 @@
 // the person sees of it (the Undo toast, a line for a screen reader) is useSettings, shared with the other tab so that there is one queue. The alert command has a Test button, which runs the saved command and shows how it went under the field; a page of another device has neither (the daemon takes the command and runs the Test for a page on its own computer only, and says in hello which this is); a field
 // left empty shows the default as a placeholder. The Map group has the Radius row and, under it, the Detailed map row with the button that makes the map (MapFetchButton, plain) and under the button the progress, a failure and "Map downloaded 21 Oct" (MapFetchNotes); they work on the saved settings. Every action that is a row of its own (this one, Check now, Download logs) is an ActionRow. On the Settings tab a link at the top opens the first-run guide again; the default slot is
 // for more groups (the page's own, which are not settings of the daemon), the slot `top` for the beacon status above the first group, and `status` for the line with the button that sends the status now, which opens the Status group. The My station tab's Station group
-// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: the FM radio and the HF radio in a box each, the state of the radio link in view and the fields of the radio behind a fold, and the fields of the page's own alert end the
+// starts with the choice of where the position comes from (gps/source: Fixed, or a GPS) and what that needs; the place (Location) is shown for Fixed only (with a GPS it stays stored and out of sight), and the Beacon group has the Beacon choice (an interval, or Off and On for a moving station) and, for a moving station, the Travelling choice instead of the antenna. While the beacon is Off the Beacon group's other fields (Travelling, the comment, the antenna, the path) and the whole Status group are shown greyed out (`disabled` of SettingsField), the Station group never. The Radio group is SettingsRadio: a box for each radio, the state of its link in view and its fields behind a fold, with Add radio under them; the Digipeater group has an Enable (and its counts) for each radio that may repeat, in a box with the radio's legend where there are several; and the fields of the page's own alert end the
 // Notifications group (BrowserAlerts). What it works on is the page's (useDaemonContext): the settings, the daemon's answers, `send`. The Internet group (the one tickbox, Enable; while it is on, the status row under it, as the radio's; igate/server and igate/password are not on the page) says Set your call first and shows nothing else while the call is not set. The Update check group (the daily check itself is always on) has a Check now button, which asks the version page at once and says the answer in the toast (a newer version opens the update window). While the network is let in, the Web group shows
 // the access key with a New key button and the addresses to open the page at. The group Encrypted messages (our key's fingerprint, with a New key button and the (i) that says what the feature is) is there only while the daemon runs with --encryption and so has a key; the Update check group follows, then the Help group (SettingsHelp), and the About group (SettingsAbout) is the last.
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
@@ -36,12 +36,13 @@ import { ALERT_KEY, useAlertTest } from "@/composables/useAlertTest";
 import { KEY_KEY, useNewKey } from "@/composables/useNewKey";
 import { useSure } from "@/composables/useSure";
 import { useUpdateCheck } from "@/composables/useUpdateCheck";
-import { fieldId, useSettingsForm } from "@/composables/useSettingsForm";
+import { useSettingsForm } from "@/composables/useSettingsForm";
 import type { Picked } from "@/composables/usePositionPick";
 import { disabledByValues } from "@/lib/beaconoff";
 import { degreesText } from "@/lib/setup";
 import { BEACON_FOLDS, SUBGROUPS, fieldFor, igateOn, shownByValues, storedFor, valueFor, type Scope } from "@/lib/settings";
-import { shownByRadios, shownFor } from "@/lib/settingsradio";
+import { digiPlaces, inputId, shownByRadios, shownFor } from "@/lib/settingsradio";
+import { useRadios } from "@/composables/useRadios";
 import { statusSource } from "@/lib/status";
 import { statusFrequencyHint } from "@/lib/statusfrequency";
 import { computed, watch } from "vue";
@@ -49,8 +50,7 @@ import { computed, watch } from "vue";
 const props = withDefaults(defineProps<{ scope?: Scope; picking?: boolean; picked?: Picked | null }>(), { scope: "settings", picking: false, picked: null });
 const emit = defineEmits<{ setup: []; update: []; notes: []; pickPosition: [] }>();
 
-const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, status, now, keys, local } =
-  useDaemonContext();
+const { config, lastError, send, settings, alertResult, updateResult, map, alerts, ports, say, igate, stations, tnc, keys, local } = useDaemonContext();
 const newMessageKey = useSure<string>(); // (the New key of encrypted messages asks twice: the stations that have the old key must be sent the new one)
 const { draft, errors } = settings;
 const form = useSettingsForm(config, settings, props.scope);
@@ -106,8 +106,13 @@ const shown = (keys: readonly string[], inGroup = true) =>
       shownByRadios(key, draft) &&
       shownByValues(key, draft),
   );
-/** The groups with something to show: a group whose every key the radios that are on leave out (the Digipeater group while FM is off) is not drawn. */
-const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || shown(group.keys).length > 0));
+const radios = useRadios();
+/** The Digipeater group: an Enable for each radio that may repeat and is on, in a box with the radio's legend where there are several, with its own counts. */
+const digi = computed(() => digiPlaces(radios.all.value, settings.values.value, draft, tnc.value));
+/** The groups with something to show: the Digipeater group only while a radio that may repeat is on. */
+const drawn = computed(() => groups.value.filter((group) => group.id !== "digi" || digi.value.keys.length > 0));
+/** The keys of a group's own fields that are shown (the Digipeater group's are its radios'). */
+const keysOf = (group: { id: string; keys: readonly string[] }) => (group.id === "digi" ? digi.value.keys : shown(group.keys));
 /** The symbol is one field, which sets the table and the code. */
 const symbol = computed(() => `${draft[SYMBOL_TABLE] ?? ""}${draft[SYMBOL_CODE] ?? ""}`);
 function editSymbol(text: string): void {
@@ -134,7 +139,7 @@ const fallback = (key: string) => defaults.value[key] ?? "";
 function boxesOf(keys: readonly string[]) {
   const boxes: { id: string; sub: (typeof SUBGROUPS)[string] | null; keys: string[] }[] = [];
   for (const key of keys) {
-    const sub = SUBGROUPS[key] ?? null;
+    const sub = SUBGROUPS[key] ?? digi.value.boxes[key] ?? null;
     if (sub !== null || boxes.length === 0) boxes.push({ id: key, sub, keys: [key] });
     else boxes[boxes.length - 1]?.keys.push(key);
   }
@@ -156,16 +161,23 @@ function typed(key: string, text: string): void {
     <span class="sr-only" role="status" aria-live="polite"
       ><span :key="settings.announcement.value.n">{{ settings.announcement.value.text }}</span></span
     >
-    <SettingsGroup v-for="group in drawn" :id="group.id" :key="group.id" :title="group.title" :fold="folds" :show="needsLook(group.keys)">
+    <SettingsGroup
+      v-for="group in drawn"
+      :id="group.id"
+      :key="group.id"
+      :title="group.title"
+      :fold="folds"
+      :show="needsLook(group.id === 'digi' ? digi.keys : group.keys)"
+    >
       <SettingsRadio v-if="group.id === 'serial'" :keys="shown(group.keys)" :settings="settings" :form="form" :defaults="defaults" />
       <p v-if="group.id === 'igate' && call === ''" class="problem" role="status">{{ t("settings.igate.set_call") }}</p>
       <SettingsBox
-        v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : shown(group.keys))"
+        v-for="box in boxesOf(group.id === 'serial' || (group.id === 'igate' && call === '') ? [] : keysOf(group))"
         :key="box.id"
         :title="box.sub?.text"
         :hover="box.sub?.title"
       >
-        <template v-if="box.sub" #legend>
+        <template v-if="box.sub && box.sub.tip.length > 0" #legend>
           <InfoTip :label="box.sub.tipLabel" :picture="box.sub.picture">
             <span v-for="line in box.sub.tip" :key="line" class="info-line">{{ line }}</span>
           </InfoTip>
@@ -193,7 +205,7 @@ function typed(key: string, text: string): void {
           />
           <SettingsPort
             v-else-if="key === GPS_DEVICE"
-            :id="fieldId(key)"
+            :id="inputId(key)"
             :info="info(key)"
             :model-value="draft[key] ?? ''"
             found=""
@@ -209,7 +221,7 @@ function typed(key: string, text: string): void {
           />
           <SettingsField
             v-else
-            :id="fieldId(key)"
+            :id="inputId(key)"
             :info="info(key)"
             :model-value="key === 'status/source' ? statusSource(draft) : valueFor(key, draft)"
             :fallback="fallback(key)"
@@ -237,6 +249,7 @@ function typed(key: string, text: string): void {
               </button>
             </template>
           </SettingsField>
+          <DigipeaterStatus v-if="key in digi.links && draft[key] === 'true'" :tnc="digi.links[key] ?? null" />
           <ActionRow v-if="key === RADIUS_KEY && map" id="set-map-fetch" :label="t('settings.map.detail_label')" :tip-label="t('settings.map.tip_label')">
             <MapFetchButton id="set-map-fetch" :map="map" :stale="settings.saving.value" :send="send" />
             <template #tip
@@ -267,13 +280,7 @@ function typed(key: string, text: string): void {
         :values="config.values"
         :stations="internetStations(stations.values())"
       />
-      <DigipeaterStatus
-        v-if="group.id === 'digi' && tnc && draft['digi/enabled'] === 'true'"
-        :tnc="tnc"
-        :started-at="status?.started_at ?? null"
-        :now="now"
-        :rx-only="draft['station/transmit'] === 'false'"
-      />
+
       <template v-if="scope === 'beacon'">
         <SettingsFold
           v-for="fold in BEACON_FOLDS.filter((f) => f.group === group.id)"

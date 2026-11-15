@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The Transmit level of the HF radio, a row under Tune: the gain the modem sends its audio to the radio with, in whole dB (the setting `mercury/tx_gain_db`), lowered and raised by the two buttons, each press saved at once. The modem takes it while it runs, and
 // the tune tone follows it, so the operator presses Tune and watches the radio's ALC while the level moves. Beside it the peak of the latest transmission in dBFS (the modem's own reading), which turns orange at 0 or over, where the sound card clips.
-// The room of the number is kept, so that nothing moves when it changes.
+// The room of the number is kept, so that nothing moves when it changes. A radio other than the HF radio of before (`radio`) has its own setting (`radio/<id>/tx_gain_db`, the key given) and its own modem (its row).
 import InfoTip from "@/components/InfoTip.vue";
 import { computed } from "vue";
 import type { Settings } from "@/composables/useSettings";
@@ -9,22 +9,35 @@ import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
 import { t } from "@/i18n";
 import { clips, dbText, gainText } from "@/lib/hflevel";
+import { HF_ID } from "@/lib/radiosides";
+import { typeOf, type PageRadio } from "@/lib/radios";
 import { LIMITS } from "@/protocol/lists";
 
-const KEY = "mercury/tx_gain_db";
-const props = defineProps<{ id: string; settings: Settings; form: SettingsFormState }>();
+const FLAT_KEY = "mercury/tx_gain_db";
+const props = withDefaults(defineProps<{ id: string; settings: Settings; form: SettingsFormState; radio?: PageRadio | null; settingKey?: string }>(), {
+  radio: null,
+  settingKey: FLAT_KEY,
+});
 const { hf } = useDaemonContext();
-const { min, max } = LIMITS.range[KEY];
+/** The range of the gain: the setting's of before, else the field's of the radio's type. */
+const range = computed(() => {
+  const own = props.radio === null ? undefined : typeOf(props.radio)?.fields.find((field) => field.key === "tx_gain_db")?.range;
+  return own ? { min: own[0], max: own[1] } : LIMITS.range[FLAT_KEY];
+});
+const min = computed(() => range.value.min);
+const max = computed(() => range.value.max);
+/** The modem whose gain this is: the HF radio of before's topic, else the radio's own row. */
+const modem = computed(() => (props.radio === null || props.radio.id === HF_ID ? (hf.value?.modem ?? null) : props.radio.row.modem));
 
 const gain = computed(() => {
-  const stored = Number.parseInt(props.settings.draft[KEY] ?? "", 10);
-  return Number.isFinite(stored) ? stored : (hf.value?.modem?.tx_gain_db ?? 0);
+  const stored = Number.parseInt(props.settings.draft[props.settingKey] ?? "", 10);
+  return Number.isFinite(stored) ? stored : (modem.value?.tx_gain_db ?? 0);
 });
-const peak = computed(() => hf.value?.modem?.tx_peak_dbfs ?? null);
+const peak = computed(() => modem.value?.tx_peak_dbfs ?? null);
 
 function move(by: number): void {
-  const next = Math.max(min, Math.min(max, gain.value + by));
-  if (next !== gain.value) props.form.choose({ [KEY]: String(next) });
+  const next = Math.max(min.value, Math.min(max.value, gain.value + by));
+  if (next !== gain.value) props.form.choose({ [props.settingKey]: String(next) });
 }
 </script>
 

@@ -1,20 +1,16 @@
 // The places of the page where the two radios show beyond the Radio group: the HF tag of a conversation, the mark of an attempt over HF and the tag under a message that came over HF, the email gateway with the FM radio off, the channel tags FM and HF
-// of the Stations table and the Packets tab while the HF radio is on (and RF as it always was while it is off), and the two boxes of the setup guide.
-import { flushPromises, mount } from "@vue/test-utils";
+// of the Stations table and the Packets tab while the HF radio is on (and RF as it always was while it is off). The setup guide's Radio step, live as the Radio group is, is SetupGuide.test.ts's.
+import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { nextTick, ref, shallowRef } from "vue";
+import { shallowRef } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import ConversationView from "@/components/ConversationView.vue";
 import EmailCompose from "@/components/EmailCompose.vue";
 import EmailPane from "@/components/EmailPane.vue";
 import MessageChain from "@/components/MessageChain.vue";
 import PacketsLog from "@/components/PacketsLog.vue";
-import SetupGuide from "@/components/SetupGuide.vue";
 import StationsTable from "@/components/StationsTable.vue";
-import type { Toast } from "@/composables/useDaemon";
-import { useSetupGuide } from "@/composables/useSetupGuide";
 import { chainOf } from "@/lib/chain";
-import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
 import { ago, attemptRow, configValues, incoming, message, packet, station, table } from "@/test/fixtures";
 
@@ -251,63 +247,6 @@ describe("the channel tags while the HF radio is on", () => {
         .map((td) => td.text());
     expect(via(BOTH)).toEqual(["HF", "FM"]);
     expect(via({})).toEqual(["HF", "RF"]);
-  });
-});
-
-describe("the radio step of the setup guide", () => {
-  const fresh = (extra: Record<string, string> = {}) =>
-    configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
-  const portList = (): PortsMessage => ({ type: "ports", sound_cards: [], keying: "", search: true, find: true, ports: [] });
-
-  async function open(values: Record<string, string> = {}) {
-    const config = ref<ConfigValues | null>(fresh(values));
-    const sent: Command[] = [];
-    const send = (command: Command) => (sent.push(command), true);
-    const guide = useSetupGuide(config, ref<Toast | null>(null), ref<PortsMessage | null>(portList()), send);
-    guide.show();
-    const daemon = fakeDaemon({ config, guide, send, ports: portList() });
-    const wrapper = mount(SetupGuide, { global: withDaemon(daemon), attachTo: document.body });
-    await wrapper.find<HTMLInputElement>("#setup-call").setValue("oh2abc");
-    await wrapper.find("form").trigger("submit");
-    await wrapper.find<HTMLInputElement>("#setup-lat").setValue("60.17");
-    await wrapper.find<HTMLInputElement>("#setup-lon").setValue("24.94");
-    await wrapper.find("form").trigger("submit");
-    await wrapper.find("form").trigger("submit");
-    await flushPromises();
-    return { wrapper, guide, sent, daemon };
-  }
-
-  it("has the two boxes, FM radio with its Enable ticked and greyed (the only radio) and the fields as today, and HF radio as its Enable row alone", async () => {
-    const { wrapper, guide } = await open();
-    expect(wrapper.findAll("fieldset.subbox legend").map((l) => l.text())).toEqual(["FM radio", "HF radio"]);
-    const [fmBox, hfBox] = wrapper.findAll("fieldset.subbox");
-    expect(fmBox?.find<HTMLInputElement>("#setup-fm").element.checked).toBe(true);
-    expect(fmBox?.find<HTMLInputElement>("#setup-fm").element.disabled).toBe(true);
-    expect(fmBox?.find("#setup-fm").element.closest(".field")?.getAttribute("title")).toBe("The station's only radio: tick the other first");
-    for (const id of ["#setup-profile", "#setup-port", "#setup-baud", "#setup-find-radio"]) expect(fmBox?.find(id).exists(), id).toBe(true);
-    expect(hfBox?.findAll("select, input").map((e) => e.attributes("id"))).toEqual(["setup-hf"]);
-    expect(Object.keys(guide.changes)).not.toContain("fm/enabled");
-  });
-
-  it("saves the HF radio ticked with the rest, and the FM radio unticked, with nothing of the FM radio's line to ask for or save", async () => {
-    const { wrapper, guide } = await open();
-    await wrapper.find("#setup-hf").setValue(true);
-    expect(guide.changes).toMatchObject({ "hf/enabled": "true" });
-    expect(wrapper.find<HTMLInputElement>("#setup-fm").element.disabled).toBe(false);
-    await wrapper.find("#setup-fm").setValue(false);
-    await nextTick();
-    expect(guide.changes).toMatchObject({ "hf/enabled": "true", "fm/enabled": "false" });
-    for (const id of ["#setup-profile", "#setup-port", "#setup-baud", "#setup-find-radio"]) expect(wrapper.find(id).exists(), id).toBe(false);
-    expect(Object.keys(guide.changes).filter((key) => /^(tnc|serial|tcp)\//.test(key))).toEqual([]);
-    expect(wrapper.find<HTMLInputElement>("#setup-hf").element.disabled).toBe(true);
-    expect(wrapper.find("button[type=submit]").attributes("disabled")).toBeUndefined(); // (Finish: a station with the HF radio alone needs no port)
-  });
-
-  it("starts from the settings: a station with the HF radio alone has its box ticked and the FM radio's fields out of sight", async () => {
-    const { wrapper } = await open({ "fm/enabled": "false", "hf/enabled": "true" });
-    expect(wrapper.find<HTMLInputElement>("#setup-fm").element.checked).toBe(false);
-    expect(wrapper.find<HTMLInputElement>("#setup-hf").element.checked).toBe(true);
-    expect(wrapper.find("#setup-profile").exists()).toBe(false);
   });
 });
 

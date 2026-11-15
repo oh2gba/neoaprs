@@ -1,7 +1,8 @@
 // The first-run guide's state (components/SetupGuide.vue): whether it is open, the step, the answers (useSetupAnswers) and Finish. It lives as long as the page does, so that closing the guide and opening it again finds the answers where they
 // were. Finish, on the Radio step, sends one `set_config` with the keys the answers change. An error of the daemon that names a key is shown under its field, and the guide goes to the step that has it. The place of the Position step is sent
 // when the guide goes on from it, else the daemon is told the map is wanted: it makes the map round the place at once, without a click, unless the one it has covers the place (neoaprs/services/mapauto.py), so that it is
-// there soon after the guide.
+// there soon after the guide. The Radio step is live, as the Radio group of the Settings tab is (components/SetupRadio.vue): its radios are saved as they are changed and stay when the guide is closed, and what it needs before
+// Finish is the page's radios' (lib/setup.ts `radioReady`), not answers; the ports and sound cards are asked for again each time it comes on the screen, so that a radio plugged in meanwhile is listed.
 import { computed, reactive, ref, watch, type Ref } from "vue";
 import { useSetupAnswers } from "@/composables/useSetupAnswers";
 import { useSetupSave } from "@/composables/useSetupSave";
@@ -12,7 +13,7 @@ import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 export function useSetupGuide(
   config: Ref<ConfigValues | null>,
   lastError: Ref<Toast | null>,
-  ports: Ref<PortsMessage | null>,
+  _ports: Ref<PortsMessage | null>, // (the Radio step's boxes read the page's ports, as the Settings tab's do)
   send: (command: Command) => boolean,
 ) {
   const open = ref(false);
@@ -20,8 +21,7 @@ export function useSetupGuide(
   const peeking = ref(false); // only the head shows, so that the map can be clicked on a narrow page
   const reached = ref(0); // the furthest step the user has been on: the steps up to it that are right show as done
   const values = computed(() => config.value?.values ?? {});
-  const search = computed(() => ports.value?.search ?? null);
-  const answers = useSetupAnswers(values, search);
+  const answers = useSetupAnswers(values);
   const { fields, changes, valid } = answers;
   const picking = computed(() => open.value && step.value === 1);
   const onRadio = computed(() => open.value && step.value === RADIO_STEP); // the Radio step is on the screen
@@ -33,7 +33,7 @@ export function useSetupGuide(
     step.value = 0;
     reached.value = 0;
   }
-  const { saving, finish, applyRadio } = useSetupSave(answers, config, lastError, send, step, done);
+  const { saving, finish } = useSetupSave(answers, config, lastError, send, step, done);
 
   watch(step, (now) => (reached.value = Math.max(reached.value, now)));
 
@@ -45,8 +45,6 @@ export function useSetupGuide(
     open.value = false;
     peeking.value = false;
   }
-
-  const refreshPorts = (): void => void send({ cmd: "list_ports" });
 
   function place(lat: number, lon: number): void {
     answers.place(lat, lon);
@@ -64,10 +62,7 @@ export function useSetupGuide(
     else step.value += 1;
   }
 
-  watch(
-    () => onRadio.value && !answers.tcp.value && !answers.dummy.value, // (only a serial TNC has a port to pick)
-    (wanted) => wanted && refreshPorts(),
-  );
+  watch(onRadio, (shown) => shown && send({ cmd: "list_ports" }));
 
   return reactive({
     open,
@@ -77,16 +72,11 @@ export function useSetupGuide(
     saving,
     picking,
     onRadio,
-    search,
-    ports: computed(() => ports.value),
     fields,
     problems: answers.problems,
     valid,
     changes,
     pin: answers.pin,
-    tcp: answers.tcp,
-    fillRadio: answers.fillRadio,
-    applyRadio,
     edit: answers.edit,
     show,
     close,
@@ -97,7 +87,6 @@ export function useSetupGuide(
     back: () => go(step.value - 1),
     next,
     finish,
-    refreshPorts,
   });
 }
 

@@ -1,114 +1,55 @@
 <script setup lang="ts">
-// Step 4 of the first-run guide: the two radios in a box each, as in the Settings tab (SettingsBox), each with its Enable tickbox (the Enable of the station's only radio is greyed). The FM radio's box, while it is ticked, has the TNC profile, then for a serial TNC the port, picked from the list the daemon gives (`list_ports`, asked again by Refresh; "Automatic", the empty port, where the daemon looks for the radio itself) and the speed
-// (the profile's own is the placeholder), or for KISS over TCP the host and the port, or for the Dummy radio nothing: no port, no speed. The HF radio's box is its Enable alone: the sound card and the keying are automatic, and the Settings tab has them for an override. Under the FM fields are Find my radio (a serial TNC; it fills the type, the port and the speed) and
-// the Terminal, the same two as in the Settings tab: opening the terminal puts the radio the answers name in force, so that it shows that radio.
-import { computed } from "vue";
-import FindRadioRow from "@/components/FindRadioRow.vue";
+// Step 4 of the first-run guide, live as the Radio group of the Settings tab is (plan section 6): the same group (SettingsRadio with `guide`), a box for each radio of the station that is not removed (RadioBox: its Enable, its Name and
+// Remove while the station has several radios, its status line and behind the arrow its type, the type's fields, the frequencies, Find my radio and the Terminal), and Add radio under them. A change applies at once, as in the
+// Settings tab (the same settings, the same queue and Undo), so a radio made or changed here stays when the guide is closed. Left out: RX only, the main radio, Tune, the transmit level and the scope.
+// A station with no radio (a fresh installation) has one box, the radio it is adding: Add radio, the type from the whole list and its Add; once the new radio's row has come its box takes the place of this one, with the
+// type's fields and its status line at once, and Add radio under it. Before the daemon has told its settings and its radios the step has nothing (before the topic `radios` the radios would be those of the settings of
+// before, two boxes where the station may have one). The ids are the guide's own (`setup-fm-enabled`,
+// lib/settingsradio.ts BOX_IDS): every tab stays mounted, so the Settings tab's boxes are on the page too.
+import { computed, provide, ref, watch } from "vue";
+import RadioAdd from "@/components/RadioAdd.vue";
 import SettingsBox from "@/components/SettingsBox.vue";
-import SettingsField from "@/components/SettingsField.vue";
-import TncTerminal from "@/components/TncTerminal.vue";
-import { t } from "@/i18n";
+import SettingsRadio from "@/components/SettingsRadio.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
-import { FIELDS, type FieldInfo } from "@/lib/settings";
-import { speedFallback } from "@/lib/tncprofile";
-import { noLine, portChoices } from "@/lib/setup";
+import { useRadios } from "@/composables/useRadios";
+import { useSettingsForm } from "@/composables/useSettingsForm";
+import { t } from "@/i18n";
+import { attend } from "@/lib/attention";
+import { radioStepKeys } from "@/lib/setup";
+import { BOX_IDS, flatOf, inputId, placedId, radioElementId } from "@/lib/settingsradio";
 
-const { guide, config, tnc } = useDaemonContext();
-const defaults = computed<Record<string, string>>(() => config.value?.defaults ?? {});
-const fields = computed(() => guide.fields);
-const dummy = computed(() => noLine(guide.fields));
-const portInfo = computed(() => ({ label: t("settings.port.label"), kind: "choice" as const, choices: portChoices(guide.ports) }));
-const fallback = (key: string): string => defaults.value[key] ?? "";
-const info = (key: string): FieldInfo => FIELDS[key] ?? { label: key };
-const fmOn = computed(() => fields.value.fm !== "false");
-const hfOn = computed(() => fields.value.hf === "true");
-const enableInfo = (key: string, only: boolean): FieldInfo => {
-  const own = info(key);
-  return only ? { ...own, title: t("settings.enable.only_radio_title") } : own;
-};
-const err = (field: keyof typeof fields.value): string => guide.problems[field] ?? "";
+const PLACE = "setup";
+provide(BOX_IDS, PLACE);
+const { config, settings, lastError } = useDaemonContext();
+const form = useSettingsForm(config, settings, "settings");
+const { defaults } = form;
+const radios = useRadios();
+const keys = computed(() => radioStepKeys(settings.values.value, settings.draft));
+/** The station has no radio (none, or every one removed): the step is the box of the radio it is adding. */
+const none = computed(() => radios.all.value.every((radio) => radio.removed));
+
+// the first radio, added from that box: the page leads to its box once its row has come, to its type (its Enable is greyed: it is the only radio), and a refusal of the add ends the wait (the group's own Add radio leads to
+// the radios it adds)
+const adding = ref(false);
+watch(
+  () => radios.added.value,
+  (radio) => {
+    if (radio === null || !adding.value) return;
+    adding.value = false;
+    const flat = flatOf(radio, settings.values.value);
+    void attend(placedId(PLACE, flat === null ? radioElementId(radio, "type") : inputId(flat.type)));
+  },
+);
+watch(lastError, (toast) => {
+  if (toast?.cmd === "radio_add") adding.value = false;
+});
 </script>
 
 <template>
-  <SettingsBox :title="t('settings.group.fm_radio')">
-    <SettingsField
-      id="setup-fm"
-      :info="enableInfo('fm/enabled', fmOn && !hfOn)"
-      :model-value="fields.fm"
-      fallback=""
-      :error="err('fm')"
-      :changed="false"
-      :disabled="fmOn && !hfOn"
-      @update:model-value="guide.edit('fm', $event)"
-    />
-    <template v-if="fmOn">
-      <SettingsField
-        id="setup-profile"
-        :info="info('tnc/profile')"
-        :model-value="fields.profile"
-        fallback=""
-        :error="err('profile')"
-        :changed="false"
-        @update:model-value="guide.edit('profile', $event)"
-      />
-      <template v-if="guide.tcp">
-        <SettingsField
-          id="setup-host"
-          :info="info('tcp/host')"
-          :model-value="fields.host"
-          :fallback="fallback('tcp/host')"
-          :error="err('host')"
-          :changed="false"
-          @update:model-value="guide.edit('host', $event)"
-        />
-        <SettingsField
-          id="setup-tcpport"
-          :info="info('tcp/port')"
-          :model-value="fields.tcpPort"
-          :fallback="fallback('tcp/port')"
-          :error="err('tcpPort')"
-          :changed="false"
-          @update:model-value="guide.edit('tcpPort', $event)"
-        />
-      </template>
-      <template v-else-if="!dummy">
-        <SettingsField
-          id="setup-port"
-          :info="portInfo"
-          :model-value="fields.port"
-          fallback=""
-          :error="err('port')"
-          :changed="false"
-          @update:model-value="guide.edit('port', $event)"
-        >
-          <template #after>
-            <button type="button" class="btn" @click="guide.refreshPorts()">{{ t("settings.port.refresh") }}</button>
-          </template>
-        </SettingsField>
-        <SettingsField
-          id="setup-baud"
-          :info="info('serial/baud')"
-          :model-value="fields.baud"
-          :fallback="speedFallback(fields.profile, fallback('serial/baud'))"
-          :error="err('baud')"
-          :changed="false"
-          @update:model-value="guide.edit('baud', $event)"
-        />
-        <FindRadioRow id="setup-find-radio" />
-      </template>
-      <TncTerminal :tnc="tnc" @toggle="(open) => open && guide.applyRadio()" />
-    </template>
-  </SettingsBox>
-  <SettingsBox :title="t('settings.group.hf_radio')">
-    <SettingsField
-      id="setup-hf"
-      :info="enableInfo('hf/enabled', hfOn && !fmOn)"
-      :model-value="fields.hf"
-      fallback=""
-      :error="err('hf')"
-      :changed="false"
-      :disabled="hfOn && !fmOn"
-      @update:model-value="guide.edit('hf', $event)"
-    />
-  </SettingsBox>
+  <template v-if="config && radios.told.value">
+    <SettingsBox v-if="none" :title="t('radio.new')">
+      <RadioAdd :id="placedId(PLACE, 'set-radio-add')" @added="adding = true" />
+    </SettingsBox>
+    <SettingsRadio v-else guide :keys="keys" :settings="settings" :form="form" :defaults="defaults" />
+  </template>
 </template>

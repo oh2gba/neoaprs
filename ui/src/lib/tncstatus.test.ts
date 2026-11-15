@@ -2,9 +2,21 @@ import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/i18n";
 import { LOCALES } from "@/i18n/locales";
 import { clockText } from "@/lib/format";
-import { lineText, pillClass, pillText, searchedPorts, tncCounts, tncStatus } from "@/lib/tncstatus";
-import type { ModemState } from "@/protocol/protocol";
-import { NOW, ago, hfState, tncState } from "@/test/fixtures";
+import {
+  lineText,
+  pillClass,
+  pillText,
+  rowPillClass,
+  rowPillText,
+  rowStatus,
+  searchedPorts,
+  statsCounts,
+  tncCounts,
+  tncOfRow,
+  tncStatus,
+} from "@/lib/tncstatus";
+import type { ModemState, RadioProblem, RadioRow } from "@/protocol/protocol";
+import { NOW, ago, hfState, radioRow, tncState } from "@/test/fixtures";
 
 const searching = () =>
   tncState({
@@ -186,5 +198,52 @@ describe("the HF radio's line", () => {
     expect(pillText(dummy)).toBe("Dummy");
     expect(pillClass(dummy)).toBe("tnc-dummy");
     expect(tncStatus(dummy, NOW)).toBe("Dummy HF radio: made-up distant stations, your frames on the speakers, nothing goes on the air");
+  });
+});
+
+// A radio other than those of before has no topic of its own: its row of the topic `radios` says its line, in the same words.
+describe("the line of a radio's row", () => {
+  const row = (type: string, extra: Partial<RadioRow> = {}) => radioRow(3, type, extra);
+
+  it("says the last packet while connected, the modem's line for a modem, and the Dummy's words", () => {
+    expect(rowStatus(row("kiss", { stats: { ...tncState().stats, last_packet: ago(120) } }), NOW)).toBe("Last packet 2 min ago");
+    expect(rowStatus(row("mercury"), NOW)).toMatch(/^DATAC3 · Listening · /);
+    expect(rowStatus(row("dummy"), NOW)).toBe(tncStatus(tncState({ dummy: true }), NOW));
+    expect([rowPillText(row("dummy")), rowPillClass(row("dummy")), rowPillText(row("kiss")), rowPillClass(row("kiss"))]).toEqual([
+      "Dummy",
+      "tnc-dummy",
+      "connected",
+      "tnc-connected",
+    ]);
+  });
+
+  it("says, while not connected, what its problem says in the page's words, never the daemon's English", () => {
+    const down = (code: RadioProblem["code"], params: Record<string, string> = {}, state: RadioRow["state"] = "waiting") =>
+      rowStatus(row("kiss", { state, problem: { code, params } }), NOW);
+    expect(down("radio.not_connected", { name: "Mobile" })).toBe("Not connected");
+    expect(down("radio.searching", {}, "connecting")).toBe("Searching for the radio…");
+    expect(down("radio.not_connected", {}, "connecting")).toBe("Connecting…");
+    expect(down("radio.silent", { since: ago(600) }, "silent")).toMatch(/^nothing heard since /);
+    expect(down("modem.sound_card")).toBe("Sound card could not be opened: choose another");
+    expect(rowStatus(row("kiss", { state: "waiting", problem: null }), NOW)).toBe("Not connected");
+    const modem = hfState().modem;
+    expect(rowStatus(row("mercury", { state: "waiting", problem: null, modem: modem && { ...modem, state: "waiting", reason: "not_installed" } }), NOW)).toBe(
+      tncStatus(hfState({ state: "waiting", modem: modem && { ...modem, state: "waiting", reason: "not_installed" } }), NOW),
+    );
+  });
+
+  it("has the row's counts as its hover title, and is told in the shape of before for what reads that (its counts, its lines)", () => {
+    const told = row("kiss", { lines: [{ at: "2026-10-21T12:00:00Z", text: "opened /dev/ttyACM0" }] });
+    expect(statsCounts(told.stats)).toBe(tncCounts(tncState({ stats: told.stats })));
+    const shaped = tncOfRow({ ...told, state: "waiting", problem: { code: "radio.not_connected", params: { name: "Mobile" } } });
+    expect([shaped.state, shaped.problem, shaped.path, shaped.searching, shaped.lines, shaped.stats]).toEqual([
+      "waiting",
+      "Not connected",
+      "",
+      [],
+      told.lines,
+      told.stats,
+    ]);
+    expect(tncOfRow(row("mercury")).rules.kind).toBe("hf");
   });
 });

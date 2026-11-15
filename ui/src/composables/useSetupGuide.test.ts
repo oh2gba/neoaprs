@@ -3,19 +3,10 @@ import { nextTick, ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
-import { configValues, toastOf, portRow } from "@/test/fixtures";
+import { configValues, toastOf } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
-const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
-  type: "ports",
-  sound_cards: [],
-  keying: "",
-  search: true,
-  find: true,
-  ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")],
-  ...extra,
-});
 
 function setUp(initial: ConfigValues | null = fresh()) {
   const config = ref<ConfigValues | null>(initial);
@@ -55,7 +46,7 @@ describe("useSetupGuide: the steps", () => {
     const { guide } = setUp();
     expect(guide.open).toBe(false);
     expect(guide.step).toBe(0);
-    expect(guide.fields).toMatchObject({ call: "", lat: "", lon: "", symbol: "/-", profile: "kenwood-tnc2" });
+    expect(guide.fields).toEqual({ call: "", lat: "", lon: "", symbol: "/-" }); // (the Radio step has no answers: it is live, plan section 6)
     expect(guide.valid).toEqual([false, false, true, true]);
   });
 
@@ -115,24 +106,21 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.picking).toBe(false);
   });
 
-  it("checks the symbol and the radio", () => {
+  it("checks the symbol, and has no answers of the radio: what the Radio step needs is its radios' (SetupGuide.vue, lib/setup.ts radioReady)", () => {
     const { guide, fill } = setUp();
     fill();
     guide.go(2);
     guide.edit("symbol", "a-");
     expect(guide.problems.symbol).toBe("Table: / \\ 0-9 A-Z");
     expect(guide.valid[2]).toBe(false);
+    expect(guide.step).toBe(2);
+    guide.go(3);
+    expect(guide.step).toBe(2);
     guide.edit("symbol", "\\k");
     guide.go(3);
     expect(guide.step).toBe(3);
-    guide.edit("baud", "12");
-    expect(guide.problems.baud).toBe("300 to 921600");
-    guide.edit("baud", "");
-    guide.edit("profile", "kiss-tcp");
-    guide.edit("tcpPort", "99999");
-    expect(guide.problems.tcpPort).toBe("1 to 65535");
-    guide.edit("tcpPort", "8001");
     expect(guide.valid[3]).toBe(true);
+    expect(guide.problems).toEqual({});
   });
 
   it("goes back freely, goes forward only over steps that have what they need, and remembers the answers", () => {
@@ -142,7 +130,7 @@ describe("useSetupGuide: the steps", () => {
     fill();
     guide.go(3);
     expect(guide.step).toBe(3);
-    guide.edit("baud", "4800");
+    guide.edit("symbol", "/>");
     guide.back();
     guide.back();
     expect(guide.step).toBe(1);
@@ -152,7 +140,7 @@ describe("useSetupGuide: the steps", () => {
     expect(guide.step).toBe(0);
     guide.edit("call", "oh2abc");
     guide.go(3);
-    expect(guide.fields.baud).toBe("4800");
+    expect(guide.fields.symbol).toBe("/>");
   });
 
   it("keeps the answers when it is closed and opened again", () => {
@@ -169,28 +157,22 @@ describe("useSetupGuide: the steps", () => {
   });
 });
 
+// The Radio step's boxes are the Settings tab's (plan section 6: "live, as the Settings group is"): they list the ports and the sound cards of every type of radio, so the guide asks for them each time the step comes on the
+// screen, whatever the radios' types (before, only for a serial TNC: the step had the FM radio's fields alone).
 describe("useSetupGuide: the radio", () => {
-  it("asks for the ports when the radio step is reached with a serial TNC, and again on Refresh", async () => {
-    const { guide, sent, fill } = setUp();
-    guide.show();
-    fill();
-    guide.go(3);
-    await nextTick();
-    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(1);
-    guide.refreshPorts();
-    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(2);
-  });
-
-  it("does not ask for ports for a TCP TNC, and asks when the TNC becomes a serial one", async () => {
+  it("asks for the ports and the sound cards each time the Radio step comes on the screen, so that a radio plugged in meanwhile is listed", async () => {
     const { guide, sent, fill } = setUp(fresh({ "tnc/profile": "kiss-tcp" }));
     guide.show();
     fill();
     guide.go(3);
     await nextTick();
-    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(0);
-    guide.edit("profile", "kiss");
+    expect(sent.filter((c) => c.cmd === "list_ports")).toEqual([{ cmd: "list_ports" }]);
+    guide.go(2);
     await nextTick();
     expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(1);
+    guide.go(3);
+    await nextTick();
+    expect(sent.filter((c) => c.cmd === "list_ports")).toHaveLength(2);
   });
 
   it("does not ask while the guide is closed or on another step", async () => {
@@ -206,22 +188,6 @@ describe("useSetupGuide: the radio", () => {
     await nextTick();
     expect(sent).toEqual([{ cmd: "list_ports" }]);
   });
-
-  it("needs the port picked where the daemon does not search, and takes Automatic (empty) where it does", async () => {
-    const { guide, portList, fill } = setUp();
-    fill();
-    guide.go(3);
-    portList.value = ports({ search: false });
-    await nextTick();
-    expect(guide.search).toBe(false);
-    expect(guide.valid[3]).toBe(false);
-    guide.edit("port", "/dev/ttyUSB0");
-    expect(guide.valid[3]).toBe(true);
-    guide.edit("port", "");
-    portList.value = ports({ search: true });
-    await nextTick();
-    expect(guide.valid[3]).toBe(true);
-  });
 });
 
 describe("useSetupGuide: Finish", () => {
@@ -231,18 +197,11 @@ describe("useSetupGuide: Finish", () => {
     fill();
     guide.edit("symbol", "/>");
     guide.go(3);
-    guide.edit("profile", "kantronics");
-    guide.edit("port", "/dev/ttyUSB0");
-    guide.edit("baud", "4800");
-    guide.go(3);
     expect(guide.changes).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
       "station/symbol_code": ">",
-      "tnc/profile": "kantronics",
-      "serial/port": "/dev/ttyUSB0",
-      "serial/baud": "4800",
       "beacon/interval_min": "30",
     });
     guide.next();
@@ -278,29 +237,15 @@ describe("useSetupGuide: Finish", () => {
     expect(guide.open).toBe(false);
   });
 
-  it("sends the TCP keys for a TCP TNC and clears the serial device", () => {
-    const { guide, sent, fill } = setUp(fresh({ "serial/port": "/dev/ttyUSB0" }));
+  it("sends nothing of the radios, whatever their settings: the Radio step saved them as they were changed (plan section 6: the call, the place, the symbol and the beacon still go at Finish)", () => {
+    const { guide, sent, fill } = setUp(fresh({ "serial/port": "/dev/ttyUSB0", "tnc/profile": "kiss-tcp", "fm/enabled": "false", "hf/enabled": "true" }));
     guide.show();
     fill();
     guide.go(3);
-    guide.edit("profile", "kiss-tcp");
-    guide.edit("host", "192.168.1.5");
-    guide.edit("tcpPort", "8002");
-    guide.go(3);
     guide.next();
-    expect(setConfigs(sent)[0]).toEqual({
-      cmd: "set_config",
-      values: {
-        "station/call": "OH2ABC",
-        "station/lat": "60.17",
-        "station/lon": "24.94",
-        "tnc/profile": "kiss-tcp",
-        "tcp/host": "192.168.1.5",
-        "tcp/port": "8002",
-        "serial/port": "",
-        "beacon/interval_min": "30",
-      },
-    });
+    expect(setConfigs(sent)).toEqual([
+      { cmd: "set_config", values: { "station/call": "OH2ABC", "station/lat": "60.17", "station/lon": "24.94", "beacon/interval_min": "30" } },
+    ]);
   });
 
   it("does not send twice while the daemon has not answered", () => {
@@ -343,8 +288,8 @@ describe("useSetupGuide: Finish", () => {
     expect(setConfigs(sent)).toHaveLength(2);
   });
 
-  it("shows a complaint about the symbol under the symbol field, and one about a port on the radio step", async () => {
-    const { guide, fail, fill } = setUp();
+  it("shows a complaint about the symbol under the symbol field, and leaves one about a radio's setting to that radio's box (a save of the Radio step, not of Finish), still waiting for its own answer", async () => {
+    const { guide, fail, fill, told } = setUp();
     guide.show();
     fill();
     guide.go(3);
@@ -357,7 +302,10 @@ describe("useSetupGuide: Finish", () => {
     guide.next();
     await fail("set_config: serial/port: no such port");
     expect(guide.step).toBe(3);
-    expect(guide.problems.port).toBe("no such port");
+    expect(guide.problems).toEqual({});
+    expect(guide.saving).toBe(true);
+    await told({ "station/call": "OH2ABC" });
+    expect(guide.open).toBe(false);
   });
 
   it("ignores an error it is not waiting for, and one that names no field of the guide", async () => {

@@ -1,12 +1,15 @@
 // The first-run guide's rules (components/SetupGuide.vue): the steps, the symbols it offers, what is wrong with each field as it is typed, and which settings its answers change. The daemon checks
-// everything again when the guide saves; this keeps the user from sending what it would refuse, and the page from sending a key whose value is the one the daemon has.
+// everything again when the guide saves; this keeps the user from sending what it would refuse, and the page from sending a key whose value is the one the daemon has. The Radio step has no answers: it is live, as the
+// Radio group of the Settings tab is (plan section 6), and what it needs before Finish is a radio on whose fields have nothing wrong (`radioReady`).
 import { t } from "@/i18n";
 import type { MessageId } from "@/i18n/catalogue";
 import { normalizeCall } from "@/lib/calls";
 import { callOk, parseNumber, problemOf, symbolProblem } from "@/lib/fieldcheck";
 import { lazyText } from "@/lib/lazytext";
 import type { Choice } from "@/lib/settingchoices";
-import { portForProfile, profileOf, speedFallback } from "@/lib/tncprofile";
+import type { PageRadio } from "@/lib/radios";
+import { groupKeys, shownByValues } from "@/lib/settings";
+import { boxKeys, fieldOfKey, flatOf, onInForm, shownByRadios, shownFor } from "@/lib/settingsradio";
 import type { PortsMessage } from "@/protocol/protocol";
 
 const STEP_IDS: readonly MessageId[] = ["setup.step.call", "setup.step.position", "setup.step.symbol", "setup.step.radio"];
@@ -44,14 +47,6 @@ export interface SetupFields {
   lon: string;
   /** the table character and the code character: `/-` */
   symbol: string;
-  profile: string;
-  port: string;
-  baud: string;
-  host: string;
-  tcpPort: string;
-  /** whether the FM radio and the HF radio are on, "true" or "false" (the settings fm/enabled and hf/enabled) */
-  fm: string;
-  hf: string;
 }
 
 export type FieldName = keyof SetupFields;
@@ -63,13 +58,6 @@ export const STEP_OF: Record<FieldName, number> = {
   lat: 1,
   lon: 1,
   symbol: 2,
-  profile: 3,
-  port: 3,
-  baud: 3,
-  host: 3,
-  tcpPort: 3,
-  fm: 3,
-  hf: 3,
 };
 
 /** The setting each field is the answer to (the locator and the symbol's two characters are the exceptions: they make other keys). */
@@ -79,44 +67,24 @@ export const KEY_OF: Record<string, FieldName> = {
   "station/lon": "lon",
   "station/symbol_table": "symbol",
   "station/symbol_code": "symbol",
-  "tnc/profile": "profile",
-  "serial/port": "port",
-  "serial/baud": "baud",
-  "tcp/host": "host",
-  "tcp/port": "tcpPort",
-  "fm/enabled": "fm",
-  "hf/enabled": "hf",
 };
 
-const isTcp = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "tcp";
-/** The Dummy radio: no radio, so no port, no speed and no host to ask for. */
-const isDummy = (f: SetupFields): boolean => profileOf(f.profile)?.transport === "dummy";
-/** Whether the FM radio is on in the answers (the radios are on as the settings say: FM unless false, HF only when true). */
-const fmAnswered = (f: SetupFields): boolean => f.fm !== "false";
-/** Whether the guide has no port, speed or host to ask for: the Dummy radio, or an FM radio that is off. */
-export const noLine = (f: SetupFields): boolean => isDummy(f) || !fmAnswered(f);
-/** The step with the radio. */
-export const RADIO_STEP = STEP_OF.profile;
+/** The step with the radios (the last). */
+export const RADIO_STEP = STEP_IDS.indexOf("setup.step.radio");
 
 /** The problems of the fields of each step, by field (lib/fieldcheck.ts: an empty field says nothing here). A field that is empty and needed has none: `stepOk` says Next waits for it. */
 const CHECKS: ((f: SetupFields) => Problems)[] = [
   (f) => ({ call: problemOf("station/call", f.call, true) }),
   (f) => ({ lat: problemOf("station/lat", f.lat, true), lon: problemOf("station/lon", f.lon, true) }),
   (f) => ({ symbol: symbolProblem(f.symbol) }),
-  (f) => {
-    if (noLine(f)) return {};
-    return isTcp(f)
-      ? { host: problemOf("tcp/host", f.host, true), tcpPort: problemOf("tcp/port", f.tcpPort, true) }
-      : { baud: problemOf("serial/baud", f.baud, true) };
-  },
 ];
 
 export function stepProblems(step: number, f: SetupFields): Problems {
   return Object.fromEntries(Object.entries(CHECKS[step]?.(f) ?? {}).filter(([, text]) => text !== ""));
 }
 
-/** Whether the step has all it needs: its fields filled and without a problem. `search` is whether the daemon looks for the radio itself (null before it has said): where it does not, a serial TNC needs the port picked. */
-export function stepOk(step: number, f: SetupFields, search: boolean | null): boolean {
+/** Whether the step has all the answers it needs: its fields filled and without a problem. The Radio step has none (its radios are `radioReady`'s). */
+export function stepOk(step: number, f: SetupFields): boolean {
   if (Object.keys(stepProblems(step, f)).length > 0) return false;
   switch (step) {
     case 0:
@@ -125,11 +93,6 @@ export function stepOk(step: number, f: SetupFields, search: boolean | null): bo
       return parseNumber(f.lat) !== null && parseNumber(f.lon) !== null;
     case 2:
       return f.symbol.length === 2;
-    case 3:
-      if (!fmAnswered(f)) return f.hf === "true"; // (a station has at least one radio)
-      return (
-        profileOf(f.profile) !== undefined && (noLine(f) || (isTcp(f) ? f.host.trim() !== "" && f.tcpPort.trim() !== "" : f.port !== "" || search !== false))
-      );
     default:
       return true;
   }
@@ -147,26 +110,13 @@ function sameNumber(a: string, b: string): boolean {
   return x !== null && y !== null ? x === y : a.trim() === b.trim();
 }
 
-/** The speed of the line as the form shows it: empty when it is the profile's own (that is what the field's placeholder says). */
-export function baudShown(profileKey: string, baud: string): string {
-  return baud.trim() === speedFallback(profileKey, "") ? "" : baud.trim();
-}
-
 /** The guide's fields as they are while the daemon's settings are what they are: the first state of the guide. */
 export function fieldsFrom(values: Readonly<Record<string, string>>): SetupFields {
-  const profile = values["tnc/profile"] ?? "";
   return {
     call: values["station/call"] ?? "",
     lat: values["station/lat"] ?? "",
     lon: values["station/lon"] ?? "",
     symbol: `${values["station/symbol_table"] ?? "/"}${values["station/symbol_code"] ?? "-"}`,
-    profile,
-    port: values["serial/port"] ?? "",
-    baud: baudShown(profile, values["serial/baud"] ?? ""),
-    host: values["tcp/host"] ?? "",
-    tcpPort: values["tcp/port"] ?? "",
-    fm: values["fm/enabled"] ?? "true",
-    hf: values["hf/enabled"] ?? "false",
   };
 }
 
@@ -178,23 +128,8 @@ function isNewStation(values: Readonly<Record<string, string>>): boolean {
   return (values["station/call"] ?? "") === "" && ["", "0"].includes((values["beacon/interval_min"] ?? "").trim());
 }
 
-/** The settings of the FM radio's line the answers make: its type, and the port and speed of a serial TNC or the host and port of a TCP one. Nothing while the FM radio is off (it keeps its type, port and address for the day it is ticked), and the Dummy radio has no port, no speed and no address: what the settings hold stays, for the day a real radio is chosen. */
-function fmLine(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
-  if (!fmAnswered(f)) return {};
-  if (isTcp(f)) {
-    return {
-      "tnc/profile": f.profile,
-      "tcp/host": f.host.trim(),
-      "tcp/port": f.tcpPort.trim(),
-      "serial/port": portForProfile(f.profile, values["serial/port"] ?? ""),
-    };
-  }
-  return isDummy(f) ? { "tnc/profile": f.profile } : { "tnc/profile": f.profile, "serial/port": f.port, "serial/baud": f.baud.trim() };
-}
-
-/** The settings to save: the keys whose answer is not what the daemon has, with the text to write. Only the keys of the chosen kind of TNC (a serial TNC's port and speed, a TCP one's host and port, the Dummy radio's none), and a serial device
- * the daemon holds is cleared when the TNC is a TCP one, which it would refuse otherwise. A station that has no call yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save;
- * the guide run again on a station that has a call leaves the beacon as it is. */
+/** The settings to save at Finish: the keys whose answer is not what the daemon has, with the text to write (the call, the place and the symbol; the radios were saved as they were changed). A station that has no call
+ * yet (the first run) and no beacon interval gets the beacon every NEW_STATION_BEACON_MIN minutes in the same save; the guide run again on a station that has a call leaves the beacon as it is. */
 export function setupChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
   const wanted: Record<string, string> = {
     "station/call": normalizeCall(f.call),
@@ -202,24 +137,9 @@ export function setupChanges(f: SetupFields, values: Readonly<Record<string, str
     "station/lon": parseNumber(f.lon) === null ? f.lon.trim() : degreesText(parseNumber(f.lon) ?? 0),
     "station/symbol_table": f.symbol.slice(0, 1),
     "station/symbol_code": f.symbol.slice(1),
-    "fm/enabled": f.fm,
-    "hf/enabled": f.hf,
   };
   if (isNewStation(values)) wanted["beacon/interval_min"] = NEW_STATION_BEACON_MIN;
-  Object.assign(wanted, fmLine(f, values));
-  const changes: Record<string, string> = {};
-  for (const [key, text] of Object.entries(wanted)) {
-    const had = values[key] ?? (key === "fm/enabled" ? "true" : "");
-    const same = key === "serial/baud" ? baudShown(f.profile, text) === baudShown(f.profile, had) : sameNumber(text, had);
-    if (!same) changes[key] = text;
-  }
-  return changes;
-}
-
-/** The settings of the radio among the changes: what the Terminal of the Radio step saves, so that the radio it shows is the one the answers name. */
-export function radioChanges(f: SetupFields, values: Readonly<Record<string, string>>): Record<string, string> {
-  const keys = ["tnc/profile", "serial/port", "serial/baud", "tcp/host", "tcp/port"];
-  return Object.fromEntries(Object.entries(setupChanges(f, values)).filter(([key]) => keys.includes(key)));
+  return Object.fromEntries(Object.entries(wanted).filter(([key, text]) => !sameNumber(text, values[key] ?? "")));
 }
 
 /** The ports to pick from, as a choice: "Automatic" first where the daemon looks for the radio itself, else a blank to say none is picked; each port with what the system calls it. */
@@ -230,4 +150,30 @@ export function portChoices(ports: PortsMessage | null): Choice[] {
     label: p.description && p.description !== "n/a" && p.description !== p.device ? `${p.device} - ${p.description}` : p.device,
   }));
   return [first, ...rows];
+}
+
+/** The keys of the Radio group of the Settings tab as the form shows them (the radios of before are worked by them: their Enables, the FM radio's type and the port and speed or the host and port of that type, the HF radio's type, sound card
+ * and keying), for the boxes of the Radio step. */
+export function radioStepKeys(values: Readonly<Record<string, string>>, draft: Readonly<Record<string, string>>): string[] {
+  const group = groupKeys(Object.keys(values), "settings").find((g) => g.id === "serial");
+  return (group?.keys ?? []).filter((key) => shownFor(key, draft["tnc/profile"]) && shownByRadios(key, draft) && shownByValues(key, draft));
+}
+
+/** What the Radio step's radios are read from: the settings as the form holds them (their values, what is being changed, what is wrong with a field) and whether the daemon looks for a serial radio among the ports itself (`search`,
+ * null before it has said). */
+export interface RadioStep {
+  values: Readonly<Record<string, string>>;
+  draft: Readonly<Record<string, string>>;
+  errors: Readonly<Record<string, string>>;
+  search: boolean | null;
+}
+
+/** Whether the Radio step has what Finish needs (plan section 6: "Next needs one enabled radio with no field in error"): a radio that is on (as the form holds it) none of whose fields has a complaint, the page's or the
+ * daemon's. A serial port left empty where the daemon does not look for the radio itself is a field that is not right yet: nothing would find the radio (the step of before waited for it too). */
+export function radioReady(radios: readonly PageRadio[], keys: readonly string[], step: RadioStep): boolean {
+  const right = (radio: PageRadio): boolean => {
+    const own = [flatOf(radio, step.values)?.enable ?? "", ...boxKeys(radio, keys, step.draft)].filter((key) => key !== "");
+    return own.every((key) => (step.errors[key] ?? "") === "" && !(step.search === false && fieldOfKey(key) === "port" && (step.draft[key] ?? "") === ""));
+  };
+  return radios.some((radio) => !radio.removed && onInForm(radio, step.values, step.draft) && right(radio));
 }

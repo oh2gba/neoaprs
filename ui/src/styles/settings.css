@@ -7,6 +7,7 @@
 .objectspane fieldset,
 .tablepane fieldset,
 .boardpane fieldset,
+.setup fieldset.subbox,
 fieldset.composebox {
   margin: 8px 0;
   padding: 4px 10px 8px;
@@ -18,15 +19,18 @@ fieldset.composebox {
 .objectspane legend,
 .tablepane legend,
 .boardpane legend,
+.setup .subbox legend,
 fieldset.composebox > legend {
   padding: 0 6px;
   font-weight: 600;
 }
 /* a box inside a group (SettingsBox: the parts of Notifications, one for each device): the same box, a little closer to its group's edge */
-.settings fieldset.subbox {
+.settings fieldset.subbox,
+.setup fieldset.subbox {
   margin: 10px 0 4px;
 }
-.settings .subbox legend {
+.settings .subbox legend,
+.setup .subbox legend {
   font-size: 0.95em;
 }
 .field {
@@ -366,7 +370,8 @@ fieldset.composebox > legend {
 .groupfold[aria-expanded="true"]::before {
   margin-right: 0;
 }
-.settings fieldset.folded {
+.settings fieldset.folded,
+.setup fieldset.folded {
   padding-bottom: 0;
 }
 .statushead .statetext {
@@ -389,6 +394,14 @@ fieldset.composebox > legend {
 .radiofind .btn {
   grid-column: 2;
   justify-self: start;
+}
+/* a radio's Name (RadioBox.vue): room for a name of eight wide letters, and Remove beside it where the column has room, under it where it has not (a phone with the label beside the field); Add radio's Add likewise */
+.radioname .field-control,
+.radioadd .field-control {
+  flex-wrap: wrap;
+}
+.radioname .field-control .input {
+  flex: 1 1 9em;
 }
 .tncstatus {
   flex: 1;

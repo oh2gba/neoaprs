@@ -1,92 +1,93 @@
 <script setup lang="ts">
-// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then the two radios in a box each under their own legend (SettingsBox): the FM radio and the HF radio. A box begins with its Enable tickbox and is that row alone while the radio is unticked.
-// Ticked, it has the radio's status line (RadioStatus: the topic `tnc` for FM, `hf` for HF) and behind the arrow its fields: the type of TNC, the port, the speed, or the host and port of a TNC reached over TCP, Find my radio and the terminal for FM; the sound card, the keying and the terminal for HF (SettingsRadioFields).
-// The fold is open when the radio is not connected. The Enable of the station's only radio is greyed, since a station has at least one. The sound cards and the ports are asked for again when HF is ticked, since the daemon lists the sound cards only then.
-// The HF radio's type (`hf/profile`) is the first of its fields: with the Dummy HF radio chosen the sound card, the keying and Tune are not there, as the FM Dummy has no port; with the Mercury modem the Frequency row (the dial the group agrees on, read-only) and the Tune row stand under the fields where the FM radio has Find my radio.
-import { computed, watch } from "vue";
-import FindRadioRow from "@/components/FindRadioRow.vue";
-import HfFrequencies from "@/components/HfFrequencies.vue";
-import HfLevelRow from "@/components/HfLevelRow.vue";
-import HfScope from "@/components/HfScope.vue";
-import HfTuneRow from "@/components/HfTuneRow.vue";
-import RadioStatus from "@/components/RadioStatus.vue";
-import SettingsBox from "@/components/SettingsBox.vue";
-import SettingsRadioFields from "@/components/SettingsRadioFields.vue";
+// The Radio group of the Settings tab: the RX only tickbox first (ticked is `station/transmit` false), then, while the station has several radios, the main radio (MainRadio), then a box for each radio of the station that
+// is not removed, in the daemon's order (RadioBox: its Enable, its Name and Remove while the station has several radios, its status line and behind the arrow its type, its fields and what its type can do), and Add radio
+// last (RadioAdd). The main radio and the Names are there for every box, not only once a second radio is on, so that ticking a radio moves nothing under the pointer and a radio that is off can be renamed and removed
+// (plan section 6); the main radio is greyed while one radio is on. A station with one radio has its one box as it always had. The Enable of the only radio that is on is greyed, since a station keeps one on: a radio's
+// tick counts at once, before the daemon tells it back. The sound cards and the ports are asked for again when the HF radio of before is ticked, and for a radio whose type has a sound card when it is ticked (the daemon
+// lists the sound cards only for a radio that is on); the page leads to the box of a radio this group's Add radio has just added once its row comes (lib/attention.ts: the box opens, comes into view and its Enable takes the keyboard),
+// and not to one that another place added (the setup guide's Radio step, which is this group with `guide`: no RX only, no main radio, no Tune, level or scope, and the ids of its place).
+import { computed, reactive, ref, watch } from "vue";
+import MainRadio from "@/components/MainRadio.vue";
+import RadioAdd from "@/components/RadioAdd.vue";
+import RadioBox from "@/components/RadioBox.vue";
 import SettingsSwitch from "@/components/SettingsSwitch.vue";
+import { useRadios } from "@/composables/useRadios";
 import type { Settings } from "@/composables/useSettings";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import type { SettingsFormState } from "@/composables/useSettingsForm";
-import { t } from "@/i18n";
-import { hfIsMercury } from "@/lib/mercury";
-import { fmOn, hfOn } from "@/lib/radiosides";
+import { attend } from "@/lib/attention";
+import { hfOn } from "@/lib/radiosides";
 import { RX_ONLY_KEY } from "@/lib/settings";
-import type { TncState } from "@/protocol/protocol";
+import { boxIds, enableId, flatOf, onInForm } from "@/lib/settingsradio";
+import type { PageRadio } from "@/lib/radios";
 
-const props = defineProps<{ keys: readonly string[]; settings: Settings; form: SettingsFormState; defaults: Record<string, string> }>();
-const { send, tnc, hf, now } = useDaemonContext();
+const props = withDefaults(
+  defineProps<{
+    keys: readonly string[];
+    settings: Settings;
+    form: SettingsFormState;
+    defaults: Record<string, string>;
+    /** the setup guide's Radio step: the boxes and Add radio alone (plan section 6: "Left out of the guide: RX only, the main radio, Tune, the level and the scope") */
+    guide?: boolean;
+  }>(),
+  { guide: false },
+);
+const { send, lastError } = useDaemonContext();
+const ids = boxIds();
+const radios = useRadios();
 
-const FM_KEY = "fm/enabled";
-const HF_KEY = "hf/enabled";
-const HF_PROFILE_KEY = "hf/profile";
-const HF_GAIN_KEY = "mercury/tx_gain_db"; // (the Transmit level row's, not a field of the list)
-const fm = computed(() => fmOn(props.settings.draft));
-const hfRadio = computed(() => hfOn(props.settings.draft));
-const mercury = computed(() => hfIsMercury(props.settings.draft));
-/** The fields of a radio: the type of the HF radio, the sound card and the keying are the HF radio's (the two of the modem only while it is the modem), the rest the FM radio's; the switches are the boxes' own. */
-const fields = (hfBox: boolean) =>
-  props.keys.filter(
-    (k) =>
-      ![RX_ONLY_KEY, FM_KEY, HF_KEY, HF_GAIN_KEY].includes(k) &&
-      (k === HF_PROFILE_KEY || k.startsWith("mercury/")) === hfBox &&
-      (hfBox && k.startsWith("mercury/") ? mercury.value : true),
-  );
-/** The fold is open while a radio is not connected: that is when the fields are wanted. */
-const unconnected = (radio: TncState | null): boolean => radio !== null && radio.state !== "connected";
-/** A box has something the person must see, so it opens by itself: a complaint of the daemon about one of its settings, the question it asks about one, or its radio is ticked and not connected. */
-const needsLook = (keys: readonly string[], on: boolean, radio: TncState | null): boolean =>
-  (on && unconnected(radio)) || keys.some((key) => (props.settings.errors[key] ?? "") !== "" || props.form.question.value?.key === key);
-const boxes = computed(() => {
-  const fmKeys = fields(false);
-  const hfKeys = fields(true);
-  return [
-    {
-      kind: "fm",
-      legend: t("settings.group.fm_radio"),
-      switch: FM_KEY,
-      radio: tnc.value,
-      on: fm.value,
-      only: fm.value && !hfRadio.value,
-      keys: fmKeys,
-      look: needsLook([FM_KEY, ...fmKeys], fm.value, tnc.value),
-    },
-    {
-      kind: "hf",
-      legend: t("settings.group.hf_radio"),
-      switch: HF_KEY,
-      radio: hf.value,
-      on: hfRadio.value,
-      only: hfRadio.value && !fm.value,
-      keys: hfKeys,
-      look: needsLook([HF_KEY, HF_GAIN_KEY, ...hfKeys], hfRadio.value, hf.value),
-    },
-  ];
+/** The ticks of the radios other than those of before that the daemon has not told back yet (RadioBox's `pending`). */
+const ticks = reactive(new Map<number, boolean>());
+/** Whether a radio is on as the form holds it: a radio of before by its setting as it is being changed, any other by its tick on its way, else as the daemon told it. */
+const on = (radio: PageRadio): boolean => ticks.get(radio.id) ?? onInForm(radio, props.settings.values.value, props.settings.draft);
+const boxes = computed(() => radios.all.value.filter((radio) => !radio.removed));
+const several = computed(() => boxes.value.length > 1);
+const onCount = computed(() => boxes.value.filter(on).length);
+function pending(radio: PageRadio, enabled: boolean | null): void {
+  if (enabled === null) ticks.delete(radio.id);
+  else ticks.set(radio.id, enabled);
+}
+watch(
+  () => hfOn(props.settings.draft),
+  (wanted) => wanted && send({ cmd: "list_ports" }),
+);
+// a radio other than those of before whose type has a sound card: its list when it is ticked
+watch(
+  () => boxes.value.filter((radio) => flatOf(radio, props.settings.values.value) === null && radio.enabled && radio.row.can.tune).map((radio) => radio.id),
+  (now, before) => {
+    for (const id of now) if (!(before ?? []).includes(id)) send({ cmd: "list_ports", radio: id });
+  },
+);
+// the radio this group's Add radio added: once, when its row comes (a refusal of the add ends the wait)
+const adding = ref(false);
+watch(
+  () => radios.added.value,
+  (radio, before) => {
+    if (radio === null || radio.id === before?.id || !adding.value) return;
+    adding.value = false;
+    void attend(ids(enableId(radio, props.settings.values.value)));
+  },
+);
+watch(lastError, (toast) => {
+  if (toast?.cmd === "radio_add") adding.value = false;
 });
-watch(hfRadio, (wanted) => wanted && send({ cmd: "list_ports" }));
 </script>
 
 <template>
-  <SettingsSwitch v-if="keys.includes(RX_ONLY_KEY)" :name="RX_ONLY_KEY" :settings="settings" :form="form" :defaults="defaults" />
-  <SettingsBox v-for="box in boxes" :key="box.kind" :title="box.legend" :fold-id="box.kind" :show="box.look">
-    <SettingsSwitch v-if="keys.includes(box.switch)" :name="box.switch" :settings="settings" :form="form" :defaults="defaults" :only="box.only" />
-    <RadioStatus v-if="box.on" :tnc="box.radio" :now="now" :open="unconnected(box.radio)">
-      <SettingsRadioFields :keys="box.keys" :settings="settings" :form="form" :defaults="defaults" />
-      <HfFrequencies v-if="box.kind === 'hf' && mercury && hf?.modem" />
-      <FindRadioRow v-if="box.kind === 'fm'" id="find-radio" />
-      <template v-else-if="mercury">
-        <HfTuneRow id="hf-tune" />
-        <HfLevelRow v-if="keys.includes(HF_GAIN_KEY)" id="hf-txlevel" :settings="settings" :form="form" />
-        <HfScope />
-      </template>
-    </RadioStatus>
-  </SettingsBox>
+  <SettingsSwitch v-if="!guide && keys.includes(RX_ONLY_KEY)" :name="RX_ONLY_KEY" :settings="settings" :form="form" :defaults="defaults" />
+  <MainRadio v-if="several && !guide" :settings="settings" :form="form" :off="onCount < 2" />
+  <RadioBox
+    v-for="radio in boxes"
+    :key="radio.id"
+    :radio="radio"
+    :keys="keys"
+    :settings="settings"
+    :form="form"
+    :defaults="defaults"
+    :named="several"
+    :only="on(radio) && onCount === 1"
+    :tools="!guide"
+    @pending="pending(radio, $event)"
+  />
+  <RadioAdd :id="ids('set-radio-add')" @added="adding = true" />
 </template>

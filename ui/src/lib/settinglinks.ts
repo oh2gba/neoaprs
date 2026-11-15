@@ -3,7 +3,9 @@
 import { t } from "@/i18n";
 import { isLoopbackHost } from "@/lib/pagealert";
 import { reasonOf } from "@/lib/settings";
+import { radioFieldOf } from "@/lib/settingsradio";
 import { portForProfile } from "@/lib/tncprofile";
+import { RADIO_TYPES } from "@/protocol/lists";
 import type { ErrorMessage } from "@/protocol/protocol";
 
 /** Where rigctld listens when nobody says otherwise (the placeholder of its field). */
@@ -17,8 +19,25 @@ export const TOGETHER: Record<string, readonly string[]> = {
   "tcp/port": ["tcp/host", "tcp/port"],
 };
 
-/** Whether the daemon's error is told in the place it is about and in no toast: the refusal of a setting is under its field (useSettingsAnswers), that of a request for local info in the row of its section (ObjectsQru.vue), that of a general query in the line of Ask around (NearbyAsk.vue). */
-export const refusedAtField = (error: { cmd: string } | null): boolean => error !== null && ["set_config", "qru_ask", "general_query"].includes(error.cmd);
+/** Every field of every type of radio: its key and the set it is sent with (empty for none). */
+const RADIO_FIELDS: readonly { key: string; together: string }[] = RADIO_TYPES.flatMap((type): readonly { key: string; together: string }[] => type.fields);
+
+/** The fields that apply together with `key`: those of TOGETHER, and a radio's own fields that its type sends together (`radio/3/tcp_host` with `radio/3/tcp_port`); the key alone for any other. */
+export function togetherOf(key: string): readonly string[] {
+  const listed = TOGETHER[key];
+  if (listed !== undefined) return listed;
+  const own = radioFieldOf(key);
+  if (own === null) return [key];
+  const pair = RADIO_FIELDS.find((field) => field.key === own.field)?.together ?? "";
+  if (pair === "") return [key];
+  const fields = [...new Set(RADIO_FIELDS.filter((field) => field.together === pair).map((field) => field.key))];
+  return fields.map((field) => `radio/${own.id}/${field}`);
+}
+
+/** Whether the daemon's error is told in the place it is about and in no toast: the refusal of a setting is under its field (useSettingsAnswers), that of a request for local info in the row of its section (ObjectsQru.vue), that of a general query in the line of Ask around (NearbyAsk.vue),
+ * that of a change of a radio (its name, its type, its Enable) under that field of its box (RadioBox.vue). */
+export const refusedAtField = (error: { cmd: string } | null): boolean =>
+  error !== null && ["set_config", "qru_ask", "general_query", "radio_change"].includes(error.cmd);
 
 /** The values that must be sent with the change of `key` to `text` so that the change is valid at once: a serial device does not go with a TCP radio type (the port is cleared), and the radio as the source of the status needs a
  * rigctld (the usual one is filled in). `draft` is what the fields hold. */

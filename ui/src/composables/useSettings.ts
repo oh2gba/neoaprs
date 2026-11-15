@@ -1,7 +1,8 @@
 // The settings as they apply while they are changed (no Save button): a draft of every value that starts as the daemon's, and a change that is made (a choice at once, a typed field on Enter or when it is left) goes to the daemon
 // as a `set_config` of just the keys that differ, after the page's own check of the text. One save is out at a time (useSettingsQueue); what the person sees of it is useSettingsFeedback. The daemon's reason for a refusal is
 // shown under the key it names. A value the person has not touched follows the daemon when it changes (another device, the radio found); a field being edited, or one the daemon refused, keeps what was typed.
-// One of these is shared by the Settings tab and the My station tab, so that there is one queue; the keys each tab shows are `useSettingsForm`.
+// One of these is shared by the Settings tab and the My station tab, so that there is one queue; the keys each tab shows are `useSettingsForm`. The radios' own settings (`radio/3/port`) and the station's of the radios
+// (`station/main_radio`), which the daemon tells apart in `config.radio_values`, are settings like the others here: saved, held and refused the same way (`set_config` takes them beside the rest).
 import { computed, getCurrentScope, onScopeDispose, reactive, type Ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSettingsAnswers } from "@/composables/useSettingsAnswers";
@@ -15,7 +16,9 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
   const draft = reactive<Record<string, string>>({});
   const errors = reactive<Record<string, string>>({});
   const feedback = useSettingsFeedback();
-  const values = computed(() => config.value?.values ?? {});
+  /** The settings as the form works them: those of before and the radios' own, together. */
+  const whole = computed<ConfigValues | null>(() => (config.value === null ? null : withRadios(config.value)));
+  const values = computed(() => whole.value?.values ?? {});
 
   /** The request was not saved: the reason under the key, and a refused choice shows the value in force again. */
   function refuse(request: Request, reason: string, key = request.keys[0] ?? ""): void {
@@ -63,12 +66,14 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
     commit(Object.keys(choices), true);
   }
 
-  useSettingsAnswers(config, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key));
+  useSettingsAnswers(whole, lastError, draft, queue, feedback, (request, reason, key) => refuse(request, reason, key));
 
   return {
     draft,
     errors,
     values,
+    /** the defaults of the settings with the radios' own, for the placeholders of the radios' fields */
+    defaults: computed(() => whole.value?.defaults ?? {}),
     announcement: feedback.announcement,
     saving: queue.saving,
     expected: queue.expected,
@@ -80,3 +85,11 @@ export function useSettings(config: Ref<ConfigValues | null>, lastError: Ref<Toa
 }
 
 export type Settings = ReturnType<typeof useSettings>;
+
+/** The settings with the radios' own beside them: the values and the defaults of `radio_values` and `radio_defaults` in `values` and `defaults` (a daemon of before tells none). */
+function withRadios(config: ConfigValues): ConfigValues {
+  const radioValues = config.radio_values ?? {};
+  const radioDefaults = config.radio_defaults ?? {};
+  if (Object.keys(radioValues).length === 0 && Object.keys(radioDefaults).length === 0) return config;
+  return { ...config, values: { ...config.values, ...radioValues }, defaults: { ...config.defaults, ...radioDefaults } };
+}

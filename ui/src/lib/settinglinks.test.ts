@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { TOGETHER, confirmMessage, linkedValues, refusalFor, refusedAtField, remotePage } from "@/lib/settinglinks";
+import { TOGETHER, confirmMessage, linkedValues, refusalFor, refusedAtField, remotePage, togetherOf } from "@/lib/settinglinks";
 import { pairProblems, problemOf, sameValue } from "@/lib/fieldcheck";
 import { reasonOf } from "@/lib/settings";
 import { openedAt, resetSeen } from "@/test/fakealert";
@@ -102,5 +102,21 @@ describe("settinglinks", () => {
     expect(remotePage()).toBe(true);
     openedAt("localhost");
     expect(remotePage()).toBe(false);
+  });
+});
+
+describe("the fields a radio's type sends together", () => {
+  it("are a radio's host and TCP port, by its own keys; the others alone, and the pairs of before as they were", () => {
+    expect(togetherOf("radio/5/tcp_host")).toEqual(["radio/5/tcp_host", "radio/5/tcp_port"]);
+    expect(togetherOf("radio/5/tcp_port")).toEqual(["radio/5/tcp_host", "radio/5/tcp_port"]);
+    expect(togetherOf("radio/3/port")).toEqual(["radio/3/port"]);
+    expect(togetherOf("tcp/host")).toBe(TOGETHER["tcp/host"]);
+    expect(togetherOf("station/call")).toEqual(["station/call"]);
+  });
+
+  it("has the refusal of a change of a radio said under its field, not in the toast", () => {
+    expect(refusedAtField(errorOf("radio_change: the name 'X' is another radio's already"))).toBe(true);
+    expect(refusedAtField(errorOf("radio_remove: there is no radio 9"))).toBe(false);
+    expect(refusedAtField(errorOf("radio_add: the radio could not be stored"))).toBe(false);
   });
 });

@@ -1,21 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   SYMBOL_CHOICES,
-  baudShown,
   degreesText,
   fieldsFrom,
   portChoices,
-  radioChanges,
   NEW_STATION_BEACON_MIN,
+  radioReady,
+  radioStepKeys,
   setupChanges,
   stepOk,
   stepProblems,
+  type RadioStep,
   type SetupFields,
 } from "@/lib/setup";
 import { callOk, callProblem, degreesProblem, parseNumber, symbolProblem } from "@/lib/fieldcheck";
+import { pageRadios } from "@/lib/radios";
 import { symbolLayers } from "@/lib/symbols";
 import { SYMBOL_TABLES } from "@/protocol/lists";
-import { configValues, portRow } from "@/test/fixtures";
+import type { RadioRow } from "@/protocol/protocol";
+import { configValues, portRow, radioRow, radiosTopic } from "@/test/fixtures";
 
 /** The settings of a fresh install: no call, no position. */
 const fresh = () =>
@@ -55,8 +58,8 @@ describe("the call step", () => {
     }
     expect(callProblem("")).toBe("");
     expect(callOk("")).toBe(false);
-    expect(stepOk(0, answered({ call: "" }), null)).toBe(false);
-    expect(stepOk(0, answered({ call: "OH2ABC" }), null)).toBe(true);
+    expect(stepOk(0, answered({ call: "" }))).toBe(false);
+    expect(stepOk(0, answered({ call: "OH2ABC" }))).toBe(true);
   });
 });
 
@@ -74,10 +77,10 @@ describe("the position step", () => {
   });
 
   it("needs both, and says which is wrong", () => {
-    expect(stepOk(1, answered(), null)).toBe(true);
-    expect(stepOk(1, answered({ lon: "" }), null)).toBe(false);
+    expect(stepOk(1, answered())).toBe(true);
+    expect(stepOk(1, answered({ lon: "" }))).toBe(false);
     expect(stepProblems(1, answered({ lat: "95", lon: "x" }))).toEqual({ lat: "Between -90 and 90", lon: "Not a number" });
-    expect(stepOk(1, answered({ lat: "95" }), null)).toBe(false);
+    expect(stepOk(1, answered({ lat: "95" }))).toBe(false);
   });
 
   it("writes degrees without trailing zeros and at most six decimals", () => {
@@ -118,36 +121,81 @@ describe("the symbol step", () => {
     expect(symbolProblem("a-")).toBe("Table: / \\ 0-9 A-Z");
     expect(symbolProblem("/ ")).toBe("Code: one printable character");
     expect(symbolProblem("")).toBe("");
-    expect(stepOk(2, answered({ symbol: "" }), null)).toBe(false);
-    expect(stepOk(2, answered({ symbol: "/>" }), null)).toBe(true);
-    expect(stepOk(2, answered({ symbol: "a-" }), null)).toBe(false);
+    expect(stepOk(2, answered({ symbol: "" }))).toBe(false);
+    expect(stepOk(2, answered({ symbol: "/>" }))).toBe(true);
+    expect(stepOk(2, answered({ symbol: "a-" }))).toBe(false);
   });
 });
 
+// The Radio step is live, as the Radio group of the Settings tab is (plan section 6): it has no answers, and Finish waits for "one enabled radio with no field in error" over the page's radios and settings.
 describe("the radio step", () => {
+  /** The step as the form holds it for these settings (a station of before: radio 1 the FM radio, radio 2 the HF radio), with what is being changed, the complaints, and whether the daemon searches the ports. */
+  function ready(extra: Record<string, string> = {}, more: Partial<RadioStep> = {}, rows: RadioRow[] | null = null): boolean {
+    const values = { ...configValues().values, ...extra };
+    const step: RadioStep = { values, draft: { ...values, ...more.draft }, errors: more.errors ?? {}, search: more.search ?? true };
+    const radios = pageRadios(radiosTopic(...(rows ?? [radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury", { enabled: false })])), null);
+    return radioReady(radios, radioStepKeys(values, step.draft), step);
+  }
+
   it("needs no port where the daemon searches, and a picked one where it does not", () => {
-    expect(stepOk(3, answered({ port: "" }), null)).toBe(true); // the daemon has not said yet
-    expect(stepOk(3, answered({ port: "" }), true)).toBe(true);
-    expect(stepOk(3, answered({ port: "" }), false)).toBe(false);
-    expect(stepOk(3, answered({ port: "COM3" }), false)).toBe(true);
+    expect(ready({ "serial/port": "" }, { search: null })).toBe(true); // the daemon has not said yet
+    expect(ready({ "serial/port": "" }, { search: true })).toBe(true);
+    expect(ready({ "serial/port": "" }, { search: false })).toBe(false);
+    expect(ready({ "serial/port": "COM3" }, { search: false })).toBe(true);
+    expect(ready({ "serial/port": "" }, { search: false, draft: { "serial/port": "COM3" } })).toBe(true); // (as the form holds it)
   });
 
-  it("checks the speed when there is one, and leaves an empty one to the profile", () => {
-    expect(stepOk(3, answered({ baud: "" }), true)).toBe(true);
-    expect(stepOk(3, answered({ baud: "57600" }), true)).toBe(true);
-    for (const bad of ["12", "fast", "9600.5", "999999"]) {
-      expect(stepOk(3, answered({ baud: bad }), true), bad).toBe(false);
-      expect(stepProblems(3, answered({ baud: bad })).baud, bad).toBe("300 to 921600");
-    }
+  it("is not ready while a field of the radio has a complaint, the page's or the daemon's, and a field the radio's type does not show does not count", () => {
+    expect(ready({}, { errors: { "serial/baud": "300 to 921600" } })).toBe(false);
+    expect(ready({}, { errors: { "serial/port": "no such port" } })).toBe(false);
+    expect(ready({}, { errors: { "tnc/profile": "not a type" } })).toBe(false);
+    expect(ready({}, { errors: { "fm/enabled": "at least one radio stays on" } })).toBe(false);
+    expect(ready({}, { errors: { "serial/baud": "" } })).toBe(true);
+    expect(ready({}, { errors: { "tcp/port": "1 to 65535", "station/call": "Not a call" } })).toBe(true); // (a serial TNC has no TCP port; the call is not the radio's)
   });
 
-  it("needs a host and a port for a TCP profile, and ignores the serial fields then", () => {
-    const direwolf = answered({ profile: "kiss-tcp", host: "127.0.0.1", tcpPort: "8001", baud: "x", port: "" });
-    expect(stepOk(3, direwolf, false)).toBe(true);
-    expect(stepOk(3, { ...direwolf, host: "" }, true)).toBe(false);
-    expect(stepOk(3, { ...direwolf, tcpPort: "" }, true)).toBe(false);
-    expect(stepProblems(3, { ...direwolf, tcpPort: "70000" }).tcpPort).toBe("1 to 65535");
-    expect(stepProblems(3, { ...direwolf, host: "my pi" }).host).toBe("Not an address");
+  it("takes a TNC over TCP with its host and port, the defaults where they are empty, and leaves the serial port alone then", () => {
+    const tcp = { "tnc/profile": "kiss-tcp", "serial/port": "" };
+    expect(ready(tcp, { search: false })).toBe(true);
+    expect(ready({ ...tcp, "tcp/host": "", "tcp/port": "" }, { search: false })).toBe(true);
+    expect(ready(tcp, { errors: { "tcp/port": "1 to 65535" } })).toBe(false);
+    expect(ready(tcp, { errors: { "tcp/host": "Not an address" } })).toBe(false);
+    expect(ready(tcp, { errors: { "serial/baud": "300 to 921600" } })).toBe(true);
+  });
+
+  it("needs no port, no speed and no host for the Dummy radio, even where the daemon does not search the ports", () => {
+    expect(ready({ "tnc/profile": "dummy", "serial/port": "" }, { search: false })).toBe(true);
+    expect(ready({ "tnc/profile": "dummy" }, { errors: { "serial/baud": "300 to 921600" } })).toBe(true); // (what is left in the hidden fields is not looked at)
+  });
+
+  it("needs one radio on that is right: another on with a complaint, one that is off or removed with one, or none at all do not stop it, and only one that is right lets it go", () => {
+    const both = { "hf/enabled": "true" };
+    const hf = [radioRow(1, "kenwood-tnc2"), radioRow(2, "mercury")];
+    expect(ready(both, { errors: { "serial/baud": "300 to 921600" } }, hf)).toBe(true); // (the HF radio is right)
+    expect(ready(both, { errors: { "serial/baud": "300 to 921600", "mercury/keying": "no such port" } }, hf)).toBe(false);
+    expect(ready({ "fm/enabled": "false", "hf/enabled": "true" }, { search: false }, hf)).toBe(true); // (the HF radio alone needs no serial port)
+    expect(ready({ "fm/enabled": "false" }, {}, hf)).toBe(false); // (as the form holds it: no radio on)
+    expect(ready({}, {}, [])).toBe(false);
+    const own = [
+      radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }),
+      radioRow(3, "kiss", { number: 2 }),
+      radioRow(4, "kiss-tcp", { number: 3, enabled: false }),
+    ];
+    expect(ready({ "radio/3/port": "" }, { search: false }, own)).toBe(false);
+    expect(ready({ "radio/3/port": "" }, { search: false, draft: { "radio/3/port": "/dev/ttyACM0" } }, own)).toBe(true);
+    expect(ready({}, { errors: { "radio/3/baud": "300 to 921600" } }, own)).toBe(false);
+    expect(ready({}, { errors: { "radio/4/tcp_port": "1 to 65535", "radio/3/tcp_port": "1 to 65535" } }, own)).toBe(true); // (radio 4 is off, and radio 3 has no TCP port)
+  });
+
+  it("works the radios of before by the keys the Radio group shows for their type", () => {
+    const values = configValues().values;
+    const keys = radioStepKeys(values, values);
+    expect(keys).toEqual(expect.arrayContaining(["fm/enabled", "hf/enabled", "tnc/profile", "serial/port", "serial/baud", "hf/profile"]));
+    expect(keys.filter((key) => key.startsWith("tcp/") || key === "serial/last_port")).toEqual([]);
+    expect(radioStepKeys(values, { ...values, "tnc/profile": "kiss-tcp" }).filter((key) => key.startsWith("tcp/") || key.startsWith("serial/"))).toEqual([
+      "tcp/host",
+      "tcp/port",
+    ]);
   });
 
   it("lists the ports with what the system calls them: Automatic first where the daemon searches, a blank where it does not", () => {
@@ -172,20 +220,9 @@ describe("the radio step", () => {
 });
 
 describe("what the guide starts with", () => {
-  it("is the daemon's settings, with the profile's own speed left empty for the placeholder", () => {
+  it("is the daemon's settings: the call, the place and the symbol (the radios have no answers: the Radio step is live)", () => {
     const f = fieldsFrom(configValues({ "serial/baud": "9600", "station/symbol_table": "\\", "station/symbol_code": "k" }).values);
-    expect(f).toMatchObject({
-      call: "OH2GBA",
-      lat: "60.17",
-      lon: "24.94",
-      symbol: "\\k",
-      profile: "kenwood-tnc2",
-      baud: "",
-      host: "127.0.0.1",
-      tcpPort: "8001",
-    });
-    expect(baudShown("kenwood-tnc2", "57600")).toBe("57600");
-    expect(baudShown("kenwood-tnc2", " 9600 ")).toBe("");
+    expect(f).toEqual({ call: "OH2GBA", lat: "60.17", lon: "24.94", symbol: "\\k" });
     expect(fieldsFrom({}).symbol).toBe("/-");
   });
 });
@@ -212,14 +249,11 @@ describe("setupChanges", () => {
       "station/lon": "24.94",
       "beacon/interval_min": "30",
     });
-    expect(setupChanges(answered({ symbol: "/>", profile: "kantronics", port: "/dev/ttyUSB0", baud: "4800" }), fresh())).toEqual({
+    expect(setupChanges(answered({ symbol: "/>" }), fresh())).toEqual({
       "station/call": "OH2ABC",
       "station/lat": "60.17",
       "station/lon": "24.94",
       "station/symbol_code": ">",
-      "tnc/profile": "kantronics",
-      "serial/port": "/dev/ttyUSB0",
-      "serial/baud": "4800",
       "beacon/interval_min": "30",
     });
   });
@@ -227,67 +261,10 @@ describe("setupChanges", () => {
   it("is nothing when the answers are what the daemon has, however a number is written", () => {
     const values = configValues().values;
     expect(setupChanges({ ...fieldsFrom(values), lat: "60.170", lon: "24,94", call: "oh2gba" }, values)).toEqual({});
-    expect(setupChanges({ ...fieldsFrom(values), baud: "9600" }, values)).toEqual({}); // the profile's speed is the empty one
   });
 
-  it("sends a speed that is not the profile's, and an empty speed that clears one", () => {
-    const values = configValues({ "serial/baud": "57600" }).values;
-    expect(fieldsFrom(values).baud).toBe("57600");
-    expect(setupChanges({ ...fieldsFrom(values), baud: "" }, values)).toEqual({ "serial/baud": "" });
-    expect(setupChanges({ ...fieldsFrom(values), baud: "19200" }, values)).toEqual({ "serial/baud": "19200" });
-  });
-
-  it("sends the host and port of a TCP profile and clears a serial device the daemon holds, and none of the serial keys", () => {
-    const values = { ...fresh(), "serial/port": "/dev/ttyUSB0" };
-    const changes = setupChanges(answered({ profile: "kiss-tcp", host: " 192.168.1.5 ", tcpPort: "8002", port: "/dev/ttyUSB0", baud: "4800" }), values);
-    expect(changes).toEqual({
-      "station/call": "OH2ABC",
-      "station/lat": "60.17",
-      "station/lon": "24.94",
-      "tnc/profile": "kiss-tcp",
-      "tcp/host": "192.168.1.5",
-      "tcp/port": "8002",
-      "serial/port": "",
-      "beacon/interval_min": "30",
-    });
-    expect(setupChanges(answered({ profile: "kiss-tcp" }), { ...fresh(), "serial/port": "socket://127.0.0.1:8001" })).not.toHaveProperty("serial/port");
-  });
-
-  it("sends the serial keys and none of the TCP ones for a serial profile", () => {
-    const changes = setupChanges(answered({ host: "other", tcpPort: "9", port: "COM3" }), fresh());
-    expect(changes).toMatchObject({ "serial/port": "COM3" });
-    expect(Object.keys(changes).filter((k) => k.startsWith("tcp/"))).toEqual([]);
-  });
-});
-
-describe("the Dummy radio in the radio step", () => {
-  const dummy = (extra: Partial<SetupFields> = {}) => answered({ profile: "dummy", ...extra });
-
-  it("needs no port, no speed and no host: the step is right with none, even where the daemon does not search the ports", () => {
-    expect(stepOk(3, dummy({ port: "", baud: "" }), false)).toBe(true);
-    expect(stepOk(3, dummy({ port: "", baud: "" }), null)).toBe(true);
-    expect(stepOk(3, answered({ port: "" }), false)).toBe(false); // (a serial TNC does)
-    expect(stepProblems(3, dummy({ baud: "12", host: "", tcpPort: "70000" }))).toEqual({}); // (what is left in the hidden fields is not looked at)
-  });
-
-  it("sends the type and none of the port, speed, host and TCP port, and leaves what the daemon holds", () => {
-    const values = { ...fresh(), "serial/port": "COM3", "serial/baud": "57600" };
-    const changes = setupChanges(dummy({ port: "COM9", baud: "4800", host: "x", tcpPort: "9" }), values);
-    expect(changes["tnc/profile"]).toBe("dummy");
-    expect(Object.keys(changes).filter((k) => k.startsWith("serial/") || k.startsWith("tcp/"))).toEqual([]);
-  });
-
-  it("is a radio like the others when it is the daemon's: the fields start from its settings", () => {
-    expect(fieldsFrom({ ...fresh(), "tnc/profile": "dummy" }).profile).toBe("dummy");
-    expect(setupChanges(fieldsFrom({ ...fresh(), "tnc/profile": "dummy" }), { ...fresh(), "tnc/profile": "dummy" })).not.toHaveProperty("tnc/profile");
-  });
-});
-
-describe("radioChanges", () => {
-  it("is the keys of the radio among the changes, not the call, the position or the map", () => {
-    const f = answered({ port: "COM5", baud: "57600" });
-    expect(radioChanges(f, fresh())).toEqual({ "serial/port": "COM5", "serial/baud": "57600" });
-    expect(radioChanges(answered({ profile: "kiss-tcp", host: "10.0.0.5" }), fresh())).toEqual({ "tnc/profile": "kiss-tcp", "tcp/host": "10.0.0.5" });
-    expect(radioChanges(fieldsFrom(fresh()), fresh())).toEqual({});
+  it("has nothing of a radio, whatever the settings of the radios are: they were saved as they were changed (plan section 6: the call, the place, the symbol and the beacon still go at Finish)", () => {
+    const values = { ...fresh(), "fm/enabled": "false", "hf/enabled": "true", "tnc/profile": "kiss-tcp", "serial/port": "/dev/ttyUSB0" };
+    expect(Object.keys(setupChanges(answered(), values))).toEqual(["station/call", "station/lat", "station/lon", "beacon/interval_min"]);
   });
 });

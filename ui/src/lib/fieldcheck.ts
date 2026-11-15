@@ -3,6 +3,7 @@
 // in force (and the rules between settings: the comment against the power, the status against the rigctld, the port against the radio type); its refusal is shown under the field.
 import { t } from "@/i18n";
 import { baseCall, mayTransmitAs, normalizeCall, parsePathSetting, placeholderCall } from "@/lib/calls";
+import { flatKeyOf, radioFieldOf } from "@/lib/settingsradio";
 import { LIMITS, SYMBOL_TABLES } from "@/protocol/lists";
 
 /** The whole numbers the daemon limits, by setting: whether an empty field is a value (none, or the profile's own). */
@@ -15,6 +16,12 @@ const WHOLE: Record<string, boolean> = {
   "map/radius_km": false,
   "gps/baud": true,
 };
+
+/** A radio's own setting is checked as the same field of the radios of before (`radio/3/baud` as `serial/baud`): the rules of a speed, a host or a TCP port are the same for every radio. */
+function asFlat(key: string): string {
+  const field = radioFieldOf(key)?.field;
+  return (field === undefined ? null : flatKeyOf(field)) ?? key;
+}
 
 /** A number as typed: a comma is a decimal point; null for text that is no number. */
 export function parseNumber(text: string): number | null {
@@ -67,6 +74,8 @@ export function symbolProblem(text: string): string {
 /** What is wrong with the text of a setting as it stands, or "" when the page has nothing against it (the daemon may still refuse it). `quiet`: an empty field says nothing, whether or not the setting needs a value (the guide:
  * its Next waits for the answer). */
 export function problemOf(key: string, text: string, quiet = false): string {
+  const flat = asFlat(key);
+  if (flat !== key) return problemOf(flat, text, quiet);
   if (key in WHOLE) return wholeProblem(key, text, quiet);
   switch (key) {
     case "station/call":
@@ -87,6 +96,7 @@ export function problemOf(key: string, text: string, quiet = false): string {
 /** Whether the text typed is the value the daemon has already, however it is written (`60.170` and `60.17`, `oh2gba` and `OH2GBA`): nothing then needs sending. */
 export function sameValue(key: string, typed: string, current: string): boolean {
   if (typed === current) return true;
+  if (asFlat(key) !== key) return sameValue(asFlat(key), typed, current);
   if (key === "station/call") return normalizeCall(typed) === current;
   if (key === "station/lat" || key === "station/lon" || key in WHOLE) {
     const a = parseNumber(typed);

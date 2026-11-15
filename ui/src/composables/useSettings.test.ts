@@ -307,3 +307,36 @@ describe("useSettings: no toast", () => {
     expect("undo" in settings || "undoLast" in settings).toBe(false);
   });
 });
+
+// The radios' own settings (`radio/3/port`) and the main radio, which the daemon tells apart in `config.radio_values`: the form works them as it works the others.
+describe("useSettings: the radios' own settings", () => {
+  const withOwn = (config: ConfigValues, own: Record<string, string>): ConfigValues => ({
+    ...config,
+    radio_values: { ...config.radio_values, ...own },
+    radio_defaults: { ...config.radio_defaults, "radio/3/baud": "9600" },
+  });
+
+  it("are in the draft and the defaults beside the settings of before, and sent as any setting", () => {
+    const { config, settings, sets } = setUp();
+    config.value = withOwn(configValues(), { "radio/3/port": "/dev/ttyACM0", "radio/3/baud": "" });
+    return nextTick().then(() => {
+      expect([settings.draft["radio/3/port"], settings.draft["station/main_radio"], settings.draft["station/call"]]).toEqual(["/dev/ttyACM0", "", "OH2GBA"]);
+      expect(settings.defaults.value["radio/3/baud"]).toBe("9600");
+      settings.change({ "radio/3/port": "/dev/ttyUSB1" });
+      expect(sets()).toEqual([{ "radio/3/port": "/dev/ttyUSB1" }]);
+    });
+  });
+
+  it("follow the daemon where they were not touched, and keep a refusal under the key it names", async () => {
+    const { config, settings, refuse } = setUp();
+    config.value = withOwn(configValues(), { "radio/3/port": "/dev/ttyACM0", "radio/3/baud": "" });
+    await nextTick();
+    config.value = withOwn(configValues(), { "radio/3/port": "/dev/ttyACM1", "radio/3/baud": "" });
+    await nextTick();
+    expect(settings.draft["radio/3/port"]).toBe("/dev/ttyACM1");
+    settings.change({ "radio/3/port": "/dev/ttyUSB0" });
+    await refuse("set_config: radio/3/port: that device is in use by Mobile: choose another", "radio.resource_held", { resource: "serial", holder: "Mobile" });
+    expect(settings.errors["radio/3/port"]).toBe("that device is in use by Mobile: choose another");
+    expect(settings.draft["radio/3/port"]).toBe("/dev/ttyACM1");
+  });
+});

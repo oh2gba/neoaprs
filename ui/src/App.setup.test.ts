@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { FakeMap, FakeMarker } from "@/test/fakemap";
 import { FakeSocket } from "@/test/fakesocket";
-import { configValues, errorOf, hello, mapFile, mapState, status } from "@/test/fixtures";
+import { configValues, errorOf, hello, mapFile, mapState, radioRow, status } from "@/test/fixtures";
 import { mountApp, open, tabButton, useAppHarness } from "@/test/app";
 
 useAppHarness();
@@ -69,7 +69,7 @@ describe("App: the first-run guide", () => {
     expect(wrapper.find<HTMLInputElement>("#setup-call").element.value).toBe("OH2GBA");
   });
 
-  /** A fresh install: no call, no position, and the guide open on the first step. */
+  /** A fresh install: no call, no position, radio 1 alone (the daemon's topic `radios`: the Radio step waits for it), and the guide open on the first step. */
   async function fresh() {
     const { wrapper, socket } = await open();
     socket.say({
@@ -80,6 +80,7 @@ describe("App: the first-run guide", () => {
     });
     socket.say(status({ call: "", lat: null, lon: null }));
     socket.say({ type: "state", topic: "map", rev: 0, value: mapState({ blocked: "no position", box: null }) });
+    socket.say({ type: "state", topic: "radios", rev: 0, value: { "1": radioRow(1, "kenwood-tnc2") } });
     await flushPromises();
     return { wrapper, socket };
   }
@@ -117,7 +118,7 @@ describe("App: the first-run guide", () => {
     expect(FakeMarker.live().filter((m) => m.element.classList.contains("setuppin"))).toHaveLength(1);
   });
 
-  it("goes through the four steps and sends one set_config with the keys that changed, then closes when the daemon tells the settings", async () => {
+  it("goes through the four steps, saves the radio as it is changed (the Radio step is live) and at Finish one set_config with the other keys that changed, then closes when the daemon tells the settings", async () => {
     const { wrapper, socket } = await fresh();
     const configs = () => socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
     const next = () => wrapper.find("form").trigger("submit");
@@ -149,15 +150,15 @@ describe("App: the first-run guide", () => {
       ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
     });
     await flushPromises();
-    await wrapper.find("#setup-port").setValue("/dev/ttyUSB0");
-    expect(configs()).toHaveLength(1);
+    await wrapper.find("#setup-serial-port").setValue("/dev/ttyUSB0");
+    expect(configs()).toHaveLength(2);
+    expect(configs()[1]).toEqual({ cmd: "set_config", values: { "serial/port": "/dev/ttyUSB0" } }); // (at once, as from the Settings tab)
     await next();
-    expect(configs()[1]).toEqual({
+    expect(configs()[2]).toEqual({
       cmd: "set_config",
       values: {
         "station/call": "OH2ABC-9",
         "station/symbol_code": ">",
-        "serial/port": "/dev/ttyUSB0",
         "beacon/interval_min": "30",
       },
     });
@@ -176,7 +177,7 @@ describe("App: the first-run guide", () => {
     });
     await flushPromises();
     expect(wrapper.find(".setup").exists()).toBe(false);
-    expect(configs()).toHaveLength(2);
+    expect(configs()).toHaveLength(3);
     expect(wrapper.find(".appheader").text()).not.toContain("OH2ABC"); // (our call is in the settings and the status, not in the header)
     expect(wrapper.find(".appheader .nocall").exists()).toBe(false);
   });
@@ -221,5 +222,25 @@ describe("App: the first-run guide", () => {
     await flushPromises();
     expect(wrapper.find(".appheader .pill-map").exists()).toBe(false);
     expect(wrapper.find(".setup .setup-mapline").exists()).toBe(false);
+  });
+
+  it("has the Radio step's boxes beside the Settings tab's with no id twice on the page, and its radio stays when the guide is closed", async () => {
+    const { wrapper, socket } = await fresh();
+    await wrapper.find("#setup-call").setValue("oh2abc");
+    await wrapper.find("form").trigger("submit");
+    await wrapper.find("#setup-lat").setValue("60.17");
+    await wrapper.find("#setup-lon").setValue("24.94");
+    for (let i = 0; i < 2; i++) await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.find(".setup-step-name").text()).toBe("Radio");
+    expect(wrapper.find("#pane-settings #set-fm-enabled").exists()).toBe(true);
+    expect(wrapper.find(".setup #setup-fm-enabled").exists()).toBe(true);
+    const ids = [...document.querySelectorAll("[id]")].map((e) => e.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    await wrapper.find(".setup #setup-tnc-profile").setValue("kiss");
+    const configs = socket.sent.filter((c) => (c as { cmd: string }).cmd === "set_config");
+    expect(configs.at(-1)).toEqual({ cmd: "set_config", values: { "tnc/profile": "kiss" } });
+    await wrapper.find(".setup-close").trigger("click");
+    expect(wrapper.find<HTMLSelectElement>("#pane-settings #set-tnc-profile").element.value).toBe("kiss"); // (the same settings: nothing waits for Finish)
   });
 });

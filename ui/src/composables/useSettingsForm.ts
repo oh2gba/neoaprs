@@ -4,6 +4,7 @@
 import { computed, ref, type Ref } from "vue";
 import type { Settings } from "@/composables/useSettings";
 import { confirmMessage, remotePage, TOGETHER } from "@/lib/settinglinks";
+import { inputId } from "@/lib/settingsradio";
 import { groupKeys, type Scope } from "@/lib/settings";
 import type { ConfigValues } from "@/protocol/protocol";
 
@@ -52,5 +53,5 @@ export function useSettingsForm(config: Ref<ConfigValues | null>, settings: Sett
 
 export type SettingsFormState = ReturnType<typeof useSettingsForm>;
 
-/** The id of the input of a key in the form. */
-export const fieldId = (key: string): string => `set-${key.replace("/", "-")}`;
+/** The id of the input of a key in the form (lib/settingsradio.ts `inputId`: every "/" a "-"). */
+export const fieldId = inputId;
