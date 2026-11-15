@@ -29,6 +29,8 @@ import type {
   PortsMessage,
   PositionHistoryMessage,
   QruState,
+  RadioAddedMessage,
+  RadioRow,
   ReleaseNotesMessage,
   SkedsState,
   SignalSeriesMessage,
@@ -52,6 +54,10 @@ export interface DaemonContext {
   tnc: Read<TncState | null>;
   /** the HF radio (the Mercury modem), the same shape as `tnc`; its state is `stopped` while HF is off, null until the daemon has told */
   hf: Read<TncState | null>;
+  /** every radio of the station by its id as text, removed ones too (the topic `radios`; composables/useRadios.ts reads it); null until the daemon has told it, and from a daemon of the wire of before, which never does */
+  radios: Read<ReadonlyMap<string, RadioRow> | null>;
+  /** the answer to this page's latest `radio_add`: the id of the radio it made, whose row comes with the next patch of `radios` (composables/useRadios.ts `added` waits for it); null before */
+  radioAdded: Read<RadioAddedMessage | null>;
   /** whether the radios are named on the page: only where there are two, while the HF radio is on (the FM radio's channel tag is "FM" beside "HF", else "RF") */
   radiosNamed: Read<boolean>;
   /** what the page keeps of the HF radio's waterfall (the rows of the last two minutes, the stations heard), which the panes draw from and listen to */

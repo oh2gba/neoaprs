@@ -85,7 +85,7 @@ def station_radio(radios: RadioPick | Radio, config: ConfigSource, to: str) -> A
     pick = as_pick(radios, config)
     radio = pick.email() if to == EMAIL_GATEWAY else pick.for_station(to)
     if radio is None and to == EMAIL_GATEWAY:
-        raise MessagingError("email goes out over the FM radio, which is off", "message.email_fm_off")
+        raise MessagingError("no radio that internet gateways hear is on", "message.email_fm_off")
     if radio is None:
         raise MessagingError(NO_RADIO)
     return radio
@@ -133,10 +133,9 @@ class MessageRadios:
         message leaves its radio). MessagingError while there is none."""
         pick = as_pick(self._given, self._config)
         choice = _choice(pick, record.to_call)
-        if record.id not in self._kept and record.attempts > 0 and (last := self._last(record.id)) is not None and choice in (None, last[0]):
-            self._kept[record.id] = _keep(pick, record.to_call, last[0], choice, last[1])      # (a restart: the radio its last attempt went on, unless a choice of another radio moved it)
-        kept = self._kept.get(record.id)
+        kept = self._keeps(pick, record, choice)
         if kept is not None:
+            self._kept[record.id] = kept
             radio = next((r for r in pick.enabled() if r.id == kept.radio), None)
             why = _leaves(pick, record.to_call, kept, radio is not None, choice)
             if radio is not None and why is None:
@@ -144,6 +143,22 @@ class MessageRadios:
             self._kept[record.id] = None
             log.info("message %d to %s goes on the radio the station is reached on now: %s", record.id, record.to_call, why)
         return self.station(record.to_call)
+
+    def peek(self, record: MessageRecord) -> AirRadio:
+        """The radio `of` gives now, with nothing kept and nothing logged (for the page's row). MessagingError while there is none."""
+        pick = as_pick(self._given, self._config)
+        choice = _choice(pick, record.to_call)
+        kept = self._keeps(pick, record, choice)
+        radio = None if kept is None else next((r for r in pick.enabled() if r.id == kept.radio), None)
+        if kept is not None and radio is not None and _leaves(pick, record.to_call, kept, True, choice) is None:
+            return radio
+        return self.station(record.to_call)
+
+    def _keeps(self, pick: RadioPick, record: MessageRecord, choice: RadioId | None) -> Kept | None:
+        """The radio the message keeps; after a restart the one its last attempt went on, unless a choice of another radio moved it (made here, stored by `of` alone)."""
+        if record.id not in self._kept and record.attempts > 0 and (last := self._last(record.id)) is not None and choice in (None, last[0]):
+            return _keep(pick, record.to_call, last[0], choice, last[1])
+        return self._kept.get(record.id)
 
     def sent(self, record: MessageRecord, radio: AirRadio, at: datetime) -> None:
         """An attempt of the message went out on the radio at `at`: the radio it keeps, when it keeps none yet."""

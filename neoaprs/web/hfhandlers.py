@@ -6,6 +6,7 @@ from neoaprs.config import can_transmit
 from .dispatch import Ctx, UserError, command
 from .messagewire import SetMessageRadio
 from .tncwire import HfFrequencies, HfKeyTest, HfScope, HfTune
+from .views import on_their_way
 
 
 def may_transmit(ctx: Ctx, name: str) -> None:
@@ -56,5 +57,8 @@ async def hf_frequencies(ctx: Ctx, cmd: HfFrequencies) -> None:
 @command(SetMessageRadio)
 async def message_radio(ctx: Ctx, cmd: SetMessageRadio) -> None:
     """The command of before chooses for a station of the book only, whatever the store of the choices keeps (`station_radio` is the one that may keep a call the book does not hold: plan rule 3.2)."""
-    if ctx.ctl.stationbook.get(cmd.call) is None or not ctx.ctl.radios.choose(cmd.call, cmd.radio):
+    station = ctx.ctl.stationbook.get(cmd.call)
+    if station is None or not ctx.ctl.radios.choose(cmd.call, cmd.radio):
         raise UserError(f"{cmd.cmd}: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})
+    for key in on_their_way(ctx.ctl.messaging.records(), station.call):
+        ctx.hub.changed("messages", key)            # (a message on its way takes the radio chosen from its next attempt: its `radio_now`)

@@ -6,7 +6,7 @@ import SettingsForm from "@/components/SettingsForm.vue";
 import { useFindRadio } from "@/composables/useFindRadio";
 import type { PortsMessage, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, hfState, tncState } from "@/test/fixtures";
+import { configValues, hfState, tncState, portRow, radioSearch, soundCard } from "@/test/fixtures";
 
 const ports = (find = true): PortsMessage => ({
   type: "ports",
@@ -14,7 +14,7 @@ const ports = (find = true): PortsMessage => ({
   keying: "",
   search: find,
   find,
-  ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
+  ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")],
 });
 
 function make(more: Given = {}, extra: Record<string, string> = {}) {
@@ -233,7 +233,7 @@ describe("the toast of Find my radio", () => {
     find.start();
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".toast").text()).toBe("Looking for the radio…Cancel");
-    message.value = { type: "radio_search", state: "trying", port: "/dev/ttyUSB0", baud: 9600, profile: "", number: 2, total: 14 };
+    message.value = radioSearch({ number: 2 });
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".toast span").text()).toBe("Looking for the radio: /dev/ttyUSB0 at 9600 (2 of 14)");
     await wrapper.find("button").trigger("click");
@@ -244,7 +244,7 @@ describe("the toast of Find my radio", () => {
     const { find, message } = running();
     const wrapper = mount(FindRadioToast, { props: { find } });
     find.start();
-    message.value = { type: "radio_search", state: "cancelled", port: "", baud: null, profile: "", number: 0, total: 0 };
+    message.value = radioSearch({ state: "cancelled", port: "", baud: null, number: 0, total: 0 });
     await wrapper.vm.$nextTick();
     expect(wrapper.find(".toast").exists()).toBe(false);
   });
@@ -255,8 +255,8 @@ describe("the HF radio's box in the Radio group", () => {
     ...ports(),
     keying: "rts:/dev/ttyUSB0",
     sound_cards: [
-      { id: "plughw:1,0", name: "USB AUDIO  CODEC USB Audio", default: true, pick: true },
-      { id: "plughw:0,0", name: "HDA Intel PCH", default: false, pick: false },
+      soundCard("plughw:1,0", "USB AUDIO  CODEC USB Audio", { default: true, pick: true }),
+      soundCard("plughw:0,0", "HDA Intel PCH", { default: false, pick: false }),
     ],
   });
   const on = { "hf/enabled": "true", "mercury/sound_card": "plughw:1,0", "mercury/keying": "vox" };

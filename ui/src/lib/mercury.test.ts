@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { portRow, soundCard } from "@/test/fixtures";
 import { keyingChoices, soundCardChoices, soundCardPick, soundCardWith } from "@/lib/mercury";
 import type { PortsMessage } from "@/protocol/protocol";
 
-const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+const row = (device: string, description: string) => portRow(device, description);
 const ports: PortsMessage = {
   type: "ports",
   search: true,
   find: true,
   ports: [row("/dev/ttyUSB0", "FT232R USB UART"), row("bt://AA:BB:CC:DD:EE:01", "TH-D74"), row("COM3", "USB Serial Port (COM3)")],
   sound_cards: [
-    { id: "plughw:1,0", name: "USB Audio CODEC", default: true, pick: true },
-    { id: "plughw:0,0", name: "HDA Intel PCH", default: false, pick: false },
+    soundCard("plughw:1,0", "USB Audio CODEC", { default: true, pick: true }),
+    soundCard("plughw:0,0", "HDA Intel PCH", { default: false, pick: false }),
   ],
   keying: "rts:/dev/ttyUSB0",
 };
@@ -54,10 +55,7 @@ describe("the sound cards as a plain choice", () => {
   it("tell two cards of one name apart by their ids", () => {
     const two: PortsMessage = {
       ...ports,
-      sound_cards: [
-        { id: "hw:1,0", name: "USB Audio", default: false, pick: false },
-        { id: "hw:2,0", name: "USB Audio", default: false, pick: false },
-      ],
+      sound_cards: [soundCard("hw:1,0", "USB Audio", { default: false, pick: false }), soundCard("hw:2,0", "USB Audio", { default: false, pick: false })],
     };
     expect(soundCardChoices(two).map((c) => c.label)).toEqual(["USB Audio (hw:1,0)", "USB Audio (hw:2,0)"]);
   });
@@ -65,7 +63,7 @@ describe("the sound cards as a plain choice", () => {
   it("find the whole Windows card of a setting that names one of its two devices, and nothing for a whole card or an unknown one", () => {
     const windows: PortsMessage = {
       ...ports,
-      sound_cards: [{ id: "{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}", name: "USB Audio CODEC", default: false, pick: true }],
+      sound_cards: [soundCard("{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}", "USB Audio CODEC", { default: false, pick: true })],
     };
     expect(soundCardWith(windows, "{0.0.0.00000000}.{spk}")).toBe("{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}");
     expect(soundCardWith(windows, "{0.0.1.00000000}.{mic}")).toBe("{0.0.1.00000000}.{mic}|{0.0.0.00000000}.{spk}");
@@ -77,8 +75,8 @@ describe("the sound cards as a plain choice", () => {
     const linux: PortsMessage = {
       ...ports,
       sound_cards: [
-        { id: "plughw:CARD=Device,DEV=0", name: "USB Audio Device", numbered: "plughw:0,0", default: false, pick: false },
-        { id: "plughw:CARD=CODEC,DEV=0", name: "USB AUDIO  CODEC", numbered: "plughw:3,0", default: false, pick: true },
+        soundCard("plughw:CARD=Device,DEV=0", "USB Audio Device", { numbered: "plughw:0,0", default: false, pick: false }),
+        soundCard("plughw:CARD=CODEC,DEV=0", "USB AUDIO  CODEC", { numbered: "plughw:3,0", default: false, pick: true }),
       ],
     };
     expect(soundCardWith(linux, "plughw:3,0")).toBe("plughw:CARD=CODEC,DEV=0");

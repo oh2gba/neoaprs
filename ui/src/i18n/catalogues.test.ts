@@ -1,8 +1,10 @@
 // What every language in LOCALES owes the English catalogue: the same ids, the same {values} in each message (a translator may drop one from a form of a plural, not invent one), the plural forms its language has, and its own name.
+// A text not translated yet is the English, written in the language's own typography, and untranslated.json lists its id under the language for the translators; a refusal (`error.`) is never English unlisted.
 import { describe, expect, it } from "vitest";
 import { en } from "@/i18n/en";
-import { LOCALES } from "@/i18n/locales";
+import { LOCALES, SOURCE } from "@/i18n/locales";
 import { placeholders, texts, type Message } from "@/i18n/message";
+import untranslated from "@/i18n/untranslated.json";
 
 const source = en as Record<string, Message>;
 /** The button that chooses the place on the map (the My station tab, the Objects form, the setup guide), in each language; nothing says "pick" in it. */
@@ -18,6 +20,10 @@ const CHOOSE_ON_MAP: Record<string, string> = {
   "pt-BR": "Escolher no mapa",
 };
 const names = (m: Message): string[] => [...new Set(texts(m).flatMap(placeholders))].sort();
+/** The ids each language still has in English, by its code. */
+const UNTRANSLATED = untranslated as Record<string, string[]>;
+/** The English as a language writes a text it has not translated yet: Italian with the curly apostrophe. */
+const typeset = (code: string, m: Message): string => JSON.stringify(typeof m === "string" && code === "it" ? m.replace(/(\p{L})'(\p{L})/gu, "$1’$2") : m);
 
 describe("the languages of the page", () => {
   it("start with English, which is the source, and have a code and a name of their own", () => {
@@ -50,6 +56,20 @@ describe("the languages of the page", () => {
         expect(wrong.map(([id]) => id)).toEqual([]);
       });
 
+      if (locale.code !== SOURCE)
+        it("has the English only where untranslated.json lists it, and every text listed is still the English", () => {
+          const listed = UNTRANSLATED[locale.code] ?? [];
+          const english = (id: string): boolean => id in source && JSON.stringify(messages[id]) === typeset(locale.code, source[id]);
+          expect(
+            listed.filter((id) => !english(id)),
+            "translated, or no id of the English: take it out of untranslated.json",
+          ).toEqual([]);
+          expect(
+            Object.keys(source).filter((id) => id.startsWith("error.") && !listed.includes(id) && english(id)),
+            "a refusal in English: translate it, or list it in untranslated.json",
+          ).toEqual([]);
+        });
+
       it("has the plural forms of its language, and the form other", () => {
         const categories = new Intl.PluralRules(locale.code).resolvedOptions().pluralCategories;
         const wrong = Object.entries(messages).filter(
@@ -62,6 +82,10 @@ describe("the languages of the page", () => {
       });
     });
   }
+
+  it("list in untranslated.json only languages of the page other than English", () => {
+    expect(Object.keys(UNTRANSLATED).filter((code) => code === SOURCE || !LOCALES.some((l) => l.code === code))).toEqual([]);
+  });
 
   it("writes French with a no-break space before : ; ? ! and %, and Italian with the curly apostrophe", () => {
     const strings = (code: string) => Object.values(LOCALES.find((l) => l.code === code)?.messages ?? {}).flatMap((m) => texts(m));

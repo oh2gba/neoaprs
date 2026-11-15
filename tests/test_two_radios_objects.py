@@ -67,7 +67,7 @@ async def test_the_email_gateway_is_the_fm_radios_and_is_refused_while_it_is_off
     await a.ctl.messaging.send(EMAIL_GATEWAY, "john@example.org hello")
     await w.until(lambda: any(b":EMAIL-2" in f.info for f in frames_of(a.radio)), 10.0)
     assert not any(b":EMAIL-2" in f.info for f in frames_of(a.hf_radio)), "a mail never goes over HF"
-    with pytest.raises(MessagingError, match="FM radio, which is off") as refused:
+    with pytest.raises(MessagingError, match="no radio that internet gateways hear is on") as refused:
         await c.ctl.messaging.send(EMAIL_GATEWAY, "john@example.org hello")
     assert refused.value.code == "message.email_fm_off"
 

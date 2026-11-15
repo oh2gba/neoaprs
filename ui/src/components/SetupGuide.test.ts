@@ -9,11 +9,11 @@ import { SYMBOL_CHOICES } from "@/lib/setup";
 import { TNC_PROFILES } from "@/protocol/lists";
 import type { Command, ConfigValues, MapState, PortsMessage, RadioSearchMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { configValues, mapFile, mapState, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, toastOf, portRow, radioSearch } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
-const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+const row = (device: string, description: string) => portRow(device, description);
 const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   sound_cards: [],
@@ -406,16 +406,16 @@ describe("SetupGuide: the radio", () => {
 });
 
 describe("SetupGuide: the radio, Find my radio and the Terminal", () => {
-  const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => ({
-    type: "radio_search",
-    state: "found",
-    port: "COM5",
-    baud: 57600,
-    profile: "kiss",
-    number: 0,
-    total: 0,
-    ...extra,
-  });
+  const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage =>
+    radioSearch({
+      state: "found",
+      port: "COM5",
+      baud: 57600,
+      profile: "kiss",
+      number: 0,
+      total: 0,
+      ...extra,
+    });
 
   it("has Find my radio and the Terminal under the fields, the same two as the Settings tab has", async () => {
     const { wrapper, stand } = make();

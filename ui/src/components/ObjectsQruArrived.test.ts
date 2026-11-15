@@ -6,7 +6,7 @@ import ObjectsQru from "@/components/ObjectsQru.vue";
 import StationsTable from "@/components/StationsTable.vue";
 import { usePanel } from "@/composables/usePanel";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { NOW, ago, qruState, station, table } from "@/test/fixtures";
+import { NOW, ago, qruState, station, table, qruAsked } from "@/test/fixtures";
 
 const attend = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 vi.mock("@/lib/attention", () => ({ attend }));
@@ -27,7 +27,7 @@ const dpn = (over: Record<string, unknown>) => ({
   settles_at: ago(10),
   ...over,
 });
-const state = (over: Record<string, unknown>, asked = { text: "TEST 150", at: ago(45) }) => qruState({ asked, servers: [dpn(over)] });
+const state = (over: Record<string, unknown>, asked = qruAsked("TEST 150", ago(45))) => qruState({ asked, servers: [dpn(over)] });
 const line = (wrapper: ReturnType<typeof mount>) => wrapper.find(".qru-sent");
 beforeEach(() => attend.mockClear());
 
@@ -42,7 +42,7 @@ describe("Local info: what arrived of what the server sent", () => {
   });
 
   it("says sent 1 and 0 arrived in the warn colour with Ask again once the time for late ones is over, and Ask again sends the same request", async () => {
-    const daemon = fakeDaemon({ qru: state({}, { text: "TEST 150", at: ago(90) }) });
+    const daemon = fakeDaemon({ qru: state({}, qruAsked("TEST 150", ago(90))) });
     const wrapper = mount(ObjectsQru, { global: withDaemon(daemon) });
     expect(line(wrapper).text()).toContain("sent 1 · 0 arrived");
     expect(line(wrapper).classes()).toContain("warn");
@@ -69,7 +69,7 @@ describe("Local info: what arrived of what the server sent", () => {
   });
 
   it("holds Ask again for the minute of the same request (the daemon's limit) with the time left, and for ten seconds after any other, and in RX only", async () => {
-    const daemon = fakeDaemon({ qru: state({}, { text: "TEST 150", at: ago(45) }) });
+    const daemon = fakeDaemon({ qru: state({}, qruAsked("TEST 150", ago(45))) });
     const wrapper = mount(ObjectsQru, { global: withDaemon(daemon) });
     const again = () => wrapper.find<HTMLButtonElement>("button.qru-again");
     expect(again().attributes("disabled")).toBeDefined();
@@ -78,9 +78,9 @@ describe("Local info: what arrived of what the server sent", () => {
     expect(daemon.send).not.toHaveBeenCalled();
     await tell(daemon, { now: NOW + 16_000 });
     expect(again().attributes("disabled")).toBeUndefined();
-    await tell(daemon, { qru: state({}, { text: "INFO 150", at: ago(5) }) });
+    await tell(daemon, { qru: state({}, qruAsked("INFO 150", ago(5))) });
     expect(again().attributes("title")).toBe("Ask OH2DPN again: TEST 150");
-    await tell(daemon, { qru: state({}, { text: "INFO", at: ago(-14) }) });
+    await tell(daemon, { qru: state({}, qruAsked("INFO", ago(-14))) });
     expect(again().attributes("disabled")).toBeDefined();
     const rx = mount(ObjectsQru, { global: withDaemon(fakeDaemon({ qru: state({}), receiveOnly: true })) });
     expect(rx.find("button.qru-again").attributes("title")).toBe("RX only: nothing is sent");

@@ -1,5 +1,5 @@
 """The operator's radio by station (plan §2, "A choice that names a radio which is off or gone"): chosen on the page, told to the page with the station, kept in a state row (config.MESSAGE_RADIOS, which the
-composition root writes) and put back on the stations of the book at the start. A choice is a radio's id, and the row keeps the ids since migration 31 (`{"OH2GAX-2": 2}`); the station's own field
+composition root writes) and put back on the stations of the book at the start; a call the book does not hold keeps its choice by call (plan rule 3.2), until it is forgotten. A choice is a radio's id, and the row keeps the ids since migration 31 (`{"OH2GAX-2": 2}`); the station's own field
 (`Station.message_radio`, which the wire carries until wave 4) says today's word of radios 1 and 2 (`fm`, `hf`) and nothing for any other radio. The radio registry (neoaprs/radioregistry.py) is
 one of these with the radios it has as the ones that can be chosen; a set made by itself (the tests' two radios of before, neoaprs/radios.py) keeps the row in today's words and lets radios 1 and 2
 alone be chosen. No I/O."""
@@ -24,24 +24,26 @@ class StationChoices:
         self._unplaced: dict[str, RadioId] = {}                                   # by call: a choice of a radio not in force in a run whose radios could not be read, kept in the row as it is
 
     def choice(self, call: str) -> RadioId | None:
-        """The radio the operator chose for messages to the station, as it is stored; None for the daemon's own choice."""
+        """The radio the operator chose for messages to the station, as it is stored, for a call the book holds or not; None for the daemon's own choice."""
         station = self._book.get(call)
-        return None if station is None else self._choices.get(station.call, radio_id_of(station.message_radio))
+        return self._choices.get(call) if station is None else self._choices.get(station.call, radio_id_of(station.message_radio))
 
     def choose(self, call: str, radio: RadioId | str | None) -> bool:
-        """The radio messages to the station go out on from now on (None, or "", gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a station that
-        is not in the book and for a radio that cannot be chosen. Today's words `fm` and `hf` name radios 1 and 2 (the page says them until its commands carry ids)."""
+        """The radio messages to the station go out on from now on (None, or "", gives the choice back to the daemon), told to the page with the station and kept across a restart; False for a radio that
+        cannot be chosen. A call the book does not hold keeps its choice by call (plan rule 3.2), and its station has it once it is heard. Today's words `fm` and `hf` name radios 1 and 2 (the page says them until its commands carry ids)."""
         station = self._book.get(call)
         id = radio_id_of(radio) if isinstance(radio, str) else radio
-        if station is None or (isinstance(radio, str) and radio and id is None) or (id is not None and not self._known(id)):
+        if (isinstance(radio, str) and radio and id is None) or (id is not None and not self._known(id)):
             return False
-        station.message_radio = radio_word(id)
-        self._unplaced.pop(station.call, None)
+        key = call if station is None else station.call
+        self._unplaced.pop(key, None)
         if id is not None:
-            self._choices[station.call] = id
+            self._choices[key] = id
         else:
-            self._choices.pop(station.call, None)
-        self._book.changed.emit(station)
+            self._choices.pop(key, None)
+        if station is not None:
+            station.message_radio = radio_word(id)
+            self._book.changed.emit(station)
         self._remember(self.choices_text())
         return True
 
@@ -71,7 +73,7 @@ class StationChoices:
         return calls
 
     def choices_text(self) -> str:
-        """The choices of the stations in the book, as the state row keeps them: by id (`{"OH2GAX-2": 2}`), or in today's words for the two radios of before; with them the choices kept as they are
+        """The choices by call, as the state row keeps them: by id (`{"OH2GAX-2": 2}`), or in today's words for the two radios of before; with them the choices kept as they are
         in a run whose radios could not be read."""
         return json.dumps({call: id if self._by_id else radio_word(id) for call, id in {**self._unplaced, **self._choices}.items()}, sort_keys=True)
 
@@ -93,5 +95,7 @@ class StationChoices:
             id = radio_id_of(value) if isinstance(value, str) else value if isinstance(value, int) and not isinstance(value, bool) else None
             if station is not None and id is not None and self._known(id):
                 station.message_radio, self._choices[station.call] = radio_word(id), id
+            elif station is None and id is not None and self._known(id):
+                self._choices[str(call)] = id
             elif station is not None and id is not None and keep_unknown:
                 self._unplaced[station.call] = id

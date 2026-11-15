@@ -77,7 +77,8 @@ async def test_a_station_heard_on_both_radios_goes_on_fm_until_the_operator_choo
     await r.flush()
     assert json.loads(kept.rows[MESSAGE_RADIOS]) == {"OH2FAR": "fm", "OH2GAX-2": "hf", "OH2NEAR": "hf"}
     assert r.choose("OH2NEAR", "") and r.for_station("OH2NEAR") is fm, "an empty choice gives it back to the daemon"
-    assert not r.choose("OH2NOBODY", "hf") and not r.choose("OH2GAX-2", "lora"), "an unknown station or radio is no choice"
+    assert not r.choose("OH2GAX-2", "lora") and r.choice("OH2GAX-2") == HF_ID, "an unknown radio is no choice"
+    assert r.choose("OH2NOBODY", "hf") and r.choice("OH2NOBODY") == HF_ID and book.get("OH2NOBODY") is None, "a call the book does not hold keeps its choice by call (plan rule 3.2)"
 
     again, book2, fm2, hf2 = radios()
     again.restore(kept.rows[MESSAGE_RADIOS])
@@ -286,7 +287,7 @@ async def test_a_message_whose_radio_is_switched_off_goes_on_the_stations_radio_
     await rig.pass_time(55)
     assert radio_ids(rig, record.id) == [HF_ID, FM_ID]
     assert any(r.getMessage() == f"message {record.id} to OH2FAR goes on the radio the station is reached on now: the radio it went out on is off" for r in caplog.records)
-    rig.radios.on.add(HF_ID)                                                # (back on: the message keeps the radio it was given)
+    rig.radios.on.add(HF_ID)                                                # (back on: the message keeps the radio it was given; the rig's double has no station book)
     await rig.pass_time(90)
     assert radio_ids(rig, record.id) == [HF_ID, FM_ID, FM_ID]
 
@@ -355,7 +356,7 @@ async def test_after_a_restart_a_message_moved_off_its_radio_keeps_the_one_it_wa
     rig.radios.on.discard(HF_ID)                                            # (the HF radio switched off: the second attempt on FM)
     await rig.pass_time(55)
     assert radio_ids(rig, record.id) == [HF_ID, FM_ID]
-    again, hf = await restarted(rig)                                        # (HF on again after the restart, OH2FAR heard on HF alone: it stays where it went)
+    again, hf = await restarted(rig)                                        # (HF on again after the restart, OH2FAR heard on HF alone: it stays where it went; the rig's double has no station book)
     again.radios.hf_stations = ("OH2FAR",)
     await again.pass_time(90)
     assert radio_ids(again, record.id) == [HF_ID, FM_ID, FM_ID] and hf.sent == []
@@ -551,3 +552,37 @@ async def test_a_message_moved_off_its_radio_to_one_that_heard_the_station_too_s
         await rig.pass_time(15)
     switch(air, fm=True)
     assert await all_attempts(rig, record.id) == [FM_ID, HF_ID, HF_ID, HF_ID]
+
+
+@pytest.mark.parametrize("restart", [False, True], ids=["running", "restarted"])
+async def test_the_pages_radio_of_a_message_is_the_one_its_next_attempt_takes_when_a_radio_only_stood_in(tmp_path: Path, caplog: pytest.LogCaptureFixture, restart: bool) -> None:
+    """What the page is told (the message row's `radio_now`: Messaging.radio_now) over the radio a message keeps: OH2NR heard on FM alone, its first attempt over HF while FM is off; FM on again, the row
+    says FM before the next attempt goes on FM, with or without a restart between. Reading it keeps nothing and says nothing in the log: the line comes once, with the attempt that leaves HF."""
+    caplog.set_level(logging.INFO)
+    rig, air = await over_the_registry(tmp_path, OH2NR={FM_ID: 5})
+    switch(air, fm=False)
+    record = await rig.m.send("OH2NR", "while fm is off")
+    m = await registry_restarted(rig, air) if restart else rig
+
+    def told() -> int | None:
+        [now] = [r for r in m.m.records() if r.id == record.id]
+        radio = m.m.radio_now(now)
+        return None if radio is None else radio.id
+
+    kept = dict(m.m.message_radios._kept)
+    assert told() == told() == HF_ID and m.m.message_radios._kept == kept, "HF while FM is off, and the read keeps nothing"
+    switch(air, fm=True)
+    assert told() == FM_ID and m.m.message_radios._kept == kept, "FM as soon as it is on, before any attempt"
+    assert not [r for r in caplog.records if "goes on the radio the station is reached on now" in r.getMessage()], "nothing said by a read"
+    ahead, went = [], []
+    for _ in range(60):
+        done = radio_ids(m, record.id)
+        if len(done) == 4:
+            break
+        before = told()
+        await m.pass_time(15)
+        if len(radio_ids(m, record.id)) > len(done):
+            ahead.append(before)
+            went.append(radio_ids(m, record.id)[-1])
+    assert radio_ids(m, record.id) == [HF_ID, FM_ID, FM_ID, FM_ID] and ahead == went == [FM_ID, FM_ID, FM_ID], "each attempt on the radio the page was told just before"
+    assert len([r for r in caplog.records if "goes on the radio the station is reached on now" in r.getMessage()]) == 1, "said once, by the attempt"

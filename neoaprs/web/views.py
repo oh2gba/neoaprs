@@ -151,7 +151,7 @@ def _hop_row(attempt: Attempt, position: int, call: str) -> dict[str, Any]:
 
 def message_row(record: MessageRecord, attempts: tuple[Attempt, ...] = (), queued: bool = False, radio_now: RadioId | None = None) -> dict[str, Any]:
     """The page's row of a message; `queued` (services/messaging.py, Messaging.queued) for one of ours that waits for another to the same station, which the database keeps as `sending`; `radio_now` the radio
-    one of ours on its way goes on next (Messaging.radio_of), told only while it is on its way."""
+    one of ours on its way goes on next (Messaging.radio_now), told only while it is on its way."""
     on_its_way = record.direction == "out" and record.state == "sending"
     return MessageRow.row(record, attempts_detail=attempt_rows(record, attempts), state="queued" if queued else record.state, radio_now=radio_now if on_its_way else None)
 
@@ -289,10 +289,8 @@ class AskedAround(Protocol):
 
 
 def general_state(asked: Sequence[AskedAround], by_radio: Sequence[AskedAround] = ()) -> dict[str, Any]:
-    """The `general` topic: the last general query of each kind and the stations heard after it, each with the radio it went on; and the last of each kind on each radio (`by_radio`, left out before the
-    first query: I4 makes it always there with the two lines of tests/test_generalask.py that hold the topic empty)."""
-    state = GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralAsked.row(a) for a in by_radio])
-    return state if by_radio else {k: v for k, v in state.items() if k != "by_radio"}
+    """The `general` topic: the last general query of each kind and the stations heard after it, each with the radio it went on; and the last of each kind on each radio (`by_radio`)."""
+    return GeneralState.row(None, asked=[GeneralAsked.row(a) for a in asked], by_radio=[GeneralAsked.row(a) for a in by_radio])
 
 
 def qru_state(qru: QruSource) -> dict[str, Any]:

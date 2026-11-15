@@ -269,7 +269,7 @@ def _out(page: object) -> list[str]:
 
 async def test_the_command_sends_the_query_and_the_topic_tells_it_and_who_spoke_after_it(tmp_path: Path) -> None:
     e, page = await with_page(tmp_path)
-    assert page.topics["general"] == {"asked": []}
+    assert page.topics["general"] == {"asked": [], "by_radio": []}
     await page.send({"cmd": "general_query", "kind": "aprs", "path": "OH2RDK-7,OH2RCH-2", "rf_only": True})
     await page.until(lambda: page.topics["general"]["asked"] != [])
     [asked] = page.topics["general"]["asked"]
@@ -295,4 +295,4 @@ async def test_the_command_is_refused_in_rx_only_and_with_a_path_that_is_none(tm
     error = await page.expect("error")
     assert (error["cmd"], error["code"]) == ("general_query", "transmit.off")
     await page.quiet(0.2)
-    assert page.topics["general"] == {"asked": []} and _out(page) == []
+    assert page.topics["general"] == {"asked": [], "by_radio": []} and _out(page) == []

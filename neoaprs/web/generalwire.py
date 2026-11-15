@@ -36,5 +36,4 @@ class GeneralAsked(_Model):
 class GeneralState(_Model):
     """The general queries sent from here: the last one of each kind. Forgotten when the daemon stops. Told whole as it changes."""
     asked: list[GeneralAsked] = Field(description="the last query of each kind, whatever radio it went on, the oldest first; empty before one")
-    by_radio: list[GeneralAsked] = Field(default_factory=list, description="the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`); "
-                                         "left out before the first query in this version")
+    by_radio: list[GeneralAsked] = Field(description="the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`)")

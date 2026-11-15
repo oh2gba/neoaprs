@@ -77,10 +77,10 @@ class RadioScope(_Command):
 
 class StationRadio(_Command):
     """Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a
-    message on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. Answered
-    by the station's row (and the `radio_now` of each message to it on its way), or an `error`: `radio.unknown` (no radio of that id that is not removed) and `station.unknown` (a call the book does not hold: in
-    this version the choice is kept on a station of the book only, so the page offers the choice for a station it lists; plan rule 3.2 keeps it by call, which needs the store of the choices to keep a call
-    without a station, and then this refusal goes)."""
+    message on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. For a
+    station of the book it is answered by the station's row (and the `radio_now` of each message to it on its way); a call the book does not hold is chosen for too (plan rule 3.2: the choice is kept by call), with no
+    answer, and its station's row says it once the station is heard. The call is kept in its normal form, as a message names it (upper case, no SSID 0). Refused with an `error`: `radio.unknown` (no radio of that
+    id that is not removed), or a `call.*` code for a text that is no call."""
     cmd: Literal["station_radio"]
     call: Call
     radio: RadioRef | None

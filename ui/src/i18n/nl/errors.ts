@@ -32,6 +32,20 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.far": "die test begint over meer dan 30 dagen",
   "error.sked.unreachable": "het bord met HF-tests was zojuist niet bereikbaar; probeer het later opnieuw",
   "error.radio.busy": "de set wordt al gezocht",
+  "error.radio.last_enabled": "een station heeft minstens één set: vink de FM-set of de HF-set aan",
+  "error.radio.name_form":
+    "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
+  "error.radio.name_taken": "the name '{name}' is another radio's already: give this one another",
+  "error.radio.no_line": "the {name} radio has no serial line to look for",
+  "error.radio.no_modem": "the {name} radio has no modem running",
+  "error.radio.no_setting": "the {name} radio has no such setting",
+  "error.radio.none": "there is no radio: add one, or turn one on",
+  "error.radio.not_connected": "the {name} radio is not connected",
+  "error.radio.off": "the {name} radio is off: turn it on first",
+  "error.radio.resource_held": "that device is in use by {holder}: choose another",
+  "error.radio.type_kind": "the {name} radio takes only a type of its own kind ({kind})",
+  "error.radio.unknown": "there is no radio {radio}",
+  "error.radio.unknown_type": "'{type}' is not a type of radio (the types are those of the list)",
   "error.radio.failed": "het zoeken naar de set is mislukt",
   "error.radio.no_ports": "er is geen poort om te proberen: geen van de poorten waar de set wordt gezocht, is aanwezig",
   "error.radio.not_found":
@@ -81,7 +95,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.comment_too_long":
     "{length} tekens is meer dan de {limit} die met de PHG-uitbreiding zijn toegestaan (maak beacon/power_w leeg om geen PHG te verzenden)",
   "error.setting.local_only": "dit kan alleen vanaf een pagina op de computer waarop NeoAPRS draait",
-  "error.setting.no_radio": "een station heeft minstens één set: vink de FM-set of de HF-set aan",
   "error.setting.not_access_key": "het is geen toegangssleutel (drie groepen van vier cijfers en letters, zoals k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "het bevat tekens die geen afdrukbare ASCII zijn",
   "error.setting.not_boolean": "‘{value}’ is niet true of false",

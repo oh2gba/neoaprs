@@ -6,7 +6,7 @@ import { CONFIG_KEYS } from "@/protocol/lists";
 import type { PortsMessage } from "@/protocol/protocol";
 import { cssRule } from "@/test/css";
 import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, mapFile, mapState, status, toastOf } from "@/test/fixtures";
+import { configValues, mapFile, mapState, status, toastOf, portRow } from "@/test/fixtures";
 
 /** The form in a page whose settings are the fixtures' with `extra` over them; `more` is what else the context has. */
 function make(extra: Record<string, string> = {}, scope: Scope = "settings", more: Given = {}) {
@@ -23,7 +23,7 @@ afterEach(() => localStorage.clear());
 const notificationBoxes = (wrapper: ReturnType<typeof make>["wrapper"]) =>
   wrapper.findAll("fieldset.subbox").filter((box) => !["FM radio", "HF radio"].includes(box.find("legend").text()));
 
-const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+const row = (device: string, description: string) => portRow(device, description);
 const portList = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   type: "ports",
   sound_cards: [],

@@ -32,6 +32,20 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.sked.far": "tuo testi alkaa yli 30 päivän päästä",
   "error.sked.unreachable": "HF-testitaulua ei tavoitettu juuri nyt; yritä myöhemmin uudelleen",
   "error.radio.busy": "radion haku on jo käynnissä",
+  "error.radio.last_enabled": "asemalla on oltava vähintään yksi radio: valitse FM-radio tai HF-radio",
+  "error.radio.name_form":
+    "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
+  "error.radio.name_taken": "the name '{name}' is another radio's already: give this one another",
+  "error.radio.no_line": "the {name} radio has no serial line to look for",
+  "error.radio.no_modem": "the {name} radio has no modem running",
+  "error.radio.no_setting": "the {name} radio has no such setting",
+  "error.radio.none": "there is no radio: add one, or turn one on",
+  "error.radio.not_connected": "the {name} radio is not connected",
+  "error.radio.off": "the {name} radio is off: turn it on first",
+  "error.radio.resource_held": "that device is in use by {holder}: choose another",
+  "error.radio.type_kind": "the {name} radio takes only a type of its own kind ({kind})",
+  "error.radio.unknown": "there is no radio {radio}",
+  "error.radio.unknown_type": "'{type}' is not a type of radio (the types are those of the list)",
   "error.radio.failed": "radion haku epäonnistui",
   "error.radio.no_ports": "kokeiltavia portteja ei ole: haku ei katso yhtäkään luetelluista",
   "error.radio.not_found":
@@ -81,7 +95,6 @@ export const errors: Record<keyof typeof source, Message> = {
   "error.setting.comment_too_long":
     "{length} merkkiä on enemmän kuin PHG-laajennuksen kanssa sallitut {limit} (tyhjennä beacon/power_w, jos et halua lähettää sitä)",
   "error.setting.local_only": "tämän voi tehdä vain sivulta NeoAPRS-tietokoneella",
-  "error.setting.no_radio": "asemalla on oltava vähintään yksi radio: valitse FM-radio tai HF-radio",
   "error.setting.not_access_key": "se ei ole pääsyavain (kolme neljän numeron ja kirjaimen ryhmää, kuten k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "siinä on merkkejä, jotka eivät ole tulostettavaa ASCII-merkkiä",
   "error.setting.not_boolean": "'{value}' ei ole true eikä false",

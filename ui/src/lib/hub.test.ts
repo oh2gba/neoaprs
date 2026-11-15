@@ -15,6 +15,8 @@ import type {
   OwnObjectRow,
   PacketRow,
   PortsMessage,
+  RadioRow,
+  RadioAddedMessage,
   RadioSearchMessage,
   StationAlertMessage,
   StationKey,
@@ -41,6 +43,8 @@ import {
   ownBulletin,
   ownObject,
   packet,
+  radioRow,
+  radioSearch,
   station,
   tncState,
 } from "@/test/fixtures";
@@ -53,6 +57,7 @@ function memory() {
     alerts: [] as AlertResultMessage[],
     ports: [] as PortsMessage[],
     searches: [] as RadioSearchMessage[],
+    added: [] as RadioAddedMessage[],
     stationAlerts: [] as StationAlertMessage[],
     rows: [] as ScopeRow[],
     histories: [] as ScopeHistory[],
@@ -60,6 +65,7 @@ function memory() {
     notes: [] as ReleaseNotesMessage[],
     stations: new Map<string, StationRow>(),
     packets: new Map<string, PacketRow>(),
+    radios: new Map<string, RadioRow>(),
     messages: new Map<string, MessageRow>(),
     bulletins: new Map<string, BulletinRow>(),
     prefs: new Map<string, StationPref>(),
@@ -94,6 +100,7 @@ function memory() {
     alertResult: (m) => seen.alerts.push(m),
     ports: (m) => seen.ports.push(m),
     radioSearch: (m) => seen.searches.push(m),
+    radioAdded: (m) => seen.added.push(m),
     stationAlert: (m) => seen.stationAlerts.push(m),
     hfScopeRow: (r) => seen.rows.push(r),
     hfScopeHistory: (history) => seen.histories.push(history),
@@ -101,6 +108,7 @@ function memory() {
     releaseNotes: (m) => seen.notes.push(m),
     replaceStations: (rows) => (seen.stations = new Map(Object.entries(rows))),
     replacePackets: (rows) => (seen.packets = new Map(Object.entries(rows))),
+    replaceRadios: (rows) => (seen.radios = new Map(Object.entries(rows))),
     replaceMessages: (rows) => (seen.messages = new Map(Object.entries(rows))),
     replaceBulletins: (rows) => (seen.bulletins = new Map(Object.entries(rows))),
     replaceStationPrefs: (rows) => (seen.prefs = new Map(Object.entries(rows))),
@@ -119,6 +127,7 @@ function memory() {
     replaceSkeds: (v) => (seen.skeds = v),
     setStation: (k, r) => void seen.stations.set(k, r),
     setPacket: (k, r) => void seen.packets.set(k, r),
+    setRadio: (k, r) => void seen.radios.set(k, r),
     setMessage: (k, r) => void seen.messages.set(k, r),
     setBulletin: (k, r) => void seen.bulletins.set(k, r),
     setStationPref: (k, p) => void seen.prefs.set(k, p),
@@ -127,6 +136,7 @@ function memory() {
     setOwnBulletin: (k, r) => void seen.ownBulletins.set(k, r),
     delStation: (k) => void seen.stations.delete(k),
     delPacket: (k) => void seen.packets.delete(k),
+    delRadio: (k) => void seen.radios.delete(k),
     delMessage: (k) => void seen.messages.delete(k),
     delBulletin: (k) => void seen.bulletins.delete(k),
     delStationPref: (k) => void seen.prefs.delete(k),
@@ -250,6 +260,25 @@ describe("Hub", () => {
     expect(seen.messages.get("2")?.state).toBe("acked");
   });
 
+  it("follows the radios by their ids: a radio that changes is set again, a whole topic replaces the rest, and the radios are kept apart from the FM radio's topic of before", () => {
+    const { seen, socket } = opened();
+    socket.say(state("radios", 0, { "1": radioRow(1, "kenwood-tnc2"), "2": radioRow(2, "mercury", { enabled: false, state: "stopped" }) }));
+    expect([...seen.radios.keys()]).toEqual(["1", "2"]);
+    socket.say(
+      patch("radios", 1, [
+        { op: "set", key: "2", value: radioRow(2, "mercury") },
+        { op: "set", key: "3", value: radioRow(3, "dummy", { number: 2 }) },
+      ]),
+    );
+    expect([...seen.radios.keys()]).toEqual(["1", "2", "3"]);
+    expect(seen.radios.get("2")?.enabled).toBe(true);
+    socket.say(patch("radios", 2, [{ op: "del", key: "3" }]));
+    expect([...seen.radios.keys()]).toEqual(["1", "2"]);
+    socket.say(patch("radios", 3, [{ op: "replace", value: { "1": radioRow(1, "kenwood-tnc2", { removed: true, enabled: false }) } }]));
+    expect([...seen.radios.values()].map((row) => [row.id, row.removed])).toEqual([[1, true]]);
+    expect(seen.tnc).toBeNull();
+  });
+
   it("hands the answer to weather_series to the store as it is", () => {
     const { seen, socket } = opened();
     const answer = { type: "weather_series", call: "OH2MUI", hours: 24, points: [["2026-10-21T12:00:00Z", 10, 1028.4, 1.6, 1.6, 0.3, 85]] };
@@ -280,11 +309,17 @@ describe("Hub", () => {
 
   it("hands the steps and the end of find_radio to the store as they are", () => {
     const { seen, socket } = opened();
-    const trying = { type: "radio_search", state: "trying", port: "/dev/ttyUSB0", baud: 9600, profile: "", number: 1, total: 14 };
-    const found = { type: "radio_search", state: "found", port: "/dev/ttyUSB0", baud: 9600, profile: "kenwood-tnc2", number: 0, total: 0 };
+    const trying = radioSearch();
+    const found = radioSearch({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0 });
     socket.say(trying);
     socket.say(found);
     expect(seen.searches).toEqual([trying, found]);
+  });
+
+  it("hands the answer to radio_add, the id of the radio made, to the store", () => {
+    const { seen, socket } = opened();
+    socket.say({ type: "radio_added", id: 3 });
+    expect(seen.added).toEqual([{ type: "radio_added", id: 3 }]);
   });
 
   it("hands each alert of a station to the store as it comes, the same words twice as two", () => {

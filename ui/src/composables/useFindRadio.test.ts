@@ -4,18 +4,9 @@ import type { Toast } from "@/composables/useDaemon";
 import { foundSettings, useFindRadio } from "@/composables/useFindRadio";
 import type { Connection } from "@/lib/hub";
 import type { RadioSearchMessage } from "@/protocol/protocol";
-import { configValues, toastOf } from "@/test/fixtures";
+import { configValues, radioSearch, toastOf } from "@/test/fixtures";
 
-const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => ({
-  type: "radio_search",
-  state: "trying",
-  port: "/dev/ttyUSB0",
-  baud: 9600,
-  profile: "",
-  number: 1,
-  total: 14,
-  ...extra,
-});
+const step = (extra: Partial<RadioSearchMessage>): RadioSearchMessage => radioSearch(extra);
 const found = (extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage => step({ state: "found", profile: "kenwood-tnc2", number: 0, total: 0, ...extra });
 
 function setUp(saved: Record<string, string> = {}, guide?: { onRadio: boolean; fillRadio: (found: Record<string, string>) => void }) {

@@ -27,7 +27,7 @@ import { texts, type Message } from "@/i18n/message";
 import { setLocale } from "@/i18n";
 import type { HttpsState, PortsMessage } from "@/protocol/protocol";
 import { fakeDaemon, withDaemon, type FakeDaemon } from "@/test/context";
-import { configValues, mapFile, mapState, status, tncState } from "@/test/fixtures";
+import { configValues, mapFile, mapState, status, tncState, portRow } from "@/test/fixtures";
 
 /** The words that come from the daemon or the user, or are the same in every language: they are what the page shows besides the catalogue's words. */
 const ATTRIBUTES = ["title", "aria-label", "placeholder", "label"];
@@ -83,7 +83,7 @@ const ports: PortsMessage = {
   keying: "",
   search: true,
   find: true,
-  ports: [{ device: "/dev/ttyUSB0", description: "FT232R", hwid: "n/a", vid: null, pid: null }],
+  ports: [portRow("/dev/ttyUSB0", "FT232R")],
 };
 
 function daemon(extra: Record<string, string> = {}, more: Parameters<typeof fakeDaemon>[0] = {}): FakeDaemon {

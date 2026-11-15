@@ -31,13 +31,15 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, stations, send } = useDaemonContext();
+const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, status, stations, send } = useDaemonContext();
 /** The station's row; null for a call nothing is known of. */
 const row = computed(() => stations.value.get(props.selected) ?? null);
+/** The radio the messages to the station go over: as the daemon says it of a message on its way and of the station (the main radio for a call nothing is known of), else by the rule of before (lib/radiosides.ts). */
+const over = computed(() => radioFor(row.value, config.value?.values ?? {}, props.thread, status.value?.main_radio));
 /** The radio the messages go over, for FM and HF before Send: only while both radios are on and the station is known (the daemon keeps the choice with the station); "" otherwise. */
 const radio = computed<RadioKind | "">(() => {
   const values = config.value?.values ?? {};
-  return fmOn(values) && hfOn(values) && row.value !== null ? radioFor(row.value, values) : "";
+  return fmOn(values) && hfOn(values) && row.value !== null ? over.value : "";
 });
 /** The operator chose the other radio for the messages to this station. */
 function chooseRadio(kind: RadioKind): void {
@@ -45,12 +47,12 @@ function chooseRadio(kind: RadioKind): void {
 }
 /** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
 const mayNot = computed(() => row.value?.may_not_message === true);
-/** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
-const routable = computed(() => hasPaths(config.value?.values ?? {}, stations.value.get(props.selected) ?? null));
+/** Whether there is a route to set: the FM radio is on and the station is messaged on it (HF has no paths; lib/radiosides.ts). */
+const routable = computed(() => hasPaths(config.value?.values ?? {}, row.value, props.thread, status.value?.main_radio));
 /** Whether the messages to the station go over the HF radio (no path, no RF only: the header says it in Route's place with a tag). */
-const overHf = computed(() => radioFor(stations.value.get(props.selected) ?? null, config.value?.values ?? {}) === "hf");
+const overHf = computed(() => over.value === "hf");
 /** Whether the link of the radio the messages to the station take is up. */
-const connected = computed(() => connectedOn(radioFor(stations.value.get(props.selected) ?? null, config.value?.values ?? {})));
+const connected = computed(() => connectedOn(over.value));
 const { paths, rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);

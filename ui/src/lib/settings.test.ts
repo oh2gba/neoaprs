@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { portRow } from "@/test/fixtures";
 import { CONFIG_KEYS } from "@/protocol/lists";
 import { BEACON_FOLDS, FIELDS, SUBGROUPS, fieldFor, groupKeys, reasonOf, shownByValues, storedFor, valueFor } from "@/lib/settings";
 import { shownByRadios, shownFor } from "@/lib/settingsradio";
@@ -344,7 +345,7 @@ describe("shownByRadios", () => {
 });
 
 describe("portOptions", () => {
-  const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+  const row = (device: string, description: string) => portRow(device, description);
   const ports = (search = true) => ({
     type: "ports" as const,
     sound_cards: [],

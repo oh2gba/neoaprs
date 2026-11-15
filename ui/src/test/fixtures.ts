@@ -1,5 +1,7 @@
-// Rows of the protocol for the tests: every field present, the ones a test cares about given.
+// Rows of the protocol for the tests: every field present, the ones a test cares about given. A field the daemon works out of others (a row's radio by its id beside its word of before) is made from them, as the
+// daemon of the station of before sends it (radio 1 the FM radio, radio 2 the HF radio), unless the test gives it.
 import type {
+  AttemptRow,
   BulletinRow,
   ConfigValues,
   ErrorMessage,
@@ -11,9 +13,14 @@ import type {
   OwnBulletinRow,
   OwnObjectRow,
   PacketRow,
+  PortRow,
+  QruAsked,
   QruState,
+  RadioRow,
+  RadioSearchMessage,
   SkedRow,
   SkedsState,
+  SoundCardRow,
   StationRow,
   HelloMessage,
   StatusMessage,
@@ -22,7 +29,7 @@ import type {
   WeatherValues,
 } from "@/protocol/protocol";
 import type { Toast } from "@/composables/useDaemon";
-import { PROTOCOL } from "@/protocol/lists";
+import { PROTOCOL, RADIO_STATION_KEYS, RADIO_TYPES } from "@/protocol/lists";
 
 export const NOW = Date.parse("2026-10-21T12:00:00Z");
 
@@ -42,8 +49,34 @@ export function toastOf(text: string, code = "other", params: Record<string, str
   return { cmd, key, code, params, text, n };
 }
 
-export function station(call: string, extra: Partial<StationRow> = {}): StationRow {
+/** The id of a radio by its word of before: `fm` radio 1, `hf` radio 2; null for none. */
+const radioIdOf = (word: string): number | null => (word === "fm" ? 1 : word === "hf" ? 2 : null);
+
+type StationRadios = Pick<StationRow, "heard" | "last_path_radio" | "last_direct_any_at" | "radio_choice" | "radio_now" | "paths">;
+
+/** The later of two times; null for neither. */
+const latest = (a: string | null, b: string | null): string | null => (a === null ? b : b === null || a >= b ? a : b);
+
+/** What a station's row says of the radios, from its counts of before: what radio 1 (`heard_fm`) and radio 2 (`heard_hf`) heard of it, the one that heard it last, the choice (`message_radio`), and the radio a message
+ * to it goes on by the rule of before (the choice, else HF for a station heard on HF alone, else FM; none for a station that takes no message), and when any radio heard it direct. */
+function stationRadios(row: Omit<StationRow, keyof StationRadios>): StationRadios {
+  const heard: StationRow["heard"] = {};
+  if (row.heard_fm > 0) heard["1"] = { count: row.heard_fm, last_at: row.last_fm_at };
+  if (row.heard_hf > 0) heard["2"] = { count: row.heard_hf, last_at: row.last_hf_at };
+  const hfLast = row.heard_hf > 0 && (row.heard_fm === 0 || (row.last_hf_at ?? "") > (row.last_fm_at ?? ""));
+  const choice = radioIdOf(row.message_radio);
   return {
+    heard,
+    last_path_radio: hfLast ? 2 : row.heard_fm > 0 ? 1 : null,
+    last_direct_any_at: latest(row.last_direct_at, row.heard_hf > 0 ? row.last_hf_at : null), // (an HF frame carries no digipeater: each heard on HF is heard direct)
+    radio_choice: choice,
+    radio_now: !row.can_message ? null : (choice ?? (row.heard_hf > 0 && row.heard_fm === 0 ? 2 : 1)),
+    paths: {},
+  };
+}
+
+export function station(call: string, extra: Partial<StationRow> = {}): StationRow {
+  const row: Omit<StationRow, keyof StationRadios> = {
     call,
     kind: "station",
     reported_by: "",
@@ -110,6 +143,7 @@ export function station(call: string, extra: Partial<StationRow> = {}): StationR
     last_rf_at: extra.last_rf_at !== undefined ? extra.last_rf_at : extra.heard_rf === 0 ? null : (extra.last_heard ?? ago(60)),
     last_fm_at: extra.last_fm_at !== undefined ? extra.last_fm_at : (extra.heard_fm ?? extra.heard_rf) === 0 ? null : (extra.last_heard ?? ago(60)),
   };
+  return { ...stationRadios(row), ...row }; // (a field of the radios that the test gave is in `row`, and stays)
 }
 
 /** The latest observation of a weather station: a calm-weather report of OH2MUI, with what a test gives. */
@@ -165,6 +199,7 @@ export function sentMessage(id: number, from: string, to: string, text: string, 
 
 export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
   return {
+    radio_id: radioIdOf(extra.radio ?? "fm"),
     id,
     heard_at: ago(100 - id),
     direction: "in",
@@ -207,8 +242,10 @@ export function packet(id: number, extra: Partial<PacketRow> = {}): PacketRow {
   };
 }
 
-/** A message we sent, being sent by default; `incoming` makes one that came in. */
+/** A message we sent, being sent by default; `incoming` makes one that came in. One of ours on its way that went on a radio (`radio`) keeps it for its next attempt (`radio_now`); one that has not gone yet takes the
+ * station's radio now, which a test that cares gives. */
 export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow {
+  const onItsWay = (extra.direction ?? "out") === "out" && ["sending", "queued"].includes(extra.state ?? "sending");
   return {
     id,
     at: ago(1000 - id),
@@ -225,12 +262,19 @@ export function message(id: number, extra: Partial<MessageRow> = {}): MessageRow
     attempts_detail: [],
     route: "",
     radio: "",
+    radio_id: radioIdOf(extra.radio ?? ""),
+    radio_now: onItsWay ? radioIdOf(extra.radio ?? "") : null,
     seal: "",
     failure: null,
     snr: null,
     rssi: null,
     ...extra,
   };
+}
+
+/** An attempt of a message of ours: sent at the fixtures' time on the FM radio, by no digipeater, not acked. */
+export function attemptRow(extra: Partial<AttemptRow> = {}): AttemptRow {
+  return { sent_at: "2026-10-22T12:00:00Z", hops: [], internet: null, acked: false, radio: "fm", radio_id: radioIdOf(extra.radio ?? "fm"), ...extra };
 }
 
 export function incoming(id: number, from: string, extra: Partial<MessageRow> = {}): MessageRow {
@@ -291,7 +335,8 @@ export function skedsState(rows: SkedRow[] = [], extra: Partial<SkedsState> = {}
   };
 }
 
-/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. */
+/** An object of ours: a live object "LEADER" sent twice, the next one in 3 minutes. Its `radios` are those of its `radio` with both radios on; a test with a radio off gives them (the daemon sends the radios on, else the
+ * main radio). */
 export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnObjectRow {
   return {
     name,
@@ -307,6 +352,7 @@ export function ownObject(name: string, extra: Partial<OwnObjectRow> = {}): OwnO
     qru_group: "",
     on_request: false,
     radio: "fm",
+    radios: { fm: [1], hf: [2], both: [1, 2] }[extra.radio ?? "fm"],
     state: "live",
     created_at: ago(600),
     updated_at: ago(600),
@@ -440,9 +486,12 @@ export function igateState(extra: Partial<IgateState> = {}): IgateState {
 }
 
 /** The topic `qru`: a request for INFO 20 s ago, and the server DF8LS-10 that answered it with two groups and has sent the closing line of one (five objects, all of which arrived); a test gives what it cares about. */
+/** A request for local info that went on the FM radio. */
+export const qruAsked = (text: string, at: string, radio: number | null = 1): QruAsked => ({ text, at, radio });
+
 export function qruState(extra: Partial<QruState> = {}): QruState {
   return {
-    asked: { text: "INFO", at: ago(20) },
+    asked: qruAsked("INFO", ago(20)),
     servers: [
       {
         call: "DF8LS-10",
@@ -540,7 +589,34 @@ export function configValues(extra: Record<string, string> = {}): ConfigValues {
     "beacon/travel": "car",
     ...extra,
   };
-  return { values, defaults: { ...values }, urls: [], https: { on: false, port: 0, fingerprint: "", problem: "" } };
+  const radioValues = radioValuesOf(values);
+  return {
+    values,
+    defaults: { ...values },
+    radio_values: radioValues,
+    radio_defaults: { ...radioValues },
+    urls: [],
+    https: { on: false, port: 0, fingerprint: "", problem: "" },
+  };
+}
+
+/** The radios' own settings as the daemon tells them beside the settings of before (`radio_values`): radio 1's of an FM radio and radio 2's of an HF radio, from the flat keys they are a view of, and no main radio chosen. */
+function radioValuesOf(values: Record<string, string>): Record<string, string> {
+  const flat = (key: string, fallback = "") => values[key] ?? fallback;
+  return {
+    "radio/1/port": flat("serial/port"),
+    "radio/1/baud": flat("serial/baud"),
+    "radio/1/beacon": "true",
+    "radio/1/path": flat("beacon/path"),
+    "radio/1/digipeat": flat("digi/enabled", "false"),
+    "radio/1/tcp_host": flat("tcp/host"),
+    "radio/1/tcp_port": flat("tcp/port"),
+    "radio/2/beacon": "true",
+    "radio/2/sound_card": flat("mercury/sound_card"),
+    "radio/2/keying": flat("mercury/keying"),
+    "radio/2/tx_gain_db": flat("mercury/tx_gain_db", "0"),
+    ...Object.fromEntries(RADIO_STATION_KEYS.map((key) => [key, ""])),
+  };
 }
 
 /** A map file of the daemon: the detailed map round Helsinki by default. */
@@ -611,6 +687,8 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
     beacon_next_due: null,
     hf_beacon_last_sent: null,
     hf_beacon_next_due: null,
+    main_radio: 1,
+    email_radio: 1,
     station_status: "",
     station_status_last_sent: null,
     rig_state: "unused",
@@ -626,4 +704,80 @@ export function status(extra: Partial<StatusMessage> = {}): StatusMessage {
 /** The map of a station table: call to row. */
 export function table(...rows: StationRow[]): Map<string, StationRow> {
   return new Map(rows.map((r) => [r.call, r]));
+}
+
+/** A port the system lists, held by no radio of ours. */
+export function portRow(device: string, description: string, extra: Partial<PortRow> = {}): PortRow {
+  return { device, description, hwid: "n/a", vid: null, pid: null, held_by: null, ...extra };
+}
+
+/** A sound card the system lists, held by no modem of ours. */
+export function soundCard(id: string, name: string, extra: Partial<SoundCardRow> = {}): SoundCardRow {
+  return { id, name, default: false, pick: false, held_by: null, ...extra };
+}
+
+/** A step of Find my radio: trying the first of 14 ports at 9600, for a search that named no radio (radio 1); `found` has the type that fits the TNC, its profile. */
+export function radioSearch(extra: Partial<RadioSearchMessage> = {}): RadioSearchMessage {
+  const state = extra.state ?? "trying";
+  const profile = extra.profile ?? "";
+  return {
+    type: "radio_search",
+    state,
+    port: "/dev/ttyUSB0",
+    baud: 9600,
+    profile,
+    number: 1,
+    total: 14,
+    radio: null,
+    radio_type: state === "found" ? profile : "",
+    ...extra,
+  };
+}
+
+/** The topic `radios` of these rows, by the radio's id as text. */
+export const radiosTopic = (...rows: RadioRow[]): Map<string, RadioRow> => new Map(rows.map((row) => [String(row.id), row]));
+
+/** The type of a kind that the settings of before name, else the usual one of the kind. */
+const typeIn = (kind: "fm" | "hf", profile: string | undefined, usual: string): string =>
+  RADIO_TYPES.some((entry) => entry.kind === kind && entry.key === profile) && profile !== undefined ? profile : usual;
+
+/** The topic `radios` the daemon tells for the settings of before: radio 1 the FM radio of `tnc/profile`, on unless `fm/enabled` says false, and radio 2 the HF radio of `hf/profile`, on only where `hf/enabled`
+ * says true; a radio that is on is connected (`connected`), or as its topic (`tnc`, `hf`) says. */
+export function radiosOf(values: Record<string, string>, connected = true, tnc: TncState | null = null, hf: TncState | null = null): Map<string, RadioRow> {
+  const line = (on: boolean, topic: TncState | null) => (!on ? "stopped" : (topic?.state ?? (connected ? "connected" : "waiting")));
+  const fm = values["fm/enabled"] !== "false";
+  const hfOn = values["hf/enabled"] === "true";
+  return radiosTopic(
+    radioRow(1, typeIn("fm", values["tnc/profile"], "kenwood-tnc2"), { enabled: fm, state: line(fm, tnc) }),
+    radioRow(2, typeIn("hf", values["hf/profile"], "mercury"), { enabled: hfOn, state: line(hfOn, hf) }),
+  );
+}
+
+/** A radio of the topic `radios`, as the daemon tells it: of the type given, on, connected, at its own place, with what its type may and can do; a test gives what it cares about. */
+export function radioRow(id: number, type: string, extra: Partial<RadioRow> = {}): RadioRow {
+  const known = RADIO_TYPES.find((entry) => entry.key === type);
+  if (known === undefined) throw new Error(`no radio type ${type}`);
+  return {
+    id,
+    type,
+    kind: known.kind,
+    name: "",
+    number: 1,
+    enabled: true,
+    position: id,
+    removed: false,
+    dummy: type.startsWith("dummy"),
+    state: "connected",
+    problem: null,
+    stats: { ...tncState().stats },
+    lines: [],
+    limits: { ...known.limits },
+    allowed: { ...known.allowed },
+    can: { ...known.can },
+    choices: { beacon: true, path: known.allowed.paths ? "" : null, digipeat: known.allowed.digipeat ? false : null },
+    beacon: { last_sent: null, next_due: null, interval_min: 30, problem: null },
+    modem: known.kind === "hf" && !type.startsWith("dummy") ? hfState().modem : null,
+    holds: [],
+    ...extra,
+  };
 }

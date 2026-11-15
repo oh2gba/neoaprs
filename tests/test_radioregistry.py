@@ -295,7 +295,7 @@ def test_the_operators_radio_for_a_station_is_kept_as_before_by_id_or_by_todays_
     again.book.seed([station("OH2A", 3, 0), station("OH2B", 3, 2)])
     again.registry.restore(before.choices_text())
     assert again.registry.choices_text() == rig.kept[-1], "a row of before, in today's words, is read as the ids of radios 1 and 2"
-    assert not registry.choose("OH2Z", FM_ID) and not registry.choose("OH2A", "lora") and not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such station; no such word; no such radio in the settings"
+    assert not registry.choose("OH2A", "lora") and not registry.choose("OH2A", 3) and len(rig.kept) == 4, "no such word; no such radio in the settings"
     assert registry.choose("OH2A", None) and registry.choice("OH2A") is None and rig.kept[-1] == json.dumps({"OH2B": FM_ID})
     registry.forget("OH2A")
     assert len(rig.kept) == 5, "a station with no choice takes none along"
@@ -306,6 +306,14 @@ def test_the_operators_radio_for_a_station_is_kept_as_before_by_id_or_by_todays_
     assert registry.choose("OH2B", FM_ID)
     registry.forget_all()
     assert rig.kept[-2:] == [json.dumps({"OH2B": FM_ID}), "{}"]
+    assert registry.choose("OH2Z", HF_ID) and registry.choice("OH2Z") == HF_ID and rig.kept[-1] == json.dumps({"OH2Z": HF_ID}), "a call the book does not hold keeps its choice by call (plan rule 3.2)"
+    later = registry_of(replace(DEFAULTS, hf_enabled=True))
+    later.registry.restore(rig.kept[-1])
+    assert later.registry.choice("OH2Z") == HF_ID and later.registry.choices_text() == rig.kept[-1], "and across a restart, still without a station"
+    later.book.seed([station("OH2Z", 0, 2)])
+    assert later.registry.choice("OH2Z") == HF_ID, "the station heard later has it"
+    registry.forget("OH2Z")
+    assert registry.choice("OH2Z") is None and rig.kept[-1] == "{}", "forgotten with the call"
 
 
 @pytest.mark.parametrize("text", [None, "", "not json", "[1, 2]", json.dumps({"OH2A": "hf", "OH2B": "lora", "OH2GONE": "fm", "OH2C": 7}), json.dumps({"OH2A": 2, "OH2B": True, "OH2C": 3, "OH2GONE": 1})])
@@ -321,7 +329,9 @@ async def test_the_choices_of_the_row_are_put_on_the_stations_of_the_book_and_a_
     registry.restore(text)
     expected = {"OH2A": HF_ID} if text and text.startswith("{") else {}
     assert {call: registry.choice(call) for call in ("OH2A", "OH2B", "OH2C") if registry.choice(call) is not None} == expected and rig.kept == [], "read, not written"
-    assert json.loads(registry.choices_text()) == expected, "kept by id: a word of before, an id of a radio there is, nothing else (a radio the settings do not have, a word that is none, true)"
+    by_call = {**expected, "OH2GONE": FM_ID} if expected else {}
+    assert json.loads(registry.choices_text()) == by_call and registry.choice("OH2GONE") == by_call.get("OH2GONE"), (
+        "kept by id: a word of before, an id of a radio there is, nothing else (a radio the settings do not have, a word that is none, true); a call the book does not hold keeps its own (plan rule 3.2)")
     await registry.flush()
     await rig.registry.flush()
     assert waited == ["written"], "the stop waits for a choice being written, where there is something to wait for"
@@ -342,7 +352,7 @@ async def test_the_daemons_two_radios_are_the_registrys_with_their_drivers_and_t
     assert ctl.mercury.claims is ctl.radios.claims
     assert fm.line.claims is ctl.radios.claims and fm.line.search_lock is ctl.radios.search_lock and hf.line.claims is None, "radio 1's line has the station's table and its one search at a time; the modem's line, a socket, claims nothing"
     finder = ctl.radiofinder
-    assert (finder.claims, finder.search_lock, finder._hold, finder._release) == (None, None, ctl.hold_tnc, ctl.release_tnc), "Find my radio lets go of the whole station as before, until the page says which radio it searches for"
+    assert (finder.claims, finder.search_lock, finder._hold, finder._release) == (ctl.radios.claims, ctl.radios.search_lock, ctl.hold_radio, ctl.release_radio), "Find my radio lets go of the radio it searches for alone and passes over what the others and the GPS receiver hold"
     assert (fm.line.radio_id, fm.line.label, hf.line.radio_id, hf.line.label) == (FM_ID, "tnc", HF_ID, "hf radio"), "the lines' own log lines begin as they did"
     assert fm.line.interlock is hf.line.interlock is not None and ctl.radios.enabled() == [fm] and not hf.rtype.dummy, "the defaults until the settings are read"
     assert ctl.sender.radios is ctl.radios and ctl.digipeater._radios is ctl.radios, "the sender (and our objects and bulletins through it) and the digipeater take the registry itself"
@@ -375,9 +385,9 @@ def searching(url: str, finder: RadioFinder, radio: RadioId | None = None) -> "a
     return asyncio.create_task(finder.find(lambda step: None, radio))
 
 
-async def test_find_my_radio_of_the_daemon_lets_go_of_both_radios_and_starts_them_again_as_before(tmp_path: Path) -> None:
-    """The daemon's own finder, asked as the page asks it (no radio named): the whole station lets go of its radios for the search, the HF radio and its modem with the FM radio's line, and takes them again
-    after it, as it did before the registry."""
+async def test_find_my_radio_of_the_daemon_lets_go_of_the_fm_radio_alone_and_starts_it_again_while_hf_runs(tmp_path: Path) -> None:
+    """The daemon's own finder, asked as the page asks it with no radio named (the handler gives it radio 1: tests/test_radiofinder_wire.py): the FM radio lets go of its line for the search, the HF radio
+    and its modem keep running, and the FM radio takes its line again after it, with its beacon."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     e.ctl.mercury._finder = lambda: None                                         # (no program: the Dummy HF radio works without its speaker)
@@ -385,18 +395,18 @@ async def test_find_my_radio_of_the_daemon_lets_go_of_both_radios_and_starts_the
     fm, hf = e.ctl.radios.all()
     await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
     hf_line = e.hf._generation
-    search = searching(silent.url, e.ctl.radiofinder)
+    search = searching(silent.url, e.ctl.radiofinder, FM_ID)
     await until(lambda: silent.connections == 1)
-    assert fm.state is hf.state is Source.State.STOPPED, "both radios let go of their lines for the search"
+    assert fm.state is Source.State.STOPPED and hf.state is Source.State.CONNECTED, "the FM radio let go of its line for the search, the HF radio did not"
     assert e.ctl.radiofinder.cancel() and await search is None
-    await until(lambda: fm.state is hf.state is Source.State.CONNECTED)
-    assert e.hf._generation != hf_line and fm.beacon.running and hf.beacon.running, "both radios started again, each with its beacon"
+    await until(lambda: fm.state is Source.State.CONNECTED)
+    assert e.hf._generation == hf_line and fm.beacon.running and hf.beacon.running, "the FM radio started again with its beacon, and the HF radio ran all the while"
     await e.stop()
     await silent.aclose()
 
 
 async def test_a_finder_given_the_hold_of_one_radio_lets_go_of_that_radio_alone_and_takes_the_stations_one_search_at_a_time(tmp_path: Path) -> None:
-    """The finder as the composition root will make it once the page names the radio it searches for (the controller's hold_radio and release_radio, the registry's table and lock), asked for radio 1."""
+    """The finder made as the composition root makes it (the controller's hold_radio and release_radio, the registry's table and lock), asked for radio 1: the station's one search at a time."""
     silent = await FakeTncServer("silent").start()
     e = Env(tmp_path / "data", settings={"hf/enabled": "true", "hf/profile": "dummy-hf"})
     e.ctl.mercury._finder = lambda: None

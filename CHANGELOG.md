@@ -16,6 +16,10 @@
 - **Changed:** the status report goes out at every status interval while the beacon is on, changed or not.
 - **Changed:** with the HF radio on, an FM beacon set under 30 minutes is no longer slowed to 30; HF still waits 30.
 - **Changed:** a message goes on the radio that heard the station in the last six hours, FM first, and keeps that radio for its retries.
+- **Changed:** a message that went over HF only because the FM radio was off goes back to FM once it is on again.
+- **Changed:** Find my radio no longer stops the HF radio while it looks for the FM radio.
+- **Changed:** a conversation shows the radio its messages really go on, and Route and Send follow it.
+- **Changed:** a port, sound card or keying line the other radio is set to is refused at Save, instead of the radio waiting for it.
 - **Changed:** the page has the colours and shapes of the project's site, in the light and the dark theme, and so has the icon.
 - **Fixed:** a page on another device could change the alert command, the update address and the map source. Only this computer can now.
 - **Fixed:** behind a reverse proxy, visitors were taken for the NeoAPRS computer itself. They are now asked for the access key.

@@ -302,6 +302,13 @@ class Messaging:
         except MessagingError:
             return None
 
+    def radio_now(self, record: MessageRecord) -> AirRadio | None:
+        """The radio `radio_of` gives now, with nothing kept and nothing logged: the page's row (`radio_now`). None while there is none."""
+        try:
+            return self.message_radios.peek(record)
+        except MessagingError:
+            return None
+
     def _frame(self, field: bytes, to: str, attempt: int | None = None, room: int = 0, radio: AirRadio | None = None) -> ax25.Frame:
         """Our frame to the station for this information field: from `station/call` to the tocall by way of the station's path (for attempt number `attempt` of a message to it, when it is given), for `radio` (the
         one an ack goes back on; the station's radio when none is named): its path rules and its frame cap. A frame longer than the radio carries, with `room` bytes more that a later attempt may add (a reply-ack number),

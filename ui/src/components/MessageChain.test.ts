@@ -2,17 +2,10 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import MessageChain from "@/components/MessageChain.vue";
 import type { AttemptRow, HopRow, MessageRow } from "@/protocol/protocol";
-import { incoming, message } from "@/test/fixtures";
+import { attemptRow, incoming, message } from "@/test/fixtures";
 
 const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({ call, heard: false, heard_at: null, by_internet: false, ...extra });
-const attempt = (at: string, hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => ({
-  sent_at: at,
-  hops,
-  internet: null,
-  acked: false,
-  radio: "fm",
-  ...extra,
-});
+const attempt = (at: string, hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => attemptRow({ sent_at: at, hops, ...extra });
 const path = (...calls: string[]) => calls.map((call) => hop(call));
 const show = (row: MessageRow, heardDirect: string[] = []) => mount(MessageChain, { props: { row, heardDirect: new Set(heardDirect) } });
 const texts = (wrapper: ReturnType<typeof show>, selector = ".chain-latest .chip-hop") => wrapper.findAll(selector).map((c) => c.text().replace(/\s+/g, " "));

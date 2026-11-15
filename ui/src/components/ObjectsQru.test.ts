@@ -3,7 +3,7 @@ import { shallowRef } from "vue";
 import { describe, expect, it } from "vitest";
 import ObjectsQru from "@/components/ObjectsQru.vue";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { NOW, ago, configValues, qruState, toastOf } from "@/test/fixtures";
+import { NOW, ago, configValues, qruState, toastOf, qruAsked } from "@/test/fixtures";
 
 function make(given: Parameters<typeof fakeDaemon>[0] = {}) {
   const daemon = fakeDaemon(given);
@@ -65,31 +65,31 @@ describe("Local info in the Objects tab", () => {
   });
 
   it("says in the status row of the groups when the request was sent and that it waits for answers, for the minute Ask is held", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO 150", at: ago(5) }, servers: [] }) });
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO 150", ago(5)), servers: [] }) });
     expect(row(wrapper).classes()).toContain("statusfold");
     expect(row(wrapper).find(".statetext").text()).toBe("Asked");
     expect(row(wrapper).find(".statetext").classes()).toContain("tnc-waiting");
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · waiting for answers…$/);
-    await tell(daemon, { qru: qruState({ asked: { text: "INFO 150", at: ago(30) } }) });
+    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO 150", ago(30)) }) });
     expect(line(wrapper)).toMatch(/waiting for answers…$/);
     expect(wrapper.text()).not.toContain("No answer yet");
   });
 
   it("says after the minute how many servers answered the request, or that none did (a server of an earlier request does not count)", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO", at: ago(90) } }) });
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO", ago(90)) }) });
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · 1 server answered$/);
     expect(row(wrapper).find(".statetext").classes()).toContain("tnc-connected");
     const other = { ...qruState().servers[0], call: "W1AW", at: ago(40) };
-    await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(90) }, servers: [...qruState().servers, other] }) });
+    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(90)), servers: [...qruState().servers, other] }) });
     expect(line(wrapper)).toMatch(/2 servers answered$/);
-    await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(30) }, servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
-    await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(61) }, servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
+    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(30)), servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
+    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(61)), servers: qruState().servers.map((s) => ({ ...s, at: ago(600) })) }) });
     expect(line(wrapper)).toMatch(/^\d\d:\d\d · no answer$/);
     expect(row(wrapper).find(".statetext").classes()).not.toContain("tnc-connected");
   });
 
   it("opens the row on the request that was sent; holds that same request for the minute with the time left in its title, and any other for ten seconds", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "RP70 150", at: ago(5) } }) });
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("RP70 150", ago(5)) }) });
     await row(wrapper).find("summary").trigger("click");
     expect(row(wrapper).text()).toContain("Last request: RP70 150");
     expect(ask(wrapper).attributes("title")).toBe("Next request in 5 s");
@@ -105,7 +105,7 @@ describe("Local info in the Objects tab", () => {
   });
 
   it("asks for a group ten seconds after the INFO that listed it, though INFO itself is held for its minute", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO 150", at: ago(12) } }) });
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO 150", ago(12)) }) });
     expect(ask(wrapper).attributes("disabled")).toBeDefined();
     expect(pills(wrapper)[0]?.attributes("disabled")).toBeUndefined();
     await pills(wrapper)[0]?.trigger("click");
@@ -119,7 +119,7 @@ describe("Local info in the Objects tab", () => {
     expect(line(wrapper)).toBe("too soon for another request for local info: wait 12 s");
     await tell(daemon, { lastError: toastOf("qru_ask: RX only", "transmit.off") });
     expect(line(wrapper)).toContain("RX only");
-    await tell(daemon, { qru: qruState({ asked: { text: "INFO", at: ago(1) } }) });
+    await tell(daemon, { qru: qruState({ asked: qruAsked("INFO", ago(1)) }) });
     expect(row(wrapper).find(".statetext").text()).toBe("Asked");
     await tell(daemon, { lastError: toastOf("send_message: no call", "other") });
     expect(row(wrapper).find(".statetext").text()).toBe("Asked");
@@ -158,7 +158,7 @@ describe("Local info in the Objects tab", () => {
   });
 
   it("asks for a group when its tag is pressed, with the distance of the field", async () => {
-    const { wrapper, daemon } = make({ qru: qruState({ asked: { text: "INFO", at: ago(90) } }) });
+    const { wrapper, daemon } = make({ qru: qruState({ asked: qruAsked("INFO", ago(90)) }) });
     await pills(wrapper)[1]?.trigger("click");
     await wrapper.find("input.qru-km").setValue("200");
     await pills(wrapper)[0]?.trigger("click");
@@ -169,7 +169,7 @@ describe("Local info in the Objects tab", () => {
   it("shows a group that has no plain name as its code, and asks for it by it", async () => {
     const { wrapper, daemon } = make({
       qru: qruState({
-        asked: { text: "INFO", at: ago(90) },
+        asked: qruAsked("INFO", ago(90)),
         servers: [
           {
             call: "W1AW",

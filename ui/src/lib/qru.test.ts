@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answeredSince, askWait, kmOf, kmWrong, qruLook, receivedFrom, requestText, sentLine } from "@/lib/qru";
 import { LIMITS } from "@/protocol/lists";
-import { NOW, ago, qruState } from "@/test/fixtures";
+import { NOW, ago, qruState, qruAsked } from "@/test/fixtures";
 
 describe("the distance of a request for local info", () => {
   it("is empty, or a whole number of km from 1 to the most the daemon takes", () => {
@@ -25,19 +25,19 @@ describe("the minute between two requests", () => {
   it("is the daemon's rule: the same request a minute apart, any two ten seconds apart, rounded up to whole seconds", () => {
     expect([LIMITS.qru.askEverySec, LIMITS.qru.askGapSec]).toEqual([60, 10]);
     expect(askWait(null, NOW, "INFO")).toBe(0);
-    expect(askWait({ text: "INFO", at: ago(0) }, NOW, "INFO")).toBe(60);
-    expect(askWait({ text: "INFO", at: ago(20.4) }, NOW, "INFO")).toBe(40);
-    expect(askWait({ text: "INFO", at: ago(60) }, NOW, "INFO")).toBe(0);
-    expect(askWait({ text: "INFO", at: ago(0) }, NOW, "RP70")).toBe(10); // (a group right after the list: only the gap)
-    expect(askWait({ text: "INFO", at: ago(9.5) }, NOW, "RP70")).toBe(1);
-    expect(askWait({ text: "INFO", at: ago(10) }, NOW, "RP70")).toBe(0);
-    expect(askWait({ text: "INFO", at: ago(3) }, NOW)).toBe(7);
+    expect(askWait(qruAsked("INFO", ago(0)), NOW, "INFO")).toBe(60);
+    expect(askWait(qruAsked("INFO", ago(20.4)), NOW, "INFO")).toBe(40);
+    expect(askWait(qruAsked("INFO", ago(60)), NOW, "INFO")).toBe(0);
+    expect(askWait(qruAsked("INFO", ago(0)), NOW, "RP70")).toBe(10); // (a group right after the list: only the gap)
+    expect(askWait(qruAsked("INFO", ago(9.5)), NOW, "RP70")).toBe(1);
+    expect(askWait(qruAsked("INFO", ago(10)), NOW, "RP70")).toBe(0);
+    expect(askWait(qruAsked("INFO", ago(3)), NOW)).toBe(7);
   });
 
   it("counts the servers that answered since the request, not those of an earlier one", () => {
     const server = qruState().servers[0];
-    expect(answeredSince({ text: "INFO", at: ago(20) }, [server, { ...server, call: "W1AW", at: ago(30) }])).toBe(1);
-    expect(answeredSince({ text: "INFO", at: ago(10) }, [server])).toBe(0);
+    expect(answeredSince(qruAsked("INFO", ago(20)), [server, { ...server, call: "W1AW", at: ago(30) }])).toBe(1);
+    expect(answeredSince(qruAsked("INFO", ago(10)), [server])).toBe(0);
   });
 });
 
@@ -45,15 +45,15 @@ describe("what the row of the section says", () => {
   const server = qruState().servers[0];
   it("is nothing before a request, a refusal over everything, then waiting, then the count or no answer", () => {
     expect(qruLook(null, [], "", NOW)).toBeNull();
-    expect(qruLook({ text: "INFO", at: ago(5) }, [], "RX only: nothing is sent", NOW)).toMatchObject({
+    expect(qruLook(qruAsked("INFO", ago(5)), [], "RX only: nothing is sent", NOW)).toMatchObject({
       state: "Not sent",
       tone: "tnc-waiting",
       line: "RX only: nothing is sent",
     });
-    expect(qruLook({ text: "INFO", at: ago(5) }, [], "", NOW)?.line).toMatch(/^\d\d:\d\d · waiting for answers…$/);
-    const answered = qruLook({ text: "INFO", at: ago(70) }, [server], "", NOW);
+    expect(qruLook(qruAsked("INFO", ago(5)), [], "", NOW)?.line).toMatch(/^\d\d:\d\d · waiting for answers…$/);
+    const answered = qruLook(qruAsked("INFO", ago(70)), [server], "", NOW);
     expect([answered?.tone, answered?.line]).toEqual(["tnc-connected", expect.stringMatching(/ · 1 server answered$/) as string]);
-    const silent = qruLook({ text: "INFO", at: ago(70) }, [], "", NOW);
+    const silent = qruLook(qruAsked("INFO", ago(70)), [], "", NOW);
     expect([silent?.tone, silent?.line]).toEqual(["tnc-stopped", expect.stringMatching(/ · no answer$/) as string]);
   });
 });

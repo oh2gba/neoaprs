@@ -16,7 +16,7 @@ import { useSetupGuide } from "@/composables/useSetupGuide";
 import { chainOf } from "@/lib/chain";
 import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon } from "@/test/context";
-import { ago, configValues, incoming, message, packet, station, table } from "@/test/fixtures";
+import { ago, attemptRow, configValues, incoming, message, packet, station, table } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => document.body.replaceChildren());
@@ -135,7 +135,7 @@ describe("Send follows the link of the radio the message takes", () => {
 });
 
 describe("the chain of a message sent over HF", () => {
-  const attempt = (radio: "" | "fm" | "hf") => ({ sent_at: "2026-10-22T12:00:00Z", hops: [], internet: null, acked: true, radio });
+  const attempt = (radio: "" | "fm" | "hf") => attemptRow({ acked: true, radio });
 
   it("marks the you chip HF, with the hover that says over HF, and leaves an FM attempt and one kept before there were two radios as they were", () => {
     const row = message(1, { to_call: "OH2CUB-7", state: "acked", acked_at: "2026-10-22T12:00:05Z" });

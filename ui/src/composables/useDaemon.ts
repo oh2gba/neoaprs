@@ -1,4 +1,4 @@
-// The daemon as the page sees it: the fifteen topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test` and to `list_ports`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
+// The daemon as the page sees it: the topics as reactive state (the stations' own paths, RF only and alerts are `stationPrefs`), the status, the latest alert of a station that fired (`stationAlert`), the latest answer to `weather_series`, to `alert_test`, to `list_ports` and to `radio_add`, the state of the connection, and `send`. Opens the socket when the component that calls it is mounted and
 // closes it when it is unmounted. The conversation itself is lib/hub.ts.
 import { onBeforeUnmount, onMounted, ref, shallowReactive, shallowRef, type Ref } from "vue";
 import type {
@@ -15,6 +15,8 @@ import type {
   MessageRow,
   PacketRow,
   QruState,
+  RadioAddedMessage,
+  RadioRow,
   StationAlertMessage,
   StationRow,
   StatusMessage,
@@ -50,9 +52,13 @@ function fill<T>(into: Map<string, T>, rows: Record<string, T>, done?: Ref<boole
   if (done) done.value = true;
 }
 
-/** The topics that are told whole: the FM radio, the HF radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around). */
+/** The topics that are held as one value each: those told whole (the FM radio, the HF radio, the settings, the base map, Update now, the GPS, the iGate, local info (QRU) and the general queries asked (Ask around)),
+ * and the radios (useRadioTopic). */
 function useWholeTopics() {
+  const radios = useRadioTopic();
   const refs = {
+    radios: radios.radios,
+    radioAdded: radios.radioAdded,
     tnc: shallowRef<TncState | null>(null),
     hf: shallowRef<TncState | null>(null),
     config: shallowRef<ConfigValues | null>(null),
@@ -76,6 +82,10 @@ function useWholeTopics() {
     | "replaceQru"
     | "replaceGeneral"
     | "replaceSkeds"
+    | "replaceRadios"
+    | "setRadio"
+    | "delRadio"
+    | "radioAdded"
   > = {
     replaceTnc: (value) => (refs.tnc.value = value),
     replaceHf: (value) => (refs.hf.value = value),
@@ -87,8 +97,23 @@ function useWholeTopics() {
     replaceQru: (value) => (refs.qru.value = value),
     replaceGeneral: (value) => (refs.general.value = value),
     replaceSkeds: (value) => (refs.skeds.value = value),
+    ...radios.handlers,
   };
   return { refs, handlers };
+}
+
+/** The topic `radios`, by the radio's id as text: null until the daemon has told it (a daemon of the wire of before never does). A change makes a new map, as the radios are few. And the answer to this page's
+ * `radio_add`, the id of the radio it made (its row comes with the topic's next patch). */
+function useRadioTopic() {
+  const radios = shallowRef<ReadonlyMap<string, RadioRow> | null>(null);
+  const radioAdded = shallowRef<RadioAddedMessage | null>(null);
+  const handlers: Pick<Store, "replaceRadios" | "setRadio" | "delRadio" | "radioAdded"> = {
+    replaceRadios: (rows) => (radios.value = new Map(Object.entries(rows))),
+    setRadio: (key, row) => (radios.value = new Map(radios.value ?? []).set(key, row)),
+    delRadio: (key) => (radios.value = new Map([...(radios.value ?? [])].filter(([id]) => id !== key))),
+    radioAdded: (message) => (radioAdded.value = message),
+  };
+  return { radios, radioAdded, handlers };
 }
 
 /** A hello of a daemon that the page does not go with, after the load that was made for it (lib/reload.ts): the notice is set and the socket closed for good, so that nothing the daemon sends reaches the page and it is not opened again. */

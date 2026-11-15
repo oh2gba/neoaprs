@@ -136,6 +136,20 @@ export const de: Catalogue = {
   "error.sked.far": "dieser Test beginnt erst in mehr als 30 Tagen",
   "error.sked.unreachable": "die Tafel der KW-Tests war gerade nicht erreichbar; versuche es später noch einmal",
   "error.radio.busy": "die Suche nach dem Funkgerät läuft bereits",
+  "error.radio.last_enabled": "eine Station hat mindestens ein Funkgerät: setze das Häkchen beim FM-Funkgerät oder beim KW-Funkgerät",
+  "error.radio.name_form":
+    "the name '{name}' cannot be a radio's: a name is at most {max} printable ASCII characters (letters, digits and the signs of the keyboard)",
+  "error.radio.name_taken": "the name '{name}' is another radio's already: give this one another",
+  "error.radio.no_line": "the {name} radio has no serial line to look for",
+  "error.radio.no_modem": "the {name} radio has no modem running",
+  "error.radio.no_setting": "the {name} radio has no such setting",
+  "error.radio.none": "there is no radio: add one, or turn one on",
+  "error.radio.not_connected": "the {name} radio is not connected",
+  "error.radio.off": "the {name} radio is off: turn it on first",
+  "error.radio.resource_held": "that device is in use by {holder}: choose another",
+  "error.radio.type_kind": "the {name} radio takes only a type of its own kind ({kind})",
+  "error.radio.unknown": "there is no radio {radio}",
+  "error.radio.unknown_type": "'{type}' is not a type of radio (the types are those of the list)",
   "error.radio.failed": "die Suche nach dem Funkgerät ist fehlgeschlagen",
   "error.radio.no_ports": "es gibt keinen Port zum Ausprobieren: keiner ist aufgelistet, den die Suche beachtet",
   "error.radio.not_found":
@@ -185,7 +199,6 @@ export const de: Catalogue = {
   "error.setting.comment_too_long":
     "{length} Zeichen sind mehr als die {limit}, die mit der PHG-Erweiterung erlaubt sind (beacon/power_w leeren, um keine zu senden)",
   "error.setting.local_only": "das geht nur auf einer Seite am NeoAPRS-Computer",
-  "error.setting.no_radio": "eine Station hat mindestens ein Funkgerät: setze das Häkchen beim FM-Funkgerät oder beim KW-Funkgerät",
   "error.setting.not_access_key": "das ist kein Zugangsschlüssel (drei Gruppen aus vier Ziffern und Buchstaben, etwa k7m2-x9pq-4hrt)",
   "error.setting.not_ascii": "es enthält Zeichen, die kein druckbares ASCII sind",
   "error.setting.not_boolean": "„{value}“ ist weder true noch false",

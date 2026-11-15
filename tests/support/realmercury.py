@@ -158,7 +158,7 @@ class Page:
                 raise Failure(f"{self.name}: the daemon closed the socket")
             left = deadline - loop.time()
             if left <= 0:
-                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (hf {json.dumps(self.topics.get('hf', {}).get('state'))}, modem {json.dumps(self.modem())}, "
+                raise Failure(f"{self.name}: {what} did not happen within {seconds:g} s (hf {json.dumps(self.radio('hf').get('state'))}, modem {json.dumps(self.modem())}, "
                               f"the last error {json.dumps(self.errors[-1]) if self.errors else 'none'})")
             try:
                 await asyncio.wait_for(self._changed.wait(), left)
@@ -187,8 +187,17 @@ class Page:
             if self.on_error is not None:
                 self.on_error(self.name, message)
 
+    def radio(self, kind: str) -> dict[str, Any]:
+        """The radio of a kind as the page holds it: the first enabled one of the topic `radios` by position while that is told (the wire from the round of the radios on), else the old topic of the kind
+        (`tnc` for fm, `hf`); {} while neither is."""
+        rows = self.topics.get("radios")
+        if rows is not None:
+            live = sorted((r for r in rows.values() if r.get("kind") == kind and r.get("enabled") and not r.get("removed")), key=lambda r: (r.get("position", 0), r.get("id", 0)))
+            return live[0] if live else {}
+        return self.topics.get("tnc" if kind == "fm" else kind) or {}
+
     def modem(self) -> dict[str, Any]:
-        return (self.topics.get("hf") or {}).get("modem") or {}
+        return self.radio("hf").get("modem") or {}
 
     def free(self) -> bool:
         """The radio connected and the modem neither keyed nor hearing a signal: a frame handed to it now goes at once (`beacon_now` and `send_message` are refused while the radio is held)."""
@@ -196,11 +205,11 @@ class Page:
 
     def ready(self) -> bool:
         """The HF radio connected to its Mercury and the control port heard."""
-        return (self.topics.get("hf") or {}).get("state") == "connected" and self.modem().get("state") == "running"
+        return self.radio("hf").get("state") == "connected" and self.modem().get("state") == "running"
 
     def fm_connected(self) -> bool:
-        """The FM radio (the TNC of the topic `tnc`) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
-        return (self.topics.get("tnc") or {}).get("state") == "connected"
+        """The FM radio (the first of the topic `radios`, or the TNC of the topic `tnc` before it) connected to its line; any other state, waiting between two attempts or silent, is a radio that is not there."""
+        return self.radio("fm").get("state") == "connected"
 
     def stations(self) -> dict[str, Any]:
         return self.topics.get("stations") or {}

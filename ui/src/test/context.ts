@@ -1,4 +1,4 @@
-// The page's context (composables/useDaemonContext.ts) for a test that mounts a pane on its own: every part a pane may inject is there, quiet (a connected radio, the settings of the fixtures, no stations), and a test gives the parts it cares about
+// The page's context (composables/useDaemonContext.ts) for a test that mounts a pane on its own: every part a pane may inject is there, quiet (a connected radio, the settings of the fixtures, no stations, the topic `radios` as the daemon tells it for those settings), and a test gives the parts it cares about
 // (a plain value, or a ref that it changes later) and reads `send`, which records the commands, and `say`, which records what the page would say in its toast. `withDaemon(context)` is the `global` option of a mount.
 import { computed, isRef, nextTick, shallowReactive, shallowRef, type Ref } from "vue";
 import { vi, type Mock } from "vitest";
@@ -16,8 +16,8 @@ import { DEFAULT_TIMEOUT_MIN } from "@/lib/aging";
 import { hfOn, type RadioKind } from "@/lib/radiosides";
 import { ScopeMemory } from "@/lib/scopememory";
 import type { Connection } from "@/lib/hub";
-import type { Command, PacketRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
-import { NOW, configValues } from "@/test/fixtures";
+import type { Command, ConfigValues, PacketRow, RadioRow, RadioSearchMessage, StationKey, StationPref, StationRow, TncState } from "@/protocol/protocol";
+import { NOW, configValues, radiosOf } from "@/test/fixtures";
 
 /** The context as a test changes it: the parts that are refs are writable. */
 export type FakeDaemon = { [K in keyof DaemonContext]: DaemonContext[K] extends Readonly<Ref<infer T>> ? Ref<T> : DaemonContext[K] } & {
@@ -32,6 +32,25 @@ function scopeOf(over: Given, send: FakeDaemon["send"], hf: Ref<TncState | null>
   return over.scope ?? useScopeLooks(send, hf, connection, pageVisible());
 }
 
+type RadioTopic = ReadonlyMap<string, RadioRow> | null;
+
+/** The topic `radios`: the one a test gave, else as this daemon tells it for the settings (radio 1 the FM radio, radio 2 the HF radio), following them until a test tells its own (null: a daemon of the wire of
+ * before). */
+function radiosPart(
+  given: RadioTopic | Ref<RadioTopic> | undefined,
+  config: Ref<ConfigValues | null>,
+  connected: Ref<boolean>,
+  tnc: Ref<TncState | null>,
+  hf: Ref<TncState | null>,
+): Ref<RadioTopic> {
+  if (isRef(given)) return given;
+  const told = shallowRef<RadioTopic | "settings">(given === undefined ? "settings" : given);
+  return computed({
+    get: () => (told.value === "settings" ? radiosOf(config.value?.values ?? {}, connected.value, tnc.value, hf.value) : told.value),
+    set: (value: RadioTopic) => (told.value = value),
+  });
+}
+
 /** The context a test mounts a pane in; a part given as a value is put in a ref. */
 export function fakeDaemon(over: Given = {}): FakeDaemon {
   const send = vi.fn((_command: Command) => true);
@@ -44,6 +63,7 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
   const connected = part(over.connected, true);
   const sender = (over.send as typeof send | undefined) ?? send;
   const settings = over.settings ?? useSettings(config, lastError, sender);
+  const tnc = part(over.tnc, null);
   const hf = part(over.hf, null);
   const connection = part(over.connection, "open" as const);
   const context = {
@@ -51,9 +71,11 @@ export function fakeDaemon(over: Given = {}): FakeDaemon {
     say: over.say ?? vi.fn((_text: string) => undefined),
     config,
     status,
-    tnc: part(over.tnc, null),
+    tnc,
     hf,
     scopeRows: over.scopeRows ?? new ScopeMemory(),
+    radios: radiosPart(over.radios, config, connected, tnc, hf),
+    radioAdded: part(over.radioAdded, null),
     radiosNamed: over.radiosNamed === undefined ? computed(() => hfOn(config.value?.values ?? {})) : part(over.radiosNamed, false),
     gps: part(over.gps, null),
     igate: part(over.igate, null),

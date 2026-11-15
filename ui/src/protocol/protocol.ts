@@ -346,7 +346,7 @@ export interface FindRadioCancelCommand {
   radio?: number | null;
 }
 
-/** Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`) and for a `radio` that is none or of a type that has no serial line (`radio.unknown`). With `radio` only that radio's line is let go, the ports another radio or the GPS receiver holds are passed over, and the messages name it. */
+/** Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`), for a `radio` that is none (`radio.unknown`) and for one of a type that has no serial line (`radio.no_line`). Only that radio's line is let go (radio 1's when `radio` is left out), the ports another radio or the GPS receiver holds are passed over, and the messages name it. */
 export interface FindRadioCommand {
   cmd: "find_radio";
   /** the radio the search is for (its id); left out: radio 1, the FM radio of before */
@@ -439,8 +439,8 @@ export interface GeneralQueryCommand {
 export interface GeneralState {
   /** the last query of each kind, whatever radio it went on, the oldest first; empty before one */
   asked: GeneralAsked[];
-  /** the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`); left out before the first query in this version */
-  by_radio?: GeneralAsked[];
+  /** the last query of each kind on each radio, the oldest first: the wait before the next of a kind is that radio's (`general.too_soon`) */
+  by_radio: GeneralAsked[];
 }
 
 /** The GPS receiver and what the beacon does with it: the latest fix, whether it can be used, and the beacon of a moving station. Told whole as it changes, at most once a second. */
@@ -1624,7 +1624,7 @@ export interface StationPref {
   alert: AlertWhen | null;
 }
 
-/** Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. Answered by the station's row (and the `radio_now` of each message to it on its way), or an `error`: `radio.unknown` (no radio of that id that is not removed) and `station.unknown` (a call the book does not hold: in this version the choice is kept on a station of the book only, so the page offers the choice for a station it lists; plan rule 3.2 keeps it by call, which needs the store of the choices to keep a call without a station, and then this refusal goes). */
+/** Chooses the radio messages to a station go out on (`radio`, or null to leave it to the daemon again: plan rule 3.2, the radio that heard it lately, a local one before HF). It holds from the next attempt on, also of a message on its way, and across a restart; the station's row says it (`radio_choice`, and `radio_now` the radio a message takes now). A radio that is off is no choice: the station's row says null while it is. For a station of the book it is answered by the station's row (and the `radio_now` of each message to it on its way); a call the book does not hold is chosen for too (plan rule 3.2: the choice is kept by call), with no answer, and its station's row says it once the station is heard. The call is kept in its normal form, as a message names it (upper case, no SSID 0). Refused with an `error`: `radio.unknown` (no radio of that id that is not removed), or a `call.*` code for a text that is no call. */
 export interface StationRadioCommand {
   cmd: "station_radio";
   call: string;

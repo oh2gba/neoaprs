@@ -19,6 +19,8 @@ import {
   ownBulletin,
   ownObject,
   packet,
+  portRow,
+  radioRow,
   station,
   tncState,
 } from "@/test/fixtures";
@@ -104,6 +106,30 @@ describe("useDaemon", () => {
       ],
     });
     expect([...daemon.stations.keys()]).toEqual(["B"]);
+  });
+
+  it("holds the radios by their ids, none until the daemon has told them, and a new table at each change so that what reads them follows", () => {
+    const { daemon, socket } = setUp();
+    socket.say(hello());
+    expect(daemon.radios.value).toBeNull();
+    socket.say({ type: "state", topic: "radios", rev: 0, value: { "1": radioRow(1, "kenwood-tnc2"), "2": radioRow(2, "mercury") } });
+    const first = daemon.radios.value;
+    expect([...(first?.keys() ?? [])]).toEqual(["1", "2"]);
+    socket.say({ type: "patch", topic: "radios", rev: 1, ops: [{ op: "set", key: "2", value: radioRow(2, "mercury", { state: "waiting" }) }] });
+    expect(daemon.radios.value).not.toBe(first);
+    expect(daemon.radios.value?.get("2")?.state).toBe("waiting");
+    expect(first?.get("2")?.state).toBe("connected");
+    socket.say({
+      type: "patch",
+      topic: "radios",
+      rev: 2,
+      ops: [
+        { op: "set", key: "3", value: radioRow(3, "dummy", { number: 2 }) },
+        { op: "del", key: "1" },
+      ],
+    });
+    expect([...(daemon.radios.value?.keys() ?? [])]).toEqual(["2", "3"]);
+    expect(daemon.tnc.value).toBeNull();
   });
 
   it("knows from the hello whether the page is on the computer the daemon runs on, and is not until it has been told", () => {
@@ -195,6 +221,14 @@ describe("useDaemon", () => {
     expect(daemon.alertResult.value).toEqual({ type: "alert_result", ok: true, text: "ran" });
   });
 
+  it("keeps the latest answer to radio_add, the id of the radio this page made", () => {
+    const { daemon, socket } = setUp();
+    expect(daemon.radioAdded.value).toBeNull();
+    socket.say({ type: "radio_added", id: 3 });
+    socket.say({ type: "radio_added", id: 4 });
+    expect(daemon.radioAdded.value).toEqual({ type: "radio_added", id: 4 });
+  });
+
   it("keeps the latest answer to list_ports", () => {
     const { daemon, socket } = setUp();
     expect(daemon.ports.value).toBeNull();
@@ -203,7 +237,7 @@ describe("useDaemon", () => {
       type: "ports",
       sound_cards: [],
       keying: "",
-      ports: [{ device: "COM3", description: "USB Serial Port (COM3)", hwid: "n/a", vid: null, pid: null }],
+      ports: [portRow("COM3", "USB Serial Port (COM3)")],
       search: false,
       find: true,
     });

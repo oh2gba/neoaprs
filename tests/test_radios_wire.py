@@ -11,7 +11,7 @@ import pytest
 from pydantic import TypeAdapter
 
 from neoaprs.claims import Claim
-from neoaprs.radiospec import FM_ID, RadioSpec
+from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.web import handlers as web_handlers
 from neoaprs.web.protocol import TOPIC_NAMES
 from neoaprs.web.tncwire import RadioRow
@@ -87,7 +87,6 @@ async def test_every_refusal_of_the_radio_commands_has_its_code(tmp_path: Path) 
         ({"cmd": "list_ports", "radio": 9}, "radio.unknown", {"radio": 9}),
         ({"cmd": "find_radio", "radio": id}, "radio.no_line", {"name": "Shack"}),
         ({"cmd": "station_radio", "call": "OH2XYZ", "radio": 9}, "radio.unknown", {"radio": 9}),
-        ({"cmd": "station_radio", "call": "OH2XYZ", "radio": id}, "station.unknown", {"call": "OH2XYZ"}),
         ({"cmd": "set_station_path", "call": "OH2XYZ", "path": "WIDE1-1", "radio": 9}, "radio.unknown", {"radio": 9}),
         ({"cmd": "object_set", "name": "MARK", "kind": "object", "lat": 60, "lon": 25, "symbol_table": "/", "symbol_code": ">", "comment": "", "course_deg": None, "speed_kmh": None, "path": None, "qru_group": "",
           "on_request": False, "radios": [FM_ID, 9]}, "radio.unknown", {"radio": 9}),
@@ -185,13 +184,13 @@ async def test_ask_and_local_info_go_on_the_radio_named_and_a_radio_that_is_off_
     e, page = await started(tmp_path)
     id = await added(page, "dummy", "Shack")
     await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected")
-    assert "by_radio" not in page.topics["general"], "left out before the first query (until I4 makes it always there)"
+    assert page.topics["general"]["by_radio"] == []
     await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": id})
     await page.until(lambda: [a["radio"] for a in page.topics["general"]["asked"]] == [id])
     two = await added(page, "dummy", "Two")
     await page.until(lambda: page.topics["radios"][str(two)]["state"] == "connected")
     await page.send({"cmd": "general_query", "kind": "aprs", "path": None, "rf_only": True, "radio": two})
-    await page.until(lambda: [(a["radio"], a["kind"]) for a in page.topics["general"].get("by_radio", [])] == [(id, "aprs"), (two, "aprs")])
+    await page.until(lambda: [(a["radio"], a["kind"]) for a in page.topics["general"]["by_radio"]] == [(id, "aprs"), (two, "aprs")])
     assert [a["radio"] for a in page.topics["general"]["asked"]] == [two], "the field of before: the latest of each kind; the wait of each radio is its own"
     await page.send({"cmd": "qru_ask", "text": "INFO", "radio": id})
     await page.until(lambda: page.topics["qru"]["asked"] is not None and page.topics["qru"]["asked"]["radio"] == id)
@@ -273,6 +272,36 @@ async def test_a_message_on_its_way_says_the_radio_it_takes_next_as_the_choice_a
         await page.send(command)
         await page.until(lambda now=now: told() == (now, now), timeout=3)          # (the clock of the test stands: no attempt is made meanwhile, the row is told by the change itself)
     assert page.topics["messages"][key]["state"] == "sending"
+    await e.stop()
+
+
+async def test_the_command_of_before_that_chooses_the_radio_tells_the_messages_on_their_way(tmp_path: Path) -> None:
+    e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    await page.until(lambda: page.topics["radios"]["2"]["state"] == "connected")
+    e.ctl.stationbook.take(replace(heard("!6010.00N/02456.00E>near", "OH2XYZ", at=e.ctl.clock()), radio_id=FM_ID))
+    await page.until(lambda: "OH2XYZ" in page.topics["stations"])
+    await page.send({"cmd": "send_message", "to": "OH2XYZ", "text": "over FM"})
+    await page.until(lambda: [m["radio_now"] for m in page.topics["messages"].values() if m["to_call"] == "OH2XYZ"] == [FM_ID])
+    [key] = [k for k, m in page.topics["messages"].items() if m["to_call"] == "OH2XYZ"]
+    for word, now in (("hf", HF_ID), ("fm", FM_ID)):
+        await page.send({"cmd": "message_radio", "call": "OH2XYZ", "radio": word})
+        await page.until(lambda now=now: page.topics["messages"][key]["radio_now"] == now, timeout=3)   # (the clock of the test stands: the choice itself tells the row)
+    await e.stop()
+
+
+async def test_a_call_the_book_does_not_hold_is_chosen_for_by_call_and_its_row_says_it_once_it_is_heard(tmp_path: Path) -> None:
+    """Plan rule 3.2: the choice is kept by call, with or without a station in the book."""
+    e, page = await started(tmp_path)
+    id = await added(page, "dummy")
+    await page.send({"cmd": "station_radio", "call": " oh2new ", "radio": id})
+    await page.until(lambda: e.ctl.radios.choice("OH2NEW") == id)
+    assert "OH2NEW" not in page.topics["stations"] and page.of("error") == [], "taken in the call's normal form, with no station to tell"
+    error = await refused(page, {"cmd": "station_radio", "call": "not a call!", "radio": id})
+    assert error["code"] == "call.shape" and json.loads(e.ctl.radios.choices_text()) == {"OH2NEW": id}, "a text that is no call is refused and nothing is kept for it"
+    e.ctl.stationbook.take(replace(heard("!6010.00N/02456.00E>near", "OH2NEW", at=e.ctl.clock()), radio_id=FM_ID))
+    await page.until(lambda: "OH2NEW" in page.topics["stations"])
+    row = page.topics["stations"]["OH2NEW"]
+    assert (row["radio_choice"], row["radio_now"]) == (id, id), "the station heard later has the choice made for its call"
     await e.stop()
 
 
@@ -400,6 +429,19 @@ async def test_a_modems_commands_reach_the_modem_of_the_radio_named(tmp_path: Pa
         await page.send(command)
     await page.until(lambda: done == ["tune", "stop", "key"])
     assert not page.of("error")
+    await e.stop()
+
+
+async def test_a_modems_command_on_a_radio_whose_modem_is_not_running_is_refused_with_that_radios_name(tmp_path: Path) -> None:
+    """The Dummy HF radio has a modem part that never runs, as a Mercury radio whose modem is down: the refusal names the radio, not the HF radio of before."""
+    e, page = await started(tmp_path, {"hf/enabled": "true", "hf/profile": "dummy-hf"})
+    await page.until(lambda: page.topics["radios"]["2"]["state"] == "connected")
+    await page.send({"cmd": "radio_change", "radio": HF_ID, "name": "Attic"})
+    await page.until(lambda: page.topics["radios"]["2"]["name"] == "Attic")
+    for command in ({"cmd": "radio_tune", "radio": HF_ID, "on": True}, {"cmd": "radio_key_test", "radio": HF_ID}):
+        error = await refused(page, command)
+        assert (error["code"], error["params"], error["text"]) == ("radio.no_modem", {"name": "Attic"}, f"{command['cmd']}: the Attic radio has no modem running"), command
+    assert (await refused(page, {"cmd": "hf_tune", "on": True}))["code"] == "hf.not_running", "the command of before answers as it did"
     await e.stop()
 
 

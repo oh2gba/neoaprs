@@ -49,8 +49,8 @@ class FindRadio(_Command):
     """Find my radio: tries the serial ports and the paired Bluetooth devices that the search for the radio looks at (not a KISS TCP address), one after the other and each at the usual speeds, until a TNC answers in KISS or can be
     put into KISS the way a TNC profile does. The radio's own line is closed while it runs and opened again after it. It writes nothing but a carriage return and, to a TNC that answers with text, the steps of the TNC profiles that
     put it into KISS; nothing is sent to the air. Told to the page that asked with `radio_search` messages (`trying` before each try, then `found` or `cancelled`); the page puts the answer in the settings. An `error` when a search is running
-    (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`) and for a `radio` that is none or of a type that has no serial line (`radio.unknown`). With `radio` only that radio's line is let go, the ports
-    another radio or the GPS receiver holds are passed over, and the messages name it."""
+    (`radio.busy`), when there is no port to try (`radio.no_ports`), when none answered (`radio.not_found`), for a `radio` that is none (`radio.unknown`) and for one of a type that has no serial line (`radio.no_line`). Only that radio's line is
+    let go (radio 1's when `radio` is left out), the ports another radio or the GPS receiver holds are passed over, and the messages name it."""
     cmd: Literal["find_radio"]
     radio: int | None = Field(default=None, ge=1, description="the radio the search is for (its id); left out: radio 1, the FM radio of before")
 

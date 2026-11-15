@@ -7,7 +7,7 @@ import { MESSAGES_WIDE } from "@/lib/layout";
 import { conversations } from "@/lib/messages";
 import type { StationPref } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { incoming, message } from "@/test/fixtures";
+import { attemptRow, incoming, message } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const rows = [
@@ -271,15 +271,7 @@ describe("MessagesPane, the thread", () => {
   it("shows the delivery chain under a message of ours that has attempts, judging a hop that was not heard by the stations heard direct, and none under one that came in", async () => {
     const chained = message(1, {
       to_call: "OH2RDG",
-      attempts_detail: [
-        {
-          sent_at: "2026-10-22T12:00:00Z",
-          hops: [{ call: "OH2RCH-2", heard: false, heard_at: null, by_internet: false }],
-          internet: null,
-          acked: false,
-          radio: "fm",
-        },
-      ],
+      attempts_detail: [attemptRow({ hops: [{ call: "OH2RCH-2", heard: false, heard_at: null, by_internet: false }] })],
     });
     const wrapper = await pane({ thread: [chained, incoming(2, "OH2RDG")], heardDirect: new Set(["OH2RCH-2"]) });
     const chains = wrapper.findAll(".chain");

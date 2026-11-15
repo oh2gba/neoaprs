@@ -15,7 +15,7 @@ import {
 import { callOk, callProblem, degreesProblem, parseNumber, symbolProblem } from "@/lib/fieldcheck";
 import { symbolLayers } from "@/lib/symbols";
 import { SYMBOL_TABLES } from "@/protocol/lists";
-import { configValues } from "@/test/fixtures";
+import { configValues, portRow } from "@/test/fixtures";
 
 /** The settings of a fresh install: no call, no position. */
 const fresh = () =>
@@ -151,7 +151,7 @@ describe("the radio step", () => {
   });
 
   it("lists the ports with what the system calls them: Automatic first where the daemon searches, a blank where it does not", () => {
-    const row = (device: string, description: string) => ({ device, description, hwid: "n/a", vid: null, pid: null });
+    const row = (device: string, description: string) => portRow(device, description);
     const list = {
       type: "ports" as const,
       sound_cards: [],

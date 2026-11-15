@@ -13,6 +13,8 @@ import type {
   OwnObjectRow,
   PacketRow,
   PortsMessage,
+  RadioAddedMessage,
+  RadioRow,
   RadioSearchMessage,
   StationAlertMessage,
   StationKey,
@@ -50,12 +52,13 @@ const ANSWERS: Partial<Record<Message["type"], keyof Store>> = {
   release_notes: "releaseNotes",
   ports: "ports",
   radio_search: "radioSearch",
+  radio_added: "radioAdded",
 };
 
 type TopicName = keyof TopicValues;
 export type Connection = "connecting" | "open" | "closed";
 
-/** Where what the daemon says goes. A keyed topic (stations, packets, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general) as a whole. */
+/** Where what the daemon says goes. A keyed topic (stations, packets, radios, messages, bulletins, own_objects, own_bulletins, station_prefs, station_keys) is told item by item, the others (tnc, hf, config, map, update, gps, igate, qru, general) as a whole. */
 export interface Store {
   connection(state: Connection): void;
   hello(message: HelloMessage): void;
@@ -72,6 +75,7 @@ export interface Store {
   releaseNotes(message: ReleaseNotesMessage): void;
   ports(message: PortsMessage): void;
   radioSearch(message: RadioSearchMessage): void;
+  radioAdded(message: RadioAddedMessage): void;
   /** an alert set on a station fired (not an answer: every page is told, once) */
   stationAlert(message: StationAlertMessage): void;
   /** a row of the HF radio's waterfall, told to a page that asked for the scope: a binary frame, not a message (PROTOCOL.md) */
@@ -80,6 +84,7 @@ export interface Store {
   hfScopeHistory(history: ScopeHistory): void;
   replaceStations(rows: Record<string, StationRow>): void;
   replacePackets(rows: Record<string, PacketRow>): void;
+  replaceRadios(rows: Record<string, RadioRow>): void;
   replaceMessages(rows: Record<string, MessageRow>): void;
   replaceBulletins(rows: Record<string, BulletinRow>): void;
   replaceStationPrefs(rows: Record<string, StationPref>): void;
@@ -98,6 +103,7 @@ export interface Store {
   replaceSkeds(value: TopicValues["skeds"]): void;
   setStation(key: string, row: StationRow): void;
   setPacket(key: string, row: PacketRow): void;
+  setRadio(key: string, row: RadioRow): void;
   setMessage(key: string, row: MessageRow): void;
   setBulletin(key: string, row: BulletinRow): void;
   setStationPref(call: string, pref: StationPref): void;
@@ -106,6 +112,7 @@ export interface Store {
   setOwnBulletin(slot: string, row: OwnBulletinRow): void;
   delStation(key: string): void;
   delPacket(key: string): void;
+  delRadio(key: string): void;
   delMessage(key: string): void;
   delBulletin(key: string): void;
   delStationPref(call: string): void;
@@ -118,6 +125,7 @@ export interface Store {
 const REPLACERS: Record<TopicName, keyof Store> = {
   stations: "replaceStations",
   packets: "replacePackets",
+  radios: "replaceRadios",
   messages: "replaceMessages",
   bulletins: "replaceBulletins",
   station_prefs: "replaceStationPrefs",
@@ -375,6 +383,7 @@ export class Hub {
   private set(topic: TopicName, key: string, value: unknown): void {
     if (topic === "stations") this.store.setStation(key, value as StationRow);
     else if (topic === "packets") this.store.setPacket(key, value as PacketRow);
+    else if (topic === "radios") this.store.setRadio(key, value as RadioRow);
     else if (topic === "messages") this.store.setMessage(key, value as MessageRow);
     else if (topic === "bulletins") this.store.setBulletin(key, value as BulletinRow);
     else if (topic === "station_prefs") this.store.setStationPref(key, value as StationPref);
@@ -386,6 +395,7 @@ export class Hub {
   private del(topic: TopicName, key: string): void {
     if (topic === "stations") this.store.delStation(key);
     else if (topic === "packets") this.store.delPacket(key);
+    else if (topic === "radios") this.store.delRadio(key);
     else if (topic === "messages") this.store.delMessage(key);
     else if (topic === "bulletins") this.store.delBulletin(key);
     else if (topic === "station_prefs") this.store.delStationPref(key);

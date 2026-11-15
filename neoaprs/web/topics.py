@@ -184,7 +184,7 @@ class Topics:
 
     def _message_row(self, record: MessageRecord) -> dict[str, Any]:
         sending = record.direction == "out" and record.state == "sending"
-        radio = self.ctl.messaging.radio_of(record) if sending else None
+        radio = self.ctl.messaging.radio_now(record) if sending else None
         return message_row(record, self.ctl.messaging.delivery.attempts_of(record.id), self.ctl.messaging.queued(record), None if radio is None else radio.id)
 
     async def start(self) -> None:

@@ -1,17 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { chainOf, isAlias, isMarker } from "@/lib/chain";
 import type { AttemptRow, HopRow } from "@/protocol/protocol";
-import { message } from "@/test/fixtures";
+import { attemptRow, message } from "@/test/fixtures";
 
 const hop = (call: string, extra: Partial<HopRow> = {}): HopRow => ({ call, heard: false, heard_at: null, by_internet: false, ...extra });
-const attempt = (hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => ({
-  sent_at: "2026-10-22T12:00:00Z",
-  hops,
-  internet: null,
-  acked: false,
-  radio: "fm",
-  ...extra,
-});
+const attempt = (hops: HopRow[], extra: Partial<AttemptRow> = {}): AttemptRow => attemptRow({ hops, ...extra });
 const row = message(1, { to_call: "OH2CUB-7" });
 
 describe("chainOf", () => {

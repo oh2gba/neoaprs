@@ -5,10 +5,11 @@ gives (`radio.unknown`, `radio.not_connected`, `radio.none`), for the handlers o
 A handler asks the controller (`add_radio`, `change_radio`, `remove_radio`), which stores the change before it is put in force; what the pages are told of it comes from the signals (neoaprs/web/topics.py). A refusal
 of the radios' rules is a coded `RadioError` (neoaprs/radiospec.py), passed on with its code; a change the database would not take is `setting.not_stored`, with the reason in the log."""
 import logging
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
 
+from neoaprs.callsign import CallsignError, normal_name
 from neoaprs.coded import CodedError
 from neoaprs.radioregistry import LiveRadio
 from neoaprs.radiospec import RadioError, RadioId
@@ -91,36 +92,44 @@ async def radio_change(ctx: Ctx, cmd: RadioChange) -> None:
         _stored(cmd.cmd, await ctx.ctl.change_radio(cmd.radio, **columns))
 
 
-def _modem(ctx: Ctx, name: str, id: RadioId) -> Any:
-    """The Mercury modem of the radio; `radio.unknown` for a radio that is none, `radio.no_modem` (with its name) for one whose type has no modem or whose modem is not running."""
+def _no_modem(name: str, radio: LiveRadio[Any]) -> UserError:
+    return UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name})
+
+
+def _modem(ctx: Ctx, name: str, id: RadioId) -> tuple[LiveRadio[Any], Any]:
+    """The radio and its Mercury modem; `radio.unknown` for a radio that is none, `radio.no_modem` (with its name) for one whose type has no modem."""
     radio = named_radio(ctx, name, id)
     if radio.driver.modem is None:
-        raise UserError(f"{name}: the {radio.name} radio has no modem running", "radio.no_modem", params={"name": radio.name})
-    return radio.driver.modem
+        raise _no_modem(name, radio)
+    return radio, radio.driver.modem
+
+
+async def _on_the_modem(name: str, radio: LiveRadio[Any], begin: Callable[[], Awaitable[None]]) -> None:
+    """The modem's tone or test begun, its refusals passed on with their codes; a modem that is not running (`hf.not_running`, which names the HF radio of before) is `radio.no_modem` with this radio's name."""
+    try:
+        await begin()
+    except CodedError as e:
+        if e.code == "hf.not_running":
+            raise _no_modem(name, radio) from None
+        raise UserError(f"{name}: {e}", e.code, params=e.params) from None
 
 
 @command(RadioTune)
 async def radio_tune(ctx: Ctx, cmd: RadioTune) -> None:
     """The tune tone on or off on the radio's modem, with the refusals of `hf_tune`."""
-    modem = _modem(ctx, cmd.cmd, cmd.radio)
+    radio, modem = _modem(ctx, cmd.cmd, cmd.radio)
     if not cmd.on:
         await modem.tune_stop()
         return
     may_transmit(ctx, cmd.cmd)
-    try:
-        await modem.tune()
-    except CodedError as e:
-        raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
+    await _on_the_modem(cmd.cmd, radio, modem.tune)
 
 
 @command(RadioKeyTest)
 async def radio_key_test(ctx: Ctx, cmd: RadioKeyTest) -> None:
-    modem = _modem(ctx, cmd.cmd, cmd.radio)
+    radio, modem = _modem(ctx, cmd.cmd, cmd.radio)
     may_transmit(ctx, cmd.cmd)
-    try:
-        await modem.key_test()
-    except CodedError as e:
-        raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
+    await _on_the_modem(cmd.cmd, radio, modem.key_test)
 
 
 @command(RadioScope)
@@ -133,13 +142,17 @@ async def radio_scope(ctx: Ctx, cmd: RadioScope) -> None:
 
 @command(StationRadio)
 async def station_radio(ctx: Ctx, cmd: StationRadio) -> None:
-    """The radio of the station's messages: a radio that is not removed, or none (the daemon's choice)."""
+    """The radio of the station's messages: a radio that is not removed, or none (the daemon's choice). The call is kept in its normal form, as a message names it (a text that is no call is refused with its code)."""
+    try:
+        call = normal_name(cmd.call)
+    except CallsignError as e:
+        raise UserError(f"{cmd.cmd}: {e}", e.code, params=e.params) from None
     if cmd.radio is not None:
         named_radio(ctx, cmd.cmd, cmd.radio)
-    if not ctx.ctl.radios.choose(cmd.call, cmd.radio):
-        raise UserError(f"{cmd.cmd}: there is no station {cmd.call!r}", "station.unknown", params={"call": cmd.call})
-    station = ctx.ctl.stationbook.get(cmd.call)
-    for key in on_their_way(ctx.ctl.messaging.records(), cmd.call if station is None else station.call):
+    if not ctx.ctl.radios.choose(call, cmd.radio) and cmd.radio is not None:            # (a radio the store cannot choose: none is always taken)
+        raise UserError(f"{cmd.cmd}: there is no radio {cmd.radio}", "radio.unknown", params={"radio": cmd.radio})
+    station = ctx.ctl.stationbook.get(call)
+    for key in on_their_way(ctx.ctl.messaging.records(), call if station is None else station.call):
         ctx.hub.changed("messages", key)            # (a message on its way takes the radio chosen from its next attempt: its `radio_now`)
 
 

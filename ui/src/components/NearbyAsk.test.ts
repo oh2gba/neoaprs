@@ -25,6 +25,7 @@ function askedOf(extra: Partial<GeneralAsked> = {}): GeneralAsked {
   return {
     kind: "aprs",
     query: "?APRS?",
+    radio: 1,
     at,
     path: ["OH2RDK-7", "OH2RCH-2", "RFONLY"],
     until: new Date(Date.parse(at) + 120_000).toISOString(),
@@ -32,7 +33,8 @@ function askedOf(extra: Partial<GeneralAsked> = {}): GeneralAsked {
     ...extra,
   };
 }
-const general = (...asked: GeneralAsked[]): GeneralState => ({ asked });
+/** The topic as the daemon tells it while the queries went on one radio: the last of each kind is also the last of each kind on that radio. */
+const general = (...asked: GeneralAsked[]): GeneralState => ({ asked, by_radio: asked });
 
 beforeEach(() => localStorage.clear());
 

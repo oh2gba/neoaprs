@@ -134,6 +134,11 @@ export default tseslint.config(
     files: ["src/i18n/de.ts", "src/i18n/fr.ts", "src/i18n/*/*.ts"],
     rules: { "max-lines": "off" },
   },
+  {
+    // the lists the daemon owns, written by scripts/gen-protocol.py: one file of data, not split by size
+    files: ["src/protocol/lists.ts"],
+    rules: { "max-lines": "off" },
+  },
 
   prettier,
 );

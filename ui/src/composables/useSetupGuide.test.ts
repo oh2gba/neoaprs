@@ -3,7 +3,7 @@ import { nextTick, ref } from "vue";
 import type { Toast } from "@/composables/useDaemon";
 import { useSetupGuide } from "@/composables/useSetupGuide";
 import type { Command, ConfigValues, PortsMessage } from "@/protocol/protocol";
-import { configValues, toastOf } from "@/test/fixtures";
+import { configValues, toastOf, portRow } from "@/test/fixtures";
 
 const fresh = (extra: Record<string, string> = {}) =>
   configValues({ "beacon/interval_min": "0", "station/call": "", "station/lat": "", "station/lon": "", "serial/baud": "", "serial/port": "", ...extra });
@@ -13,7 +13,7 @@ const ports = (extra: Partial<PortsMessage> = {}): PortsMessage => ({
   keying: "",
   search: true,
   find: true,
-  ports: [{ device: "/dev/ttyUSB0", description: "FT232R USB UART", hwid: "n/a", vid: null, pid: null }],
+  ports: [portRow("/dev/ttyUSB0", "FT232R USB UART")],
   ...extra,
 });
 
@@ -27,7 +27,13 @@ function setUp(initial: ConfigValues | null = fresh()) {
   /** The daemon tells the settings again, as it does after a save. */
   const told = async (extra: Record<string, string> = {}) => {
     const now = config.value ?? fresh();
-    config.value = { values: { ...now.values, ...extra }, defaults: now.defaults, urls: now.urls, https: now.https };
+    config.value = {
+      ...configValues({ ...now.values, ...extra }),
+      defaults: now.defaults,
+      radio_defaults: now.radio_defaults,
+      urls: now.urls,
+      https: now.https,
+    };
     await nextTick();
   };
   const fail = async (text: string) => {

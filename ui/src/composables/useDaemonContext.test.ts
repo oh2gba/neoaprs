@@ -1,8 +1,12 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
-import { defineComponent, h } from "vue";
-import { useDaemonContext } from "@/composables/useDaemonContext";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h, nextTick } from "vue";
+import { useDaemon } from "@/composables/useDaemon";
+import { provideDaemon, useDaemonContext } from "@/composables/useDaemonContext";
+import { useRadios } from "@/composables/useRadios";
 import { fakeDaemon, withDaemon } from "@/test/context";
+import { FakeSocket } from "@/test/fakesocket";
+import { configValues, hello, radioRow, status } from "@/test/fixtures";
 
 const Reader = (seen: (context: ReturnType<typeof useDaemonContext>) => void) =>
   defineComponent({
@@ -11,6 +15,8 @@ const Reader = (seen: (context: ReturnType<typeof useDaemonContext>) => void) =>
       return () => h("div");
     },
   });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("useDaemonContext", () => {
   it("is what the page provided", () => {
@@ -21,6 +27,65 @@ describe("useDaemonContext", () => {
       { global: withDaemon(daemon) },
     );
     expect(seen).toBe(daemon);
+  });
+
+  it("carries the radios as the daemon told them, none from a daemon that tells none, and a pane reads the radios from them, and the radio this page added once its row has come", async () => {
+    FakeSocket.all = [];
+    vi.stubGlobal("WebSocket", FakeSocket);
+    let ids: number[] = [];
+    let main: number | undefined;
+    let made: number | undefined;
+    const Pane = defineComponent({
+      setup() {
+        const { enabled, main: first, added } = useRadios();
+        return () => {
+          ids = enabled.value.map((radio) => radio.id);
+          main = first.value?.id;
+          made = added.value?.id;
+          return h("div");
+        };
+      },
+    });
+    const Page = defineComponent({
+      setup() {
+        const daemon = useDaemon(() => "ws://host/ws");
+        provideDaemon({
+          ...fakeDaemon(),
+          radios: daemon.radios,
+          radioAdded: daemon.radioAdded,
+          config: daemon.config,
+          status: daemon.status,
+          tnc: daemon.tnc,
+          hf: daemon.hf,
+        }); // (the parts of the daemon the radios are read from, as the page spreads them in: composables/useAppShell.ts)
+        return () => h(Pane);
+      },
+    });
+    mount(Page);
+    const socket = FakeSocket.last();
+    socket.say(hello());
+    socket.say({ type: "state", topic: "config", rev: 0, value: configValues({ "hf/enabled": "true" }) });
+    await nextTick();
+    expect([ids, main]).toEqual([[1, 2], 1]);
+    socket.say({
+      type: "state",
+      topic: "radios",
+      rev: 0,
+      value: {
+        "2": radioRow(2, "mercury", { position: 1 }),
+        "1": radioRow(1, "kenwood-tnc2", { position: 2 }),
+        "3": radioRow(3, "kiss", { number: 2, position: 3 }),
+      },
+    });
+    socket.say(status({ main_radio: 3 }));
+    await nextTick();
+    expect([ids, main]).toEqual([[2, 1, 3], 3]);
+    socket.say({ type: "radio_added", id: 4 });
+    await nextTick();
+    expect(made).toBeUndefined();
+    socket.say({ type: "patch", topic: "radios", rev: 1, ops: [{ op: "set", key: "4", value: radioRow(4, "dummy-hf", { number: 2, position: 4 }) }] });
+    await nextTick();
+    expect([ids, made]).toEqual([[2, 1, 3, 4], 4]);
   });
 
   it("is an error in a pane mounted where the page gave none", () => {
