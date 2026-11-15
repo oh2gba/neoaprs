@@ -109,9 +109,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "無線機の種類",
   "settings.profile.tip_label": "無線機の種類の選び方",
-  "settings.profile.tip1": "NeoAPRS が無線機やモデム(その TNC)とどう通信するかを決めます。お使いのものに合う行を選んでください。",
-  "settings.profile.tip2":
-    "TNCの多くは「KISS TNC」、Direwolfは「KISS over TCP」、サウンドカードのSSB無線機は「Mercury」です。無線機がなければ「ダミー」を選んでください。",
+  "settings.profile.tip1": "TNCの多くは「KISS TNC」です。DigirigやAIOCなどのUSBサウンドカードにつないだFM無線機は「サウンドカード(Direwolf)」です。",
+  "settings.profile.tip2": "自分で動かすDirewolfは「KISS over TCP」、サウンドカードのSSB無線機は「Mercury」です。無線機がなければ「ダミー」を選んでください。",
 
   "settings.port.name": "TNCポート",
   "settings.port.label": "ポート",
@@ -471,6 +470,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "GNU一般公衆利用許諾書",
   "settings.about.source": "ソースコード",
   "settings.about.modem": "HFモデムは Rhizomatica の {modem} です。",
+  "settings.about.direwolf": "サウンドカードのモデムは John Langner (WB2OSZ) の {modem} です。",
   "settings.about.thanks": "試用してご意見をくださったすべての方に感謝します。",
   "settings.about.feedback": "アイデアや不具合の報告は {issues} や {mail} にも送れます。",
   "settings.about.issues": "GitHubのIssue",

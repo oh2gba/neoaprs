@@ -7,6 +7,7 @@ import { LOCALES } from "@/i18n/locales";
 import { pageErrors } from "@/lib/pageerrors";
 import { LIMITS } from "@/protocol/lists";
 import { fakeDaemon, withDaemon } from "@/test/context";
+import { status } from "@/test/fixtures";
 
 function make(version = "0.9.1") {
   return makeWith({ version });
@@ -81,6 +82,29 @@ describe("the About group", () => {
     expect(link?.attributes("rel")).toContain("noopener");
   });
 
+  it("names the sound card modem and its pinned version on its own line after the HF modem's, where this installation carries it, its name a link to its source", () => {
+    const wrapper = makeWith({ status: status({ unavailable_types: [] }) });
+    const line = wrapper.findAll("p")[4];
+    expect(line?.text()).toBe(`The sound card modem is Dire Wolf ${LIMITS.soundCard.version} by John Langner, WB2OSZ.`);
+    expect(LIMITS.soundCard.version).toMatch(/^\d+\.\d+\.\d+$/);
+    const link = line?.get("a");
+    expect(link?.text()).toBe(`Dire Wolf ${LIMITS.soundCard.version}`);
+    expect(link?.attributes("href")).toBe("https://github.com/wb2osz/direwolf");
+    expect(link?.attributes("target")).toBe("_blank");
+    expect(link?.attributes("rel")).toContain("noopener");
+    expect(wrapper.findAll("p")[3]?.text()).toContain("The HF modem is Mercury");
+    expect(wrapper.findAll("a")).toHaveLength(6);
+  });
+
+  it("does not name the sound card modem where this installation does not carry it, nor before the status has said", () => {
+    for (const wrapper of [makeWith({ status: status({ unavailable_types: ["direwolf"] }) }), make()]) {
+      expect(wrapper.text()).not.toContain("Dire Wolf");
+      expect(wrapper.text()).not.toContain("WB2OSZ");
+      expect(wrapper.findAll("p")[4]?.classes()).toContain("muted");
+      expect(wrapper.findAll("a")).toHaveLength(5);
+    }
+  });
+
   it("thanks everyone who tried it and sent feedback, and names no one", () => {
     const wrapper = make();
     expect(wrapper.get("p.muted").text()).toBe("Thanks to everyone who tried it and sent feedback.");
@@ -116,8 +140,8 @@ describe("the words of the group in every language", () => {
   const english = en as Record<string, unknown>;
   const ids = Object.keys(english).filter((id) => id.startsWith("settings.about."));
 
-  it("has the nine ids of the group in English", () => {
-    expect(ids).toHaveLength(9);
+  it("has the ten ids of the group in English", () => {
+    expect(ids).toHaveLength(10);
   });
 
   for (const locale of LOCALES.filter((l) => l.code !== "en")) {

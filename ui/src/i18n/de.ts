@@ -1320,9 +1320,10 @@ export const de: Catalogue = {
 
   "settings.profile.label": "Funkgerätetyp",
   "settings.profile.tip_label": "Welchen Typ wählen",
-  "settings.profile.tip1": "Wie NeoAPRS mit deinem Funkgerät oder Modem (seinem TNC) spricht. Wähle die passende Zeile.",
+  "settings.profile.tip1":
+    "Die meisten TNCs sind KISS TNC; ein FM-Funkgerät an einem Digirig, einem AIOC oder einer anderen USB-Soundkarte ist Soundkarte (Direwolf).",
   "settings.profile.tip2":
-    "Die meisten TNCs sind KISS TNC; Direwolf ist KISS über TCP; ein SSB-Funkgerät an der Soundkarte ist Mercury. Kein Funkgerät? Nimm einen Dummy.",
+    "Ein Direwolf, den du selbst startest, ist KISS über TCP; ein SSB-Funkgerät an der Soundkarte ist Mercury. Kein Funkgerät? Nimm einen Dummy.",
 
   "settings.port.name": "TNC-Port",
   "settings.port.label": "Port",
@@ -1697,6 +1698,7 @@ export const de: Catalogue = {
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Quellcode",
   "settings.about.modem": "Das HF-Modem ist {modem} von Rhizomatica.",
+  "settings.about.direwolf": "Das Soundkarten-Modem ist {modem} von John Langner, WB2OSZ.",
   "settings.about.thanks": "Danke an alle, die es ausprobiert und Rückmeldungen geschickt haben.",
   "settings.about.feedback": "Ideen und Fehlerberichte gehen auch an {issues} oder {mail}.",
   "settings.about.issues": "GitHub Issues",

@@ -108,9 +108,10 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
 
   "settings.profile.label": "Tipo de radio",
   "settings.profile.tip_label": "Qué tipo de radio elegir",
-  "settings.profile.tip1": "Cómo habla NeoAPRS con tu radio o módem (su TNC). Elige la línea que corresponda a la tuya.",
+  "settings.profile.tip1":
+    "La mayoría de los TNC son KISS TNC; una radio FM con un Digirig, un AIOC u otra tarjeta de sonido USB es Tarjeta de sonido (Direwolf).",
   "settings.profile.tip2":
-    "La mayoría de los TNC son KISS TNC; Direwolf es KISS por TCP; una radio de SSB con tarjeta de sonido es Mercury. ¿Sin radio? Elige una simulada.",
+    "Un Direwolf que ejecutas tú mismo es KISS por TCP; una radio de SSB con tarjeta de sonido es Mercury. ¿Sin radio? Elige una simulada.",
 
   "settings.port.name": "Puerto del TNC",
   "settings.port.label": "Puerto",
@@ -480,6 +481,7 @@ export const settings: Readonly<Record<keyof typeof en, Message>> = {
   "settings.about.license_link": "Licencia Pública General de GNU",
   "settings.about.source": "Código fuente",
   "settings.about.modem": "El módem HF es {modem}, de Rhizomatica.",
+  "settings.about.direwolf": "El módem de tarjeta de sonido es {modem}, de John Langner, WB2OSZ.",
   "settings.about.thanks": "Gracias a todos los que lo probaron y enviaron sus comentarios.",
   "settings.about.feedback": "Las ideas y los informes de errores también pueden ir a {issues} o a {mail}.",
   "settings.about.issues": "incidencias en GitHub",

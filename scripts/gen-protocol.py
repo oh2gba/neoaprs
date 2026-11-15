@@ -279,7 +279,7 @@ def limits() -> dict[str, Any]:
                   "historySec": mercuryscope.HISTORY_SEC},
         "radio": {"nameMax": MAX_NAME, "frequenciesMax": MAX_FREQUENCIES},
         "mercury": {"version": mercury.VERSION, "mode": mercury.MODE, "maxFrame": mercury.MAX_PAYLOAD, "frameSec": mercury.FRAME_SEC, "pttKinds": list(mercury.PTT_KINDS), "frequencies": [[band, dial] for band, dial in mercury.FREQUENCIES]},
-        "soundCard": {"levelMax": direwolf.LEVEL_MAX, "levelLow": direwolf.LEVEL_LOW, "levelHigh": direwolf.LEVEL_HIGH, "levelGood": list(direwolf.LEVEL_GOOD), "txGainMinDb": direwolf.TX_GAIN_MIN_DB, "txGainMaxDb": direwolf.TX_GAIN_MAX_DB},
+        "soundCard": {"version": direwolf.VERSION, "levelMax": direwolf.LEVEL_MAX, "levelLow": direwolf.LEVEL_LOW, "levelHigh": direwolf.LEVEL_HIGH, "levelGood": list(direwolf.LEVEL_GOOD), "txGainMinDb": direwolf.TX_GAIN_MIN_DB, "txGainMaxDb": direwolf.TX_GAIN_MAX_DB},
     }
 
 

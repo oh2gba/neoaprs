@@ -109,8 +109,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Settype",
   "settings.profile.tip_label": "Welk settype kiezen",
-  "settings.profile.tip1": "Hoe NeoAPRS met je set of modem praat (de TNC ervan). Kies de regel die bij je set past.",
-  "settings.profile.tip2": "De meeste TNC's zijn KISS TNC; Direwolf is KISS over TCP; een SSB-set op een geluidskaart is Mercury. Geen set? Kies een Dummy.",
+  "settings.profile.tip1": "De meeste TNC's zijn KISS TNC; een FM-set op een Digirig, een AIOC of een andere USB-geluidskaart is Geluidskaart (Direwolf).",
+  "settings.profile.tip2": "Een Direwolf die je zelf draait is KISS over TCP; een SSB-set op een geluidskaart is Mercury. Geen set? Kies een Dummy.",
 
   "settings.port.name": "TNC-poort",
   "settings.port.label": "Poort",
@@ -483,6 +483,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "GNU General Public License",
   "settings.about.source": "Broncode",
   "settings.about.modem": "Het HF-modem is {modem} van Rhizomatica.",
+  "settings.about.direwolf": "Het geluidskaartmodem is {modem} van John Langner, WB2OSZ.",
   "settings.about.thanks": "Dank aan iedereen die het uitprobeerde en feedback stuurde.",
   "settings.about.feedback": "Ideeën en bugmeldingen kunnen ook naar {issues} of {mail}.",
   "settings.about.issues": "issues op GitHub",

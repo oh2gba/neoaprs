@@ -6,19 +6,25 @@
     python scripts/screenshots.py --chromium /path/to/chrome --no-sandbox                  # a browser Playwright did not install, or one that cannot make its sandbox
     python scripts/screenshots.py --check                                                  # no browser: every shot has its files, and every picture of site/ is declared at the size of its file
 
-Nothing touches a radio: the daemon's TNC is a KISS server on a TCP port of the loopback that this script serves (the `kiss-tcp` profile), and the fresh folder of the setup guide is given that port on the
-command line. The HF radio of the two HF shots is given through the page, as the operator gives it (scripts/smoke.py `give_radio`: the radio commands). The version
+Nothing touches a radio. The day is played through a KISS server on a TCP port of the loopback that this script serves (radio 1, of the `kiss-tcp` type, while the day is played); then the station of the shots
+is given its three radios, each of a Dummy type, which opens no device and makes up its own air (RADIOS): radio 1 becomes the Dummy FM radio "2 m" (the main radio, and every frame of the day stays its own), and
+the Dummy HF radio "40 m" and the Dummy LoRa radio are added (`neoaprs db radios add`), before any daemon of the shots starts. No shot uses the Mercury or the Direwolf type: either would start a modem on the
+machine's sound card. The fresh folder of the setup guide has no radio, as a new installation has none. The HF tests tab is given a board of two made-up tests by a server of the board on the loopback
+(made_up_board; its daemon's update check is on, and a version page on the loopback says this version is the latest), and the Monitor card a made-up waterfall of the Dummy HF radio, which has no scope
+of its own (SCOPE_PAGE: the page's socket in that shot's browser is told the radio has one, and its rows are made here with the daemon's own frames). The version
 beside Check now is hidden in every shot and the newer version of the update shot is made from VERSION, so the shots do not go old with a release: they are retaken when the page changes. The map for street level is linked or copied from a PMTiles file you name (`--basemap`, default `data/basemap.pmtiles` of this clone; it is only read): a run into site/shots/ or with no --only refuses to start without it, since the placeholder map would replace the site's. Needs Playwright and, to
 make the PNG files small, Pillow; `playwright install chromium` fetches the browser. Needs `uv sync` first (or `uv run`, which does it) so that `neoaprs` is importable.
 
-At the end the run says what of site/shots/ and docs/screenshots/ it did not write, and why (not asked for, a shot that needs what is not here such as the Mercury program, a shot that failed), and a picture of site/
+At the end the run says what of site/shots/ and docs/screenshots/ it did not write, and why (not asked for, a shot whose daemon did not come up, a shot that failed), and a picture of site/
 still declared at another size than its file: a run with no --only that leaves anything exits 1. What it never makes is said too: the icons (scripts/make-icon.py) and GitHub's link preview, a setting of the repository."""
 import argparse
 import asyncio
+import base64
 import io
 import json
 import logging
 import os
+import random
 import re
 import secrets
 import shutil
@@ -31,6 +37,7 @@ import tempfile
 import time
 from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -41,12 +48,12 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 
 import demoscene                                                  # noqa: E402  (the scene needs the path above)
-import smoke                                                      # noqa: E402  (the page's socket and the radios on either wire)
 from neoaprs import VERSION                                       # noqa: E402
 from neoaprs.controller import Controller                         # noqa: E402
-from neoaprs import mercury as mercuryrules                        # noqa: E402
-from neoaprs.mercuryhelper import find as find_mercury             # noqa: E402
-from neoaprs.mercuryspeaker import SpeakerAudio                    # noqa: E402
+from neoaprs.mercury import SUGGESTED                             # noqa: E402
+from neoaprs.mercuryscope import (HISTORY_HEADER, HISTORY_SEC, MODEM_BINS, MODEM_RATE, ROW_BINS, ROW_FIRST_BIN, SIGNAL_HI_HZ, SIGNAL_LO_HZ, KeptRow, ScopeRow,      # noqa: E402
+                                  byte_of_db, history_frame, row_frame)
+from neoaprs.web.scopefeed import radio_header                     # noqa: E402
 
 DESKTOP = {"width": 1440, "height": 900}
 PHONE = {"width": 390, "height": 844}
@@ -57,7 +64,13 @@ SETTINGS = {
     "station/call": "OH2GBA", "station/lat": f"{demoscene.HOME[0]}", "station/lon": f"{demoscene.HOME[1]}", "station/symbol_table": "/", "station/symbol_code": "-",
     "station/comment": "NeoAPRS in Espoo", "beacon/power_w": "5", "beacon/antenna_height_m": "10", "beacon/antenna_gain_db": "3", "messages/alert": "false", "radio/1/tcp_host": demoscene.HOST,
 }
-RADIO_TYPE = "kiss-tcp"                                              # the operator's radio, radio 1: the demo's own KISS TNC over TCP
+RADIO_TYPE = "kiss-tcp"                                              # radio 1 while the day is played: the demo's own KISS TNC over TCP
+DAY_RADIO = demoscene.DEMO_RADIO                                     # (radio 1: what the day was heard and sent on, the FM radio of RADIOS after it)
+RADIOS: tuple[tuple[str, str, str], ...] = (("fm", "dummy", "2 m"), ("hf", "dummy-hf", "40 m"), ("lora", "dummy-lora", ""))
+# The station of the shots, in the order of their boxes: (kind, type, name). Each type is a Dummy one, which opens no device: never the Mercury or the Direwolf type, which start a modem on the sound card. The first is
+# radio 1, the day's, made the Dummy FM radio once the day is played; the main radio. The LoRa radio has no name of its own: what the page calls it is its kind's word, LoRa (a name in that form is refused).
+LABELS = {"fm": "2 m", "hf": "40 m", "lora": "LoRa"}                 # what the page calls each radio: its tag in the Stations table and the packet log
+FORBIDDEN_TYPES = ("mercury", "direwolf")                            # (the types no shot may use)
 AFTER_THE_DAY = {"beacon/interval_min": "30", "station/status": "145.500MHz QRV", "messages/alert": "true", "web/network": "true"}          # (the day is played without the alert command, the beacon timer and the status: the page's daemon starts them)
 GPSD_PORT = 2947                                                    # (gpsd's usual port: what the fake gpsd of the beacon-gps shot listens on when it is free)
 SHOWN_KEY = "k7m2-x9pq-4hrt"                                       # what the Settings shot shows as the access key, and the address in the phone code: the daemon's own key is made at random for the run and never shown
@@ -79,7 +92,8 @@ class Daemon:
         env = {k: v for k, v in os.environ.items() if not k.startswith("NEOAPRS_")}
         env["NEOAPRS_UPDATE_CHECK"] = "0"                        # (a made-up day: the daemon does not ask the version page)
         env["NEOAPRS_SERIAL_PATTERN"] = "/nonexistent/none*"     # (the search for the radio looks at ports that match nothing: no serial device of this machine is ever opened)
-        env["NEOAPRS_NO_DEVICES"] = "1"                          # (no device, sound card or Mercury of this machine and nothing but this computer, whatever a shot sets: neoaprs/nodevices.py; the Mercury of the settings-hf shot is given by --hf-port)
+        env["NEOAPRS_NO_DEVICES"] = "1"                          # (no device, sound card or Mercury of this machine and nothing but this computer, whatever a shot sets: neoaprs/nodevices.py; the shots' radios are Dummy ones, whose air is made up)
+        env["NEOAPRS_PLAYER_PATH"] = "/nonexistent/neoaprs-shots-players"     # (and no player of raw audio is found: the Dummy HF radio of every daemon never plays our frames out of the speakers, as tests/conftest.py has it)
         env.update(self.env)
         self.proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "neoaprs", "--data", str(self.data), "--web-port", "0", *self.extra, env=env, cwd=ROOT,
                                                          stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
@@ -127,30 +141,33 @@ def neoaprs_db_set(data: Path, key: str, value: str) -> None:
     subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "set", key, value], check=True, capture_output=True, cwd=ROOT)
 
 
-def neoaprs_db_add_radio(data: Path, radio_type: str) -> None:
-    """A radio of the type added to the data folder, before its daemon's first start: the database numbers it."""
-    subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "radios", "add", radio_type], check=True, capture_output=True, cwd=ROOT)
+def neoaprs_db_add_radio(data: Path, radio_type: str, name: str = "") -> int:
+    """A radio of the type (and the name, when one is given) added to the data folder while no daemon runs on it: the database numbers it; its id, as the command says it ("radio 2  40 m  hf ...")."""
+    if radio_type in FORBIDDEN_TYPES:
+        raise ValueError(f"no shot uses the {radio_type} type: it would start a modem on the sound card")
+    done = subprocess.run([sys.executable, "-m", "neoaprs", "db", "--data", str(data), "radios", "add", radio_type, *([name] if name else [])], check=True, capture_output=True, text=True, cwd=ROOT)
+    found = re.match(r"radio (\d+) ", done.stdout)
+    if found is None:
+        raise RuntimeError(f"radios add {radio_type}: no radio said: {done.stdout.strip()!r}")
+    return int(found.group(1))
 
 
-async def give_hf_radio(url: str, radio_type: str, values: dict[str, str]) -> None:
-    """The HF radio of a daemon that is up, given through its page as the operator gives it (smoke.give_radio: `radio_add` or `radio_change` and its own keys). `neoaprs db set` of an HF key is refused on a folder whose daemon ran without an HF radio, which every copy of the day's folder is."""
-    page = await smoke.PageSocket.open(url)
+async def give_radios(data: Path) -> dict[str, int]:
+    """The station of the shots, once the day is played into `data` and while no daemon runs on it: radio 1, the day's, made the first radio of RADIOS (its frames stay its own), the others added after it,
+    and the first the main radio; the id of each, by its kind."""
+    (fm_kind, fm_type, _), *others = RADIOS
+    ctl = Controller(data)
+    await ctl.open_database()
+    assert ctl.db is not None
     try:
-        await hf_radio_given(page, radio_type, values, 60.0)
+        changed = await ctl.store.change_radio(DAY_RADIO, type=fm_type)
     finally:
-        page.close()
-
-
-async def hf_radio_given(page: smoke.PageSocket, radio_type: str, values: dict[str, str], seconds: float) -> None:
-    """give_hf_radio on an open socket. A Mercury radio is the one --hf-port names (the station's first Mercury radio: the lowest id of one not removed), and its modem, the Mercury on pipes, must be `running`
-    before its shot is taken: another Mercury radio before it, or a modem that does not come up, is a Failure, which leaves its shots out with the reason, never a picture of a Mercury radio with no modem."""
-    id = await smoke.give_radio(page, "hf", radio_type, values, seconds)
-    if radio_type != "mercury":
-        return
-    first = min((int(key) for key, row in (page.topics.get(smoke.RADIOS) or {}).items() if row.get("type") == "mercury" and not row.get("removed")), default=id)
-    if first != id:
-        raise smoke.Failure(f"the Mercury radio given is radio {id}, and --hf-port names radio {first}")
-    await page.until("the Mercury modem of the HF radio running", lambda p: smoke.modem_state(p.topics, "hf", id) == "running", seconds)
+        await ctl.db.close()
+    if not changed:
+        raise RuntimeError(f"radio {DAY_RADIO} could not be made the {fm_type} radio")
+    ids = {fm_kind: DAY_RADIO} | {kind: neoaprs_db_add_radio(data, type, name) for kind, type, name in others}
+    neoaprs_db_set(data, "station/main_radio", str(DAY_RADIO))
+    return ids
 
 
 def put_map(source: Path, target: Path) -> None:
@@ -167,8 +184,30 @@ def copy_data(source: Path, target: Path) -> None:
 
 
 async def serve_version(version: str) -> asyncio.Server:
-    """A version page on a port of the loopback that says `version` is the latest: the daemon of the update shot asks it, and nothing else is ever asked."""
-    body = f'{{"version": "{version}", "url": "https://github.com/oh2gba/neoaprs/releases/tag/v{version}", "message": ""}}'.encode()
+    """A version page on a port of the loopback that says `version` is the latest: the daemons of the update shot and of the HF tests shot ask it, and nothing else is ever asked."""
+    return await serve_json(f'{{"version": "{version}", "url": "https://github.com/oh2gba/neoaprs/releases/tag/v{version}", "message": ""}}'.encode())
+
+
+def port_of(server: asyncio.Server) -> int:
+    return int(server.sockets[0].getsockname()[1])
+
+
+SKED_CALLS = ("OH2ZPK", "OH3ZHK")                                  # who planned the two HF tests: two of the day's cast (scripts/demoscene.py), as the board writes a call
+SKED_DIAL = dict(SUGGESTED)["40 m"]                                # the dial of both: the 40 m one the page suggests
+
+
+def made_up_board(now: datetime) -> bytes:
+    """The HF test board the daemon of the hf-tests shot reads (the form of neoaprs/skeds.py): two tests to come on 40 m, tomorrow evening and the morning after, each by a call of the day's cast."""
+    day = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    times = ((day + timedelta(days=1, hours=17), day + timedelta(days=1, hours=18, minutes=30)), (day + timedelta(days=2, hours=6, minutes=30), day + timedelta(days=2, hours=8)))
+    notes = ("Beacons every 10 min, messages welcome", "Morning path to the south, 10 W")
+    rows = [{"id": id, "call": call, "from": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "to": end.strftime("%Y-%m-%dT%H:%M:%SZ"), "dial": SKED_DIAL, "note": note}
+            for id, call, (start, end), note in zip(("5c0a1e7b2d94", "e83f6a0c51b7"), SKED_CALLS, times, notes, strict=True)]
+    return json.dumps({"v": 1, "closed": False, "skeds": rows}).encode()
+
+
+async def serve_json(body: bytes) -> asyncio.Server:
+    """A server on a port of the loopback that answers every request with `body` as JSON (the version page, the HF test board)."""
 
     async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -196,16 +235,17 @@ UPDATE_TO = next_version(VERSION)                                  # (the versio
 HIDE_VERSION = ".updateversion { visibility: hidden; }"
 
 
-async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> Path:
-    """The data folder of the operator: a database with the settings, the map, and the day played into it."""
+async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) -> tuple[Path, dict[str, int]]:
+    """The data folder of the operator: a database with the settings, the map, the day played into it, and then the radios of the shots (give_radios); and the id of each radio, by its kind."""
     data = work / "demo"
     data.mkdir()
     ctl = Controller(data)
     await ctl.open_database()
     assert ctl.db is not None
     await ctl.db.close()
-    neoaprs_db_add_radio(data, RADIO_TYPE)
-    for key, value in {**SETTINGS, "radio/1/tcp_port": str(radio.port)}.items():
+    if neoaprs_db_add_radio(data, RADIO_TYPE, RADIOS[0][2]) != DAY_RADIO:
+        raise RuntimeError(f"the day's radio is not radio {DAY_RADIO}")
+    for key, value in {**SETTINGS, f"radio/{DAY_RADIO}/tcp_port": str(radio.port)}.items():
         neoaprs_db_set(data, key, value)
     if basemap is not None:
         put_map(basemap, data / "basemap.pmtiles")
@@ -215,7 +255,9 @@ async def prepare(work: Path, radio: demoscene.DemoRadio, basemap: Path | None) 
     neoaprs_db_set(data, "web/key", "-".join("".join(secrets.choice(letters) for _ in range(4)) for _ in range(3)))
     for key, value in AFTER_THE_DAY.items():
         neoaprs_db_set(data, key, value)
-    return data
+    ids = await give_radios(data)
+    print("the radios:", ", ".join(f"{LABELS[kind]} (radio {id})" for kind, id in ids.items()))
+    return data, ids
 
 
 # ---- the browser
@@ -227,8 +269,8 @@ class Shots:
         self.update_url = ""                                       # the page of the daemon that has an update on offer (the "update" shot)
         self.receive_url = ""                                      # the page of the daemon that is set to RX only (the "beacon-rx" shot)
         self.moving_url = ""                                       # the page of the daemon that follows a GPS (the "beacon-gps" shot)
-        self.hf_url = ""                                           # the page of the daemon with the HF radio on as the Dummy HF radio (the "stations-hf" shot)
-        self.hf_mercury_url = ""                                   # the page of the daemon whose HF radio is the Mercury modem, a real one on pipes that hears silence (the "settings-hf" shot)
+        self.skeds_url = ""                                        # the page of the daemon that reads the made-up HF test board (the "hf-tests" shot)
+        self.radios: dict[str, int] = {}                           # the id of each radio of the shots, by its kind
         self.scheme = "light"                                      # the colour scheme of the shots being taken; a dark one is saved as NAME-dark.png
         self.contexts: list[Any] = []                              # the browser contexts of the shot being taken (a shot that fails leaves its own open: they are closed after it)
         self.started = asyncio.get_running_loop().time()
@@ -241,10 +283,10 @@ class Shots:
 
     async def page(self, size: dict[str, int], scheme: str | None = None, tab: str = "stations", view: tuple[float, float, float] | None = None, panel: int | None = None,
                    wx_hours: str | None = None, url: str | None = None, wait_ms: int = 5000, scale: int = 1, headers: dict[str, str] | None = None,
-                   phone_view: str | None = None, locale: str = "en-GB") -> Any:
+                   phone_view: str | None = None, locale: str = "en-GB", stored: dict[str, str] | None = None, init: str = "") -> Any:
         context = await self.browser.new_context(viewport=size, color_scheme=scheme or self.scheme, device_scale_factor=scale, locale=locale, timezone_id="Europe/Helsinki",
                                                  extra_http_headers=headers)
-        keys = {"tab": tab, "panel": "open"}
+        keys = {"tab": tab, "panel": "open", **(stored or {})}
         if view:
             keys["mapview"] = f'{{"lat":{view[0]},"lon":{view[1]},"zoom":{view[2]}}}'
         if panel:
@@ -255,6 +297,8 @@ class Shots:
             keys["view"] = phone_view                              # (a phone shows the map or the panel, one at a time)
         script = "".join(f"try{{localStorage.setItem('NeoAPRS.{k}',{v!r})}}catch(e){{}};" for k, v in keys.items())
         await context.add_init_script(script)
+        if init:
+            await context.add_init_script(init)                    # (before the page's own scripts: the made-up waterfall's socket)
         self.contexts.append(context)
         page = await context.new_page()
         await page.goto(url or self.url)
@@ -308,8 +352,12 @@ async def open_stations_tab(page: Any) -> None:
     await page.get_by_role("menuitem", name="Stations").click()
 
 
-async def pick_station(page: Any, call: str, wait: int = 4500, add: bool = False) -> None:
-    """The row of `call` in the Stations table clicked: its card opens; with `add` (Ctrl+click) beside the cards that are open."""
+TABLE_STILL_SEC = 125                                               # (the Dummy radios' stations are all heard by then, the HF cities' last first beacon 118 s after the start: a station heard for the first time goes to the top of the table and moves every row under it)
+
+
+async def pick_station(s: Shots, page: Any, call: str, wait: int = 4500, add: bool = False) -> None:
+    """The row of `call` in the Stations table clicked: its card opens; with `add` (Ctrl+click) beside the cards that are open. Not before the table has all its stations, so that the row is not moved under the click."""
+    await s.since_start(TABLE_STILL_SEC)
     await open_stations_tab(page)
     await page.locator("#pane-stations tbody tr", has_text=call).first.click(modifiers=["Control"] if add else [])
     await page.wait_for_timeout(wait)
@@ -334,14 +382,14 @@ async def shot_stations(s: Shots, _: str) -> None:
 
 async def shot_station(s: Shots, _: str) -> None:
     page = await s.page(DESKTOP, view=(60.165, 24.78, 11.6))
-    await pick_station(page, "OH2ZMA-9")
+    await pick_station(s, page, "OH2ZMA-9")
     await s.save(page, "station")
 
 
 async def shot_station_details(s: Shots, _: str) -> None:
     """The card of a station that runs a Kenwood TH-D74 with Details open: the Device row, the antenna of its PHG report with the arrow of the direction it favours, and the Packets, in all and in the last hour."""
     page = await s.page(DESKTOP, view=(60.232, 24.946, 10.3), panel=480)                    # (a wide map: the station's marker is clear of its card at the bottom left)
-    await pick_station(page, "OH2ZPK", wait=2500)
+    await pick_station(s, page, "OH2ZPK", wait=2500)
     await page.locator('.cardstack .card[data-call="OH2ZPK"]').get_by_text("Details", exact=True).click()
     await settle(page, 800)
     await s.save(page, "station-details")
@@ -350,16 +398,16 @@ async def shot_station_details(s: Shots, _: str) -> None:
 async def shot_weather(s: Shots, _: str) -> None:
     """Two weather stations, their cards side by side over the map: the same graphs, each on the same value axis in both."""
     page = await s.page(DESKTOP, view=(60.08, 24.62, 9.6), panel=560)                      # (a map wide enough for two whole cards: the oldest card closes when there is not)
-    await pick_station(page, "OH2ZWB", wait=1500)
-    await pick_station(page, "OH2ZWA", add=True)
+    await pick_station(s, page, "OH2ZWB", wait=1500)
+    await pick_station(s, page, "OH2ZWA", add=True)
     await s.save(page, "weather")
 
 
 async def shot_cards(s: Shots, _: str) -> None:
     """Two stations that can be messaged, their cards over the map with Close all and Message these 2 at its top left; the second card has been dragged by its head to another place, and the first stays where it was."""
     page = await s.page(DESKTOP, view=(60.20, 24.95, 9.6), panel=560)
-    await pick_station(page, "OH2ZMA-9", wait=1500)
-    await pick_station(page, "OH2ZPK", add=True)
+    await pick_station(s, page, "OH2ZMA-9", wait=1500)
+    await pick_station(s, page, "OH2ZPK", add=True)
     head = await page.locator('.cardstack .card[data-call="OH2ZPK"] .card-head').bounding_box()
     assert head is not None
     x, y = head["x"] + head["width"] / 3, head["y"] + head["height"] / 2
@@ -372,10 +420,29 @@ async def shot_cards(s: Shots, _: str) -> None:
     await s.save(page, "cards")
 
 
+def tag_of(page: Any, where: str, label: str) -> Any:
+    """The tags of the radio `label` (its name, or its kind's word) in the part of the page `where` names: TagMark's `.tag`, whose text is the label alone."""
+    return page.locator(f"{where} .tag", has_text=re.compile(rf"^\s*{re.escape(label)}\s*$"))
+
+
+def heard_on(page: Any, label: str) -> Any:
+    """The rows of the Stations table with the tag of the radio `label` in their Heard on cell."""
+    return page.locator("#pane-stations tbody tr").filter(has=tag_of(page, "td.heard", label))
+
+
+async def until_tagged(page: Any, where: str, seconds: float, most: int = 1) -> None:
+    """Waits until the part of the page `where` names shows the tags of every radio of the shots, `most` of each at least (the Dummy worlds' first frames come within two minutes of a daemon's start)."""
+    async with asyncio.timeout(seconds):
+        while not all([await tag_of(page, where, label).count() >= most for label in LABELS.values()]):
+            await page.wait_for_timeout(1000)
+
+
 async def shot_stations_menu(s: Shots, _: str) -> None:
-    """The menu of a row of the Stations table, opened with a right-click: Message, the four questions, Show on map, Copy call, the QRZ page, Forget."""
+    """The menu of a row of the Stations table, opened with a right-click: Message, the four questions, Show on map, Copy call, the QRZ page, Forget; the table's Heard on has stations of each radio, tagged
+    with its name (2 m, 40 m, LoRa), and the menu is of the first station heard on the HF radio."""
     page = await s.page(DESKTOP, view=OVERVIEW, panel=900)
-    row = page.locator("#pane-stations tbody tr", has_text="OH2ZMA-9").first                  # (a row near the top: its menu then fits the picture the project page crops it to)
+    await until_tagged(page, "#pane-stations tbody td.heard", 200)
+    row = heard_on(page, LABELS["hf"]).first                                                    # (heard minutes ago: a row near the top, whose menu then fits the picture)
     box = await row.bounding_box()
     assert box is not None
     await row.click(button="right", position={"x": min(box["width"] - 60, 330), "y": box["height"] / 2})
@@ -494,11 +561,12 @@ WHOLE_GROUPS = """([first, gap]) => {
     const at = (e) => e.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
     const groups = [...form.children].filter((e) => e.tagName === 'FIELDSET');
     pane.scrollTop = first ? at(form.querySelector(first)) - gap : 0;
-    const edge = pane.getBoundingClientRect().bottom;
+    const top = pane.getBoundingClientRect().top, edge = pane.getBoundingClientRect().bottom;
     const cut = groups.find((g) => g.getBoundingClientRect().bottom > edge);
     if (!cut) return;
     const before = groups[groups.indexOf(cut) - 1];
     const end = Math.min(edge, before ? before.getBoundingClientRect().bottom + gap / 2 : cut.getBoundingClientRect().top);
+    if (end <= top + gap) return;                                       // (no whole group in the view: the group at the top begins above it, the one a box inside it was scrolled to, or is taller than the view; it is not blanked)
     pane.style.clipPath = `inset(0 0 ${edge - end}px 0)`;               // (what is below the last whole group is not drawn: the panel's own colour shows)
 }"""
 
@@ -525,7 +593,7 @@ async def made_up_web(page: Any) -> None:
         const put = () => {
             const field = document.getElementById("set-web-key");
             if (field) field.value = key;
-            for (const port of document.querySelectorAll('#set-tcp-port, [id$="-tcp_port"]')) port.value = "8001";       // (Direwolf's usual KISS port; the demo's own TNC listens where there was room. The field's id of today, and a radio's own, radio-ID-tcp_port, as 1.12 of the round names it)
+            for (const port of document.querySelectorAll('[id$="-tcp_port"]')) port.value = "8001";       // (Direwolf's usual KISS port, should a radio of the shots be one reached over TCP: a radio's own field, set-radio-ID-tcp_port)
             const code = document.querySelector("svg.phonecode");
             if (code) {
                 code.setAttribute("viewBox", `0 0 ${size} ${size}`);
@@ -548,12 +616,13 @@ async def shot_settings_web(s: Shots, _: str) -> None:
 
 
 async def shot_settings_tnc(s: Shots, _: str) -> None:
-    """Settings, the TNC group opened by its arrow: the type of TNC, the port and the speed, Find my radio and the Terminal (a connected radio keeps it folded to its one line)."""
+    """Settings, the Radio group of the station's three radios: RX only, then a box for each, the FM radio "2 m", the HF radio "40 m" and the LoRa radio, each with its Enable, its Name and Remove and its status
+    line (a connected radio keeps it folded to its one line), then the main radio and Add radio at the end."""
     page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
-    await page.locator("#pane-settings .radiostatus .statushead").click()
-    await settle(page, 600)
-    await whole_groups(page, "fieldset:has(.radiostatus)")
+    await page.locator(f"#pane-settings fieldset.subbox[data-radio=\"{s.radios['lora']}\"]").wait_for()
+    await page.locator("#set-station-main_radio").wait_for()
+    await whole_groups(page, "fieldset:has(#set-radio-add)")
     await s.save(page, "settings-tnc")
 
 
@@ -604,94 +673,161 @@ async def shot_settings(s: Shots, _: str) -> None:
 
 
 async def shot_packets(s: Shots, _: str) -> None:
+    """The packet log, the newest first: each frame with the tag of the radio it came on (2 m, 40 m, LoRa)."""
     page = await s.page(DESKTOP, tab="packets", view=CITY, panel=760)
+    await until_tagged(page, "#pane-packets", 200)
     await s.save(page, "packets")
 
 
 HF_WORLD = (57.9, 20.2, 4.5)                                       # the view of the map that holds the Dummy HF radio's made-up stations (Turku to Warsaw) and the day's stations round Helsinki
 
 
-SHOWN_CARDS = ["USB Audio CODEC", "Built-in Audio"]                 # what the Settings shot shows as the sound cards: the machine's own cards (which the daemon lists from the real Mercury) never appear in a shot
-
-
-class PipeMercury:
-    """The shipped Mercury started on its fifo backend for the "settings-hf" shot: it hears silence and plays into a pipe that is drained and not heard (the speaker thread with no player), keys nothing, and serves its KISS and control ports on the loopback for a daemon started with --hf-port, so that the HF radio's box shows the Mercury modem connected, with the sound card, the keying, Tune, Test and the frequency, and no sound card of this machine is opened."""
-
-    def __init__(self, folder: Path) -> None:
-        self.folder = folder
-        self.audio = SpeakerAudio(folder, player=lambda: None)
-        self.proc: subprocess.Popen[bytes] | None = None
-        self.kiss_port = 0
-
-    def start(self) -> str:
-        program = find_mercury() or find_mercury(ROOT / ".venv" / "tools")                  # (`uv run --with playwright` runs this in an environment of its own, whose prefix has no tools/: the checkout's venv has them)
-        if program is None:
-            raise RuntimeError("no Mercury in this checkout: build it with scripts/build-mercury --install")
-        if not self.audio.prepare():
-            raise RuntimeError("the pipes for Mercury could not be made")
-        while True:
-            with socket.socket() as a, socket.socket() as b:
-                a.bind((demoscene.HOST, 0))
-                port = a.getsockname()[1]
-                try:
-                    b.bind((demoscene.HOST, port + mercuryrules.CONTROL_PORT - mercuryrules.BROADCAST_PORT))
-                except OSError:
-                    continue
-            break
-        self.kiss_port = port
-        ini = self.folder / "mercury-shot.ini"
-        ini.write_text(mercuryrules.ini_text(mercuryrules.keying_of("vox")), encoding="utf-8")
-        env = dict(os.environ)
-        conf = Path(program[0]).resolve().parent / "share" / "alsa" / "alsa.conf"
-        if conf.is_file():
-            env["ALSA_CONFIG_PATH"] = str(conf)
-        argv = [*program, "-C", str(ini), "-m", "1", "-x", "fifo", "-i", str(self.audio.capture), "-o", str(self.audio.playback), "-b", str(port), "-p", str(port + mercuryrules.CONTROL_PORT - mercuryrules.BROADCAST_PORT), "-P", "none"]
-        self.proc = subprocess.Popen(argv, cwd=str(self.folder), stdin=subprocess.DEVNULL, stdout=(self.folder / "mercury-shot.log").open("wb"), stderr=subprocess.STDOUT, env=env)
-        self.audio.start()
-        return f"socket://{demoscene.HOST}:{port}"
-
-    def stop(self) -> None:
-        self.audio.stop()
-        if self.proc is not None and self.proc.poll() is None:
-            self.proc.terminate()
-            try:
-                self.proc.wait(10)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
-
-
 async def shot_settings_hf(s: Shots, _: str) -> None:
-    """Settings, the Radio group of a station with both radios: the FM radio box folded to its status line (its TNC is connected) and the HF radio box opened by its arrow, with the radio type (the Mercury modem, a real one on pipes), the sound card and the keying (the machine's own cards replaced by made-up names on the screen), Tune and Test, and the frequency."""
-    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560, url=s.hf_mercury_url)
+    """Settings, the Radio group of the station's three radios, scrolled to the HF radio's box, "40 m", opened by the arrow of its status line: the Dummy HF radio's type and what its type has (the Dummy has no
+    sound card, keying, Tune or Test of its own: those are the Mercury type's), with the LoRa radio's box, the main radio and Add radio under it."""
+    page = await s.page(DESKTOP, tab="settings", view=CITY, panel=560)
     await made_up_web(page)
-    await page.locator("#pane-settings fieldset.subbox", has_text="HF radio").locator(".statushead").click()
+    box = page.locator(f'#pane-settings fieldset.subbox[data-radio="{s.radios["hf"]}"]')
+    await box.locator(".radiostatus .statushead").first.click()
     await settle(page, 600)
-    await page.evaluate("""(names) => {
-        const put = () => {
-            const box = [...document.querySelectorAll("#pane-settings fieldset.subbox")].find((f) => f.textContent.includes("HF radio"));
-            const selects = box ? [...box.querySelectorAll("select")] : [];
-            const cards = selects[1];                              // (the type, the sound card, the keying)
-            if (!cards) return;
-            [...cards.options].forEach((option, i) => { if (i < names.length) option.textContent = names[i]; else option.remove(); });
-            while (cards.options.length < names.length) { const o = document.createElement("option"); o.textContent = names[cards.options.length]; cards.append(o); }
-        };
-        put();
-        setInterval(put, 25);
-    }""", SHOWN_CARDS)
-    await settle(page, 300)
-    await whole_groups(page, "fieldset:has(.radiostatus)")
+    await whole_groups(page, f'fieldset.subbox[data-radio="{s.radios["hf"]}"]')
     await s.save(page, "settings-hf")
 
 
 async def shot_stations_hf(s: Shots, _: str) -> None:
-    """The Stations table of a station with both radios, the map zoomed out to hold both: the day's stations round Helsinki tagged FM, and the six made-up stations of the Dummy HF radio, hundreds of kilometres away, tagged HF. The HF radio is given through the page once the daemon is up; their first beacons come within two minutes of that."""
-    page = await s.page(DESKTOP, tab="stations", view=HF_WORLD, panel=760, url=s.hf_url)
-    rows = page.locator("#pane-stations tbody tr", has_text="HF")
+    """The Stations table of the station's three radios, the map zoomed out to hold them: the day's stations round Helsinki tagged 2 m, and the six made-up stations of the Dummy HF radio, hundreds of kilometres
+    away, tagged 40 m; their first beacons come within two minutes of the daemon's start."""
+    page = await s.page(DESKTOP, tab="stations", view=HF_WORLD, panel=760)
     async with asyncio.timeout(170):
-        while await rows.count() < 6:
+        while await heard_on(page, LABELS["hf"]).count() < 6:
             await page.wait_for_timeout(1000)
     await settle(page, 2500)
     await s.save(page, "stations-hf")
+
+
+# ---- the made-up waterfall of the hf-tests shot: the Dummy HF radio has no scope (its type's `can.scope` is false, and it has no modem), so the page's socket in that shot's browser is told that it has one
+# (its row in the topic `radios` with `can.scope` and a modem that has the interface), its `radio_scope` is answered here and never reaches the daemon (which would refuse it: `radio.no_scope`), and the rows are
+# made here, as frames of the daemon's own making (neoaprs/mercuryscope.py history_frame and row_frame, neoaprs/web/scopefeed.py radio_header): the noise of a quiet 40 m channel, a faint carrier, and the
+# DATAC3 frames of distant stations, 1200 to 1800 Hz above the dial and 3.8 s each.
+
+SCOPE_ROW_SEC = 0.1                                                 # ten rows a second, as the modem part makes them
+SCOPE_LIVE_SEC = 30.0                                               # the rows that come after the ones kept, played again and again while the shot is taken
+FRAME_SEC = 3.8                                                     # how long a frame is on the air
+SCOPE_FRAMES = ((6.0, -19.0), (27.5, -23.0), (41.0, -17.5), (66.0, -21.5), (83.5, -25.0), (101.0, -18.0), (113.0, -22.0), (124.0, -20.0), (139.5, -23.5))     # (when it begins, s; its level a bin, dB)
+SCOPE_CARRIER = (2210.0, -38.0)                                     # a faint carrier somewhere in the passband (Hz, dB)
+MADE_UP_MODEM = {"state": "running", "problem": "", "reason": "", "mode": "DATAC3", "keyed": False, "busy": False, "test": "", "snr": None, "frames_keyed": 0, "max_frame": 123, "sound_card": "",
+                 "frequencies": [{"band": band, "dial": dial} for band, dial in SUGGESTED], "keying": "vox", "scope": True, "tx_gain_db": 0, "tx_peak_dbfs": None, "rx_level": None}
+
+
+def made_up_rows(seconds: float, seed: int = 40) -> list[ScopeRow]:
+    """The rows of `seconds` of the made-up channel, one every SCOPE_ROW_SEC, the oldest first."""
+    rand = random.Random(seed)  # noqa: S311  (a made-up channel, the same at every run: nothing secret is drawn)
+    hz = [(ROW_FIRST_BIN + i) * MODEM_RATE / 2 / MODEM_BINS for i in range(ROW_BINS)]
+    rows: list[ScopeRow] = []
+    for step in range(round(seconds / SCOPE_ROW_SEC)):
+        at = step * SCOPE_ROW_SEC
+        frame = next((level for start, level in SCOPE_FRAMES if start <= at < start + FRAME_SEC), None)
+        db = []
+        for f in hz:
+            noise = -51.0 + rand.gauss(0, 2.2) - (4.0 if f < 420 or f > 2550 else 0.0)                 # (the receiver's filter takes a little off the ends of the passband)
+            if abs(f - SCOPE_CARRIER[0]) < 6:
+                noise = max(noise, SCOPE_CARRIER[1] + rand.gauss(0, 0.8))
+            if frame is not None and SIGNAL_LO_HZ <= f <= SIGNAL_HI_HZ:
+                edge = min(f - SIGNAL_LO_HZ, SIGNAL_HI_HZ - f)
+                noise = max(noise, frame + rand.gauss(0, 1.3) - (6.0 if edge < 25 else 0.0))
+            db.append(noise)
+        level = round((-39.0 if frame is not None else -45.0) + rand.gauss(0, 0.6))
+        rows.append(ScopeRow(bytes(byte_of_db(value) for value in db), level, False))
+    return rows
+
+
+def scope_frames(radio: int) -> tuple[bytes, list[bytes]]:
+    """The radio's rows kept (a frame of the rows of the last HISTORY_SEC, its daemon's clock 0: the page's script writes its own in when it hands the frame over) and the rows that come after them, each a
+    frame of its own: every frame named by the radio (radio_header), as the daemon sends them."""
+    rows = made_up_rows(HISTORY_SEC + SCOPE_LIVE_SEC)
+    kept = round(HISTORY_SEC / SCOPE_ROW_SEC)
+    end = kept * SCOPE_ROW_SEC
+    history = radio_header(radio) + history_frame([KeptRow(i + 1, (i + 1) * SCOPE_ROW_SEC, row) for i, row in enumerate(rows[:kept])], end, 0.0)
+    return history, [radio_header(radio) + row_frame(row) for row in rows[kept:]]
+
+
+SCOPE_PAGE = """(() => {
+  // The made-up waterfall of the HF radio of the hf-tests shot (scripts/screenshots.py): the page's socket says that radio has a scope, and its rows come from here.
+  const P = %s;
+  const bytes = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+  const kept = bytes(P.history);
+  const live = P.live.map(bytes);
+  const scoped = (row) => (row && typeof row === "object" && row.id === P.radio ? { ...row, can: { ...row.can, scope: true }, modem: { ...P.modem, ...(row.modem || {}), scope: true } } : row);
+  const each = (rows) => (rows && typeof rows === "object" ? Object.fromEntries(Object.entries(rows).map(([key, row]) => [key, scoped(row)])) : rows);
+  const told = (text) => {
+    let message;
+    try { message = JSON.parse(text); } catch { return text; }
+    if (!message || message.topic !== "radios") return text;
+    if (message.type === "state") message.value = each(message.value);
+    else if (message.type === "patch" && Array.isArray(message.ops))
+      message.ops = message.ops.map((op) => (op.op === "replace" ? { ...op, value: each(op.value) } : op.op === "del" ? op : { ...op, value: scoped(op.value) }));
+    return JSON.stringify(message);
+  };
+  const Native = window.WebSocket;
+  class ShotSocket extends Native {
+    constructor(...args) {
+      super(...args);
+      this.shotHandler = null;
+      this.shotTimer = 0;
+      super.onmessage = (event) => {
+        if (this.shotHandler) this.shotHandler(typeof event.data === "string" ? new MessageEvent("message", { data: told(event.data) }) : event);
+      };
+    }
+    get onmessage() { return this.shotHandler; }
+    set onmessage(handler) { this.shotHandler = handler; }
+    send(data) {
+      if (typeof data === "string" && data.includes("radio_scope")) {
+        let command = null;
+        try { command = JSON.parse(data); } catch { command = null; }
+        if (command && command.cmd === "radio_scope" && command.radio === P.radio) return this.shotScope(command.on === true);
+      }
+      return super.send(data);
+    }
+    shotScope(on) {
+      clearInterval(this.shotTimer);
+      if (!on) return;
+      const history = kept.slice();
+      new DataView(history.buffer).setFloat64(P.clockAt, Date.now(), true);
+      this.shotGive(history.buffer);
+      let next = 0;
+      this.shotTimer = setInterval(() => this.shotGive(live[next++ %% live.length].slice().buffer), P.everyMs);
+    }
+    shotGive(buffer) {
+      if (this.readyState === Native.OPEN && this.shotHandler) this.shotHandler(new MessageEvent("message", { data: buffer }));
+    }
+    close(...args) {
+      clearInterval(this.shotTimer);
+      return super.close(...args);
+    }
+  }
+  window.WebSocket = ShotSocket;
+})();"""
+
+
+def scope_page(radio: int) -> str:
+    """The script the hf-tests shot's browser runs before the page's own (SCOPE_PAGE), with the made-up rows of `radio`."""
+    history, live = scope_frames(radio)
+    clock_at = len(radio_header(radio)) + struct.calcsize(HISTORY_HEADER.format[:2])             # (the daemon's clock follows the kind byte of the frame of the rows kept)
+    given = {"radio": radio, "modem": MADE_UP_MODEM, "history": base64.b64encode(history).decode(), "live": [base64.b64encode(frame).decode() for frame in live], "clockAt": clock_at,
+             "everyMs": round(SCOPE_ROW_SEC * 1000)}
+    return SCOPE_PAGE % json.dumps(given)
+
+
+async def shot_hf_tests(s: Shots, _: str) -> None:
+    """The HF tests tab with the two tests the made-up board plans (made_up_board: two of the day's cast on 40 m, Join beside each, the form to plan one at the bottom), and over the map the Monitor card with the
+    waterfall of the HF radio, "40 m": the made-up channel of the last two minutes (scope_page) with its receive level under it."""
+    page = await s.page(DESKTOP, tab="skeds", view=CITY, panel=560, url=s.skeds_url, stored={"monitor": "open"}, init=scope_page(s.radios["hf"]))
+    async with asyncio.timeout(90):
+        while await page.locator("#pane-skeds ul.board > li.sked").count() < len(SKED_CALLS):
+            await page.wait_for_timeout(1000)
+    await page.locator(".monitorcard canvas").first.wait_for(timeout=30000)
+    await settle(page, 2500)
+    await s.save(page, "hf-tests")
 
 
 async def shot_phone_map(s: Shots, _: str) -> None:
@@ -715,7 +851,7 @@ async def shot_phone_messages(s: Shots, _: str) -> None:
 async def shot_phone_weather(s: Shots, _: str) -> None:
     """A tap on a row of the Stations table shows the map and the card of the station as a sheet at the bottom, opened up with a tap on its grip."""
     page = await s.page(PHONE, tab="stations", view=(60.15, 24.80, 11), phone_view="panel")
-    await pick_station(page, "OH2ZWA", wait=3000)
+    await pick_station(s, page, "OH2ZWA", wait=3000)
     await page.locator(".sheet-grip").click()                      # (a tap on the grip opens the sheet up: the graphs)
     await settle(page, 2500)
     await s.save(page, "phone-weather")
@@ -823,9 +959,9 @@ SHOTS: dict[str, Shot] = {
     "objects": shot_objects, "objects-form": shot_objects_form, "beacon": shot_beacon, "settings": shot_settings, "packets": shot_packets, "phone-map": shot_phone_map, "phone-bulletins": shot_phone_bulletins, "phone-weather": shot_phone_weather,
     "cards": shot_cards, "stations-menu": shot_stations_menu, "update": shot_update, "beacon-de": shot_beacon_de, "phone-messages": shot_phone_messages, "tablet": shot_tablet, "setup": shot_setup, "chain": shot_chain, "chain-failed": shot_chain_failed, "settings-web": shot_settings_web, "phone-key": shot_phone_key,
     "station-details": shot_station_details, "settings-tnc": shot_settings_tnc, "beacon-rx": shot_beacon_rx, "phone-beacon-rx": shot_phone_beacon_rx,
-    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps, "settings-hf": shot_settings_hf, "stations-hf": shot_stations_hf,
+    "nearby": shot_nearby, "beacon-gps": shot_beacon_gps, "settings-hf": shot_settings_hf, "stations-hf": shot_stations_hf, "hf-tests": shot_hf_tests,
 }
-DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps", "settings-hf", "stations-hf")
+DARK_TOO = ("map", "stations", "station", "weather", "messages", "email", "bulletins", "objects", "objects-form", "beacon", "settings", "packets", "phone-map", "phone-bulletins", "phone-weather", "cards", "stations-menu", "update", "beacon-de", "phone-messages", "tablet", "setup", "chain", "chain-failed", "settings-web", "phone-key", "station-details", "settings-tnc", "beacon-rx", "phone-beacon-rx", "nearby", "beacon-gps", "settings-hf", "stations-hf", "hf-tests")
 
 
 def in_the_dark(shot: Shot) -> Shot:
@@ -1012,14 +1148,7 @@ def say_what_was_left(run: Run, out: Path, docs: Path | None) -> int:
 # ---- the run
 
 EXTRA_DAEMONS = {"updating": ("update", "update-dark"), "receiving": ("beacon-rx", "beacon-rx-dark", "phone-beacon-rx", "phone-beacon-rx-dark"), "moving": ("beacon-gps", "beacon-gps-dark"),
-                 "hf": ("stations-hf", "stations-hf-dark"), "hf-mercury": ("settings-hf", "settings-hf-dark")}       # the shots each extra daemon is for (a copy of the day's folder, set otherwise)
-
-
-def cannot_take() -> dict[str, str]:
-    """The shots this checkout cannot take, with why."""
-    if find_mercury() is None and find_mercury(ROOT / ".venv" / "tools") is None:
-        return {name: "no Mercury in this checkout: scripts/build-mercury --install" for name in EXTRA_DAEMONS["hf-mercury"]}
-    return {}
+                 "skeds": ("hf-tests", "hf-tests-dark")}       # the shots each extra daemon is for (a copy of the day's folder with its three radios, set otherwise)
 
 
 async def main(argv: list[str]) -> int:
@@ -1053,7 +1182,6 @@ async def main(argv: list[str]) -> int:
     os.environ["NEOAPRS_UPDATE_CHECK"] = "0"                          # (no daemon of the shots asks the version page: the header shows no newer-version link)
     logging.getLogger("neoaprs").setLevel(logging.ERROR)              # (the day has a message that fails, on purpose: the log's warning about it is not news)
     run = Run()
-    run.why_not.update({name: why for name, why in cannot_take().items() if name in chosen})
     taking = [n for n in chosen if n in SHOTS and n not in run.why_not]
     args.out.mkdir(parents=True, exist_ok=True)
     if taking:
@@ -1091,20 +1219,18 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
     daemons: list[Daemon] = []
     servers: list[asyncio.Server] = []
     gpsds: list[asyncio.subprocess.Process] = []
-    modems: list[PipeMercury] = []
     try:
-        data = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
+        data, ids = await prepare(work, radio, args.basemap if args.basemap.exists() else None)
         wanted = {key for key, shots in EXTRA_DAEMONS.items() if set(shots) & set(chosen)}
         for key in wanted:
             copy_data(data, work / key)                                                               # (each extra daemon on a copy of the day, made while no daemon runs on it)
         main_daemon = Daemon(data)
         daemons.append(main_daemon)
-        url = await main_daemon.start()
-        radio.feed(demoscene.on_air("OH2ZMA-9", demoscene.position(60.164, 24.88, "/>", "Pekka on the road", course=96, knots=46), path="OH2RCH-2*", destination="APOT21"))    # (a packet heard just now: the radio status says when the last one came)
+        url = await main_daemon.start()                                                             # (its three Dummy radios make up their air from its start: the HF cities' first beacons within two minutes)
         (work / "fresh").mkdir()
         if (data / "basemap.pmtiles").exists():
             put_map(data / "basemap.pmtiles", work / "fresh" / "basemap.pmtiles")
-        fresh = Daemon(work / "fresh", "--port", radio.url)
+        fresh = Daemon(work / "fresh")                                                              # (a new installation: no radio)
         daemons.append(fresh)
         fresh_url = await fresh.start() if {"setup", "setup-dark"} & set(chosen) else ""
         print("the page:", url, " the fresh one:", fresh_url)
@@ -1116,7 +1242,7 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
         async def updating() -> str:
             versions = await serve_version(UPDATE_TO)
             servers.append(versions)
-            neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{versions.sockets[0].getsockname()[1]}/version.php")
+            neoaprs_db_set(work / "updating", "update/url", f"http://{demoscene.HOST}:{port_of(versions)}/version.php")
             return await started(Daemon(work / "updating", env={"NEOAPRS_INSTALL_KIND": "windows-installer"}))        # (a simulated install: Update now is offered, and would only rehearse)
 
         async def receiving() -> str:
@@ -1133,24 +1259,19 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
                 neoaprs_db_set(work / "moving", key, value)
             return await started(Daemon(work / "moving"))
 
-        async def hf() -> str:
-            hf_url = await started(Daemon(work / "hf", env={"PATH": "/nonexistent"}))               # (the same day on the air and the Dummy HF radio beside it; with no player on the PATH its frames are not played through this machine's speakers)
-            await give_hf_radio(hf_url, "dummy-hf", {})
-            return hf_url
+        async def skeds() -> str:
+            board, versions = await serve_json(made_up_board(datetime.now(UTC))), await serve_version(VERSION)
+            servers.extend((board, versions))
+            neoaprs_db_set(work / "skeds", "update/url", f"http://{demoscene.HOST}:{port_of(versions)}/version.php")      # (this version is the latest: no newer one is offered)
+            return await started(Daemon(work / "skeds", env={"NEOAPRS_UPDATE_CHECK": "1", "NEOAPRS_SKEDS_URL": f"http://{demoscene.HOST}:{port_of(board)}/skeds.json"}))
+            # (the board is read with the update check, and only from a server on this computer: NEOAPRS_NO_DEVICES shuts every other door, the project's own list of frequencies too)
 
-        async def hf_mercury() -> str:
-            pipes = PipeMercury(work / "hf-mercury")
-            modems.append(pipes)
-            mercury_url = await started(Daemon(work / "hf-mercury", "--hf-port", pipes.start()))   # (the same day on the air and the Mercury modem beside it, a real one on pipes that hears silence and keys nothing:
-            await give_hf_radio(mercury_url, "mercury", {"keying": "vox", "sound_card": ""})        #  the radio given through the page is radio 2, which --hf-port names)
-            return mercury_url
-
-        starts: dict[str, Callable[[], Awaitable[str]]] = {"updating": updating, "receiving": receiving, "moving": moving, "hf": hf, "hf-mercury": hf_mercury}
+        starts: dict[str, Callable[[], Awaitable[str]]] = {"updating": updating, "receiving": receiving, "moving": moving, "skeds": skeds}
         urls: dict[str, str] = {}
         for key in sorted(wanted):
             try:
                 urls[key] = await starts[key]()
-            except (RuntimeError, TimeoutError, OSError, subprocess.CalledProcessError, smoke.Failure) as e:
+            except (RuntimeError, TimeoutError, OSError, subprocess.CalledProcessError) as e:
                 run.why_not.update({name: f"its daemon did not come up: {e}" for name in EXTRA_DAEMONS[key] if name in chosen})
         async with async_playwright() as p:
             options: dict[str, Any] = {"args": ["--no-sandbox"] if args.no_sandbox else []}
@@ -1159,7 +1280,7 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
             browser = await p.chromium.launch(**options)
             shots = Shots(browser, url, args.out)
             shots.update_url, shots.receive_url, shots.moving_url = urls.get("updating", ""), urls.get("receiving", ""), urls.get("moving", "")
-            shots.hf_url, shots.hf_mercury_url = urls.get("hf", ""), urls.get("hf-mercury", "")
+            shots.skeds_url, shots.radios = urls.get("skeds", ""), ids
             for name in chosen:
                 if name in run.why_not:
                     continue
@@ -1179,8 +1300,6 @@ async def take(args: argparse.Namespace, chosen: list[str], run: Run) -> None:
     finally:
         for daemon in daemons:
             await daemon.stop()
-        for modem in modems:
-            modem.stop()
         for gpsd in gpsds:
             if gpsd.returncode is None:
                 gpsd.terminate()

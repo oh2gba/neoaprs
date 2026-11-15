@@ -109,8 +109,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Radion tyyppi",
   "settings.profile.tip_label": "Minkä radiotyypin valitsen",
-  "settings.profile.tip1": "Miten NeoAPRS puhuu radiollesi tai modeemillesi (sen TNC:lle). Valitse omaasi vastaava rivi.",
-  "settings.profile.tip2": "Useimmat TNC:t ovat KISS TNC; Direwolf on KISS over TCP; SSB-radio äänikortilla on Mercury. Ei radiota? Valitse simuloitu.",
+  "settings.profile.tip1": "Useimmat TNC:t ovat KISS TNC; FM-radio Digirigillä, AIOC:lla tai muulla USB-äänikortilla on Äänikortti (Direwolf).",
+  "settings.profile.tip2": "Itse käynnistämäsi Direwolf on KISS over TCP; SSB-radio äänikortilla on Mercury. Ei radiota? Valitse simuloitu.",
 
   "settings.port.name": "TNC-portti",
   "settings.port.label": "Portti",
@@ -480,6 +480,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "GNU GPL",
   "settings.about.source": "Lähdekoodi",
   "settings.about.modem": "HF-modeemi on Rhizomatican {modem}.",
+  "settings.about.direwolf": "Äänikorttimodeemi on John Langnerin (WB2OSZ) {modem}.",
   "settings.about.thanks": "Kiitos kaikille, jotka kokeilivat ohjelmaa ja antoivat palautetta.",
   "settings.about.feedback": "Ideat ja vikailmoitukset voi lähettää myös {issues} tai {mail}.",
   "settings.about.issues": "GitHubin issues-sivu",

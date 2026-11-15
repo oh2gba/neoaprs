@@ -1,18 +1,30 @@
 <script setup lang="ts">
 // The About group, after Help, the last of the Settings tab: what NeoAPRS is and which version this is (the daemon's), who made it and when, the licence and the source as plain links, the HF modem with its
-// version, a thanks to everyone, and as the quiet last line Download logs, which saves the support file (Help's Send feedback / logs is the way to reach the project). Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
+// version and, where this installation carries it (the status does not name its type among the unavailable ones), the sound card modem with its version, a thanks to everyone, and as the quiet last line Download logs, which saves the support file (Help's Send feedback / logs is the way to reach the project). Text and links only; no control. A call in running text stays in the body font (the monospace font has another height, and a selection of it looks cut).
 import { computed } from "vue";
 import { t } from "@/i18n";
 import SettingsGroup from "@/components/SettingsGroup.vue";
 import RichMessage from "@/components/RichMessage.vue";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useSupportLogs } from "@/composables/useSupportLogs";
-import { ABOUT_AUTHOR, ABOUT_ISSUES_URL, ABOUT_LICENSE_URL, ABOUT_MODEM, ABOUT_MODEM_URL, ABOUT_SOURCE_URL, ABOUT_YEAR } from "@/lib/about";
+import {
+  ABOUT_AUTHOR,
+  ABOUT_DIREWOLF,
+  ABOUT_DIREWOLF_URL,
+  ABOUT_ISSUES_URL,
+  ABOUT_LICENSE_URL,
+  ABOUT_MODEM,
+  ABOUT_MODEM_URL,
+  ABOUT_SOURCE_URL,
+  ABOUT_YEAR,
+} from "@/lib/about";
 import { SUPPORT_ADDRESS } from "@/lib/support";
 import { LIMITS } from "@/protocol/lists";
 
-const { version, call, connection, panel } = useDaemonContext();
+const { version, call, connection, panel, status } = useDaemonContext();
 const logs = useSupportLogs({ call, connection, daemonVersion: version, panelWidth: panel.width });
+/** Whether this installation carries Direwolf: known from the status, as the list of types knows it. */
+const direwolf = computed(() => status.value !== null && !status.value.unavailable_types.includes("direwolf"));
 const downloadLabel = computed(() => (logs.running.value ? t("settings.help.collecting") : t("settings.help.download")));
 </script>
 
@@ -37,6 +49,13 @@ const downloadLabel = computed(() => (logs.running.value ? t("settings.help.coll
       <RichMessage id="settings.about.modem"
         ><template #modem
           ><a :href="ABOUT_MODEM_URL" target="_blank" rel="noopener noreferrer">{{ ABOUT_MODEM }} {{ LIMITS.mercury.version }}</a></template
+        ></RichMessage
+      >
+    </p>
+    <p v-if="direwolf">
+      <RichMessage id="settings.about.direwolf"
+        ><template #modem
+          ><a :href="ABOUT_DIREWOLF_URL" target="_blank" rel="noopener noreferrer">{{ ABOUT_DIREWOLF }} {{ LIMITS.soundCard.version }}</a></template
         ></RichMessage
       >
     </p>

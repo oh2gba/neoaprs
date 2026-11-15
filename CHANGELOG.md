@@ -56,6 +56,7 @@ As many radios as you have, FM, HF and LoRa side by side, a new look, HF tests a
 - **Fixed:** a program of yours with Mercury in its name could be ended as a Mercury NeoAPRS left running; now only its own is.
 - **Fixed:** a device logged in over plain http could open the page over https. It now logs in once more.
 - **Fixed:** a message not sent for want of the connection to NeoAPRS said so in English in every language.
+- **Fixed:** the HF radio, choosing its keying by itself, could key on a port another radio or the GPS receiver uses. It no longer does.
 
 ## 0.18.2
 

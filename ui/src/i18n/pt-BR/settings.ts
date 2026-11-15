@@ -109,9 +109,8 @@ export const settings: Record<keyof typeof source, Message> = {
 
   "settings.profile.label": "Tipo de rádio",
   "settings.profile.tip_label": "Qual tipo de rádio escolher",
-  "settings.profile.tip1": "Como o NeoAPRS fala com o seu rádio ou modem (o TNC dele). Escolha a linha que corresponde ao seu.",
-  "settings.profile.tip2":
-    "A maioria dos TNCs é KISS TNC; Direwolf é KISS sobre TCP; um rádio SSB com placa de som é Mercury. Sem rádio? Escolha um rádio simulado.",
+  "settings.profile.tip1": "A maioria dos TNCs é KISS TNC; um rádio FM com um Digirig, um AIOC ou outra placa de som USB é Placa de som (Direwolf).",
+  "settings.profile.tip2": "Um Direwolf que você mesmo roda é KISS sobre TCP; um rádio SSB com placa de som é Mercury. Sem rádio? Escolha um rádio simulado.",
 
   "settings.port.name": "Porta do TNC",
   "settings.port.label": "Porta",
@@ -481,6 +480,7 @@ export const settings: Record<keyof typeof source, Message> = {
   "settings.about.license_link": "Licença Pública Geral GNU",
   "settings.about.source": "Código-fonte",
   "settings.about.modem": "O modem HF é o {modem}, da Rhizomatica.",
+  "settings.about.direwolf": "O modem de placa de som é o {modem}, de John Langner, WB2OSZ.",
   "settings.about.thanks": "Obrigado a todos que testaram e enviaram comentários.",
   "settings.about.feedback": "Ideias e relatos de erros também podem ir para {issues} ou {mail}.",
   "settings.about.issues": "issues do GitHub",

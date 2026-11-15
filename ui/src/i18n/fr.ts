@@ -1307,9 +1307,10 @@ export const fr: Catalogue = {
 
   "settings.profile.label": "Type de radio",
   "settings.profile.tip_label": "Quel type de radio choisir",
-  "settings.profile.tip1": "La façon dont NeoAPRS parle à votre radio ou modem (son TNC). Choisissez la ligne qui correspond au vôtre.",
+  "settings.profile.tip1":
+    "La plupart des TNC sont des KISS TNC ; une radio FM reliée à un Digirig, un AIOC ou une autre carte son USB, c'est Carte son (Direwolf).",
   "settings.profile.tip2":
-    "La plupart des TNC sont des KISS TNC ; Direwolf est du KISS sur TCP ; une radio SSB sur carte son, c'est Mercury. Pas de radio ? Factice.",
+    "Un Direwolf que vous lancez vous-même est du KISS sur TCP ; une radio SSB sur carte son, c'est Mercury. Pas de radio ? Choisissez Factice.",
 
   "settings.port.name": "Port du TNC",
   "settings.port.label": "Port",
@@ -1680,6 +1681,7 @@ export const fr: Catalogue = {
   "settings.about.license_link": "licence publique générale GNU",
   "settings.about.source": "Code source",
   "settings.about.modem": "Le modem HF est {modem}, de Rhizomatica.",
+  "settings.about.direwolf": "Le modem pour carte son est {modem}, de John Langner, WB2OSZ.",
   "settings.about.thanks": "Merci à toutes celles et ceux qui l'ont essayé et ont envoyé leurs retours.",
   "settings.about.feedback": "Les idées et les rapports de bogue peuvent aussi aller sur {issues} ou à {mail}.",
   "settings.about.issues": "tickets GitHub",

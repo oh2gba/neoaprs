@@ -24,7 +24,7 @@ describe("the (i) of the Settings tab", () => {
     ["set-web-network", "About network access", /phone, a tablet or a laptop on your network.*access key and a code for a phone appear/s],
     ["set-web-key", "About the access key", /type it once on each.*New key logs every other device out/s],
     ["set-web-code-label", "About the code", /^Point the camera of a phone on the same network at it\.$/],
-    ["set-radio-1-type", "Which radio type to pick", /How NeoAPRS talks to your radio.*KISS TNC.*KISS over TCP.*Mercury.*Dummy/s], // (the one (i) of the one list, plan section 6; no file of the documents on the page)
+    ["set-radio-1-type", "Which radio type to pick", /KISS TNC.*FM radio on a Digirig.*Sound card \(Direwolf\).*KISS over TCP.*Mercury.*Dummy/s], // (the one (i) of the one list, plan section 6; no file of the documents on the page)
     ["set-radio-1-port", "About the port", /Find automatically looks for it.*\/dev\/ttyUSB0.*COM3.*Refresh reads the list again/s],
     ["set-radio-1-baud", "About the speed", /Leave it empty.*57600 for a NinoTNC/s],
     ["set-map-radius_km", "About the radius", /bigger download.*150 km is a region/s],

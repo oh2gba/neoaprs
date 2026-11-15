@@ -378,22 +378,101 @@ def test_ctrl_c_on_sim_radios_keep_only_says_stop_and_the_daemon_is_then_stopped
     assert signal.getsignal(signal.SIGINT) == before, "the Ctrl+C of before is back"
 
 
-def test_the_mercury_shot_waits_for_its_modem_on_the_radio_that_hf_port_names() -> None:
-    """settings-hf's daemon is started with --hf-port, which is the station's first Mercury radio's: the Mercury radio given through the page must be that one, whatever its id, and its modem `running` before
-    the shot; otherwise its shots are left out with the reason (a Failure), never a picture of a Mercury radio with no modem."""
+def test_the_station_of_the_shots_is_an_fm_an_hf_and_a_lora_radio_of_dummy_types_and_never_a_type_that_starts_a_modem() -> None:
+    """The shots show what the station of 0.20.0 is: three radios, "2 m" (FM, the day's radio 1 and the main one), "40 m" (HF) and a LoRa radio, each of a Dummy type, which opens no device. The Mercury and
+    the Direwolf types would start a modem on the machine's sound card: the script names them only to refuse them, and its one way to add a radio refuses them before anything is run."""
+    import ast
+    shots = load_script("screenshots.py")
+    assert [(kind, name) for kind, _, name in shots.RADIOS] == [("fm", "2 m"), ("hf", "40 m"), ("lora", "")]
+    assert all(TYPES[type].dummy and TYPES[type].kind == kind for kind, type, _ in shots.RADIOS), "a Dummy type of each kind"
+    assert shots.LABELS == {"fm": "2 m", "hf": "40 m", "lora": "LoRa"} and shots.DAY_RADIO == 1 and shots.RADIO_TYPE == "kiss-tcp"
+    assert {TYPES[type].transport for type in shots.FORBIDDEN_TYPES} == {"modem"} and {t.key for t in TYPES.values() if t.transport == "modem"} <= set(shots.FORBIDDEN_TYPES)
+    for type in shots.FORBIDDEN_TYPES:
+        with pytest.raises(ValueError, match=f"no shot uses the {type} type"):
+            shots.neoaprs_db_add_radio(ROOT / "work" / "no-such-folder", type)
+    tree = ast.parse((ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"))
+    named = [node for node in ast.walk(tree) if isinstance(node, ast.Constant) and node.value in shots.FORBIDDEN_TYPES]
+    refused = next(node for node in tree.body if isinstance(node, ast.AnnAssign | ast.Assign) and "FORBIDDEN_TYPES" in ast.unparse(node).split("=")[0])
+    assert named and all(node in list(ast.walk(refused)) for node in named), "no forbidden type is named anywhere but in FORBIDDEN_TYPES"
+    assert "--hf-port" not in (ROOT / "scripts" / "screenshots.py").read_text(encoding="utf-8"), "no modem that something else runs either"
+
+
+def test_the_day_is_played_on_radio_1_and_the_station_is_then_given_its_three_radios_with_the_first_the_main_one(tmp_path: Path) -> None:
+    """give_radios on a data folder with the day's radio 1 (a KISS TNC over TCP, named "2 m"), as prepare leaves it once the day is played: radio 1 becomes the Dummy FM radio and keeps its name, the Dummy HF
+    radio "40 m" is radio 2 and the Dummy LoRa radio with no name radio 3, all on, and the main radio is radio 1."""
     import asyncio
     shots = load_script("screenshots.py")
-    smoke = shots.smoke                                                                 # (the smoke the script imported: its Failure is the one raised)
-    running = {"state": "running"}
-    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}, modem=running), "mercury", {"keying": "vox"}, 1))
-    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "dummy-hf", {}, 1))                # (no modem waited for)
-    with pytest.raises(smoke.Failure, match="the Mercury modem of the HF radio running"):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1)}}), "mercury", {}, 1))
-    asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "fm", "kiss", 2)}}, modem=running),
-                                     "mercury", {}, 1))          # (radio 3, the first Mercury radio: --hf-port's)
-    with pytest.raises(smoke.Failure, match="radio 3, and --hf-port names radio 2"):
-        asyncio.run(shots.hf_radio_given(FakeDaemonPage(smoke, HELLO, {"config": {"values": {}}, "radios": {"1": radio_row(1, "fm", "kiss-tcp", 1), "2": radio_row(2, "hf", "mercury", 3, enabled=False),
-                                                                                                         "3": radio_row(3, "hf", "dummy-hf", 2)}}, modem=running), "mercury", {}, 1))      # (radio 3, first by position, made a Mercury: radio 2 is the first Mercury radio)
+    data = tmp_path / "demo"
+    data.mkdir()
+
+    async def made() -> tuple[dict[str, int], Any, dict[str, str]]:
+        ctl = shots.Controller(data)
+        await ctl.open_database()
+        await ctl.db.close()
+        assert shots.neoaprs_db_add_radio(data, shots.RADIO_TYPE, "2 m") == shots.DAY_RADIO
+        ids = await shots.give_radios(data)
+        ctl = shots.Controller(data)
+        await ctl.open_database()
+        try:
+            return ids, await ctl.store.read_radios(), await ctl.store.settings()
+        finally:
+            await ctl.db.close()
+
+    ids, radios, settings = asyncio.run(made())
+    assert ids == {"fm": 1, "hf": 2, "lora": 3}
+    assert [(r.id, r.kind, r.type, r.name, r.enabled, r.removed_at) for r in radios] == [(1, "fm", "dummy", "2 m", True, None), (2, "hf", "dummy-hf", "40 m", True, None), (3, "lora", "dummy-lora", "", True, None)]
+    assert settings["station/main_radio"] == "1"
+
+
+def test_the_hf_tests_shot_is_given_two_tests_to_come_on_40_m_by_two_of_the_days_cast() -> None:
+    """The board the hf-tests shot's daemon reads is one neoaprs/skeds.py takes whole: two tests, each by a call of the made-up day (scripts/demoscene.py), on the 40 m dial the page suggests, both to come
+    (tomorrow evening and the morning after, UTC) whatever the time of the run, and each a row of its own on the page (other times)."""
+    from datetime import UTC, datetime
+    from neoaprs.mercury import SUGGESTED
+    from neoaprs.skeds import parse_board
+    shots = load_script("screenshots.py")
+    day = (ROOT / "scripts" / "demoscene.py").read_text(encoding="utf-8")
+    for now in (datetime(2026, 11, 15, 0, 0, tzinfo=UTC), datetime(2026, 11, 15, 23, 59, tzinfo=UTC), datetime.now(UTC)):
+        board = parse_board(shots.made_up_board(now), now)
+        assert board is not None and not board.closed and len(board.skeds) == 2, now
+        assert [s.call for s in board.skeds] == list(shots.SKED_CALLS) and all(f'"{s.call}' in day for s in board.skeds), "two of the day's cast"
+        assert all(s.dial == dict(SUGGESTED)["40 m"] and now < s.start < s.end for s in board.skeds)
+        assert len({(s.start, s.end, s.dial) for s in board.skeds}) == 2, "two rows on the page"
+
+
+def test_the_made_up_waterfall_is_the_daemons_own_frames_of_a_channel_with_frames_on_it() -> None:
+    """The hf-tests shot's rows are frames as the daemon makes them: the rows kept of the last two minutes, ten a second, named by the HF radio, with the page's script writing its clock in after the kind
+    byte; then rows of their own; the bins of a frame on the air stand well over the noise between 1200 and 1800 Hz. The modem the page is told of is one the wire's model takes."""
+    import json
+    from neoaprs.mercuryscope import HISTORY_HEADER, HISTORY_SEC, ROW_BINS, history_clock, parse_history, parse_row
+    from neoaprs.web.scopefeed import parse_radio_frame
+    from neoaprs.web.tncwire import ModemState
+    shots = load_script("screenshots.py")
+    history, live = shots.scope_frames(7)
+    radio, inner = parse_radio_frame(history)
+    rows = parse_history(inner)
+    assert radio == 7 and rows is not None and len(rows) == HISTORY_SEC * 10 and history_clock(inner) == 0.0
+    assert [age for _, age in rows] == sorted((age for _, age in rows), reverse=True) and rows[0][1] == 119900 and rows[-1][1] == 0
+    assert all(len(row.bins) == ROW_BINS and not row.tx for row, _ in rows)
+    assert len(live) == 300 and all(parse_radio_frame(frame)[0] == 7 and parse_row(parse_radio_frame(frame)[1]) is not None for frame in live)
+    signal = [i for i in range(ROW_BINS) if 1250 <= (shots.ROW_FIRST_BIN + i) * shots.MODEM_RATE / 2 / shots.MODEM_BINS <= 1750]
+    quiet, framed = rows[0][0].bins, rows[round((shots.SCOPE_FRAMES[0][0] + 1) * 10)][0].bins
+    assert min(framed[i] for i in signal) - max(quiet[i] for i in signal) > 10, "a frame on the air stands over the noise"
+    assert HISTORY_HEADER.format == "<Bd", "the page's script writes the clock as a float64 after the kind byte"
+    given = json.loads(shots.scope_page(7).split("const P = ", 1)[1].split(";\n", 1)[0])
+    assert given["radio"] == 7 and given["clockAt"] == 6 and given["everyMs"] == 100 and len(given["live"]) == 300
+    ModemState.model_validate(given["modem"])
+
+
+def test_every_picture_the_site_names_is_a_shot_of_the_script_and_the_shots_are_light_and_dark() -> None:
+    """Each shots/NAME (or thumbs/NAME, .png or .webp, NAME-dark the dark one) that a page of site/ names is taken by a shot of SHOTS (og.png is drawn from the map); every shot of DARK_TOO has its dark one, the
+    new hf-tests among them; each extra daemon is for shots there are."""
+    shots = load_script("screenshots.py")
+    named = {name for page in (ROOT / "site").glob("*.html") for name in re.findall(r"shots/(?:thumbs/)?([a-z0-9-]+)\.(?:png|webp)", page.read_text(encoding="utf-8"))}
+    assert named and named - {"og"} <= set(shots.SHOTS), sorted(named - {"og"} - set(shots.SHOTS))
+    assert {"hf-tests", "hf-tests-dark", "settings-tnc", "settings-hf", "stations-hf", "stations-menu", "packets", "beacon-gps"} <= named
+    assert all(f"{name}-dark" in shots.SHOTS for name in shots.DARK_TOO) and "hf-tests" in shots.DARK_TOO and shots.SHOTS["hf-tests"] is shots.shot_hf_tests
+    assert set(shots.EXTRA_DAEMONS["skeds"]) == {"hf-tests", "hf-tests-dark"} and all(name in shots.SHOTS for names in shots.EXTRA_DAEMONS.values() for name in names)
 
 
 def test_the_settings_shots_draw_the_phone_code_of_the_made_up_address_and_key_as_the_page_draws_a_code() -> None:
@@ -494,23 +573,23 @@ def test_a_run_says_each_file_it_did_not_write_and_why(tmp_path: Path, capsys: p
     long_ago = time.time() - 3600
     for path in [*out.rglob("*.png"), *docs.glob("*.png")]:
         os.utime(path, (long_ago, long_ago))
-    run = shots.Run(taken=["map", "chain"], why_not={"settings-hf": "no Mercury in this checkout: scripts/build-mercury --install", "chain": "failed: TimeoutError: ", "og": "drawn only by a run with everything, --only og or --only map", "thumbs": "no shot taken"})
+    run = shots.Run(taken=["map", "chain"], why_not={"settings-hf": "its daemon did not come up: TimeoutError: ", "chain": "failed: TimeoutError: ", "og": "drawn only by a run with everything, --only og or --only map", "thumbs": "no shot taken"})
     png(out / "map.png", 10, 10)                                                         # (written by the run)
     left = shots.leftovers(run, out, docs)
-    assert left == {"not asked for (--only)": ["screenshots/weather.png", "shots/map-dark.png"], "no Mercury in this checkout: scripts/build-mercury --install": ["shots/settings-hf.png"],
+    assert left == {"not asked for (--only)": ["screenshots/weather.png", "shots/map-dark.png"], "its daemon did not come up: TimeoutError: ": ["shots/settings-hf.png"],
                     "failed: TimeoutError: ": ["shots/chain.png"], "made by no shot of this script: left as it is": ["shots/old-scene.png"],
                     "drawn only by a run with everything, --only og or --only map": ["shots/og.png"], "no shot taken": ["shots/thumbs/map.png"], "not copied": ["screenshots/map.png"]}
     assert shots.say_what_was_left(run, out, docs) == 2 + 8, "the two shots not taken, and the eight files"
     said = capsys.readouterr().out
     png(out / "thumbs" / "settings-hf.png", 1, 1)                                        # (a copy made by this run from the earlier settings-hf.png: no picture of this run)
-    assert shots.leftovers(run, out, docs)["no Mercury in this checkout: scripts/build-mercury --install"] == ["shots/settings-hf.png", "shots/thumbs/settings-hf.png"]
+    assert shots.leftovers(run, out, docs)["its daemon did not come up: TimeoutError: "] == ["shots/settings-hf.png", "shots/thumbs/settings-hf.png"]
     assert [path.stem for path in shots.thumbs_of(out, None, skip={"settings-hf", "chain"})] == ["map-dark", "map", "old-scene"], "a whole run makes no copies of the shots it did not take"
     assert [path.stem for path in shots.thumbs_of(out, {"map", "chain"})] == ["chain", "map"]
     run.sizes = ["index.html: shots/thumbs/chain-dark.png is 640x790 in the box of shots/thumbs/chain.png, 640x781"]
     assert shots.say_what_was_left(run, out, docs) == 2 + 9 + 1, "a size the site still declares wrongly counts as --check counts it"
     assert "site, at another size (--check fails on it): index.html: shots/thumbs/chain-dark.png" in capsys.readouterr().out
-    assert "not taken: settings-hf: no Mercury in this checkout" in said and "not retaken (made by no shot of this script: left as it is): 1 files: shots/old-scene.png" in said and "GitHub's link preview" in said
-    assert set(shots.EXTRA_DAEMONS["hf-mercury"]) == {"settings-hf", "settings-hf-dark"} and all(name in shots.SHOTS for names in shots.EXTRA_DAEMONS.values() for name in names)
+    assert "not taken: settings-hf: its daemon did not come up" in said and "not retaken (made by no shot of this script: left as it is): 1 files: shots/old-scene.png" in said and "GitHub's link preview" in said
+    assert set(shots.EXTRA_DAEMONS["skeds"]) == {"hf-tests", "hf-tests-dark"} and all(name in shots.SHOTS for names in shots.EXTRA_DAEMONS.values() for name in names)
 
 
 def test_the_link_preview_names_the_systems_the_site_names() -> None:
@@ -522,7 +601,7 @@ def test_the_link_preview_names_the_systems_the_site_names() -> None:
 
 
 def test_the_scripts_that_run_a_daemon_in_their_process_reach_its_radios_by_id_and_name_an_objects_radios() -> None:
-    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio through the registry, by id (the controller names no radio of its own); an object of the day is made on the radios `object_set` names (R3 V7). The HF shots give their HF radio through the page: no `db set` of an HF key (refused on a copy of the day)."""
+    """The day of the screenshots (demoscene) and its folder (screenshots) reach the daemon's radio through the registry, by id (the controller names no radio of its own); an object of the day is made on the radios `object_set` names (R3 V7). The shots' HF radio is added as a radio (`db radios add`), never by a `db set` of a flat HF key (refused)."""
     for name in ("demoscene.py", "screenshots.py"):
         source = (ROOT / "scripts" / name).read_text(encoding="utf-8")
         assert not re.search(r"\bctl\.(tnc|hf|mercury|beacon|hf_" r"beacon)\b", source), name
