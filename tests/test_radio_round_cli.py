@@ -17,7 +17,9 @@ from neoaprs.cli import dbcmd, doctor, hostcheck, servicecmd
 from neoaprs.cli.supportmake import make_bundle
 from neoaprs.clock import utc
 from neoaprs.config import BY_KEY, KEYS, MESSAGE_RADIOS
+from neoaprs.direwolf import CONF_FILE, adevice
 from neoaprs.direwolfdriver import DirewolfDriver
+from neoaprs.mercuryclaims import radio_folder
 from neoaprs.configradios import FLAT_HOMES, radios_from_rows
 from neoaprs.radiospec import FM_ID, HF_ID, RadioSpec
 from neoaprs.radiosql import radio_rows, radio_settings
@@ -152,6 +154,7 @@ async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_
     monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one)
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
     data = tmp_path / "data"
     code, out, _ = await db(capsys, data, "radios", "add", "direwolf")
     assert code == 0 and out.split() == ["radio", "1", "FM", "fm", "direwolf", "on", "(position", "1)"], "a new installation's first radio is radio 1"
@@ -163,6 +166,7 @@ async def test_a_sound_card_radio_is_a_new_installations_radio_1_by_the_command_
         assert radio is not None and isinstance(radio.driver, DirewolfDriver) and e.ctl.config.main_radio == FM_ID, "the first start runs radio 1 as the type the command line gave it"
         await until(lambda: radio.usable, 20)
         assert (radio.driver.modem.sound_card, radio.driver.modem.keying.text) == ("plughw:7,0", "vox")
+        assert f"ADEVICE {adevice('plughw:7,0', radio.driver.modem._numbers)}\n" in (radio_folder(data, FM_ID) / CONF_FILE).read_text(encoding="utf-8"), "the card as this system takes it"
     finally:
         await e.stop()
 

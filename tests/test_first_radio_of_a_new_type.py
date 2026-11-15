@@ -4,11 +4,15 @@ its address is typed, and then it is a radio as any other; the monitor alone mak
 is offered on a station that has no radio yet, is radio 1 and the station's radio to send on, and its beacon goes out through its own Direwolf."""
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from neoaprs import direwolfmodem, loralist, radioregistry
+from neoaprs.direwolf import CONF_FILE, adevice
+from neoaprs.direwolfdriver import DirewolfDriver
+from neoaprs.mercuryclaims import radio_folder
 from neoaprs.source import Source
 from neoaprs.web.protocol import TOPIC_NAMES
 from tests.support import fakedirewolf
@@ -104,10 +108,16 @@ async def test_a_text_monitor_alone_makes_the_station_receive_only_refuses_every
         await line.aclose()
 
 
-async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("windows", [False, True], ids=["this-systems-way", "the-windows-way"])
+async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_send_on_and_its_beacon_goes_out_through_its_own_direwolf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, windows: bool) -> None:
+    """With `windows`, the Windows way on every system: the card's WinMM numbers in the configuration, and the made-up Direwolf's device lists read."""
     monkeypatch.setitem(radioregistry.CARRIED, "direwolf", lambda: True)             # (an installation that carries Direwolf: the made-up one, which gives back each frame it is sent as heard)
     monkeypatch.setattr("neoaprs.direwolfprogram.find", lambda tools=None: fakedirewolf.program())
     monkeypatch.setattr(direwolfmodem, "FIRST_PORT", base_of_this_test())
+    monkeypatch.setattr(direwolfmodem, "_numbers_of", lambda name: (1, 1))           # (Windows: the made-up card is the second input and output of the made-up Direwolf's WinMM lists; the machine's own name none)
+    if windows:
+        monkeypatch.setattr(direwolfmodem, "sys", SimpleNamespace(platform="win32"))
+        monkeypatch.setattr(direwolfmodem.DirewolfModem, "_cards", lambda self: [])  # (no HF modem here lists the cards: the card is the one typed)
     e, page = await fresh(tmp_path)
     try:
         await page.until(lambda: set(TOPIC_NAMES) <= set(page.topics) and bool(page.of("status")))
@@ -119,6 +129,8 @@ async def test_a_sound_card_radio_added_first_is_radio_1_the_stations_radio_to_s
         radio = e.ctl.radios.get(id)
         assert radio is not None
         await until_started(lambda: radio.usable)
+        assert isinstance(radio.driver, DirewolfDriver)
+        assert f"ADEVICE {'1 1' if windows else adevice('plughw:7,0', radio.driver.modem._numbers)}\n" in (radio_folder(tmp_path, id) / CONF_FILE).read_text(encoding="utf-8"), "the card as this system takes it"
         await page.until(lambda: page.topics["radios"][str(id)]["state"] == "connected" and page.topics["radios"][str(id)]["problem"] is None)
         row = page.topics["radios"][str(id)]
         assert (row["kind"], row["type"], row["enabled"], row["can"]["transmit"], row["can"]["tune"]) == ("fm", "direwolf", True, True, True), row
