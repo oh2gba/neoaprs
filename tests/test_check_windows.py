@@ -422,6 +422,10 @@ for name in os.environ.get("FAKE_FAIL", "").split():
     if "# step: " + name + "\\n" in script:
         print(name + " said: boom")
         sys.exit(1)
+first = script.split("\\n", 1)[0]
+if first.startswith("# step: ") and os.path.exists(folder + "/answer-" + first[8:]):
+    print(open(folder + "/answer-" + first[8:]).read())
+    sys.exit(0)
 
 def flag(name):
     return os.path.exists(folder + "/" + name)
@@ -1021,3 +1025,260 @@ def test_an_installer_that_is_not_one_is_said_before_the_machine_is_touched(benc
     done = run_check(tree, bench, "--install", str(installer(bench.folder)))
     assert done.returncode == 2 and "--snapshot" in done.stderr and bench.vbox_calls() == []
 
+
+
+# ---- the upgrade proof (--upgrade) ----
+
+UPGRADE_STEPS = ["old", "station", "update", "migrate", "data", "daemon", "uninstall"]
+# What the machine says in the steps the proof reads, as 0.18.2 and this tree said it in a rehearsal of the same commands on Linux (15 November 2026), cut short.
+STATION_SAYS = """the page http://127.0.0.1:40789/ answered 200, 2 s after the start
+### old db list
+tnc/profile               dummy               stored
+serial/port                                   default
+hf/enabled                true                stored
+hf/profile                dummy-hf            stored
+station/call              OH2GBA-9            stored
+fm/enabled                true                default
+station/lat               60.1699             stored
+station/lon               24.9384             stored
+station/comment           NeoAPRS upgrade proof  stored
+beacon/power_w            5                   stored
+beacon/interval_min       30                  stored
+beacon/path               WIDE1-1             stored
+beacon/last_sent_at       2026-11-15T18:11:41Z  kept by the daemon (when it last sent, how the map stands), not a setting
+### old db stations
+neoaprs db: 4 stations
+call       kind     last heard            position           packets
+OH2GBA-9   station  2026-11-15 18:12:02Z  60.1699 24.9384          0
+Q1CLB      station  2026-11-15 18:11:59Z  60.1753 24.9058          4
+Q1KUO      station  2026-11-15 18:11:57Z  62.8923 27.6770          1
+PARKING    object   2026-11-15 18:11:54Z  60.1717 24.9023          1
+"""
+RADIOS_SAYS = """radio 1  FM  fm  dummy  on  (position 1)
+  radio/1/beacon    true                default
+  radio/1/path      WIDE1-1             stored
+  radio/1/digipeat  false               default
+radio 2  HF  hf  dummy-hf  on  (position 2)
+  radio/2/beacon    true                default
+"""
+COPY_SAYS = "premigrate-v26-to-v33-20261115-181211.sqlite  2026-11-15 18:12 UTC  version 26        0.2 MB  (taken before the update to version 33: the NeoAPRS you had before opens it)\n"
+DATA_SAYS = f"""### db radios
+{RADIOS_SAYS}### db list
+station/call              OH2GBA-9            stored
+station/lat               60.1699             stored
+station/lon               24.9384             stored
+station/comment           NeoAPRS upgrade proof  stored
+beacon/power_w            5                   stored
+beacon/interval_min       30                  stored
+### db restore
+{COPY_SAYS}### db stations
+neoaprs db: 4 stations
+call       kind     last heard            position           packets
+Q1CLB      station  2026-11-15 18:12:39Z  60.1753 24.9058          8
+Q1KUO      station  2026-11-15 18:12:37Z  62.8923 27.6770          2
+PARKING    object   2026-11-15 18:12:34Z  60.1717 24.9023          2
+OH2GBA-9   station  2026-11-15 18:12:30Z  60.1699 24.9384          0
+### doctor
+NeoAPRS 0.20.0 on Windows 11 (AMD64)
+ok    database neoaprs.sqlite, version 33 (0.2 MB)
+ok    radio FM (dummy): traffic made up: nothing goes on the air
+warn  no base map yet: the page shows no map
+      fix: make it on the page (Settings tab, Map, Download) or with `neoaprs map`
+0 to fix, 1 to look at
+"""
+DAEMON_SAYS = "the page http://127.0.0.1:37383/ answered 200, 1 s after the start\n### heard\nQ1ABC\nQ1CLB\nQ3TKU\nthe second start migrated nothing\n"
+
+
+def upgrade_outputs(**changed: str) -> dict[str, str]:
+    return {"station": STATION_SAYS, "data": DATA_SAYS, "daemon": DAEMON_SAYS, **changed}
+
+
+def upgrade_bench(bench: Bench, **answers: str) -> tuple[Path, Path, Path]:
+    tree = make_tree(bench.folder)
+    for name, text in {"station": STATION_SAYS, "data": DATA_SAYS, "daemon": DAEMON_SAYS, **answers}.items():
+        bench.flag(f"answer-{name}", text)
+    return tree, installer(bench.folder / "old", "NeoAPRS-Setup-0.18.2.exe"), installer(bench.folder)
+
+
+def upgrade_scripts(script: ModuleType) -> dict[str, tuple[str, ...]]:
+    paths = script.windows_paths("John", "RUN-20261115T101010")
+    return {name: parts for name, parts, _ in script.upgrade_steps(paths, "NeoAPRS-Setup-0.18.2.exe", "0.18.2", "NeoAPRS-Setup-0.20.0.exe", "0.20.0")}
+
+
+def test_the_upgrade_proof_takes_two_installers_and_a_snapshot_and_runs_alone(script: ModuleType) -> None:
+    split = script.load_script("check-in-container").split_command
+    args, _ = script.parse(["--upgrade", "NeoAPRS-Setup-0.18.2.exe", "NeoAPRS-Setup-0.20.0.exe", "--snapshot", "clean"], split)
+    assert (args.upgrade, args.snapshot, args.install) == (["NeoAPRS-Setup-0.18.2.exe", "NeoAPRS-Setup-0.20.0.exe"], "clean", "")
+    for wrong in (["--upgrade", "a.exe", "--snapshot", "clean"], ["--upgrade", "a.exe", "b.exe"], ["--upgrade", "a.exe", "b.exe", "--snapshot", "clean", "--install", "c.exe"],
+                  ["--upgrade", "a.exe", "b.exe", "--snapshot", "clean", "--only", "ruff"], ["--upgrade", "a.exe", "b.exe", "--snapshot", "clean", "--tty"],
+                  ["--upgrade", "a.exe", "b.exe", "--snapshot", "clean", "--", "-k", "x"]):
+        with pytest.raises(SystemExit) as stop:
+            script.parse(wrong, split)
+        assert stop.value.code == 2, wrong
+
+
+def test_the_two_installers_are_named_by_their_versions_and_the_old_one_comes_first(script: ModuleType, tmp_path: Path) -> None:
+    old, new = installer(tmp_path / "a", "NeoAPRS-Setup-0.18.2.exe"), installer(tmp_path / "b")
+    assert script.upgrade_versions(old, new) == ("0.18.2", "0.20.0")
+    assert script.upgrade_versions(installer(tmp_path / "c", "NeoAPRS-Setup-0.20.0-rc1.exe"), new) == ("0.20.0-rc1", "0.20.0"), "a candidate of the same release is another build"
+    assert script.upgrade_versions(installer(tmp_path / "d", "NeoAPRS-Setup-0.9.1.exe"), installer(tmp_path / "e", "NeoAPRS-Setup-0.10.0.exe")) == ("0.9.1", "0.10.0"), "by number, not by letter"
+    for first, second in ((new, old), (new, installer(tmp_path / "f"))):
+        with pytest.raises(script.NotSetUp, match="not older than"):
+            script.upgrade_versions(first, second)
+    for wrong in ((installer(tmp_path / "g", "setup-old.exe"), new), (old, tmp_path / "NeoAPRS-Setup-0.21.0.exe")):
+        with pytest.raises(script.NotSetUp, match="--upgrade takes .*NeoAPRS-Setup-VERSION.exe"):
+            script.upgrade_versions(*wrong)
+
+
+def test_the_upgrade_steps_are_in_order_each_named_and_short_enough_for_cmd(script: ModuleType) -> None:
+    by_name = upgrade_scripts(script)
+    assert list(by_name) == UPGRADE_STEPS == list(script.UPGRADE_STEP_NAMES)
+    for name, parts in by_name.items():
+        for text in parts:
+            assert text.startswith(f"# step: {name}\n") and text.endswith("exit 0") and "$app = Join-Path $env:LOCALAPPDATA 'Programs\\NeoAPRS'" in text
+            assert len(script.powershell_line(text)) <= script.REMOTE_LINE_MAX, name
+            assert "uv" not in text.split() and "neotest" not in text, "the machine has nothing but Windows and the app"
+    old, update = by_name["old"][0], by_name["update"][0]
+    for text, setup, version in ((old, "NeoAPRS-Setup-0.18.2.exe", "0.18.2"), (update, "NeoAPRS-Setup-0.20.0.exe", "0.20.0")):
+        assert f"$setup = 'C:\\Users\\John\\neoaprs-check\\RUN-20261115T101010\\{setup}'" in text
+        assert "-ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=" in text and f"-eq 'NeoAPRS {version}'" in text
+    assert "basemap-world.pmtiles" not in old, "the release before is held only to the files every release has"
+    assert all(f"(Join-Path $app '{f}')" in update for f in script.INSTALLED_FILES) and "-eq '0.20.0')" in update and f"Uninstall\\{script.APP_ID}_is1" in update
+    every = "\n".join(text for parts in by_name.values() for text in parts)
+    assert every.count("unins000.exe') -ArgumentList") == 1 and "unins000.exe') -ArgumentList" in by_name["uninstall"][0], "the update goes over the old release: the only uninstall is the last step"
+
+
+def test_the_station_is_made_with_the_old_command_line_and_its_daemon(script: ModuleType) -> None:
+    station = upgrade_scripts(script)["station"]
+    assert len(station) == 2
+    make, record = station
+    for key, value in script.STATION:
+        assert f"@('{key}', '{value}')" in make
+    assert "& $exe db --data $data set $kv[0] $kv[1]" in make and "the old release's command line refused" in make
+    assert make.index("set $kv[0] $kv[1]") < make.index("'run', '--data', $data, '--web-port', '0'") < make.index("& $exe stop --data $data")
+    assert "$env:NEOAPRS_UPDATE_CHECK = '0'" in make and "NEOAPRS_NO_DEVICES" not in make, "0.18.2 has no such switch: its Dummy radios open no device"
+    assert "$data = 'C:\\Users\\John\\neoaprs-check\\RUN-20261115T101010\\data-upgrade'" in make
+    assert "& $exe db --data $data list" in record and "& $exe db --data $data stations" in record
+    assert "Set-Content -LiteralPath 'C:\\Users\\John\\neoaprs-check\\RUN-20261115T101010\\old-db-list.txt'" in record and "old-db-stations.txt" in record
+    assert dict(script.STATION)["tnc/profile"] == "dummy" and dict(script.STATION)["hf/profile"] == "dummy-hf"
+    assert [key for key, _ in script.STATION].index("hf/profile") < [key for key, _ in script.STATION].index("hf/enabled"), "the HF radio is the Dummy before it is on"
+
+
+def test_the_flat_keys_of_the_station_are_where_this_release_keeps_them(script: ModuleType) -> None:
+    from neoaprs.config import BY_KEY
+    from neoaprs.configradios import FLAT_HOMES
+    homes = {attr.replace("_", "/", 1): home for attr, home in FLAT_HOMES.items()}
+    for key, (radio, column) in script.MOVED.items():
+        assert homes[key][0] == radio, key
+        assert column == {"type": "type", "enabled": "on"}.get(homes[key][1], f"radio/{radio}/{homes[key][1]}"), key
+    assert all(key in BY_KEY for key in script.KEPT_KEYS)
+    assert all(key in script.KEPT_KEYS or key in script.MOVED for key, _ in script.STATION), "every value given is compared after the update"
+
+
+def test_the_app_id_of_the_apps_list_is_the_installers(script: ModuleType) -> None:
+    iss = (ROOT / "packaging" / "windows" / "neoaprs.iss").read_text(encoding="utf-8")
+    assert f"AppId={{{script.APP_ID}" in iss
+
+
+def test_the_new_daemon_starts_twice_on_the_station_with_no_device_and_the_second_start_migrates_nothing(script: ModuleType) -> None:
+    by_name = upgrade_scripts(script)
+    migrate, daemon = by_name["migrate"][0], by_name["daemon"][0]
+    for text in (migrate, daemon):
+        assert "$env:NEOAPRS_NO_DEVICES = '1'" in text and "$env:NEOAPRS_UPDATE_CHECK = '0'" in text and "'run', '--data', $data, '--web-port', '0'" in text
+        assert "Select-Object -Skip $skip | Select-String 'web page at" in text, "the address of this start, not of the runs before in the same log"
+        assert "$code -eq 200" in text and "'Z  (ERROR|CRITICAL)  |Traceback'" in text and "-like '*NeoAPRS ended'" in text
+    assert "brought up to date now' }).Count -eq 1" in migrate and "premigrate-v[0-9]+" in migrate
+    assert "$moved.Count -eq 0" in daemon and "'### heard'" in daemon
+    assert re.search(script.MIGRATED, "the database C:\\x\\neoaprs.sqlite is of version 26, this NeoAPRS needs 33: it is brought up to date now (a large file takes minutes)")
+    assert re.search(script.MIGRATED, "the database C:\\x\\neoaprs.sqlite is now version 27 (was 26)") and not re.search(script.MIGRATED, "web page at http://127.0.0.1:1/")
+    data = by_name["data"][0]
+    assert [line for line in data.splitlines() if line.startswith("'### ")] == ["'### db radios'", "'### db list'", "'### db restore'", "'### db stations'", "'### doctor'"]
+
+
+def test_the_checks_pass_what_the_rehearsal_said(script: ModuleType) -> None:
+    outputs = upgrade_outputs()
+    assert script.check_station(outputs)[0] == []
+    problems, notes = script.check_data(outputs)
+    assert problems == [] and notes == ["the copy taken before the update: premigrate-v26-to-v33-20261115-181211.sqlite (schema version 26 of the release before)"]
+    assert script.check_daemon(outputs) == ([], ["heard again after the update: Q1CLB"])
+
+
+def test_the_data_check_refuses_a_missing_radio_a_missing_copy_and_a_second_one(script: ModuleType) -> None:
+    without_fm = DATA_SAYS.replace(RADIOS_SAYS, "radio 2" + RADIOS_SAYS.split("radio 2")[1])
+    assert any("no radio 1, the FM radio that tnc/profile and fm/enabled and beacon/path made" in p for p in script.check_data(upgrade_outputs(data=without_fm))[0])
+    without_hf = DATA_SAYS.replace("radio 2  HF  hf  dummy-hf  on  (position 2)\n  radio/2/beacon    true                default\n", "")
+    assert any("no radio 2, the HF radio" in p for p in script.check_data(upgrade_outputs(data=without_hf))[0])
+    off = STATION_SAYS.replace("hf/enabled                true", "hf/enabled                false")
+    assert not any("radio 2" in p for p in script.check_data(upgrade_outputs(data=without_hf, station=off))[0]), "an HF radio that was off may be left out"
+    wrong_type = DATA_SAYS.replace("radio 1  FM  fm  dummy  on", "radio 1  FM  fm  kiss  on").replace("radio/1/path      WIDE1-1", "radio/1/path      WIDE2-2")
+    found = script.check_data(upgrade_outputs(data=wrong_type))[0]
+    assert "radio 1 has type 'kiss', and the old tnc/profile was 'dummy'" in found and "radio 1 has radio/1/path 'WIDE2-2', and the old beacon/path was 'WIDE1-1'" in found
+    assert "radio 2 has on 'false', and the old hf/enabled was 'true'" in script.check_data(upgrade_outputs(data=DATA_SAYS.replace("dummy-hf  on", "dummy-hf  off")))[0]
+    assert any("lists no copy premigrate-v" in p for p in script.check_data(upgrade_outputs(data=DATA_SAYS.replace(COPY_SAYS, "")))[0])
+    second = COPY_SAYS + COPY_SAYS.replace("v26-to-v33-20261115-181211", "v25-to-v26-20261101-101010").replace("  (taken before the update to version 33: the NeoAPRS you had before opens it)", "")
+    assert any("lists 2 copies premigrate-v" in p for p in script.check_data(upgrade_outputs(data=DATA_SAYS.replace(COPY_SAYS, second)))[0])
+    unmarked = COPY_SAYS.split("  (taken")[0] + "\n"
+    assert any("does not mark premigrate-v26" in p for p in script.check_data(upgrade_outputs(data=DATA_SAYS.replace(COPY_SAYS, unmarked)))[0])
+    assert script.check_data(upgrade_outputs(data=DATA_SAYS.replace(COPY_SAYS, COPY_SAYS.replace("v26", "v31"))))[0] == [], "the number is the release before's, whichever it is"
+
+
+def test_the_data_check_refuses_a_changed_setting_a_lost_station_and_a_failed_doctor(script: ModuleType) -> None:
+    found = script.check_data(upgrade_outputs(data=DATA_SAYS.replace("station/lat               60.1699", "station/lat               60.17")))[0]
+    assert found == ["station/lat was '60.1699' and is '60.17' after the update"]
+    found = script.check_data(upgrade_outputs(data=DATA_SAYS.replace("Q1KUO      station  2026-11-15 18:12:37Z  62.8923 27.6770          2\n", "")))[0]
+    assert found == ["db stations has lost 1 of the stations the old release knew: Q1KUO"]
+    found = script.check_data(upgrade_outputs(data=DATA_SAYS.replace("ok    database neoaprs.sqlite", "FAIL  database neoaprs.sqlite")))[0]
+    assert found == ["doctor: FAIL  database neoaprs.sqlite, version 33 (0.2 MB)"]
+
+
+def test_the_station_check_and_the_daemon_check_refuse_what_did_not_happen(script: ModuleType) -> None:
+    found = script.check_station(upgrade_outputs(station=STATION_SAYS.replace("beacon/path               WIDE1-1", "beacon/path               ")))[0]
+    assert found == ["the old release's db list has beacon/path as '', not 'WIDE1-1'"]
+    alone = STATION_SAYS.split("Q1CLB")[0]
+    assert any("heard no station" in p for p in script.check_station(upgrade_outputs(station=alone))[0])
+    assert script.check_daemon(upgrade_outputs(daemon="### heard\nOH2GBA-9\nQ9NEW\n"))[0] == ["the new daemon heard none of the stations the old one heard: the Dummy radios did not come through the update"]
+
+
+def test_the_upgrade_proof_runs_on_the_clean_snapshot_with_no_uninstall_before_the_update(bench: Bench) -> None:
+    tree, old, new = upgrade_bench(bench)
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert [re.sub(r" +\d+\.\ds$", "", line).split()[1] for line in result_lines(done.stdout)] == UPGRADE_STEPS
+    assert re.search(r"all green in \d+s$", done.stdout.strip())
+    assert "the copy taken before the update: premigrate-v26-to-v33-20261115-181211.sqlite" in done.stderr and "heard again after the update: Q1CLB" in done.stderr
+    assert [call for call in bench.vbox_calls() if not call.startswith("showvminfo")][:2] == ["snapshot Windows 11 restore clean", "startvm Windows 11 --type headless"]
+    assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff", "shut down again"
+    copies = [json.loads(line)[-1] for line in (bench.folder / "scp-calls").read_text(encoding="utf-8").splitlines()]
+    assert [copy.rsplit("/", 1)[1] for copy in copies] == ["NeoAPRS-Setup-0.18.2.exe", "NeoAPRS-Setup-0.20.0.exe"], "the two installers and nothing else: no tree, no uv"
+    steps = [call["script"].split("\n", 1)[0][len("# step: "):] for call in bench.ssh_calls() if call["script"].startswith("# step: ")]
+    assert steps == ["old", "station", "station", "update", "migrate", "data", "daemon", "uninstall"]
+    logs = re.search(r"the logs are in (\S+)", done.stderr)
+    assert logs is not None and sorted(path.name for path in Path(logs.group(1)).iterdir()) == sorted(f"{name}.log" for name in UPGRADE_STEPS)
+    assert (Path(logs.group(1)) / "station.log").read_text(encoding="utf-8").count("### old db list") == 2, "the two parts of the station in one log"
+
+
+def test_a_failed_step_stops_the_upgrade_proof_and_the_machine_is_shut_down(bench: Bench) -> None:
+    tree, old, new = upgrade_bench(bench)
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean", FAKE_FAIL="update")
+    assert done.returncode == 1 and [line.split()[:2] for line in result_lines(done.stdout)] == [["ok", "old"], ["ok", "station"], ["FAIL", "update"]]
+    assert "      | update said: boom" in done.stdout and re.search(r"failed in \d+s: update$", done.stdout.strip())
+    assert not bench.scripts("# step: migrate") and not bench.scripts("# step: uninstall")
+    assert (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
+
+
+def test_a_data_step_that_does_not_hold_fails_with_its_problems_and_stops_the_proof(bench: Bench) -> None:
+    tree, old, new = upgrade_bench(bench, data=DATA_SAYS.replace(COPY_SAYS, ""))
+    done = run_check(tree, bench, "--upgrade", str(old), str(new), "--snapshot", "clean")
+    assert done.returncode == 1 and [line.split()[1] for line in result_lines(done.stdout)] == ["old", "station", "update", "migrate", "data"]
+    assert "      | db restore lists no copy premigrate-v...: the migration left no copy of the database from before it" in done.stdout
+    assert not bench.scripts("# step: daemon") and (bench.folder / "state").read_text(encoding="utf-8") == "poweroff"
+    logs = re.search(r"the logs are in (\S+)", done.stderr)
+    assert logs is not None and "lists no copy premigrate-v" in (Path(logs.group(1)) / "data.log").read_text(encoding="utf-8")
+
+
+def test_installers_that_are_not_two_in_order_are_said_before_the_machine_is_touched(bench: Bench) -> None:
+    tree, old, new = upgrade_bench(bench)
+    done = run_check(tree, bench, "--upgrade", str(new), str(old), "--snapshot", "clean")
+    assert done.returncode == 2 and "not older than" in done.stderr and bench.vbox_calls() == [] and bench.ssh_calls() == []
+    done = run_check(tree, bench, "--upgrade", str(old), str(installer(bench.folder, "something.exe")), "--snapshot", "clean")
+    assert done.returncode == 2 and "NeoAPRS-Setup-VERSION.exe" in done.stderr and bench.vbox_calls() == []

@@ -9,6 +9,8 @@
   scripts/check-windows --install SETUP --snapshot NAME
                                               the install proof of a Windows trim instead: the machine put back to its clean snapshot, the installer (NeoAPRS-Setup-VERSION.exe) run silently, then the app's
                                               pieces and the uninstall, each a step (below)
+  scripts/check-windows --upgrade OLD NEW --snapshot NAME
+                                              the upgrade proof instead: the installer of the release before (OLD), a station made with it, then NEW installed over it as an update is (below)
 
 Where the machine is comes from the environment, and nothing is guessed (CONVENTIONS.md has the table):
   NEOAPRS_WINVM              the VirtualBox name of the machine; unset means that the Windows check is not set up here, and the script says so and ends with 2
@@ -47,7 +49,19 @@ Stop NeoAPRS again), commands (`neoaprs.exe --version`, `doctor`, `support`), ap
 a dry run), direwolf (the installed app finds its own Direwolf: `neoaprs.exe db radios add direwolf` on a fresh folder, and the installed direwolf.exe runs as the pinned release),
 smoke (scripts/smoke.py against the installed neoaprs.exe), mercury (packaging/windows/smoke_mercury.py on the installed mercury.exe) and uninstall (with the app running: the program
 folder gone, nothing left in it, the start at sign-in and the processes gone, the data folder kept). The steps before smoke run on a machine with nothing but Windows and the app; uv and its Python come
-only then. Nothing follows a failed install. What only a person can see (the wizard, the tray at each display scaling, the pages of the app, Update now from the previous release) is in docs/development.md.
+only then. Nothing follows a failed install.
+
+The upgrade proof (--upgrade OLD NEW) is the one test, before a release is public, that a station of the release before comes through the update on Windows. Its steps, each needing the one before (the first that
+fails ends it; the machine is shut down all the same): old (OLD installed silently as above, its files, `neoaprs.exe --version` the version of its file name), station (with that release's own command line only:
+`neoaprs.exe db --data FOLDER set KEY VALUE` for the flat keys of STATION, the Dummy radio as the FM radio and the Dummy HF radio as the HF one, so that no device is needed; then its daemon `neoaprsw.exe run --data
+FOLDER --web-port 0` for RUN_SEC with NEOAPRS_UPDATE_CHECK=0, its page, `neoaprs.exe stop --data FOLDER`; then its `db list` and `db stations`, printed and kept in files of the run's folder), update (NEW installed
+silently over it, no uninstall; its files, its version, the Apps list), migrate (the new daemon's first start on the folder with NEOAPRS_NO_DEVICES=1 too: the migration and its copy in the log, nothing ERROR),
+data (`db radios`, `db list`, `db restore`, `db stations` and `doctor` of the new release, held here to what the old one said: the settings that kept their names, radio 1 and radio 2 made of the flat keys,
+exactly one copy premigrate-v<the old schema version> marked as taken before the update, every station kept, no FAIL), daemon (a second start: page, no ERROR or Traceback, stations of the old run heard again,
+nothing migrated) and uninstall (as the install proof's). The data folder is the run's own (data-upgrade), never the default one. The commands of old and station are those of 0.18.2 (v0.18.2:neoaprs/cli/dbcmd.py,
+neoaprs/daemon.py build_parser, neoaprs/cli/stopcmd.py); a release before that is older than 0.18.2 may take other ones.
+
+What only a person can see (the wizard, the tray at each display scaling, the pages of the app, Update now from the previous release) is in docs/development.md.
 
 Exit code: 0 all steps passed, 1 a step failed, 2 not set up (a variable, a file, a program on the PATH, a tree that cannot be packed, a machine that is in no state to be used, a second run, the
 machine not answering, uv or the tree not put on it). Needs Linux, ssh, scp, VBoxManage and git."""
@@ -755,11 +769,11 @@ def install_paths(paths: Paths, installer_name: str) -> InstallPaths:
     return InstallPaths(f"{run}\\{installer_name}", f"{run}\\install.log", f"{run}\\uninstall.log", f"{run}\\kit", f"{run}-kit.tar", f"{run}\\data-app", f"{run}\\data-map", f"{run}\\data-direwolf", f"{run}\\support")
 
 
-def installer_version(installer: Path) -> str:
+def installer_version(installer: Path, option: str = "--install") -> str:
     """The version the installer's name says (NeoAPRS-Setup-0.20.0.exe), or NotSetUp with the sentence."""
     found = INSTALLER_NAME.fullmatch(installer.name)
     if not installer.is_file() or found is None:
-        raise NotSetUp(f"--install takes the installer the release workflow makes, NeoAPRS-Setup-VERSION.exe, and {installer} is not one")
+        raise NotSetUp(f"{option} takes the installer the release workflow makes, NeoAPRS-Setup-VERSION.exe, and {installer} is not one")
     return found.group(1)
 
 
@@ -796,20 +810,65 @@ def fail_unless(condition: str, why: str, *before: str) -> str:
     return f"if (-not ({condition})) {{ {'; '.join([*before, ps_quote(why)])}; exit 1 }}"
 
 
+NATIVE_OK = "$LASTEXITCODE -eq 0"
+# The files of the program folder that the proofs look for after an install (packaging/windows/neoaprs.spec and neoaprs.iss put them there).
+INSTALLED_FILES = ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe", "bin\\mercury\\mercury.exe", "bin\\direwolf\\direwolf.exe", "bin\\direwolf\\data\\tocalls.yaml", "_internal\\neoaprs\\maps\\basemap-world.pmtiles",
+                   "_internal\\neoaprs\\desktop\\icon.ico", "LICENSE.txt", "unins000.exe")
+START_MENU = "Join-Path $env:APPDATA 'Microsoft\\Windows\\Start Menu\\Programs\\NeoAPRS'"
+
+
+def setup_lines(setup: str, log: str) -> list[str]:
+    """The installer run silently, as the release's users and Update now run it, and waited for; a setup that does not end with 0 ends the step with the end of its log."""
+    return [f"$setup = {ps_quote(setup)}",
+            f"$p = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + log)} -PassThru",
+            "$p.WaitForExit()",
+            fail_unless("$p.ExitCode -eq 0", "setup did not end with 0", f"Get-Content -LiteralPath {ps_quote(log)} -Tail 40", '"setup ended with $($p.ExitCode)"')]
+
+
+def files_lines(files: Sequence[str]) -> list[str]:
+    return [fail_unless(f"Test-Path -LiteralPath (Join-Path $app {ps_quote(f)})", f"{f} is not in the program folder") for f in files]
+
+
+def version_lines(version: str) -> list[str]:
+    """`neoaprs.exe --version` of the program folder, which must say this version."""
+    return ["$said = (& (Join-Path $app 'neoaprs.exe') --version 2>&1 | ForEach-Object { \"$_\" } | Out-String).Trim()",
+            "\"neoaprs.exe --version: $said\"",
+            fail_unless(f"$said -eq {ps_quote('NeoAPRS ' + version)}", f"neoaprs.exe is not NeoAPRS {version}")]
+
+
+def uninstall_script(log: str) -> str:
+    """The uninstall with the app running on the default data folder: the program folder gone, nothing left in it, the start at sign-in and the processes gone, the data folder kept."""
+    return install_script(
+        "uninstall", DATA_FOLDER, "$log = Join-Path $data 'neoaprs.log'",
+        "$before = @(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count",
+        "$running = Start-Process -FilePath (Join-Path $app 'neoaprs-app.exe') -ArgumentList '--tray' -PassThru",
+        "foreach ($i in 1..120) { if (@(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count -gt $before) { break }; Start-Sleep 1 }",
+        fail_unless("-not $running.HasExited", "the app did not stay up before the uninstall"),
+        f"$u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + log)} -PassThru",
+        "$u.WaitForExit()",
+        "foreach ($i in 1..120) { if (-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))) { break }; Start-Sleep 1 }",
+        fail_unless("-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))", "neoaprs.exe is still in the program folder", f"Get-Content -LiteralPath {ps_quote(log)} -Tail 40"),
+        "foreach ($i in 1..30) { if (-not (Test-Path -LiteralPath $app)) { break }; Start-Sleep 1 }",
+        "$left = if (Test-Path -LiteralPath $app) { @(Get-ChildItem -LiteralPath $app -Recurse -Force | ForEach-Object { $_.FullName }) } else { @() }",
+        fail_unless("$left.Count -eq 0", "the uninstall left files in the program folder", "$left"),
+        fail_unless("-not (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).NeoAPRS", "the start at sign-in is still set"),
+        fail_unless("-not (Get-Process -Name neoaprs, neoaprsw, neoaprs-app -ErrorAction SilentlyContinue)", "a NeoAPRS process is still running"),
+        fail_unless("Test-Path -LiteralPath (Join-Path $data 'neoaprs.sqlite')", "the data folder was touched"),
+        fail_unless(f"-not (Test-Path -LiteralPath (Join-Path ({START_MENU}) 'NeoAPRS.lnk'))", "the Start menu entry is still there"),
+        "'uninstalled: the program folder is gone, the data folder is still there'",
+    )
+
+
 def install_steps(paths: Paths, installer_name: str, version: str, tornado: str, direwolf: str) -> list[tuple[str, str, float]]:
     """The steps of the proof in order, each its name, its script and its time."""
     ip = install_paths(paths, installer_name)
-    native_ok = "$LASTEXITCODE -eq 0"
-    files = ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe", "bin\\mercury\\mercury.exe", "bin\\direwolf\\direwolf.exe", "bin\\direwolf\\data\\tocalls.yaml", "_internal\\neoaprs\\maps\\basemap-world.pmtiles", "_internal\\neoaprs\\desktop\\icon.ico", "LICENSE.txt", "unins000.exe")
+    native_ok = NATIVE_OK
     entries = ("NeoAPRS", "Stop NeoAPRS", "NeoAPRS support logs")
-    menu = "Join-Path $env:APPDATA 'Microsoft\\Windows\\Start Menu\\Programs\\NeoAPRS'"
+    menu = START_MENU
     install = install_script(
         "install",
-        f"$setup = {ps_quote(ip.setup)}",
-        f"$p = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + ip.install_log)} -PassThru",
-        "$p.WaitForExit()",
-        fail_unless("$p.ExitCode -eq 0", "setup did not end with 0", f"Get-Content -LiteralPath {ps_quote(ip.install_log)} -Tail 40", '"setup ended with $($p.ExitCode)"'),
-        *(fail_unless(f"Test-Path -LiteralPath (Join-Path $app {ps_quote(f)})", f"{f} is not in the program folder") for f in files),
+        *setup_lines(ip.setup, ip.install_log),
+        *files_lines(INSTALLED_FILES),
         f"$menu = {menu}",
         *(fail_unless(f"Test-Path -LiteralPath (Join-Path $menu {ps_quote(e + '.lnk')})", f"the Start menu has no entry {e}") for e in entries),
         "$size = (Get-ChildItem -LiteralPath $app -Recurse -File | Measure-Object -Property Length -Sum).Sum",
@@ -855,9 +914,7 @@ def install_steps(paths: Paths, installer_name: str, version: str, tornado: str,
     commands = install_script(
         "commands",
         "$exe = Join-Path $app 'neoaprs.exe'",
-        "$said = (& $exe --version 2>&1 | ForEach-Object { \"$_\" } | Out-String).Trim()",
-        "\"neoaprs.exe --version: $said\"",
-        fail_unless(f"$said -eq {ps_quote('NeoAPRS ' + version)}", f"neoaprs.exe is not NeoAPRS {version}"),
+        *version_lines(version),
         "$doctor = & $exe doctor 2>&1 | ForEach-Object { \"$_\" } | Out-String",
         "$doctor",
         fail_unless("$doctor -notmatch 'Traceback' -and $doctor -match 'serial port'", "neoaprs.exe doctor did not run to its end (it lists the serial ports)"),
@@ -917,25 +974,7 @@ def install_steps(paths: Paths, installer_name: str, version: str, tornado: str,
         "& uv run --no-project packaging\\windows\\smoke_mercury.py (Join-Path $app 'bin\\mercury\\mercury.exe') 2>&1 | ForEach-Object { \"$_\" }",
         fail_unless(native_ok, "the installed Mercury does not listen on this computer alone"),
     )
-    uninstall = install_script(
-        "uninstall", DATA_FOLDER, "$log = Join-Path $data 'neoaprs.log'",
-        "$before = @(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count",
-        "$running = Start-Process -FilePath (Join-Path $app 'neoaprs-app.exe') -ArgumentList '--tray' -PassThru",
-        "foreach ($i in 1..120) { if (@(Select-String -LiteralPath $log -Pattern 'NeoAPRS is running' -ErrorAction SilentlyContinue).Count -gt $before) { break }; Start-Sleep 1 }",
-        fail_unless("-not $running.HasExited", "the app did not stay up before the uninstall"),
-        f"$u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', {ps_quote('/LOG=' + ip.uninstall_log)} -PassThru",
-        "$u.WaitForExit()",
-        "foreach ($i in 1..120) { if (-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))) { break }; Start-Sleep 1 }",
-        fail_unless("-not (Test-Path -LiteralPath (Join-Path $app 'neoaprs.exe'))", "neoaprs.exe is still in the program folder", f"Get-Content -LiteralPath {ps_quote(ip.uninstall_log)} -Tail 40"),
-        "foreach ($i in 1..30) { if (-not (Test-Path -LiteralPath $app)) { break }; Start-Sleep 1 }",
-        "$left = if (Test-Path -LiteralPath $app) { @(Get-ChildItem -LiteralPath $app -Recurse -Force | ForEach-Object { $_.FullName }) } else { @() }",
-        fail_unless("$left.Count -eq 0", "the uninstall left files in the program folder", "$left"),
-        fail_unless("-not (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).NeoAPRS", "the start at sign-in is still set"),
-        fail_unless("-not (Get-Process -Name neoaprs, neoaprsw, neoaprs-app -ErrorAction SilentlyContinue)", "a NeoAPRS process is still running"),
-        fail_unless("Test-Path -LiteralPath (Join-Path $data 'neoaprs.sqlite')", "the data folder was touched"),
-        fail_unless(f"-not (Test-Path -LiteralPath (Join-Path ({menu}) 'NeoAPRS.lnk'))", "the Start menu entry is still there"),
-        "'uninstalled: the program folder is gone, the data folder is still there'",
-    )
+    uninstall = uninstall_script(ip.uninstall_log)
     times = {"install": 600.0, "defender": 1800.0, "smoke": 900.0, "uninstall": 600.0}
     scripts = dict(zip(INSTALL_STEP_NAMES, (install, defender, daemon, commands, app, map_cut, sound_card, smoke, mercury, uninstall)))
     return [(name, scripts[name], times.get(name, 300.0)) for name in INSTALL_STEP_NAMES]
@@ -993,6 +1032,327 @@ def execute_install(settings: Settings, installer: Path, version: str, tornado: 
     return exit_code(results)
 
 
+# ---- the upgrade proof (--upgrade) ----
+
+# The one test, before a release is public, that a station of the release before comes through the update on Windows: the old installer on the clean machine, a station made with that release's own command line and
+# run by its own daemon (its database at its own schema version, made-up stations heard), the new installer over it as an update is, then the new release on the same data folder: the radios made of the flat settings,
+# the copy taken before the migration, the daemon twice (the second start migrates nothing), and the uninstall. Each step needs the one before: the first that fails ends the proof.
+UPGRADE_STEP_NAMES = ("old", "station", "update", "migrate", "data", "daemon", "uninstall")
+OLD_FILES = ("neoaprs.exe", "neoaprsw.exe", "neoaprs-app.exe", "unins000.exe")     # what every release before has in its program folder
+# The station, by the flat keys of the release before (0.18.2: neoaprs/config.py SETTINGS; `neoaprs db set KEY VALUE`, neoaprs/cli/dbcmd.py), in an order that every step of it is a station that release takes:
+# the Dummy radio as the FM radio (tncprofile.py DUMMY, "dummy") and the Dummy HF radio as the HF radio (DUMMY_HF, "dummy-hf"), so that no device and no sound card is needed.
+STATION = (("station/call", "OH2GBA-9"), ("station/lat", "60.1699"), ("station/lon", "24.9384"), ("station/comment", "NeoAPRS upgrade proof"), ("beacon/interval_min", "30"), ("beacon/power_w", "5"),
+           ("beacon/path", "WIDE1-1"), ("tnc/profile", "dummy"), ("hf/profile", "dummy-hf"), ("hf/enabled", "true"))
+KEPT_KEYS = ("station/call", "station/lat", "station/lon", "station/comment", "beacon/interval_min", "beacon/power_w")     # the keys of the station that keep their names
+# The flat keys that became a radio's (neoaprs/configradios.py FLAT_HOMES): the radio, and its column in `db radios` (type, on) or its own key there.
+MOVED = {"tnc/profile": (1, "type"), "fm/enabled": (1, "on"), "beacon/path": (1, "radio/1/path"), "hf/profile": (2, "type"), "hf/enabled": (2, "on")}
+RADIO_KINDS = {1: "fm", 2: "hf"}
+RUN_SEC = 40                                                   # how long each daemon runs: the Dummy radios make a station heard every few seconds
+APP_ID = "{5AE53960-2902-4F1B-99E1-03E486EA7B36}"             # packaging/windows/neoaprs.iss: AppId, the one Apps entry of every release
+UNINSTALL_KEY = f"HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{APP_ID}_is1"
+MIGRATED = "brought up to date now|is now version [0-9]+ [(]was [0-9]+[)]|a copy of it is in"     # the lines of neoaprs/migrations.py when a start migrates
+LOG_TROUBLE = "Z  (ERROR|CRITICAL)  |Traceback"
+
+
+class UpgradePaths(NamedTuple):
+    old_setup: str
+    new_setup: str
+    old_log: str
+    new_log: str
+    uninstall_log: str
+    data: str            # the station's data folder, the proof's own
+    old_list: str        # what the old release's command line said of it
+    old_stations: str
+
+
+def upgrade_paths(paths: Paths, old_name: str, new_name: str) -> UpgradePaths:
+    run = paths.run
+    return UpgradePaths(f"{run}\\{old_name}", f"{run}\\{new_name}", f"{run}\\install-old.log", f"{run}\\install-new.log", f"{run}\\uninstall.log", f"{run}\\data-upgrade",
+                        f"{run}\\old-db-list.txt", f"{run}\\old-db-stations.txt")
+
+
+def version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("-")[0].split("."))
+
+
+def upgrade_versions(old: Path, new: Path) -> tuple[str, str]:
+    """The versions of the two installers, the old one before the new one, or NotSetUp with the sentence."""
+    old_version, new_version = installer_version(old, "--upgrade"), installer_version(new, "--upgrade")
+    if old_version == new_version or version_key(old_version) > version_key(new_version):
+        raise NotSetUp(f"--upgrade takes the installer of the release before, then the new one: {old.name} is not older than {new.name}")
+    return old_version, new_version
+
+
+def section(title: str, command: str, why: str, keep: str = "") -> list[str]:
+    """A command of the installed neoaprs.exe under a line `### TITLE` (the proof reads its output by these titles), its output kept in the file `keep` too; a failure ends the step and says why."""
+    lines = [f"'### {title}'", f"$out = @(& $exe {command} 2>&1 | ForEach-Object {{ \"$_\" }}); $code = $LASTEXITCODE", "$out"]
+    if keep:
+        lines.append(f"$out | Set-Content -LiteralPath {ps_quote(keep)} -Encoding UTF8")
+    return [*lines, fail_unless("$code -eq 0", why, '"it ended with $code"')]
+
+
+def daemon_lines(no_devices: bool) -> list[str]:
+    """The installed daemon on the station's folder for RUN_SEC, with the update check off (and, for a release that has the switch, no device opened): its page must answer, then `neoaprs.exe stop` ends it
+    cleanly. Its own lines of the log are in $new."""
+    return [
+        "$env:NEOAPRS_UPDATE_CHECK = '0'", *(["$env:NEOAPRS_NO_DEVICES = '1'"] if no_devices else []),
+        "$log = Join-Path $data 'neoaprs.log'",
+        "$skip = if (Test-Path -LiteralPath $log) { @(Get-Content -LiteralPath $log).Count } else { 0 }",
+        "$clock = [Diagnostics.Stopwatch]::StartNew()",
+        "$p = Start-Process -FilePath (Join-Path $app 'neoaprsw.exe') -ArgumentList 'run', '--data', $data, '--web-port', '0' -PassThru",
+        # (the page's address from the lines this start wrote: the log holds the runs before, each with its own)
+        "$url = $null; foreach ($i in 1..180) { $m = Get-Content -LiteralPath $log -ErrorAction SilentlyContinue | Select-Object -Skip $skip | Select-String 'web page at (http://\\S+/)' | Select-Object -Last 1; "
+        "if ($m) { $url = $m.Matches[0].Groups[1].Value; break }; if ($p.HasExited) { break }; Start-Sleep 1 }",
+        fail_unless("$url", "neoaprsw.exe run served no page", "Get-Content -LiteralPath $log -Tail 30 -ErrorAction SilentlyContinue"),
+        "$code = (Invoke-WebRequest $url -UseBasicParsing).StatusCode",
+        "\"the page $url answered $code, $([int]$clock.Elapsed.TotalSeconds) s after the start\"",
+        fail_unless("$code -eq 200", "the page does not answer"),
+        f"$wait = {RUN_SEC} - [int]$clock.Elapsed.TotalSeconds; if ($wait -gt 0) {{ Start-Sleep $wait }}",
+        fail_unless("-not $p.HasExited", "the daemon ended by itself", "Get-Content -LiteralPath $log -Tail 30"),
+        "& $exe stop --data $data 2>&1 | ForEach-Object { \"$_\" }",
+        fail_unless(NATIVE_OK, "neoaprs.exe stop failed"),
+        fail_unless("$p.WaitForExit(60000)", "the daemon did not end after neoaprs.exe stop"),
+        fail_unless("(Get-Content -LiteralPath $log -Tail 1) -like '*NeoAPRS ended'", "the daemon did not end cleanly", "Get-Content -LiteralPath $log -Tail 10"),
+        "$new = @(Get-Content -LiteralPath $log | Select-Object -Skip $skip)",
+        "\"the daemon ran $([int]$clock.Elapsed.TotalSeconds) s and wrote $($new.Count) lines to its log\"",
+    ]
+
+
+HEARD_LINES = ["'### heard'", "$new | ForEach-Object { if ($_ -match '  INFO  ([A-Z0-9]+(-[0-9]+)?)>') { $Matches[1] } } | Sort-Object -Unique"]     # the calls of the packets the daemon logged
+
+
+def clean_log_lines() -> list[str]:
+    return ["$trouble = @($new | Where-Object { $_ -match " + ps_quote(LOG_TROUBLE) + " })",
+            fail_unless("$trouble.Count -eq 0", "the daemon's log has an ERROR or a Traceback since this start", "$trouble | Select-Object -First 30")]
+
+
+def upgrade_steps(paths: Paths, old_name: str, old_version: str, new_name: str, new_version: str) -> list[tuple[str, tuple[str, ...], float]]:
+    """The steps of the upgrade proof in order, each its name, its scripts (one after the other on the machine: a command line holds only so much) and its time. Every command of `old` and `station` is one the
+    release before takes (the module's docstring names the source)."""
+    up = upgrade_paths(paths, old_name, new_name)
+    station_folder = [f"$data = {ps_quote(up.data)}", "$exe = Join-Path $app 'neoaprs.exe'"]
+    old = install_script("old", *setup_lines(up.old_setup, up.old_log), *files_lines(OLD_FILES), *version_lines(old_version))
+    pairs = ", ".join(f"@({ps_quote(key)}, {ps_quote(value)})" for key, value in STATION)
+    sets = [f"$pairs = @({pairs})",
+            "foreach ($kv in $pairs) { & $exe db --data $data set $kv[0] $kv[1] 2>&1 | ForEach-Object { \"$_\" }; if ($LASTEXITCODE -ne 0) { \"the old release's command line refused $($kv[0]) $($kv[1])\"; exit 1 } }"]
+    station = (install_script("station", *station_folder, *sets, *daemon_lines(no_devices=False)),
+               install_script("station", *station_folder,
+                              *section("old db list", "db --data $data list", "the old release's db list failed", up.old_list),
+                              *section("old db stations", "db --data $data stations", "the old release's db stations failed", up.old_stations)))
+    update = install_script(
+        "update", *setup_lines(up.new_setup, up.new_log), *files_lines(INSTALLED_FILES), *version_lines(new_version),
+        fail_unless("-not (Test-Path -LiteralPath (Join-Path $app 'bin\\pmtiles.exe'))", "the update left bin\\pmtiles.exe of an earlier release"),
+        f"$entry = Get-ItemProperty -LiteralPath {ps_quote(UNINSTALL_KEY)} -ErrorAction SilentlyContinue",
+        "\"the Apps list: $($entry.DisplayName) $($entry.DisplayVersion)\"",
+        fail_unless(f"$entry.DisplayVersion -eq {ps_quote(new_version)}", f"the Apps list does not say NeoAPRS {new_version}"),
+    )
+    migrate = install_script(
+        "migrate", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(),
+        f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})", "$moved",
+        fail_unless("@($moved | Where-Object { $_ -match 'brought up to date now' }).Count -eq 1", "the first start of the new release did not migrate the database"),
+        fail_unless("@($moved | Where-Object { $_ -match 'a copy of it is in .*premigrate-v[0-9]+' }).Count -eq 1", "the migration took no copy of the database before it"),
+    )
+    data = install_script(
+        "data", *station_folder,
+        *section("db radios", "db --data $data radios", "neoaprs.exe db radios failed on the updated station"),
+        *section("db list", "db --data $data list", "neoaprs.exe db list failed on the updated station"),
+        *section("db restore", "db --data $data restore", "neoaprs.exe db restore (the list of the copies) failed"),
+        *section("db stations", "db --data $data stations", "neoaprs.exe db stations failed on the updated station"),
+        *section("doctor", "doctor --data $data", "neoaprs.exe doctor found something to fix on the updated station"),
+    )
+    daemon = install_script(
+        "daemon", *station_folder, *daemon_lines(no_devices=True), *clean_log_lines(), *HEARD_LINES,
+        f"$moved = @($new | Where-Object {{ $_ -match {ps_quote(MIGRATED)} }})",
+        fail_unless("$moved.Count -eq 0", "the second start of the new release migrated again", "$moved"),
+        "'the second start migrated nothing'",
+    )
+    times = {"old": 600.0, "update": 600.0, "uninstall": 600.0}
+    scripts = dict(zip(UPGRADE_STEP_NAMES, (old, station, update, migrate, data, daemon, uninstall_script(up.uninstall_log))))
+    return [(name, script if isinstance(script, tuple) else (script,), times.get(name, 300.0)) for name, script in scripts.items()]
+
+
+def sections(text: str) -> dict[str, list[str]]:
+    """A step's output cut at its lines `### TITLE`: the lines under each title."""
+    found: dict[str, list[str]] = {}
+    lines: list[str] | None = None
+    for line in text.splitlines():
+        if line.startswith("### "):
+            lines = found.setdefault(line[4:].strip(), [])
+        elif lines is not None:
+            lines.append(line.rstrip())
+    return found
+
+
+LISTED = re.compile(r"(\S+) +(.*?) {2,}(\S.*)$")         # a line of `db list`: the key, the value, and whether it is stored (columns two spaces apart; the value has none)
+RADIO = re.compile(r"radio (\d+)  (.+?)  (\S+)  (\S+)  (on|off|removed .+?)  \(position \d+\)$")      # a radio of `db radios`: number, name, kind, type, state
+STATION_ROW = re.compile(r"(\S+) +\S+ +\d{4}-\d\d-\d\d \d\d:\d\d:\d\dZ ")          # a row of `db stations`: the call first
+# The copy of the database the first start of the new release takes, named by the schema version of the release before: 26 for 0.18.2 (v0.18.2:neoaprs/migrations.py, MIGRATIONS is _v1 to _v26 and
+# SCHEMA_VERSION = len(MIGRATIONS)). Any number is taken, and said: the proof is of the update, whichever release is the one before.
+COPY = re.compile(r"premigrate-v(\d+)\S*")
+
+
+def listing(lines: Sequence[str]) -> dict[str, str]:
+    """The keys of `db list` (or of a radio in `db radios`) and their values as they are shown."""
+    found = {}
+    for line in lines:
+        matched = LISTED.match(line.strip())
+        if matched and "/" in matched.group(1):
+            found[matched.group(1)] = matched.group(2)
+    return found
+
+
+@dataclass(frozen=True)
+class Radio:
+    kind: str
+    type: str
+    state: str
+    settings: dict[str, str]
+
+
+def radios(lines: Sequence[str]) -> dict[int, Radio]:
+    found: dict[int, Radio] = {}
+    current: Radio | None = None
+    for line in lines:
+        matched = RADIO.match(line)
+        if matched:
+            current = found[int(matched.group(1))] = Radio(matched.group(3), matched.group(4), matched.group(5), {})
+        elif current is not None and line.startswith("  "):
+            current.settings.update(listing([line]))
+    return found
+
+
+def station_calls(lines: Sequence[str]) -> list[str]:
+    return [matched.group(1) for line in lines if (matched := STATION_ROW.match(line)) and matched.group(1) != "call"]
+
+
+Checked = tuple[list[str], list[str]]        # what is wrong, and what is said when nothing is
+
+
+def check_station(outputs: Mapping[str, str]) -> Checked:
+    """The station as the old release keeps it: every value it was given, and stations its daemon heard."""
+    old = sections(outputs.get("station", ""))
+    kept = listing(old.get("old db list", []))
+    problems = [f"the old release's db list has {key} as {kept.get(key)!r}, not {value!r}" for key, value in STATION if kept.get(key) != value]
+    call = dict(STATION)["station/call"]
+    heard = [c for c in station_calls(old.get("old db stations", [])) if c != call]
+    if not heard:
+        problems.append("the old release's daemon heard no station of its Dummy radios (db stations lists none)")
+    return problems, [f"the station of the release before: {len(kept)} rows in its db list, {len(heard)} stations heard besides its own"] if not problems else []
+
+
+def check_data(outputs: Mapping[str, str]) -> Checked:
+    """The updated station against what the old release kept: the settings that keep their names, the radios made of the flat keys, exactly one copy from before the migration, the stations, the doctor."""
+    old, new = sections(outputs.get("station", "")), sections(outputs.get("data", ""))
+    was, now = listing(old.get("old db list", [])), listing(new.get("db list", []))
+    problems = [f"{key} was {was.get(key)!r} and is {now.get(key)!r} after the update" for key in KEPT_KEYS if now.get(key) != was.get(key)]
+    found = radios(new.get("db radios", []))
+    for number, kind in RADIO_KINDS.items():
+        keys = [key for key, (radio, _) in MOVED.items() if radio == number]
+        wanted = number == 1 or was.get("hf/enabled") == "true"
+        radio = found.get(number)
+        if radio is None or radio.kind != kind:
+            if wanted:
+                problems.append(f"db radios has no radio {number}, the {kind.upper()} radio that {' and '.join(keys)} made")
+            continue
+        for key in keys:
+            column = MOVED[key][1]
+            shown = radio.type if column == "type" else ("true" if radio.state == "on" else "false") if column == "on" else radio.settings.get(column)
+            if shown != was.get(key):
+                problems.append(f"radio {number} has {column} {shown!r}, and the old {key} was {was.get(key)!r}")
+    copies = [line for line in new.get("db restore", []) if COPY.match(line)]
+    notes = []
+    if not copies:
+        problems.append("db restore lists no copy premigrate-v...: the migration left no copy of the database from before it")
+    elif len(copies) > 1:
+        problems.append(f"db restore lists {len(copies)} copies premigrate-v...: one is kept, the latest ({'; '.join(copy.split()[0] for copy in copies)})")
+    elif "taken before the update" not in copies[0]:
+        problems.append(f"db restore does not mark {copies[0].split()[0]} as taken before the update")
+    else:
+        name = copies[0].split()[0]
+        notes.append(f"the copy taken before the update: {name} (schema version {name.removeprefix('premigrate-v').split('-')[0]} of the release before)")
+    problems += [f"doctor: {line.strip()}" for line in new.get("doctor", []) if line.startswith("FAIL")]
+    calls = set(station_calls(new.get("db stations", [])))
+    lost = [c for c in station_calls(old.get("old db stations", [])) if c not in calls]
+    if lost:
+        problems.append(f"db stations has lost {len(lost)} of the stations the old release knew: {' '.join(lost[:10])}")
+    return problems, notes if not problems else []
+
+
+def check_daemon(outputs: Mapping[str, str]) -> Checked:
+    """The new daemon heard again stations that the old one heard: the Dummy radios came through the update."""
+    call = dict(STATION)["station/call"]
+    before = {c for c in station_calls(sections(outputs.get("station", "")).get("old db stations", [])) if c != call}
+    heard = {line.strip() for line in sections(outputs.get("daemon", "")).get("heard", []) if line.strip()}
+    again = sorted(before & heard)
+    if not again:
+        return ["the new daemon heard none of the stations the old one heard: the Dummy radios did not come through the update"], []
+    return [], [f"heard again after the update: {' '.join(again[:8])}{' ...' if len(again) > 8 else ''}"]
+
+
+UPGRADE_CHECKS: dict[str, Callable[[Mapping[str, str]], Checked]] = {"station": check_station, "data": check_data, "daemon": check_daemon}
+
+
+def checked(result: StepResult, outputs: Mapping[str, str]) -> StepResult:
+    """A step that passed on the machine, held to what the proof reads from its output (and from the steps before): a problem fails it, with the problems under its line and at the end of its log."""
+    check = UPGRADE_CHECKS.get(result.name)
+    if result.code != 0 or check is None:
+        return result
+    problems, notes = check(outputs)
+    for note in notes:
+        say(note)
+    if not problems:
+        return result
+    with result.log.open("a", encoding="utf-8") as log:
+        log.write("".join(f"{problem}\n" for problem in problems))
+    return StepResult(result.name, 1, result.seconds, result.log, tuple(problems))
+
+
+def run_parts(settings: Settings, paths: Paths, name: str, parts: Sequence[str], timeout_sec: float, log_dir: Path) -> StepResult:
+    """A step of more than one script: each run as run_script runs one, until one fails, and their output one log under the step's name."""
+    if len(parts) == 1:
+        return run_script(settings, paths, name, parts[0], timeout_sec, log_dir)
+    results: list[StepResult] = []
+    for index, part in enumerate(parts, 1):
+        results.append(run_script(settings, paths, f"{name}-{index}", part, timeout_sec, log_dir))
+        if results[-1].code != 0:
+            break
+    log = log_dir / f"{name}.log"
+    log.write_text("".join(result.log.read_text(encoding="utf-8", errors="replace") for result in results), encoding="utf-8")
+    for result in results:
+        result.log.unlink()
+    last = results[-1]
+    return StepResult(name, last.code, sum(result.seconds for result in results), log, last.tail)
+
+
+def execute_upgrade(settings: Settings, old: Path, old_version: str, new: Path, new_version: str) -> int:
+    """The upgrade proof, from a machine that answers to the last result line. Each step needs the ones before it: none follows a failed step."""
+    paths = windows_paths(settings.user, run_name(time.time()))
+    up = upgrade_paths(paths, old.name, new.name)
+    log_dir = Path(tempfile.mkdtemp(prefix="neoaprs-check-windows-upgrade-"))
+    say(f"the logs are in {log_dir}")
+    make_root(settings, paths)
+    remote_must(settings, f"$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path {ps_quote(paths.run)} | Out-Null; exit 0", "the folder of the run could not be made")
+    for installer, target in ((old, up.old_setup), (new, up.new_setup)):
+        say(f"copying {installer.name} to {paths.run}")
+        copy_to(settings, installer, target)
+    results: list[StepResult] = []
+    outputs: dict[str, str] = {}
+    total = time.monotonic()
+    try:
+        for name, parts, timeout_sec in upgrade_steps(paths, old.name, old_version, new.name, new_version):
+            result = run_parts(settings, paths, name, parts, timeout_sec, log_dir)
+            outputs[name] = result.log.read_text(encoding="utf-8", errors="replace")
+            result = checked(result, outputs)
+            results.append(result)
+            print("\n".join(report_lines(result)), flush=True)
+            if result.code != 0:
+                break
+    finally:
+        remove_old_runs(settings, paths)
+    print(summary(results, time.monotonic() - total), flush=True)
+    return exit_code(results)
+
+
 # ---- the command ----
 
 def interrupted(number: int, frame: FrameType | None) -> None:
@@ -1001,18 +1361,24 @@ def interrupted(number: int, frame: FrameType | None) -> None:
 
 def parse(argv: Sequence[str], split: Callable[[Sequence[str]], tuple[list[str], list[str]]]) -> tuple[argparse.Namespace, list[str]]:
     own, pytest_args = split(argv)
-    parser = argparse.ArgumentParser(prog="check-windows", usage="scripts/check-windows [--only NAME]... [--snapshot NAME] [--tty] [-- PYTEST-ARGS...]\n       scripts/check-windows --install INSTALLER --snapshot NAME",
+    parser = argparse.ArgumentParser(prog="check-windows", usage="scripts/check-windows [--only NAME]... [--snapshot NAME] [--tty] [-- PYTEST-ARGS...]\n       scripts/check-windows --install INSTALLER --snapshot NAME\n       scripts/check-windows --upgrade OLD-INSTALLER NEW-INSTALLER --snapshot NAME",
                                      description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--only", action="append", default=[], choices=[step.name for step in steps(windows_paths("x", "x"))], metavar="NAME", help="run only this step (repeatable): sync lock ruff pytest smoke")
     parser.add_argument("--snapshot", default="", metavar="NAME", help="put the machine back to this snapshot before it is started (only while it is powered off)")
     parser.add_argument("--tty", action="store_true", help="run the pytest step through ssh -tt without trying a plain session first")
     parser.add_argument("--install", default="", metavar="INSTALLER", help="the install proof of this NeoAPRS-Setup-VERSION.exe, on the machine put back to --snapshot, instead of the CI's steps")
+    parser.add_argument("--upgrade", nargs=2, default=[], metavar=("OLD", "NEW"), help="the upgrade proof: the installer of the release before, a station made with it, then this NeoAPRS-Setup-VERSION.exe over it, "
+                        "on the machine put back to --snapshot, instead of the CI's steps")
     args = parser.parse_args(own)
-    if args.install:
+    if args.install and args.upgrade:
+        parser.error("--install and --upgrade are two proofs: one at a time")
+    for option, given in (("--install", args.install), ("--upgrade", args.upgrade)):
+        if not given:
+            continue
         if args.only or pytest_args or args.tty:
-            parser.error("--install runs the install proof alone: no --only, --tty or arguments for pytest with it")
+            parser.error(f"{option} runs its proof alone: no --only, --tty or arguments for pytest with it")
         if not args.snapshot:
-            parser.error("--install starts from a clean machine: give --snapshot NAME, the snapshot of the clean Windows")
+            parser.error(f"{option} starts from a clean machine: give --snapshot NAME, the snapshot of the clean Windows")
     if pytest_args and args.only and "pytest" not in args.only:
         parser.error("arguments after -- are for pytest, and --only does not name it")
     if pytest_args and not args.only:
@@ -1035,17 +1401,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         version = installer_version(installer) if args.install else ""
         tornado = tornado_pin((ROOT / "pyproject.toml").read_text(encoding="utf-8")) if args.install else ""
         direwolf = direwolf_banner((ROOT / "neoaprs" / "direwolf.py").read_text(encoding="utf-8")) if args.install else ""
+        old, new = (Path(args.upgrade[0]), Path(args.upgrade[1])) if args.upgrade else (Path(), Path())
+        old_version, new_version = upgrade_versions(old, new) if args.upgrade else ("", "")
     except NotSetUp as error:
         say(str(error))
         return NOT_SET_UP
     cache = build_cache(os.environ)
-    # The tree (or, for the install proof, the smoke scripts) is packed into a file before the machine is asked for anything: what is wrong with it is said while nothing runs yet.
+    # The tree (or, for the install proof, the smoke scripts; for the upgrade proof nothing) is packed into a file before the machine is asked for anything: what is wrong with it is said while nothing runs yet.
     with tempfile.TemporaryDirectory(prefix="neoaprs-check-windows-tar-") as scratch:
         tar = Path(scratch) / "tree.tar"
         try:
             if args.install:
                 pack_kit(ROOT, tar)
-            else:
+            elif not args.upgrade:                              # (the upgrade proof takes nothing of the tree: the two installers are all)
                 with tar.open("wb") as out:
                     packer.pack(ROOT, out)
         except (packer.NotPacked, OSError) as error:
@@ -1063,6 +1431,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 wait_for_ssh(settings, SSH_PATIENCE_SEC if plan.start else 60.0)
                 if plan.start:
                     wait_until_settled(settings)
+                if args.upgrade:
+                    return execute_upgrade(settings, old, old_version, new, new_version)
                 if args.install:
                     return execute_install(settings, installer, version, tornado, direwolf, tar, cache)
                 return execute(settings, chosen_steps(args.only), pytest_args, tar, cache, args.tty)
