@@ -1,16 +1,22 @@
-// The controls that carry a path (Route of a conversation and of the station panel, Advanced of Ask around and of Local info) follow the radios: they are there while the FM radio is on, and for a station only while it is messaged on FM
-// (one heard on the HF radio alone is messaged on HF, whose frames go direct).
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+// The controls that carry a path follow the radios (plan section 6): Route of a conversation and of the station panel holds the station's radio as its first row where more than one radio is on (the radios and
+// "Automatic", which names the radio it gives), then Path and RF only, which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none. A path is the radio's
+// it was set on. The station panel's queries go on the station's radio: off while it is not connected, Trace the route greyed while it carries no path and left out while no radio that is on may carry one. Advanced of Ask
+// around and of Local info is there while the FM radio is on.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { mount, type VueWrapper } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { shallowRef } from "vue";
 import ConversationView from "@/components/ConversationView.vue";
 import NearbyAsk from "@/components/NearbyAsk.vue";
 import ObjectsQru from "@/components/ObjectsQru.vue";
 import StationPanel from "@/components/StationPanel.vue";
-import { fakeDaemon, tell, withDaemon, type Given } from "@/test/context";
-import { configValues, qruState, station } from "@/test/fixtures";
+import { useStationPrefs } from "@/composables/useStationPrefs";
+import { fakeDaemon, tell, withDaemon, type FakeDaemon, type Given } from "@/test/context";
+import { configValues, qruState, radioRow, radiosTopic, station } from "@/test/fixtures";
 
 beforeEach(() => localStorage.clear());
+afterEach(() => document.body.replaceChildren());
 
 const FM = { "fm/enabled": "true", "hf/enabled": "false" };
 const BOTH = { "fm/enabled": "true", "hf/enabled": "true" };
@@ -19,20 +25,37 @@ const FM_OFF = { "fm/enabled": "false", "hf/enabled": "true" };
 const fmHeard = station("OH2FM", { heard_fm: 3, heard_hf: 0 });
 const bothHeard = station("OH2BOTH", { heard_fm: 3, heard_hf: 2 });
 const hfHeard = station("OH2HF", { heard_fm: 0, heard_hf: 3, heard_rf: 3 });
+/** Six radios on, radio 3 a second FM radio with a path of its own. */
+const SIX = radiosTopic(
+  radioRow(1, "kenwood-tnc2", { name: "Shack" }),
+  radioRow(2, "mercury", { name: "20 m" }),
+  radioRow(3, "kiss", { name: "Mobile", number: 2 }),
+  radioRow(4, "dummy-hf", { name: "40 m", number: 2 }),
+  radioRow(5, "kiss-tcp", { name: "Portable", number: 3 }),
+  radioRow(6, "mercury", { name: "80 m", number: 3 }),
+);
 
 const stations = (...rows: ReturnType<typeof station>[]) => new Map(rows.map((row) => [row.call, row]));
 
-function conversation(values: Record<string, string>, call: string, rows = stations(fmHeard, bothHeard, hfHeard)) {
-  const daemon = fakeDaemon({ config: configValues(values), stations: shallowRef(rows) });
-  return mount(ConversationView, { props: { selected: call, narrow: false, thread: [] }, global: withDaemon(daemon) });
+let daemon: FakeDaemon;
+function conversation(values: Record<string, string>, call: string, rows = stations(fmHeard, bothHeard, hfHeard), given: Given = {}) {
+  daemon = fakeDaemon({ config: configValues(values), stations: shallowRef(rows), fallbackPath: "WIDE1-1,WIDE2-1", ...given });
+  return mount(ConversationView, { props: { selected: call, narrow: false, thread: [] }, global: withDaemon(daemon), attachTo: document.body });
 }
-const hasRoute = (wrapper: ReturnType<typeof conversation>) => wrapper.findAll("button").some((b) => b.text() === "Route");
+const hasRoute = (wrapper: VueWrapper) => wrapper.findAll("button").some((b) => b.text() === "Route");
+async function opened(wrapper: VueWrapper) {
+  await wrapper.find(".route-button").trigger("click");
+  return wrapper.find(".route-box");
+}
+const sent = (cmd: string) => daemon.send.mock.calls.map(([c]) => c).filter((c) => c.cmd === cmd);
+const options = (box: ReturnType<VueWrapper["find"]>) => box.findAll(".route-radio option").map((o) => o.text());
 
-function panel(values: Record<string, string>, row: ReturnType<typeof station>) {
-  const daemon = fakeDaemon({ config: configValues(values) });
-  return mount(StationPanel, { props: { row, armed: false }, global: withDaemon(daemon) });
+function panel(values: Record<string, string>, row: ReturnType<typeof station>, given: Given = {}) {
+  daemon = fakeDaemon({ config: configValues(values), fallbackPath: "WIDE1-1,WIDE2-1", ...given });
+  return mount(StationPanel, { props: { row, armed: false }, global: withDaemon(daemon), attachTo: document.body });
 }
-const hasPrefs = (wrapper: ReturnType<typeof panel>) => wrapper.findAll("legend").some((l) => l.text() === "Route");
+const hasPrefs = (wrapper: VueWrapper) => wrapper.findAll("legend").some((l) => l.text() === "Route");
+const query = (wrapper: VueWrapper, item: string) => wrapper.find<HTMLButtonElement>(`[data-item='${item}']`);
 
 const askPath = (given: Given) => mount(NearbyAsk, { global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1", ...given })) });
 const qruPath = (given: Given) => mount(ObjectsQru, { global: withDaemon(fakeDaemon({ fallbackPath: "WIDE1-1", qru: qruState({ asked: null }), ...given })) });
@@ -48,22 +71,117 @@ describe("Route in a conversation", () => {
     }
   });
 
-  it("is not there for a station heard on the HF radio alone, which is messaged on HF", () => {
-    expect(hasRoute(conversation(BOTH, "OH2HF"))).toBe(false);
+  it("holds, with one radio on, the path and RF only as today, and no radio to choose", async () => {
+    const box = await opened(conversation(FM, "OH2FM"));
+    expect(box.findAll("label").map((l) => l.text())).toEqual(["Path", "RF only"]);
+    expect(box.find("select").exists()).toBe(false);
   });
 
-  it("is not there while the FM radio is off, whatever station it is", () => {
+  it("is there for a station messaged on HF while the FM radio is on too: its radio first, then the path and RF only greyed with the reason as their titles, and the line saying what the messages go by (plan section 6)", async () => {
+    const box = await opened(conversation(BOTH, "OH2HF"));
+    expect(box.findAll("label").map((l) => l.text())).toEqual(["Radio", "Path", "RF only"]);
+    expect(options(box)).toEqual(["Automatic: HF", "FM", "HF"]);
+    const path = box.find<HTMLInputElement>(".pathbox input[type='text']");
+    expect([path.element.disabled, path.attributes("title")]).toEqual([true, "HF: no path"]);
+    expect(box.find<HTMLInputElement>(".rfonly input").element.disabled).toBe(true);
+    expect(box.find(".rfonly").attributes("title")).toBe("HF: no path");
+    expect(box.find(".path-line").text()).toBe("Automatic: direct");
+    expect(box.find<HTMLButtonElement>(".pathbox button").element.disabled).toBe(true);
+  });
+
+  it("keeps the path of the FM radio while the station goes over HF, and shows it again once it goes over FM", async () => {
+    const prefs = useStationPrefs(new Map([["OH2BOTH", { path: "OH2RCH-2", rf_only: true, alert: null }]]), () => true);
+    const wrapper = conversation(BOTH, "OH2BOTH", stations({ ...bothHeard, radio_now: 2 }), { prefs });
+    let box = await opened(wrapper);
+    expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.value).toBe("");
+    expect(box.find<HTMLInputElement>(".rfonly input").element.checked).toBe(true);
+    await tell(daemon, { stations: stations({ ...bothHeard, radio_now: 1 }) });
+    box = wrapper.find(".route-box");
+    expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.value).toBe("OH2RCH-2");
+    expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.disabled).toBe(false);
+    expect([sent("clear_station_path"), sent("set_station_rf_only")]).toEqual([[], []]);
+  });
+
+  it("is not there while the FM radio is off, whatever station it is: one radio, and it carries no path", () => {
     for (const call of ["OH2FM", "OH2BOTH", "OH2HF", "OH2NEW"]) expect(hasRoute(conversation(FM_OFF, call)), call).toBe(false);
   });
 
   it("follows the radios as they are ticked", async () => {
-    const daemon = fakeDaemon({ config: configValues(FM), stations: shallowRef(stations(fmHeard)) });
-    const wrapper = mount(ConversationView, { props: { selected: "OH2FM", narrow: false, thread: [] }, global: withDaemon(daemon) });
+    const wrapper = conversation(FM, "OH2FM", stations(fmHeard));
     expect(hasRoute(wrapper)).toBe(true);
     await tell(daemon, { config: configValues(FM_OFF) });
     expect(hasRoute(wrapper)).toBe(false);
     await tell(daemon, { config: configValues(BOTH) });
     expect(hasRoute(wrapper)).toBe(true);
+  });
+
+  it("chooses the station's radio: a radio sends it by its id, Automatic gives it back to the daemon, and the list shows the choice in force", async () => {
+    const wrapper = conversation(BOTH, "OH2BOTH");
+    const box = await opened(wrapper);
+    await box.find("select").setValue("2");
+    expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: "OH2BOTH", radio: 2 }]);
+    await tell(daemon, { stations: stations({ ...bothHeard, radio_choice: 2, radio_now: 2 }) });
+    const chosen = wrapper.find<HTMLSelectElement>(".route-box select");
+    expect([chosen.element.value, options(wrapper.find(".route-box"))]).toEqual(["2", ["Automatic", "FM", "HF"]]);
+    expect(wrapper.find(".route-dot").exists()).toBe(true);
+    await chosen.setValue("");
+    expect(sent("station_radio").at(-1)).toEqual({ cmd: "station_radio", call: "OH2BOTH", radio: null });
+  });
+
+  it("shows only the choice the station's row says: one the daemon refuses is not left in the list", async () => {
+    const wrapper = conversation(BOTH, "OH2BOTH");
+    const list = (await opened(wrapper)).find<HTMLSelectElement>("select");
+    await list.setValue("2");
+    expect([sent("station_radio"), list.element.value]).toEqual([[{ cmd: "station_radio", call: "OH2BOTH", radio: 2 }], ""]);
+    await tell(daemon, { stations: stations({ ...bothHeard, radio_choice: 2, radio_now: 2 }) });
+    expect(wrapper.find<HTMLSelectElement>(".route-box select").element.value).toBe("2");
+  });
+
+  it("has no dot while the daemon chooses the radio and the station has no path of its own", () => {
+    expect(conversation(BOTH, "OH2BOTH").find(".route-dot").exists()).toBe(false);
+  });
+
+  it("offers six radios in the one list, by their names, with Automatic first", async () => {
+    const box = await opened(conversation(BOTH, "OH2MOB", stations(station("OH2MOB", { radio_now: 3 })), { radios: SIX }));
+    expect(options(box)).toEqual(["Automatic: Mobile", "Shack", "20 m", "Mobile", "40 m", "Portable", "80 m"]);
+    expect(box.findAll(".route-radio select")).toHaveLength(1);
+  });
+
+  it("has no radio to choose for a call the book does not hold, whose choice no row could say back", async () => {
+    const box = await opened(conversation(BOTH, "OH2NEW"));
+    expect([box.find("select").exists(), box.findAll("label").map((l) => l.text())]).toEqual([false, ["Path", "RF only"]]);
+  });
+
+  it("sets and clears the path of the radio in force: radio 1's as before, another's with the radio named, its own path setting as the automatic one", async () => {
+    const values = { ...configValues(BOTH), radio_values: { ...configValues(BOTH).radio_values, "radio/3/path": "WIDE2-2" } };
+    const mobile = station("OH2MOB", { radio_now: 3, paths: { "3": "OH2RCH-3" } });
+    const wrapper = conversation(BOTH, "OH2MOB", stations(mobile), { radios: SIX, config: values });
+    const box = await opened(wrapper);
+    const field = box.find<HTMLInputElement>(".pathbox input[type='text']");
+    expect(field.element.value).toBe("OH2RCH-3");
+    await field.setValue("OH2RDG");
+    expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2MOB", path: "OH2RDG", radio: 3 }]);
+    await box.find(".use-default").trigger("click");
+    expect(sent("clear_station_path")).toEqual([{ cmd: "clear_station_path", call: "OH2MOB", radio: 3 }]);
+    await tell(daemon, { stations: stations({ ...mobile, paths: {} }) });
+    expect(wrapper.find(".route-box .path-line").text()).toBe("Automatic: WIDE2-2");
+
+    const shack = conversation(BOTH, "OH2FM", stations({ ...fmHeard, radio_now: 1 }), { radios: SIX });
+    const own = (await opened(shack)).find<HTMLInputElement>(".pathbox input[type='text']");
+    await own.setValue("OH2RCH-2");
+    expect(sent("set_station_path")).toEqual([{ cmd: "set_station_path", call: "OH2FM", path: "OH2RCH-2" }]);
+    expect(shack.find(".route-box .path-line").text()).toBe("Automatic: WIDE1-1,WIDE2-1");
+  });
+
+  it("has a list of radios of a set width, not the box's, that shrinks with its row and takes it at a phone's width as the Path field does", async () => {
+    const sheet = readFileSync(resolve(__dirname, "../styles/messages.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = sheet.match(/\.route-radio-pick \{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("flex: 0 1 15em");
+    expect(rule).toContain("min-width: 0");
+    expect(rule).toContain("max-width: 100%");
+    expect(sheet).toMatch(/@media \(max-width: 800px\) \{\s*\.prefs \.pathbox \.input \{\s*flex: 1 1 8em;/);
+    const box = await opened(conversation(BOTH, "OH2MOB", stations(station("OH2MOB", { radio_now: 3 })), { radios: SIX }));
+    expect(box.find(".prefs .pathbox select.input.route-radio-pick").exists()).toBe(true);
   });
 });
 
@@ -72,8 +190,64 @@ describe("Route in the station panel", () => {
     expect([hasPrefs(panel(FM, fmHeard)), hasPrefs(panel(BOTH, fmHeard)), hasPrefs(panel(BOTH, bothHeard))]).toEqual([true, true, true]);
   });
 
-  it("is not there for a station heard on HF alone, nor while the FM radio is off", () => {
-    expect([hasPrefs(panel(BOTH, hfHeard)), hasPrefs(panel(FM_OFF, fmHeard)), hasPrefs(panel(FM_OFF, hfHeard))]).toEqual([false, false, false]);
+  it("is there for a station messaged on HF while the FM radio is on too, greyed, and not while the FM radio is off (plan section 6)", () => {
+    const hf = panel(BOTH, hfHeard);
+    expect(hasPrefs(hf)).toBe(true);
+    expect(hf.find<HTMLInputElement>(".stationpanel-settings .pathbox input[type='text']").element.disabled).toBe(true);
+    expect([hasPrefs(panel(FM_OFF, fmHeard)), hasPrefs(panel(FM_OFF, hfHeard))]).toEqual([false, false]);
+  });
+
+  it("has the radio first where more than one is on, and chooses it as the conversation does", async () => {
+    const wrapper = panel(BOTH, bothHeard);
+    expect(wrapper.findAll(".stationpanel-settings .route-radio option").map((o) => o.text())).toEqual(["Automatic: FM", "FM", "HF"]);
+    await wrapper.find(".stationpanel-settings select").setValue("2");
+    expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: "OH2BOTH", radio: 2 }]);
+    expect(panel(FM, fmHeard).find(".stationpanel-settings select").exists()).toBe(false);
+  });
+});
+
+describe("the queries of the station panel", () => {
+  const twoUp = (fm: "connected" | "waiting", hf: "connected" | "waiting") =>
+    radiosTopic(radioRow(1, "kenwood-tnc2", { state: fm }), radioRow(2, "mercury", { state: hf }));
+  const queries = ["ask_position", "ask_status", "ask_heard", "ask_trace"];
+
+  it("go while the station's radio is connected, as today with one radio", () => {
+    const wrapper = panel(FM, fmHeard);
+    expect(queries.map((item) => query(wrapper, item).element.disabled)).toEqual([false, false, false, false]);
+  });
+
+  it("are off while the station's radio is not connected, saying which; Message is not, and neither is the other radio's station", () => {
+    const wrapper = panel(BOTH, hfHeard, { radios: twoUp("connected", "waiting") });
+    expect(queries.map((item) => [query(wrapper, item).element.disabled, query(wrapper, item).attributes("title")])).toEqual(
+      queries.map(() => [true, "HF: not connected"]),
+    );
+    expect(query(wrapper, "message").element.disabled).toBe(false);
+    const ask = wrapper.find<HTMLButtonElement>("button[data-query='ask']");
+    expect([ask.element.disabled, ask.attributes("title")]).toEqual([true, "HF: not connected"]);
+    const fm = panel(BOTH, fmHeard, { radios: twoUp("connected", "waiting") });
+    expect(queries.map((item) => query(fm, item).element.disabled)).toEqual([false, false, false, false]);
+  });
+
+  it("say the words of before while the one radio is not connected", () => {
+    const wrapper = panel(FM, fmHeard, { connected: false });
+    expect([query(wrapper, "ask_position").element.disabled, query(wrapper, "ask_position").attributes("title")]).toEqual([true, "The TNC is not connected"]);
+  });
+
+  it("grey Trace the route for a station whose radio carries no path, in its place, and leave the others", () => {
+    const wrapper = panel(BOTH, hfHeard);
+    expect(
+      wrapper
+        .findAll("[data-item]")
+        .map((b) => b.attributes("data-item"))
+        .slice(0, 5),
+    ).toEqual(["message", ...queries]);
+    expect([query(wrapper, "ask_trace").element.disabled, query(wrapper, "ask_trace").attributes("title")]).toEqual([true, "HF: no path"]);
+    expect(query(wrapper, "ask_heard").element.disabled).toBe(false);
+  });
+
+  it("leave Trace the route out while no radio that is on may carry a path", () => {
+    expect(panel(FM_OFF, hfHeard).find("[data-item='ask_trace']").exists()).toBe(false);
+    expect(panel(FM_OFF, hfHeard).find("[data-item='ask_heard']").exists()).toBe(true);
   });
 });
 

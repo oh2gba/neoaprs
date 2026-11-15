@@ -7,7 +7,7 @@ import { MESSAGES_WIDE } from "@/lib/layout";
 import { conversations } from "@/lib/messages";
 import type { StationPref } from "@/protocol/protocol";
 import { fakeDaemon, tell, withDaemon, type FakeDaemon } from "@/test/context";
-import { attemptRow, incoming, message } from "@/test/fixtures";
+import { attemptRow, configValues, incoming, message, radioRow, radiosTopic, station, table } from "@/test/fixtures";
 import { stubWidth } from "@/test/width";
 
 const rows = [
@@ -609,5 +609,81 @@ describe.each([
     await wrapper.find("#msg-text").trigger("keydown", { key: "Escape" });
     expect(wrapper.emitted("update:group")).toEqual([[null]]);
     expect(wrapper.emitted("select")).toBeUndefined();
+  });
+});
+
+describe("MessagesPane, with more than one radio", () => {
+  /** Six radios on, the sixth not connected; OH2RDG messaged on radio 3, OH2DX on radio 6. */
+  const six = radiosTopic(
+    radioRow(1, "kenwood-tnc2", { name: "Shack" }),
+    radioRow(2, "mercury", { name: "20 m" }),
+    radioRow(3, "kiss", { name: "Mobile", number: 2 }),
+    radioRow(4, "dummy-hf", { name: "40 m", number: 2 }),
+    radioRow(5, "kiss-tcp", { name: "Portable", number: 3 }),
+    radioRow(6, "mercury", { name: "80 m", number: 3, state: "waiting" }),
+  );
+  const heard = [
+    message(1, { to_call: "OH2RDG", state: "acked", attempts: 1, attempts_detail: [attemptRow({ acked: true, radio: "", radio_id: 3 })] }),
+    incoming(2, "OH2RDG", { text: "Moi!", radio_id: 3, route: "via OH2RCH-2" }),
+    incoming(3, "OH2DX", { text: "73", radio_id: 6, route: "direct" }),
+  ];
+  async function many(selected: string, at: number) {
+    width.set(at);
+    daemon = fakeDaemon({
+      config: configValues({ "fm/enabled": "true", "hf/enabled": "true" }),
+      radios: six,
+      stations: table(station("OH2RDG", { radio_now: 3 }), station("OH2DX", { radio_now: 6, heard_fm: 0, heard_hf: 4 })),
+      fallbackPath: "WIDE1-1,WIDE2-1",
+    });
+    const props = {
+      conversations: conversations(heard, () => 0),
+      selected,
+      thread: heard.filter((r) => r.to_call === selected || r.from_call === selected),
+      showOverheard: false,
+    };
+    const wrapper = mount(MessagesPane, { props, global: withDaemon(daemon), attachTo: document.body });
+    await flushPromises();
+    return wrapper;
+  }
+
+  it("at a phone's width has the way back, the call, the radio and Route in the header, and the radio in the bubbles", async () => {
+    const wrapper = await many("OH2RDG", 375);
+    expect(wrapper.find(".msgpane").classes()).toContain("narrow");
+    const head = wrapper.find(".convo-head");
+    expect([head.find(".convo-back").exists(), head.find(".convo-title").text(), head.find(".convo-radio").text(), head.find(".route-button").text()]).toEqual([
+      true,
+      "OH2RDG",
+      "Mobile",
+      "Route",
+    ]);
+    expect(wrapper.findAll(".bubble-route").map((line) => line.text())).toEqual(["Mobile via OH2RCH-2"]);
+  });
+
+  it("at a phone's width offers the six radios in Route's one list, and the path of the radio in force under it", async () => {
+    const wrapper = await many("OH2RDG", 375);
+    await wrapper.find(".route-button").trigger("click");
+    const box = wrapper.find(".route-box");
+    expect(box.findAll(".route-radio select")).toHaveLength(1);
+    expect(box.findAll(".route-radio option")).toHaveLength(7);
+    expect(box.find<HTMLInputElement>(".pathbox input[type='text']").element.disabled).toBe(false);
+    await box.find("select").setValue("4");
+    expect(sent("station_radio")).toEqual([{ cmd: "station_radio", call: "OH2RDG", radio: 4 }]);
+  });
+
+  it("keeps Send off while the sixth radio, the station's, is not connected, saying which", async () => {
+    const wrapper = await many("OH2DX", 375);
+    await wrapper.find("#msg-text").setValue("Moi");
+    const send = wrapper.find<HTMLButtonElement>(".compose button[type='submit']");
+    expect([send.element.disabled, send.attributes("title")]).toEqual([true, "80 m: not connected"]);
+    expect(wrapper.find(".convo-radio").text()).toBe("80 m");
+  });
+
+  it("is the same wide: the list beside the conversation, the radio in the header", async () => {
+    const wrapper = await many("OH2RDG", WIDE);
+    expect([wrapper.find(".msgpane").classes(), wrapper.find(".convlist").exists(), wrapper.find(".convo-radio").text()]).toEqual([
+      expect.arrayContaining(["wide"]),
+      true,
+      "Mobile",
+    ]);
   });
 });

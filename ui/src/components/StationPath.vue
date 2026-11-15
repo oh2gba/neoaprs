@@ -3,7 +3,7 @@
 // message go by the path that has lately been heard to reach the station (`heard`, the daemon's), the others by the beacon's path (`fallback`). A path typed is the station's own and is used for every attempt ("Your path:"); the word
 // DIRECT is an own path with no digipeaters. It is saved when the field is changed and left, or Enter is pressed (the browser's change event), and the x (or an empty field) gives the choice back to the automatic one. What is put
 // in the slot (the RF only tickbox) sits beside it. The path builder's button (PathBuilder) beside the field builds a path to put in it, from the path in force, with "As its packets come" (the station's best route turned round); Use saves
-// it as Enter would.
+// it as Enter would. `pathless` greys the row while the radio in force carries no path, with that as the title of each greyed control; the line still says what the messages go by, which on such a radio is direct.
 import { computed, ref, useId, watch } from "vue";
 import PathBuilder from "@/components/PathBuilder.vue";
 import { t } from "@/i18n";
@@ -11,8 +11,9 @@ import { DIRECT, parsePathSetting } from "@/lib/calls";
 import { effectivePath } from "@/lib/messages";
 import { LIMITS } from "@/protocol/lists";
 
-const props = withDefaults(defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallback: string; heard?: string | null }>(), {
+const props = withDefaults(defineProps<{ call: string; paths: ReadonlyMap<string, string>; fallback: string; heard?: string | null; pathless?: string }>(), {
   heard: null,
+  pathless: undefined,
 });
 const emit = defineEmits<{ set: [call: string, path: string]; clear: [call: string] }>();
 
@@ -28,6 +29,7 @@ watch([() => props.call, own], () => (draft.value = own.value));
 /** The one line under the field: what the messages go by. */
 const line = computed(() => {
   const word = (path: string): string => (path === "" ? t("route.direct") : path);
+  if (props.pathless !== undefined) return t("route.auto", { path: t("route.direct") });
   if (effective.value.own) return t("route.own", { path: word(effective.value.text) });
   if (props.heard === null || props.heard === props.fallback) return t("route.auto", { path: word(props.fallback) });
   if (props.heard === "") return t("route.auto_direct", { path: word(props.fallback) });
@@ -64,18 +66,20 @@ function build(path: string): void {
       :class="{ invalid: setting === null }"
       type="text"
       :placeholder="t('route.automatic')"
-      :title="setting === null ? t('route.calls_hint', { max: LIMITS.path.maxCalls }) : undefined"
+      :title="pathless ?? (setting === null ? t('route.calls_hint', { max: LIMITS.path.maxCalls }) : undefined)"
+      :disabled="pathless !== undefined"
       autocomplete="off"
       spellcheck="false"
       @change="save"
     />
-    <PathBuilder :value="draft" :usual="effective.text" :station="call" @use="build" />
+    <PathBuilder :value="draft" :usual="effective.text" :station="call" :disabled="pathless !== undefined" @use="build" />
     <button
       v-if="effective.own"
       type="button"
       class="xbtn use-default"
       :aria-label="t('route.use_auto')"
       :title="t('route.use_auto')"
+      :disabled="pathless !== undefined"
       @click="emit('clear', call)"
     >
       ×

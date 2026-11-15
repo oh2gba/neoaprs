@@ -1,8 +1,12 @@
 <script setup lang="ts">
-// How messages to one station are sent (the topic `station_prefs`, which the daemon keeps): the path they go by and whether it is RF only (the tickbox beside the path).
-// In the header of a conversation; the fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
+// How messages to one station are sent, in Route of a conversation and of the station panel: the radio they go on (where more than one is on: the radios that are on, and "Automatic", which names the radio it gives now),
+// then the path they go by and whether it is RF only (the tickbox beside the path), which are there while a radio that is on may carry a path and greyed, the value kept, while the radio in force carries none
+// (`pathless`, composables/useStationRadio.ts). The fields say what they want, the page sends it. `heard` is the path that has lately been heard to reach the station (null: none), which the automatic choice of the first attempts goes by.
+import { useId } from "vue";
 import StationPath from "@/components/StationPath.vue";
 import StationRfOnly from "@/components/StationRfOnly.vue";
+import { t } from "@/i18n";
+import type { PageRadio, RadioId } from "@/lib/radios";
 
 withDefaults(
   defineProps<{
@@ -11,23 +15,62 @@ withDefaults(
     fallbackPath: string;
     rfOnly?: ReadonlySet<string>;
     heard?: string | null;
+    /** the radios to choose among; none (or one) for no radio row */
+    radios?: readonly PageRadio[];
+    /** the radio chosen; null: automatic */
+    choice?: RadioId | null;
+    /** the radio "Automatic" gives now; null when it is not known */
+    auto?: string | null;
+    /** the path and RF only are offered (a radio that is on may carry a path) */
+    pathShown?: boolean;
+    pathless?: string;
   }>(),
   {
     rfOnly: () => new Set<string>(),
     heard: null,
+    radios: () => [],
+    choice: null,
+    auto: null,
+    pathShown: true,
+    pathless: undefined,
   },
 );
 const emit = defineEmits<{
   path: [call: string, path: string];
   clearPath: [call: string];
   setRfOnly: [call: string, on: boolean];
+  radio: [call: string, radio: RadioId | null];
 }>();
+const id = useId();
+
+/** The radio picked in the list: its id, or null for "Automatic". The list goes back to the choice in force until the station's row says the new one, so that it never shows a choice the daemon refused. */
+function picked(event: Event, call: string, choice: RadioId | null): void {
+  const list = event.target as HTMLSelectElement;
+  emit("radio", call, list.value === "" ? null : Number(list.value));
+  list.value = choice === null ? "" : String(choice);
+}
 </script>
 
 <template>
   <div class="prefs">
-    <StationPath :call="call" :paths="paths" :fallback="fallbackPath" :heard="heard" @set="(c, p) => emit('path', c, p)" @clear="emit('clearPath', $event)">
-      <StationRfOnly :call="call" :rf-only="rfOnly" @set="(c, on) => emit('setRfOnly', c, on)" />
+    <div v-if="radios.length > 1" class="pathbox route-radio">
+      <label :for="id" class="path-label">{{ t("route.radio") }}</label>
+      <select :id="id" class="input route-radio-pick" :value="choice === null ? '' : String(choice)" @change="picked($event, call, choice)">
+        <option value="">{{ auto === null ? t("radio.automatic") : t("route.radio_auto", { name: auto }) }}</option>
+        <option v-for="radio in radios" :key="radio.id" :value="String(radio.id)">{{ radio.name }}</option>
+      </select>
+    </div>
+    <StationPath
+      v-if="pathShown"
+      :call="call"
+      :paths="paths"
+      :fallback="fallbackPath"
+      :heard="heard"
+      :pathless="pathless"
+      @set="(c, p) => emit('path', c, p)"
+      @clear="emit('clearPath', $event)"
+    >
+      <StationRfOnly :call="call" :rf-only="rfOnly" :pathless="pathless" @set="(c, on) => emit('setRfOnly', c, on)" />
     </StationPath>
   </div>
 </template>

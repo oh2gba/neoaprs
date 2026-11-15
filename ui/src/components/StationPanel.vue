@@ -4,8 +4,9 @@
 // and what does not fit in it scrolls inside it, so that the list above never moves. In it, in this order: Message and the directed queries (Ask for weather only to a weather station, lib/stations.ts `panelItems`) with
 // the operator's own query under them (StationQuery), for a station that takes messages; Show on map (or its card), Copy call, the QRZ page and, at the end of the line, Forget, which asks twice like the row's trash can
 // ("Really forget?", the same 5 s; its button keeps the width of the longer words, so that nothing moves); the station's traffic, as the lines of the Packets tab, with the state of each query of ours (StationTraffic); and
-// the route of messages to it (StationPrefs: its path and RF only, as under "Route" of a conversation) and "Alert me when…" (StationAlertChoices; a station heard that is not ours), in group boxes side by side when there is
-// room, saved as each is changed. Our own station has Show, Copy and QRZ, an object of ours Show and Copy, another's object Show, Copy and Forget. The buttons say what they do with events, and the parent does it.
+// the route of messages to it (StationPrefs: its radio where more than one is on, its path and RF only, as under "Route" of a conversation) and "Alert me when…" (StationAlertChoices; a station heard that is not ours), in group
+// boxes side by side when there is room, saved as each is changed. The queries go on the station's radio (each is a message of its own: the station's radio now, composables/useStationRadio.ts): they are off while its link
+// is down, and Trace the route, which asks for a path, is greyed while that radio carries none and left out while no radio that is on may carry one. Our own station has Show, Copy and QRZ, an object of ours Show and Copy, another's object Show, Copy and Forget. The buttons say what they do with events, and the parent does it.
 import { computed } from "vue";
 import IconButton from "@/components/IconButton.vue";
 import TwoWords from "@/components/TwoWords.vue";
@@ -17,10 +18,10 @@ import StationTraffic from "@/components/StationTraffic.vue";
 import { useAlertDraft } from "@/composables/useAlertDraft";
 import { useDaemonContext } from "@/composables/useDaemonContext";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
+import { useStationRadio } from "@/composables/useStationRadio";
 import { t } from "@/i18n";
 import { qrzUrl } from "@/lib/calls";
 import { rxOnlyReason } from "@/lib/compose";
-import { hasPaths } from "@/lib/radiosides";
 import { canAlert } from "@/lib/stationalert";
 import { canMessage, itemLabel, itemQuery, panelItems, talksTo, type PanelItem, type QueryKind } from "@/lib/stations";
 import type { StationRow } from "@/protocol/protocol";
@@ -34,12 +35,35 @@ const emit = defineEmits<{
   copy: [call: string];
   forget: [call: string];
 }>();
-const { prefs, heardPaths, fallbackPath, home, config } = useDaemonContext();
-/** Whether there is a route to set: the FM radio is on and the station is messaged on it (one heard on HF alone is messaged on HF, which has no paths; lib/radiosides.ts). */
-const routable = computed(() => hasPaths(config.value?.values ?? {}, props.row));
+const { prefs, heardPaths, home } = useDaemonContext();
+const {
+  offline,
+  shown,
+  paths,
+  fallback,
+  choices,
+  choice,
+  auto,
+  pathShown,
+  pathless,
+  setPath,
+  clearPath,
+  choose: chooseRadio,
+} = useStationRadio(
+  () => props.row.call,
+  () => props.row,
+);
 const rxOnly = useReceiveOnly();
 
-const items = computed(() => panelItems(props.row));
+/** The query that asks for a path: the one a radio without paths cannot carry. */
+const PATH_QUERY: PanelItem = "ask_trace";
+const items = computed(() => panelItems(props.row).filter((item) => item !== PATH_QUERY || pathShown.value));
+/** Why a query is off: RX only, the station's radio not connected, a path asked of a radio that carries none; undefined when it may go (Message always may: it opens the conversation). */
+function blocked(item: PanelItem): string | undefined {
+  if (item === "message") return undefined;
+  if (rxOnly.value) return rxOnlyReason();
+  return offline.value ?? (item === PATH_QUERY ? pathless.value : undefined);
+}
 const talk = computed(() => items.value.filter(talksTo));
 const rest = computed(() => items.value.filter((item) => !talksTo(item)));
 const qrz = computed(() => qrzUrl(props.row.call) ?? undefined);
@@ -81,15 +105,15 @@ function onEsc(event: KeyboardEvent): void {
             type="button"
             class="btn"
             :class="{ primary: item === 'message', msgbtn: item === 'message' }"
-            :disabled="rxOnly && item !== 'message'"
-            :title="rxOnly && item !== 'message' ? rxOnlyReason() : item === 'ask_weather' ? t('station.menu.ask_weather_title') : undefined"
+            :disabled="blocked(item) !== undefined"
+            :title="blocked(item) ?? (item === 'ask_weather' ? t('station.menu.ask_weather_title') : undefined)"
             :data-item="item"
             @click="choose(item)"
           >
             <MessageGlyph v-if="item === 'message'" :size="14" />{{ itemLabel(item, row, false) }}
           </button>
         </div>
-        <StationQuery v-if="canMessage(row)" :call="row.call" @ask="(text) => emit('ask', row.call, 'custom', text)" />
+        <StationQuery v-if="canMessage(row)" :call="row.call" :offline="offline" @ask="(text) => emit('ask', row.call, 'custom', text)" />
         <div class="stationpanel-line">
           <template v-for="item in rest" :key="item">
             <a v-if="item === 'qrz'" class="btn" :href="qrz" target="_blank" rel="noopener noreferrer" :data-item="item">{{ itemLabel(item, row, false) }}</a>
@@ -115,17 +139,23 @@ function onEsc(event: KeyboardEvent): void {
           <StationTraffic :call="row.call" />
         </fieldset>
         <div v-if="canMessage(row) || canAlert(row)" class="stationpanel-settings">
-          <fieldset v-if="canMessage(row) && routable">
+          <fieldset v-if="canMessage(row) && shown">
             <legend>{{ t("route.button") }}</legend>
             <StationPrefs
               :call="row.call"
-              :paths="prefs.paths.value"
-              :fallback-path="fallbackPath"
+              :paths="paths"
+              :fallback-path="fallback"
               :rf-only="prefs.rfOnly.value"
               :heard="heardPaths.get(row.call) ?? null"
-              @path="prefs.setPath"
-              @clear-path="prefs.clearPath"
+              :radios="choices"
+              :choice="choice"
+              :auto="auto"
+              :path-shown="pathShown"
+              :pathless="pathless"
+              @path="setPath"
+              @clear-path="clearPath"
               @set-rf-only="prefs.setRfOnly"
+              @radio="chooseRadio"
             />
           </fieldset>
           <StationAlertChoices

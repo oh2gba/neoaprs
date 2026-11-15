@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // The messages with one station as bubbles, the oldest first: ours at the right, theirs at the left. In a bubble the text, and under it, small, the time, for ours the mark and the state with Retry or Cancel where they apply (and a small trash can, pressed twice, for one that is no longer being sent and was never acked), the delivery chain
-// of the digipeaters its packet went by (MessageChain) under ours, and under one that came in the route it came by ("via OH2RCH-2") with the SNR the radio measured of it ("direct · SNR −3 dB"; nothing for a radio that measures none). An encrypted message carries a padlock beside its time (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
-// (null: a new message is being written, and nothing is said). A right-click on a bubble (a long press on a touch screen) offers to copy its text (CopyMenu). A query we sent (the Stations table's menu: `?APRSS` and the like, sent with no message id) is no bubble but a small grey line in the middle, "You asked for its status", with the time. The Email tab has its own list (EmailList).
+// of the digipeaters its packet went by (MessageChain, whose first chip names the radio where radios are named) under ours, and under one that came in the route it came by ("via OH2RCH-2") with the SNR the radio measured of it
+// ("direct · SNR −3 dB"; nothing for a radio that measures none), after the tag of the radio it came on where radios are named (more than one on, or that radio not on). An encrypted message carries a padlock beside its time
+// (lib/lock.ts), and one that cannot be read here, or a key announcement, shows what it is in place of a text. It is scrolled to the newest when it is shown and whenever a message is added. `peer` is the station the thread is with
+// (null: a new message is being written, and nothing is said). Retry is off while the radio the messages go on is not connected (`offline`, its reason as the title), as Send is. A right-click on a bubble (a long press on a touch screen) offers to copy its text (CopyMenu). A query we sent (the Stations table's menu: `?APRSS` and the like, sent with no message id) is no bubble but a small grey line in the middle, "You asked for its status", with the time. The Email tab has its own list (EmailList).
 import { computed, ref } from "vue";
 import CopyMenu from "@/components/CopyMenu.vue";
 import IconButton from "@/components/IconButton.vue";
@@ -11,6 +13,7 @@ import MessageMark from "@/components/MessageMark.vue";
 import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
+import { radioTone, useCameOn } from "@/composables/useStationRadio";
 import { useSure } from "@/composables/useSure";
 import { useToNewest } from "@/composables/useToNewest";
 import { clockText, dateTimeText } from "@/lib/format";
@@ -19,15 +22,17 @@ import { readingText } from "@/lib/signal";
 import { askedNote, canCancel, canDelete, canRetry, stateText } from "@/lib/messages";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; peer: string | null; heardDirect?: ReadonlySet<string> }>(), {
+const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; peer: string | null; heardDirect?: ReadonlySet<string>; offline?: string }>(), {
   heardDirect: () => new Set<string>(),
+  offline: undefined,
 });
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 const sure = useSure<number>(); // (the id of the message, armed by the first press of its trash can)
 
 const log = ref<HTMLElement | null>(null);
-/** Each message with the note of the query it is, if it is one, and the mark of what it is besides text (a padlock, a key). */
-const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m) })));
+const cameOn = useCameOn();
+/** Each message with the note of the query it is, if it is one, the mark of what it is besides text (a padlock, a key), and the radio it came on where it is named. */
+const items = computed(() => props.thread.map((m) => ({ m, asked: askedNote(m), seal: sealMarkOf(m), on: cameOn(m) })));
 
 /** What the radio measured of a message that came in ("SNR −3 dB"); null for one of ours (the delivery mark has the ack's) and when it gave none. */
 const reading = (m: MessageRow): string | null => (m.direction === "in" ? readingText(m) : null);
@@ -43,7 +48,7 @@ const copy = useCopyMenu((bubble) => {
 <template>
   <div ref="log" class="bubbles" role="log" :aria-label="peer === null ? t('messages.thread') : t('messages.thread_with', { peer })">
     <p v-if="peer !== null && thread.length === 0" class="empty">{{ t("messages.thread_empty", { peer }) }}</p>
-    <template v-for="{ m, asked, seal } in items" :key="m.id">
+    <template v-for="{ m, asked, seal, on } in items" :key="m.id">
       <p v-if="asked" class="asked muted" data-asked>
         <span>{{ asked }}</span>
         <span :title="dateTimeText(m.at)">{{ clockText(m.at) }}</span>
@@ -64,7 +69,9 @@ const copy = useCopyMenu((bubble) => {
           <LockGlyph v-if="seal" :kind="seal.kind" :title="seal.title" />
           <MessageMark :row="m" />
           <span v-if="m.direction === 'out'" class="msg-state" :class="`state-${m.state}`">{{ stateText(m) }}</span>
-          <button v-if="canRetry(m)" type="button" class="btn small" @click="emit('retry', m.id)">{{ t("messages.retry") }}</button>
+          <button v-if="canRetry(m)" type="button" class="btn small" :disabled="offline !== undefined" :title="offline" @click="emit('retry', m.id)">
+            {{ t("messages.retry") }}
+          </button>
           <button v-if="canCancel(m)" type="button" class="btn small" @click="emit('cancel', m.id)">{{ t("messages.cancel") }}</button>
           <IconButton
             v-if="canDelete(m)"
@@ -77,9 +84,9 @@ const copy = useCopyMenu((bubble) => {
           />
         </p>
         <MessageChain v-if="m.direction === 'out'" :row="m" :heard-direct="heardDirect" />
-        <p v-if="m.route || (m.direction === 'in' && (m.radio === 'hf' || reading(m) !== null))" class="bubble-route muted" :title="t('messages.route_title')">
-          <TagMark v-if="m.direction === 'in' && m.radio === 'hf'" tone="hf" :title="t('channel.title.hf')">{{ t("channel.hf") }}</TagMark> {{ m.route
-          }}<template v-if="reading(m) !== null"><template v-if="m.route || m.radio === 'hf'"> · </template>{{ reading(m) }}</template>
+        <p v-if="m.route || on || reading(m) !== null" class="bubble-route muted" :title="t('messages.route_title')">
+          <TagMark v-if="on" :tone="radioTone(on)" :title="t('radio.heard_on', { name: on.name })">{{ on.name }}</TagMark> {{ m.route
+          }}<template v-if="reading(m) !== null"><template v-if="m.route || on"> · </template>{{ reading(m) }}</template>
         </p>
       </div>
     </template>

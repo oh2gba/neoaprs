@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; "Route" for the path and RF only; "Key" for the station's key while encrypted messages are on, KeyMenu), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text,
-// "12 left" and Send, no To: the conversation is the station) fixed at the bottom. An overheard pair has no Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when
-// another conversation is picked (a `key`), and on a narrow page it takes the focus when it appears, so that Esc goes back. The header is not text to select; a right-click on the call offers to copy it (CopyMenu).
+// One conversation of the Messages tab, filling its column: a header bar (on a narrow page the back arrow "‹" to the list; the call; where more than one radio is on, the tag of the radio its messages go on; "Route" for the radio,
+// the path and RF only; "Key" for the station's key while encrypted messages are on, KeyMenu), the bubbles (ConversationThread) filling the height and the box to write in (MessageCompose: the text, "12 left" and Send, no To:
+// the conversation is the station) fixed at the bottom. The radio is the one the daemon says the messages go on (composables/useStationRadio.ts): Send waits for its link, and Route shows its path. An overheard pair has no
+// Route and no box to write in (the messages are not ours: only the bubbles, and the delete in the list). It is the page's to put a new one in place of this when another conversation is picked (a `key`), and on a narrow
+// page it takes the focus when it appears, so that Esc goes back. The header is not text to select; a right-click on the call offers to copy it (CopyMenu).
 import { computed, onMounted, ref } from "vue";
 import ConversationThread from "@/components/ConversationThread.vue";
 import CopyMenu from "@/components/CopyMenu.vue";
@@ -13,8 +15,8 @@ import TagMark from "@/components/TagMark.vue";
 import { t } from "@/i18n";
 import { useCopyMenu } from "@/composables/useCopyMenu";
 import { useDaemonContext } from "@/composables/useDaemonContext";
+import { radioTone, useStationRadio } from "@/composables/useStationRadio";
 import { conversationName, isOverheard, overheardPair, replyTo } from "@/lib/messages";
-import { fmOn, hasPaths, hfOn, radioFor, type RadioKind } from "@/lib/radiosides";
 import type { MessageRow } from "@/protocol/protocol";
 
 const props = defineProps<{
@@ -31,29 +33,18 @@ const emit = defineEmits<{
   cancel: [id: number];
   delete: [id: number];
 }>();
-const { connectedOn, heardDirect, heardPaths, fallbackPath, prefs, keys, config, status, stations, send } = useDaemonContext();
+const { heardDirect, heardPaths, prefs, keys, stations } = useDaemonContext();
 /** The station's row; null for a call nothing is known of. */
 const row = computed(() => stations.value.get(props.selected) ?? null);
-/** The radio the messages to the station go over: as the daemon says it of a message on its way and of the station (the main radio for a call nothing is known of), else by the rule of before (lib/radiosides.ts). */
-const over = computed(() => radioFor(row.value, config.value?.values ?? {}, props.thread, status.value?.main_radio));
-/** The radio the messages go over, for FM and HF before Send: only while both radios are on and the station is known (the daemon keeps the choice with the station); "" otherwise. */
-const radio = computed<RadioKind | "">(() => {
-  const values = config.value?.values ?? {};
-  return fmOn(values) && hfOn(values) && row.value !== null ? over.value : "";
-});
-/** The operator chose the other radio for the messages to this station. */
-function chooseRadio(kind: RadioKind): void {
-  send({ cmd: "message_radio", call: props.selected, radio: kind });
-}
+/** The radio the messages to the station go on, and its Route. */
+const { over, named, offline, shown, paths, fallback, choices, choice, auto, pathShown, pathless, setPath, clearPath, choose } = useStationRadio(
+  () => props.selected,
+  () => row.value,
+  () => props.thread,
+);
 /** Its position says it takes no messages and it never sent one: a message may not be read there (it can be sent all the same). */
 const mayNot = computed(() => row.value?.may_not_message === true);
-/** Whether there is a route to set: the FM radio is on and the station is messaged on it (HF has no paths; lib/radiosides.ts). */
-const routable = computed(() => hasPaths(config.value?.values ?? {}, row.value, props.thread, status.value?.main_radio));
-/** Whether the messages to the station go over the HF radio (no path, no RF only: the header says it in Route's place with a tag). */
-const overHf = computed(() => over.value === "hf");
-/** Whether the link of the radio the messages to the station take is up. */
-const connected = computed(() => connectedOn(over.value));
-const { paths, rfOnly } = prefs;
+const { rfOnly } = prefs;
 
 const root = ref<HTMLElement | null>(null);
 const heard = computed(() => isOverheard(props.selected));
@@ -78,18 +69,26 @@ onMounted(() => {
         <template v-if="heard">{{ t("messages.overheard_title", { name: conversationName(selected) }) }}</template>
         <template v-else>{{ selected }}</template>
       </h3>
-      <TagMark v-if="!heard && overHf && !radio" tone="hf" class="convo-radio" :title="t('messages.hf_tag_title')">{{ t("channel.hf") }}</TagMark>
+      <span v-if="!heard && named && over" class="convo-radio">
+        <TagMark :tone="radioTone(over)" :title="t('messages.radio_title', { name: over.name })">{{ over.name }}</TagMark>
+      </span>
       <RouteMenu
-        v-if="!heard && routable"
+        v-if="!heard && shown"
         :key="selected"
         :call="selected"
         :paths="paths"
-        :fallback-path="fallbackPath"
+        :fallback-path="fallback"
         :rf-only="rfOnly"
         :heard="heardPaths.get(selected) ?? null"
-        @path="prefs.setPath"
-        @clear-path="prefs.clearPath"
+        :radios="choices"
+        :choice="choice"
+        :auto="auto"
+        :path-shown="pathShown"
+        :pathless="pathless"
+        @path="setPath"
+        @clear-path="clearPath"
         @set-rf-only="prefs.setRfOnly"
+        @radio="choose"
       />
       <KeyMenu
         v-if="!heard && keys.on.value"
@@ -104,6 +103,7 @@ onMounted(() => {
       :thread="thread"
       :peer="selected"
       :heard-direct="heardDirect"
+      :offline="offline"
       @retry="emit('retry', $event)"
       @cancel="emit('cancel', $event)"
       @delete="emit('delete', $event)"
@@ -116,11 +116,10 @@ onMounted(() => {
       v-if="!heard"
       v-model:text="text"
       :to="[replyTo(selected)]"
-      :connected="connected"
+      :connected="offline === undefined"
+      :offline="offline"
       :lockable="lockable"
-      :radio="radio"
       @send="(to, body, locked) => emit('send', to, body, locked)"
-      @radio="chooseRadio"
     />
     <CopyMenu v-if="copy.menu.value" :key="copy.key.value" v-bind="copy.menu.value" @close="copy.close()" />
   </section>

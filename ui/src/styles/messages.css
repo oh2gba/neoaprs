@@ -165,6 +165,14 @@
 .convo-radio {
   flex: none;
 }
+/* the tag of the radio the messages go on, where radios are named: the room of a name of eight characters at the tag's size, the tag at its right, so that Route beside it stays where it is when the radio changes */
+.convo-radio {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: calc(8ch + 14px);
+  font-size: 11px;
+  font-weight: 600;
+}
 .route-dot {
   display: inline-block;
   width: 7px;
@@ -427,6 +435,13 @@
 .path-line {
   flex-basis: 100%;
 }
+/* Route's first row, where more than one radio is on: one list of the radios, wide enough for "Automatic: " and a name of eight characters and no wider (its first option's words change when a radio is chosen, so it is never
+   sized by them); it shrinks with its row, and at a phone's width it takes the row as the Path field does (.prefs .pathbox .input) */
+.route-radio-pick {
+  flex: 0 1 15em;
+  min-width: 0;
+  max-width: 100%;
+}
 .keybox {
   display: flex;
   flex-direction: column;
@@ -450,14 +465,6 @@
 }
 .compose-lock.pressed {
   color: var(--accent);
-}
-/* FM and HF before Send while both radios are on (MessageCompose): the radio the messages to the station go over is pressed (the path builder's buttons) */
-.compose-radio {
-  display: inline-flex;
-  gap: 4px;
-}
-.compose-radio .btn {
-  min-width: 40px;
 }
 /* a station whose position says it takes no messages: one line above the box to write in, with the (i) that says why */
 .convo-maynot {

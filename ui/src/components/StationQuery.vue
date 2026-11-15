@@ -1,14 +1,15 @@
 <script setup lang="ts">
 // The operator's own directed query in the station panel of the Stations tab, under its query buttons: a box and Ask, in one line. The text is held to the daemon's rule (lib/query.ts: "?" and something after it, printable
 // ASCII without | ~ {, at most 67 characters, which the box takes no more of); while it breaks it the box has the orange edge of every field that is wrong and Ask is off, and why is said only in the box's hover title, so that no
-// line comes and goes under it. Ask (or Enter) sends it upper-cased (`ask`) and empties the box. The hover title of the box names the other directed queries of the specification. With RX only both are off.
+// line comes and goes under it. Ask (or Enter) sends it upper-cased (`ask`) and empties the box. The hover title of the box names the other directed queries of the specification. With RX only both are off; while the radio
+// the query would go on is not connected (`offline`, its words) Ask is off and its title says so, and the box may still be written in.
 import { computed, ref } from "vue";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { t } from "@/i18n";
 import { rxOnlyReason } from "@/lib/compose";
 import { customQuery, QUERY_MAX } from "@/lib/query";
 
-const props = defineProps<{ call: string }>();
+const props = withDefaults(defineProps<{ call: string; offline?: string }>(), { offline: undefined });
 const emit = defineEmits<{ ask: [text: string] }>();
 const rxOnly = useReceiveOnly();
 
@@ -22,9 +23,12 @@ const title = computed(() => {
   return wrong.value && "problem" in found ? t(`station.query.problem.${found.problem}`, { max: QUERY_MAX }) : t("station.query.title");
 });
 
+/** Why Ask is off besides a text that is no query: RX only, or the radio not connected. */
+const blocked = computed(() => (rxOnly.value ? rxOnlyReason() : props.offline));
+
 function submit(): void {
   const found = checked.value;
-  if (rxOnly.value || !("text" in found)) return;
+  if (blocked.value !== undefined || !("text" in found)) return;
   emit("ask", found.text);
   text.value = "";
 }
@@ -47,6 +51,8 @@ function submit(): void {
       spellcheck="false"
       data-query="text"
     />
-    <button type="submit" class="btn" :disabled="rxOnly || !('text' in checked)" :title="title" data-query="ask">{{ t("station.query.ask") }}</button>
+    <button type="submit" class="btn" :disabled="blocked !== undefined || !('text' in checked)" :title="blocked ?? title" data-query="ask">
+      {{ t("station.query.ask") }}
+    </button>
   </form>
 </template>

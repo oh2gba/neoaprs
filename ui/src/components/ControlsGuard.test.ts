@@ -1,16 +1,19 @@
-// The rule for the Settings tab, the My station tab and the Objects form: every on/off is a tickbox, never a dropdown with two choices or an On/Off word; a dropdown is a real choice of three values or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
+// The rule for the Settings tab, the My station tab, the Objects form and a station's Route (the station panel's group and the box under a conversation's header): every on/off is a tickbox, never a dropdown with two choices or
+// an On/Off word; a dropdown is a real choice of three values or more; and a state is quiet text in a group, never a tag (the tags of state are the top bar's).
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { ref, shallowRef } from "vue";
 import BrowserAlerts from "@/components/BrowserAlerts.vue";
+import ConversationView from "@/components/ConversationView.vue";
 import ObjectForm from "@/components/ObjectForm.vue";
 import SettingsForm from "@/components/SettingsForm.vue";
+import StationPanel from "@/components/StationPanel.vue";
 import { useBrowserAlerts } from "@/composables/useBrowserAlerts";
 import { useOwnObjects } from "@/composables/useOwnObjects";
 import type { Panel } from "@/composables/usePanel";
 import type { Scope } from "@/lib/settings";
 import { fakeDaemon, withDaemon } from "@/test/context";
-import { configValues, hfState, igateState, ownObject, tncState } from "@/test/fixtures";
+import { configValues, hfState, igateState, ownObject, radioRow, radiosTopic, station, tncState } from "@/test/fixtures";
 
 const ON_OFF = /^(on|off|yes|no|true|false|enabled|disabled|ein|aus|an)$/i;
 /** The dropdowns that have two choices and are no on/off: a list of kinds that grows (the HF radio's type is the Mercury modem and the Dummy HF radio today; the keying is the radio by itself and a CM108 chip before the ports are listed). */
@@ -86,5 +89,33 @@ describe("the controls of the Settings tab, the My station tab and the Objects f
       expect(found, legend).toBeDefined();
       expect([found?.first, found?.label], legend).toEqual(["checkbox", label]);
     }
+  });
+});
+
+describe("the controls of a station's Route", () => {
+  const BOTH = configValues({ "fm/enabled": "true", "hf/enabled": "true" });
+  const six = radiosTopic(...[1, 2, 3, 4, 5, 6].map((id) => radioRow(id, id % 2 === 1 ? "kiss" : "mercury", { name: `Radio ${id}` })));
+  async function routes(given: Parameters<typeof fakeDaemon>[0]) {
+    const row = station("OH2RDG", { heard_fm: 3, heard_hf: 2, radio_now: 2 });
+    const daemon = fakeDaemon({ config: BOTH, stations: shallowRef(new Map([[row.call, row]])), ...given });
+    const panel = mount(StationPanel, { props: { row, armed: false }, global: withDaemon(daemon) });
+    const talk = mount(ConversationView, { props: { selected: row.call, narrow: false, thread: [] }, global: withDaemon(daemon) });
+    await talk.find(".route-button").trigger("click");
+    return [panel.find(".stationpanel-settings").element, talk.find(".route-box").element];
+  }
+
+  it("have the radio as a real choice of three values or more (Automatic and the radios), with two radios as with six", async () => {
+    for (const given of [{}, { radios: six }]) {
+      for (const root of await routes(given)) {
+        const lists = dropdowns(root);
+        expect(lists).toHaveLength(1);
+        expect(lists[0]?.values.length).toBeGreaterThanOrEqual(3);
+        expect(lists[0]?.values.every((v) => ON_OFF.test(v))).toBe(false);
+      }
+    }
+  });
+
+  it("show no tag in Route: the radio is a choice, and what greys the path says it in quiet text", async () => {
+    for (const root of await routes({})) expect([...root.querySelectorAll(".tag, .statepill")].map((e) => e.className)).toEqual([]);
   });
 });

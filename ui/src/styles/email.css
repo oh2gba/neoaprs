@@ -11,6 +11,10 @@
   flex: none;
   white-space: nowrap;
 }
+/* the tag of the radio email goes on, where radios are named, beside Check email */
+.mail-radio {
+  flex: none;
+}
 .mail-address {
   position: relative;
   display: flex;

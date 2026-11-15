@@ -1,19 +1,19 @@
 <script setup lang="ts">
 // The box to write an email in, always at the bottom of the Email tab (ComposeBar, as everywhere): To (an email address; while the box has the focus the addresses used before that match what is typed are listed under it, upward over the mail:
-// a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while the TNC is not connected
-// (its title says so) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
+// a click picks one, the trash can beside it forgets it), the text, and how many of the characters of a message the line "address text" may still have, the address and the space counting. Send, at the lower right, is off while
+// there is no radio of email, or it is not connected (its title says so: `offline`, EmailPane's words of the link) or the address or the text is empty or the line is too long. After Send the text is empty again and the address stays, for the next mail to the same person; the focus is in the text.
 import { computed, ref } from "vue";
 import ComposeBar from "@/components/ComposeBar.vue";
 import IconButton from "@/components/IconButton.vue";
 import InfoTip from "@/components/InfoTip.vue";
 import { t } from "@/i18n";
-import { useFmOff } from "@/composables/useRadiosOn";
+import { useRadios } from "@/composables/useRadios";
 import { useReceiveOnly } from "@/composables/useReceiveOnly";
 import { leftTitle, sendBlockedReason } from "@/lib/compose";
 import { canSendEmail, emailBytesLeft } from "@/lib/email";
 import { LIMITS } from "@/protocol/lists";
 
-const props = defineProps<{ connected: boolean; addresses: readonly string[] }>();
+const props = withDefaults(defineProps<{ connected: boolean; addresses: readonly string[]; offline?: string }>(), { offline: undefined });
 const emit = defineEmits<{ send: [to: string, text: string]; forget: [name: string] }>();
 
 const to = ref("");
@@ -23,9 +23,14 @@ const listed = ref(false);
 
 const left = computed(() => emailBytesLeft(to.value, text.value));
 const rxOnly = useReceiveOnly();
-const fmOff = useFmOff();
-/** Why Send is off: RX only, the FM radio being off (the gateway is reached over FM alone), or the radio not connected; undefined when none. */
-const blocked = computed(() => (!rxOnly.value && fmOff.value ? t("email.fm_off") : sendBlockedReason(props.connected, rxOnly.value)));
+const radios = useRadios();
+/** No radio that internet gateways hear is on: there is none for email to go on. */
+const none = computed(() => radios.email.value === null);
+/** Why Send is off: RX only, no radio for email, or its link down (`offline`); undefined when none of them. */
+const blocked = computed(() => {
+  if (!rxOnly.value && none.value) return t("email.fm_off");
+  return rxOnly.value || props.connected ? sendBlockedReason(props.connected, rxOnly.value) : (props.offline ?? sendBlockedReason(false));
+});
 const ready = computed(() => canSendEmail(props.connected, to.value, text.value));
 /** The addresses used before that match what is typed, other than the one that is typed whole. */
 const suggestions = computed(() => {
@@ -56,7 +61,7 @@ function escape(): void {
 }
 
 function submit(): void {
-  if (!ready.value || rxOnly.value || fmOff.value) return;
+  if (!ready.value || rxOnly.value || none.value) return;
   emit("send", to.value.trim(), text.value);
   text.value = "";
   textBox.value?.focus();
@@ -105,7 +110,7 @@ function submit(): void {
       </div>
     </div>
     <template #buttons>
-      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || fmOff" :title="blocked">{{ t("email.send") }}</button>
+      <button type="submit" class="btn primary" :disabled="!ready || rxOnly || none" :title="blocked">{{ t("email.send") }}</button>
     </template>
   </ComposeBar>
 </template>

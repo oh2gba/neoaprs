@@ -1,5 +1,6 @@
 // The delivery chain of a message of ours (the `attempts_detail` of its row), as the chips the thread shows: "you → OH2RCH-2 → OH2RDG → OH2CUB-7". A hop is plain with a check when a copy of our own packet was heard with that hop used, grey with a "?"
 // when none was (a digipeater we never hear direct cannot be confirmed from here), blue with "internet" when it was seen only in a copy an iGate gated back; the recipient is plain on the ack, orange on failure, grey while it waits.
+// The "you" chip names the radio the attempt went out on where radios are named (`radio`, the name: more than one radio on, or that radio not on), as every tag and bubble does; none is the unmarked default.
 import { t } from "@/i18n";
 import { clockText, dateTimeText } from "@/lib/format";
 import { failedText } from "@/lib/messages";
@@ -64,14 +65,24 @@ function recipientChip(row: MessageRow, attempt: AttemptRow, latest: boolean, ma
   return { kind: "waiting", text, mark: "", title: waiting };
 }
 
-/** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like are not hops), a chip for a copy that came back over the internet when no hop shows it, and the recipient. `latest` is the newest attempt of the message, the one a failure is told on. */
-export function chainOf(row: MessageRow, attempt: AttemptRow, latest: boolean, heardDirect: ReadonlySet<string> = new Set(), mail = false): Chip[] {
-  const time = dateTimeText(attempt.sent_at);
-  // an attempt over the HF radio is marked so on the "you" chip (it went direct: no hops follow); an FM attempt, and one kept before there were two radios, is as it was
-  const hf = attempt.radio === "hf";
-  const chips: Chip[] = [
-    { kind: "you", text: t("chain.you"), mark: hf ? t("chain.hf") : "", title: hf ? t("chain.sent_hf", { time }) : t("chain.sent", { time }) },
-  ];
+/** The "you" chip of an attempt: the radio's name as its mark where it is named. Left out (`undefined`), the rule of before: HF marked, FM and an attempt kept before there were two radios not (until MessageChain gives the name). */
+function youChip(attempt: AttemptRow, time: string, radio: string | null | undefined): Chip {
+  if (radio === undefined && attempt.radio === "hf") return { kind: "you", text: t("chain.you"), mark: t("chain.hf"), title: t("chain.sent_hf", { time }) };
+  if (radio == null) return { kind: "you", text: t("chain.you"), mark: "", title: t("chain.sent", { time }) };
+  return { kind: "you", text: t("chain.you"), mark: radio, title: t("chain.sent_on", { time, name: radio }) };
+}
+
+/** The chips of one attempt: us, each digipeater of its path (RFONLY, NOGATE, TCPIP and the like are not hops), a chip for a copy that came back over the internet when no hop shows it, and the recipient. `latest` is the newest attempt of the message, the one a failure is told on;
+ * `radio` the name of the radio it went on where radios are named, null where they are not. */
+export function chainOf(
+  row: MessageRow,
+  attempt: AttemptRow,
+  latest: boolean,
+  heardDirect: ReadonlySet<string> = new Set(),
+  mail = false,
+  radio?: string | null,
+): Chip[] {
+  const chips: Chip[] = [youChip(attempt, dateTimeText(attempt.sent_at), radio)];
   chips.push(...attempt.hops.filter((hop) => !isMarker(hop.call)).map((hop) => hopChip(hop, heardDirect)));
   if (attempt.internet !== null && !attempt.hops.some((hop) => hop.by_internet)) {
     chips.push({ kind: "internet", text: t("chain.internet"), mark: "", title: t("chain.copy_back", { by: attempt.internet }) });

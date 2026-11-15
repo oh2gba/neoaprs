@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The Email tab's list: every message to and from the gateway EMAIL-2 as a row (EmailRow), the oldest first and scrolled to the newest at the bottom, as the Messages tab is, so that the newest mail is next to the box to write in under it. It fills the
-// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones.
+// height the tab leaves it and scrolls. Rows that came in after `freshAfter` (a message id) are the new ones. `offline` is why a mail cannot go now (EmailPane's words): Retry is off with it as its title.
 import { computed, ref } from "vue";
 import EmailRow from "@/components/EmailRow.vue";
 import { useNow } from "@/composables/useNow";
@@ -9,9 +9,10 @@ import { t } from "@/i18n";
 import { mailItems } from "@/lib/mailitems";
 import type { MessageRow } from "@/protocol/protocol";
 
-const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; freshAfter?: number; heardDirect?: ReadonlySet<string> }>(), {
+const props = withDefaults(defineProps<{ thread: readonly MessageRow[]; freshAfter?: number; heardDirect?: ReadonlySet<string>; offline?: string }>(), {
   freshAfter: Number.MAX_SAFE_INTEGER,
   heardDirect: () => new Set<string>(),
+  offline: undefined,
 });
 const emit = defineEmits<{ retry: [id: number]; cancel: [id: number]; delete: [id: number] }>();
 const now = useNow(30000);
@@ -31,6 +32,7 @@ useToNewest(log, () => props.thread.length);
         :fresh="item.row.state === 'received' && item.row.id > freshAfter"
         :now="now"
         :heard-direct="heardDirect"
+        :offline="offline"
         @retry="emit('retry', $event)"
         @cancel="emit('cancel', $event)"
         @delete="emit('delete', $event)"

@@ -85,6 +85,38 @@ describe("chainOf", () => {
   });
 });
 
+describe("the radio of an attempt on the you chip", () => {
+  const sentAt = /^sent \d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/;
+
+  it("names the radio it went on where radios are named, FM as HF, with the hover that says it: none is the unmarked default", () => {
+    for (const [radio, name] of [
+      ["fm", "FM"],
+      ["hf", "HF"],
+      ["", "Mobile"],
+    ] as const) {
+      const [you] = chainOf(row, attempt([], { radio }), true, new Set(), false, name);
+      expect([you?.text, you?.mark], name).toEqual(["you", name]);
+      expect(you?.title).toMatch(new RegExp(`^sent \\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d on radio ${name}$`));
+    }
+  });
+
+  it("names none where radios are not named, an HF attempt with HF alone too", () => {
+    for (const radio of ["fm", "hf", ""] as const) {
+      const [you] = chainOf(row, attempt([], { radio }), true, new Set(), false, null);
+      expect([you?.mark, you?.title], radio).toEqual(["", expect.stringMatching(sentAt)]);
+    }
+  });
+
+  it("keeps the rule of before while its caller gives no name: HF marked, FM and an attempt of before not", () => {
+    expect(chainOf(row, attempt([], { radio: "hf" }), true)[0]?.mark).toBe("HF");
+    expect(chainOf(row, attempt([], { radio: "fm" }), true)[0]?.mark).toBe("");
+  });
+
+  it("names it in the mail's chain as in a message's", () => {
+    expect(chainOf(row, attempt([], { radio: "fm" }), true, new Set(), true, "Shack")[0]?.mark).toBe("Shack");
+  });
+});
+
 describe("isMarker", () => {
   it("knows the markers for the iGates from digipeaters", () => {
     for (const marker of ["RFONLY", "NOGATE", "TCPIP", "TCPXX", "NOTCP", "qAR", "qAC"]) expect(isMarker(marker)).toBe(true);
